@@ -1,66 +1,49 @@
-import { Settings } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { playManageSubscriptionUrl } from '@orbit/shared/utils'
+import { ProBenefits } from './pro-benefits'
+import type { useTranslations } from 'next-intl'
+import type { SubscriptionScreenState } from '@orbit/shared/utils'
+import type { SubscriptionStatus } from '@orbit/shared/types/profile'
+import { subscriptionSummary } from '@orbit/shared/utils'
+import { Badge } from '@/components/ui/badge'
+import { ProviderHandoff } from './provider-handoff'
 import { UsageStats } from './usage-stats'
-import {
-  cardLabelStyle,
-  cardSurface,
-  formatBillingDate,
-  metaTextStyle,
-  whitePillLinkClassName,
-} from './styles'
+import { formatBillingDate } from './styles'
 
-interface PlayBillingDashboardProps {
-  profile: {
-    subscriptionInterval?: string | null
-    planExpiresAt?: string | null
-    aiMessagesUsed: number
-    aiMessagesLimit: number
-  } | null
+type UpgradeTranslations = ReturnType<typeof useTranslations>
+
+export function PlayBillingDashboard({
+  state,
+  status,
+  locale,
+  usagePercent,
+  usageUrgent,
+  onManagePlay,
+  t,
+}: Readonly<{
+  state: SubscriptionScreenState
+  status: SubscriptionStatus | null
   locale: string
   usagePercent: number
   usageUrgent: boolean
-  t: ReturnType<typeof useTranslations>
-}
+  onManagePlay: () => void
+  t: UpgradeTranslations
+}>) {
+  if (!status) return null
+  const summary = subscriptionSummary(status, null)
 
-export function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }: Readonly<PlayBillingDashboardProps>) {
   return (
-    <div className="space-y-3 stagger-enter">
-      <div className="grid gap-3">
-      <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
-        <div style={{ padding: '16px 18px' }}>
-          <div style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</div>
-          <div style={{ marginTop: 3, fontFamily: 'var(--font-sans)', fontSize: 17, color: 'var(--fg-1)' }}>
-            {profile?.subscriptionInterval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
-          </div>
-          {profile?.planExpiresAt && (
-            <div style={{ marginTop: 6 }}>
-              <span style={metaTextStyle}>
-                {t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(profile.planExpiresAt, locale) })}
-              </span>
-            </div>
-          )}
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-4 py-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="min-w-0 t-display-heading text-balance">{t(summary.nameKey)}</h2>
+          {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
         </div>
-      </div>
-
-      <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
-      </div>
-
-      <div className="flex flex-col items-stretch" style={{ gap: 10, paddingTop: 6 }}>
-        <a
-          href={playManageSubscriptionUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${whitePillLinkClassName} md:max-w-[360px] md:mx-auto`}
-          style={{ fontFamily: 'var(--font-sans)' }}
-        >
-          <Settings size={18} strokeWidth={1.8} aria-hidden="true" />
-          {t('upgrade.billing.actions.managePlay')}
-        </a>
-        <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-3)' }}>
-          {t('upgrade.billing.actions.managePlayHint')}
-        </p>
-      </div>
+        <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
+        {summary.renewal ? <p className="font-mono text-xs text-[var(--fg-2)]">{t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) })}</p> : null}
+      </section>
+      <ProviderHandoff provider="play" state={state} onManage={onManagePlay} t={t} />
+      <ProBenefits heading t={t} />
+      <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
+      <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p>
     </div>
   )
 }

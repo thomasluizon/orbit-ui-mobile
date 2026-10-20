@@ -1,5 +1,20 @@
 import type { CalendarDayEntry } from '../types/calendar'
 
+export type CalendarEventsDisplayState =
+  | 'pro-boundary'
+  | 'loading'
+  | 'failed'
+  | 'not-connected'
+  | 'ready'
+
+export const CALENDAR_MONTH_SWIPE_THRESHOLD = 60
+export const CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO = 1.2
+
+export function isCalendarGridScrollMovement(offset: number, openingOffset: number, maximumTravel: number): boolean {
+  const isNativeClamp = offset < openingOffset && Math.abs(maximumTravel - offset) <= 1
+  return offset !== openingOffset && !isNativeClamp
+}
+
 /**
  * Filters a day's calendar entries by the "show recurring" toggle. When the
  * toggle is off, only one-time entries remain (recurring habits are hidden).
@@ -12,4 +27,61 @@ export function filterRecurringEntries(
 ): CalendarDayEntry[] {
   if (showRecurring) return entries
   return entries.filter((entry) => entry.isOneTime)
+}
+
+/** Applies the recurring preference to every date before month figures and
+ *  rings are derived, so every month surface reads the same filtered source. */
+export function filterRecurringDayMap(
+  dayMap: Map<string, CalendarDayEntry[]>,
+  showRecurring: boolean,
+): Map<string, CalendarDayEntry[]> {
+  if (showRecurring) return dayMap
+
+  const filtered = new Map<string, CalendarDayEntry[]>()
+  for (const [date, entries] of dayMap) {
+    filtered.set(date, filterRecurringEntries(entries, false))
+  }
+  return filtered
+}
+
+export function resolveCalendarEventsDisplayState({
+  profileReady = true,
+  enabled,
+  isPending,
+  error,
+  resultStatus,
+}: Readonly<{
+  profileReady?: boolean
+  enabled: boolean
+  isPending: boolean
+  error: Error | null
+  resultStatus: 'connected' | 'not-connected' | undefined
+}>): CalendarEventsDisplayState {
+  if (!profileReady) return 'loading'
+  if (!enabled) return 'pro-boundary'
+  if (error !== null) return 'failed'
+  if (isPending) return 'loading'
+  if (resultStatus === 'not-connected') return 'not-connected'
+  return 'ready'
+}
+
+export function calendarEntryOutcome(entry: CalendarDayEntry): {
+  status: 'empty' | 'done' | 'bad'
+  labelKey: 'calendar.status.completed' | 'calendar.status.missed' | 'calendar.status.indulged' | 'calendar.status.resisted' | 'calendar.status.upcoming'
+} {
+  if (entry.status === 'upcoming') return { status: 'empty', labelKey: 'calendar.status.upcoming' }
+  if (entry.isBadHabit) return entry.status === 'completed'
+    ? { status: 'bad', labelKey: 'calendar.status.indulged' }
+    : { status: 'done', labelKey: 'calendar.status.resisted' }
+  return entry.status === 'completed'
+    ? { status: 'done', labelKey: 'calendar.status.completed' }
+    : { status: 'empty', labelKey: 'calendar.status.missed' }
+}
+
+export function orderCalendarDayEntries(entries: readonly CalendarDayEntry[]): CalendarDayEntry[] {
+  return [...entries].sort((first, second) => {
+    if (!first.dueTime) return second.dueTime ? -1 : 0
+    if (!second.dueTime) return 1
+    return first.dueTime.localeCompare(second.dueTime)
+  })
 }

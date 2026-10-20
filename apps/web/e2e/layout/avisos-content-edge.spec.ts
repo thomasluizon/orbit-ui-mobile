@@ -1,0 +1,57 @@
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
+import { API } from '@orbit/shared/api'
+import en from '@orbit/shared/i18n/en.json'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { notificationsResponseSchema } from '@orbit/shared/types/notification'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { LAYOUT_ORIGIN } from '../support/env'
+import { completeInstallOnboarding } from './install-onboarding'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
+
+for (const locale of ['pt-BR', 'en'] as const) {
+  for (const width of [412, 840, 1100, 1352]) {
+    for (const populated of [true, false]) {
+      test(`Avisos ${populated ? 'rows' : 'empty state'} share the content edge at ${width}px in ${locale}`, async ({ page, context }) => {
+        const words = locale === 'en' ? en : ptBr
+        await page.setViewportSize({ width, height: 915 })
+        await completeInstallOnboarding(page)
+        await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
+        const profile = profileSchema.parse({ ...profileFixture, language: locale })
+        await setLayoutProfileSession(context, profile)
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+        const items = populated ? [0, 1, 2].map((index) => createMockNotification({ id: `avisos-edge-${index}`, title: `Alert ${index}`, url: '/progress' })) : []
+        await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notificationsResponseSchema.parse({ items, unreadCount: items.length }) }])
+        await page.goto('/notifications')
+        const list = page.getByRole('list', { name: words.notifications.title })
+        await expect(list).toHaveAttribute('aria-busy', 'false')
+        await expect(list.getByRole('listitem')).toHaveCount(populated ? 3 : 1)
+        if (populated) await expect(list.getByRole('listitem').first()).toContainText(items[0]!.title)
+        else await expect(list).toContainText(words.notifications.empty)
+        const back = page.getByRole('button', { name: words.common.back, exact: true })
+        await expect(back).toBeVisible()
+        await page.evaluate(() => document.fonts.ready)
+        // WHY: #1570 measures child insets from the centred frame inside the usable scroller. https://github.com/thomasluizon/orbit-tickets/issues/1570
+        const frame = await list.evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          const scroller = element.closest<HTMLElement>('[data-shell-scroller]')!
+          const left = scroller.getBoundingClientRect().left
+          return { left: bounds.left, before: bounds.left - left, after: left + scroller.clientWidth - bounds.right }
+        })
+        expect(Math.abs(frame.before - frame.after)).toBeLessThanOrEqual(0.5)
+        const columnWidth = await back.evaluate((element) => element.closest('header')!.getBoundingClientRect().width)
+        const contentWidth = width < 1024 ? columnWidth - 32 : Math.min(columnWidth - 32, 560)
+        for (const row of [list.getByRole('listitem').first(), list.getByRole('listitem').last()]) {
+          const bounds = await row.evaluate((element) => {
+            const rectangle = element.getBoundingClientRect()
+            return { left: rectangle.left, width: rectangle.width }
+          })
+          expect(Math.abs(bounds.left - frame.left - 16)).toBeLessThanOrEqual(0.5)
+          expect(bounds.width).toBeCloseTo(contentWidth, 0)
+        }
+      })
+    }
+  }
+}

@@ -1,665 +1,654 @@
 import React from 'react'
+import { fireEvent, within, render, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { computeHabitCardStatus } from '@orbit/shared/utils'
+import en from '@orbit/shared/i18n/en.json'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import type { MenuProps } from '@orbit/shared/contracts/overlay'
+import {
+  buildSelectionRefreshKey,
+  TodayHabitsPanel,
+  TodayHeaderRegion,
+} from '@/app/(app)/today-page-view'
+import { TodayDateControl } from '@/app/(app)/today-shell'
+import { Icon } from '@/components/ui/icon'
+import type { TodayView } from '@/app/(app)/use-today-page'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
+import { useUIStore } from '@/stores/ui-store'
 
-const { useHabitsMock } = vi.hoisted(() => ({
-  useHabitsMock: vi.fn(),
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }))
+
+const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
+  locale: string
+  messages: typeof en
+  children?: React.ReactNode
+}>
+
+const motionTestState = vi.hoisted(() => ({
+  animations: [] as Array<{
+    from: number
+    target: number
+    options: { duration?: number; ease?: readonly number[]; onComplete?: () => void }
+    stop: ReturnType<typeof vi.fn>
+    value: { get: () => number; set: (value: number) => void }
+  }>,
+  completeAnimations: true,
+  reducedMotion: false,
+  renderedStyles: new Map<string, { opacity?: unknown; y?: unknown }>(),
 }))
 
-const mockTags = vi.hoisted(() => ({
-  value: [] as { id: string; name: string; color: string }[],
+vi.mock('@/components/ui/icons', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/icons')>()),
+  ChevronLeft: () => null,
+  ChevronRight: () => null,
+  MoreVertical: () => <svg data-testid="adjustments-icon" />,
 }))
 
-const dateParamState = { value: null as string | null }
-
-const uiState = {
-  activeView: 'today',
-  setActiveView: vi.fn(),
-  searchQuery: '',
-  setSearchQuery: vi.fn(),
-  selectedFrequency: null,
-  setSelectedFrequency: vi.fn(),
-  selectedTagIds: [],
-  setSelectedTagIds: vi.fn(),
-  showCompleted: false,
-  setShowCompleted: vi.fn(),
-  isSelectMode: false,
-  selectedHabitIds: new Set<string>(),
-  toggleSelectMode: vi.fn(),
-  toggleSelectionCascade: vi.fn(),
-  selectAllHabits: vi.fn(),
-  clearSelection: vi.fn(),
-  setFilters: vi.fn(),
-  showCreateModal: false,
-  setShowCreateModal: vi.fn(),
-  showCreateGoalModal: false,
-  setShowCreateGoalModal: vi.fn(),
-}
-
-const bulkLogMutateAsync = vi.fn()
-const bulkSkipMutateAsync = vi.fn()
-const markRecentlyCompleted = vi.fn()
-const checkAndPromptParentLog = vi.fn()
-
-const mockHabitsData = {
-  habitsById: new Map<string, NormalizedHabit>(),
-  childrenByParent: new Map<string, string[]>(),
-  topLevelHabits: [] as NormalizedHabit[],
-}
-
-const habitListHandle = {
-  allCollapsed: false,
-  allLoadedIds: new Set<string>(),
-  collapseAll: vi.fn(),
-  expandAll: vi.fn(),
-  markRecentlyCompleted,
-  checkAndPromptParentLog,
-}
-const mockRouterPush = vi.fn()
-let mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}(${JSON.stringify(params)})` : key,
-  useLocale: () => 'en',
+vi.mock('@/components/ui/menu', () => ({
+  Menu: ({ id, open, items, onSelect, onClose, title }: MenuProps) => open ? (
+    <div id={id} role="menu" aria-label={title}>
+      {items?.map((item) => (
+        <button key={item.id} role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+          aria-checked={item.checked} disabled={item.disabled} onClick={() => { onClose?.(); onSelect?.(item.id) }}>
+          {item.icon ? <Icon name={item.icon} size={20} /> : null}
+          {item.label}
+        </button>
+      ))}
+    </div>
+  ) : null,
 }))
 
-vi.mock('next/navigation', () => ({
-  useSearchParams: () =>
-    new URLSearchParams(
-      dateParamState.value ? { date: dateParamState.value } : {},
-    ),
-  useRouter: () => ({
-    push: mockRouterPush,
-  }),
-}))
+vi.mock('motion/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('motion/react')>()
+  const ReactModule = await import('react')
+  const resolveStyleValue = (value: unknown) => (
+    typeof value === 'object' && value !== null && 'get' in value
+      ? (value as { get: () => number }).get()
+      : value
+  )
 
-vi.mock('@tanstack/react-query', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
-  useQueryClient: () => ({
-    invalidateQueries: vi.fn(),
-  }),
-}))
-
-vi.mock('@orbit/shared/query', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@orbit/shared/query')>()),
-  habitKeys: {
-    lists: () => ['habits'],
-  },
-  gamificationKeys: {
-    all: ['gamification'],
-  },
-}))
-
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: typeof uiState) => unknown) => selector(uiState),
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({
-    profile: mockProfile,
-  }),
-}))
-
-vi.mock('@/hooks/use-gamification', () => ({
-  useStreakInfo: () => ({
-    data: { currentStreak: 0 },
-  }),
-}))
-
-vi.mock('@/hooks/use-tags', () => ({
-  useTags: () => ({
-    tags: mockTags.value,
-  }),
-}))
-
-function defaultUseHabitsReturn() {
   return {
-    data: mockHabitsData,
-    getChildren: (parentId: string) => {
-      const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
-      return childIds
-        .map((id) => mockHabitsData.habitsById.get(id))
-        .filter(Boolean) as NormalizedHabit[]
+    ...actual,
+    AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
+    animate: (
+      value: { get: () => number; set: (nextValue: number) => void },
+      target: number,
+      options: { duration?: number; ease?: readonly number[]; onComplete?: () => void } = {},
+    ) => {
+      const stop = vi.fn()
+      motionTestState.animations.push({
+        from: value.get(),
+        target,
+        options,
+        stop,
+        value,
+      })
+      if (motionTestState.completeAnimations) {
+        value.set(target)
+        options.onComplete?.()
+      }
+      return { stop }
     },
-    isFetching: false,
-    dataUpdatedAt: Date.now(),
+    motion: {
+      div: ({
+        children,
+        style,
+        ...props
+      }: {
+        children?: React.ReactNode
+        style?: { opacity?: unknown; y?: unknown }
+        [key: string]: unknown
+      }) => {
+        const testId = props['data-testid']
+        if (typeof testId === 'string') {
+          motionTestState.renderedStyles.set(testId, style ?? {})
+        }
+        return ReactModule.createElement('div', {
+          ...props,
+          'data-motion-y': resolveStyleValue(style?.y),
+          style: { opacity: resolveStyleValue(style?.opacity) },
+        }, children)
+      },
+    },
+    useReducedMotion: () => motionTestState.reducedMotion,
   }
-}
+})
 
-vi.mock('@/hooks/use-habits', () => ({
-  EMPTY_HABITS_BY_ID: new Map(),
-  EMPTY_CHILDREN_BY_PARENT: new Map(),
-  useHabits: useHabitsMock,
-  useBulkDeleteHabits: () => ({ mutateAsync: vi.fn() }),
-  useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
-  useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
-}))
-
-vi.mock('@/hooks/use-coach-tour', () => ({
-  useCoachTour: () => {},
-}))
-
-vi.mock('@/hooks/use-engagement-slot', () => ({
-  useEngagementSlot: () => ({ slot: null }),
-}))
-
-vi.mock('@/components/today/setup-checklist-card', () => ({
-  SetupChecklistCard: () => null,
-}))
-
-vi.mock('@/components/referral/referral-card', () => ({
-  ReferralCard: () => null,
-}))
-
-vi.mock('@/components/referral/referral-drawer', () => ({
-  ReferralDrawer: () => null,
+const planTestState = vi.hoisted(() => ({ plan: 'trial' }))
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: {
+    plan: planTestState.plan,
+    hasProAccess: planTestState.plan !== 'free',
+    isTrialActive: planTestState.plan === 'trial',
+  } }),
 }))
 
 vi.mock('@/components/habits/habit-list', () => ({
-  HabitList: React.forwardRef(function MockHabitList(props: Record<string, unknown>, ref) {
-    React.useImperativeHandle(ref, () => habitListHandle)
-    return <div data-testid="habit-list">{JSON.stringify(props.view)}</div>
-  }),
+  HabitList: function MockHabitList(props: {
+    showCompleted?: boolean
+    onSeeUpcoming?: () => void
+    onCreate?: () => void
+    createRefusal?: boolean
+    filters?: { tagIds?: string[] }
+  }) {
+    return (
+      <div data-testid="today-habit-list" data-show-completed={String(props.showCompleted)} data-tag-ids={props.filters?.tagIds?.join(',') ?? ''}>
+        {props.onSeeUpcoming ? (
+          <button type="button" onClick={props.onSeeUpcoming}>See upcoming</button>
+        ) : null}
+        <button type="button" onClick={props.onCreate}>Create manually</button>
+        <div aria-live="polite">{props.createRefusal ? en.offline.create.reason : null}</div>
+      </div>
+    )
+  },
+}))
+afterEach(() => { Reflect.deleteProperty(navigator, 'onLine') })
+vi.mock('@/components/habits/bulk-action-bar-v2', () => ({ BulkActionBarV2: () => null }))
+vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
+vi.mock('@/components/ui/capacity-notice', () => ({
+  CapacityNotice: ({ message }: { message: string }) => <div>{message}</div>,
 }))
 
-vi.mock('@/components/habits/today-ai-summary', () => ({
-  TodayAISummary: () => null,
-}))
-
-vi.mock('@/components/habits/create-habit-modal', () => ({
-  CreateHabitModal: () => null,
-}))
-
-vi.mock('@/components/goals/goals-view', () => ({
-  GoalsView: () => <div>Goals view</div>,
-}))
-
-vi.mock('@/components/ui/theme-toggle', () => ({
-  ThemeToggle: () => null,
-}))
-
-vi.mock('@/components/gamification/streak-badge', () => ({
-  StreakBadge: () => null,
-}))
-
-vi.mock('@/components/navigation/notification-bell', () => ({
-  NotificationBell: () => null,
-}))
-
-vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: ({
-    title,
-    onConfirm,
-  }: {
-    title: string
-    onConfirm: () => void
-  }) => (
-    <button data-testid={`confirm-dialog-${title}`} onClick={onConfirm}>
-      {title}
-    </button>
-  ),
-}))
-
-import TodayPage from '@/app/(app)/page'
-import { TodayProvider } from '@/app/(app)/today-provider'
-
-function renderPage() {
-  return render(<TodayPage />, { wrapper: TodayProvider })
+const baseProps = {
+  dayName: 'Wednesday',
+  numericDate: '08/04/2026',
+  isTodaySelected: true,
+  nextDisabled: false,
+  onGoToPreviousDay: vi.fn(),
+  onGoToToday: vi.fn(),
+  onGoToNextDay: vi.fn(),
+  previousLabel: 'Previous day',
+  goToTodayLabel: 'Go to today',
+  nextLabel: 'Next day',
+  moreLabel: 'List options',
+  searchLabel: 'Search',
+  onSearch: vi.fn(),
+  selectLabel: 'Select',
+  collapseLabel: 'Collapse all',
+  allCollapsed: false,
+  refreshLabel: 'Refresh',
+  completedLabel: 'Show completed',
+  showCompleted: false,
+  isFetching: false,
+  onToggleSelect: vi.fn(),
+  onToggleCollapse: vi.fn(),
+  onRefresh: vi.fn(),
+  onToggleCompleted: vi.fn(),
 }
 
-describe('TodayPage bulk parent prompts', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockTags.value = []
-    useHabitsMock.mockImplementation(defaultUseHabitsReturn)
-    vi.useRealTimers()
-    mockRouterPush.mockReset()
-    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
-    bulkLogMutateAsync.mockReset()
-    bulkSkipMutateAsync.mockReset()
-    mockHabitsData.habitsById = new Map()
-    mockHabitsData.childrenByParent = new Map()
-    mockHabitsData.topLevelHabits = []
-    habitListHandle.allLoadedIds = new Set()
-    dateParamState.value = '2026-04-07'
-    uiState.activeView = 'today'
-    uiState.isSelectMode = true
-    uiState.searchQuery = ''
-    uiState.selectedFrequency = null
-    uiState.selectedTagIds = []
-    uiState.showCompleted = false
-    uiState.selectedHabitIds = new Set<string>()
-  })
+function createMotionView(
+  dateStr: string,
+  isFetching = false,
+  isRefetching = isFetching,
+): TodayView {
+  return {
+    activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+    changeView: vi.fn(),
+    data: { filters: {}, isFetching, isRefetching },
+    habitListRef: { current: null },
+    isSelectMode: false,
+    nav: {
+      dateStr,
+      selectedDate: new Date(`${dateStr}T00:00:00`),
+      goToNextDay: vi.fn(),
+      dateNav: { nextDisabled: false },
+    },
+    selectedHabitIds: new Set<string>(),
+    selection: { handleToggleSelection: vi.fn() },
+    setHabitListAllCollapsed: vi.fn(),
+    setListSurfaceOpen: vi.fn(),
+    setShowCreateModal: vi.fn(),
+    setShowCompleted: vi.fn(),
+    showCompleted: false,
+    toggleSelectMode: vi.fn(),
+  } as unknown as TodayView
+}
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('always shows the filter row regardless of habit count', () => {
-    renderPage()
-    expect(screen.getByTestId('today-utility-row')).toBeInTheDocument()
-    expect(screen.getByTestId('habit-list')).toBeInTheDocument()
-  })
-
-  it('renders a chip for a valid tag list', () => {
-    mockTags.value = [{ id: 'tag-1', name: 'Health', color: '#00ff00' }]
-
-    renderPage()
-
-    expect(screen.getByRole('button', { name: 'Health' })).toBeInTheDocument()
-  })
-
-  it('suppresses descendant successes when bulk log finishes', async () => {
-    const root = createMockHabit({ id: 'root', title: 'Root', hasSubHabits: true })
-    const parent = createMockHabit({ id: 'parent', title: 'Parent', parentId: 'root', hasSubHabits: true })
-    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent' })
-
-    mockHabitsData.habitsById = new Map([
-      [root.id, root],
-      [parent.id, parent],
-      [child.id, child],
-    ])
-    mockHabitsData.childrenByParent = new Map([
-      [root.id, [parent.id]],
-      [parent.id, [child.id]],
-    ])
-    mockHabitsData.topLevelHabits = [root]
-    uiState.selectedHabitIds = new Set([parent.id, child.id])
-
-    bulkLogMutateAsync.mockResolvedValue({
-      results: [
-        { habitId: parent.id, status: 'Success' },
-        { habitId: child.id, status: 'Success' },
-      ],
-    })
-
-    renderPage()
-
-    fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkLogTitle'))
-
-    await waitFor(() => {
-      expect(markRecentlyCompleted).toHaveBeenCalledWith('parent')
-      expect(markRecentlyCompleted).toHaveBeenCalledWith('child')
-      expect(checkAndPromptParentLog).toHaveBeenCalledTimes(1)
-      expect(checkAndPromptParentLog).toHaveBeenCalledWith('parent')
-    })
-  })
-
-  it('renders the animated list shell and bulk action bar in select mode', () => {
-    renderPage()
-
-    expect(screen.getByTestId('today-list-shell')).toBeInTheDocument()
-    expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument()
-  })
-
-  it('exits select mode when Escape is pressed', () => {
-    renderPage()
-
-    fireEvent.keyDown(document, { key: 'Escape' })
-
-    expect(uiState.toggleSelectMode).toHaveBeenCalled()
-  })
-
-  it('routes free users to upgrade when they click goals', async () => {
-    renderPage()
-
-    fireEvent.click(screen.getByText('goals.tab'))
-
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
-    expect(uiState.setActiveView).not.toHaveBeenCalledWith('goals')
-  })
-
-  it('lets pro users switch to goals', async () => {
-    mockProfile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: false })
-
-    renderPage()
-
-    fireEvent.click(screen.getByText('goals.tab'))
-
-    expect(uiState.setActiveView).toHaveBeenCalledWith('goals')
-    expect(mockRouterPush).not.toHaveBeenCalled()
-  })
-
-  it('recovers a stale free goals view back to today', async () => {
-    uiState.activeView = 'goals'
-
-    renderPage()
-
-    expect(screen.queryByText('Goals view')).not.toBeInTheDocument()
-    expect(screen.getByTestId('habit-list')).toHaveTextContent('"today"')
-    await waitFor(() => {
-      expect(uiState.setActiveView).toHaveBeenCalledWith('today')
-    })
-  })
-
-  it('advances a followed today selection after midnight without refresh', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-07T23:59:55'))
-    dateParamState.value = null
-    uiState.isSelectMode = false
-
-    renderPage()
-
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: '2026-04-07',
-      dateTo: '2026-04-07',
-    })
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(6_000)
-    })
-
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: '2026-04-08',
-      dateTo: '2026-04-08',
-    })
-  })
-
-  it('keeps a manually pinned date fixed after midnight', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-07T23:59:55'))
-    dateParamState.value = '2026-04-06'
-    uiState.isSelectMode = false
-
-    renderPage()
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(6_000)
-    })
-
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: '2026-04-06',
-      dateTo: '2026-04-06',
-    })
-  })
-
-  it.each([
-    { name: 'navigates to the previous day with a date query param', date: '2026-04-07', label: 'dates.previousDay', target: '/?date=2026-04-06' },
-    { name: 'navigates to the next day with a date query param', date: '2026-04-07', label: 'dates.nextDay', target: '/?date=2026-04-08' },
-    { name: 'returns to today via the bare route when pressing the date label', date: '2026-04-06', label: 'dates.goToToday', target: '/' },
-  ])('$name', ({ date, label, target }) => {
-    dateParamState.value = date
-    uiState.isSelectMode = false
-
-    renderPage()
-
-    fireEvent.click(screen.getByLabelText(label))
-
-    expect(mockRouterPush).toHaveBeenCalledWith(target)
-  })
-
-  it('renders today on the bare route and the pinned day on a date deep link', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-07T12:00:00'))
-    uiState.isSelectMode = false
-
-    dateParamState.value = null
-    const { rerender } = render(<TodayPage />, { wrapper: TodayProvider })
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: '2026-04-07',
-      dateTo: '2026-04-07',
-    })
-
-    dateParamState.value = '2026-04-02'
-    rerender(<TodayPage />)
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: '2026-04-02',
-      dateTo: '2026-04-02',
-    })
-  })
-})
-
-describe('TodayPage pinned-date deep link', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    useHabitsMock.mockImplementation(defaultUseHabitsReturn)
-    vi.useRealTimers()
-    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
-    mockHabitsData.habitsById = new Map()
-    mockHabitsData.childrenByParent = new Map()
-    mockHabitsData.topLevelHabits = []
-    dateParamState.value = null
-    uiState.activeView = 'today'
-    uiState.isSelectMode = false
-    uiState.searchQuery = ''
-    uiState.selectedFrequency = null
-    uiState.selectedTagIds = []
-    uiState.showCompleted = false
-    uiState.selectedHabitIds = new Set<string>()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('forces the today view when mounted on a pinned-date deep link with a non-today view', () => {
-    dateParamState.value = '2026-04-06'
-    uiState.activeView = 'all'
-
-    renderPage()
-
-    expect(uiState.setActiveView).toHaveBeenCalledWith('today')
-  })
-
-  it('does not force the today view on the bare route', () => {
-    dateParamState.value = null
-    uiState.activeView = 'all'
-
-    renderPage()
-
-    expect(uiState.setActiveView).not.toHaveBeenCalledWith('today')
-  })
-})
-
-describe('TodayPage overdue bulk selection', () => {
-  function seedOverdueHabit(): NormalizedHabit {
-    const overdue = createMockHabit({
-      id: 'overdue-1',
-      title: 'Overdue task',
-      isOverdue: true,
-      frequencyUnit: null,
-      dueDate: '2026-04-01',
-      scheduledDates: [],
-      isCompleted: false,
-    })
-    mockHabitsData.habitsById = new Map([[overdue.id, overdue]])
-    mockHabitsData.topLevelHabits = [overdue]
-    return overdue
+function getRenderedMotionStyle(testId: string) {
+  const style = motionTestState.renderedStyles.get(testId)
+  if (!style || style.opacity === undefined || style.y === undefined) {
+    throw new Error(`${testId} must own opacity and y motion values`)
   }
+  return style
+}
+
+function getAnimationForStyleValue(styleValue: unknown) {
+  const animation = motionTestState.animations.find((entry) => entry.value === styleValue)
+  if (!animation) throw new Error('Expected the wrapper MotionValue to be animated')
+  return animation
+}
+
+describe('Hoje date control', () => {
+  it('announces whether inline search is open and offers its closing action', () => {
+    function SearchHeader() {
+      const search = useHabitViewSearch('all')
+      const view = { ...createMotionView('2026-04-08'), search }
+      view.nav.dateNav = { ...baseProps, shortDayName: 'Wed' }
+      view.nav.today = '2026-04-08'
+      return <TodayHeaderRegion view={view} />
+    }
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}><SearchHeader /></NextIntlClientProvider>)
+    const search = screen.getByRole('button', { name: ptBr.habits.search.title })
+    expect(search).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(search)
+    const close = screen.getByRole('button', { name: ptBr.habits.closeSearch })
+    expect(close).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('textbox', { name: ptBr.habits.search.title })).toHaveFocus()
+    fireEvent.click(close)
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getByRole('button', { name: ptBr.habits.search.title })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it.each(['all', 'general'] as const)('offers the saved %s view above a hidden date pager', (activeView) => {
+    const view = { ...createMotionView('2026-04-08'), activeView, changeView: vi.fn() }
+    view.nav.dateNav = { ...baseProps, shortDayName: 'Wed' }
+    view.nav.today = '2026-04-08'
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}><TodayHeaderRegion view={view} /></NextIntlClientProvider>)
+    const selected = screen.getByRole('radio', { name: activeView === 'all' ? 'Todos' : 'Geral' })
+    expect(selected).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByRole('button', { name: 'Previous day' })).toBeNull()
+    expect(screen.getByRole('button', { name: ptBr.habits.listOptions })).toBeVisible()
+    fireEvent.click(screen.getByRole('radio', { name: 'Hoje' }))
+    expect(view.changeView).toHaveBeenCalledWith('today')
+  })
 
   beforeEach(() => {
-    vi.clearAllMocks()
-    useHabitsMock.mockImplementation(defaultUseHabitsReturn)
-    vi.useRealTimers()
-    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
-    bulkLogMutateAsync.mockReset()
-    bulkSkipMutateAsync.mockReset()
-    mockHabitsData.habitsById = new Map()
-    mockHabitsData.childrenByParent = new Map()
-    mockHabitsData.topLevelHabits = []
-    habitListHandle.allLoadedIds = new Set()
-    dateParamState.value = '2026-04-07'
-    uiState.activeView = 'today'
-    uiState.isSelectMode = true
-    uiState.searchQuery = ''
-    uiState.selectedFrequency = null
-    uiState.selectedTagIds = []
-    uiState.showCompleted = false
-    uiState.selectedHabitIds = new Set<string>()
+    useUIStore.setState({ activeFilters: {} })
+    motionTestState.animations.length = 0
+    motionTestState.completeAnimations = true
+    motionTestState.reducedMotion = false
+    motionTestState.renderedStyles.clear()
   })
 
-  it('treats an overdue one-time habit fixture as overdue', () => {
-    const overdue = seedOverdueHabit()
-
-    expect(computeHabitCardStatus(overdue)).toBe('overdue')
+  it.each([['en', en], ['pt-BR', ptBr]] as const)('restores every frequency choice in %s', (locale, messages) => {
+    render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
+    const openFrequencies = () => {
+      fireEvent.click(screen.getByRole('button', { name: baseProps.moreLabel }))
+      fireEvent.click(screen.getByRole('menuitem', { name: messages.habits.frequencyFilter }))
+    }
+    for (const [unit, label] of [
+      ['Day', messages.habits.filter.daily], ['Week', messages.habits.filter.weekly],
+      ['Month', messages.habits.filter.monthly], ['Year', messages.habits.filter.yearly],
+      ['none', messages.habits.filter.oneTime],
+    ]) {
+      openFrequencies()
+      expect(screen.getAllByRole('menuitemcheckbox')).toHaveLength(6)
+      fireEvent.click(screen.getByRole('menuitemcheckbox', { name: label }))
+      expect(useUIStore.getState().activeFilters.frequencyUnit).toBe(unit)
+      openFrequencies()
+      expect(screen.getByRole('menuitemcheckbox', { name: label })).toBeChecked()
+      fireEvent.click(screen.getByRole('menuitemcheckbox', { name: messages.common.all }))
+      expect(useUIStore.getState().activeFilters.frequencyUnit).toBeUndefined()
+    }
   })
 
-  it('includes the overdue habit when selecting all', () => {
-    const overdue = seedOverdueHabit()
-    habitListHandle.allLoadedIds = new Set([overdue.id])
+  it('keeps frequency choices usable while refresh is disabled', () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} isFetching /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: baseProps.moreLabel }))
+    expect(screen.getByRole('menuitem', { name: baseProps.refreshLabel })).toBeDisabled()
+    fireEvent.click(screen.getByRole('menuitem', { name: en.habits.frequencyFilter }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: en.habits.filter.weekly }))
+    expect(useUIStore.getState().activeFilters.frequencyUnit).toBe('Week')
+  })
 
-    renderPage()
+  it('keeps the same selection key under en and pt-BR', () => {
+    expect(buildSelectionRefreshKey).toHaveLength(3)
 
-    fireEvent.click(screen.getByText('common.selectAll'))
+    const selectedHabitIds = new Set(['habit-2', 'habit-1'])
+    const keysByLocale = [
+      ['en', buildSelectionRefreshKey(selectedHabitIds, false, false)],
+      ['pt-BR', buildSelectionRefreshKey(selectedHabitIds, false, false)],
+    ]
 
-    expect(uiState.selectAllHabits).toHaveBeenCalledWith(
-      expect.arrayContaining([overdue.id]),
+    expect(new Set(keysByLocale.map(([, key]) => key))).toEqual(
+      new Set(['habit-1,habit-2:some:loggable']),
     )
   })
 
-  it('dispatches a bulk log for a selected overdue habit without a date', async () => {
-    const overdue = seedOverdueHabit()
-    uiState.selectedHabitIds = new Set([overdue.id])
-    bulkLogMutateAsync.mockResolvedValue({
-      results: [{ habitId: overdue.id, status: 'Success' }],
+  it('uses a different selection key for a different selection', () => {
+    const firstKey = buildSelectionRefreshKey(new Set(['habit-1']), false, false)
+    const secondKey = buildSelectionRefreshKey(new Set(['habit-2']), false, false)
+
+    expect(firstKey).not.toBe(secondKey)
+  })
+
+  it('shows the day name over the numeric date', () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
+    const day = screen.getByText('Wednesday')
+    const numeric = screen.getByText('08/04/2026')
+    expect(day.parentElement).toHaveAttribute('title', 'Wednesday, 08/04/2026')
+    expect(numeric.parentElement).toBe(day.parentElement)
+    expect(day.nextElementSibling).toBe(numeric)
+    expect(screen.getByRole('button', { name: 'Previous day' }).nextElementSibling).toBe(day.parentElement)
+    expect(day.parentElement?.nextElementSibling).toBe(screen.getByRole('button', { name: 'Next day' }))
+  })
+
+  it('opens search from the compact header row', () => {
+    const onSearch = vi.fn()
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} onSearch={onSearch} /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    expect(onSearch).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an off-today date grouped separately from the header actions', () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} dayName="Quarta-feira" isTodaySelected={false} /></NextIntlClientProvider>)
+    const date = screen.getByText('Quarta-feira').parentElement
+    const row = screen.getByRole('button', { name: 'Previous day' }).parentElement
+    expect(screen.getByRole('button', { name: 'Next day' }).parentElement).toBe(row)
+    expect(screen.getByRole('button', { name: 'Quarta-feira, 08/04/2026, Go to today' }).parentElement).toBe(row)
+    expect(screen.getByRole('button', { name: 'Previous day' }).nextElementSibling).toBe(date)
+    expect(date?.nextElementSibling).toBe(screen.getByRole('button', { name: 'Next day' }))
+    expect(screen.getByRole('button', { name: 'Quarta-feira, 08/04/2026, Go to today' })).toBeInTheDocument()
+  })
+
+  it('disables the forward step at the instance horizon', () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} nextDisabled /></NextIntlClientProvider>)
+    expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled()
+  })
+
+  it('keeps the date arrows on the control hover token and duration', () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
+
+    for (const name of ['Previous day', 'Next day']) {
+      const className = screen.getByRole('button', { name }).className
+      expect(className).toContain('hover:bg-[var(--bg-hover)]')
+      expect(className).toContain('var(--dur-hover-control)')
+    }
+  })
+
+  it('connects the list options button to its menu', async () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
+    const button = screen.getByRole('button', { name: 'List options' })
+    fireEvent.click(button)
+    expect(await screen.findByRole('menu')).toBeInTheDocument()
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById(button.getAttribute('aria-controls')!)).toHaveAttribute('role', 'menu')
+  })
+
+  it.each(['trial', 'free', 'pro'])('keeps the plan line off Hoje for a %s account', (plan) => {
+    planTestState.plan = plan
+    const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
+      data: { isFetching: false, refetch: vi.fn() },
+      habitListAllCollapsed: false,
+      habitListRef: { current: null },
+      isSelectMode: false,
+      nav: {
+        dateStr: '2026-04-08',
+        today: '2026-04-08',
+        dateNav: { ...baseProps, dayName: 'Today' },
+      },
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+    const { container } = render(
+      <TestIntlProvider locale="en" messages={en}>
+        <TodayHeaderRegion view={view} />
+      </TestIntlProvider>,
+    )
+    expect(container.querySelector('[data-trial-line]')).toBeNull()
+  })
+
+  it('renders the resolved read-only boundary notice', () => {
+    const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
+      data: { isFetching: false, refetch: vi.fn() },
+      habitListAllCollapsed: false,
+      habitListRef: { current: null },
+      isSelectMode: false,
+      nav: {
+        dateStr: '2026-03-31',
+        today: '2026-04-08',
+        dateNav: { ...baseProps, isTodaySelected: false },
+      },
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    render(
+      <TestIntlProvider locale="en" messages={en}>
+        <TodayHeaderRegion view={view} />
+      </TestIntlProvider>,
+    )
+
+    expect(screen.getByText(en.habits.todayBoundary.readOnly)).toBeInTheDocument()
+    expect(en.habits.todayBoundary.readOnly).toBe('Logging stops 7 days back. You can still edit, move and delete here.')
+  })
+
+  it('ignores an upgraded showCompleted true payload when rendering Today', async () => {
+    globalThis.localStorage.setItem(
+      'orbit-ui-store',
+      JSON.stringify({
+        state: { activeFilters: {}, activeView: 'today', showCompleted: true },
+        version: 4,
+      }),
+    )
+    await useUIStore.persist.rehydrate()
+
+    const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
+      data: { filters: {} },
+      habitListRef: { current: null },
+      isSelectMode: false,
+      nav: {
+        selectedDate: new Date('2026-04-08T00:00:00'),
+        goToNextDay: vi.fn(),
+        dateNav: { nextDisabled: false },
+      },
+      selectedHabitIds: new Set<string>(),
+      selection: { handleToggleSelection: vi.fn() },
+      setHabitListAllCollapsed: vi.fn(),
+      setShowCreateModal: vi.fn(),
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    render(<TodayHabitsPanel view={view} />)
+
+    expect(screen.getByTestId('today-habit-list')).toHaveAttribute(
+      'data-show-completed',
+      'false',
+    )
+    expect(useUIStore.getState()).not.toHaveProperty('showCompleted')
+    globalThis.localStorage.clear()
+  })
+
+  it('passes a valid tag selection to the redesigned Today habit list', () => {
+    const view = createMotionView('2026-04-08')
+    view.data.filters = { tagIds: ['tag-1'] }
+
+    render(<TodayHabitsPanel view={view} />)
+
+    expect(screen.getByTestId('today-habit-list')).toHaveAttribute('data-tag-ids', 'tag-1')
+  })
+
+  it('explains an offline empty-list create request beside the action', () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    const view = createMotionView('2026-04-08')
+    render(<TestIntlProvider locale="en" messages={en}><TodayHabitsPanel view={view} /></TestIntlProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Create manually' }))
+    expect(screen.getByText(en.offline.create.reason)).toBeVisible()
+    expect(view.setShowCreateModal).not.toHaveBeenCalled()
+  })
+
+  it('omits the all-done upcoming action at the instance horizon', () => {
+    const goToNextDay = vi.fn()
+    const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
+      data: { filters: {} },
+      habitListRef: { current: null },
+      isSelectMode: false,
+      nav: {
+        selectedDate: new Date('2026-07-07T00:00:00'),
+        goToNextDay,
+        dateNav: { nextDisabled: true },
+      },
+      selectedHabitIds: new Set<string>(),
+      selection: { handleToggleSelection: vi.fn() },
+      setHabitListAllCollapsed: vi.fn(),
+      setShowCreateModal: vi.fn(),
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    render(<TodayHabitsPanel view={view} />)
+
+    expect(screen.queryByRole('button', { name: 'See upcoming' })).not.toBeInTheDocument()
+    expect(goToNextDay).not.toHaveBeenCalled()
+  })
+
+  it('keeps the all-done upcoming action active below the instance horizon', () => {
+    const goToNextDay = vi.fn()
+    const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
+      data: { filters: {} },
+      habitListRef: { current: null },
+      isSelectMode: false,
+      nav: {
+        selectedDate: new Date('2026-07-06T00:00:00'),
+        goToNextDay,
+        dateNav: { nextDisabled: false },
+      },
+      selectedHabitIds: new Set<string>(),
+      selection: { handleToggleSelection: vi.fn() },
+      setHabitListAllCollapsed: vi.fn(),
+      setShowCreateModal: vi.fn(),
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    render(<TodayHabitsPanel view={view} />)
+    fireEvent.click(screen.getByRole('button', { name: 'See upcoming' }))
+
+    expect(goToNextDay).toHaveBeenCalledOnce()
+  })
+
+  it('applies refetch motion at the HabitList boundary', () => {
+    motionTestState.completeAnimations = false
+    const { rerender } = render(<TodayHabitsPanel view={createMotionView('2026-04-08')} />)
+    const refetchWrapper = screen.getByTestId('today-refetch-motion')
+    const refetchStyle = getRenderedMotionStyle('today-refetch-motion')
+
+    expect(refetchWrapper).toContainElement(screen.getByTestId('today-habit-list'))
+    motionTestState.animations.length = 0
+
+    rerender(<TodayHabitsPanel view={createMotionView('2026-04-08', true)} />)
+    const refetchOpacity = getAnimationForStyleValue(refetchStyle.opacity)
+    const refetchShift = getAnimationForStyleValue(refetchStyle.y)
+    expect(refetchOpacity).toMatchObject({
+      from: 1,
+      target: 0.8,
+      options: {
+        duration: 0.22,
+        ease: [0.16, 1, 0.3, 1],
+      },
     })
-
-    renderPage()
-
-    fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkLogTitle'))
-
-    await waitFor(() => {
-      expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }])
+    expect(refetchShift).toMatchObject({
+      from: 0,
+      target: 4,
+      options: {
+        duration: 0.22,
+        ease: [0.16, 1, 0.3, 1],
+      },
     })
   })
 
-  it('dispatches a bulk skip for a selected overdue habit without a date', async () => {
-    const overdue = seedOverdueHabit()
-    uiState.selectedHabitIds = new Set([overdue.id])
-    bulkSkipMutateAsync.mockResolvedValue({
-      results: [{ habitId: overdue.id, status: 'Success' }],
-    })
+  it('does not apply refetch motion during a cold client fetch', () => {
+    motionTestState.completeAnimations = false
 
-    renderPage()
+    render(<TodayHabitsPanel view={createMotionView('2026-04-08', true, false)} />)
 
-    fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkSkipTitle'))
+    expect(motionTestState.animations).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ target: 0.8 }),
+      expect.objectContaining({ target: 4 }),
+    ]))
+  })
 
-    await waitFor(() => {
-      expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }])
-    })
+  it('keeps reduced refetch motion directional-static with reduced timings', () => {
+    motionTestState.completeAnimations = false
+    motionTestState.reducedMotion = true
+    const { rerender } = render(<TodayHabitsPanel view={createMotionView('2026-04-08')} />)
+    motionTestState.animations.length = 0
+
+    rerender(<TodayHabitsPanel view={createMotionView('2026-04-08', true)} />)
+    expect(motionTestState.animations).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        from: 1,
+        target: 0.8,
+        options: expect.objectContaining({ duration: 0.09, ease: [0, 0, 1, 1] }),
+      }),
+      expect.objectContaining({
+        from: 0,
+        target: 0,
+        options: expect.objectContaining({ duration: 0.09 }),
+      }),
+    ]))
+  })
+
+  it('opens the four list actions from the header row', () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'List options' }))
+
+    expect(screen.getByTestId('adjustments-icon')).toBeInTheDocument()
+    expect(screen.getByRole('menu', { name: 'List options' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Select' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Collapse all' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Refresh' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Show completed' })).toBeInTheDocument()
+  })
+
+  it('renders the Portuguese list options labels and glyphs in both list states', () => {
+    const labels = ptBr.habits
+    expect([labels.collapseAll, labels.expandAll]).toEqual(['Recolher tudo', 'Expandir tudo'])
+    const controlProps = {
+      ...baseProps,
+      moreLabel: labels.listOptions,
+      selectLabel: ptBr.common.select,
+      collapseLabel: labels.collapseAll,
+      refreshLabel: labels.refresh,
+      completedLabel: labels.showCompleted,
+    }
+    const { rerender } = render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...controlProps} /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: labels.listOptions }))
+    const menu = screen.getByRole('menu', { name: labels.listOptions })
+    expect(menu).toBeInTheDocument()
+    for (const [label, glyph] of [
+      [ptBr.common.select, 'checkbox'],
+      [labels.collapseAll, 'chevrons-up'],
+      [labels.refresh, 'refresh'],
+      [labels.showCompleted, 'eye'],
+    ]) {
+      const item = screen.getByRole('menuitem', { name: label })
+      expect(item.querySelector(`[data-icon="${glyph}"] svg`)).toBeInTheDocument()
+    }
+    rerender(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...controlProps} allCollapsed showCompleted collapseLabel={labels.expandAll} completedLabel={labels.hideCompleted} /></NextIntlClientProvider>)
+    expect(screen.getByRole('menuitem', { name: labels.expandAll }).querySelector('[data-icon="chevrons-down"] svg')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: labels.hideCompleted }).querySelector('[data-icon="eye-off"] svg')).toBeInTheDocument()
   })
 })
 
-describe('TodayPage overdue date gating', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    useHabitsMock.mockImplementation(defaultUseHabitsReturn)
-    vi.useRealTimers()
-    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
-    mockHabitsData.habitsById = new Map()
-    mockHabitsData.childrenByParent = new Map()
-    mockHabitsData.topLevelHabits = []
-    dateParamState.value = null
-    uiState.activeView = 'today'
-    uiState.isSelectMode = false
-    uiState.searchQuery = ''
-    uiState.selectedFrequency = null
-    uiState.selectedTagIds = []
-    uiState.showCompleted = false
-    uiState.selectedHabitIds = new Set<string>()
-  })
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  function lastFilters() {
-    return useHabitsMock.mock.calls.at(-1)?.[0]
-  }
-
-  it('includes overdue when the selected date is today', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-07T12:00:00'))
-    dateParamState.value = null
-
-    renderPage()
-
-    expect(lastFilters()).toMatchObject({
-      dateFrom: '2026-04-07',
-      dateTo: '2026-04-07',
-      includeOverdue: true,
-    })
-  })
-
-  it('excludes overdue when the selected date is in the future', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-07T12:00:00'))
-    dateParamState.value = '2026-04-09'
-
-    renderPage()
-
-    expect(lastFilters()).toMatchObject({ includeOverdue: false })
-  })
-
-  it('excludes overdue when the selected date is in the past', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-07T12:00:00'))
-    dateParamState.value = '2026-04-05'
-
-    renderPage()
-
-    expect(lastFilters()).toMatchObject({ includeOverdue: false })
-  })
-})
-
-describe('TodayPage habits load error', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.useRealTimers()
-    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
-    mockHabitsData.habitsById = new Map()
-    mockHabitsData.childrenByParent = new Map()
-    mockHabitsData.topLevelHabits = []
-    dateParamState.value = null
-    uiState.activeView = 'today'
-    uiState.isSelectMode = false
-    uiState.searchQuery = ''
-    uiState.selectedFrequency = null
-    uiState.selectedTagIds = []
-    uiState.showCompleted = false
-    uiState.selectedHabitIds = new Set<string>()
-  })
-
-  it('renders the load-error state with a working retry instead of the skeleton or list', () => {
-    const refetch = vi.fn()
-    useHabitsMock.mockReturnValue({
-      data: undefined,
-      getChildren: () => [],
-      isFetching: false,
-      dataUpdatedAt: 0,
-      isError: true,
-      refetch,
-    })
-
-    renderPage()
-
-    expect(screen.getByText('habits.loadError')).toBeInTheDocument()
-    expect(screen.queryByTestId('habit-list')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
-
-    expect(refetch).toHaveBeenCalledTimes(1)
-  })
-
-  it('keeps the skeleton, not the error state, while the first load is in flight', () => {
-    useHabitsMock.mockReturnValue({
-      data: undefined,
-      getChildren: () => [],
-      isFetching: true,
-      dataUpdatedAt: 0,
-      isError: false,
-      refetch: vi.fn(),
-    })
-
-    renderPage()
-
-    expect(screen.queryByText('habits.loadError')).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: 'common.retry' }),
-    ).not.toBeInTheDocument()
-  })
+it('separates the header actions from the grouped date arrows', () => {
+  render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} isTodaySelected={false} /></NextIntlClientProvider>)
+  const row = screen.getByRole('button', { name: 'Previous day' }).parentElement!
+  expect(row).not.toContainElement(screen.getByRole('button', { name: 'Search' }))
+  expect(within(row).getAllByRole('button')).toHaveLength(3)
+  expect(screen.getByRole('button', { name: 'Alerts' })).toBeInTheDocument()
 })

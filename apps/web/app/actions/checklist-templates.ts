@@ -16,7 +16,8 @@ export async function listChecklistTemplatesAction(): Promise<ServerActionResult
 }
 
 export async function createChecklistTemplateAction(
-  data: CreateChecklistTemplateRequest, intendedAccountId: string | null
+  data: CreateChecklistTemplateRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<CreateChecklistTemplateResponse>> {
   return wrapServerAction(() => serverAuthMutate(API.checklistTemplates.create, {
     method: 'POST',
@@ -25,7 +26,8 @@ export async function createChecklistTemplateAction(
 }
 
 export async function deleteChecklistTemplateAction(
-  id: string, intendedAccountId: string | null
+  id: string,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(async () => {
     if (!TEMPLATE_ID_PATTERN.test(id)) {

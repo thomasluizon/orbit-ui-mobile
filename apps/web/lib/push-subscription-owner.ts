@@ -1,6 +1,5 @@
 import * as Sentry from '@sentry/nextjs'
 import { unsubscribePushForCleanup } from '@/lib/actions/notifications'
-import { withAccountIntent } from '@/lib/client-action'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 
 /**
@@ -71,8 +70,7 @@ export async function releaseExistingPushSubscriptionOnServer(subscription: Push
       ...subscription.toJSON(),
       ...(accountId && isPushSubscriptionOwner(accountId) ? {} : { releaseOtherAccount: true }),
     }
-    await settlePushCleanupBeforeAbort(withAccountIntent(accountId,
-      () => unsubscribePushForCleanup(submitted)), controller.signal)
+    await settlePushCleanupBeforeAbort(unsubscribePushForCleanup(submitted, accountId), controller.signal)
   } catch (error) {
     if (controller.signal.aborted || reportsAccountChanged(error)) throw error
     Sentry.captureException(error)

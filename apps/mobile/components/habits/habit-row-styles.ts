@@ -1,20 +1,35 @@
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
-
-export const MAX_VISIBLE_TAGS = 3
 
 export const styles = StyleSheet.create({
   row: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    borderRadius: 18,
-    borderWidth: 1,
+    gap: 4,
     position: 'relative',
+    overflow: 'hidden',
   },
-  rowPressed: {
-    transform: [{ scale: 0.99 }],
+  structuralColumn: {
+    width: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  bodyButton: {
+    flex: 1,
+    minWidth: 0,
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  bodyButtonPressed: {
+    transform: [{ scale: 0.96 }],
   },
   emojiWell: {
     alignItems: 'center',
@@ -24,96 +39,56 @@ export const styles = StyleSheet.create({
   titleBlock: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 4,
   },
   title: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     letterSpacing: -0.08,
     lineHeight: 20,
   },
   meta: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-  },
-  description: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 17,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 1,
-    overflow: 'hidden',
-  },
-  tagChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    flexShrink: 0,
-  },
-  tagDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  tagName: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    maxWidth: 132,
-  },
-  tagOverflow: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
-    flexShrink: 0,
   },
   trailing: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  linkedGoalDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
-  childProgressText: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
-  },
-  checkCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  parentRingButton: {
+    width: 48,
+    minHeight: 48,
+    borderRadius: 22,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   menuButton: {
-    width: 44,
-    height: 44,
+    width: 48,
+    minHeight: 48,
     borderRadius: 999,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 6,
+    minHeight: TOUCH_TARGET_MIN,
+    gap: 8,
+    paddingHorizontal: SPACING.s12,
+    paddingVertical: SPACING.s12,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   menuItemLabel: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
   },
   menuDivider: {
     height: StyleSheet.hairlineWidth,
-    marginVertical: 4,
-    marginHorizontal: 8,
+    marginVertical: SPACING.s4,
+    marginHorizontal: SPACING.s8,
   },
 })

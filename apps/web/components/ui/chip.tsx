@@ -8,6 +8,7 @@ interface ChipProps {
   onClick?: () => void
   leading?: ReactNode
   ariaLabel?: string
+  variant?: 'default' | 'period'
 }
 
 /** Kit pill chip: bg-elev well with a hairline ring; active fills selection-bg
@@ -18,6 +19,7 @@ export function Chip({
   onClick,
   leading,
   ariaLabel,
+  variant = 'default',
 }: Readonly<ChipProps>) {
   return (
     <button
@@ -25,7 +27,7 @@ export function Chip({
       onClick={onClick}
       aria-label={ariaLabel}
       aria-pressed={active}
-      className={active ? 'chip chip-active' : 'chip'}
+      className={`chip${active ? ' chip-active' : ''}${variant === 'period' ? ' chip-period' : ''}`}
     >
       {leading}
       {children}

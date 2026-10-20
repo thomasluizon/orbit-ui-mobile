@@ -8,10 +8,6 @@ const OURS = "thomasluizon/orbit-ui-mobile"
 const THEIRS = "benhook1013/FireMUD"
 
 export const cases = () => {
-  /**
-   * typed id resolved, it just resolved somewhere else. A verdict that passed here would have let
-   * the reply land on a stranger's pull request again.
-   */
   const foreign = nodeTargetVerdict({ nodeId: THREAD, expectedSlug: OURS, resolvedSlug: THEIRS })
   T(
     `${UNIT}: a node belonging to another repository is refused`,
@@ -29,7 +25,7 @@ export const cases = () => {
 
   /** GitHub is case-insensitive on owner and name, so a case difference is not a misdirection. A
    * verdict that called it one would refuse legitimate writes and teach everyone to bypass this. */
-  const cased = nodeTargetVerdict({ nodeId: THREAD, expectedSlug: "ThomasLuizon/Orbit-UI-Mobile", resolvedSlug: OURS })
+  const cased = nodeTargetVerdict({ nodeId: THREAD, expectedSlug: OURS.toUpperCase(), resolvedSlug: OURS })
   T(`${UNIT}: a case difference in the slug is not a misdirection`, cased.ok === true, JSON.stringify(cased))
 
   /**

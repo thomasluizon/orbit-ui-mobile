@@ -39,7 +39,7 @@ async function renderHookHarness(): Promise<GoBackOrFallback> {
   const callbackHolder: { current: GoBackOrFallback | null } = { current: null }
 
   function Harness() {
-    callbackHolder.current = useGoBackOrFallback() as GoBackOrFallback
+    callbackHolder.current = useGoBackOrFallback()
     return null
   }
 

@@ -1,0 +1,370 @@
+import { createMockNotification, createMockProactiveItem, createMockProfile } from '@orbit/shared/__tests__/factories'
+import type { ProactiveItem } from '@orbit/shared/types'
+import type { NotificationItem } from '@orbit/shared/types/notification'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
+import { TodayPageClient } from '@/app/(app)/today-page-client'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import type { Profile } from '@orbit/shared/types/profile'
+import { useUIStore } from '@/stores/ui-store'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
+
+const mocks = vi.hoisted(() => ({
+  animate: vi.fn(
+    (_value: unknown, _target: number, _transition?: { duration?: number }) => ({
+      stop: vi.fn(),
+    }),
+  ),
+  reducedMotion: false,
+  motionSets: [] as number[],
+  lastCompletionDate: undefined as string | null | undefined,
+  profileReady: true,
+  checklistProfile: null as Profile | null,
+  hasProAccess: true,
+  timeZone: 'UTC',
+  notifications: [] as NotificationItem[],
+  proactiveItem: null as ProactiveItem | null,
+  view: {
+    isSelectMode: false,
+    showCreateModal: false,
+    listSurfaceOpen: false,
+    data: {
+      habitsById: new Map([['habit-1', { id: 'habit-1' }]]),
+      filters: {},
+      hasFetched: true,
+      isFetching: false,
+      isRefetching: false,
+      showLoadError: false,
+      habitsCount: 1,
+    },
+    habitListRef: { current: null },
+    nav: {
+      today: '2026-08-29',
+      dateStr: '2026-08-29',
+      selectedDate: new Date('2026-08-29T00:00:00'),
+      goToNextDay: vi.fn(),
+      dateNav: { nextDisabled: false },
+    },
+    selectedHabitIds: new Set<string>(),
+    selection: { handleToggleSelection: vi.fn() },
+    setHabitListAllCollapsed: vi.fn(),
+    setListSurfaceOpen: vi.fn(),
+    setShowCreateModal: vi.fn(),
+    showCompleted: false,
+    toggleSelectMode: vi.fn(),
+  },
+}))
+
+vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => ({ ...mocks.view, activeView: 'today', search: useHabitViewSearch('today') }) }))
+vi.mock('@/app/(app)/today-page-view', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/app/(app)/today-page-view')>()),
+  TodayHeaderRegion: ({ children }: { children?: React.ReactNode }) => <>{children}<time data-testid="today-date">{mocks.view.nav.today}</time></>,
+  TodayOverlays: () => null,
+}))
+vi.mock('@/components/habits/habit-list', () => ({
+  HabitList: () => <div data-testid="today-habit-list" />,
+}))
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string, values?: { days: number }) =>
+    values ? `${key}:${values.days}` : key,
+}))
+vi.mock('@/hooks/use-profile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/use-profile')>()),
+  useProfile: (options?: { initialData?: Profile }) => ({
+    profile: options?.initialData ?? mocks.checklistProfile ?? (mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate, hasProAccess: mocks.hasProAccess, aiSummaryEnabled: false, language: 'en' } : undefined),
+  }),
+}))
+vi.mock('@/hooks/use-notifications', () => ({
+  useNotifications: () => ({ notifications: mocks.notifications }),
+  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+}))
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: mocks.proactiveItem, openItem: vi.fn() }),
+}))
+vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
+vi.mock('@/components/today/today-astra', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/today/today-astra')>()
+  return {
+    TodayAstra: (props: { today: string; isTodaySelected: boolean; suppressed: boolean }) => (
+      <>
+        <div data-testid="today-astra" data-suppressed={props.suppressed ? 'true' : 'false'} />
+        <original.TodayAstra {...props} />
+      </>
+    ),
+  }
+})
+vi.mock('motion/react', async () => {
+  const React = await import('react')
+  const MotionDiv = ({
+    children,
+    style: _style,
+    ...props
+  }: {
+    children?: React.ReactNode
+    style?: unknown
+    [key: string]: unknown
+  }) => <div {...props}>{children}</div>
+
+  return {
+    animate: mocks.animate,
+    m: { div: MotionDiv },
+    motion: { div: MotionDiv },
+    useMotionValue: (initial: number) => {
+      return React.useMemo(() => {
+        let value = initial
+        return {
+          get: () => value,
+          set: (next: number) => {
+            value = next
+            mocks.motionSets.push(next)
+          },
+        }
+      }, [initial])
+    },
+    useReducedMotion: () => mocks.reducedMotion,
+  }
+})
+
+describe('web Today Astra owned surfaces', () => {
+  it.each(['past day', 'create', 'select', 'list', 'first load', 'load error'])('withholds the reachable daily summary during %s', (state) => {
+    mocks.hasProAccess = false
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.getByRole('link', { name: 'summary.freePrompt' })).toBeInTheDocument()
+    if (state === 'past day') mocks.view.nav.dateStr = '2026-08-28'
+    mocks.view.showCreateModal = state === 'create'
+    mocks.view.isSelectMode = state === 'select'
+    mocks.view.listSurfaceOpen = state === 'list'
+    mocks.view.data.hasFetched = state !== 'first load' && state !== 'load error'
+    mocks.view.data.isFetching = state === 'first load'
+    mocks.view.data.showLoadError = state === 'load error'
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.queryByRole('link', { name: 'summary.freePrompt' })).not.toBeInTheDocument()
+  })
+
+  it('gives the unread check-in the only insight slot ahead of the free summary', () => {
+    mocks.hasProAccess = false
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
+    render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.queryByText('summary.freePrompt')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Check in' })).toBeInTheDocument()
+  })
+
+  beforeEach(() => {
+    mocks.view.isSelectMode = false
+    mocks.view.showCreateModal = false
+    mocks.view.listSurfaceOpen = false
+    mocks.view.data.isFetching = false
+    mocks.view.data.hasFetched = true
+    mocks.view.data.isRefetching = false
+    mocks.view.data.showLoadError = false
+    mocks.view.data.habitsCount = 1
+    mocks.lastCompletionDate = undefined
+    mocks.hasProAccess = true
+    mocks.profileReady = true
+    mocks.checklistProfile = null
+    mocks.timeZone = 'UTC'
+    mocks.notifications = []
+    mocks.proactiveItem = null
+    mocks.view.nav.today = '2026-08-29'
+    mocks.view.nav.dateStr = '2026-08-29'
+    mocks.animate.mockClear()
+    mocks.reducedMotion = false
+    mocks.motionSets.length = 0
+  })
+
+  it('dismisses the setup checklist from Today and keeps it dismissed after rehydration', async () => {
+    mocks.checklistProfile = createMockProfile({ isTrialActive: false, hasCreatedFirstHabit: true })
+    localStorage.setItem('orbit-ui-store', JSON.stringify({ state: { setupChecklistDismissed: false }, version: 6 }))
+    await useUIStore.persist.rehydrate()
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.getByRole('list')).toHaveTextContent('today.setupChecklist.items.createHabit')
+    fireEvent.click(screen.getByRole('button', { name: 'today.setupChecklist.dismiss' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'today.setupChecklist.dismiss' })).not.toBeInTheDocument())
+    page.unmount()
+    await useUIStore.persist.rehydrate()
+    render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.queryByRole('button', { name: 'today.setupChecklist.dismiss' })).not.toBeInTheDocument()
+  })
+
+  it('clears the line when current returns no item after the owning Today date rolls over', () => {
+    mocks.timeZone = 'America/Sao_Paulo'
+    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-30T02:59:00Z' })]
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in', localDate: '2026-08-29' })
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.getByRole('button', { name: 'Check in' })).toBeInTheDocument()
+
+    mocks.view.nav.today = '2026-08-30'
+    mocks.view.nav.dateStr = '2026-08-30'
+    mocks.proactiveItem = null
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(screen.queryByRole('button', { name: 'Check in' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('today-date')).toHaveTextContent('2026-08-30')
+    expect(mocks.notifications[0]?.isRead).toBe(false)
+  })
+
+  it('withholds Today actions until the account day is known', () => {
+    mocks.profileReady = false
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.queryByTestId('today-habit-list')).not.toBeInTheDocument()
+    mocks.hasProAccess = true
+    mocks.profileReady = true
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.getByTestId('today-habit-list')).toBeInTheDocument()
+  })
+
+  it('renders Today content in server markup when the account profile is preloaded', () => {
+    mocks.profileReady = false
+
+    const markup = renderToString(
+      <TodayPageClient
+        initialToday="2026-08-29"
+        initialHabits={null}
+        initialProfile={profileFixture}
+      />,
+    )
+
+    expect(markup).toContain('data-testid="today-habit-list"')
+  })
+
+  it('drops the preloaded profile after the account changes', () => {
+    mocks.profileReady = false
+    render(
+      <TodayPageClient
+        initialToday="2026-08-29"
+        initialHabits={null}
+        initialProfile={profileFixture}
+      />,
+    )
+    expect(screen.getByTestId('today-habit-list')).toBeInTheDocument()
+
+    act(() => advanceAccountGeneration())
+
+    expect(screen.queryByTestId('today-habit-list')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+
+  it('stands down while the create surface is open', () => {
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.getByTestId('today-astra')).toHaveAttribute('data-suppressed', 'false')
+
+    mocks.view.showCreateModal = true
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(screen.getByTestId('today-astra')).toHaveAttribute('data-suppressed', 'true')
+  })
+
+  it('keeps the same proactive line mounted throughout a habits refetch', () => {
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    const line = screen.getByRole('button', { name: 'Check in' })
+
+    mocks.view.data.isFetching = true
+    mocks.view.data.isRefetching = true
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(screen.getByRole('button', { name: 'Check in' })).toBe(line)
+
+    mocks.view.data.isFetching = false
+    mocks.view.data.isRefetching = false
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(screen.getByRole('button', { name: 'Check in' })).toBe(line)
+  })
+
+  it.each(['first load', 'load error', 'select mode', 'list surface'])(
+    'withholds the proactive line during %s', (state) => {
+      mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
+      mocks.view.data.hasFetched = state !== 'first load' && state !== 'load error'
+      mocks.view.data.isFetching = state === 'first load'
+      mocks.view.data.showLoadError = state === 'load error'
+      mocks.view.isSelectMode = state === 'select mode'
+      mocks.view.listSurfaceOpen = state === 'list surface'
+
+      render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+      expect(screen.queryByRole('button', { name: 'Check in' })).not.toBeInTheDocument()
+    },
+  )
+
+  it.each([
+    ['2026-08-26', true],
+    [null, false],
+    [undefined, false],
+  ])('shows returning guidance with zero habits only for a qualifying completion: %s', (lastCompletionDate, visible) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
+    mocks.view.data.habitsCount = 0
+    mocks.lastCompletionDate = lastCompletionDate
+
+    render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    if (visible) {
+      expect(screen.getByText('todayAstra.returningElapsed:3', { exact: false })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })).toHaveAttribute('href', '/progress')
+    } else {
+      expect(screen.queryByText('todayAstra.returningElapsed:3', { exact: false })).not.toBeInTheDocument()
+    }
+    vi.useRealTimers()
+  })
+
+  it('retargets the full day block from its live value when the date changes quickly', () => {
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    mocks.animate.mockClear()
+
+    mocks.view.nav.dateStr = '2026-08-30'
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(mocks.motionSets).toEqual([8, 0.9])
+    expect(mocks.animate.mock.calls.map(([, target]) => target)).toEqual([0, 1])
+
+    mocks.view.nav.dateStr = '2026-08-31'
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(mocks.motionSets).toEqual([8, 0.9])
+    expect(mocks.animate).toHaveBeenCalledTimes(4)
+  })
+
+  it('renders the real panel with one day owner and an independent refetch channel', () => {
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    const dayOwner = page.container.querySelector('[data-today-day-transition]')
+    const refetchChannel = screen.getByTestId('today-refetch-motion')
+
+    expect(dayOwner).toContainElement(refetchChannel)
+    expect(refetchChannel).toContainElement(screen.getByTestId('today-habit-list'))
+    expect(screen.queryByTestId('today-day-motion')).not.toBeInTheDocument()
+
+    mocks.animate.mockClear()
+    mocks.motionSets.length = 0
+    mocks.view.data.isRefetching = true
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(mocks.animate.mock.calls.map(([, target]) => target)).toEqual([0.8, 4])
+    expect(mocks.motionSets).toEqual([])
+  })
+
+  it('settles an active transition when reduced motion is enabled without changing the date', () => {
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    mocks.animate.mockClear()
+    mocks.view.nav.dateStr = '2026-08-28'
+
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(mocks.motionSets).toEqual([-8, 0.9])
+
+    mocks.reducedMotion = true
+    mocks.motionSets.length = 0
+    mocks.animate.mockClear()
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(mocks.motionSets).toEqual([1, 0])
+    expect(mocks.animate.mock.calls.map(([, target, transition]) => ({
+      target,
+      duration: transition?.duration,
+    }))).toEqual([
+      { target: 1, duration: 0.07 },
+      { target: 0, duration: 0.07 },
+    ])
+  })
+})

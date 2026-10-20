@@ -1,11 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
+import { DailyStreakMoment } from '@/components/gamification/daily-streak-moment'
+import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
 import { API } from '@orbit/shared/api'
-import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { QueryClient, QueryObserver } from '@tanstack/query-core'
+import { QueryClientProvider } from '@tanstack/react-query'
+import React from 'react'
+import { createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
-import { buildChildrenIndex, formatAPIDate, getAllDoneOnDate, normalizeHabits } from '@orbit/shared/utils'
+import { buildCalendarDayMap, buildChildrenIndex, buildHabitHistoryMonth, formatAPIDate, getAllDoneOnDate, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
 import enMessages from '@orbit/shared/i18n/en.json'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
-import type { BulkLogResult, ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
+import type { CalendarMonthResponse, ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse, UpdateHabitRequest } from '@orbit/shared/types/habit'
+import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { Goal } from '@orbit/shared/types/goal'
 
 import {
@@ -26,10 +32,16 @@ import {
   useUpdateHabit,
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { cancelQueuedSkipForUndo } from '@/lib/offline-mutations'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+
+const TestRenderer = require('react-test-renderer')
 
 const { captureHabitLogged } = vi.hoisted(() => ({ captureHabitLogged: vi.fn() }))
 vi.mock('@/lib/posthog', () => ({ captureHabitLogged }))
+
+vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -42,14 +54,39 @@ vi.mock('react-i18next', () => ({
 
 const storage = vi.hoisted(() => ({
   getItem: vi.fn(() => Promise.resolve(null as string | null)),
-  setItem: vi.fn(() => Promise.resolve()),
+  setItem: vi.fn((_key: string, _value: string) => Promise.resolve()),
   removeItem: vi.fn(() => Promise.resolve()),
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: storage }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
+describe('returning profile after other completion writes', () => {
+  it.each([
+    ['skip', () => useSkipHabit()],
+    ['edit bad-habit flag', () => useUpdateHabit()],
+    ['delete', () => useDeleteHabit()],
+    ['restore', () => useRestoreHabit()],
+    ['checklist', () => useUpdateChecklist()],
+    ['bulk delete', () => useBulkDeleteHabits()],
+    ['bulk skip', () => useBulkSkipHabits()],
+  ] as const)('refreshes profile after %s', (_name, useWrite) => {
+    mocks.queryClient.invalidateQueries.mockClear()
+    const mutation = useWrite() as unknown as MutationConfig<unknown, unknown, unknown>
+    mutation.onSettled?.({}, null, {}, undefined)
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+})
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 const mocks = vi.hoisted(() => {
+  class OfflineMutationPreflightError extends Error {}
+
   const state = {
     entries: [] as { key: readonly unknown[]; value: unknown }[],
     tempIds: [] as string[],
@@ -60,6 +97,8 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     cancelQueries: vi.fn(async () => {}),
+    getQueryCache: () => ({ findAll: () => [], subscribe: vi.fn() }),
+    removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async (_filters?: { queryKey: readonly unknown[] }) => {}),
     isFetching: vi.fn(() => 0),
     getQueriesData: vi.fn((filters: { queryKey: readonly unknown[] }) =>
@@ -120,10 +159,11 @@ const mocks = vi.hoisted(() => {
     restoreHabitMutate: vi.fn(),
     cancelQueuedDeleteForUndo: vi.fn(() => Promise.resolve<'cancelled' | 'replayed' | 'dropped' | 'uncertain'>('cancelled')),
     runQueuedMutation: vi.fn(({ queuedResult, queuedResultFactory }: {
+      mutation: { type: string }
       queuedResult?: unknown
-      queuedResultFactory?: (mutationId: string) => unknown
-    }) => Promise.resolve(
-      queuedResultFactory?.('mutation-1') ?? queuedResult ?? {
+      queuedResultFactory?: (mutationId: string, retained: boolean) => unknown
+    }): Promise<unknown> => Promise.resolve(
+      queuedResultFactory?.('mutation-1', false) ?? queuedResult ?? {
         queued: true as const,
         queuedMutationId: 'mutation-1',
       },
@@ -142,9 +182,10 @@ const mocks = vi.hoisted(() => {
       dedupeKey: null,
       ...options,
     })),
-    createQueuedAck: vi.fn((mutationId: string) => ({
+    createQueuedAck: vi.fn((mutationId: string, retained = false) => ({
       queued: true as const,
       queuedMutationId: mutationId,
+      ...(retained ? { retained: true as const } : {}),
     })),
     createTempEntityId: vi.fn(() => mocks.state.tempIds.shift() ?? 'offline-habit-fallback'),
     isQueuedResult: vi.fn((value: unknown) => (
@@ -154,6 +195,7 @@ const mocks = vi.hoisted(() => {
       (value as { queued?: boolean }).queued === true
     )),
     queueOrExecute: vi.fn(),
+    OfflineMutationPreflightError,
     withQueuedMarker: vi.fn((value: Record<string, unknown>, mutationId: string) => ({
       ...value,
       queued: true as const,
@@ -164,25 +206,32 @@ const mocks = vi.hoisted(() => {
     setStreakCelebration: vi.fn(),
     checkAllDoneCelebration: vi.fn(),
     useRealUIStore: false,
+    useRealQueryHooks: false,
     invalidateHabitMutationQueries: vi.fn(async () => {}),
     showSuccess: vi.fn(),
     showError: vi.fn(),
+    showInfo: vi.fn(),
     showUndoToast: vi.fn(),
   }
 })
 
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: mocks.useQuery,
-  useQueryClient: mocks.useQueryClient,
-  useMutation: mocks.useMutation,
-  focusManager: { setEventListener: () => {} },
-  onlineManager: { setEventListener: () => {} },
-  QueryClient: class {
-    getDefaultOptions() {
-      return {}
-    }
-  },
-}))
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
+  return {
+    ...actual,
+    useQuery: mocks.useQuery,
+    useQueryClient: () => mocks.useRealQueryHooks ? actual.useQueryClient() : mocks.useQueryClient(),
+    useMutation: (...parameters: Parameters<typeof actual.useMutation>) => mocks.useRealQueryHooks
+      ? actual.useMutation(...parameters) : mocks.useMutation(parameters[0]),
+    focusManager: { setEventListener: () => {} },
+    onlineManager: { setEventListener: () => {} },
+    QueryClient: class {
+      getDefaultOptions() {
+        return {}
+      }
+    },
+  }
+})
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
@@ -200,8 +249,11 @@ vi.mock('@/lib/offline-mutations', () => ({
   createTempEntityId: mocks.createTempEntityId,
   isQueuedResult: mocks.isQueuedResult,
   queueOrExecute: mocks.queueOrExecute,
+  OfflineMutationPreflightError: mocks.OfflineMutationPreflightError,
   withQueuedMarker: mocks.withQueuedMarker,
   cancelQueuedDeleteForUndo: mocks.cancelQueuedDeleteForUndo,
+  cancelQueuedSkipForUndo: vi.fn(),
+  executeSkipUndo: vi.fn(),
 }))
 
 vi.mock('@/lib/orbit-widget', () => ({
@@ -213,6 +265,7 @@ vi.mock('@/stores/ui-store', async () => {
   return { useUIStore: {
     getState: () => mocks.useRealUIStore ? actual.useUIStore.getState() : ({
       activeFilters: {},
+      showStreakMoment: actual.useUIStore.getState().showStreakMoment,
       checkAllDoneCelebration: mocks.checkAllDoneCelebration,
       setStreakCelebration: mocks.setStreakCelebration,
       setLastCreatedHabitId: mocks.setLastCreatedHabitId,
@@ -236,7 +289,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
     showSuccess: mocks.showSuccess,
     showError: mocks.showError,
     showQueued: vi.fn(),
-    showInfo: vi.fn(),
+    showInfo: mocks.showInfo,
     showToast: vi.fn(),
   }),
 }))
@@ -260,6 +313,29 @@ type MutationConfig<TResult, TVariables, TContext> = {
 
 type HabitSnapshotContext = {
   previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
+}
+
+type LogHabitSnapshotContext = HabitSnapshotContext & {
+  previousLogs: HabitLog[] | undefined
+  previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[]
+}
+
+type BulkLogOutcome = {
+  results: {
+    index: number
+    habitId: string
+    status: 'Success' | 'Failed'
+    logId: string | null
+    error: string | null
+  }[]
+  ambiguousIds: string[]
+  offlineFailureIds: string[]
+}
+
+type LogHabitVariables = {
+  habitId: string
+  date?: string
+  intent: 'log' | 'unlog'
 }
 
 function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
@@ -328,6 +404,15 @@ function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleCh
   }
 }
 
+function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
+  const habit = makeHabit()
+  return {
+    ...habit,
+    children: [],
+    ...overrides,
+  }
+}
+
 function seedHabitState(habits: HabitScheduleItem[], count = habits.length): void {
   mocks.state.entries = [
     { key: habitKeys.list({}), value: habits },
@@ -341,6 +426,28 @@ function getHabitList(): HabitScheduleItem[] {
   return (
     mocks.state.entries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(habitKeys.list({})))?.value as HabitScheduleItem[]
   )
+}
+
+function seedCalendarState(date: string): ReturnType<typeof habitKeys.calendar> {
+  const key = habitKeys.calendar(date, date)
+  mocks.state.entries.push({
+    key,
+    value: {
+      habits: [makeHabit({ dueDate: date, scheduledDates: [date] })],
+      logs: { 'habit-1': [] },
+    } satisfies CalendarMonthResponse,
+  })
+  return key
+}
+
+function getCalendarStatus(
+  key: ReturnType<typeof habitKeys.calendar>,
+  date: string,
+  habitId = 'habit-1',
+) {
+  const calendar = mocks.queryClient.getQueryData(key) as CalendarMonthResponse
+  return buildCalendarDayMap(calendar, { from: '2025-01-01', to: '2025-01-31' }, new Date('2025-01-16T09:00:00Z'))
+    .get(date)?.find((entry) => entry.habitId === habitId)?.status
 }
 
 function getCount(): number {
@@ -377,7 +484,6 @@ function executeRestoreMutation(
 describe('mobile habit hooks', () => {
   beforeEach(() => {
     captureHabitLogged.mockClear()
-    vi.useRealTimers()
     seedHabitState([makeHabit()], 1)
     mocks.state.tempIds = []
     mocks.queryClient.cancelQueries.mockReset()
@@ -405,56 +511,149 @@ describe('mobile habit hooks', () => {
     mocks.setStreakCelebration.mockClear()
     mocks.checkAllDoneCelebration.mockClear()
     mocks.useRealUIStore = false
+    mocks.useRealQueryHooks = false
     mocks.invalidateHabitMutationQueries.mockClear()
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
     mocks.showUndoToast.mockClear()
+    useReviewReminderStore.getState().reset()
     mocks.restoreHabitMutate.mockClear()
     mocks.cancelQueuedDeleteForUndo.mockClear()
     useOfflineSyncStore.setState({ drops: [] })
     storage.setItem.mockClear()
   })
 
-  it('celebrates the last Today log through the real store', async () => {
-    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
-    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
-    mocks.useRealUIStore = true
-    const today = formatAPIDate(new Date())
-    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
-    mocks.state.entries = [{ key, value: [
-      makeHabit({ id: 'habit-1', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
-      makeHabit({ id: 'habit-2', dueDate: today, scheduledDates: [today], isLoggedInRange: false }),
-    ] }]
-    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
-    const variables = { habitId: 'habit-2' }
-    const context = await mutation.onMutate?.(variables)
-    expect((mocks.queryClient.getQueryData(key) as HabitScheduleItem[])[1]?.isCompleted).toBe(true)
-    const normalized = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
-    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today)).toEqual({ allDone: true, count: 2 })
-    mutation.onSuccess?.({ logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
-    const completed = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
-    expect(getAllDoneOnDate(completed, buildChildrenIndex(completed), today)).toEqual({ allDone: true, count: 2 })
-    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
-    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
-    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
-    mocks.useRealUIStore = false
+  it.each(['log', 'unlog', 'skip', 'delete', 'restore', 'bulk log', 'bulk skip', 'bulk delete'] as const)('invalidates the cached month retrospective after %s', async (operation) => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    mocks.useRealQueryHooks = true
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    const retrospectiveKey = habitKeys.retrospective('month')
+    const retrospective = { period: 'month', metrics: createMockRetrospectiveMetrics({ periodDays: 30 }),
+      narrative: { highlights: '', missed: '', trends: '', suggestion: '' }, fromCache: false }
+    client.setQueryDefaults(retrospectiveKey, { staleTime: 5 * 60_000 })
+    client.setQueryData(retrospectiveKey, retrospective)
+    let runMutation!: () => Promise<unknown>
+    function Probe() {
+      const log = useLogHabit()
+      const skip = useSkipHabit()
+      const remove = useDeleteHabit()
+      const restore = useRestoreHabit()
+      const bulkLog = useBulkLogHabits()
+      const bulkSkip = useBulkSkipHabits()
+      const bulkDelete = useBulkDeleteHabits()
+      runMutation = {
+        log: () => log.mutateAsync({ habitId: 'habit-1', intent: 'log' }),
+        unlog: () => log.mutateAsync({ habitId: 'habit-1', intent: 'unlog' }),
+        skip: () => skip.mutateAsync({ habitId: 'habit-1' }),
+        delete: () => remove.mutateAsync('habit-1'),
+        restore: () => restore.mutateAsync('habit-1'),
+        'bulk log': () => bulkLog.mutateAsync([{ habitId: 'habit-1' }]),
+        'bulk skip': () => bulkSkip.mutateAsync([{ habitId: 'habit-1' }]),
+        'bulk delete': () => bulkDelete.mutateAsync(['habit-1']),
+      }[operation]
+      return null
+    }
+    let renderer: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(() => {
+        renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe)))
+      })
+      const logResponse = { logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 }
+      const bulkResponse = { results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'log-1', error: null }] }
+      mocks.runQueuedMutation.mockResolvedValueOnce(operation === 'bulk log' || operation === 'bulk skip'
+        ? bulkResponse : operation === 'log' || operation === 'unlog' ? logResponse : undefined)
+      expect(client.getQueryState(retrospectiveKey)?.isInvalidated).toBe(false)
+      await TestRenderer.act(() => runMutation())
+      expect(client.getQueryState(retrospectiveKey)?.isInvalidated).toBe(true)
+      expect(client.getQueryData(retrospectiveKey)).toEqual(retrospective)
+    } finally {
+      await TestRenderer.act(() => { renderer?.unmount() })
+      mocks.useRealQueryHooks = false
+      vi.unstubAllGlobals()
+      client.clear()
+    }
   })
 
-  it('does not celebrate while a recurring skip is pending when the other due habit is logged', async () => {
+  it('gives queued toggles a durable habit and occurrence date key', async () => {
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      unknown
+    >
+
+    await mutation.mutationFn({
+      habitId: 'habit-1',
+      date: '2026-08-29',
+      intent: 'log',
+    })
+
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({
+        type: 'logHabit',
+        dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      }),
+    }))
+  })
+
+  it('uses the pinned day for an undated queued toggle', async () => {
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      unknown
+    >
+
+    await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
+
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({
+        dedupeKey: 'habit-toggle:habit-1:2026-09-12',
+      }),
+    }))
+  })
+
+  it('celebrates once after deleting a due habit before logging the last one', async () => {
     const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     mocks.useRealUIStore = true
     const today = formatAPIDate(new Date())
-    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
+    const key = habitKeys.list({ ...filters, completeDay: true })
+    const countKey = habitKeys.listTotalCount(filters)
+    mocks.state.entries = [
+      { key, value: [makeHabit({ id: 'deleted', dueDate: today, scheduledDates: [today] }),
+        makeHabit({ id: 'last', dueDate: today, scheduledDates: [today] })] },
+      { key: countKey, value: 2 },
+    ]
+
+    const deletion = useDeleteHabit() as unknown as MutationConfig<unknown, string, HabitSnapshotContext>
+    const deleteContext = await deletion.onMutate?.('deleted')
+    expect(mocks.queryClient.getQueryData(countKey)).toBe(1)
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const variables = { habitId: 'last', intent: 'log' as const }
+    const logContext = await log.onMutate?.(variables)
+    log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, variables, logContext)
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+
+    deletion.onError?.(new Error('Delete failed'), 'deleted', deleteContext)
+    expect(mocks.queryClient.getQueryData(countKey)).toBe(2)
+  })
+
+  it('does not celebrate a logged habit while a recurring skip is pending', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
     mocks.state.entries = [{ key, value: [
       makeHabit({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
       makeHabit({ id: 'logged', dueDate: today, scheduledDates: [today] }),
     ] }]
+
     const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date?: string }, unknown>
     await skip.onMutate?.({ habitId: 'skipped' })
-    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse,
-      { habitId: string; date?: string }, HabitSnapshotContext>
-    const variables = { habitId: 'logged' }
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const variables = { habitId: 'logged', intent: 'log' as const }
     const context = await log.onMutate?.(variables)
     log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
 
@@ -471,23 +670,23 @@ describe('mobile habit hooks', () => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     mocks.useRealUIStore = true
     const today = formatAPIDate(new Date())
-    const todayKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    const completeKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
     const ordinaryKey = habitKeys.list({ dateFrom: today, dateTo: today })
     const items = [
       makeHabit({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
       makeHabit({ id: 'last', dueDate: today, scheduledDates: [today] }),
     ]
-    mocks.state.entries = [{ key: todayKey, value: items }, { key: ordinaryKey, value: items }]
+    mocks.state.entries = [{ key: completeKey, value: items }, { key: ordinaryKey, value: items }]
     const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date?: string }, HabitSnapshotContext>
     const skipVariables = { habitId: 'skipped' }
     const skipContext = await skip.onMutate?.(skipVariables)
     const result = settlement === 'queued' ? { queued: true, queuedMutationId: 'mutation-1' } : undefined
     skip.onSettled?.(result, null, skipVariables, skipContext)
-    expect((mocks.queryClient.getQueryData(todayKey) as HabitScheduleItem[])[0]).not.toHaveProperty('__optimisticSkip')
+    expect((mocks.queryClient.getQueryData(completeKey) as HabitScheduleItem[])[0]).not.toHaveProperty('__optimisticSkip')
     expect((mocks.queryClient.getQueryData(ordinaryKey) as HabitScheduleItem[])[0]).not.toHaveProperty('__optimisticSkip')
 
-    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
-    const logVariables = { habitId: 'last' }
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const logVariables = { habitId: 'last', intent: 'log' as const }
     const logContext = await log.onMutate?.(logVariables)
     log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, logVariables, logContext)
 
@@ -500,7 +699,7 @@ describe('mobile habit hooks', () => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     mocks.useRealUIStore = true
     const today = formatAPIDate(new Date())
-    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
     mocks.state.entries = [{ key, value: [
       makeHabit({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
       makeHabit({ id: 'last', dueDate: today, scheduledDates: [today] }),
@@ -511,43 +710,14 @@ describe('mobile habit hooks', () => {
     skip.onError?.(new Error('Skip failed'), skipVariables, skipContext)
     skip.onSettled?.(undefined, new Error('Skip failed'), skipVariables, skipContext)
     expect((mocks.queryClient.getQueryData(key) as HabitScheduleItem[])[0]).not.toHaveProperty('__optimisticSkip')
-    expect((mocks.queryClient.getQueryData(key) as HabitScheduleItem[])[0]?.isCompleted).toBe(false)
 
-    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
-    const logVariables = { habitId: 'last' }
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const logVariables = { habitId: 'last', intent: 'log' as const }
     const logContext = await log.onMutate?.(logVariables)
     log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, logVariables, logContext)
 
     expect(useUIStore.getState().activeCelebration).toBeNull()
     mocks.useRealUIStore = false
-  })
-
-  it('celebrates once after deleting a due habit before logging the last one', async () => {
-    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
-    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
-    mocks.useRealUIStore = true
-    const today = formatAPIDate(new Date())
-    const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
-    const key = habitKeys.list(filters)
-    const countKey = habitKeys.listTotalCount(filters)
-    mocks.state.entries = [
-      { key, value: [makeHabit({ id: 'deleted', dueDate: today, scheduledDates: [today] }),
-        makeHabit({ id: 'last', dueDate: today, scheduledDates: [today] })] },
-      { key: countKey, value: 2 },
-    ]
-
-    const deletion = useDeleteHabit() as unknown as MutationConfig<unknown, string, HabitSnapshotContext>
-    const deleteContext = await deletion.onMutate?.('deleted')
-    expect(mocks.queryClient.getQueryData(countKey)).toBe(1)
-    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string }, HabitSnapshotContext>
-    const variables = { habitId: 'last' }
-    const logContext = await log.onMutate?.(variables)
-    log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, variables, logContext)
-    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
-    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
-
-    deletion.onError?.(new Error('Delete failed'), 'deleted', deleteContext)
-    expect(mocks.queryClient.getQueryData(countKey)).toBe(2)
   })
 
   it('keeps a newly duplicated due habit in the complete list until its log', async () => {
@@ -556,7 +726,7 @@ describe('mobile habit hooks', () => {
     mocks.useRealUIStore = true
     const today = formatAPIDate(new Date())
     const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
-    const key = habitKeys.list(filters)
+    const key = habitKeys.list({ ...filters, completeDay: true })
     const countKey = habitKeys.listTotalCount(filters)
     mocks.state.entries = [
       { key, value: [makeHabit({ id: 'original', dueDate: today, scheduledDates: [today], isLoggedInRange: true })] },
@@ -566,8 +736,8 @@ describe('mobile habit hooks', () => {
     const duplicate = useDuplicateHabit() as unknown as MutationConfig<unknown, string, HabitSnapshotContext>
     await duplicate.onMutate?.('original')
     expect(mocks.queryClient.getQueryData(countKey)).toBe(2)
-    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string }, HabitSnapshotContext>
-    const variables = { habitId: 'new-due-habit' }
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const variables = { habitId: 'new-due-habit', intent: 'log' as const }
     const context = await log.onMutate?.(variables)
     log.onSuccess?.({ logId: 'log-new', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
@@ -580,7 +750,7 @@ describe('mobile habit hooks', () => {
     mocks.useRealUIStore = true
     const today = formatAPIDate(new Date())
     const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
-    const key = habitKeys.list(filters)
+    const key = habitKeys.list({ ...filters, completeDay: true })
     const countKey = habitKeys.listTotalCount(filters)
     mocks.state.entries = [
       { key, value: [makeHabit({ id: 'last', dueDate: today, scheduledDates: [today] })] },
@@ -592,8 +762,8 @@ describe('mobile habit hooks', () => {
       }
       return Promise.resolve()
     })
-    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string }, HabitSnapshotContext>
-    const variables = { habitId: 'last' }
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const variables = { habitId: 'last', intent: 'log' as const }
     const context = await log.onMutate?.(variables)
     log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
     await Promise.resolve(log.onSettled?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, null, variables, context))
@@ -607,7 +777,7 @@ describe('mobile habit hooks', () => {
     mocks.useRealUIStore = true
     const today = formatAPIDate(new Date())
     const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
-    const key = habitKeys.list(filters)
+    const key = habitKeys.list({ ...filters, completeDay: true })
     const countKey = habitKeys.listTotalCount(filters)
     mocks.state.entries = [
       { key, value: [makeHabit({ id: 'original', dueDate: today, scheduledDates: [today], isLoggedInRange: true })] },
@@ -630,8 +800,8 @@ describe('mobile habit hooks', () => {
       }
       return Promise.resolve()
     })
-    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string }, HabitSnapshotContext>
-    const variables = { habitId: 'created' }
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const variables = { habitId: 'created', intent: 'log' as const }
     const context = await log.onMutate?.(variables)
     log.onSuccess?.({ logId: 'log-created', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
     await Promise.resolve(log.onSettled?.({ logId: 'log-created', isFirstCompletionToday: false, currentStreak: 1 }, null, variables, context))
@@ -644,11 +814,11 @@ describe('mobile habit hooks', () => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     mocks.useRealUIStore = true
     const today = formatAPIDate(new Date())
-    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
     mocks.state.entries = [{ key, value: [makeHabit({ id: 'flexible', dueDate: today,
       scheduledDates: [today], isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0 })] }]
-    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
-    const variables = { habitId: 'flexible' }
+    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const variables = { habitId: 'flexible', intent: 'log' as const }
     expect(useUIStore.getState().activeCelebration).toBeNull()
     const context = await mutation.onMutate?.(variables)
     mutation.onSuccess?.({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
@@ -658,86 +828,237 @@ describe('mobile habit hooks', () => {
     mocks.useRealUIStore = false
   })
 
-  it('does not celebrate from a first page with an unseen due habit', async () => {
-    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
-    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
-    mocks.useRealUIStore = true
-    const today = formatAPIDate(new Date())
-    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
-    mocks.state.entries = [{ key, value: Array.from({ length: 50 }, (_, index) =>
-      makeHabit({ id: `habit-${index}`, dueDate: today, scheduledDates: [today],
-        isLoggedInRange: index < 49 })) }]
-    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
-    const variables = { habitId: 'habit-49' }
-    const context = await mutation.onMutate?.(variables)
-    mutation.onSuccess?.({ logId: 'log-50', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
-    expect(useUIStore.getState().activeCelebration).toBeNull()
-    mocks.useRealUIStore = false
-  })
-
-  it('celebrates after the final log in a complete 51-item Today list', async () => {
-    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
-    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
-    mocks.useRealUIStore = true
-    const today = formatAPIDate(new Date())
-    const filters = { dateFrom: today, dateTo: today, includeOverdue: true, includeGeneral: true }
+  it.each([
+    ['log', false],
+    ['unlog', true],
+  ] as const)('keeps mounted dated detail state optimistic after a queued %s', async (intent, initiallyLogged) => {
+    const date = '2025-01-15'
+    const initialLog: HabitLog = {
+      id: 'server-log-1',
+      date,
+      value: 1,
+      createdAtUtc: '2025-01-15T09:30:00Z',
+    }
+    const datedHabit = makeHabit({
+      dueDate: date,
+      scheduledDates: [date],
+      isCompleted: initiallyLogged,
+      isLoggedInRange: initiallyLogged,
+      instances: [{
+        date,
+        status: initiallyLogged ? 'Completed' : 'Pending',
+        logId: initiallyLogged ? initialLog.id : null,
+      }],
+    })
+    const undatedHabit = makeHabit({ ...datedHabit })
+    const otherDateHabit = makeHabit({ ...datedHabit })
     mocks.state.entries = [
-      { key: habitKeys.list(filters), value: [...Array.from({ length: 51 }, (_, index) =>
-        makeHabit({ id: `habit-${index}`, dueDate: today, scheduledDates: [today],
-          isLoggedInRange: index < 50 })), makeHabit({ id: 'general', isGeneral: true, scheduledDates: [] })] },
-      { key: habitKeys.listTotalCount(filters), value: 51 },
+      { key: habitKeys.list({}), value: [undatedHabit] },
+      {
+        key: habitKeys.list({ dateFrom: date, dateTo: date }),
+        value: [datedHabit],
+      },
+      {
+        key: habitKeys.list({ dateFrom: '2025-01-16', dateTo: '2025-01-16' }),
+        value: [otherDateHabit],
+      },
+      { key: habitKeys.logs('habit-1'), value: initiallyLogged ? [initialLog] : [] },
+      { key: habitKeys.count(), value: 1 },
+      { key: tagKeys.lists(), value: [] },
+      { key: goalKeys.lists(), value: [] },
     ]
-    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
-    const variables = { habitId: 'habit-50' }
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1', date, intent }
+
     const context = await mutation.onMutate?.(variables)
-    mutation.onSuccess?.({ logId: 'log-51', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
-    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 51 })
-    mocks.useRealUIStore = false
+    const response = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(response, variables, context)
+    mutation.onSettled?.(response, null, variables, context)
+
+    expect(response).toEqual({ queued: true, queuedMutationId: 'mutation-1' })
+    const logs = mocks.queryClient.getQueryData(habitKeys.logs('habit-1')) as HabitLog[]
+    const completed = intent === 'log'
+    expect(isHabitCompletedOnDate(datedHabit, logs, date)).toBe(completed)
+    expect(buildHabitHistoryMonth(
+      datedHabit,
+      logs,
+      new Date(2025, 0, 15),
+      new Date(2025, 0, 31),
+      0,
+    ).find((day) => day.dateStr === date)).toMatchObject({
+      outcome: completed ? 'full' : 'none',
+      loggedAt: completed ? expect.any(String) : null,
+    })
+
+    const selectedDateList = mocks.queryClient.getQueryData(
+      habitKeys.list({ dateFrom: date, dateTo: date }),
+    ) as HabitScheduleItem[]
+    expect(selectedDateList[0]).toMatchObject({
+      isCompleted: completed,
+      isLoggedInRange: completed,
+      instances: [{
+        date,
+        status: completed ? 'Completed' : 'Pending',
+        logId: completed ? `optimistic-log:habit-1:${date}` : null,
+      }],
+    })
+    expect(mocks.queryClient.getQueryData(habitKeys.list({}))).toEqual([undatedHabit])
+    expect(mocks.queryClient.getQueryData(
+      habitKeys.list({ dateFrom: '2025-01-16', dateTo: '2025-01-16' }),
+    )).toEqual([otherDateHabit])
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledOnce()
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
   })
 
-  it('does not count a skipped occurrence when another log finishes Today', async () => {
-    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
-    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
-    mocks.useRealUIStore = true
-    const today = formatAPIDate(new Date())
-    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
-    mocks.state.entries = [{ key, value: [
-      makeHabit({ id: 'logged', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
-      makeHabit({ id: 'skipped', dueDate: today, scheduledDates: [today],
-        instances: [{ date: today, status: 'Completed', logId: 'skip-log' }] }),
-      makeHabit({ id: 'open', dueDate: today, scheduledDates: [today] }),
-    ] }]
-    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
-    const variables = { habitId: 'open' }
+  it('restores every cache patched by a failed dated log mutation', async () => {
+    const date = '2025-01-15'
+    const initialLog: HabitLog = {
+      id: 'server-log-1',
+      date,
+      value: 1,
+      createdAtUtc: '2025-01-15T09:30:00Z',
+    }
+    const completedHabit = makeHabit({
+      dueDate: date,
+      scheduledDates: [date],
+      isCompleted: true,
+      isLoggedInRange: true,
+      instances: [{ date, status: 'Completed', logId: initialLog.id }],
+    })
+    mocks.state.entries = [
+      { key: habitKeys.list({}), value: [completedHabit] },
+      {
+        key: habitKeys.list({ dateFrom: date, dateTo: date }),
+        value: [completedHabit],
+      },
+      {
+        key: habitKeys.list({ dateFrom: '2025-01-01', dateTo: '2025-01-31' }),
+        value: [completedHabit],
+      },
+      { key: habitKeys.logs('habit-1'), value: [initialLog] },
+    ]
+    const before = structuredClone(mocks.state.entries)
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1', date, intent: 'unlog' as const }
+
     const context = await mutation.onMutate?.(variables)
-    mutation.onSuccess?.({ logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
-    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
-    mocks.useRealUIStore = false
+    expect(mocks.queryClient.getQueryData(habitKeys.logs('habit-1'))).toEqual([])
+    expect(mocks.queryClient.getQueryData(
+      habitKeys.list({ dateFrom: date, dateTo: date }),
+    )).toEqual([expect.objectContaining({ isCompleted: false, isLoggedInRange: false })])
+    expect(mocks.queryClient.getQueryData(
+      habitKeys.list({ dateFrom: '2025-01-01', dateTo: '2025-01-31' }),
+    )).toEqual([expect.objectContaining({ isCompleted: false, isLoggedInRange: false })])
+
+    mutation.onError?.(new Error('request failed'), variables, context)
+
+    expect(mocks.state.entries).toEqual(before)
   })
 
-  it('celebrates a successful bulk log that finishes Today', async () => {
-    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
-    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
-    mocks.useRealUIStore = true
-    const today = formatAPIDate(new Date())
-    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
-    mocks.state.entries = [{ key, value: [
-      makeHabit({ id: 'habit-1', dueDate: today, scheduledDates: [today] }),
-      makeHabit({ id: 'habit-2', dueDate: today, scheduledDates: [today] }),
-    ] }]
-    const mutation = useBulkLogHabits() as unknown as MutationConfig<BulkLogResult, { habitId: string; date?: string }[], HabitSnapshotContext>
-    const items = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
-    const context = await mutation.onMutate?.(items)
-    mutation.onSuccess?.({ results: [
-      { index: 0, status: 'Success', habitId: 'habit-1', logId: 'log-1', error: null },
-      { index: 1, status: 'Success', habitId: 'habit-2', logId: 'log-2', error: null },
-    ] }, items, context)
-    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
-    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
-    mocks.useRealUIStore = false
+  it('applies one dated log intent to every overlapping calendar cache', async () => {
+    const date = '2025-01-15'
+    const dayKey = habitKeys.calendar(date, date)
+    const monthKey = habitKeys.calendar('2025-01-01', '2025-01-31')
+    const habit = makeHabit({ dueDate: date, scheduledDates: [date] })
+    const activeLog: HabitLog = {
+      id: 'server-log-1',
+      date,
+      value: 1,
+      createdAtUtc: '2025-01-15T09:30:00Z',
+    }
+    mocks.state.entries = [
+      {
+        key: dayKey,
+        value: { habits: [habit], logs: { 'habit-1': [] } } satisfies CalendarMonthResponse,
+      },
+      {
+        key: monthKey,
+        value: { habits: [habit], logs: { 'habit-1': [activeLog] } } satisfies CalendarMonthResponse,
+      },
+      { key: habitKeys.logs('habit-1'), value: [activeLog] },
+    ]
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+
+    await mutation.onMutate?.({ habitId: 'habit-1', date, intent: 'log' })
+
+    expect(getCalendarStatus(dayKey, date)).toBe('completed')
+    expect(getCalendarStatus(monthKey, date)).toBe('completed')
+    expect(mocks.queryClient.getQueryData(habitKeys.logs('habit-1'))).toEqual([activeLog])
   })
 
-  it('counts every bulk-completed habit toward the review floor at mutate time', async () => {
+  it('keeps queued mutation B optimistic when mutation A fails later', async () => {
+    const date = '2025-01-15'
+    const calendarKey = habitKeys.calendar(date, date)
+    const listKey = habitKeys.list({ dateFrom: date, dateTo: date })
+    const habitA = makeHabit({
+      id: 'habit-1',
+      dueDate: date,
+      scheduledDates: [date],
+      instances: [{ date, status: 'Pending', logId: null }],
+    })
+    const habitB = makeHabit({
+      id: 'habit-2',
+      dueDate: date,
+      scheduledDates: [date],
+      instances: [{ date, status: 'Pending', logId: null }],
+    })
+    mocks.state.entries = [
+      { key: listKey, value: [habitA, habitB] },
+      {
+        key: calendarKey,
+        value: {
+          habits: [habitA, habitB],
+          logs: { 'habit-1': [], 'habit-2': [] },
+        } satisfies CalendarMonthResponse,
+      },
+      { key: habitKeys.logs('habit-1'), value: [] },
+      { key: habitKeys.logs('habit-2'), value: [] },
+    ]
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const mutationA = { habitId: 'habit-1', date, intent: 'log' as const }
+    const mutationB = { habitId: 'habit-2', date, intent: 'log' as const }
+
+    const contextA = await mutation.onMutate?.(mutationA)
+    await mutation.onMutate?.(mutationB)
+    const queuedMutationB = await mutation.mutationFn(mutationB)
+    expect(getCalendarStatus(calendarKey, date, 'habit-1')).toBe('completed')
+    expect(getCalendarStatus(calendarKey, date, 'habit-2')).toBe('completed')
+    expect(queuedMutationB).toEqual({
+      queued: true,
+      queuedMutationId: 'mutation-1',
+    })
+
+    mutation.onError?.(new Error('Mutation A failed'), mutationA, contextA)
+
+    expect(getCalendarStatus(calendarKey, date, 'habit-1')).toBe('missed')
+    expect(getCalendarStatus(calendarKey, date, 'habit-2')).toBe('completed')
+    expect(mocks.queryClient.getQueryData(listKey)).toEqual([
+      expect.objectContaining({ id: 'habit-1', isCompleted: false }),
+      expect.objectContaining({ id: 'habit-2', isCompleted: true }),
+    ])
+  })
+
+  it('tracks every confirmed bulk completion and no requested item before confirmation', async () => {
     seedHabitState(
       [
         makeHabit({ id: 'habit-1', isCompleted: false }),
@@ -745,36 +1066,183 @@ describe('mobile habit hooks', () => {
       ],
       2,
     )
-    useReviewReminderStore.getState().reset()
+    mocks.runQueuedMutation.mockResolvedValueOnce({
+      results: [
+        { index: 0, status: 'Success', habitId: 'habit-1', logId: 'log-1', error: null },
+        { index: 1, status: 'Success', habitId: 'habit-2', logId: 'log-2', error: null },
+      ],
+    })
 
     const mutation = useBulkLogHabits() as unknown as MutationConfig<
-      unknown,
+      BulkLogOutcome,
       { habitId: string; date?: string }[],
-      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+      HabitSnapshotContext
     >
+    const variables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
 
-    await mutation.onMutate?.([{ habitId: 'habit-1' }, { habitId: 'habit-2' }])
+    const context = await mutation.onMutate?.(variables)
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
 
-    const reviewState = useReviewReminderStore.getState()
-    expect(reviewState.completionCount).toBe(2)
-    expect(reviewState.activeDays).toHaveLength(1)
+    const response = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(response, variables, context)
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 2,
+      activeDays: [expect.any(String)],
+    })
   })
 
-  it('counts the completion toward the review floor at mutate time, so queued completions are never missed', () => {
+  it('tracks an incomplete habit when its log is durably queued', () => {
     seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
-    useReviewReminderStore.getState().reset()
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
-    void mutation.onMutate?.({ habitId: 'habit-1' })
+    const variables = {
+      habitId: 'habit-1',
+      date: '2026-08-28',
+      intent: 'log' as const,
+    }
+    void mutation.onMutate?.(variables)
 
-    const reviewState = useReviewReminderStore.getState()
-    expect(reviewState.completionCount).toBe(1)
-    expect(reviewState.activeDays).toHaveLength(1)
+    expect(useReviewReminderStore.getState().completionCount).toBe(0)
+
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' },
+      variables,
+      undefined,
+    )
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 1,
+      activeDays: ['2026-08-28'],
+    })
+  })
+
+  it('does not count a retained acknowledgement and counts a later confirmed log', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const variables = {
+      habitId: 'habit-1',
+      date: '2026-08-28',
+      intent: 'log' as const,
+    }
+
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' },
+      variables,
+      undefined,
+    )
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1', retained: true },
+      variables,
+      undefined,
+    )
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 1,
+      activeDays: ['2026-08-28'],
+    })
+
+    mutation.onSuccess?.(
+      { logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 },
+      variables,
+      undefined,
+    )
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 2,
+      activeDays: ['2026-08-28'],
+    })
+  })
+
+  it('does not track a completed habit when its unlog is durably queued', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: true })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const variables = { habitId: 'habit-1', intent: 'unlog' as const }
+
+    void mutation.onMutate?.(variables)
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' },
+      variables,
+      undefined,
+    )
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
+  })
+
+  it('tracks a confirmed online log exactly once', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const variables = {
+      habitId: 'habit-1',
+      date: '2026-08-29',
+      intent: 'log' as const,
+    }
+
+    void mutation.onMutate?.(variables)
+    expect(useReviewReminderStore.getState().completionCount).toBe(0)
+
+    mutation.onSuccess?.(
+      { logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 },
+      variables,
+      undefined,
+    )
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 1,
+      activeDays: ['2026-08-29'],
+    })
+  })
+
+  it('does not track a confirmed online unlog', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: true })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const variables = {
+      habitId: 'habit-1',
+      date: '2026-08-29',
+      intent: 'unlog' as const,
+    }
+
+    void mutation.onMutate?.(variables)
+    mutation.onSuccess?.(
+      { logId: 'log-1', isFirstCompletionToday: false, currentStreak: 0 },
+      variables,
+      undefined,
+    )
+
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('optimistically completes before query cancellation resolves', () => {
@@ -788,11 +1256,11 @@ describe('mobile habit hooks', () => {
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
-    void mutation.onMutate?.({ habitId: 'habit-1' })
+    void mutation.onMutate?.({ habitId: 'habit-1', intent: 'log' })
 
     expect(getHabitList()[0]?.isCompleted).toBe(true)
 
@@ -814,7 +1282,7 @@ describe('mobile habit hooks', () => {
 
     expect(getHabitList()[0]?.isCompleted).toBe(false)
     expect(mocks.showError).toHaveBeenCalledOnce()
-    expect(mocks.showError).toHaveBeenCalledWith(enMessages.errors.api.logNotAllowed)
+    expect(mocks.showError).toHaveBeenCalledWith(enMessages.errors.api.logNotAllowed, 'common.dismiss')
   })
 
   it('shows the generic mapped error once for a network failure', () => {
@@ -825,7 +1293,7 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('Network failed'), { habitId: 'habit-1' }, undefined)
 
     expect(mocks.showError).toHaveBeenCalledOnce()
-    expect(mocks.showError).toHaveBeenCalledWith('errors.logHabit')
+    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.logError', 'common.dismiss')
   })
 
   it('shows no error toast after a successful habit log', () => {
@@ -842,7 +1310,7 @@ describe('mobile habit hooks', () => {
 
   it('optimistically postpones one-time child skips instead of completing them', async () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+    vi.setSystemTime(new Date('2025-01-15T09:00:00Z'))
     seedHabitState([
       makeHabit({
         id: 'parent-1',
@@ -870,7 +1338,7 @@ describe('mobile habit hooks', () => {
     vi.useRealTimers()
   })
 
-  it('queues a habit create offline without changing server lists or count', async () => {
+  it('queues an optimistic habit create offline and leaves count server-owned', async () => {
     mocks.state.entries = [
       { key: habitKeys.list({}), value: [makeHabit()] },
       {
@@ -905,9 +1373,16 @@ describe('mobile habit hooks', () => {
       dateTo: '2025-01-01',
     })))?.value as HabitScheduleItem[]
     const count = mocks.state.entries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(habitKeys.count()))?.value as number
+    const optimisticHabit = list.find((habit) => habit.id === 'offline-habit-1')
+
     expect(request.__offlineTempId).toBe('offline-habit-1')
-    expect(list.map((habit) => habit.id)).toEqual(['habit-1'])
-    expect(todayList.map((habit) => habit.id)).toEqual(['habit-today-1'])
+    expect(list.map((habit) => habit.id)).toEqual(['habit-1', 'offline-habit-1'])
+    expect(todayList.map((habit) => habit.id)).toEqual(['habit-today-1', 'offline-habit-1'])
+    expect(optimisticHabit).toMatchObject({
+      dueDate: '2025-01-01',
+      scheduledDates: ['2025-01-01'],
+      instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
+    })
     expect(count).toBe(2)
     expect(mocks.setLastCreatedHabitId).toHaveBeenCalledWith('offline-habit-1')
     expect(mocks.invalidateHabitMutationQueries).not.toHaveBeenCalled()
@@ -920,22 +1395,21 @@ describe('mobile habit hooks', () => {
     }))
   })
 
-  it('leaves created habit membership and count to the server', async () => {
-    seedHabitState(Array.from({ length: 200 }, (_, index) => makeHabit({ id: `habit-${index}` })), 450)
-    mocks.state.tempIds = ['temporary-habit']
+  it('keeps the onboarding timezone dependency out of the habit request payload', async () => {
     const mutation = useCreateHabit() as unknown as MutationConfig<
-      { id: string }, CreateHabitRequest & { __offlineTempId?: string },
-      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]; tempId: string }
+      { id: string }, CreateHabitRequest & { __offlineDependsOn?: string[] }, unknown
     >
-    const request: CreateHabitRequest & { __offlineTempId?: string } = { title: 'New habit', isGeneral: true }
-    const context = await mutation.onMutate?.(request)
-    mutation.onSuccess?.({ id: 'created-habit' }, request, context)
-    mutation.onSettled?.({ id: 'created-habit' }, null, request, context)
 
-    expect(mocks.queryClient.getQueryData(habitKeys.list({}))).toHaveLength(200)
-    expect(mocks.queryClient.getQueryData(habitKeys.count())).toBe(450)
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    await mutation.mutationFn({
+      title: 'Walk', __offlineDependsOn: ['offline-account-timezone:timezone-1'],
+    })
+
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({
+        dependsOn: ['offline-account-timezone:timezone-1'],
+        payload: { title: 'Walk' },
+      }),
+    }))
   })
 
   it('rejects an overlong create description before queuing or sending', async () => {
@@ -975,9 +1449,9 @@ describe('mobile habit hooks', () => {
     expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
   })
 
-  it('keeps an empty dueDate in the queued create request without changing cached lists', async () => {
+  it('falls back to today for optimistic offline creates when the payload dueDate is an empty string', async () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2025-02-14T12:00:00Z'))
+    vi.setSystemTime(new Date('2025-02-14T09:00:00Z'))
 
     try {
       const mutation = useCreateHabit() as unknown as MutationConfig<
@@ -996,10 +1470,14 @@ describe('mobile habit hooks', () => {
       const result = await mutation.mutationFn(request)
       mutation.onSettled?.(result, null, request, context)
 
-      expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
-      expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
-        mutation: expect.objectContaining({ clientEntityId: 'offline-habit-2' }),
-      }))
+      const list = getHabitList()
+      const optimisticHabit = list.find((habit) => habit.id === 'offline-habit-2')
+
+      expect(optimisticHabit).toMatchObject({
+        dueDate: '2025-02-14',
+        scheduledDates: ['2025-02-14'],
+        instances: [{ date: '2025-02-14', status: 'Pending', logId: null }],
+      })
     } finally {
       vi.useRealTimers()
     }
@@ -1009,6 +1487,10 @@ describe('mobile habit hooks', () => {
     seedHabitState([
       makeHabit({ id: 'offline-parent-1', title: 'Parent', children: [], hasSubHabits: false }),
     ], 1)
+    mocks.queryClient.setQueryData(
+      habitKeys.detail('offline-parent-1'),
+      makeDetail({ id: 'offline-parent-1', title: 'Parent' }),
+    )
 
     const mutation = useCreateSubHabit() as unknown as MutationConfig<
       { queued: true; queuedMutationId: string },
@@ -1044,6 +1526,10 @@ describe('mobile habit hooks', () => {
       dueDate: '2025-01-01',
       instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
     })
+    expect(
+      (mocks.queryClient.getQueryData(habitKeys.detail('offline-parent-1')) as HabitDetail)
+        .children[0],
+    ).toMatchObject({ id: 'offline-habit-child-1', title: 'Warmup' })
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
       mutation: expect.objectContaining({
         type: 'createSubHabit',
@@ -1139,6 +1625,44 @@ describe('mobile habit hooks', () => {
     expect(fullAfter.habit.checklistItems).toEqual(originalItems)
   })
 
+  it('cancels both detail queries before optimistically editing a habit', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+    const mutation = useUpdateHabit() as unknown as MutationConfig<
+      unknown, { habitId: string; data: UpdateHabitRequest }, unknown
+    >
+    await mutation.onMutate?.({ habitId: 'habit-1', data: { title: 'Habit', isBadHabit: false, dueTime: '10:15' } })
+    expect(mocks.queryClient.cancelQueries).toHaveBeenCalledWith({ queryKey: habitKeys.detail('habit-1') })
+    expect(mocks.queryClient.cancelQueries).toHaveBeenCalledWith({ queryKey: habitKeys.fullDetail('habit-1') })
+  })
+
+  it('keeps queued inline schedule and text updates in the detail cache', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1', title: 'Old title' })], 1)
+    mocks.queryClient.setQueryData(habitKeys.detail('habit-1'), {
+      ...makeHabit({ id: 'habit-1', title: 'Old title' }),
+      children: [],
+    })
+    const mutation = useUpdateHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      { habitId: string; data: UpdateHabitRequest },
+      { previousLists: HabitSnapshotContext['previousLists']; previousDetail: HabitDetail | undefined }
+    >
+    const variables = {
+      habitId: 'habit-1',
+      data: { title: 'New title', isBadHabit: false, frequencyUnit: 'Week' as const, frequencyQuantity: 2 },
+    }
+
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSettled?.(result, null, variables, context)
+
+    expect(result).toMatchObject({ queued: true })
+    expect(mocks.queryClient.getQueryData(habitKeys.detail('habit-1'))).toMatchObject({
+      title: 'New title',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 2,
+    })
+  })
+
   it('optimistically moves a habit under a new parent and restores the tree on failure', async () => {
     seedHabitState([
       makeHabit({ id: 'offline-parent-1', title: 'Parent', children: [], hasSubHabits: false, position: 0 }),
@@ -1211,6 +1735,7 @@ describe('mobile habit hooks', () => {
   it.each(['success', 'not-found'] as const)(
     'reconciles a dropped single delete after the final replay response is lost and restore returns %s',
     async (restoreOutcome) => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     let serverHasHabit = restoreOutcome === 'not-found'
     mocks.runQueuedMutation.mockImplementationOnce(() => {
       if (restoreOutcome === 'not-found') {
@@ -1240,15 +1765,18 @@ describe('mobile habit hooks', () => {
     mutation.onSuccess?.({ queued: true, queuedMutationId: 'mutation-1' }, 'habit-1', context)
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    storage.setItem.mockClear()
     performUndo()
 
     await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith({
       habitId: 'habit-1', reconcileNotFound: true,
     }))
     expect(useOfflineSyncStore.getState().drops).toEqual([])
-    expect(storage.setItem).toHaveBeenLastCalledWith(
+    useUIStore.getState().setCalendarShowRecurring(useUIStore.getState().calendarShowRecurring)
+    const noticeWrites = storage.setItem.mock.calls.filter(([key]) => key === '@orbit/offline-sync-notices')
+    expect(noticeWrites.at(-1)).toEqual([
       '@orbit/offline-sync-notices', expect.stringContaining('"drops":[]'),
-    )
+    ])
     await vi.waitFor(() => expect(listInvalidationCount()).toBe(2))
     expect(serverHasHabit).toBe(true)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
@@ -1330,7 +1858,7 @@ describe('mobile habit hooks', () => {
   it('applies streak, profile, gamification, and linked-goal updates on a fresh online completion', () => {
     mocks.state.entries = [
       { key: habitKeys.list({}), value: [makeHabit({ id: 'habit-1', isBadHabit: false })] },
-      { key: habitKeys.list({ dateFrom: formatAPIDate(new Date()), dateTo: formatAPIDate(new Date()), includeOverdue: true }), value: [makeHabit({ id: 'habit-1', isBadHabit: false })] },
+      { key: habitKeys.list({ dateFrom: formatAPIDate(new Date()), dateTo: formatAPIDate(new Date()), includeOverdue: true, completeDay: true }), value: [makeHabit({ id: 'habit-1', isBadHabit: false })] },
       { key: habitKeys.count(), value: 1 },
       { key: tagKeys.lists(), value: [] },
       {
@@ -1343,7 +1871,7 @@ describe('mobile habit hooks', () => {
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
@@ -1355,9 +1883,9 @@ describe('mobile habit hooks', () => {
       newAchievementIds: [],
     }
 
-    mutation.onSuccess?.(response, { habitId: 'habit-1' }, undefined)
+    mutation.onSuccess?.(response, { habitId: 'habit-1', intent: 'log' }, undefined)
 
-    expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
     expect(profile.currentStreak).toBe(3)
     const goal = (mocks.queryClient.getQueryData(goalKeys.lists()) as Goal[])[0]
@@ -1371,11 +1899,31 @@ describe('mobile habit hooks', () => {
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 
-  it('refetches lists after completion without refreshing unrelated families', () => {
+  it('celebrates the last Today log through the real store', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+    mocks.state.entries = [{ key, value: [
+      makeHabit({ id: 'first', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
+      makeHabit({ id: 'last', dueDate: today, scheduledDates: [today], isLoggedInRange: false }),
+    ] }]
+    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, unknown>
+
+    mutation.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 },
+      { habitId: 'last', intent: 'log' }, undefined)
+
+    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+  })
+
+  it('refreshes mounted detail data after an explicit-date completion', () => {
     seedHabitState([makeHabit({ id: 'habit-1' })])
     const mutation = useLogHabit() as unknown as MutationConfig<
       LogHabitResponse,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
@@ -1384,10 +1932,20 @@ describe('mobile habit hooks', () => {
       currentStreak: 1,
     }
 
-    mutation.onSettled?.(response, null, { habitId: 'habit-1' }, undefined)
+    mutation.onSettled?.(
+      response,
+      null,
+      { habitId: 'habit-1', intent: 'log', date: '2025-01-15' },
+      undefined,
+    )
 
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
-    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.logs('habit-1'),
+    })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.metrics('habit-1'),
+    })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
     })
@@ -1396,35 +1954,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
-  it('refetches lists after a skip without refetching the habit count', () => {
-    seedHabitState([makeHabit({ id: 'habit-1' })])
-    const mutation = useSkipHabit() as unknown as MutationConfig<
-      unknown,
-      { habitId: string; date?: string },
-      unknown
-    >
-
-    mutation.onSettled?.(undefined, null, { habitId: 'habit-1' }, undefined)
-
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
-    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-  })
-
-  it('refetches Today after an earlier overdue occurrence is logged', () => {
-    seedHabitState([makeHabit({ id: 'habit-1', dueDate: '2025-01-01', isOverdue: true })])
-    const mutation = useLogHabit() as unknown as MutationConfig<
-      LogHabitResponse, { habitId: string; date?: string }, unknown
-    >
-
-    mutation.onSettled?.({ logId: 'log-overdue', isFirstCompletionToday: false, currentStreak: 1 }, null,
-      { habitId: 'habit-1', date: '2025-01-01' }, undefined)
-
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
-  })
-
-  /** The server sends no XP for a bad habit; celebration still uses the cached habit type. */
+  /** The server awards no XP for a bad habit, so the fixture must return zero. */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', () => {
     seedHabitState([makeHabit({
       id: 'parent-1',
@@ -1434,17 +1964,17 @@ describe('mobile habit hooks', () => {
     mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
       logId: 'log-streak',
       isFirstCompletionToday: true,
-      currentStreak: 3,
+      currentStreak: 7,
       xpEarned: 0,
     }
 
-    mutation.onSuccess?.(response, { habitId: 'bad-child' }, undefined)
+    mutation.onSuccess?.(response, { habitId: 'bad-child', intent: 'log' }, undefined)
 
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
@@ -1478,18 +2008,14 @@ describe('mobile habit hooks', () => {
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
   })
 
-  /**
-   * THE defect the connector found on #699, mirrored from web for parity. Rewards the server
-   * already granted were discarded whenever the habit was absent from the list cache, which is the
-   * ordinary state on a deep link or a cold navigation.
-   */
+  /** Rewards must update when a deep link leaves the habit absent from the list cache. */
   it('banks XP and refreshes achievements for a habit that is not in the list cache', () => {
     seedHabitState([makeHabit({ id: 'cached-habit' })])
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
     mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
@@ -1500,7 +2026,7 @@ describe('mobile habit hooks', () => {
       newAchievementIds: ['first-week'],
     }
 
-    mutation.onSuccess?.(response, { habitId: 'never-listed' }, undefined)
+    mutation.onSuccess?.(response, { habitId: 'never-listed', intent: 'log' }, undefined)
 
     const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
     expect(gamification.totalXp).toBe(125)
@@ -1576,30 +2102,27 @@ describe('mobile habit hooks', () => {
     mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
     const response: LogHabitResponse = {
       logId: 'log-streak',
       isFirstCompletionToday,
-      currentStreak: 3,
-      xpEarned,
+      currentStreak: 7,
     }
 
-    mutation.onSuccess?.(response, { habitId }, undefined)
+    mutation.onSuccess?.(response, { habitId, intent: 'log' }, undefined)
 
     expect(captureHabitLogged).toHaveBeenCalledOnce()
     expect(captureHabitLogged.mock.calls[0]).toEqual([])
 
     if (celebrates) {
-      expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+      expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 7 })
     } else {
       expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     }
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
-    expect(profile.currentStreak).toBe(celebrates ? 3 : 1)
-    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
-    expect(gamification.totalXp).toBe(expectedXp)
+    expect(profile.currentStreak).toBe(celebrates ? 7 : 1)
   })
 
   it('skips all celebrations when a completion is queued offline', () => {
@@ -1607,15 +2130,60 @@ describe('mobile habit hooks', () => {
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       unknown
     >
 
-    mutation.onSuccess?.({ queued: true, queuedMutationId: 'm-1' }, { habitId: 'habit-1' }, undefined)
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'm-1' },
+      { habitId: 'habit-1', intent: 'log' },
+      undefined,
+    )
 
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     expect(mocks.checkAllDoneCelebration).not.toHaveBeenCalled()
-    expect(captureHabitLogged).not.toHaveBeenCalled()
+    expect(mocks.showInfo).toHaveBeenCalledWith('todayAstra.offlineLog')
+  })
+
+  it('updates a dated calendar row immediately and restores it when logging fails', async () => {
+    const date = '2025-01-15'
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+    const calendarKey = seedCalendarState(date)
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1', date, intent: 'log' as const }
+
+    expect(getCalendarStatus(calendarKey, date)).toBe('missed')
+    const context = await mutation.onMutate?.(variables)
+    expect(getCalendarStatus(calendarKey, date)).toBe('completed')
+
+    mutation.onError?.(new Error('Log failed'), variables, context)
+    expect(getCalendarStatus(calendarKey, date)).toBe('missed')
+  })
+
+  it('keeps the dated calendar row patched when the write settles into the offline queue', async () => {
+    const date = '2025-01-15'
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+    const calendarKey = seedCalendarState(date)
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1', date, intent: 'log' as const }
+
+    const context = await mutation.onMutate?.(variables)
+    const queuedResult = await mutation.mutationFn(variables)
+    mutation.onSettled?.(queuedResult, null, variables, context)
+
+    expect(getCalendarStatus(calendarKey, date)).toBe('completed')
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
   })
 
   it('rolls back the optimistic completion when logging fails', async () => {
@@ -1623,20 +2191,26 @@ describe('mobile habit hooks', () => {
 
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
-      { habitId: string; date?: string },
+      LogHabitVariables,
       HabitSnapshotContext
     >
 
-    const context = await mutation.onMutate?.({ habitId: 'habit-1' })
+    const variables = { habitId: 'habit-1', intent: 'log' as const }
+    const context = await mutation.onMutate?.(variables)
     expect(getHabitList()[0]?.isCompleted).toBe(true)
 
-    mutation.onError?.(new Error('Log failed'), { habitId: 'habit-1' }, context)
+    mutation.onError?.(new Error('Log failed'), variables, context)
     expect(getHabitList()[0]?.isCompleted).toBe(false)
     expect(captureHabitLogged).not.toHaveBeenCalled()
   })
 
-  it('optimistically completes a recurring skip and rolls it back on failure', async () => {
-    seedHabitState([makeHabit({ id: 'habit-1', frequencyUnit: 'Day', isCompleted: false })], 1)
+  it('optimistically removes a recurring skip from the day and rolls it back on failure', async () => {
+    const today = '2026-09-12'
+    seedHabitState([makeHabit({
+      id: 'habit-1', frequencyUnit: 'Day', isCompleted: false,
+      dueDate: today, scheduledDates: [today],
+      instances: [{ date: today, status: 'Pending', logId: null }],
+    })], 1)
 
     const mutation = useSkipHabit() as unknown as MutationConfig<
       unknown,
@@ -1645,10 +2219,173 @@ describe('mobile habit hooks', () => {
     >
 
     const context = await mutation.onMutate?.({ habitId: 'habit-1' })
-    expect(getHabitList()[0]?.isCompleted).toBe(true)
+    expect(getHabitList()[0]?.isCompleted).toBe(false)
+    expect(getHabitList()[0]?.scheduledDates).toEqual([])
+    expect(getHabitList()[0]?.instances).toEqual([])
+    expect(hasHabitScheduleOnDate(getHabitList()[0]!, today)).toBe(false)
 
     mutation.onError?.(new Error('Skip failed'), { habitId: 'habit-1' }, context)
     expect(getHabitList()[0]?.isCompleted).toBe(false)
+    expect(getHabitList()[0]?.scheduledDates).toEqual([today])
+    expect(hasHabitScheduleOnDate(getHabitList()[0]!, today)).toBe(true)
+  })
+
+  it('reconciles a dropped skip through the undo endpoint', async () => {
+    useSkipHabit()
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown, { habitId: string; skipId: string; previousLists: unknown[]; queuedMutationId: string }, unknown>
+    vi.mocked(cancelQueuedSkipForUndo).mockResolvedValueOnce('dropped')
+    await undo.mutationFn({ habitId: 'habit-1', skipId: '11111111-1111-4111-8111-111111111111', previousLists: [], queuedMutationId: 'skip-1' })
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ type: 'undoSkipHabit', endpoint: API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111') }) }))
+  })
+
+  it.each([false, true])('undoes two offline occurrences through their toast actions after a refetch removes the row %s', async (removed) => {
+    const client = new QueryClient()
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as ReturnType<typeof mocks.useQueryClient>)
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as ReturnType<typeof mocks.useQueryClient>)
+    const key = habitKeys.list({})
+    const dates = ['2026-09-12', '2026-09-13']
+    client.setQueryData(key, [makeHabit({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: dates[0], scheduledDates: dates,
+      instances: dates.map((date) => ({ date, status: 'Pending', logId: null })) })])
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date: string }, HabitSnapshotContext>
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown,
+      { habitId: string; previousLists: HabitSnapshotContext['previousLists']; queuedMutationId: string }, unknown>
+    const undoInputs: Parameters<typeof undo.mutationFn>[0][] = []
+    for (const date of dates) {
+      const input = { habitId: 'habit-1', date }
+      const context = await skip.onMutate?.(input)
+      const outcome = await skip.mutationFn(input)
+      skip.onSuccess?.(outcome, input, context)
+      skip.onSettled?.(outcome, null, input, context)
+      const undoAction = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+      undoAction()
+      undoInputs.push(mocks.restoreHabitMutate.mock.calls.at(-1)![0] as Parameters<typeof undo.mutationFn>[0])
+    }
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual([])
+    if (removed) client.setQueryData(key, [])
+    for (const [index, input] of undoInputs.entries()) {
+      vi.mocked(cancelQueuedSkipForUndo).mockResolvedValueOnce('cancelled')
+      const outcome = await undo.mutationFn(input)
+      undo.onSuccess?.(outcome, input, undefined)
+      expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual(dates.slice(0, index + 1))
+      expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.flexibleTarget).toBe(index + 1)
+    }
+    client.clear()
+  })
+
+  it('undoes a flexible skip on a refetched row while preserving a later log', async () => {
+    const client = new QueryClient()
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as ReturnType<typeof mocks.useQueryClient>)
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as ReturnType<typeof mocks.useQueryClient>)
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = makeHabit({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date: string }, HabitSnapshotContext>
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown,
+      { habitId: string; previousLists: HabitSnapshotContext['previousLists']; queuedMutationId: string }, unknown>
+    const input = { habitId: row.id, date }
+    const context = await skip.onMutate?.(input)
+    const outcome = await skip.mutationFn(input)
+    skip.onSuccess?.(outcome, input, context)
+    const undoAction = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    undoAction()
+    const undoInput = mocks.restoreHabitMutate.mock.calls.at(-1)![0] as Parameters<typeof undo.mutationFn>[0]
+    const skipped = client.getQueryData<HabitScheduleItem[]>(key)![0]!
+    client.setQueryData(key, [{ ...skipped, flexibleCompleted: 1, isLoggedInRange: true }])
+    vi.mocked(cancelQueuedSkipForUndo).mockResolvedValueOnce('cancelled')
+    const restored = await undo.mutationFn(undoInput)
+    undo.onSuccess?.(restored, undoInput, undefined)
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      flexibleTarget: 2, flexibleCompleted: 1, isLoggedInRange: true,
+    })
+    client.clear()
+  })
+
+  it('keeps an authoritative flexible target when a restored-state refetch finishes before Undo', async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    mocks.useRealQueryHooks = true
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = makeHabit({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    let skip!: ReturnType<typeof useSkipHabit>
+    function Probe() {
+      skip = useSkipHabit()
+      return null
+    }
+    let renderer: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(() => {
+        renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe)))
+      })
+      mocks.runQueuedMutation.mockResolvedValueOnce(undefined)
+      await TestRenderer.act(() => skip.mutateAsync({ habitId: row.id, date }))
+      expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({ flexibleTarget: 1, scheduledDates: [] })
+      const undoAction = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+      let finishUndo!: () => void
+      mocks.runQueuedMutation.mockImplementationOnce(() => new Promise<void>((resolve) => { finishUndo = resolve }))
+      await TestRenderer.act(() => { undoAction() })
+      await vi.waitFor(() => expect(finishUndo).toBeTypeOf('function'))
+      const refreshed = { ...row, flexibleCompleted: 1, isLoggedInRange: true }
+      await client.fetchQuery({ queryKey: key, queryFn: () => Promise.resolve([refreshed]) })
+      expect(client.getQueryData(key)).toEqual([refreshed])
+      await TestRenderer.act(() => { finishUndo() })
+      await vi.waitFor(() => expect(client.isMutating()).toBe(0))
+      expect(client.getQueryData(key)).toEqual([refreshed])
+    } finally {
+      await TestRenderer.act(() => { renderer?.unmount() })
+      mocks.useRealQueryHooks = false
+      vi.unstubAllGlobals()
+      client.clear()
+    }
+  })
+
+  it('keeps an actionable undo after restoration fails', () => {
+    useSkipHabit()
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown, { habitId: string; skipId: string; previousLists: unknown[] }, unknown>
+    const input = { habitId: 'habit-1', skipId: '11111111-1111-4111-8111-111111111111', previousLists: [] }
+    undo.onError?.(new Error('Restore failed'), input, undefined)
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.restoreFailed', expect.any(Function))
+    const retry = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    retry()
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith(input)
+  })
+
+  it('stops undo when the account changes while cancellation is pending', async () => {
+    useSkipHabit()
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown, { habitId: string; skipId: string; previousLists: unknown[]; queuedMutationId: string }, unknown>
+    let finish!: () => void
+    vi.mocked(cancelQueuedSkipForUndo).mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve('replayed') }))
+    const input = { habitId: 'habit-1', skipId: '11111111-1111-4111-8111-111111111111', previousLists: [], queuedMutationId: 'skip-1' }
+    const pending = undo.mutationFn(input)
+    advanceAccountGeneration()
+    finish()
+    await expect(pending).rejects.toThrow('Account changed')
+    mocks.queryClient.setQueryData.mockClear()
+    undo.onSuccess?.(undefined, input, undefined)
+    undo.onError?.(new Error('Account changed'), input, undefined)
+    expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.showUndoToast).not.toHaveBeenCalled()
+  })
+
+  it('ignores a skip completion from a previous account generation', async () => {
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string }, HabitSnapshotContext>
+    const input = { habitId: 'habit-1' }
+    const context = await skip.onMutate?.(input)
+    const result = await skip.mutationFn(input)
+    advanceAccountGeneration()
+    seedHabitState([makeHabit({ id: 'new-account', title: 'New account' })], 1)
+    mocks.queryClient.invalidateQueries.mockClear()
+    skip.onSuccess?.(result, input, context)
+    skip.onSettled?.(result, null, input, context)
+    expect(mocks.showUndoToast).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(getHabitList()[0]?.id).toBe('new-account')
   })
 
   it('patches a habit optimistically, invalidates its detail online, and restores it on failure', async () => {
@@ -1673,17 +2410,6 @@ describe('mobile habit hooks', () => {
 
     mutation.onError?.(new Error('Update failed'), variables, context)
     expect(getHabitList()[0]?.title).toBe('Exercise')
-  })
-
-  it('refetches lists when schedule days change', () => {
-    seedHabitState([makeHabit({ id: 'habit-1' })])
-    const mutation = useUpdateHabit() as unknown as MutationConfig<
-      unknown, { habitId: string; data: { title: string; isBadHabit: boolean; days: string[] } }, unknown
-    >
-
-    mutation.onSettled?.({}, null, { habitId: 'habit-1', data: { title: 'Exercise', isBadHabit: false, days: ['Monday', 'Wednesday'] } }, undefined)
-
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 
   it('reorders habit positions optimistically and restores them on failure', async () => {
@@ -1717,7 +2443,7 @@ describe('mobile habit hooks', () => {
     expect(byId('habit-2')?.position).toBe(1)
   })
 
-  it('optimistically deletes a habit and leaves the count to the server', async () => {
+  it('optimistically deletes a habit, keeps the count, and restores the list on failure', async () => {
     seedHabitState([makeHabit({ id: 'habit-1' }), makeHabit({ id: 'habit-2' })], 2)
 
     const mutation = useDeleteHabit() as unknown as MutationConfig<
@@ -1733,6 +2459,34 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('Delete failed'), 'habit-1', context)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
     expect(getCount()).toBe(2)
+  })
+
+  it('removes a queued child from the mounted detail tree and restores it on failure', async () => {
+    seedHabitState([
+      makeHabit({ id: 'parent-1', children: [makeChild({ id: 'child-1' })] }),
+    ], 2)
+    const originalDetail = makeDetail({
+      id: 'parent-1',
+      children: [makeChild({ id: 'child-1' })],
+    })
+    mocks.queryClient.setQueryData(habitKeys.detail('parent-1'), originalDetail)
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      unknown,
+      string,
+      HabitSnapshotContext & {
+        previousDetails: readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
+      }
+    >
+
+    const context = await mutation.onMutate?.('child-1')
+    expect(
+      (mocks.queryClient.getQueryData(habitKeys.detail('parent-1')) as HabitDetail).children,
+    ).toEqual([])
+
+    mutation.onError?.(new Error('Delete failed'), 'child-1', context)
+    expect(
+      (mocks.queryClient.getQueryData(habitKeys.detail('parent-1')) as HabitDetail).children,
+    ).toHaveLength(1)
   })
 
   it('inserts an optimistic duplicate with an incremented count and rolls back on failure', async () => {
@@ -1771,7 +2525,7 @@ describe('mobile habit hooks', () => {
     expect(context?.tempId).toBeNull()
   })
 
-  it('inserts a batch of optimistic habits and rolls the whole batch back on failure', async () => {
+  it('inserts a batch of optimistic habits without predicting the count and rolls back on failure', async () => {
     seedHabitState([makeHabit({ id: 'habit-1' })], 1)
 
     const mutation = useBulkCreateHabits() as unknown as MutationConfig<
@@ -1784,7 +2538,7 @@ describe('mobile habit hooks', () => {
 
     const context = await mutation.onMutate?.(variables)
     expect(getHabitList().map((habit) => habit.title)).toEqual(['Exercise', 'Read', 'Meditate'])
-    expect(getCount()).toBe(3)
+    expect(getCount()).toBe(1)
     expect(context?.createdCount).toBe(2)
 
     mutation.onError?.(new Error('Bulk create failed'), variables, context)
@@ -1792,7 +2546,7 @@ describe('mobile habit hooks', () => {
     expect(getCount()).toBe(1)
   })
 
-  it('optimistically deletes many habits and invalidates goals plus the count online', async () => {
+  it('optimistically deletes many habits while leaving the count to the server', async () => {
     seedHabitState(
       [
         makeHabit({ id: 'habit-1' }),
@@ -1805,12 +2559,12 @@ describe('mobile habit hooks', () => {
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
       unknown,
       string[],
-      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+      { previousLists: HabitSnapshotContext['previousLists'] }
     >
 
     const context = await mutation.onMutate?.(['habit-1', 'habit-2'])
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-3'])
-    expect(getCount()).toBe(1)
+    expect(getCount()).toBe(3)
 
     mocks.runQueuedMutation.mockResolvedValueOnce({ results: [] })
     const result = await mutation.mutationFn(['habit-1', 'habit-2'])
@@ -1823,9 +2577,181 @@ describe('mobile habit hooks', () => {
     expect(getCount()).toBe(3)
   })
 
-  it('offers Undo for successful bulk deletes and restores only those habits', () => {
+  it('feeds every non-idempotent bulk mutation through a blocked mutation type', async () => {
+    const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      HabitSnapshotContext
+    >
+    const bulkLog = useBulkLogHabits() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const bulkSkip = useBulkSkipHabits() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+
+    await bulkDelete.mutationFn(['habit-1'])
+    await bulkLog.mutationFn([{ habitId: 'habit-1' }])
+    await bulkSkip.mutationFn([{ habitId: 'habit-1' }])
+
+    expect(mocks.runQueuedMutation.mock.calls.map(([options]) => options.mutation.type)).toEqual([
+      'bulkCascadeDeleteHabits',
+      'bulkLogHabits',
+      'bulkSkipHabits',
+    ])
+  })
+
+  it('restores every bulk optimistic update after an offline refusal without changing reminders', async () => {
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ], 2)
+
+    const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists'] }
+    >
+    const deleteVariables = ['habit-1', 'habit-2']
+    const deleteContext = await bulkDelete.onMutate?.(deleteVariables)
+    mocks.runQueuedMutation
+      .mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+      .mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+    const deleteResult = await bulkDelete.mutationFn(deleteVariables)
+    bulkDelete.onSuccess?.(deleteResult, deleteVariables, deleteContext)
+
+    expect(deleteResult.offlineFailureIds).toEqual(deleteVariables)
+    expect(deleteResult.ambiguousIds).toEqual([])
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
+    expect(getCount()).toBe(2)
+
+    const bulkLog = useBulkLogHabits() as unknown as MutationConfig<
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const logVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const logContext = await bulkLog.onMutate?.(logVariables)
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
+    mocks.runQueuedMutation.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+    const logResult = await bulkLog.mutationFn(logVariables)
+    bulkLog.onSuccess?.(logResult, logVariables, logContext)
+
+    expect(logResult.offlineFailureIds).toEqual(['habit-1', 'habit-2'])
+    expect(logResult.ambiguousIds).toEqual([])
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 0,
+      activeDays: [],
+    })
+
+    const bulkSkip = useBulkSkipHabits() as unknown as MutationConfig<
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const skipVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const skipContext = await bulkSkip.onMutate?.(skipVariables)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new mocks.OfflineMutationPreflightError())
+    const skipResult = await bulkSkip.mutationFn(skipVariables)
+    bulkSkip.onSuccess?.(skipResult, skipVariables, skipContext)
+
+    expect(skipResult.offlineFailureIds).toEqual(['habit-1', 'habit-2'])
+    expect(skipResult.ambiguousIds).toEqual([])
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
+  })
+
+  it('keeps every post-send bulk failure ambiguous and refreshes the list', async () => {
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ], 2)
+
+    const deleteVariables = ['habit-1', 'habit-2']
+    const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists'] }
+    >
+    const deleteContext = await bulkDelete.onMutate?.(deleteVariables)
+    mocks.runQueuedMutation
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+    const deleteResult = await bulkDelete.mutationFn(deleteVariables)
+    bulkDelete.onSuccess?.(deleteResult, deleteVariables, deleteContext)
+    bulkDelete.onSettled?.(deleteResult, null, deleteVariables, deleteContext)
+
+    expect(deleteResult).toEqual({
+      results: [],
+      ambiguousIds: deleteVariables,
+      offlineFailureIds: [],
+      queuedDeletes: [],
+    })
+    expect(getHabitList()).toEqual([])
+
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ], 2)
+    const logVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const bulkLog = useBulkLogHabits() as unknown as MutationConfig<
+      BulkLogOutcome,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const logContext = await bulkLog.onMutate?.(logVariables)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new TypeError('Network request failed'))
+    const logResult = await bulkLog.mutationFn(logVariables)
+    bulkLog.onSuccess?.(logResult, logVariables, logContext)
+    bulkLog.onSettled?.(logResult, null, logVariables, logContext)
+
+    expect(logResult).toEqual({
+      results: [],
+      streakResponses: [],
+      ambiguousIds: ['habit-1', 'habit-2'],
+      offlineFailureIds: [],
+      hasConfirmedSuccess: false,
+      queuedIds: [],
+    })
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
+    expect(useReviewReminderStore.getState().completionCount).toBe(0)
+
+    seedHabitState([
+      makeHabit({ id: 'habit-1', isCompleted: false }),
+      makeHabit({ id: 'habit-2', isCompleted: false }),
+    ], 2)
+    const skipVariables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const bulkSkip = useBulkSkipHabits() as unknown as MutationConfig<
+      { results: unknown[]; ambiguousIds: string[]; offlineFailureIds: string[] },
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const skipContext = await bulkSkip.onMutate?.(skipVariables)
+    mocks.runQueuedMutation.mockRejectedValueOnce(new TypeError('Network request failed'))
+    const skipResult = await bulkSkip.mutationFn(skipVariables)
+    bulkSkip.onSuccess?.(skipResult, skipVariables, skipContext)
+    bulkSkip.onSettled?.(skipResult, null, skipVariables, skipContext)
+
+    expect(skipResult).toEqual({
+      results: [],
+      ambiguousIds: ['habit-1', 'habit-2'],
+      offlineFailureIds: [],
+      queuedIds: [],
+    })
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+  })
+
+  it('offers Undo for successful bulk deletes and restores only those habits', async () => {
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { status: 'Success' | 'Failed'; habitId: string }[] },
+      unknown,
       string[],
       unknown
     >
@@ -1835,58 +2761,70 @@ describe('mobile habit hooks', () => {
         { status: 'Failed', habitId: 'habit-2' },
         { status: 'Success', habitId: 'habit-3' },
       ],
+      offlineFailureIds: [],
+      queuedDeletes: [],
     }, ['habit-1', 'habit-2', 'habit-3'], { previousLists: [], deletedCount: 0 })
 
     expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitsDeleted:{"count":2}', expect.any(Function))
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
-    expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2)
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2))
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('habit-1')
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('habit-3')
   })
 
   it('does not offer Undo when no bulk delete succeeds', () => {
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { status: 'Success' | 'Failed'; habitId: string }[] },
+      unknown,
       string[],
       unknown
     >
     mutation.onSuccess?.({
       results: [{ status: 'Failed', habitId: 'habit-1' }],
-    }, ['habit-1'], { previousLists: [], deletedCount: 0 })
+      offlineFailureIds: [],
+      queuedDeletes: [],
+    }, ['habit-1'], { previousLists: [] })
     expect(mocks.showUndoToast).not.toHaveBeenCalled()
   })
 
-  it('restores a selected parent once when the response reports its child', () => {
+  it('restores a selected parent once when its child is also selected', async () => {
+    seedHabitState([makeHabit({
+      id: 'parent', children: [makeChild({ id: 'child' })], hasSubHabits: true,
+    })], 2)
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { status: 'Success'; habitId: string; cascadedHabitIds: string[] }[] },
+      unknown,
       string[],
       unknown
     >
+    const context = await mutation.onMutate?.(['parent', 'child'])
     mutation.onSuccess?.({
       results: [
-        { status: 'Success', habitId: 'parent', cascadedHabitIds: ['child'] },
-        { status: 'Success', habitId: 'child', cascadedHabitIds: [] },
+        { status: 'Success', habitId: 'parent' },
+        { status: 'Success', habitId: 'child' },
       ],
-    }, ['parent', 'child'], { previousLists: [], deletedCount: 0 })
+      offlineFailureIds: [],
+      queuedDeletes: [],
+    }, ['parent', 'child'], context)
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
-    expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(1))
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('parent')
   })
 
   it('cancels a queued offline bulk delete before Undo restores locally', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { status: 'Success'; habitId: string }[]; queued: true; queuedMutationId: string },
+      unknown,
       string[],
       unknown
     >
-    mutation.onSuccess?.({
-      results: [{ status: 'Success', habitId: 'habit-1' }],
-      queued: true,
-      queuedMutationId: 'mutation-1',
-    }, ['habit-1'], { previousLists: [], deletedCount: 1 })
+    const context = await mutation.onMutate?.(['habit-1'])
+    const result = await mutation.mutationFn(['habit-1'])
+    expect(result).toMatchObject({
+      queuedDeletes: [{ habitId: 'habit-1', mutationId: 'mutation-1' }],
+    })
+    mutation.onSuccess?.(result, ['habit-1'], context)
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => Promise<void>
     await performUndo()
     expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1')
@@ -1896,7 +2834,7 @@ describe('mobile habit hooks', () => {
   it('reconciles a failed queued bulk delete and restores the cached list offline', async () => {
     seedHabitState([makeHabit({ id: 'habit-1' })], 1)
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { status: 'Success'; habitId: string }[]; queued: true; queuedMutationId: string },
+      unknown,
       string[],
       { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
     >
@@ -1905,8 +2843,8 @@ describe('mobile habit hooks', () => {
     mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('uncertain')
     mutation.onSuccess?.({
       results: [{ status: 'Success', habitId: 'habit-1' }],
-      queued: true,
-      queuedMutationId: 'mutation-1',
+      offlineFailureIds: [],
+      queuedDeletes: [{ habitId: 'habit-1', mutationId: 'mutation-1' }],
     }, ['habit-1'], context)
 
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
@@ -1914,12 +2852,13 @@ describe('mobile habit hooks', () => {
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
     await vi.waitFor(() => expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1']))
-    expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('habit-1')
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('habit-1'))
   })
 
   it.each(['success', 'not-found'] as const)(
     'reconciles a dropped bulk delete after the final replay response is lost and restore returns %s',
     async (restoreOutcome) => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     seedHabitState([makeHabit({ id: 'habit-1' }), makeHabit({ id: 'habit-2' })], 2)
     const serverHabits = new Set(restoreOutcome === 'not-found' ? ['habit-1', 'habit-2'] : [])
     const restore = useRestoreHabit() as unknown as MutationConfig<unknown, RestoreInput, undefined>
@@ -1936,12 +2875,12 @@ describe('mobile habit hooks', () => {
       mocks.restoreHabitMutate.mockImplementationOnce((input: RestoreInput) => executeRestoreMutation(input, restore))
     }
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { status: 'Success'; habitId: string }[]; queued: true; queuedMutationId: string },
+      { results: { status: 'Success'; habitId: string }[]; offlineFailureIds: string[]; queuedDeletes: { habitId: string; mutationId: string }[] },
       string[],
       { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
     >
     const context = await mutation.onMutate?.(['habit-1', 'habit-2'])
-    mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('dropped')
+    mocks.cancelQueuedDeleteForUndo.mockResolvedValue('dropped')
     useOfflineSyncStore.getState().addDrop({
       id: 'mutation-1', type: 'bulkDeleteHabits', lastError: 'response lost',
       mutation: mocks.buildQueuedMutation({
@@ -1955,22 +2894,28 @@ describe('mobile habit hooks', () => {
         { status: 'Success', habitId: 'habit-1' },
         { status: 'Success', habitId: 'habit-2' },
       ],
-      queued: true,
-      queuedMutationId: 'mutation-1',
+      offlineFailureIds: [],
+      queuedDeletes: [
+        { habitId: 'habit-1', mutationId: 'mutation-1' },
+        { habitId: 'habit-2', mutationId: 'mutation-1' },
+      ],
     }, ['habit-1', 'habit-2'], context)
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    storage.setItem.mockClear()
     performUndo()
 
     await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2))
     expect(useOfflineSyncStore.getState().drops).toEqual([])
-    expect(storage.setItem).toHaveBeenLastCalledWith(
+    useUIStore.getState().setCalendarShowRecurring(useUIStore.getState().calendarShowRecurring)
+    const noticeWrites = storage.setItem.mock.calls.filter(([key]) => key === '@orbit/offline-sync-notices')
+    expect(noticeWrites.at(-1)).toEqual([
       '@orbit/offline-sync-notices', expect.stringContaining('"drops":[]'),
-    )
+    ])
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-1', reconcileNotFound: true })
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-2', reconcileNotFound: true })
     await vi.waitFor(() => expect(listInvalidationCount()).toBe(3))
-    expect([...serverHabits].sort()).toEqual(['habit-1', 'habit-2'])
+    expect([...serverHabits].sort((a, b) => a.localeCompare(b))).toEqual(['habit-1', 'habit-2'])
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
     expect(mocks.showError).not.toHaveBeenCalled()
     expect(mocks.showSuccess).toHaveBeenCalledTimes(restoreOutcome === 'success' ? 2 : 0)
@@ -1979,7 +2924,7 @@ describe('mobile habit hooks', () => {
   it('restores rejected bulk deletes while keeping accepted items removed', async () => {
     seedHabitState([makeHabit({ id: 'accepted' }), makeHabit({ id: 'rejected' })], 2)
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { status: 'Success' | 'Failed'; habitId: string }[] },
+      { results: { status: 'Success' | 'Failed'; habitId: string }[]; offlineFailureIds: string[]; queuedDeletes: { habitId: string; mutationId: string }[] },
       string[],
       { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
     >
@@ -1989,7 +2934,7 @@ describe('mobile habit hooks', () => {
     mutation.onSuccess?.({ results: [
       { status: 'Success', habitId: 'accepted' },
       { status: 'Failed', habitId: 'rejected' },
-    ] }, ['accepted', 'rejected'], context)
+    ], offlineFailureIds: [], queuedDeletes: [] }, ['accepted', 'rejected'], context)
 
     expect(getHabitList().map((habit) => habit.id)).toEqual(['rejected'])
   })
@@ -1999,7 +2944,7 @@ describe('mobile habit hooks', () => {
       id: 'parent', children: [makeChild({ id: 'child' })], hasSubHabits: true,
     })], 2)
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { status: 'Success'; habitId: string }[]; queued: true; queuedMutationId: string },
+      unknown,
       string[],
       { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
     >
@@ -2013,13 +2958,18 @@ describe('mobile habit hooks', () => {
         { status: 'Success', habitId: 'parent' },
         { status: 'Success', habitId: 'child' },
       ],
-      queued: true,
-      queuedMutationId: 'mutation-1',
+      offlineFailureIds: [],
+      queuedDeletes: [
+        { habitId: 'parent', mutationId: 'mutation-1' },
+        { habitId: 'child', mutationId: 'mutation-2' },
+      ],
     }, ['parent', 'child'], context)
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
     expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-2'))
+    await vi.waitFor(() => expect(finishReplay).toBeTypeOf('function'))
     finishReplay()
     await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalled())
     expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('parent')
@@ -2027,17 +2977,19 @@ describe('mobile habit hooks', () => {
 
   it('shows the singular bulk Undo toast for one deleted habit', () => {
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
-      { results: { status: 'Success'; habitId: string }[] }, string[], unknown
+      unknown, string[], unknown
     >
     mutation.onSuccess?.({
       results: [{ status: 'Success', habitId: 'habit-1' }],
+      offlineFailureIds: [],
+      queuedDeletes: [],
     }, ['habit-1'], { previousLists: [], deletedCount: 0 })
     expect(mocks.showUndoToast).toHaveBeenCalledWith(
       'undo.habitsDeleted:{"count":1}', expect.any(Function),
     )
   })
 
-  it('optimistically completes only same-day bulk skips and restores them on failure', async () => {
+  it('optimistically completes dated and undated bulk skips and restores them on failure', async () => {
     seedHabitState(
       [
         makeHabit({ id: 'habit-1', isCompleted: false }),
@@ -2058,10 +3010,47 @@ describe('mobile habit hooks', () => {
 
     const context = await mutation.onMutate?.(variables)
     expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(true)
-    expect(getHabitList().find((habit) => habit.id === 'habit-2')?.isCompleted).toBe(false)
+    expect(getHabitList().find((habit) => habit.id === 'habit-2')?.isCompleted).toBe(true)
 
     mutation.onError?.(new Error('Bulk skip failed'), variables, context)
     expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(false)
+  })
+
+  it('restores only the rejected sibling after a mixed bulk skip result', async () => {
+    seedHabitState([
+      makeHabit({
+        id: 'parent',
+        hasSubHabits: true,
+        children: [
+          makeChild({ id: 'child-accepted', isCompleted: false }),
+          makeChild({ id: 'child-rejected', isCompleted: false }),
+        ],
+      }),
+    ], 3)
+    const mutation = useBulkSkipHabits() as unknown as MutationConfig<
+      { results: { index: number; status: 'Success' | 'Failed'; habitId: string; error: string | null }[] },
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const variables = [
+      { habitId: 'child-accepted' },
+      { habitId: 'child-rejected' },
+    ]
+    const mixedResult = {
+      results: [
+        { index: 0, status: 'Success' as const, habitId: 'child-accepted', error: null },
+        { index: 1, status: 'Failed' as const, habitId: 'child-rejected', error: 'Rejected' },
+      ],
+    }
+    mocks.runQueuedMutation.mockResolvedValueOnce(mixedResult)
+
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(result, variables, context)
+
+    const children = getHabitList()[0]?.children
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
+    expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
   })
 
   it('restores the list when a bulk log fails', async () => {
@@ -2078,7 +3067,10 @@ describe('mobile habit hooks', () => {
       { habitId: string; date?: string }[],
       HabitSnapshotContext
     >
-    const variables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const variables = [
+      { habitId: 'habit-1' },
+      { habitId: 'habit-2', date: '2025-02-01' },
+    ]
 
     const context = await mutation.onMutate?.(variables)
     expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
@@ -2087,29 +3079,492 @@ describe('mobile habit hooks', () => {
     expect(getHabitList().every((habit) => habit.isCompleted)).toBe(false)
   })
 
-  it.each([
-    ['log', useBulkLogHabits],
-    ['skip', useBulkSkipHabits],
-  ] as const)('keeps rejected bulk %s items in their prior state', async (_mode, useBulkMutation) => {
+  it('restores only the rejected sibling after a mixed bulk log result', async () => {
     seedHabitState([
-      makeHabit({ id: 'accepted', isCompleted: false }),
-      makeHabit({ id: 'rejected', isCompleted: false }),
-    ], 2)
-    const mutation = useBulkMutation() as unknown as MutationConfig<
-      { results: { index: number; status: string; habitId: string }[] },
+      makeHabit({
+        id: 'parent',
+        hasSubHabits: true,
+        children: [
+          makeChild({ id: 'child-accepted', isCompleted: false }),
+          makeChild({ id: 'child-rejected', isCompleted: false }),
+        ],
+      }),
+    ], 3)
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<
+      BulkLogOutcome,
       { habitId: string; date?: string }[],
       HabitSnapshotContext
     >
-    const items = [{ habitId: 'accepted' }, { habitId: 'rejected' }]
-    const context = await mutation.onMutate?.(items)
-    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
+    const variables = [
+      { habitId: 'child-accepted', date: '2026-08-28' },
+      { habitId: 'child-rejected', date: '2026-08-29' },
+    ]
+    const mixedResult = {
+      results: [
+        { index: 0, status: 'Success' as const, habitId: 'child-accepted', logId: 'log-1', error: null },
+        { index: 1, status: 'Failed' as const, habitId: 'child-rejected', logId: null, error: 'Rejected' },
+      ],
+    }
+    mocks.runQueuedMutation.mockResolvedValueOnce(mixedResult)
 
-    mutation.onSuccess?.({ results: [
-      { index: 0, status: 'Success', habitId: 'accepted' },
-      { index: 1, status: 'Failed', habitId: 'rejected' },
-    ] }, items, context)
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(result, variables, context)
 
-    expect(getHabitList().find((habit) => habit.id === 'accepted')?.isCompleted).toBe(true)
-    expect(getHabitList().find((habit) => habit.id === 'rejected')?.isCompleted).toBe(false)
+    const children = getHabitList()[0]?.children
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
+    expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
+    expect(useReviewReminderStore.getState()).toMatchObject({
+      completionCount: 1,
+      activeDays: ['2026-08-28'],
+    })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
+
+  it('leaves the profile untouched when a bulk log is only queued offline', async () => {
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<
+      BulkLogOutcome,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const variables = [{ habitId: 'habit-1' }]
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+
+    mutation.onSuccess?.(result, variables, context)
+
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+})
+
+ it('drops an empty search page after creating its named habit offline before reconnect', async () => {
+  const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+  const client = new QueryClient()
+  mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+  const key = habitKeys.search({ search: 'yoga', page: 1 })
+  client.setQueryData(key, { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })
+  client.setQueryData(habitKeys.list({}), [])
+  const mutation = useCreateHabit() as unknown as MutationConfig<{ id: string; queued: true; queuedMutationId: string }, CreateHabitRequest, { previousLists: unknown; tempId: string }>
+  const request: CreateHabitRequest = { title: 'yoga', frequencyUnit: 'Day' }
+  const context = await mutation.onMutate?.(request)
+  const response = await mutation.mutationFn(request)
+  mutation.onSettled?.(response, null, request, context)
+  expect(client.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.map((habit) => habit.title)).toEqual(['yoga'])
+  expect(client.getQueryData(key)).toBeUndefined()
+  expect(client.isFetching()).toBe(0)
+  client.clear()
+})
+
+
+describe('daily streak moment after confirmed logging', () => {
+  it.each([
+    { name: 'second completion', first: false, streak: 5 },
+    { name: 'repeated first response', first: true, streak: 6 },
+    { name: 'past-day log', first: true, streak: 6, date: '2000-01-01' },
+    { name: 'slip', first: true, streak: 6, bad: true },
+    { name: 'unchanged streak', first: true, streak: 5 },
+    { name: 'unlog', first: true, streak: 6, intent: 'unlog' as const },
+    { name: 'milestone', first: true, streak: 7 },
+  ])('shows the first extension once and excludes $name', async (scenario) => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ id: 'habit-1' })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+    const firstLog = { habitId: 'habit-1', intent: 'log' as const }
+    const firstContext = await mutation.onMutate?.(firstLog)
+    mutation.onSuccess?.({ logId: 'confirmed-log', isFirstCompletionToday: true, previousStreak: 4, currentStreak: 5 }, firstLog, firstContext)
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    store.getState().completeActiveCelebration()
+    if (!['second completion', 'repeated first response'].includes(scenario.name)) store.setState({ dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ id: 'habit-1', isBadHabit: scenario.bad ?? false })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.name === 'milestone' ? 6 : 5 })
+    const nextLog = { habitId: 'habit-1', date: scenario.date, intent: scenario.intent ?? 'log' as const }
+    const nextContext = await mutation.onMutate?.(nextLog)
+    mutation.onSuccess?.({ logId: 'next-log', isFirstCompletionToday: scenario.first, previousStreak: scenario.name === 'milestone' ? 6 : 5, currentStreak: scenario.streak }, nextLog, nextContext)
+    expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.name === 'milestone' ? 'streak' : null)
+    expect(store.getState().queuedCelebrations).toEqual([])
+    mocks.useRealUIStore = false
+  })
+})
+
+
+describe('daily streak moment after bulk logging', () => {
+  it('uses the response after a confirmed bulk completion', async () => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ id: 'habit-1' })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    const invalidate = mocks.queryClient.invalidateQueries.mockImplementation((filters) => {
+      if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5 })
+      return Promise.resolve()
+    })
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    const items = [{ habitId: 'habit-1' }]
+    const context = await mutation.onMutate?.(items)
+    mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(items), items, context))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    invalidate.mockImplementation(async () => {})
+    mocks.useRealUIStore = false
+  })
+})
+
+
+it('keeps a bulk completion confirmed across midnight out of the next day receipt', async () => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  const store = actual.useUIStore
+  mocks.useRealUIStore = true
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  seedHabitState([makeHabit({ id: 'habit-1' })])
+  mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+  vi.setSystemTime(new Date(2026, 5, 15, 23, 59))
+  let refreshedStreak = 5
+  mocks.queryClient.invalidateQueries.mockImplementation((filters) => {
+    if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: refreshedStreak })
+    return Promise.resolve()
+  })
+  const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+  const items = [{ habitId: 'habit-1' }]
+  const response = { previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] }
+  try {
+    const context = await mutation.onMutate?.(items)
+    vi.setSystemTime(new Date(2026, 5, 16, 0, 1))
+    mocks.runQueuedMutation.mockResolvedValueOnce(response)
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(items), items, context))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+    refreshedStreak = 6
+    response.previousStreak = 5
+    response.currentStreak = 6
+    const nextContext = await mutation.onMutate?.(items)
+    mocks.runQueuedMutation.mockResolvedValueOnce(response)
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(items), items, nextContext))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 6 } })
+  } finally {
+    mocks.queryClient.invalidateQueries.mockImplementation(async () => {})
+    mocks.useRealUIStore = false
+    vi.useRealTimers()
+  }
+})
+
+
+it.each([5, 7])('shows the streak extension to %i after an earlier slip', async (streak) => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  const store = actual.useUIStore
+  mocks.useRealUIStore = true
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  seedHabitState([makeHabit({ id: 'avoid', isBadHabit: true }), makeHabit({ id: 'build' })])
+  mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
+  const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+  const slip = { habitId: 'avoid', intent: 'log' as const }
+  const slipContext = await mutation.onMutate?.(slip)
+  mutation.onSuccess?.({ logId: 'slip-log', isFirstCompletionToday: false, previousStreak: streak - 1, currentStreak: streak - 1 }, slip, slipContext)
+  expect(store.getState().activeCelebration).toBeNull()
+  const completion = { habitId: 'build', intent: 'log' as const }
+  const completionContext = await mutation.onMutate?.(completion)
+  mutation.onSuccess?.({ logId: 'positive-log', isFirstCompletionToday: false, previousStreak: streak - 1, currentStreak: streak }, completion, completionContext)
+  expect(store.getState().activeCelebration).toMatchObject({ kind: streak === 7 ? 'streak' : 'daily-streak', payload: { streak } })
+  expect(store.getState().queuedCelebrations).toEqual([])
+  mocks.useRealUIStore = false
+})
+
+
+describe('account calendar streak regressions', () => {
+  const scenarios = [
+    { name: 'explicit account day', date: '2026-06-15', expected: true },
+    { name: 'implicit account day', expected: true },
+    { name: 'past account day', date: '2026-06-14', expected: false },
+    { name: 'account midnight', after: '2026-06-16T03:01:00Z', expected: false },
+    { name: 'device midnight within the account day', before: '2026-06-15T23:59:00Z', after: '2026-06-16T00:01:00Z', expected: true },
+  ]
+  it.each(scenarios.flatMap((scenario) => [5, 7].map((streak) => ({ ...scenario, streak }))))('uses the account calendar for single logging: $name, streak $streak', async (scenario) => {
+    vi.setSystemTime(new Date(scenario.before ?? '2026-06-16T01:00:00Z'))
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit()])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.streak - 1, timeZone: 'America/Sao_Paulo' })
+    const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+    const variables = { habitId: 'habit-1', date: scenario.date, intent: 'log' as const }
+    try {
+      const context = await mutation.onMutate?.(variables)
+      if (scenario.after) vi.setSystemTime(new Date(scenario.after))
+      mutation.onSuccess?.({ logId: 'confirmed-log', previousStreak: scenario.streak - 1, currentStreak: scenario.streak, isFirstCompletionToday: true }, variables, context)
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? (scenario.streak === 7 ? 'streak' : 'daily-streak') : null)
+      expect(store.getState().dailyStreakMomentDate).toBe(scenario.expected ? '2026-06-15' : '')
+    } finally {
+      mocks.useRealUIStore = false
+      vi.useRealTimers()
+    }
+  })
+
+  it.each(scenarios)('uses the account calendar for bulk logging: $name', async (scenario) => {
+    vi.setSystemTime(new Date(scenario.before ?? '2026-06-16T01:00:00Z'))
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit()])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4, timeZone: 'America/Sao_Paulo' })
+    mocks.queryClient.invalidateQueries.mockImplementation((filters) => {
+      if (JSON.stringify(filters?.queryKey) !== JSON.stringify(profileKeys.all)) return Promise.resolve()
+      return Promise.resolve().then(() => {
+        if (scenario.after) vi.setSystemTime(new Date(scenario.after))
+        mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5, timeZone: 'America/Sao_Paulo' })
+      })
+    })
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string; date?: string }[], unknown>
+    const variables = [{ habitId: 'habit-1', date: scenario.date }]
+    try {
+      const context = await mutation.onMutate?.(variables)
+      mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+      await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? 'daily-streak' : null)
+      expect(store.getState().dailyStreakMomentDate).toBe(scenario.expected ? '2026-06-15' : '')
+    } finally {
+      mocks.queryClient.invalidateQueries.mockImplementation(async () => {})
+      mocks.useRealUIStore = false
+      vi.useRealTimers()
+    }
+  })
+})
+
+
+describe('bulk streak and all-done ordering regressions', () => {
+  it.each([
+    { streak: 5, existing: false },
+    { streak: 7, existing: false },
+    { streak: 5, existing: true },
+  ])('orders streak $streak before all-done and preserves existing=$existing', async ({ streak, existing }) => {
+    vi.setSystemTime(new Date('2026-06-16T01:00:00Z'))
+    const today = '2026-06-16'
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '', allDoneCelebratedDate: '' })
+    if (existing) store.getState().enqueueCelebration('goal-completed', { name: 'Distance', count: 5, unit: 'km' })
+    const previousActive = store.getState().activeCelebration
+    seedHabitState([])
+    mocks.queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }), [makeHabit({ dueDate: today, scheduledDates: [today] })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1, timeZone: 'UTC' })
+    mocks.queryClient.invalidateQueries.mockImplementation((filters) => {
+      if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak, timeZone: 'UTC' })
+      return Promise.resolve()
+    })
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    const variables = [{ habitId: 'habit-1' }]
+    let moment: ReturnType<typeof TestRenderer.create>
+    try {
+      const context = await mutation.onMutate?.(variables)
+      mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: streak - 1, currentStreak: streak, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+      await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
+      if (existing) {
+        expect(store.getState().activeCelebration).toEqual(previousActive)
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['daily-streak', 'all-done'])
+        store.getState().completeActiveCelebration()
+      }
+      const active = store.getState().activeCelebration!
+      expect(active.kind).toBe(streak === 7 ? 'streak' : 'daily-streak')
+      expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['all-done'])
+      if (active.kind === 'daily-streak') {
+        vi.useFakeTimers()
+        TestRenderer.act(() => { moment = TestRenderer.create(React.createElement(DailyStreakMoment, { id: active.id, streak, reducedMotion: true, onDismiss: () => store.getState().completeActiveCelebration(active.id) })) })
+        TestRenderer.act(() => vi.advanceTimersByTime(DAILY_STREAK_MOMENT_DURATION - 1))
+        expect(store.getState().activeCelebration?.kind).toBe('daily-streak')
+        TestRenderer.act(() => vi.advanceTimersByTime(1))
+      } else {
+        store.getState().completeActiveCelebration(active.id)
+      }
+      expect(store.getState().activeCelebration?.kind).toBe('all-done')
+    } finally {
+      TestRenderer.act(() => moment?.unmount())
+      mocks.queryClient.invalidateQueries.mockImplementation(async () => {})
+      mocks.useRealUIStore = false
+      vi.useRealTimers()
+    }
+  })
+})
+
+
+describe('bulk no-op streak eligibility', () => {
+  it.each([5, 7].flatMap((streak) => [false, true].map((created) => ({ streak, created }))))(
+    'keeps streak $streak feedback and its receipt tied to a created log: $created',
+    async ({ streak, created }) => {
+      const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+      mocks.useRealUIStore = true
+      store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '', allDoneCelebratedDate: '' })
+      const today = formatAPIDate(new Date())
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+      const todayKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+      client.setQueryData(todayKey, [makeHabit({ dueDate: today, scheduledDates: [today] })])
+      client.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
+      const observer = new QueryObserver(client, {
+        queryKey: profileKeys.detail(), staleTime: Infinity,
+        queryFn: () => Promise.resolve({ currentStreak: streak }),
+      })
+      const unsubscribe = observer.subscribe(() => {})
+      mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+      mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: created ? streak - 1 : streak, currentStreak: streak, results: [{
+        index: 0, status: 'Success', habitId: 'habit-1', logId: created ? 'confirmed-log' : null,
+        error: null,
+      }] })
+      const mutation = useBulkLogHabits() as unknown as MutationConfig<BulkLogOutcome, { habitId: string }[], unknown>
+      const variables = [{ habitId: 'habit-1' }]
+      try {
+        const context = await mutation.onMutate?.(variables)
+        const response = await mutation.mutationFn(variables)
+        await Promise.resolve(mutation.onSuccess?.(response, variables, context))
+        expect(client.getQueryData(profileKeys.detail())).toEqual({ currentStreak: streak })
+        expect(client.getQueryData<HabitScheduleItem[]>(todayKey)?.[0]?.isCompleted).toBe(true)
+        expect(store.getState().activeCelebration?.kind).toBe(created ? (streak === 7 ? 'streak' : 'daily-streak') : 'all-done')
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(created ? ['all-done'] : [])
+        expect(store.getState().dailyStreakMomentDate).toBe(created ? today : '')
+        expect(store.getState().allDoneCelebratedDate).toBe(today)
+      } finally {
+        unsubscribe()
+        client.clear()
+        mocks.useRealUIStore = false
+      }
+    },
+  )
+})
+
+
+describe('response streak authority', () => {
+  const scenarios = [
+    { name: 'restart', previousStreak: 0, currentStreak: 1, cached: 2, expected: 'daily-streak' },
+    { name: 'normal first log with stale profile', previousStreak: 4, currentStreak: 5, cached: 2, expected: 'daily-streak' },
+    { name: 'second log', previousStreak: 5, currentStreak: 5, cached: 4, expected: null },
+    { name: 'unchanged streak', previousStreak: 0, currentStreak: 0, cached: 2, expected: null },
+    { name: 'missing previous streak', currentStreak: 5, cached: 4, expected: null },
+    { name: 'null previous streak replay', previousStreak: null, currentStreak: 1, cached: 2, expected: null },
+    { name: 'milestone', previousStreak: 6, currentStreak: 7, cached: 2, expected: 'streak' },
+    { name: 'slip', previousStreak: 4, currentStreak: 5, cached: 2, bad: true, expected: null },
+  ]
+
+  it.each(scenarios)('uses the single response for $name', async (scenario) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ isBadHabit: scenario.bad ?? false })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.cached })
+    mocks.runQueuedMutation.mockResolvedValueOnce({ logId: 'confirmed-log', isFirstCompletionToday: true, previousStreak: scenario.previousStreak, currentStreak: scenario.currentStreak })
+    const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+    const variables = { habitId: 'habit-1', intent: 'log' as const }
+    try {
+      const context = await mutation.onMutate?.(variables)
+      const response = await mutation.mutationFn(variables)
+      await Promise.resolve(mutation.onSuccess?.(response, variables, context))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected)
+      if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: scenario.currentStreak })
+    } finally {
+      mocks.useRealUIStore = false
+    }
+  })
+
+  it.each([
+    ...scenarios,
+    { name: 'null current streak replay', previousStreak: 0, currentStreak: null, cached: 2, bad: false, expected: null },
+    { name: 'null transition replay', previousStreak: null, currentStreak: null, cached: 2, bad: false, expected: null },
+    { name: 'missing current streak', previousStreak: 4, currentStreak: undefined, cached: 4, bad: false, expected: null },
+  ])('uses the bulk response for $name', async (scenario) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ isBadHabit: scenario.bad ?? false })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.cached })
+    mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: scenario.previousStreak, currentStreak: scenario.currentStreak, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    const variables = [{ habitId: 'habit-1' }]
+    try {
+      const context = await mutation.onMutate?.(variables)
+      const response = await mutation.mutationFn(variables)
+      await Promise.resolve(mutation.onSuccess?.(response, variables, context))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected)
+      if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: scenario.currentStreak })
+    } finally {
+      mocks.useRealUIStore = false
+    }
+  })
+})
+
+
+describe('bulk response chunk streak transitions', () => {
+  it.each([
+    { name: 'extension in first chunk', firstPrevious: 0, firstCurrent: 1, secondPrevious: 1, secondCurrent: 1, badFirst: false, expected: true },
+    { name: 'extension in second chunk', firstPrevious: 0, firstCurrent: 0, secondPrevious: 0, secondCurrent: 1, badFirst: false, expected: true },
+    { name: 'extension reversed by a later slip', firstPrevious: 4, firstCurrent: 5, secondPrevious: 5, secondCurrent: 4, badFirst: false, expected: false },
+    { name: 'only slips in the moving chunk', firstPrevious: 0, firstCurrent: 1, secondPrevious: 1, secondCurrent: 1, badFirst: true, expected: false },
+  ])('keeps response fields with their matching results: $name', async (scenario) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const showStreakMoment = vi.spyOn(store.getState(), 'showStreakMoment')
+    const habits = Array.from({ length: 101 }, (_, index) => makeHabit({ id: `habit-${index}`, isBadHabit: index < 100 ? scenario.badFirst : scenario.secondCurrent < scenario.secondPrevious }))
+    const items = habits.map(({ id }) => ({ habitId: id }))
+    const responses = [items.slice(0, 100), items.slice(100)].map((chunk, index) => ({
+      previousStreak: index === 0 ? scenario.firstPrevious : scenario.secondPrevious,
+      currentStreak: index === 0 ? scenario.firstCurrent : scenario.secondCurrent,
+      results: chunk.map((item, itemIndex) => ({ index: itemIndex, status: 'Success' as const, habitId: item.habitId, logId: `log-${item.habitId}`, error: null })),
+    }))
+    mocks.useRealUIStore = true
+    seedHabitState(habits)
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 2 })
+    for (const response of responses) mocks.runQueuedMutation.mockResolvedValueOnce(response)
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    try {
+      const context = await mutation.onMutate?.(items)
+      await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(items), items, context))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? 'daily-streak' : null)
+      if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: 1 })
+      expect(store.getState().queuedCelebrations).toEqual([])
+      expect(showStreakMoment).toHaveBeenCalledExactlyOnceWith(scenario.secondCurrent, scenario.firstPrevious, expect.objectContaining({ timeZone: undefined, intent: 'log', countsTowardStreak: !scenario.badFirst }))
+    } finally {
+      showStreakMoment.mockRestore()
+      mocks.useRealUIStore = false
+    }
+  })
+})
+
+
+it('waits for the profile before showing bulk streak feedback', async () => {
+  const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  mocks.useRealUIStore = true
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  seedHabitState([makeHabit()])
+  mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+  const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+  const variables = [{ habitId: 'habit-1' }]
+  try {
+    const context = await mutation.onMutate?.(variables)
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+  } finally {
+    mocks.useRealUIStore = false
+  }
+})
+
+it('does not attribute another bulk log extension to a cached no-op habit', async () => {
+  const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  mocks.useRealUIStore = true
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  seedHabitState([makeHabit()])
+  mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+  mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: 4, currentStreak: 5, results: [
+    { index: 0, status: 'Success', habitId: 'habit-1', logId: null, error: null },
+    { index: 1, status: 'Success', habitId: 'uncached', logId: 'confirmed-log', error: null },
+  ] })
+  const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+  const variables = [{ habitId: 'habit-1' }, { habitId: 'uncached' }]
+  try {
+    const context = await mutation.onMutate?.(variables)
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+  } finally {
+    mocks.useRealUIStore = false
+  }
 })

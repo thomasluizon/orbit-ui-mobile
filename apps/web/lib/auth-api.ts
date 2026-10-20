@@ -1,8 +1,14 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
+import { getServerRequestLanguage } from './request-language'
 import { cookies } from 'next/headers'
 import { API } from '@orbit/shared/api'
 
 export const AUTH_COOKIE = 'auth_token'
 export const REFRESH_COOKIE = 'refresh_token'
+
+/** Names the account the proxy resolved, for a server render that has to know it before the client
+ * has asked. The proxy removes any inbound copy first, so a request cannot name its own account. */
+export const ACCOUNT_ID_HEADER = 'x-account-id'
 
 const ACCESS_TOKEN_REFRESH_THRESHOLD_MS = 60_000
 const REFRESH_TRANSPORT_TIMEOUT_MS = 60_000
@@ -80,6 +86,12 @@ function getTokenExpiry(token: string): number | null {
   }
 }
 
+/**
+ * The auth cookie is shared by every tab, so a sign in elsewhere replaces the account under a tab
+ * that is still running. The browser store cannot see that from `expiresAt` alone, so the session
+ * route reports who the cookie now belongs to. The claim literal is the one the API emits, pinned by
+ * `JwtTokenServiceTests` in the orbit-api repository; it issues no `sub` and no `nameid`.
+ */
 export function getAccountIdFromToken(token: string): string | null {
   try {
     const payloadSegment = token.split('.')[1]
@@ -175,6 +187,7 @@ export async function clearSessionCookies(
 
 export async function refreshSessionTokens(
   refreshToken: string,
+  language?: string,
 ): Promise<RefreshSessionResult> {
   const inFlight = refreshRequests.get(refreshToken)
   if (inFlight) {
@@ -189,7 +202,7 @@ export async function refreshSessionTokens(
     try {
       const response = await fetch(`${apiBase}${API.auth.refresh}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...API_VERSION_HEADERS, 'Content-Type': 'application/json', 'Accept-Language': language ?? await getServerRequestLanguage() },
         body: JSON.stringify({ refreshToken }),
         signal: controller.signal,
       })
@@ -254,14 +267,16 @@ export async function tryRefreshSession(options?: {
 export async function resolveServerSession(options?: {
   forceRefresh?: boolean
   refreshThresholdMs?: number
+  allowRefresh?: boolean
 }): Promise<ResolvedServerSession> {
   const cookieStore = await getCookieStore()
   const authToken = getCookieValue(cookieStore, AUTH_COOKIE)
-  const refreshToken = getCookieValue(cookieStore, REFRESH_COOKIE)
+  const refreshToken = options?.allowRefresh === false ? null : getCookieValue(cookieStore, REFRESH_COOKIE)
 
   return resolveSessionTokens({
     authToken,
     refreshToken,
+    language: await getServerRequestLanguage(cookieStore),
     forceRefresh: options?.forceRefresh ?? false,
     refreshThresholdMs: options?.refreshThresholdMs ?? ACCESS_TOKEN_REFRESH_THRESHOLD_MS,
     persistSession: async (tokens) => {
@@ -280,6 +295,7 @@ export async function resolveSessionTokens(options: {
   refreshThresholdMs?: number
   persistSession?: (tokens: SessionTokens) => void | Promise<void>
   clearSession?: () => void | Promise<void>
+  language?: string
 }): Promise<ResolvedServerSession> {
   const forceRefresh = options.forceRefresh ?? false
   const refreshThresholdMs =
@@ -303,7 +319,7 @@ export async function resolveSessionTokens(options: {
   }
 
   if (options.refreshToken) {
-    const refreshResult = await refreshSessionTokens(options.refreshToken)
+    const refreshResult = await refreshSessionTokens(options.refreshToken, options.language)
     if (refreshResult.outcome === 'refreshed') {
       const { tokens: refreshedTokens } = refreshResult
       await options.persistSession?.(refreshedTokens)

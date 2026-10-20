@@ -1,4 +1,3 @@
-
 const { collectStaticStrings, getAttribute, getAttributeValueNode, collectStyleProperties, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const OUTLINE_NONE_CLASS_RE = /(?:^|\s)(?:focus:|focus-visible:)?(outline-none|outline-hidden|outline-\[none\])(?:\s|$)/

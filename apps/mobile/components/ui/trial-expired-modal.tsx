@@ -1,35 +1,34 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
-// react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the dialog transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Crown } from 'lucide-react-native'
+import { buildAccountScopedStorageKey, readAccountScopedFlag, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useTrialExpired } from '@/hooks/use-profile'
+import { useAuthStore } from '@/stores/auth-store'
+import { useUIStore } from '@/stores/ui-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { PillButton } from '@/components/ui/pill-button'
-import { createTokensV2, shadowsV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
-import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { accountStorageKey } from '@/lib/account-storage-key'
-import { useAccountId } from '@/lib/account-scope'
+import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
+import { ActionRow } from '@/components/ui/action-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
+import { ListRow } from '@/components/ui/list-row'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
-const STORAGE_KEY = 'orbit_trial_expired_seen'
+const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
 
 const PAUSED_FEATURES = [
-  'trial.expired.subHabits',
-  'trial.expired.aiChat',
-  'trial.expired.goals',
-  'trial.expired.aiSummary',
-  'trial.expired.allColors',
+  'trial.expired.astraCeiling',
+  'trial.expired.calendarSync',
+  'trial.expired.retrospective',
+  'trial.expired.proactiveAstra',
 ] as const
 
-/**
- * Trial-expired dialog: centered card with a crown hero, paused Pro feature
- * rows, and pill CTAs to subscribe or continue on free. Preserves the
- * AsyncStorage seen-once gating and animates in and out with the shared dialog
- * motion preset.
- */
 export function TrialExpiredModal() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -39,231 +38,146 @@ export function TrialExpiredModal() {
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const styles = useMemo(() => createStyles(tokens), [tokens])
-  const dialogMotion = useResolvedMotionPreset('dialog')
-  const progress = useMemo(() => new Animated.Value(0), [])
+  const styles = useMemo(createStyles, [])
+  const { sheetRef, closeSheet } = useSheetHost()
   const trialExpired = useTrialExpired()
-  const accountId = useAccountId()
-  const [dismissedAccountId, setDismissedAccountId] = useState<string | null | undefined>(undefined)
-  const [seenRecord, setSeenRecord] = useState<{ accountId: string | null; seen: boolean } | null>(null)
-  const dismissed = dismissedAccountId === accountId
-  const alreadySeen = seenRecord?.accountId === accountId ? seenRecord.seen : true
-  const [visibleDuringExit, setVisibleDuringExit] = useState(false)
-  const transitionToken = useRef(0)
-  const hasOpened = useRef(false)
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
+  const accountGeneration = useAccountGeneration()
+  const [noticeState, setNoticeState] = useState({
+    accountId,
+    dismissed: false,
+    alreadySeen: true,
+  })
+  const currentNoticeState = noticeState.accountId === accountId
+    ? noticeState
+    : { accountId, dismissed: false, alreadySeen: true }
+  if (noticeState.accountId !== accountId) setNoticeState(currentNoticeState)
+  const scopedKey = accountId === null ? null : buildAccountScopedStorageKey(STORAGE_KEY, accountId)
+  const promptId = useId()
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const openOverlayIds = useUIStore((state) => state.openOverlayIds)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  const reservationId = `${promptId}:${scopedKey ?? ''}`
 
+  /**
+   * Moves a notice dismissed before this key carried an account on to the account signed in now,
+   * then consumes the old key. Left in place it would answer for every later account too, which
+   * is the defect rather than a milder version of it.
+   */
   useEffect(() => {
-    void AsyncStorage.getItem(accountStorageKey(STORAGE_KEY)).then((value) => {
-      setSeenRecord({ accountId, seen: value === '1' })
+    if (scopedKey === null) return
+    let cancelled = false
+    void AsyncStorage.multiGet([scopedKey, STORAGE_KEY]).then(([scoped, legacy]) => {
+      if (cancelled) return
+      const flag = readAccountScopedFlag(scoped?.[1] ?? null, legacy?.[1] ?? null)
+      if (flag.adoptsLegacy) {
+        void AsyncStorage.setItem(scopedKey, '1')
+        void AsyncStorage.removeItem(STORAGE_KEY)
+      }
+      setNoticeState((current) => current.accountId === accountId
+        ? { ...current, alreadySeen: flag.seen }
+        : current)
     })
-  }, [accountId])
+    return () => {
+      cancelled = true
+    }
+  }, [accountId, scopedKey])
 
   const isOpen =
-    pathname !== '/upgrade' && !dismissed && trialExpired && !alreadySeen
-
-  const visible = isOpen || visibleDuringExit
-
+    pathname !== '/upgrade' && !currentNoticeState.dismissed && trialExpired &&
+    !currentNoticeState.alreadySeen
+  const reserved = openOverlayIds.includes(reservationId)
+  const presented = isOpen && reserved
   useEffect(() => {
-    const token = ++transitionToken.current
-    if (isOpen) {
-      hasOpened.current = true
-      void Promise.resolve().then(() => {
-        if (transitionToken.current === token) setVisibleDuringExit(true)
-      })
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: dialogMotion.enterDuration,
-        easing: toAnimatedEasing(dialogMotion.enterEasing),
-        useNativeDriver: true,
-      }).start()
+    if (!isOpen) {
+      if (reserved) unregisterOpenOverlay(reservationId)
       return
     }
+    if (!reserved && !anotherOverlayOpen) useUIStore.getState().tryReservePromptOverlay(reservationId)
+  }, [anotherOverlayOpen, isOpen, reservationId, reserved, unregisterOpenOverlay])
+  useEffect(() => {
+    return () => unregisterOpenOverlay(reservationId)
+  }, [reservationId, unregisterOpenOverlay])
 
-    if (!hasOpened.current) return
+  const hide = useCallback(() => {
+    if (getAccountGeneration() !== accountGeneration) return
+    setNoticeState((current) => current.accountId === accountId
+      ? { ...current, dismissed: true }
+      : current)
+    if (scopedKey !== null) void AsyncStorage.setItem(scopedKey, '1')
+  }, [accountGeneration, accountId, scopedKey])
 
-    Animated.timing(progress, {
-      toValue: 0,
-      duration: dialogMotion.exitDuration,
-      easing: toAnimatedEasing(dialogMotion.exitEasing),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished && transitionToken.current === token) {
-        hasOpened.current = false
-        setVisibleDuringExit(false)
-      }
-    })
-  }, [
-    dialogMotion.enterDuration,
-    dialogMotion.enterEasing,
-    dialogMotion.exitDuration,
-    dialogMotion.exitEasing,
-    isOpen,
-    progress,
-  ])
-
-  const dismiss = useCallback(() => {
-    setDismissedAccountId(accountId)
-    void AsyncStorage.setItem(accountStorageKey(STORAGE_KEY), '1')
-  }, [accountId])
-
-  if (!visible) return null
-
-  const backdropOpacity = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  })
-  const translateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [dialogMotion.shift, 0],
-  })
-  const scale = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [dialogMotion.scaleFrom, dialogMotion.scaleTo],
-  })
+  if (!presented) return null
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={dismiss}>
-      <View style={styles.root}>
-        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
-        <Animated.View
-          style={[
-            styles.dialog,
-            { opacity: progress, transform: [{ translateY }, { scale }] },
-          ]}
-        >
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
-            <View style={styles.heroDisc}>
-              <Crown size={30} strokeWidth={1.8} color={tokens.primarySoft} />
-            </View>
-            <Text style={styles.heading}>{t('trial.expired.heading')}</Text>
-            <Text style={styles.subtitle}>{t('trial.expired.subtitleQuiet')}</Text>
-
-            <View style={styles.featureList}>
-              {PAUSED_FEATURES.map((feature, index) => (
-                <View
-                  key={feature}
-                  style={[
-                    styles.featureRow,
-                    index === PAUSED_FEATURES.length - 1 ? styles.featureRowLast : null,
-                  ]}
-                >
-                  <Text style={styles.featureText}>{t(feature)}</Text>
-                  <Text style={styles.featurePaused}>
-                    {t('trial.expired.paused')}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-
-          <View style={styles.footer}>
-            <PillButton
-              fullWidth
-              onPress={() => {
-                dismiss()
+    <Sheet
+      ref={sheetRef}
+      open
+      onClose={hide}
+      title={t('trial.expired.heading')}
+      actions={
+        <ActionRow>
+          <PromptQuietAction onClick={() => closeSheet()}>
+            {t('trial.expired.continueFree')}
+          </PromptQuietAction>
+          <PillButton
+            size="sm"
+            onClick={() =>
+              closeSheet(() => {
+                if (getAccountGeneration() !== accountGeneration) return
+                hide()
                 router.push(buildUpgradeHref(pathname || '/'))
-              }}
-            >
-              {t('trial.expired.subscribe')}
-            </PillButton>
-            <PillButton variant="ghost" fullWidth onPress={dismiss}>
-              {t('trial.expired.continueFree')}
-            </PillButton>
-          </View>
-        </Animated.View>
+              })
+            }
+          >
+            {t('trial.expired.subscribe')}
+          </PillButton>
+        </ActionRow>
+      }
+    >
+      <View style={styles.content}>
+        <View style={styles.intro}>
+          <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+            {t('trial.expired.eyebrow')}
+          </Text>
+          <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
+            {t('trial.expired.subtitleQuiet')}
+          </Text>
+        </View>
+
+        <SettingsGroup>
+          {PAUSED_FEATURES.map((featureKey) => (
+            <ListRow readOnly textMode="label"
+              key={featureKey}
+              title={t(featureKey)}
+              description={t('trial.expired.paused')}
+            />
+          ))}
+        </SettingsGroup>
       </View>
-    </Modal>
+    </Sheet>
   )
 }
 
-function createStyles(tokens: AppTokensV2) {
+function createStyles() {
   return StyleSheet.create({
-    root: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
+    content: {
+      gap: 24,
     },
-    backdrop: {
-      ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    intro: {
+      gap: 8,
     },
-    dialog: {
-      width: '100%',
-      maxWidth: 340,
-      maxHeight: '86%',
-      backgroundColor: tokens.bgSheet,
-      borderRadius: 24,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      paddingTop: 28,
-      ...shadowsV2.shadow3,
-    },
-    scrollContent: {
-      paddingHorizontal: 22,
-      paddingBottom: 4,
-      gap: 14,
-    },
-    heroDisc: {
-      width: 64,
-      height: 64,
-      borderRadius: 999,
-      alignSelf: 'center',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: tintFromPrimary(tokens, 0.16),
-    },
-    heading: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 22,
-      letterSpacing: -0.22,
-      lineHeight: 28,
-      textAlign: 'center',
-      color: tokens.fg1,
+    eyebrow: {
+      fontFamily: 'GeistMono_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
+      lineHeight: 16,
+      textTransform: 'uppercase',
     },
     subtitle: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22.5,
-      textAlign: 'center',
-      color: tokens.fg2,
-    },
-    featureList: {
-      marginTop: 6,
-    },
-    featureRow: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      justifyContent: 'space-between',
-      gap: 12,
-      paddingVertical: 11,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
-    },
-    featureRowLast: {
-      borderBottomWidth: 0,
-    },
-    featureText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      color: tokens.fg1,
-      flexShrink: 1,
-    },
-    featurePaused: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 11,
-      letterSpacing: 0.44,
-      textTransform: 'uppercase',
-      color: tokens.fg3,
-    },
-    footer: {
-      paddingHorizontal: 22,
-      paddingTop: 16,
-      paddingBottom: 18,
-      gap: 10,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24,
     },
   })
 }

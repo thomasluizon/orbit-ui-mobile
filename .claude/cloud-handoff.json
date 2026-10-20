@@ -1,0 +1,14 @@
+{
+  "needsDecision": null,
+  "assumptions": [
+    "Stage 1 retains the existing welcome, create-habit, and completion presentations as the three-step interim flow; rejected implementing the later what, when, and remind redesign owned by stages 2 through 9.",
+    "The shared template-pack module had no non-onboarding consumer, so it and its barrel exports/tests were deleted; rejected retaining an unreachable shared module.",
+    "Legacy hasCompletedTour remains in the profile response schema for mobile API compatibility, but no UI behavior waits on it; rejected removing an existing response field from the shared contract."
+  ],
+  "manualSteps": [
+    "Review harness: fetch and run jakubkrehel/interface-review in full mode against the diff; blocked here because github.com returned HTTP 403 for the required raw SKILL.md.",
+    "Review harness: after interface-review, fetch and run jakubkrehel/better-interface in full mode against the diff; blocked here because github.com returned HTTP 403 for the required raw SKILL.md.",
+    "Ticket research: read thomasluizon/orbit-tickets#320 body before review; blocked here because gh reported no authenticated session and no GH_TOKEN."
+  ],
+  "testResults": "PASS: npm run type-check completed for @orbit/shared, @orbit/web, and @orbit/mobile after the production deletions and caller cleanup. PASS: git diff --check. PASS: GITHUB_BASE_REF=redesign/main node tools/check-suppressions-ratchet.mjs, with web suppressions decreasing 180 to 142 and mobile decreasing 187 to 150. PASS: node tools/arch-map.mjs generated the architecture map successfully; its three ignored artifacts were removed as required by AGENTS.md. PASS: the initial node tools/check-i18n-usage.mjs baseline reported 3159 resolved calls and 0 misses; after deletion it reported 3033 resolved calls with four misses, all for onboarding.flow.meetAstra.importPrompt, and that still-consumed key was restored in both locales before commit. WARNING: npm run lint reached repository linting but stopped on packages/shared/src/utils/timezones.ts because @vvo/tzdb was absent in the container. WARNING: focused Vitest could not complete because dependencies including @vvo/tzdb, @tabler/icons-react, and @base-ui/react were absent; npm registry and github.com both returned HTTP 403, and a subsequent offline npm ci could not restore the missing Vitest binary. WARNING: interface-review and better-interface could not be fetched or run because github.com returned HTTP 403. WARNING: node tools/test-tools.mjs could not start its asset tests because sharp was absent after the dependency installation failed; node .claude/hooks/test-hooks.mjs completed successfully with ORBIT HOOKS OK."
+}

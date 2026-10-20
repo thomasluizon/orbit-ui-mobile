@@ -1,16 +1,21 @@
+import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import type { Recap } from '@orbit/shared/types/gamification'
-import { createMockRecap } from '@orbit/shared/__tests__/factories'
+import {
+  createMockRecap,
+  createMockRetrospectiveMetrics,
+} from '@orbit/shared/__tests__/factories'
 import { ShareCard } from '@/components/share/share-card'
-import { MilestoneShareCard } from '@/components/milestone-share/milestone-share-card'
-import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
+    t: (key: string, params?: Record<string, unknown>) => {
+      if (key === 'shareCard.weeklyBarLabel') return String(params?.day)
+      return params ? `${key}:${JSON.stringify(params)}` : key
+    },
   }),
 }))
 
@@ -24,10 +29,14 @@ function collectText(node: unknown): string {
   return ''
 }
 
-function render(props: { recap: Recap; displayName?: string }) {
+function render(props: { recap: Recap; variant?: 'progress' | 'wrapped' }) {
   let tree: {
     toJSON: () => unknown
-    root: { findAll: (predicate: (node: { props?: Record<string, unknown> }) => boolean) => unknown[] }
+    root: {
+      findAll: (
+        predicate: (node: { type?: unknown; props?: Record<string, unknown> }) => boolean,
+      ) => unknown[]
+    }
   }
   TestRenderer.act(() => {
     tree = TestRenderer.create(<ShareCard {...props} />)
@@ -36,46 +45,85 @@ function render(props: { recap: Recap; displayName?: string }) {
 }
 
 describe('ShareCard (mobile)', () => {
-  it('uses the card surface for both replacement header bands', () => {
-    const recapTree = render({ recap: createMockRecap() })
-    const recapBand = recapTree.root.findAll(
-      (node) => node.props?.testID === 'share-card-band',
-    )[0] as { props: { style?: { backgroundColor?: string } } }
-    let milestoneTree!: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      milestoneTree = TestRenderer.create(
-        <MilestoneShareCard
-          variant={{ kind: 'streak', streak: 30 }}
-          referralUrl="https://useorbit.org/r/XY"
-        />,
-      )
-    })
-    const milestoneBand = milestoneTree.root.findAll(
-      (node: { props?: Record<string, unknown> }) => node.props?.testID === 'milestone-share-card-band',
-    )[0] as { props: { style?: { backgroundColor?: string } } }
-    const expectedSurface = createTokensV2('purple', 'dark').bgCard
-
-    expect(recapBand.props.style?.backgroundColor).toBe(expectedSurface)
-    expect(milestoneBand.props.style?.backgroundColor).toBe(expectedSurface)
+  it('reads the shared card inset for progress sharing', () => {
+    const originalInset = PADDING.cardInset
+    try {
+      PADDING.cardInset = SPACING.s48
+      const tree = render({ recap: createMockRecap(), variant: 'progress' })
+      const card = tree.root.findAll((node) => node.props?.testID === 'share-card')[0] as {
+        props: { style: unknown }
+      }
+      expect(StyleSheet.flatten(card.props.style)).toMatchObject({ padding: PADDING.cardInset })
+    } finally {
+      PADDING.cardInset = originalInset
+    }
   })
 
-  it('renders the branded capture target from a recap', () => {
+  it('restores active days and completion rate on the progress image', () => {
+    const text = collectText(render({
+      recap: createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: 5, completionRate: 73.5 }) }),
+      variant: 'progress',
+    }).toJSON())
+    expect(text).toContain('shareCard.stats.activeDays')
+    expect(text).toContain('shareCard.stats.completionRate')
+    expect(text).toContain('74%')
+  })
+
+  it('renders the branded capture target at the 9 by 16 story ratio', () => {
     const tree = render({ recap: createMockRecap() })
-    const roots = tree.root.findAll((node) => node.props?.testID === 'share-card')
-    expect(roots.length).toBeGreaterThan(0)
+    const card = tree.root.findAll((node) => node.props?.testID === 'share-card')[0] as {
+      props: { style: unknown }
+    }
+    const marks = tree.root.findAll((node) => node.props?.testID === 'orbit-mark-accent')
+    expect(StyleSheet.flatten(card.props.style)).toMatchObject({ width: 360, height: 640 })
+    expect(marks.length).toBeGreaterThan(0)
   })
 
-  it('renders the streak hero, formatted stats, top habits, and the scannable link', () => {
-    const text = collectText(render({ recap: createMockRecap() }).toJSON())
-    expect(text).toContain('shareCard.streak')
-    expect(text).toContain('82%')
-    expect(text).toContain('Morning run')
-    expect(text).toContain('shareCard.scanToJoin')
-    expect(text).toContain('app.useorbit.org/r/ABC123?recap=week')
+  it('contains no controls and exactly one primary figure with two supporting figures', () => {
+    const tree = render({ recap: createMockRecap() })
+    const controls = tree.root.findAll((node) => node.props?.accessibilityRole === 'button')
+    const figures = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props?.testID === 'share-card-figure',
+    )
+
+    expect(controls).toHaveLength(0)
+    expect(figures).toHaveLength(3)
   })
 
-  it('hides the scannable link footer when the recap has no deep link', () => {
-    const text = collectText(render({ recap: createMockRecap({ shareDeepLink: '' }) }).toJSON())
-    expect(text).not.toContain('shareCard.scanToJoin')
+  it('prints the same three-letter weekday form as the weekday page', () => {
+    const recap = createMockRecap({
+      metrics: {
+        ...createMockRecap().metrics,
+        weeklyConsistency: [91, 20, 30, 40, 50, 60, 70],
+      },
+    })
+    const tree = render({ recap })
+    const weekday = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props?.testID === 'share-card-weekday',
+    )[0]
+
+    expect(collectText(weekday)).toContain('dates.daysShort.monday')
+  })
+
+  it('renders closed goals for a goal-only recap', () => {
+    const text = collectText(
+      render({
+        recap: createMockRecap({
+          goalCompletions: 3,
+          shareDeepLink: '',
+          metrics: createMockRetrospectiveMetrics({
+            completionRate: 0,
+            totalCompletions: 0,
+            bestStreak: 0,
+            currentStreak: 0,
+            activeDays: 0,
+            topHabits: [],
+            weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+          }),
+        }),
+      }).toJSON(),
+    )
+
+    expect(text).toContain('3 shareCard.stats.goalsClosed')
   })
 })

@@ -1,15 +1,22 @@
 import { Platform } from 'react-native'
 import { API } from '@orbit/shared/api'
+import type { ColorScheme } from '@orbit/shared/theme'
+import type { ThemeMode } from '@orbit/shared/types/profile'
 import type {
   OrbitWidgetModuleType,
-  WidgetThemeColors,
+  RedesignWidgetThemeColors,
+  WidgetThemePreferences,
 } from '../modules/orbit-widget/src/OrbitWidget.types'
-import { refreshPersistentReminder } from './persistent-reminder'
-import type { AppTokensV2 } from './theme'
+import { createTokensV2, type AppTokensV2 } from './theme'
+import { widgetColorPalette } from './widget-colors.generated'
 
 declare const require: (id: string) => unknown
 
 let cachedModule: OrbitWidgetModuleType | null | undefined
+
+export function __setOrbitWidgetModuleForTests(nextModule: OrbitWidgetModuleType): void {
+  cachedModule = nextModule
+}
 
 function isOrbitWidgetModule(value: unknown): value is { default: OrbitWidgetModuleType } {
   if (typeof value !== 'object' || value === null) return false
@@ -44,54 +51,48 @@ export async function clearWidgetToken(): Promise<void> {
   await getOrbitWidgetModule()?.clearToken()
 }
 
-const RGB_PATTERN = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/
-
-function flattenColor(color: string, baseHex: string): string {
-  const match = RGB_PATTERN.exec(color)
-  if (!match) return color
-
-  const overlay = [match[1], match[2], match[3]].map(channel =>
-    Number.parseInt(channel ?? '0', 10),
-  )
-  const alphaGroup = match[4]
-  const overlayAlpha = alphaGroup === undefined ? 1 : Number.parseFloat(alphaGroup)
-  const base = baseHex.replace('#', '')
-  const blend = (index: number) => {
-    const baseChannel = Number.parseInt(base.slice(index * 2, index * 2 + 2), 16)
-    const merged = Math.round(
-      (overlay[index] ?? 0) * overlayAlpha + baseChannel * (1 - overlayAlpha),
-    )
-    return merged.toString(16).padStart(2, '0')
-  }
-
-  return `#${blend(0)}${blend(1)}${blend(2)}`
-}
-
-export function toWidgetColors(tokens: AppTokensV2): WidgetThemeColors {
+export function toWidgetColors(
+  tokens: AppTokensV2,
+  mode: ThemeMode,
+): RedesignWidgetThemeColors {
+  const generated = widgetColorPalette[mode]
   return {
-    primary: tokens.primary,
-    background: tokens.bg,
-    surface: flattenColor(tokens.bgElev, tokens.bg),
-    surfaceGround: flattenColor(tokens.bgSunk, tokens.bg),
+    background: generated.card,
+    surface: generated.well,
+    surfaceGround: tokens.bg,
     textPrimary: tokens.fg1,
+    textSecondary: tokens.fg2,
     textMuted: tokens.fg3,
-    border: flattenColor(tokens.hairline, tokens.bg),
-    borderMuted: flattenColor(tokens.hairlineStrong, tokens.bg),
+    border: generated.hairline,
+    borderMuted: generated.hairline,
     overdue: tokens.statusOverdue,
-    streak: tokens.statusOverdue,
-    statusEmpty: flattenColor(tokens.statusEmpty, tokens.bg),
+    streakText: generated.primaryText,
+    statusEmpty: tokens.statusEmpty,
   }
 }
 
-export async function syncWidgetTheme(tokens: AppTokensV2): Promise<void> {
-  await getOrbitWidgetModule()?.syncTheme(toWidgetColors(tokens))
+export function toWidgetThemePreferences(
+  colorScheme: ColorScheme,
+): WidgetThemePreferences {
+  const modes: ThemeMode[] = ['dark', 'light']
+  const preferences = {} as WidgetThemePreferences
+  for (const mode of modes) {
+    const colors = toWidgetColors(createTokensV2(colorScheme, mode), mode)
+    for (const key of Object.keys(colors) as (keyof RedesignWidgetThemeColors)[]) {
+      preferences[`${mode}_${key}`] = colors[key]
+    }
+  }
+  return preferences
+}
+
+export async function syncWidgetTheme(colorScheme: ColorScheme): Promise<void> {
+  await getOrbitWidgetModule()?.syncTheme(toWidgetThemePreferences(colorScheme))
 }
 
 /**
- * Fetches today's widget habits through the authenticated API client and pushes
- * them with the fetching account's token into the native widget cache, so the
- * home-screen widget renders from app-fed data instead of relying on its own
- * background network fetch. No-ops when signed out or off Android.
+ * Fetches today's widget habits through the authenticated API client and pushes them into
+ * the native widget cache, so the home-screen widget renders from app-fed data instead of
+ * relying on its own background network fetch. No-ops when signed out or off Android.
  */
 export async function syncWidgetData(): Promise<void> {
   const widgetModule = getOrbitWidgetModule()
@@ -99,15 +100,11 @@ export async function syncWidgetData(): Promise<void> {
 
   const { getToken } = await import('./secure-store')
   const token = await getToken()
-  if (!token) {
-    await refreshPersistentReminder(null)
-    return
-  }
+  if (!token) return
 
   const { apiClientWithAuthorizingToken } = await import('./api-client')
   const { data, authorizingToken } = await apiClientWithAuthorizingToken<unknown>(API.habits.widget)
   if (authorizingToken) {
     await widgetModule.syncWidgetData(JSON.stringify(data), authorizingToken)
   }
-  await refreshPersistentReminder(data)
 }

@@ -1,25 +1,25 @@
+import { PersonalText } from '@/components/ui/personal-text'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
 import {
-  Pressable,
   View,
   Text,
   StyleSheet,
 } from 'react-native'
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withSpring,
-} from 'react-native-reanimated'
-import { ChevronUp, ChevronDown, X, Copy, Check, Plus, RotateCcw } from 'lucide-react-native'
+import { ChevronUp, ChevronDown, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { useChecklistItemKeys } from '@/hooks/use-checklist-item-keys'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { PillButton } from '@/components/ui/pill-button'
+import { Proposed } from '@/components/ui/proposed'
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -27,6 +27,7 @@ interface HabitChecklistProps {
   interactive?: boolean
   /** Editable mode: user can add/remove/reorder items */
   editable?: boolean
+  proposedItemCount?: number
   onItemsChange?: (items: ChecklistItem[]) => void
   onToggle?: (index: number) => void
   onReset?: () => void
@@ -45,6 +46,7 @@ interface EditableChecklistItemProps {
   onMoveDown: () => void
   isFirst: boolean
   isLast: boolean
+  duplicateDisabled: boolean
   styles: ReturnType<typeof createStyles>
   tokens: AppTokens
 }
@@ -59,6 +61,7 @@ function EditableChecklistItem({
   onMoveDown,
   isFirst,
   isLast,
+  duplicateDisabled,
   styles,
   tokens,
 }: Readonly<EditableChecklistItemProps>) {
@@ -95,26 +98,24 @@ function EditableChecklistItem({
           accessibilityLabel={t('habits.form.moveChecklistItemUp')}
           style={({ pressed }) => [
             styles.moveButton,
-            pressed && !isFirst ? { opacity: 0.7 } : null,
+            pressed && !isFirst ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveUp}
           disabled={isFirst}
-          hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
-          <ChevronUp size={14} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
+          <ChevronUp size={16} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('habits.form.moveChecklistItemDown')}
           style={({ pressed }) => [
             styles.moveButton,
-            pressed && !isLast ? { opacity: 0.7 } : null,
+            pressed && !isLast ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveDown}
           disabled={isLast}
-          hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
-          <ChevronDown size={14} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
+          <ChevronDown size={16} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
         </Pressable>
       </View>
       <View style={styles.uncheckedBox} />
@@ -130,9 +131,11 @@ function EditableChecklistItem({
         accessibilityLabel={t('habits.form.duplicateChecklistItem')}
         style={({ pressed }) => [
           styles.itemAction,
-          pressed ? { opacity: 0.7 } : null,
+          duplicateDisabled ? { opacity: 0.35 } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
         onPress={handleDuplicate}
+        disabled={duplicateDisabled}
       >
         <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
@@ -141,7 +144,7 @@ function EditableChecklistItem({
         accessibilityLabel={t('habits.form.removeChecklistItem')}
         style={({ pressed }) => [
           styles.itemAction,
-          pressed ? { opacity: 0.7 } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
         onPress={handleRemove}
       >
@@ -170,19 +173,9 @@ function InteractiveChecklistItem({
   styles,
   tokens,
 }: Readonly<InteractiveChecklistItemProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const scale = useSharedValue(1)
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }))
-
+  const [expanded, setExpanded] = useState(false)
+  const [pressed, setPressed] = useState(false)
   function handlePress() {
-    if (!item.isChecked && !prefersReducedMotion) {
-      scale.value = withSequence(
-        withSpring(1.18, { damping: 14 }),
-        withSpring(1),
-      )
-    }
     onToggle(index)
   }
 
@@ -190,47 +183,19 @@ function InteractiveChecklistItem({
     index < itemsLength - 1 ? styles.interactiveItemDivider : null
 
   const itemLabel = (
-    <Text
+    <PersonalText expanded={expanded}
       style={[
         styles.itemText,
         item.isChecked && styles.itemTextChecked,
+        pressed && { color: tokens.fg2 },
       ]}
-      numberOfLines={2}
-    >
-      {item.text}
-    </Text>
+    >{item.text}</PersonalText>
   )
 
-  if (!interactive) {
-    return <View style={[styles.interactiveItem, dividerStyle]}>{itemLabel}</View>
-  }
-
-  return (
-    <Pressable
-      onPress={handlePress}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: item.isChecked }}
-      accessibilityLabel={item.text}
-      style={({ pressed }) => [
-        styles.interactiveItem,
-        dividerStyle,
-        pressed ? styles.interactiveItemPressed : null,
-      ]}
-    >
-      <Animated.View
-        style={[
-          styles.checkbox,
-          item.isChecked ? styles.checkboxChecked : styles.checkboxUnchecked,
-          animatedStyle,
-        ]}
-      >
-        {item.isChecked && (
-          <Check size={15} color={tokens.fgOnPrimary} strokeWidth={3} />
-        )}
-      </Animated.View>
-      {itemLabel}
-    </Pressable>
-  )
+  return <View style={[dividerStyle, { flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', padding: interactive ? SPACING.s4 : SPACING.s0 }]}>
+    <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={item.text} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, flexDirection: 'row', gap: 8, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><View style={{ flex: 1, minWidth: 0 }}>{itemLabel}</View><ChevronDown accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></Pressable>
+    {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={handlePress} /> : null}
+  </View>
 }
 
 interface ChecklistAddRowProps {
@@ -239,6 +204,7 @@ interface ChecklistAddRowProps {
   onAdd: () => void
   styles: ReturnType<typeof createStyles>
   tokens: AppTokens
+  disabled: boolean
 }
 
 function ChecklistAddRow({
@@ -247,32 +213,34 @@ function ChecklistAddRow({
   onAdd,
   styles,
   tokens,
+  disabled,
 }: Readonly<ChecklistAddRowProps>) {
   const { t } = useTranslation()
   return (
     <View style={styles.addItemRow}>
-      <BottomSheetAppTextInput
-        value={value}
-        placeholder={t('habits.form.checklistPlaceholder')}
-        placeholderTextColor={tokens.fg3}
-        style={styles.addItemInput}
-        onChangeText={onChangeText}
-        onSubmitEditing={onAdd}
-        returnKeyType="done"
-      />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('common.add')}
-        style={({ pressed }) => [
-          styles.addItemButton,
-          !value.trim() && styles.addItemButtonDisabled,
-          pressed && !!value.trim() ? { opacity: 0.7 } : null,
-        ]}
-        disabled={!value.trim()}
-        onPress={onAdd}
+      <View style={styles.addItemField}>
+        <Input
+          label={t('habits.form.checklistPlaceholder')}
+          hideLabel
+          name="checklistItem"
+          autoComplete="off"
+          value={value}
+          placeholder={t('habits.form.checklistPlaceholder')}
+          disabled={disabled}
+          onChange={onChangeText}
+          onSubmit={onAdd}
+        />
+      </View>
+      <PillButton
+        variant="ghost"
+        size="sm"
+        iconOnly
+        label={t('common.add')}
+        disabled={disabled || !value.trim()}
+        onClick={onAdd}
       >
-        <Plus size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
-      </Pressable>
+        <Plus size={20} color={tokens.fg1} strokeWidth={2} accessible={false} />
+      </PillButton>
     </View>
   )
 }
@@ -281,6 +249,7 @@ export function HabitChecklist({
   items,
   interactive = false,
   editable = false,
+  proposedItemCount = 0,
   onItemsChange,
   onToggle,
   onReset,
@@ -297,14 +266,15 @@ export function HabitChecklist({
   const editableItemKeys = useChecklistItemKeys(items)
 
   const checkedCount = items.filter((i) => i.isChecked).length
+  const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
 
   const addItem = useCallback(() => {
     const text = newItemText.trim()
-    if (!text) return
+    if (!text || atItemLimit) return
     const next = [...items, { text, isChecked: false }]
     onItemsChange?.(next)
     setNewItemText('')
-  }, [items, newItemText, onItemsChange])
+  }, [atItemLimit, items, newItemText, onItemsChange])
 
   const removeItem = useCallback(
     (index: number) => {
@@ -325,13 +295,13 @@ export function HabitChecklist({
   const duplicateItem = useCallback(
     (index: number) => {
       const item = items[index]
-      if (!item) return
+      if (!item || atItemLimit) return
       const clone: ChecklistItem = { text: item.text, isChecked: false }
       const next = [...items]
       next.splice(index + 1, 0, clone)
       onItemsChange?.(next)
     },
-    [items, onItemsChange],
+    [atItemLimit, items, onItemsChange],
   )
 
   const moveItem = useCallback(
@@ -363,9 +333,9 @@ export function HabitChecklist({
       {items.length > 0 && !editable && (
         <View style={styles.progressRow}>
           <ProgressBar
-            progress={items.length > 0 ? checkedCount / items.length : 0}
+            value={items.length > 0 ? checkedCount / items.length : 0} max={1}
             label={`${checkedCount}/${items.length}`}
-            style={styles.progressBar}
+
           />
           <Text style={styles.progressText}>
             {checkedCount}/{items.length}
@@ -376,12 +346,11 @@ export function HabitChecklist({
               accessibilityLabel={t('habits.form.resetChecklist')}
               style={({ pressed }) => [
                 styles.actionButton,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onReset}
-              hitSlop={9}
             >
-              <RotateCcw size={16} color={tokens.primary} strokeWidth={1.8} />
+              {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={1.8} />}
             </Pressable>
           )}
           {interactive && (
@@ -390,10 +359,9 @@ export function HabitChecklist({
               accessibilityLabel={t('habits.form.clearChecklist')}
               style={({ pressed }) => [
                 styles.actionButton,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onClear}
-              hitSlop={9}
             >
               <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
             </Pressable>
@@ -404,20 +372,27 @@ export function HabitChecklist({
       {editable ? (
         <View style={styles.itemsList}>
           {items.map((item, index) => (
-            <EditableChecklistItem
+            <Proposed
               key={editableItemKeys[index]}
-              text={item.text}
-              index={index}
-              onUpdateText={updateItemText}
-              onDuplicate={duplicateItem}
-              onRemove={removeItem}
-              onMoveUp={() => moveItem(index, index - 1)}
-              onMoveDown={() => moveItem(index, index + 1)}
-              isFirst={index === 0}
-              isLast={index === items.length - 1}
-              styles={styles}
-              tokens={tokens}
-            />
+              proposed={index >= items.length - proposedItemCount}
+              scope="row"
+              label={t('habits.detail.proposed')}
+            >
+              <EditableChecklistItem
+                text={item.text}
+                index={index}
+                onUpdateText={updateItemText}
+                onDuplicate={duplicateItem}
+                onRemove={removeItem}
+                onMoveUp={() => moveItem(index, index - 1)}
+                onMoveDown={() => moveItem(index, index + 1)}
+                isFirst={index === 0}
+                isLast={index === items.length - 1}
+                duplicateDisabled={atItemLimit}
+                styles={styles}
+                tokens={tokens}
+              />
+            </Proposed>
           ))}
         </View>
       ) : (
@@ -431,9 +406,9 @@ export function HabitChecklist({
                 index={index}
                 itemsLength={items.length}
                 interactive={interactive}
+                tokens={tokens}
                 onToggle={handleToggle}
                 styles={styles}
-                tokens={tokens}
               />
             ))}
           </View>
@@ -445,10 +420,9 @@ export function HabitChecklist({
           <Pressable
             accessibilityRole="button"
             onPress={clearAll}
-            style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
-            hitSlop={14}
+            style={({ pressed }) => [styles.clearAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
-            <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
+            <Text style={[styles.clearText, { color: tokens.statusBadText }]}>{t('habits.form.clearChecklist')}</Text>
           </Pressable>
         </View>
       )}
@@ -460,8 +434,14 @@ export function HabitChecklist({
           onAdd={addItem}
           styles={styles}
           tokens={tokens}
+          disabled={atItemLimit}
         />
       )}
+      {editable && atItemLimit ? (
+        <Text accessibilityRole="text" style={styles.limitText}>
+          {t('habits.form.checklistItemLimit')}
+        </Text>
+      ) : null}
     </View>
   )
 }
@@ -480,22 +460,37 @@ function createStyles(tokens: AppTokens) {
     flex: 1,
   },
   progressText: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     color: tokens.fg3,
     fontVariant: ['tabular-nums'],
   },
   actionButton: {
-    width: 36,
-    height: 36,
+    overflow: 'hidden',
+    width: TOUCH_TARGET_MIN,
+    height: TOUCH_TARGET_MIN,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  clearAction: {
+    minHeight: TOUCH_TARGET_MIN,
+    minWidth: TOUCH_TARGET_MIN,
+    borderRadius: 8,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.s8,
+  },
   clearText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 12,
     color: tokens.statusBadText,
+  },
+  limitText: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 12,
+    color: tokens.fg3,
   },
   clearRow: {
     alignItems: 'flex-end',
@@ -514,17 +509,19 @@ function createStyles(tokens: AppTokens) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 2,
+    paddingVertical: SPACING.s4,
   },
   moveButtons: {
-    width: 24,
+    width: TOUCH_TARGET_MIN,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
   moveButton: {
-    width: 24,
-    height: 26,
+    overflow: 'hidden',
+    borderRadius: 999,
+    width: TOUCH_TARGET_MIN,
+    height: TOUCH_TARGET_MIN,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -537,17 +534,18 @@ function createStyles(tokens: AppTokens) {
   },
   itemTextInput: {
     flex: 1,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     color: tokens.fg1,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingVertical: SPACING.s4,
+    paddingHorizontal: SPACING.s8,
     borderBottomWidth: 1,
     borderBottomColor: 'transparent',
   },
   itemAction: {
-    width: 36,
-    height: 36,
+    overflow: 'hidden',
+    width: TOUCH_TARGET_MIN,
+    height: TOUCH_TARGET_MIN,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
@@ -555,16 +553,13 @@ function createStyles(tokens: AppTokens) {
   interactiveItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingVertical: 15,
-    paddingHorizontal: 18,
+    gap: 12,
+    paddingVertical: SPACING.s16,
+    paddingHorizontal: SPACING.s16,
   },
   interactiveItemDivider: {
     borderBottomWidth: 1,
     borderBottomColor: tokens.hairline,
-  },
-  interactiveItemPressed: {
-    backgroundColor: tokens.bgElevPressed,
   },
   checkbox: {
     width: 26,
@@ -582,43 +577,22 @@ function createStyles(tokens: AppTokens) {
   },
   itemText: {
     flex: 1,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 16,
     color: tokens.fg1,
   },
   itemTextChecked: {
     color: tokens.fg3,
-    textDecorationLine: 'line-through',
   },
   addItemRow: {
     flexDirection: 'row',
-    minHeight: 44,
-  },
-  addItemInput: {
-    flex: 1,
-    backgroundColor: tokens.bgField,
-    color: tokens.fg1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: tokens.hairline,
-    borderTopLeftRadius: 14,
-    borderBottomLeftRadius: 14,
-    borderRightWidth: 0,
-  },
-  addItemButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-    backgroundColor: tokens.primary,
+    minHeight: TOUCH_TARGET_MIN,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
   },
-  addItemButtonDisabled: {
-    opacity: 0.4,
+  addItemField: {
+    flex: 1,
+    minWidth: 0,
   },
   })
 }

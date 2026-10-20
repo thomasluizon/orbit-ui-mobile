@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
-import { pathToFileURL } from "node:url"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { dirname, join, relative, resolve } from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
+import { runInNewContext } from "node:vm"
 
 import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
 
@@ -48,6 +49,23 @@ const stageConfigRepo = (label, { head, origin, working }) => {
 export const cases = async () => {
   const { readOrchestratorConfig, resolveWorkerInvocation } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
 
+  for (const [name, endMarker] of [["audit", "const VERIFY_CAP"], ["prod-readiness", "const OPS_SCHEMA"]]) {
+    const source = readFileSync(new URL(`../../.claude/workflows/${name}.mjs`, import.meta.url), "utf8")
+    const start = source.indexOf("const parsedArgs =")
+    const end = source.indexOf(endMarker, start)
+    const guard = start >= 0 && end > start ? source.slice(start, end) : ""
+    T(`${NAME}: ${name} workflow uses no Node or dynamic imports`,
+      guard.length > 0 && !source.includes("import(") && !source.includes("process."))
+    for (const roots of [undefined, { ui: ".", api: "../orbit-api" }]) {
+      const message = thrown(() => runInNewContext(`${guard}\n;({ UI, API })`, { args: { roots } }))
+      T(`${NAME}: ${name} workflow rejects ${roots ? "relative" : "missing"} roots`,
+        /requires absolute ui and api roots/.test(message ?? ""), message ?? "workflow accepted invalid roots")
+    }
+    const absolute = runInNewContext(`${guard}\n;({ UI, API })`, { args: { roots: { ui: "/checkout/ui", api: "/checkout/api" } } })
+    T(`${NAME}: ${name} workflow accepts absolute roots`,
+      absolute.UI === "/checkout/ui" && absolute.API === "/checkout/api")
+  }
+
   for (const [label, args] of [
     ["--model", ["exec", "--model", "gpt-5.6-sol"]],
     ["-m", ["exec", "-m", "gpt-5.6-sol"]],
@@ -85,6 +103,27 @@ export const cases = async () => {
 
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
+  for (const [name, offArgs] of [["codex", ["--disable", "multi_agent"]], ["claude", ["--disallowed-tools", "Task"]]]) {
+    const worker = real.workers[name]
+    T(`${NAME}: ${name} declares the verified sub-agent off vector`,
+      JSON.stringify(worker.subagentOffArgs) === JSON.stringify(offArgs))
+    for (const tier of ["default", "mechanical", "deep", "max"]) {
+      const disabled = resolveWorkerInvocation(name, worker, tier)
+      const allowed = resolveWorkerInvocation(name, worker, tier, { allowSubagents: true })
+      T(`${NAME}: ${name}.${tier} disables sub-agents by default`,
+        offArgs.every((argument) => disabled.args.includes(argument)), JSON.stringify(disabled))
+      T(`${NAME}: ${name}.${tier} can omit only the sub-agent off vector`,
+        JSON.stringify(allowed.args) === JSON.stringify([...worker.args, ...(worker.models[tier].args ?? []), "--model", worker.models[tier].model]), JSON.stringify(allowed))
+    }
+  }
+  T(`${NAME}: a malformed sub-agent off vector is refused`,
+    /subagentOffArgs must be an array of non-model strings/.test(thrown(() => resolveWorkerInvocation("codex", {
+      ...real.workers.codex, subagentOffArgs: ["--disable", 7],
+    })) ?? ""))
+  const killSwitch = { ...real.workers.codex }
+  delete killSwitch.subagentOffArgs
+  T(`${NAME}: removing the off vector is the config kill switch`,
+    JSON.stringify(resolveWorkerInvocation("codex", killSwitch).args) === JSON.stringify([...killSwitch.args, ...(killSwitch.models.default.args ?? []), "--model", killSwitch.models.default.model]))
   const shipped = readOrchestratorConfig()
   T(`${NAME}: the shipped parallel ticket cap is 40`, real.caps.parallelTickets === 40)
   for (const name of ["parallelTickets", "maxOpenPullRequests", "maxQueuedRuns"]) {
@@ -94,69 +133,64 @@ export const cases = async () => {
   const repeatedStanding = structuredClone(real)
   repeatedStanding.tickets.standing = [556, 556]
   T(`${NAME}: duplicate standing ticket numbers are refused`, /tickets\.standing must be an array of unique positive ticket numbers/.test(thrown(() => readOrchestratorConfig(configUrl("repeated-standing", JSON.stringify(repeatedStanding)))) ?? ""))
-  const commonDirectory = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../.."), encoding: "utf8" }).stdout.trim()
+  const commonDir = spawnSync("git", ["-C", dirname(toolPath("lib/orchestrator-config.mjs")), "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" })
+  const primaryRoot = dirname(commonDir.stdout.trim())
+  const shippedRepos = readOrchestratorConfig().repos
   T(
-    `${NAME}: relative sibling paths resolve from the primary checkout in a linked worktree`,
-    shipped.repos.ui === join(commonDirectory, "..") && shipped.repos.api === join(commonDirectory, "..", "..", "orbit-api"),
-    JSON.stringify(shipped.repos),
+    `${NAME}: shipped paths resolve from the primary checkout even in a linked worktree`,
+    commonDir.status === 0 && shippedRepos.ui === primaryRoot &&
+      shippedRepos.api === resolve(primaryRoot, "../orbit-api") &&
+      shippedRepos.landing === resolve(primaryRoot, "../orbit-landing-page"),
+    JSON.stringify(shippedRepos),
   )
-  const primary = join(root, "relocation", "primary")
-  const linked = join(root, "elsewhere", "linked")
+  const primary = join(root, "resolver-primary", "orbit-ui-mobile")
+  const linked = join(root, "resolver-linked")
   mkdirSync(join(primary, ".claude"), { recursive: true })
-  mkdirSync(join(primary, "tools", "lib"), { recursive: true })
-  mkdirSync(dirname(linked), { recursive: true })
-  const gitPrimary = (...args) => spawnSync("git", ["-C", primary, ...args], { encoding: "utf8" })
-  gitPrimary("init", "-q", "--initial-branch=main")
-  gitPrimary("config", "user.email", "gate@orbit.test")
-  gitPrimary("config", "user.name", "Orbit Gate")
   writeFileSync(join(primary, ".claude", "orchestrator.json"), JSON.stringify(real))
-  copyFileSync(toolPath("lib/orchestrator-config.mjs"), join(primary, "tools", "lib", "orchestrator-config.mjs"))
-  gitPrimary("add", ".claude/orchestrator.json", "tools/lib/orchestrator-config.mjs")
-  gitPrimary("commit", "-qm", "config")
-  const linkedResult = gitPrimary("worktree", "add", "--detach", linked)
-  T(`${NAME}: test linked worktree was created outside the primary parent`, linkedResult.status === 0, linkedResult.stderr)
-  const command = 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; const { ui, api } = readOrchestratorConfig().repos; console.log(JSON.stringify({ ui, api }))'
-  if (linkedResult.status === 0) {
-    const printed = spawnSync(process.execPath, ["--input-type=module", "-e", command], { cwd: linked, encoding: "utf8" })
-    T(`${NAME}: resolver command succeeds in a relocated worktree`, printed.status === 0, printed.stderr)
-    if (printed.status === 0) {
-      const roots = JSON.parse(printed.stdout)
-      T(`${NAME}: resolver command prints primary sibling roots`, roots.ui === primary && roots.api === resolve(primary, "../orbit-api"), printed.stdout)
-    }
+  const git = (args) => spawnSync("git", ["-C", primary, ...args], { encoding: "utf8" })
+  const staged = [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["add", ".claude/orchestrator.json"],
+    ["commit", "-q", "-m", "config"],
+    ["worktree", "add", "-q", "--detach", linked],
+  ].every((args) => git(args).status === 0)
+  const linkedConfig = pathToFileURL(join(linked, ".claude", "orchestrator.json")).href
+  const resolverCommand = `import { readOrchestratorConfig } from ${JSON.stringify(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)}; console.log(JSON.stringify(readOrchestratorConfig(new URL(${JSON.stringify(linkedConfig)})).repos))`
+  const linkedResult = staged && spawnSync(process.execPath, ["--input-type=module", "-e", resolverCommand], { cwd: linked, encoding: "utf8" })
+  const linkedRepos = linkedResult?.status === 0 ? JSON.parse(linkedResult.stdout) : null
+  T(
+    `${NAME}: resolver command prints primary checkout siblings from an outside linked worktree`,
+    staged && relative(dirname(primary), linked).startsWith("..") &&
+      linkedRepos?.ui === primary &&
+      linkedRepos?.api === resolve(primary, "../orbit-api") &&
+      linkedRepos?.landing === resolve(primary, "../orbit-landing-page"),
+    linkedResult?.stderr || JSON.stringify(linkedRepos),
+  )
+  const relativeRepos = { ...real, repos: { ui: ".", api: "../orbit-api", landing: "../orbit-landing-page" } }
+  const relativeConfig = configUrl("relative-repositories", JSON.stringify(relativeRepos))
+  const fixtureRoot = dirname(dirname(fileURLToPath(relativeConfig)))
+  const resolvedRepos = readOrchestratorConfig(relativeConfig).repos
+  T(
+    `${NAME}: relative repository paths resolve from the primary checkout`,
+    resolvedRepos.ui === fixtureRoot &&
+      resolvedRepos.api === resolve(fixtureRoot, "../orbit-api") &&
+      resolvedRepos.landing === resolve(fixtureRoot, "../orbit-landing-page"),
+    JSON.stringify(resolvedRepos),
+  )
+  for (const name of ["maxOpenPullRequests", "maxQueuedRuns"]) {
+    const invalid = { ...real, caps: { ...real.caps, [name]: 0 } }
+    const message = thrown(() => readOrchestratorConfig(configUrl(`invalid-${name}`, JSON.stringify(invalid))))
+    T(`${NAME}: ${name} must be a positive integer`, message?.includes(`caps.${name} must be a positive integer`), message ?? "config was accepted")
   }
-  for (const workflow of ["audit.mjs", "prod-readiness.mjs"]) {
-    const source = readFileSync(resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../../.claude/workflows", workflow), "utf8")
-    T(`${NAME}: ${workflow} has no runtime import or process access`, !/import\(|process\./.test(source), "workflow scripts cannot access Node APIs")
-    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-    const execute = new AsyncFunction("args", "phase", source.replace(/^export const meta =/, "const meta ="))
-    const stopped = async (args) => {
-      try {
-        await execute(args, () => { throw new Error("workflow started") })
-        return null
-      } catch (error) {
-        return error.message
-      }
-    }
-    for (const [label, roots] of [
-      ["missing", undefined],
-      ["missing UI", { api: resolve(primary, "../orbit-api") }],
-      ["missing API", { ui: primary }],
-      ["relative UI", { ui: ".", api: resolve(primary, "../orbit-api") }],
-      ["relative API", { ui: primary, api: "../orbit-api" }],
-    ]) {
-      const message = await stopped({ kind: "security", roots })
-      T(`${NAME}: ${workflow} rejects ${label} roots before starting`, /roots.*absolute/.test(message ?? ""), message)
-    }
-    const started = await stopped({ kind: "security", roots: { ui: primary, api: resolve(primary, "../orbit-api") } })
-    T(`${NAME}: ${workflow} starts with absolute roots`, started === "workflow started", started)
-  }
-  const readiness = readFileSync(resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../../.claude/workflows/prod-readiness.mjs"), "utf8")
-  T(`${NAME}: prod-readiness forwards roots to every child audit`, readiness.includes("roots: parsedArgs.roots"), "child audits require the same absolute roots")
-  const skillsRoot = resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../../.claude/skills")
-  for (const skill of ["audit-security", "audit-tests", "audit-performance", "audit-code-quality", "prod-readiness"]) {
-    const instructions = readFileSync(join(skillsRoot, skill, "SKILL.md"), "utf8")
-    T(`${NAME}: ${skill} resolves and passes roots`, instructions.includes(command) && instructions.includes("roots: { ui, api }"), "the skill must run the shared resolver before its workflow")
-  }
+  T(`${NAME}: classifier model is declared`, typeof real.classifier?.model === "string" && real.classifier.model.length > 0)
+  const withoutClassifier = structuredClone(real)
+  delete withoutClassifier.classifier
+  T(`${NAME}: a missing classifier is refused`, /classifier object/.test(thrown(() => readOrchestratorConfig(configUrl("missing-classifier", JSON.stringify(withoutClassifier)))) ?? ""))
+  const emptyClassifier = structuredClone(real)
+  emptyClassifier.classifier.model = ""
+  T(`${NAME}: an empty classifier model is refused`, /classifier.model must be a non-empty string/.test(thrown(() => readOrchestratorConfig(configUrl("empty-classifier", JSON.stringify(emptyClassifier)))) ?? ""))
   const engineName = real.worker
   const engine = real.workers[engineName]
   const invocation = resolveWorkerInvocation(engineName, engine, "default")
@@ -164,16 +198,93 @@ export const cases = async () => {
     `${NAME}: resolves the declared tier, model, and a single appended --model`,
     invocation.tier === "default" &&
       invocation.model === engine.models.default.model &&
-      JSON.stringify(invocation.args) === JSON.stringify([...engine.args, ...(engine.models.default.args ?? []), "--model", engine.models.default.model]),
+      JSON.stringify(invocation.args) === JSON.stringify([...engine.args, ...(engine.subagentOffArgs ?? []), ...(engine.models.default.args ?? []), "--model", engine.models.default.model]),
     JSON.stringify(invocation),
   )
   T(
-    `${NAME}: the shipped implementer is gpt-5.6-sol at high reasoning effort (D21)`,
-    invocation.model === "gpt-5.6-sol" && invocation.args.includes('model_reasoning_effort="high"'),
+    `${NAME}: the shipped default implementer is gpt-6.1-sol at high reasoning effort`,
+    invocation.model === "gpt-6.1-sol" && invocation.args.includes('model_reasoning_effort="high"'),
     `.claude/orchestrator.json resolved ${invocation.model} with ${JSON.stringify(invocation.args)}`,
+  )
+  const mechanicalInvocation = resolveWorkerInvocation(engineName, engine, "mechanical")
+  T(
+    `${NAME}: the shipped mechanical implementer keeps the model and lowers reasoning effort`,
+    mechanicalInvocation.model === "gpt-6.1-sol" && mechanicalInvocation.model === invocation.model && mechanicalInvocation.args.includes('model_reasoning_effort="medium"'),
+    JSON.stringify(mechanicalInvocation),
+  )
+
+  const engineFailures = []
+  for (const [tier, effort] of [["deep", "xhigh"], ["max", "max"]]) {
+    const message = thrown(() => {
+      const resolved = resolveWorkerInvocation(engineName, engine, tier)
+      if (resolved.model !== "gpt-6.1-sol" || !resolved.args.includes(`model_reasoning_effort="${effort}"`)) {
+        throw new Error(JSON.stringify(resolved))
+      }
+    })
+    T(`${NAME}: the shipped ${tier} implementer is gpt-6.1-sol at ${effort} reasoning effort`, message === null, message)
+  }
+  for (const [declaredName, declaredEngine] of Object.entries(real.workers)) {
+    T(`${NAME}: ${declaredName} declares exactly the four worker tiers`,
+      JSON.stringify(Object.keys(declaredEngine.models ?? {}).sort()) === JSON.stringify(["deep", "default", "max", "mechanical"]))
+    const tiers = Object.keys(declaredEngine.models ?? {})
+    if (tiers.length === 0) {
+      engineFailures.push(`${declaredName}: declares no model tiers`)
+      continue
+    }
+    for (const tier of tiers) {
+      const message = thrown(() => {
+        const resolved = resolveWorkerInvocation(declaredName, declaredEngine, tier)
+        const expectedModel = declaredEngine.models[tier].model
+        if (resolved.model !== expectedModel) throw new Error(`resolved model ${resolved.model}, declared ${expectedModel}`)
+        if (JSON.stringify(resolved.args.slice(-2)) !== JSON.stringify(["--model", expectedModel])) {
+          throw new Error(`args do not end with the declared model: ${JSON.stringify(resolved.args)}`)
+        }
+      })
+      if (message !== null) engineFailures.push(`${declaredName}.${tier}: ${message}`)
+    }
+  }
+  T(
+    `${NAME}: every declared tier of every declared engine resolves`,
+    engineFailures.length === 0,
+    engineFailures.join("; "),
+  )
+
+  const claudeEngine = real.workers.claude ?? { args: [], models: {} }
+  const claudeTiers = Object.keys(claudeEngine.models ?? {})
+  const isolationFailures = claudeTiers.length === 0 ? ["the claude engine declares no model tiers"] : []
+  for (const tier of claudeTiers) {
+    const message = thrown(() => {
+      const { args } = resolveWorkerInvocation("claude", claudeEngine, tier)
+      const detail = JSON.stringify(args)
+      if (!args.includes("--strict-mcp-config")) throw new Error(`no --strict-mcp-config in ${detail}`)
+      if (args.some((argument) => argument === "--mcp-config" || argument.startsWith("--mcp-config="))) {
+        throw new Error(`--mcp-config is present, so the server set is not empty: ${detail}`)
+      }
+      if (!args.includes("--verbose")) throw new Error(`no --verbose, which stream-json requires: ${detail}`)
+      if (!args.join(" ").includes("--output-format stream-json")) throw new Error(`output is not stream-json: ${detail}`)
+    })
+    if (message !== null) isolationFailures.push(`${tier}: ${message}`)
+  }
+  T(
+    `${NAME}: every claude tier resolves an argv that loads no MCP server and streams its output`,
+    isolationFailures.length === 0,
+    isolationFailures.join("; "),
+  )
+
+  const fallback = real.workers.claude ?? {}
+  T(
+    `${NAME}: the claude fallback engine runs claude with opus 5.5 on all four tiers`,
+    fallback.command === "claude" &&
+      ["default", "mechanical", "deep", "max"].every((tier) => fallback.models?.[tier]?.model === "claude-opus-5-5"),
+    `.claude/orchestrator.json declares command ${JSON.stringify(fallback.command)} with ${JSON.stringify(fallback.models)}`,
   )
 
   const readAndFail = (label, config) => thrown(() => readOrchestratorConfig(configUrl(label, JSON.stringify(config))))
+  for (const thresholdTokens of [149999, 900001, "400000", 400000.5]) {
+    T(`${NAME}: relay threshold ${thresholdTokens} is refused`,
+      /relay.thresholdTokens/.test(readAndFail(`relay-${thresholdTokens}`, { ...real, relay: { enabled: true, thresholdTokens } }) ?? ""))
+  }
+  T(`${NAME}: relay enabled must be boolean`, /relay.enabled/.test(readAndFail("relay-enabled", { ...real, relay: { enabled: "true", thresholdTokens: 400000 } }) ?? ""))
   T(
     `${NAME}: a config with no workers object is refused`,
     /must declare a workers object/.test(readAndFail("no-workers", { worker: "codex" }) ?? ""),
@@ -183,6 +294,13 @@ export const cases = async () => {
     `${NAME}: a worker naming no declared engine is refused`,
     /worker "ghost" is not one of its workers/.test(readAndFail("bad-worker", { ...real, worker: "ghost" }) ?? ""),
     "a worker key naming no engine was accepted",
+  )
+  T(
+    `${NAME}: cloud.enabled must be a boolean`,
+    /cloud\.enabled must be a boolean/.test(
+      readAndFail("bad-cloud-enabled", { ...real, cloud: { ...real.cloud, enabled: "false" } }) ?? "",
+    ),
+    "a string cloud.enabled value was accepted",
   )
   T(
     `${NAME}: a config with no tickets object is refused`,
@@ -279,6 +397,63 @@ export const cases = async () => {
       new RegExp(`caps\\.${name} must be a positive integer`).test(readAndFail(`zero-${name}`, { ...real, caps: { ...real.caps, [name]: 0 } }) ?? ""))
   }
   T(
+    `${NAME}: a branch launch cap must be a positive integer`,
+    /caps\.workerLaunchesPerBranch must be a positive integer/.test(
+      readAndFail("fractional-launch-cap", { ...real, caps: { ...real.caps, workerLaunchesPerBranch: 1.5 } }) ?? "",
+    ),
+    "a fractional worker launch cap was accepted",
+  )
+  T(
+    `${NAME}: a cloud cap outside the measured 4 through 8 range is refused`,
+    /caps\.cloudParallelTasks must be an integer from 4 through 8/.test(
+      readAndFail("cloud-cap-too-high", { ...real, caps: { ...real.caps, cloudParallelTasks: 9 } }) ?? "",
+    ),
+    "a cloud cap above 8 was accepted",
+  )
+  T(
+    `${NAME}: the cloud wall clock and environment are required`,
+    /timeouts\.cloudCeilingMinutes must be a positive number/.test(
+      readAndFail("no-cloud-ceiling", { ...real, timeouts: { ...real.timeouts, cloudCeilingMinutes: undefined } }) ?? "",
+    ) &&
+      /timeouts\.cloudCommandMinutes must be a positive number/.test(
+        readAndFail("no-cloud-command-bound", { ...real, timeouts: { ...real.timeouts, cloudCommandMinutes: undefined } }) ?? "",
+      ) &&
+      /timeouts\.gitRemoteSeconds must be a positive number/.test(
+        readAndFail("no-git-remote-bound", { ...real, timeouts: { ...real.timeouts, gitRemoteSeconds: undefined } }) ?? "",
+      ) &&
+      /timeouts\.receiptLockSeconds must be a positive number/.test(
+        readAndFail("no-receipt-lock-bound", { ...real, timeouts: { ...real.timeouts, receiptLockSeconds: undefined } }) ?? "",
+      ) &&
+      /cloud\.environmentId must be a non-empty string/.test(
+        readAndFail("no-cloud-environment", { ...real, cloud: { ...real.cloud, environmentId: "" } }) ?? "",
+      ),
+    "a cloud configuration field was optional",
+  )
+  T(
+    `${NAME}: the cloud environment must name one configured repository`,
+    /cloud\.repositoryKey must be a non-empty string/.test(
+      readAndFail("no-cloud-repository", { ...real, cloud: { ...real.cloud, repositoryKey: "" } }) ?? "",
+    ) &&
+      /cloud\.repositoryKey must name a configured repository/.test(
+        readAndFail("unknown-cloud-repository", { ...real, cloud: { ...real.cloud, repositoryKey: "unknown" } }) ?? "",
+      ),
+    "a cloud environment without a configured repository was accepted",
+  )
+  T(
+    `${NAME}: the shipped cloud configuration carries the measured environment and the M5 Pro caps`,
+    real.cloud.environmentId === "6a95b419b608819199eb78d9eabc9579" &&
+      real.cloud.repositoryKey === "ui" &&
+      real.timeouts.cloudCeilingMinutes === 45 &&
+      real.timeouts.cloudCommandMinutes === 10 &&
+      real.timeouts.gitRemoteSeconds === 30 &&
+      real.timeouts.receiptLockSeconds === 1 &&
+      real.caps.cloudParallelTasks === 8 &&
+      real.caps.parallelTickets === 40 &&
+      real.caps.workerLaunchesPerBranch === 2 &&
+      real.caps.workerLogMegabytes === 512,
+    JSON.stringify({ cloud: real.cloud, timeouts: real.timeouts, caps: real.caps }),
+  )
+  T(
     `${NAME}: an unreadable file is refused as unreadable, not as invalid JSON`,
     /could not be read: /.test(thrown(() => readOrchestratorConfig(pathToFileURL(join(root, "orchestrator-config", "absent.json")))) ?? ""),
     "a missing config did not report itself as missing",
@@ -289,24 +464,19 @@ export const cases = async () => {
     "the real config shape was refused by its own reader",
   )
 
-  /**
-   * The measured defect: a launcher read its config from a checkout 26 commits behind and started
-   * a worker on the superseded model. A working copy that disagrees with origin/<base> is refused
-   * ONLY when the checkout cannot already contain that ref, so a PR editing the config stays green.
-   */
   const stale = stageConfigRepo("stale", { head: "base", origin: "newer", working: '{"revision":"local"}\n' })
   T(
     `${NAME}: a working copy behind origin/main is refused with the fetch command to repair it`,
     stale !== null &&
       /disagrees with origin\/main and this checkout does not contain origin\/main[\s\S]*git fetch origin main/.test(
-        thrown(() => readOrchestratorConfig(pathToFileURL(stale.configPath))) ?? "",
+        thrown(() => readOrchestratorConfig(pathToFileURL(stale.configPath), "main")) ?? "",
       ),
-    stale === null ? "could not stage the git fixture" : String(thrown(() => readOrchestratorConfig(pathToFileURL(stale.configPath)))),
+    stale === null ? "could not stage the git fixture" : String(thrown(() => readOrchestratorConfig(pathToFileURL(stale.configPath), "main"))),
   )
   const ahead = stageConfigRepo("ahead", { head: "newer", origin: "base", working: `${JSON.stringify(real)}\n` })
   T(
     `${NAME}: a checkout that already contains origin/main is deliberately newer and is read`,
-    ahead !== null && readOrchestratorConfig(pathToFileURL(ahead.configPath)).worker === real.worker,
-    ahead === null ? "could not stage the git fixture" : `the staleness guard fired on a checkout containing origin/main: ${thrown(() => readOrchestratorConfig(pathToFileURL(ahead.configPath)))}`,
+    ahead !== null && readOrchestratorConfig(pathToFileURL(ahead.configPath), "main").worker === real.worker,
+    ahead === null ? "could not stage the git fixture" : `the staleness guard fired on a checkout containing origin/main: ${thrown(() => readOrchestratorConfig(pathToFileURL(ahead.configPath), "main"))}`,
   )
 }

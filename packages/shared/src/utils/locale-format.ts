@@ -133,7 +133,7 @@ export function resolveSystemLocale(locale?: string | null): SupportedLocale {
   return locale?.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en'
 }
 
-export function detectDefaultTimeFormat(locale?: string | null): '12h' | '24h' {
+function detectDefaultTimeFormat(locale?: string | null): '12h' | '24h' {
   try {
     const resolved = getDateTimeFormat(getIntlLocale(locale), {
       hour: 'numeric',
@@ -144,18 +144,66 @@ export function detectDefaultTimeFormat(locale?: string | null): '12h' | '24h' {
   }
 }
 
+export function resolveHourCycle(uses24HourClock: boolean | undefined, locale?: string | null): 'h23' | 'h12' {
+  return (uses24HourClock ?? (detectDefaultTimeFormat(locale) === '24h')) ? 'h23' : 'h12'
+}
+
 export function formatLocaleDate(
   value: DateInput,
   locale?: string | null,
   options?: Intl.DateTimeFormatOptions,
 ): string {
   const date = parseDateInput(value)
+  if (date && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const calendarDate = new Date(0)
+    calendarDate.setUTCFullYear(date.getFullYear(), date.getMonth(), date.getDate())
+    return formatIntlDateValue(calendarDate, value, locale, {
+      ...(options ?? DEFAULT_DATE_OPTIONS), timeZone: 'UTC',
+    })
+  }
   return formatIntlDateValue(
     date,
     typeof value === 'string' ? value : '',
     locale,
     options,
     DEFAULT_DATE_OPTIONS,
+  )
+}
+
+export function formatLocaleDayMonth(value: DateInput, locale?: string | null): string {
+  return formatLocaleDate(value, locale, { day: 'numeric', month: 'long' })
+}
+
+export function formatCalendarDayTitle(
+  date: string,
+  locale: string,
+  today: string,
+  todayWithDate: (date: string) => string,
+): string {
+  if (!date) return ''
+  if (date === today) return capitalizeFirstLetter(todayWithDate(formatLocaleDayMonth(date, locale)))
+  return capitalizeFirstLetter(formatLocaleDate(date, locale, {
+    weekday: 'long', day: 'numeric', month: 'long',
+  }))
+}
+
+export function formatCalendarWeekday(date: DateInput, locale: string): string {
+  return capitalizeFirstLetter(formatLocaleDate(date, locale, { weekday: 'short' }))
+}
+
+export function formatCalendarAgendaHeading(
+  date: string,
+  locale: string,
+  today: string,
+  todayWithDate: (date: string) => string,
+): string {
+  const dateLabel = formatLocaleDate(date, locale, { weekday: 'long', day: 'numeric', month: 'long' })
+  return capitalizeFirstLetter(date === today ? todayWithDate(dateLabel) : dateLabel)
+}
+
+export function formatWeekdayLabels(locale: string, weekStartsOn: 0 | 1): string[] {
+  return Array.from({ length: 7 }, (_, offset) =>
+    formatLocaleDate(new Date(2025, 0, 5 + ((weekStartsOn + offset) % 7)), locale, { weekday: 'narrow' }),
   )
 }
 
@@ -223,23 +271,21 @@ export function formatLocaleTime(
   )
 }
 
-export function formatDeviceDate(
-  value: DateInput,
-  options?: Intl.DateTimeFormatOptions,
-): string {
-  return formatLocaleDate(value, getSystemLocale(), options)
+export interface TimeDisplay {
+  hourCycle: 'h23' | 'h12'
+  locale: string
+  displayTime: (time: string | null | undefined) => string
+  displayClock: (value: Date | string) => string
 }
 
-export function formatDeviceDateTime(
-  value: DateInput,
-  options?: Intl.DateTimeFormatOptions,
-): string {
-  return formatLocaleDateTime(value, getSystemLocale(), options)
-}
+export function createTimeDisplay(locale: string, uses24HourClock: boolean | undefined): TimeDisplay {
+  const hourCycle = resolveHourCycle(uses24HourClock, locale)
+  const options: Intl.DateTimeFormatOptions = { hour: hourCycle === 'h23' ? '2-digit' : 'numeric', minute: '2-digit', hourCycle }
 
-export function formatDeviceTime(
-  value: TimeInput,
-  options?: Intl.DateTimeFormatOptions,
-): string {
-  return formatLocaleTime(value, getSystemLocale(), options)
+  return {
+    hourCycle,
+    locale,
+    displayTime: (time: string | null | undefined): string => time ? formatLocaleTime(time, locale, options) : '',
+    displayClock: (value: Date | string): string => formatLocaleDateTime(value, locale, options),
+  }
 }

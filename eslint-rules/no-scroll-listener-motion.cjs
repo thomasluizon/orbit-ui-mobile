@@ -1,4 +1,3 @@
-
 const SCROLL_EVENTS = new Set(['scroll', 'wheel', 'touchmove', 'mousewheel'])
 const SCROLL_PROPERTIES = new Set(['scrollY', 'scrollX', 'scrollTop', 'scrollLeft', 'pageYOffset', 'pageXOffset'])
 const SETTER_RE = /^set[A-Z]/

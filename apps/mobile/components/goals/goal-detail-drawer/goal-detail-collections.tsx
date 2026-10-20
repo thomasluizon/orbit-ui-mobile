@@ -1,75 +1,74 @@
-import { View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useTranslation } from 'react-i18next'
 import type { Goal, GoalDetailWithMetrics } from '@orbit/shared/types/goal'
-import { SectionLabel } from '@/components/ui/section-label'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { createTokensV2 } from '@/lib/theme'
 import {
   GoalLinkedHabitsSection,
   GoalProgressHistorySection,
 } from '../goal-detail-sections'
 
 interface GoalDetailCollectionsProps {
-  isStreak: boolean
   linkedHabits: NonNullable<Goal['linkedHabits']>
+  habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence']
   entries: GoalDetailWithMetrics['goal']['progressHistory']
+  target: Goal['targetValue']
   unit: Goal['unit']
   formatDate: (dateStr: string) => string
+  onOpenHabit: (habitId: string) => void
 }
 
-/** Progress-history and linked-habits cluster; streak goals lead with linked
- *  habits, standard goals lead with progress history. */
 export function GoalDetailCollections({
-  isStreak,
   linkedHabits,
+  habitAdherence,
   entries,
+  target,
   unit,
   formatDate,
+  onOpenHabit,
 }: Readonly<GoalDetailCollectionsProps>) {
   const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
 
-  const linkedHabitsSection =
-    linkedHabits.length > 0 ? (
-      <View>
-        <SectionLabel top={8} bottom={0}>
-          {t('goals.linkedHabits')}
-        </SectionLabel>
-        <GoalLinkedHabitsSection
-          title={t('goals.linkedHabits')}
-          linkedHabits={linkedHabits}
-        />
-      </View>
-    ) : null
+  const linkedHabitsSection = (
+    <View style={styles.section}>
+      <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg1 }]}>{t('goals.linkedHabits')}</Text>
+      {linkedHabits.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}
+      <GoalLinkedHabitsSection
+        title={t('goals.linkedHabits')}
+        emptyLabel={t('goals.noLinkedHabits')}
+        linkedHabits={linkedHabits}
+        habitAdherence={habitAdherence}
+        formatValue={(currentStreak) => t('goals.detail.linkedHabitStreak', { count: currentStreak })}
+        onOpenHabit={onOpenHabit}
+      />
+    </View>
+  )
 
   const progressHistorySection =
     entries.length > 0 ? (
       <View>
-        <SectionLabel top={8} bottom={0}>
-          {t('goals.progressHistory')}
-        </SectionLabel>
+        <Text accessibilityRole="header" style={[styles.historyTitle, { color: tokens.fg2 }]}>{t('goals.progressHistory')}</Text>
         <GoalProgressHistorySection
           entries={entries}
+          target={target}
+          unit={unit}
           formatDate={formatDate}
-          renderEntryLabel={(entry) =>
-            t('goals.progressEntry', {
-              previous: entry.previousValue,
-              value: entry.value,
-              unit,
-            })
-          }
-          showAllLabel={t('goals.detail.showAllHistory')}
+          showAllLabel={t('goals.detail.showAllHistory', { count: entries.length })}
           showLessLabel={t('goals.detail.showLessHistory')}
         />
       </View>
     ) : null
 
-  return isStreak ? (
+  return (
     <>
       {linkedHabitsSection}
       {progressHistorySection}
-    </>
-  ) : (
-    <>
-      {progressHistorySection}
-      {linkedHabitsSection}
     </>
   )
 }
+
+const styles = StyleSheet.create({ section: { gap: 12 }, heading: { fontFamily: 'Geist_500Medium', fontSize: 20 }, historyTitle: { fontFamily: 'Geist_500Medium', fontSize: 14 } })

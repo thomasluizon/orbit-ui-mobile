@@ -1,0 +1,307 @@
+import React from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-account-modal'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+
+const TestRenderer = require('react-test-renderer')
+
+const mocks = vi.hoisted(() => ({
+  apiClient: vi.fn(),
+  beginChallenge: vi.fn(),
+  isOnline: { current: true },
+  onClose: vi.fn(),
+  push: vi.fn(),
+  accountId: { current: 'user-1' },
+}))
+
+vi.mock('expo-router', () => ({
+  useRouter: () => ({ push: mocks.push }),
+}))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => {
+      const warningKey = key.slice('profile.deleteAccount.'.length)
+      const warning = key.startsWith('profile.deleteAccount.warning') || key === 'profile.deleteAccount.offlineDescription'
+        ? Reflect.get(ptBR.profile.deleteAccount, warningKey) as unknown
+        : undefined
+      if (typeof warning === 'string') {
+        return warning.replace(/\{(\w+)\}/g, (_, token: string) => String(params?.[token]))
+      }
+      return key
+    },
+  }),
+}))
+
+vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: Object.assign(
+    (selector: (state: unknown) => unknown) => selector({ user: { userId: mocks.accountId.current } }),
+    { getState: () => ({ user: { userId: mocks.accountId.current } }) },
+  ),
+}))
+vi.mock('@/lib/step-up-storage', () => ({
+  beginStepUpChallenge: (operation: string, accountId: string | null) =>
+    mocks.beginChallenge(operation, accountId),
+}))
+vi.mock('@/hooks/use-offline', () => ({
+  useOffline: () => ({ isOnline: mocks.isOnline.current }),
+}))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'default', currentTheme: 'dark' }),
+}))
+vi.mock('@/lib/theme', () => ({
+  createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
+  mixHex: () => '#000000',
+  radius: { full: 999 },
+}))
+vi.mock('@/components/ui/sheet', async () =>
+  await import('@/__tests__/support/sheet-double'))
+
+async function renderModal(
+  profile = createMockProfile({ hasProAccess: false, plan: 'free' }),
+) {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    tree = TestRenderer.create(
+      <DeleteAccountModal
+        open
+        onClose={mocks.onClose}
+        profile={profile}
+      />,
+    )
+    await Promise.resolve()
+  })
+  return tree
+}
+
+function textContent(node: unknown): string {
+  if (typeof node === 'string') return node
+  if (!node || typeof node !== 'object' || !('children' in node)) return ''
+  return (node as { children: unknown[] }).children.map(textContent).join('')
+}
+
+function button(tree: ReturnType<typeof TestRenderer.create>, label: string) {
+  return tree.root.find(
+    (node: { props: { accessibilityRole?: string }; children: unknown[] }) =>
+      node.props.accessibilityRole === 'button' && textContent(node) === label,
+  )
+}
+
+describe('DeleteAccountModal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.isOnline.current = true
+    mocks.accountId.current = 'user-1'
+    mocks.apiClient.mockResolvedValue({ message: 'sent' })
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
+  it('keeps the cancellation path in the pre-confirmation copy', async () => {
+    const tree = await renderModal()
+    const copy = textContent(tree.root)
+
+    expect(copy).toMatch(/tempo para mudar de ideia/i)
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningFree)
+    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro)
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningDetail)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['online', true, ['common.cancel', 'profile.deleteAccount.sendCode']],
+    ['offline', false, []],
+  ] as const)('pins the %s actions in the sheet footer, never in the scrolling body', async (_state, isOnline, footer) => {
+    mocks.isOnline.current = isOnline
+    const tree = await renderModal()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(footer)
+    if (footer.length > 0) expectSmallSheetActions(tree.root)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('cancels before requesting an account deletion code', async () => {
+    const tree = await renderModal()
+    TestRenderer.act(() => {
+      button(tree, 'common.cancel').props.onPress()
+    })
+    expect(mocks.onClose).toHaveBeenCalledTimes(1)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('shows the offline message without offering or requesting a deletion code', async () => {
+    mocks.isOnline.current = false
+    const tree = await renderModal()
+    const alert = tree.root.find(
+      (node: { type: unknown; props: { accessibilityRole?: string } }) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'alert',
+    )
+
+    expect(textContent(alert)).toBe(ptBR.profile.deleteAccount.offlineDescription)
+    expect(textContent(tree.root)).not.toContain(ptBR.profile.deleteAccount.warningFree)
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([])
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('restores the deletion flow when the open modal reconnects', async () => {
+    mocks.isOnline.current = false
+    const tree = await renderModal()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      mocks.isOnline.current = true
+      tree.update(<DeleteAccountModal open onClose={mocks.onClose} profile={createMockProfile()} />)
+    })
+
+    expect(textContent(tree.root)).not.toContain(ptBR.profile.deleteAccount.offlineDescription)
+    expect(textContent(tree.root)).toContain(ptBR.profile.deleteAccount.warningFree)
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(mocks.apiClient).toHaveBeenCalledOnce()
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+  })
+
+  it('shows the Pro deletion upper bound without tying it to the plan ending', async () => {
+    const tree = await renderModal(createMockProfile({
+      hasProAccess: true,
+      plan: 'pro',
+      planExpiresAt: '2999-01-01T00:00:00Z',
+    }))
+    const copy = textContent(tree.root)
+
+    expect(copy).toContain('em até 30 dias a partir de hoje')
+    expect(copy).not.toContain('depois que o seu plano terminar')
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningPro)
+    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningFree)
+  })
+
+  it('shows the Free warning for Pro access without a plan expiry', async () => {
+    const tree = await renderModal(createMockProfile({
+      hasProAccess: true,
+      plan: 'pro',
+      planExpiresAt: null,
+    }))
+    const copy = textContent(tree.root)
+
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningFree)
+    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro)
+  })
+
+  it('shows the Free warning for Pro access with a past plan expiry', async () => {
+    const tree = await renderModal(createMockProfile({
+      hasProAccess: true,
+      plan: 'pro',
+      planExpiresAt: '2000-01-01T00:00:00Z',
+    }))
+    const copy = textContent(tree.root)
+
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningFree)
+    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro)
+  })
+
+  it('shows a failed send in the pinned footer, beside Send code', async () => {
+    mocks.apiClient.mockRejectedValueOnce(new Error('private backend detail'))
+    const tree = await renderModal()
+
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    const alerts = (slot: string) => tree.root
+      .findAll((node: { type: unknown }) => node.type === slot)[0]!
+      .findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
+
+    expect(alerts('SheetActions')).toHaveLength(1)
+    expect(alerts('SheetBody')).toHaveLength(0)
+  })
+
+  it('enters the deletion step up only after the sheet dismisses', async () => {
+    sheetTestControls.defer(true)
+    const tree = await renderModal()
+
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      API.auth.requestDeletion,
+      { method: 'POST' },
+      expect.anything(),
+    )
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mocks.onClose).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(mocks.onClose).toHaveBeenCalledTimes(1)
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    expect(mocks.push).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['success', 'failure'])('drops a late deletion challenge %s after replacement', async (outcome) => {
+    let settle!: (value: { message: string }) => void
+    let reject!: (reason: Error) => void
+    mocks.apiClient.mockReturnValue(new Promise((resolve, rejectPromise) => {
+      settle = resolve
+      reject = rejectPromise
+    }))
+    const tree = await renderModal()
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+    })
+
+    mocks.accountId.current = 'user-2'
+    TestRenderer.act(() => {
+      tree.unmount()
+      advanceAccountGeneration()
+    })
+    await TestRenderer.act(async () => {
+      if (outcome === 'success') settle({ message: 'sent' })
+      else reject(new Error('Account A failure'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('does not navigate from a pending sheet dismissal after replacement', async () => {
+    sheetTestControls.defer(true)
+    const tree = await renderModal()
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => advanceAccountGeneration())
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+})

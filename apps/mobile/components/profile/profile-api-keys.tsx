@@ -1,0 +1,621 @@
+import { PADDING, SPACING } from '@orbit/shared/theme'
+
+import { ActionRow } from '@/components/ui/action-row'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
+import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
+import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
+import { openApiKeyScopeOrStartStepUp, submitApiKeyCreation } from '@orbit/shared/utils'
+import type { Profile } from '@orbit/shared/types/profile'
+import { API_KEY_EXPIRY_DEFAULT, apiKeyFormSchema, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
+import { API } from '@orbit/shared/api'
+import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
+import { McpCodeClient } from '@/components/profile/mcp-code-client'
+import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
+import { useDateFormat } from '@/hooks/use-date-format'
+import { useApiKeyManagement } from '@/app/advanced-api-keys'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { Input } from '@/components/ui/input'
+import { Key } from '@/components/ui/icons'
+import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { ProBadge } from '@/components/ui/pro-badge'
+import { RowList } from '@/components/ui/row-list'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { StepUp } from '@/components/ui/step-up'
+import { Switch } from '@/components/ui/switch'
+import { useOffline } from '@/hooks/use-offline'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { apiClient } from '@/lib/api-client'
+import { API_BASE } from '@/lib/api-base'
+import { captureError } from '@/lib/sentry'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { buildUpgradeHref } from '@/lib/upgrade-route'
+import { beginStepUpChallenge, clearPendingApiKeyPermission, readPendingApiKeyPermission, rememberApiKeyCreationPermission, readApiKeyExpiryDraft, retainApiKeyExpiryDraft } from '@/lib/step-up-storage'
+import { useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
+
+interface ProfileApiKeysProps {
+  profile: Profile | undefined
+  unlocked: boolean
+}
+
+function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
+  const { t } = useTranslation()
+  const tokens = useTokens()
+  const { displayDateMedium } = useDateFormat()
+  const textStyle = [styles.keyDetailText, { color: tokens.fg3 }]
+  return (
+    <View style={styles.keyDetails}>
+      <Text selectable style={textStyle}>{apiKey.scopes.length > 0 ? apiKey.scopes.join(', ') : t('orbitMcp.noScopes')}</Text>
+      <Text selectable style={textStyle}>{apiKey.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}</Text>
+      <View style={styles.keyDates}>
+        <View style={styles.keyDateRow}>
+          <Text selectable style={textStyle}>{t('orbitMcp.created')}</Text>
+          <Text selectable style={textStyle}>{displayDateMedium(apiKey.createdAtUtc)}</Text>
+        </View>
+        <View style={styles.keyDateRow}>
+          <Text selectable style={textStyle}>{t('orbitMcp.lastUsed')}</Text>
+          <Text selectable style={textStyle}>{apiKey.lastUsedAtUtc ? displayDateMedium(apiKey.lastUsedAtUtc) : t('orbitMcp.never')}</Text>
+        </View>
+      </View>
+      {apiKey.expiresAtUtc ? <Text selectable style={textStyle}>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</Text> : null}
+    </View>
+  )
+}
+
+interface ApiKeyListProps {
+  apiKeys: ApiKey[]
+  isLoading: boolean
+  loadError: Error | null
+  onRevoke: (id: string) => void
+  onRetry: () => void
+}
+
+function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readonly<ApiKeyListProps>) {
+  const { t } = useTranslation()
+  const tokens = useTokens()
+  if (isLoading) {
+    return <Text accessibilityRole="progressbar" style={[styles.message, { color: tokens.fg3 }]}>{t('common.loading')}</Text>
+  }
+  if (loadError) {
+    return (
+      <View style={styles.errorState}>
+        <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{t('orbitMcp.apiKeysError')}</Text>
+        <PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+      </View>
+    )
+  }
+  if (apiKeys.length === 0) {
+    return <Text style={[styles.message, { color: tokens.fg3 }]}>{t('orbitMcp.noKeys')}</Text>
+  }
+
+  return (
+    <RowList>
+      {apiKeys.map((apiKey) => (
+        <View key={apiKey.id}>
+          <ListRow
+            compact
+            icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
+            title={apiKey.name}
+            textMode="personal"
+            wrapTitle
+            value={`${apiKey.keyPrefix}…`}
+            chevron={false}
+            action={{
+              icon: 'trash',
+              label: t('profile.apiKeys.revokeNamed', { name: apiKey.name }),
+              danger: true,
+              onPress: () => onRevoke(apiKey.id),
+            }}
+          />
+          <ApiKeyDetails apiKey={apiKey} />
+        </View>
+      ))}
+    </RowList>
+  )
+}
+
+interface CreateKeySheetProps {
+  scoped: boolean
+  busy: boolean
+  error: string | null
+  onClose: () => void
+  expiresAt: string
+  onExpiryChange: (value: string) => void
+  onCreate: (
+    request: ApiKeyCreateRequest,
+    onCreateGrantRequired: () => Promise<void>,
+  ) => Promise<ApiKeyCreateResponse | null>
+  onCreateGrantRequired: () => void
+  onCreated: (createdKey: ApiKeyCreateResponse) => void
+}
+
+function CreateKeySheet({
+  scoped,
+  busy,
+  error,
+  onClose,
+  onCreate,
+  onCreateGrantRequired,
+  expiresAt,
+  onExpiryChange,
+  onCreated,
+}: Readonly<CreateKeySheetProps>) {
+  const tokens = useTokens()
+  const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
+  const [scope, setScope] = useState('')
+  const [name, setName] = useState('')
+  const [nameFocusRequest, setNameFocusRequest] = useState(0)
+  const [expiryFocusRequest, setExpiryFocusRequest] = useState(0)
+  const expiryError = expiryFocusRequest > 0 && !validateApiKeyExpiry(expiresAt).valid
+  const nameError = nameFocusRequest > 0 ? getApiKeyNameError(name) : null
+  const dismissGuard = useDismissGuard({
+    isDirty: name !== '' || scope !== '' || expiresAt !== '',
+    onDismiss: () => closeSheet(onClose),
+  })
+  async function submit() {
+    if (busy) return
+    const form = apiKeyFormSchema.safeParse({ name, expiresAt })
+    if (!form.success) {
+      if (getApiKeyNameError(name)) setNameFocusRequest((request) => request + 1)
+      else setExpiryFocusRequest((request) => request + 1)
+      return
+    }
+    const trimmedScope = scope.trim()
+    if (scoped && !trimmedScope) return
+    const result = await onCreate(
+      { name: form.data.name, ...(scoped ? { scopes: [trimmedScope] } : {}), expiresAtUtc: form.data.expiresAt },
+      () => Promise.resolve(closeSheet(onCreateGrantRequired)),
+    )
+    if (result) closeSheet(() => onCreated(result))
+  }
+
+  return (
+    <>
+      <Sheet
+        ref={sheetRef}
+        title={t(scoped ? 'profile.apiKeys.scopeTitle' : 'profile.apiKeys.create')}
+        onClose={!busy && dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={busy ? undefined : dismissGuard.requestDismiss}
+        actions={(
+          <ActionRow>
+            <PillButton size="sm" variant="ghost" disabled={busy} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
+            <PillButton size="sm" disabled={scoped && !scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
+          </ActionRow>
+        )}
+      >
+        <View style={{ gap: 16 }}>
+          <Input
+            label={t('orbitMcp.keyName')}
+            placeholder={t('orbitMcp.keyNamePlaceholder')}
+            name="api-key-name"
+            autoComplete="off"
+            required
+            value={name}
+            onChange={setName}
+            error={nameError ? t(nameError) : undefined}
+            disabled={busy}
+            autoFocus
+            focusRequest={nameFocusRequest}
+            onSubmit={() => void submit()}
+          />
+          <Input
+            label={t('orbitMcp.expiresAtLabel')}
+            name="api-key-expiry"
+            value={expiresAt}
+            onChange={onExpiryChange}
+            placeholder={t('common.never')}
+            hint={t('orbitMcp.expiryFormatExample')}
+            error={expiryError ? t('orbitMcp.invalidExpiry') : undefined}
+            focusRequest={expiryFocusRequest}
+            autoComplete="off"
+            mono
+            disabled={busy}
+            onSubmit={() => void submit()}
+          />
+          {scoped ? (
+            <Input
+              label={t('profile.apiKeys.scopeLabel')}
+              value={scope}
+              onChange={setScope}
+              disabled={busy}
+              onSubmit={() => void submit()}
+            />
+          ) : null}
+          {error ? <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{error}</Text> : null}
+        </View>
+      </Sheet>
+      <DiscardChangesSheet
+        open={dismissGuard.showDiscardDialog}
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
+      />
+    </>
+  )
+}
+
+interface RevealSheetProps {
+  createdKey: ApiKeyCreateResponse
+  onClose: () => void
+}
+
+function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
+  const { t } = useTranslation()
+  const tokens = useTokens()
+  const { sheetRef, closeSheet } = useSheetHost()
+  const [copied, setCopied] = useState(false)
+
+  async function copyKey() {
+    try {
+      await Clipboard.setStringAsync(createdKey.key)
+      setCopied(true)
+    } catch (error) {
+      captureError(error)
+      setCopied(false)
+    }
+  }
+
+  return (
+    <Sheet
+      ref={sheetRef}
+      title={t('orbitMcp.revealHeading')}
+      onClose={onClose}
+      actions={<PillButton size="sm" onClick={() => closeSheet()}>{t('orbitMcp.done')}</PillButton>}
+    >
+      <View style={styles.sheetContent}>
+        <Text style={[styles.warning, { color: tokens.statusOverdueText }]}>{t('orbitMcp.keyCreatedWarning')}</Text>
+        <View style={[styles.keyWell, { backgroundColor: tokens.bgField, borderColor: tokens.borderControl }]}>
+          <Text selectable style={[styles.keyValue, { color: tokens.fg2 }]}>{createdKey.key}</Text>
+          <PillButton
+            size="sm"
+            variant="ghost"
+            onClick={() => { void copyKey() }}
+          >
+            {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
+          </PillButton>
+        </View>
+      </View>
+    </Sheet>
+  )
+}
+
+function useTokens() {
+  const { currentScheme, currentTheme } = useAppTheme()
+  return useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+}
+
+interface ApiKeyGateProps {
+  busy: boolean
+  error: boolean
+  activeApiKeyCount: number | null | undefined
+  onStartStepUp: () => Promise<void>
+}
+
+function ApiKeyGate({ busy, error, activeApiKeyCount, onStartStepUp }: Readonly<ApiKeyGateProps>) {
+  const { t } = useTranslation()
+  const tokens = useTokens()
+  const [showStepUp, setShowStepUp] = useState(false)
+
+  if (!showStepUp) {
+    return (
+      <RowList>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
+        <ListRow
+          compact
+          icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
+          title={t('profile.apiKeys.open')}
+          wrapTitle
+          value={activeApiKeyCount == null ? undefined : activeApiKeyCount === 0
+            ? t('profile.apiKeys.noKeys')
+            : t('profile.apiKeys.activeCount', { count: activeApiKeyCount })}
+          wrapValue
+          onClick={() => setShowStepUp(true)}
+        />
+      </RowList>
+    )
+  }
+
+  return (
+    <>
+      <StepUp
+        message={t('profile.apiKeys.stepUpBody')}
+        actionLabel={t('profile.apiKeys.stepUpAction')}
+        busy={busy}
+        onAction={() => void onStartStepUp()}
+      />
+      {error ? <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{t('stepUp.requestError')}</Text> : null}
+    </>
+  )
+}
+
+interface ApiKeyAccessContentProps extends ApiKeyGateProps {
+  children: ReactNode
+  hasProAccess: boolean
+  onUpgrade: () => void
+  unlocked: boolean
+}
+
+function ApiKeyAccessContent({
+  busy,
+  children,
+  error,
+  activeApiKeyCount,
+  hasProAccess,
+  onStartStepUp,
+  onUpgrade,
+  unlocked,
+}: Readonly<ApiKeyAccessContentProps>) {
+  const { t } = useTranslation()
+  if (!hasProAccess) {
+    return (
+      <RowList>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 108 controls this label under D42. */}
+        <ListRow
+          compact
+          title={t('profile.apiKeys.unlock')}
+          accessibilityLabel={t('profile.apiKeys.unlock')}
+          textMode="label"
+          value={<ProBadge alwaysVisible label={t('common.proBadge')} />}
+          chevron={false}
+          onClick={onUpgrade}
+        />
+      </RowList>
+    )
+  }
+  if (!unlocked) {
+    return <ApiKeyGate busy={busy} error={error} activeApiKeyCount={activeApiKeyCount} onStartStepUp={onStartStepUp} />
+  }
+  return children
+}
+
+interface ApiKeyCreateControlsProps {
+  canCreate: boolean
+  creating: boolean
+  isReadOnly: boolean
+  onReadOnlyChange: (checked: boolean) => void
+  onCreate: () => void
+  onCreateScoped: () => void
+  stepUpBusy: boolean
+}
+
+function ApiKeyCreateControls({
+  canCreate,
+  creating,
+  isReadOnly,
+  onReadOnlyChange,
+  onCreate,
+  onCreateScoped,
+  stepUpBusy,
+}: Readonly<ApiKeyCreateControlsProps>) {
+  const { t } = useTranslation()
+  const tokens = useTokens()
+  if (!canCreate) {
+    return <Text style={[styles.message, { color: tokens.fg3 }]}>{t('orbitMcp.maxKeysReached')}</Text>
+  }
+  return (
+    <View style={styles.createControls}>
+      <Switch
+        label={t('orbitMcp.readOnlyKeyLabel')}
+        checked={isReadOnly}
+        disabled={creating || stepUpBusy}
+        onChange={onReadOnlyChange}
+      />
+      <ActionRow>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
+        <PillButton variant="ghost" size="sm" loading={stepUpBusy} disabled={creating || stepUpBusy} onClick={onCreateScoped}>
+          {t('profile.apiKeys.createScoped')}
+        </PillButton>
+        <PillButton
+          variant="secondary"
+          size="sm"
+          disabled={creating || stepUpBusy}
+          loading={stepUpBusy}
+          onClick={onCreate}
+        >
+          {t('profile.apiKeys.create')}
+        </PillButton>
+      </ActionRow>
+    </View>
+  )
+}
+
+function useApiKeyStepUp(isReadOnly: boolean, expiresAt: string) {
+  const router = useRouter()
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(false)
+
+  async function start() {
+    if (busy) return
+    const startingAccountGeneration = getAccountGeneration()
+    const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
+    setBusy(true)
+    setError(false)
+    try {
+      await apiClient(
+        API.apiKeys.requestCreationChallenge,
+        { method: 'POST' },
+        stepUpMessageResponseSchema,
+      )
+      if (!ownsAccount()) return
+      await beginStepUpChallenge('keys', accountId)
+      if (!ownsAccount()) return
+      rememberApiKeyCreationPermission(isReadOnly)
+      retainApiKeyExpiryDraft(expiresAt)
+      router.push('/step-up?operation=keys')
+    } catch {
+      if (!ownsAccount()) return
+      setError(true)
+      setBusy(false)
+    }
+  }
+
+  return { busy, error, start }
+}
+
+export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysProps>) {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const { isOnline } = useOffline()
+  const tokens = useTokens()
+  const hasProAccess = profile?.hasProAccess ?? false
+  const [creationMode, setCreationMode] = useAccountScopedState<'simple' | 'scoped' | null>(null)
+  const [creating, setCreating] = useAccountScopedState(false)
+  const [expiresAt, setExpiresAt] = useAccountScopedState(readApiKeyExpiryDraft)
+  const [isReadOnly, setIsReadOnly] = useAccountScopedState(readPendingApiKeyPermission)
+  const [createdKey, setCreatedKey] = useAccountScopedState<ApiKeyCreateResponse | null>(null)
+  const stepUp = useApiKeyStepUp(isReadOnly, expiresAt)
+
+  useEffect(clearPendingApiKeyPermission, [])
+
+  const management = useApiKeyManagement({
+    hasProAccess: hasProAccess && unlocked,
+    isOnline,
+    queryClient,
+    t,
+  })
+
+  async function createKey(
+    request: ApiKeyCreateRequest,
+    onCreateGrantRequired: () => Promise<void> = stepUp.start,
+  ) {
+    if (creating) return null
+    return submitApiKeyCreation(request, {
+      getAccountGeneration,
+      setCreating,
+      createKey: (request) => management.handleCreateKey(request, onCreateGrantRequired),
+      retainExpiryDraft: retainApiKeyExpiryDraft,
+    })
+  }
+
+  const revokingKey = management.apiKeys.find((apiKey) => apiKey.id === management.revokingKeyId)
+
+  return (
+    <View
+      testID="profile-api-keys"
+      accessibilityState={{ busy: unlocked && management.apiKeysQuery.isLoading }}
+      style={styles.root}
+    >
+      <View style={styles.headingRow}>
+        <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg2 }]}>
+          {t('profile.settingsRows.apiKeysMcp')}
+        </Text>
+        <ProBadge alwaysVisible label={t('common.proBadge')} />
+      </View>
+      <Text style={[styles.description, { color: tokens.fg3 }]}>{t('profile.apiKeys.description')}</Text>
+
+      <ApiKeyAccessContent
+        activeApiKeyCount={profile?.activeApiKeyCount}
+        busy={stepUp.busy}
+        error={stepUp.error}
+        hasProAccess={hasProAccess}
+        onStartStepUp={stepUp.start}
+        onUpgrade={() => router.push(buildUpgradeHref('/profile/astra'))}
+        unlocked={unlocked}
+      >
+        <>
+          <ApiKeyList
+            apiKeys={management.apiKeys}
+            isLoading={management.apiKeysQuery.isLoading}
+            loadError={management.apiKeysQuery.error}
+            onRevoke={management.setRevokingKeyId}
+            onRetry={() => void management.apiKeysQuery.refetch()}
+          />
+          <ApiKeyCreateControls
+            canCreate={management.canCreateKey}
+            creating={creating}
+            isReadOnly={isReadOnly}
+            onReadOnlyChange={setIsReadOnly}
+            onCreate={() => openApiKeyScopeOrStartStepUp(
+              management.createGrantAvailable,
+              management.clearCreateKeyError,
+              () => setCreationMode('simple'),
+              stepUp.start,
+            )}
+            onCreateScoped={() => openApiKeyScopeOrStartStepUp(
+              management.createGrantAvailable,
+              management.clearCreateKeyError,
+              () => setCreationMode('scoped'),
+              stepUp.start,
+            )}
+            stepUpBusy={stepUp.busy}
+          />
+          {management.createKeyError && !creationMode ? (
+            <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{management.createKeyError}</Text>
+          ) : null}
+          {stepUp.error ? <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{t('stepUp.requestError')}</Text> : null}
+          <McpCodeClient endpoint={getMcpEndpointUrl(API_BASE)} />
+        </>
+      </ApiKeyAccessContent>
+
+      {creationMode ? (
+        <CreateKeySheet
+          scoped={creationMode === 'scoped'}
+          busy={creating}
+          error={management.createKeyError}
+          onClose={() => { setCreationMode(null); setExpiresAt(API_KEY_EXPIRY_DEFAULT); retainApiKeyExpiryDraft(API_KEY_EXPIRY_DEFAULT) }}
+          onCreate={(request, onCreateGrantRequired) => createKey({ ...request, isReadOnly }, onCreateGrantRequired)}
+          expiresAt={expiresAt}
+          onExpiryChange={setExpiresAt}
+          onCreateGrantRequired={() => {
+            setCreationMode(null)
+            void stepUp.start()
+          }}
+          onCreated={(result) => {
+            setCreationMode(null)
+            setCreatedKey(result)
+          }}
+        />
+      ) : null}
+      {createdKey ? (
+        <RevealSheet createdKey={createdKey} onClose={() => setCreatedKey(null)} />
+      ) : null}
+      <ConfirmSheet
+        open={revokingKey != null}
+        title={revokingKey ? t('profile.apiKeys.revokeNamedQuestion', { name: revokingKey.name }) : ''}
+        titleMode="typed"
+        message={t('profile.apiKeys.revokeBody')}
+        cancelLabel={t('orbitMcp.cancel')}
+        confirmLabel={t('orbitMcp.revoke')}
+        destructive
+        onCancel={() => management.setRevokingKeyId(null)}
+        onConfirm={() => {
+          if (revokingKey) {
+            management.revokeKeyMutation.mutate(revokingKey.id)
+            management.setRevokingKeyId(null)
+          }
+        }}
+      />
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  keyDetails: { gap: 8, paddingHorizontal: PADDING.rowInline, paddingBottom: SPACING.s16 },
+  keyDates: { gap: 4 },
+  keyDateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  keyDetailText: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'] },
+  root: { gap: 8 },
+  headingRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  heading: { fontFamily: 'Geist_500Medium', fontSize: 14 },
+  description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
+  message: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
+  createControls: { gap: 8 },
+  errorState: { alignItems: 'flex-start', gap: 8 },
+  sheetContent: { gap: 12 },
+  warning: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 21 },
+  keyWell: { alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, padding: SPACING.s16 },
+  keyValue: { flex: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8 },
+})

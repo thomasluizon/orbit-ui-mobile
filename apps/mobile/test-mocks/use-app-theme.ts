@@ -1,5 +1,5 @@
 export interface TestAppTheme {
-  currentScheme: 'purple'
+  currentScheme: 'orange'
   currentTheme: 'dark'
   shadows: {
     sm: {
@@ -25,7 +25,7 @@ export interface TestAppTheme {
 
 export function useAppTheme(): TestAppTheme {
   return {
-    currentScheme: 'purple',
+    currentScheme: 'orange',
     currentTheme: 'dark',
     shadows: {
       sm: {

@@ -24,6 +24,8 @@ export const achievementSchema = z.object({
   iconKey: z.string(),
   isEarned: z.boolean(),
   earnedAtUtc: z.string().nullable(),
+  progressCurrent: z.number().nullable().optional(),
+  progressTarget: z.number().nullable().optional(),
 })
 
 export type Achievement = z.infer<typeof achievementSchema>
@@ -86,7 +88,21 @@ export const retrospectiveHabitStatSchema = z.object({
   completedCount: z.number(),
   scheduledCount: z.number(),
   isOneTime: z.boolean().optional(),
+  habitId: z.uuid().nullish(),
 })
+
+export const completionSeriesSchema = z.object({
+  granularity: z.enum(['day', 'week']),
+  points: z.array(z.object({
+    startDate: z.iso.date(),
+    endDate: z.iso.date(),
+    scheduled: z.number(),
+    completed: z.number(),
+    completionRate: z.number().nullable(),
+  })),
+})
+
+export type CompletionSeries = z.infer<typeof completionSeriesSchema>
 
 export const retrospectiveMetricsSchema = z.object({
   completionRate: z.number(),
@@ -100,12 +116,26 @@ export const retrospectiveMetricsSchema = z.object({
   weeklyConsistency: z.array(z.number()),
   topHabits: z.array(retrospectiveHabitStatSchema),
   needsAttention: z.array(retrospectiveHabitStatSchema),
+  completionSeries: completionSeriesSchema.nullable().optional(),
+})
+
+export const retrospectiveResponseSchema = z.object({
+  period: z.enum(['week', 'month', 'quarter', 'semester', 'year']),
+  metrics: retrospectiveMetricsSchema,
+  narrative: z.object({
+    highlights: z.string(),
+    missed: z.string(),
+    trends: z.string(),
+    suggestion: z.string(),
+  }),
+  fromCache: z.boolean(),
 })
 
 export const recapResponseSchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'semester', 'year']),
   metrics: retrospectiveMetricsSchema,
   shareDeepLink: z.string(),
+  goalCompletions: z.number().default(0),
 })
 
 export type Recap = z.infer<typeof recapResponseSchema>
@@ -124,6 +154,12 @@ export const streakInfoSchema = z.object({
   daysUntilNextFreeze: z.number().default(7),
   freezesAvailableToUse: z.number().default(0),
   canEarnMore: z.boolean().default(true),
+  isRepairAvailable: z.boolean().optional(),
+  repairDate: z.string().nullable().optional(),
+  repairableGapDates: z.array(z.string()).nullable().optional(),
+  lastFreezeCoveredDate: z.string().nullable().optional(),
+  lastFreezeCoveredOrigin: z.string().nullable().optional(),
+  freezeBankRemaining: z.number().nullable().optional(),
 })
 
 export type StreakInfo = z.infer<typeof streakInfoSchema>

@@ -1,100 +1,110 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import type { Profile } from '@orbit/shared/types'
-
-let mockProfile: Profile | undefined
-let mockDismissed = false
-const setDismissed = vi.fn()
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}(${JSON.stringify(params)})` : key,
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mockProfile }),
-}))
-
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: <T,>(
-    selector: (state: {
-      setupChecklistDismissed: boolean
-      setSetupChecklistDismissed: typeof setDismissed
-    }) => T,
-  ) =>
-    selector({
-      setupChecklistDismissed: mockDismissed,
-      setSetupChecklistDismissed: setDismissed,
-    }),
-}))
-
+import en from '@orbit/shared/i18n/en.json'
+import pt from '@orbit/shared/i18n/pt-BR.json'
+import type { Profile } from '@orbit/shared/types/profile'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
+import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
 
-describe('SetupChecklistCard', () => {
-  beforeEach(() => {
-    mockProfile = createMockProfile({
-      hasCreatedFirstHabit: false,
-      hasLoggedFirstHabit: false,
-      hasTriedAstra: false,
-      hasCompletedOnboardingChecklist: false,
-    })
-    mockDismissed = false
-    setDismissed.mockClear()
+const profileState = vi.hoisted(() => ({ profile: undefined as Profile | undefined }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => profileState }))
+
+function card(locale = 'en') {
+  return <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><SetupChecklistCard /></NextIntlClientProvider>
+}
+
+beforeEach(async () => {
+  profileState.profile = createMockProfile({ isTrialActive: false })
+  useUIStore.persist.setOptions({ name: 'orbit-ui-store' })
+  localStorage.setItem('orbit-ui-store', JSON.stringify({ state: { setupChecklistDismissed: false }, version: 6 }))
+  await useUIStore.persist.rehydrate()
+})
+afterEach(() => vi.restoreAllMocks())
+
+describe('setup checklist', () => {
+  it.each(['en', 'pt-BR'])('derives every item and progress from profile flags in %s', (locale) => {
+    profileState.profile = createMockProfile({ isTrialActive: false, hasCreatedFirstHabit: true, hasTriedAstra: true })
+    render(card(locale))
+    const messages = locale === 'en' ? en : pt
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.getByText(messages.today.setupChecklist.items.createHabit).parentElement).toHaveTextContent(messages.habits.completed)
+    expect(screen.getByText(messages.today.setupChecklist.items.logHabit).parentElement).not.toHaveTextContent(messages.habits.completed)
+    expect(screen.getByRole('status')).toHaveTextContent(locale === 'en' ? '2 of 3 done' : '2 de 3 concluídos')
   })
 
-  it('renders all items pending while the profile is loading', () => {
-    mockProfile = undefined
-    render(<SetupChecklistCard />)
-    expect(screen.getByTestId('setup-checklist-progress').textContent).toBe(
-      'today.setupChecklist.progress({"done":0,"total":3})',
-    )
+  it.each(['loading', 'onboarding', 'trial', 'complete', 'dismissed'])('withholds the card for %s', async (state) => {
+    if (state === 'loading') profileState.profile = undefined
+    if (state === 'onboarding') profileState.profile = createMockProfile({ hasCompletedOnboarding: false, isTrialActive: false })
+    if (state === 'trial') profileState.profile = createMockProfile({ isTrialActive: true })
+    if (state === 'complete') profileState.profile = createMockProfile({ hasCompletedOnboardingChecklist: true, isTrialActive: false })
+    if (state === 'dismissed') await useUIStore.getState().setSetupChecklistDismissed(true)
+    render(card())
+    expect(screen.queryByRole('region', { name: en.today.setupChecklist.title })).not.toBeInTheDocument()
   })
 
-  it('renders even when dismissed or completed server-side, visibility is owned by the engagement slot', () => {
-    mockProfile = createMockProfile({ hasCompletedOnboardingChecklist: true })
-    mockDismissed = true
-    render(<SetupChecklistCard />)
-    expect(screen.getByTestId('setup-checklist-card')).toBeTruthy()
+  it.each([false, true])('recovers readable account preferences after migration writeback fails with dismissed=%s', async (dismissed) => {
+    localStorage.setItem('orbit-ui-store:migration-account', JSON.stringify({ state: { setupChecklistDismissed: dismissed }, version: 6 }))
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage is full') })
+    setUIAccountScope('migration-account')
+    render(card())
+    expect(useUIStore.persist.hasHydrated()).toBe(false)
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(dismissed)
+    if (dismissed) {
+      expect(screen.queryByRole('region')).not.toBeInTheDocument()
+      return
+    }
+    expect(screen.getByRole('region', { name: en.today.setupChecklist.title })).toBeInTheDocument()
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage is still full') })
+    fireEvent.click(screen.getByRole('button', { name: en.today.setupChecklist.dismiss }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(en.today.setupChecklist.dismissError))
+    fireEvent.click(screen.getByRole('button', { name: en.today.setupChecklist.dismiss }))
+    await waitFor(() => expect(screen.queryByRole('region')).not.toBeInTheDocument())
+    await useUIStore.persist.rehydrate()
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true)
   })
 
-  it('reflects per-item completion and progress from the profile flags', () => {
-    mockProfile = createMockProfile({
-      hasCreatedFirstHabit: true,
-      hasLoggedFirstHabit: false,
-      hasTriedAstra: false,
-      hasCompletedOnboardingChecklist: false,
-    })
-    render(<SetupChecklistCard />)
-
-    expect(screen.getByTestId('setup-checklist-progress').textContent).toBe(
-      'today.setupChecklist.progress({"done":1,"total":3})',
-    )
-    const items = screen.getAllByRole('listitem')
-    expect(items).toHaveLength(3)
-    expect(items[0]?.getAttribute('data-done')).toBe('true')
-    expect(items[1]?.getAttribute('data-done')).toBe('false')
-    expect(items[2]?.getAttribute('data-done')).toBe('false')
+  it.each([false, true])('withholds the previous account preference until a replacement migration fails with dismissed=%s', async (dismissed) => {
+    render(card())
+    localStorage.setItem('orbit-ui-store:pending-replacement-account', JSON.stringify({ state: { setupChecklistDismissed: dismissed }, version: 6 }))
+    const storage = useUIStore.persist.getOptions().storage!
+    const read = storage.getItem.bind(storage)
+    let finish!: () => void
+    vi.spyOn(storage, 'getItem').mockImplementationOnce((key) => new Promise<void>((resolve) => { finish = resolve }).then(() => read(key)))
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage is full') })
+    await act(async () => setUIAccountScope('pending-replacement-account'))
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    await act(async () => finish())
+    expect(useUIStore.persist.hasHydrated()).toBe(false)
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(dismissed)
+    expect(Boolean(screen.queryByRole('region'))).toBe(!dismissed)
   })
 
-  it('shows the completion message when all three signals are done', () => {
-    mockProfile = createMockProfile({
-      hasCreatedFirstHabit: true,
-      hasLoggedFirstHabit: true,
-      hasTriedAstra: true,
-      hasCompletedOnboardingChecklist: false,
-    })
-    render(<SetupChecklistCard />)
-
-    expect(screen.getByText('today.setupChecklist.complete')).toBeTruthy()
-    expect(screen.getByTestId('setup-checklist-progress').textContent).toBe(
-      'today.setupChecklist.progress({"done":3,"total":3})',
-    )
+  it('shows a persistence error and allows retry after a failed dismissal', async () => {
+    render(card())
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage is full') })
+    fireEvent.click(screen.getByRole('button', { name: en.today.setupChecklist.dismiss }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(en.today.setupChecklist.dismissError))
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: en.today.setupChecklist.dismiss }))
+    await waitFor(() => expect(screen.queryByRole('region')).not.toBeInTheDocument())
+    await useUIStore.persist.rehydrate()
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true)
   })
 
-  it('persists dismissal when the close button is clicked', () => {
-    render(<SetupChecklistCard />)
-    fireEvent.click(screen.getByLabelText('today.setupChecklist.dismiss'))
-    expect(setDismissed).toHaveBeenCalledWith(true)
+  it('disables dismissal while storage is pending and prevents repeated writes', async () => {
+    const storage = useUIStore.persist.getOptions().storage!
+    let finish!: () => void
+    const write = vi.spyOn(storage, 'setItem').mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+    render(card())
+    const dismiss = screen.getByRole('button', { name: en.today.setupChecklist.dismiss })
+    fireEvent.click(dismiss)
+    expect(dismiss).toBeDisabled()
+    expect(dismiss).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(dismiss)
+    expect(write).toHaveBeenCalledOnce()
+    await act(async () => finish())
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
   })
 })

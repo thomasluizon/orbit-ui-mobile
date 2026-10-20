@@ -1,0 +1,164 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet, View } from 'react-native'
+import { useUIStore } from '@/stores/ui-store'
+import { CelebrationPanel } from '@/components/gamification/celebration-panel'
+import { Shell412 } from '@/components/shell/shell-412'
+
+const TestRenderer = require('react-test-renderer')
+const motion = vi.hoisted(() => ({ reduced: true }))
+const selectPlural = vi.hoisted(() => vi.fn((text: string) => `selected:${text}`))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string, values?: Record<string, unknown>) => `${key}:${JSON.stringify(values ?? {})}` }),
+}))
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
+}))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+}))
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/motion')>()),
+  usePrefersReducedMotion: () => motion.reduced,
+}))
+vi.mock('@/lib/plural', () => ({ plural: selectPlural }))
+
+describe('CelebrationPanel mobile', () => {
+  beforeEach(() => {
+    motion.reduced = true
+    selectPlural.mockClear()
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  })
+
+  it('keeps the full neutral panel, screen, and composer available when motion is disabled', () => {
+    useUIStore.getState().enqueueCelebration('all-done', { count: 1 })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412
+          notice={<CelebrationPanel />}
+          composer={<View testID="astra-composer" />}
+          tabBar={<View testID="tab-bar" />}
+        >
+          <View testID="habit-list" />
+        </Shell412>,
+      )
+    })
+
+    expect(tree!.root.findByProps({ testID: 'celebration-panel' })).toBeTruthy()
+    expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'celebration-panel' }).props.style).marginHorizontal ?? 0).toBe(0)
+    expect(tree!.root.findByProps({ testID: 'celebration-ring' })).toBeTruthy()
+    expect(tree!.root.findAllByProps({ testID: 'celebration-ring-travel' })).toHaveLength(0)
+    expect(tree!.root.findAllByProps({ accessibilityViewIsModal: true })).toHaveLength(0)
+    expect(tree!.root.findByProps({ testID: 'shell-background' }).props.importantForAccessibility).toBe('auto')
+    expect(tree!.root.findByProps({ testID: 'shell-scroller' }).findByProps({ testID: 'habit-list' })).toBeTruthy()
+    expect(tree!.root.findByProps({ testID: 'shell-pinned-slot' }).findByProps({ testID: 'astra-composer' })).toBeTruthy()
+    expect(selectPlural).toHaveBeenCalledWith('celebration.day.line:{"count":1}', 1)
+    expect(JSON.stringify(tree!.toJSON())).toContain('selected:celebration.day.line')
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('renders the goal unit and uses a complete sentence when the unit is empty', () => {
+    useUIStore.getState().enqueueCelebration('goal-completed', {
+      name: 'Distance',
+      count: 5,
+      unit: 'km',
+    })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CelebrationPanel />)
+    })
+    expect(JSON.stringify(tree!.toJSON())).toContain(
+      'celebration.goal.line:{\\"name\\":\\"Distance\\",\\"count\\":5,\\"unit\\":\\"km\\"}',
+    )
+
+    TestRenderer.act(() => {
+      useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+      useUIStore.getState().enqueueCelebration('goal-completed', {
+        name: 'Untitled target',
+        count: 1,
+        unit: '',
+      })
+    })
+    expect(JSON.stringify(tree!.toJSON())).toContain(
+      'celebration.goal.lineWithoutUnit:{\\"name\\":\\"Untitled target\\",\\"count\\":1}',
+    )
+    TestRenderer.act(() => tree!.unmount())
+  })
+})
+
+
+describe('daily streak presentation', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('shows the new number statically with reduced motion and dismisses itself', () => {
+    vi.useFakeTimers()
+    motion.reduced = true
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
+    const moment = tree!.root.findByProps({ testID: 'daily-streak-moment' })
+    expect(moment.props['data-motion']).toBe('static')
+    expect(tree!.root.findByProps({ testID: 'daily-streak-number' }).props.children).toBe(5)
+    expect(tree!.root.findAllByProps({ testID: 'daily-streak-previous' })).toHaveLength(0)
+    TestRenderer.act(() => vi.advanceTimersByTime(2500))
+    expect(tree!.root.findAllByProps({ testID: 'daily-streak-moment' })).toHaveLength(0)
+    TestRenderer.act(() => tree!.unmount())
+  })
+})
+
+
+it('keeps the daily moment while its close button has focus', () => {
+  vi.useFakeTimers()
+  motion.reduced = true
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
+  const close = tree!.root.findAllByProps({ accessibilityLabel: 'celebration.close:{}' }).at(-1)!
+  TestRenderer.act(() => close.props.onFocus())
+  TestRenderer.act(() => vi.advanceTimersByTime(5000))
+  expect(tree!.root.findAllByProps({ testID: 'daily-streak-moment' }).length).toBeGreaterThan(0)
+  TestRenderer.act(() => close.props.onBlur())
+  TestRenderer.act(() => vi.advanceTimersByTime(2500))
+  expect(tree!.root.findAllByProps({ testID: 'daily-streak-moment' })).toHaveLength(0)
+  TestRenderer.act(() => tree!.unmount())
+  vi.useRealTimers()
+})
+
+
+it('mounts an empty daily announcement before publishing the final streak', () => {
+  vi.useFakeTimers()
+  motion.reduced = true
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
+  const announcement = tree!.root.findByProps({ testID: 'daily-streak-announcement' })
+  expect(announcement.props.children).toBe('')
+  TestRenderer.act(() => vi.advanceTimersByTime(0))
+  expect(announcement.props.children).toBe('selected:streakDisplay.badge.tooltip:{"count":5}')
+  TestRenderer.act(() => tree!.unmount())
+  vi.useRealTimers()
+})
+
+
+it('animates one daily change and leaves the next queued fact available after timeout', () => {
+  vi.useFakeTimers()
+  motion.reduced = false
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+  useUIStore.getState().enqueueCelebration('level-up', { level: 2 })
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
+  expect(tree!.root.findByProps({ testID: 'daily-streak-moment' }).props['data-motion']).toBe('animated')
+  expect(tree!.root.findByProps({ testID: 'daily-streak-previous' }).props.children).toBe(4)
+  TestRenderer.act(() => vi.advanceTimersByTime(2500))
+  expect(tree!.root.findAllByProps({ testID: 'daily-streak-moment' })).toHaveLength(0)
+  expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
+  TestRenderer.act(() => vi.advanceTimersByTime(5000))
+  expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
+  TestRenderer.act(() => tree!.unmount())
+  vi.useRealTimers()
+})

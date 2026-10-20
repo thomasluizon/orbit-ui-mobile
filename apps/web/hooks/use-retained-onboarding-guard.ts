@@ -1,54 +1,21 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import {
-  canSnapshotOnboardingEntry,
-  resolveRetainedOnboarding,
-} from '@orbit/shared/utils'
+import { useCallback } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { Profile } from '@orbit/shared/types/profile'
-import { completeOnboarding } from '@/lib/actions/profile'
-import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
-import { reportsAccountChanged } from '@/app/actions/action-result'
-import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
-import { useProfile } from '@/hooks/use-profile'
 
 export function useRetainedOnboardingGuard(
   profile: Profile | null | undefined,
   suppressed: boolean,
+  forceShow = false,
 ): boolean {
-  const { patchProfile } = useProfile()
-  const { count, isLoaded } = useHabitCountLoaded()
-  const [hadHabitsAtEntry, setHadHabitsAtEntry] = useState<boolean | null>(null)
-  const autoCompletedRef = useRef(false)
+  return forceShow || (!suppressed && profile?.hasCompletedOnboarding === false)
+}
 
-  if (
-    hadHabitsAtEntry === null &&
-    canSnapshotOnboardingEntry({
-      hasCompletedOnboarding: profile?.hasCompletedOnboarding,
-      suppressed,
-      habitCountLoaded: isLoaded,
-    })
-  ) {
-    setHadHabitsAtEntry(count > 0)
-  }
-
-  const action = resolveRetainedOnboarding({
-    hasCompletedOnboarding: profile?.hasCompletedOnboarding,
-    hadHabitsAtEntry,
-  })
-
-  useEffect(() => {
-    if (action !== 'autocomplete' || autoCompletedRef.current) return
-    autoCompletedRef.current = true
-    const intent = captureAccountIntent()
-    void intent.run(() => completeOnboarding())
-      .then(() => {
-        if (intent.stillCurrent()) patchProfile({ hasCompletedOnboarding: true })
-      })
-      .catch((error: unknown) => {
-        if (reportsAccountChanged(error)) reportAccountChanged()
-      })
-  }, [action, patchProfile])
-
-  return action === 'show'
+/** Owns the source overlay until its explicit exit, independently of durable completion. */
+export function useRetainedOnboardingSession(required: boolean) {
+  const [status, setStatus] = useAccountScopedState<'waiting' | 'open' | 'closed'>(required ? 'open' : 'waiting')
+  if (status === 'waiting' && required) setStatus('open')
+  const dismiss = useCallback(() => setStatus('closed'), [setStatus])
+  return { open: status === 'open' || (status === 'waiting' && required), dismiss }
 }

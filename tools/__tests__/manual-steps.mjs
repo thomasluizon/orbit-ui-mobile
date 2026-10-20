@@ -4,10 +4,6 @@ const { extractManualSteps, renderManualSteps } = await import("../lib/manual-st
 
 const TOOL = "lib/manual-steps.mjs"
 
-/**
- * orbit-tickets#81's real Rollout section, verbatim, plus the two lines elsewhere in that body which
- * it is the fixture the whole library exists to answer.
- */
 const POSTHOG = `## Scope
 
 * US host \`https://us.i.posthog.com\`. Project API key read from configuration (\`PostHog:ApiKey\`, supplied as a Render env var). Absent key = the registration binds a no-op capture implementation.
@@ -37,7 +33,7 @@ export const cases = () => {
 
   T(`${TOOL}: the rollout section yields the two steps that leave the repository`, posthog.steps.length === 2, JSON.stringify(posthog.steps.map((step) => step.action)))
   T(
-    `${TOOL}: "merge" is the harness's job and never becomes one of Alex's steps`,
+    `${TOOL}: "merge" is the harness's job and never becomes one of the owner's steps`,
     posthog.steps.every((step) => !/^merge$/i.test(step.action)),
     JSON.stringify(posthog.steps.map((step) => step.action)),
   )
@@ -60,7 +56,7 @@ export const cases = () => {
 
   /**
    * The `:` to `__` rewrite is .NET behaviour, so it applies to the .NET repo and nowhere else.
-   * Applying it to a ui ticket would hand Alex an env var name nothing reads.
+   * Applying it to a ui ticket would hand the owner an env var name nothing reads.
    */
   const uiKey = renderManualSteps(extractManualSteps(POSTHOG, { repo: "ui" })) ?? ""
   T(`${TOOL}: the .NET env var mapping is not applied to a non-.NET repo`, !/PostHog__ApiKey/.test(uiKey) && /Key: `PostHog:ApiKey`/.test(uiKey), uiKey)
@@ -87,12 +83,6 @@ export const cases = () => {
   const excluded = extractManualSteps("## Out of scope\n\n### Rollout\n\n* Set the key in the Render env.\n", { repo: "api" })
   T(`${TOOL}: a rollout heading nested under Out of scope is excluded with its parent`, excluded.steps.length === 0, JSON.stringify(excluded.steps))
 
-  /**
-   * A standalone `## Kill switch` section. Its bullets start straight in on the action with no label
-   * to strip, so they read as outstanding steps and the renderer expanded "Remove the key" into
-   * "Click + Add Environment Variable": the exact opposite of the ticket's intent. Reproduced before
-   * the fix, on PR #709.
-   */
   const standalone = extractManualSteps(
     "## Rollout\n\n* Set `PostHog:ApiKey` in the Render env.\n\n## Kill switch\n\n* Remove `PostHog:ApiKey` from the Render env.\n",
     { repo: "api" },

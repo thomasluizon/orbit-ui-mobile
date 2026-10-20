@@ -1,4 +1,3 @@
-
 const { collectStaticStrings, collectStyleProperties, getAttribute, getAttributeValueNode, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const CLIP_TEXT_CLASS_RE = /(?:^|\s|:)(?:bg-clip-text|\[background-clip:text\])(?:\s|$)/

@@ -1,51 +1,76 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { StyleSheet, View } from 'react-native'
 import { useWatch } from 'react-hook-form'
-import { Check } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
-  applySuggestionEmoji,
   applySuggestionSchedule,
 } from './create-habit-modal/apply-suggestion'
-import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
+import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
 import { useAssignTags } from '@/hooks/use-tags'
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
+  applyHabitEmojiSuggestion,
   buildHabitFormPatchFromSuggestion,
+  EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
+  createHabitFormSuggestionRevision,
   extractBackendErrorCode,
   getFriendlyErrorMessage,
+  getHabitDisplayStartDate,
+  hasHabitFormProposal,
+  rebaseSelectedIds,
   toggleSelectedId,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
 import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
 import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
-import { createTokensV2 } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
 
 interface EditHabitModalProps {
   open: boolean
   onClose: () => void
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
+  relationshipFieldsLoaded?: boolean
   /** The habit's parent's `isGeneral`, when it has a parent, from the caller's loaded habit map. */
   parentIsGeneral?: boolean | null
+}
+
+function hasEditHabitChanges({
+  formDirty,
+  selectedTagIds,
+  selectedGoalIds,
+  reminderTimes,
+  initialTagIds,
+  initialGoalIds,
+  initialReminderTimes,
+}: Readonly<{
+  formDirty: boolean
+  selectedTagIds: string[]
+  selectedGoalIds: string[]
+  reminderTimes: number[]
+  initialTagIds: string
+  initialGoalIds: string
+  initialReminderTimes: string
+}>): boolean {
+  const tagSnapshot = JSON.stringify([...selectedTagIds].sort((a, b) => a.localeCompare(b)))
+  const goalSnapshot = JSON.stringify([...selectedGoalIds].sort((a, b) => a.localeCompare(b)))
+  return formDirty || tagSnapshot !== initialTagIds || goalSnapshot !== initialGoalIds ||
+    JSON.stringify(reminderTimes) !== initialReminderTimes
 }
 
 export function EditHabitModal({
@@ -53,6 +78,7 @@ export function EditHabitModal({
   onClose,
   habit,
   onSaved,
+  relationshipFieldsLoaded = true,
   parentIsGeneral = null,
 }: Readonly<EditHabitModalProps>) {
   const { t, i18n } = useTranslation()
@@ -60,18 +86,48 @@ export function EditHabitModal({
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
   )
-  const insets = useSafeAreaInsets()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = useMemo(() => createStyles(insets.bottom), [insets.bottom])
+  const styles = useMemo(() => createStyles(), [])
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
   const suggestion = useHabitSuggestion()
-  const emojiSuggestion = useHabitSuggestion()
+  const [isEmojiSuggesting, setIsEmojiSuggesting] = useState(false)
+  const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean; habitId: string | null } | null>(null)
   const { showError, showSuccess, showInfo } = useAppToast()
 
   const formHelpers = useHabitForm()
+  const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
+  const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
+  const watchedTitle = coalesceFormText(
+    useWatch({
+      control: formHelpers.form.control,
+      name: 'title',
+    }),
+  )
   const tags = useTagSelection()
+  const relationshipFieldsTouchedRef = useRef({
+    goalIds: false,
+    tagIds: false,
+    slipAlertEnabled: false,
+  })
+  const trackedTags = useMemo(() => ({
+    ...tags,
+    toggleTag: (tagId: string) => {
+      relationshipFieldsTouchedRef.current.tagIds = true
+      tags.toggleTag(tagId)
+    },
+    createAndSelectTag: async (...args: Parameters<typeof tags.createAndSelectTag>) => {
+      relationshipFieldsTouchedRef.current.tagIds = true
+      await tags.createAndSelectTag(...args)
+    },
+    acceptSuggestedTag: async (...args: Parameters<typeof tags.acceptSuggestedTag>) => {
+      relationshipFieldsTouchedRef.current.tagIds = true
+      await tags.acceptSuggestedTag(...args)
+    },
+    deleteTag: async (...args: Parameters<typeof tags.deleteTag>) => {
+      relationshipFieldsTouchedRef.current.tagIds = true
+      await tags.deleteTag(...args)
+    },
+  }), [tags])
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [originalEndDate, setOriginalEndDate] = useState('')
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
@@ -79,29 +135,37 @@ export function EditHabitModal({
   const [initialTagIds, setInitialTagIds] = useState('[]')
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
-  const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
+  const relationshipFieldsHydratedRef = useRef(false)
+  const relationshipSelectionBaselineRef = useRef({ goalIds: [] as string[], tagIds: [] as string[] })
+  const relationshipSessionHabitIdRef = useRef<string | null>(null)
+  const previousRelationshipFieldsLoadedRef = useRef(relationshipFieldsLoaded)
+  const previousSessionRef = useRef<{
+    habitId: string | null
+    detailId: string | null
+  }>({ habitId: null, detailId: null })
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
-  const isDirty =
-    formHelpers.form.formState.isDirty ||
-    JSON.stringify(
-      [...tags.selectedTagIds].sort((left, right) => left.localeCompare(right)),
-    ) !== initialTagIds ||
-    JSON.stringify(
-      [...selectedGoalIds].sort((left, right) => left.localeCompare(right)),
-    ) !== initialGoalIds ||
-    JSON.stringify(reminderTimes) !== initialReminderTimes
+  const isDirty = hasEditHabitChanges({
+    formDirty: formHelpers.form.formState.isDirty,
+    selectedTagIds: tags.selectedTagIds,
+    selectedGoalIds,
+    reminderTimes,
+    initialTagIds,
+    initialGoalIds,
+    initialReminderTimes,
+  })
+  const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: onClose,
+    onDismiss: () => closeSheet(onClose),
   })
   const router = useRouter()
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
-
   const navigateToUpgrade = useCallback(() => {
-    scheduleExitAction(() => router.push('/upgrade'))
-    onClose()
-  }, [onClose, router, scheduleExitAction])
+    closeSheet(() => {
+      onClose()
+      router.push('/upgrade')
+    })
+  }, [closeSheet, onClose, router])
 
   const {
     data: habitDetail,
@@ -113,8 +177,14 @@ export function EditHabitModal({
   const lockedGeneral = childrenIsGeneral ?? parentIsGeneral ?? null
 
   const toggleGoal = useCallback((goalId: string) => {
+    relationshipFieldsTouchedRef.current.goalIds = true
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
+
+  const handleSlipAlertEnabledChange = useCallback((nextEnabled: boolean) => {
+    relationshipFieldsTouchedRef.current.slipAlertEnabled = true
+    formHelpers.form.setValue('slipAlertEnabled', nextEnabled, { shouldDirty: true })
+  }, [formHelpers.form])
 
   const handleBufferedInputsReady = useCallback((flush: () => void) => {
     flushBufferedInputsRef.current = flush
@@ -134,46 +204,106 @@ export function EditHabitModal({
   }, [detailError, showError, translate])
 
   const sessionHabitId = open && habit ? habit.id : null
+  useLayoutEffect(() => {
+    suggestionRevision.advance()
+  }, [sessionHabitId, suggestionRevision])
+  useEffect(() => {
+    suggestionRequests.updateContext(sessionHabitId, watchedTitle)
+  }, [sessionHabitId, suggestionRequests, watchedTitle])
+  useEffect(
+    () => () => suggestionRequests.updateContext(null, ''),
+    [suggestionRequests],
+  )
   const sessionDetailId = habitDetail?.id ?? null
-  const [previousSession, setPreviousSession] = useState<{
-    habitId: string | null
-    detailId: string | null
-  }>({ habitId: null, detailId: null })
-  if (
-    sessionHabitId !== previousSession.habitId ||
-    sessionDetailId !== previousSession.detailId
-  ) {
-    const habitChanged = sessionHabitId !== previousSession.habitId
-    setPreviousSession({ habitId: sessionHabitId, detailId: sessionDetailId })
-    if (open && habit && (habitChanged || !formHelpers.form.formState.isDirty)) {
-      const prefill = buildEditHabitFormState(habit, habitDetail)
-      formHelpers.form.reset(prefill.formValues)
-      setOriginalEndDate(prefill.originalEndDate)
-      setReminderTimes(prefill.reminderTimes)
-      tags.resetTags(prefill.selectedTagIds)
-      setSelectedGoalIds(prefill.selectedGoalIds)
-      setInitialTagIds(
-        JSON.stringify(
-          [...prefill.selectedTagIds].sort((left, right) =>
-            left.localeCompare(right),
-          ),
-        ),
-      )
-      setInitialGoalIds(
-        JSON.stringify(
-          [...prefill.selectedGoalIds].sort((left, right) =>
-            left.localeCompare(right),
-          ),
-        ),
-      )
-      setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
-      applyHabitFormMode(prefill.mode, formHelpers)
+  useLayoutEffect(() => {
+    if (sessionHabitId !== relationshipSessionHabitIdRef.current) {
+      relationshipSessionHabitIdRef.current = sessionHabitId
+      previousRelationshipFieldsLoadedRef.current = relationshipFieldsLoaded
+      relationshipFieldsTouchedRef.current = {
+        goalIds: false,
+        tagIds: false,
+        slipAlertEnabled: false,
+      }
+      relationshipSelectionBaselineRef.current = { goalIds: [], tagIds: [] }
+      return
     }
-  }
+
+    const relationshipAuthorityArrived =
+      !previousRelationshipFieldsLoadedRef.current && relationshipFieldsLoaded
+    previousRelationshipFieldsLoadedRef.current = relationshipFieldsLoaded
+    if (!relationshipAuthorityArrived || !open || !habit) return
+
+    const prefill = buildEditHabitFormState(habit, habitDetail)
+    const touched = relationshipFieldsTouchedRef.current
+    const baseline = relationshipSelectionBaselineRef.current
+    const authoritativeTagIds = prefill.selectedTagIds
+    const authoritativeGoalIds = prefill.selectedGoalIds
+    const rebasedTagIds = touched.tagIds
+      ? rebaseSelectedIds(authoritativeTagIds, baseline.tagIds, tags.selectedTagIds)
+      : authoritativeTagIds
+    tags.resetTags(rebasedTagIds)
+    setSelectedGoalIds((currentGoalIds) => {
+      if (!touched.goalIds) return authoritativeGoalIds
+      return rebaseSelectedIds(authoritativeGoalIds, baseline.goalIds, currentGoalIds)
+    })
+    setInitialTagIds(JSON.stringify([...authoritativeTagIds].sort((a, b) => a.localeCompare(b))))
+    setInitialGoalIds(JSON.stringify([...authoritativeGoalIds].sort((a, b) => a.localeCompare(b))))
+    relationshipSelectionBaselineRef.current = {
+      goalIds: authoritativeGoalIds,
+      tagIds: authoritativeTagIds,
+    }
+    if (!touched.slipAlertEnabled) {
+      formHelpers.form.resetField('slipAlertEnabled', {
+        defaultValue: prefill.formValues.slipAlertEnabled,
+      })
+    }
+    relationshipFieldsHydratedRef.current = true
+  }, [formHelpers.form, habit, habitDetail, open, relationshipFieldsLoaded, sessionHabitId, tags])
+
+  useEffect(() => {
+    const previousSession = previousSessionRef.current
+    if (
+      sessionHabitId === previousSession.habitId &&
+      sessionDetailId === previousSession.detailId
+    ) return
+
+    const habitChanged = sessionHabitId !== previousSession.habitId
+    previousSessionRef.current = { habitId: sessionHabitId, detailId: sessionDetailId }
+    if (!open || !habit) return
+    if (!habitChanged && formHelpers.form.formState.isDirty) return
+
+    const prefill = buildEditHabitFormState(habit, habitDetail)
+    const touched = relationshipFieldsTouchedRef.current
+    const formValues = touched.slipAlertEnabled
+      ? {
+          ...prefill.formValues,
+          slipAlertEnabled: formHelpers.form.getValues('slipAlertEnabled'),
+        }
+      : prefill.formValues
+    if (habitChanged) { setEmojiFailure(null); formHelpers.clearBackendErrors() }
+    formHelpers.form.reset(formValues)
+    setOriginalEndDate(prefill.originalEndDate)
+    setReminderTimes(prefill.reminderTimes)
+    if (!touched.tagIds) {
+      tags.resetTags(prefill.selectedTagIds)
+      relationshipSelectionBaselineRef.current.tagIds = prefill.selectedTagIds
+      setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort((a, b) => a.localeCompare(b))))
+    }
+    if (!touched.goalIds) {
+      setSelectedGoalIds(prefill.selectedGoalIds)
+      relationshipSelectionBaselineRef.current.goalIds = prefill.selectedGoalIds
+      setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort((a, b) => a.localeCompare(b))))
+    }
+    setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+    relationshipFieldsHydratedRef.current = relationshipFieldsLoaded
+    applyHabitFormMode(prefill.mode, formHelpers)
+  }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags])
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return
     flushBufferedInputsRef.current()
+    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+
     const error = formHelpers.validateAll({
       reminderTimes,
       selectedGoalIds,
@@ -192,16 +322,25 @@ export function EditHabitModal({
       reminderTimes,
       selectedGoalIds,
     )
+    const goalIdsChanged = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds
+    const tagIdsChanged = JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds
+    const slipAlertChanged = !!formHelpers.form.formState.dirtyFields.slipAlertEnabled
+
+    if (!relationshipFieldsHydratedRef.current && !goalIdsChanged) delete request.goalIds
+    if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
 
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-      await assignTags.mutateAsync({
-        habitId: habit.id,
-        tagIds: tags.selectedTagIds,
-      })
-      onClose()
+      if (relationshipFieldsHydratedRef.current || tagIdsChanged) {
+        await assignTags.mutateAsync({
+          habitId: habit.id,
+          tagIds: tags.selectedTagIds,
+        })
+      }
+      closeSheet(onClose)
       await onSaved?.()
     } catch (error: unknown) {
+      if (formHelpers.reportBackendErrors(error)) return
       showError(
         getFriendlyErrorMessage(
           error,
@@ -214,142 +353,144 @@ export function EditHabitModal({
   }, [
     habit,
     formHelpers,
+    initialGoalIds,
+    initialTagIds,
     originalEndDate,
     selectedGoalIds,
     reminderTimes,
     tags,
     updateHabit,
     assignTags,
+    closeSheet,
     onClose,
     onSaved,
     showError,
     translate,
   ])
 
-  const watchedTitle = coalesceFormText(
-    useWatch({
-      control: formHelpers.form.control,
-      name: 'title',
-    }),
-  )
-  const suggestionSessionKey = open && habit ? `edit:${habit.id}` : null
-
-  useEffect(() => {
-    suggestionRequests.updateContext(suggestionSessionKey, watchedTitle)
-  }, [suggestionRequests, suggestionSessionKey, watchedTitle])
-
-  useEffect(
-    () => () => suggestionRequests.updateContext(null, ''),
-    [suggestionRequests],
-  )
+  const handleSuggestEmoji = useCallback(async () => {
+    flushBufferedInputsRef.current()
+    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
+    const title = currentTitle.trim()
+    if (!title) return EMPTY_HABIT_FORM_PROPOSAL
+    suggestionRequests.updateContext(sessionHabitId, currentTitle)
+    const request = suggestionRequests.begin()
+    if (!request) return null
+    const requestRevision = suggestionRevision.advance()
+    setIsEmojiSuggesting(true)
+    setEmojiFailure(null)
+    const isCurrent = () => suggestionRevision.isCurrent(requestRevision) && suggestionRequests.isCurrent(
+      request, coalesceFormText(formHelpers.form.getValues('title')),
+    )
+    try {
+      const response = await suggestion.mutateAsync({ title, language: i18n.language })
+      if (!isCurrent()) return null
+      const patch = buildHabitFormPatchFromSuggestion(response)
+      const appliedEmoji = applyHabitEmojiSuggestion(patch.emoji, formHelpers.form.getValues('emoji'), (emoji) => {
+        formHelpers.form.setValue('emoji', emoji, { shouldDirty: true })
+      })
+      if (appliedEmoji) showSuccess(t('habits.form.aiSuggestApplied'))
+      else showInfo(t('habits.form.aiSuggestEmpty'))
+      return { ...EMPTY_HABIT_FORM_PROPOSAL, setup: appliedEmoji }
+    } catch (error: unknown) {
+      if (!isCurrent()) return null
+      const atLimit = extractBackendErrorCode(error) === 'PAY_GATE'
+      const message = atLimit ? t('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
+      setEmojiFailure({ title: currentTitle, message, atLimit, habitId: sessionHabitId })
+      showError(message)
+      return EMPTY_HABIT_FORM_PROPOSAL
+    } finally {
+      suggestionRequests.finish()
+      setIsEmojiSuggesting(false)
+    }
+  }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
     const title = currentTitle.trim()
-    if (title.length === 0) return
-    suggestionRequests.updateContext(suggestionSessionKey, currentTitle)
+    if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
+    suggestionRequests.updateContext(sessionHabitId, currentTitle)
     const request = suggestionRequests.begin()
-    if (!request) return
+    if (!request) return null
+    const requestRevision = suggestionRevision.advance()
 
     try {
       const response = await suggestion.mutateAsync({ title, language: i18n.language })
-      if (!suggestionRequests.isCurrent(
+      if (!suggestionRevision.isCurrent(requestRevision) || !suggestionRequests.isCurrent(
         request,
         coalesceFormText(formHelpers.form.getValues('title')),
-      )) return
-      const patch = buildHabitFormPatchFromSuggestion(response)
+      )) return null
+      const patch = buildHabitFormPatchFromSuggestion(
+        response,
+      )
 
-      applySuggestionSchedule(patch, formHelpers)
+      const appliedSetup = applySuggestionSchedule(patch, formHelpers)
 
-      const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
+      const appliedChecklistItems = applySuggestionChecklist(patch, formHelpers.form)
+      const appliedChecklist = appliedChecklistItems > 0
 
-      const appliedAnything =
-        patch.emoji !== null ||
-        patch.frequencyUnit !== null ||
-        patch.days.length > 0 ||
-        patch.dueTime !== null ||
-        appliedChecklist
+      const proposal = {
+        setup: appliedSetup,
+        checklist: appliedChecklist,
+        subHabits: false,
+        checklistItems: appliedChecklistItems,
+        subHabitItems: 0,
+      }
+      const appliedAnything = hasHabitFormProposal(proposal)
       if (appliedAnything) {
         showSuccess(t('habits.form.aiSuggestApplied'))
       } else {
         showInfo(t('habits.form.aiSuggestEmpty'))
       }
+      return proposal
     } catch (error: unknown) {
-      if (!suggestionRequests.isCurrent(
+      if (!suggestionRevision.isCurrent(requestRevision) || !suggestionRequests.isCurrent(
         request,
         coalesceFormText(formHelpers.form.getValues('title')),
-      )) return
+      )) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
+      return EMPTY_HABIT_FORM_PROPOSAL
     } finally {
       suggestionRequests.finish()
     }
-  }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionSessionKey, t])
+  }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
-  const handleSuggestEmoji = useCallback(async () => {
-    flushBufferedInputsRef.current()
-    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
-    const title = currentTitle.trim()
-    if (title.length === 0) return
-    suggestionRequests.updateContext(suggestionSessionKey, currentTitle)
-    const request = suggestionRequests.begin()
-    if (!request) return
-
-    try {
-      const response = await emojiSuggestion.mutateAsync({ title, language: i18n.language })
-      if (!suggestionRequests.isCurrent(
-        request,
-        coalesceFormText(formHelpers.form.getValues('title')),
-      )) return
-      const patch = buildHabitFormPatchFromSuggestion(response)
-      if (applySuggestionEmoji(patch, formHelpers.form)) {
-        showSuccess(t('habits.form.aiSuggestApplied'))
-      } else {
-        showInfo(t('habits.form.aiSuggestEmpty'))
-      }
-    } catch (error: unknown) {
-      if (!suggestionRequests.isCurrent(
-        request,
-        coalesceFormText(formHelpers.form.getValues('title')),
-      )) return
-      showError(
-        extractBackendErrorCode(error) === 'PAY_GATE'
-          ? t('habits.form.aiSuggestLimitReached')
-          : t('habits.form.aiSuggestError'),
-      )
-    } finally {
-      suggestionRequests.finish()
-    }
-  }, [emojiSuggestion, formHelpers, i18n.language, showError, showInfo, showSuccess, suggestionRequests, suggestionSessionKey, t])
-
-  const submitDisabled =
-    updateHabit.isPending ||
-    detailFieldsPending ||
-    watchedTitle.trim().length === 0
 
   return (
     <>
-      <BottomSheetModal
-        open={open}
-        onClose={onClose}
-        onDidDismiss={runExitAction}
-        title={t('habits.editHabit')}
-        snapPoints={['80%', '95%']}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
-        contentManagesScroll
+        title={t('habits.editHabit')}
+        actions={(
+          <ActionRow>
+            <PillButton
+              size="sm"
+              variant="ghost"
+              disabled={updateHabit.isPending}
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              size="sm"
+              disabled={detailFieldsPending}
+              loading={updateHabit.isPending || assignTags.isPending}
+              onClick={() => void handleSubmit()}
+            >
+              {t('common.save')}
+            </PillButton>
+          </ActionRow>
+        )}
       >
-        <KeyboardAwareBottomSheetScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
-        >
+        <View style={styles.scrollContent}>
           <View
             pointerEvents={detailFieldsPending ? 'none' : 'auto'}
             style={detailFieldsPending ? styles.fieldsPending : null}
@@ -357,86 +498,45 @@ export function EditHabitModal({
           >
             <HabitFormFields
               formHelpers={formHelpers}
-              tags={tags}
+              tags={trackedTags}
               selectedGoalIds={selectedGoalIds}
               atGoalLimit={atGoalLimit}
               onToggleGoal={toggleGoal}
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
+              onSlipAlertEnabledChange={handleSlipAlertEnabledChange}
+              onSuggestionContextChange={suggestionRevision.advance}
               onFlushBufferedInputsReady={handleBufferedInputsReady}
-              onSuggestSetup={() => void handleSuggest()}
-              onSuggestEmoji={() => void handleSuggestEmoji()}
+              onSuggestSetup={handleSuggest}
+              onSuggestEmoji={handleSuggestEmoji}
+              isEmojiSuggesting={isEmojiSuggesting}
+              emojiSuggestionError={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined}
+              emojiSuggestionLimitReached={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && emojiFailure.atLimit}
               isSuggesting={suggestion.isPending}
-              isSuggestingEmoji={emojiSuggestion.isPending}
               defaultExpanded={true}
               lockedGeneral={lockedGeneral}
               onUpgrade={navigateToUpgrade}
+              startDate={habit && getHabitDisplayStartDate(habit)}
             />
           </View>
-        </KeyboardAwareBottomSheetScrollView>
-
-        <View style={styles.footer}>
-          <PillButton
-            variant="ghost"
-            disabled={updateHabit.isPending}
-            onPress={dismissGuard.requestDismiss}
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-            glow={false}
-            disabled={submitDisabled}
-            onPress={() => void handleSubmit()}
-            leading={
-              updateHabit.isPending ? (
-                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-              ) : (
-                <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-              )
-            }
-          >
-            {t('common.save')}
-          </PillButton>
         </View>
-      </BottomSheetModal>
-      <ConfirmDialog
+      </Sheet>) : null}
+      <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
     </>
   )
 }
 
-function createStyles(bottomInset: number) {
+function createStyles() {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     scrollContent: {
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-      gap: 20,
+      gap: 24,
     },
     fieldsPending: {
       opacity: 0.6,
-    },
-    footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      gap: 12,
-      paddingTop: 16,
-      paddingHorizontal: 20,
-      paddingBottom: Math.max(bottomInset + 12, 28),
     },
   })
 }

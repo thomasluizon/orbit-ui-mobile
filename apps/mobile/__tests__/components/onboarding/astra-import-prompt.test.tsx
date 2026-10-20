@@ -1,10 +1,14 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { useUIStore } from '@/stores/ui-store'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
+const renderedTrees: any[] = []
 
 const mocks = vi.hoisted(() => ({
   profile: undefined as Record<string, unknown> | undefined,
@@ -21,7 +25,7 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { setItem: vi.fn(() => Promise.resolve(undefined)), getItem: vi.fn(() => Promise.resolve(null)) },
+  default: { setItem: vi.fn(async () => { await Promise.resolve(); return undefined; }), getItem: vi.fn(async () => { await Promise.resolve(); return null; }) },
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -35,7 +39,7 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
-  performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
+  performQueuedApiMutation: vi.fn(async () => { await Promise.resolve(); return undefined; }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -46,22 +50,27 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? React.createElement('Sheet', null, children) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('PillButton', null, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButton', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
-function renderPrompt() {
-  let tree: { root: { findAllByType: (type: string) => unknown[] } } | null = null
-  TestRenderer.act(() => {
+async function renderPrompt() {
+  let tree: any = null
+  await TestRenderer.act(async () => {
     tree = TestRenderer.create(React.createElement(AstraImportPrompt))
+    await Promise.resolve()
   })
+  renderedTrees.push(tree)
   return tree!
+}
+
+function pressQuietAction(tree: any) {
+  const target = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
+  if (!target) throw new Error('Not now action not found')
+  TestRenderer.act(() => target.props.onClick())
 }
 
 function sheetCount(tree: { root: { findAllByType: (type: string) => unknown[] } }): number {
@@ -79,48 +88,112 @@ function baseProfile(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
-  useUIStore.setState({ openOverlayIds: [], showCreateModal: false, showCreateGoalModal: false })
   mocks.profile = undefined
   mocks.pathname = '/'
+  useUIStore.setState({ astraConversationOpen: false, openOverlayIds: [], showCreateModal: false })
+})
+afterEach(async () => {
+  await TestRenderer.act(async () => {
+    for (const tree of renderedTrees.splice(0)) tree.unmount()
+    await Promise.resolve()
+  })
 })
 
 describe('AstraImportPrompt gating', () => {
-  it('waits for the create modal to close', async () => {
+  it('waits while another sheet is open', async () => {
     mocks.profile = baseProfile()
-    useUIStore.getState().setShowCreateModal(true)
-    const tree = renderPrompt()
+    useUIStore.getState().registerOpenOverlay('already-open')
+    const tree = await renderPrompt()
     expect(sheetCount(tree)).toBe(0)
 
     await TestRenderer.act(async () => {
-      useUIStore.getState().setShowCreateModal(false)
+      useUIStore.getState().unregisterOpenOverlay('already-open')
       await Promise.resolve()
     })
     expect(sheetCount(tree)).toBe(1)
+    await TestRenderer.act(() => tree.unmount())
   })
-
-  it('shows the sheet once onboarding and the tour are both complete', () => {
+  it('shows the sheet once onboarding is complete', async () => {
     mocks.profile = baseProfile()
-    expect(sheetCount(renderPrompt())).toBe(1)
+    expect(sheetCount(await renderPrompt())).toBe(1)
   })
 
-  it('stays hidden while the tour is still running (hasCompletedTour false)', () => {
+  it('centres its copy and uses a ghost pill to dismiss', async () => {
+    mocks.profile = baseProfile()
+    const tree = await renderPrompt()
+    const quiet = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
+    const description = tree.root.findAll((node: any) => node.type === 'Text' && node.props.children === 'onboarding.wizard.importDescription')[0]
+
+    expect(quiet.props.variant).toBe('ghost')
+    expect(StyleSheet.flatten(description.props.style).textAlign).toBe('center')
+  })
+
+  it('leaves the body outer inset to the sheet primitive', async () => {
+    mocks.profile = baseProfile()
+    const tree = await renderPrompt()
+    const body = tree.root.findByType('SheetBody')
+    const caller = body.findByType('View')
+    const style = StyleSheet.flatten(caller.props.style) ?? {}
+    expect(Object.entries(style).filter(([property]) => property.startsWith('padding'))).toEqual([])
+    expect(caller.findByType('Text').props.children).toBe('onboarding.wizard.importDescription')
+  })
+
+  it('pins Import and Not now in the sheet footer, never in the scrolling body', async () => {
+    mocks.profile = baseProfile()
+    const tree = await renderPrompt()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['onboarding.wizard.importNotNow', 'onboarding.wizard.importButton'])
+    expectSmallSheetActions(tree.root)
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('does not wait for the retired tour state', async () => {
     mocks.profile = baseProfile({ hasCompletedTour: false })
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(await renderPrompt())).toBe(1)
   })
 
-  it('stays hidden before onboarding completes', () => {
+  it('stays hidden before onboarding completes', async () => {
     mocks.profile = baseProfile({ hasCompletedOnboarding: false })
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(await renderPrompt())).toBe(0)
   })
 
-  it('stays hidden once the import prompt has been seen', () => {
+  it('stays hidden once the import prompt has been seen', async () => {
     mocks.profile = baseProfile({ hasSeenImportPrompt: true })
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(await renderPrompt())).toBe(0)
   })
 
-  it('stays hidden on the chat route', () => {
+  it('stays hidden while the conversation is open', async () => {
     mocks.profile = baseProfile()
-    mocks.pathname = '/chat'
-    expect(sheetCount(renderPrompt())).toBe(0)
+    useUIStore.getState().setAstraConversationOpen(true)
+    expect(sheetCount(await renderPrompt())).toBe(0)
+  })
+})
+
+/** Wait for TrueSheet dismissal before changing the state that unmounts it. */
+describe('AstraImportPrompt quiet dismissal', () => {
+  beforeEach(() => {
+    sheetTestControls.defer(true)
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
+  it('keeps the sheet mounted until the dismissal completes, then marks it seen', async () => {
+    mocks.profile = baseProfile()
+    const tree = await renderPrompt()
+    expect(sheetCount(tree)).toBe(1)
+
+    pressQuietAction(tree)
+
+    expect(sheetCount(tree)).toBe(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(sheetCount(tree)).toBe(0)
   })
 })

@@ -1,12 +1,16 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
+import { createHash } from "node:crypto"
 import { join } from "node:path"
+import { isDeepStrictEqual } from "node:util"
+import { cloudOrder } from "../lib/cloud-worker.mjs"
+import { UI_REVIEW_SWEEP_CONTRACT, renderUiReviewSweepContract } from "../lib/review-harness.mjs"
 
-import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, root, stage, stageWithConfig, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "compose-prompt.mjs"
 const REPO_PATH = join(root, "compose-prompt", "repo-ui")
-const API_PATH = join(root, "compose-prompt", "repo-api")
-const LANDING_PATH = join(root, "compose-prompt", "repo-landing")
+const API_REPO_PATH = join(root, "compose-prompt", "repo-api")
+const LANDING_REPO_PATH = join(root, "compose-prompt", "repo-landing")
 const projectItems = JSON.stringify({ items: [], totalCount: 0 })
 const ticket = (overrides = {}) => ({
   blockedBy: { nodes: [], totalCount: 0 },
@@ -31,18 +35,117 @@ const ticketPlan = (value = ticket(), comments = []) => [
 ]
 const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
+const reviewSweepContract = renderUiReviewSweepContract()
+const expectedReviewSweepContract = {
+  sourceFamilies: [
+    {
+      instruction: "Run `npx --yes ui-skills get <owner>/<name>` for each skill and verify a successful, non-empty fetch",
+      skills: [
+        "anthropics/frontend-design",
+        "jakubkrehel/make-interfaces-feel-better",
+        "emilkowalski/animation-vocabulary",
+        "raphaelsalaja/mastering-animate-presence",
+        "iart-ai/accessible-animation",
+        "ibelick/fixing-accessibility",
+        "wshobson/wcag-audit-patterns",
+      ],
+    },
+    {
+      instruction: "Use the GitHub Trees commands below and read every blob under each `skills/<name>/` directory",
+      skills: [
+        "better-ui",
+        "better-accessibility",
+        "better-layout",
+        "better-writing",
+        "better-typography",
+        "better-colors",
+        "interface-review",
+        "better-interface",
+      ],
+    },
+    {
+      instruction: "Fetch the Vercel guideline text from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`",
+      skills: [],
+    },
+  ],
+  lanes: [
+    {
+      name: "execution",
+      applicability: "mandatory",
+      skills: ["anthropics/frontend-design", "jakubkrehel/better-ui", "jakubkrehel/make-interfaces-feel-better"],
+    },
+    {
+      name: "motion",
+      applicability: "when the change animates",
+      notApplicable: "no changed animation",
+      skills: ["emilkowalski/animation-vocabulary", "raphaelsalaja/mastering-animate-presence", "iart-ai/accessible-animation"],
+    },
+    {
+      name: "gates",
+      applicability: "mandatory",
+      skills: ["the Vercel guideline text", "ibelick/fixing-accessibility", "wshobson/wcag-audit-patterns", "jakubkrehel/better-accessibility"],
+    },
+    {
+      name: "the change",
+      applicability: "mandatory",
+      evidence: ["interface-review", "better-interface"],
+      skills: [
+        "jakubkrehel/interface-review",
+        "jakubkrehel/better-interface in full mode",
+        "jakubkrehel/better-accessibility",
+        "jakubkrehel/better-layout",
+        "jakubkrehel/better-writing",
+        "jakubkrehel/better-typography",
+        "jakubkrehel/better-colors",
+        "jakubkrehel/better-ui",
+      ],
+    },
+  ],
+  closeGate: [
+    { name: "design-reviewer", instruction: "design-reviewer on the diff" },
+    { name: "completeness-critic", instruction: "completeness-critic against the surface inventory" },
+  ],
+}
+const requiredSourceEvidence = [
+  "npx --yes ui-skills get <owner>/<name>",
+  "repos/jakubkrehel/skills/git/trees/main?recursive=1",
+  "https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md",
+]
+const requiredLaneEvidence = ["execution", "motion", "gates", "the change"]
+const carriesCompleteReviewSweep = (text) =>
+  text.includes(reviewSweepContract) &&
+  UI_REVIEW_SWEEP_CONTRACT.sourceFamilies.length === 3 &&
+  UI_REVIEW_SWEEP_CONTRACT.lanes.length === 4 &&
+  UI_REVIEW_SWEEP_CONTRACT.closeGate.length === 2 &&
+  requiredSourceEvidence.every((evidence) => reviewSweepContract.includes(evidence)) &&
+  requiredLaneEvidence.every((lane) => UI_REVIEW_SWEEP_CONTRACT.lanes.some(({ name }) => name === lane)) &&
+  ["design-reviewer", "completeness-critic"].every((agent) => reviewSweepContract.includes(agent))
 
 export const cases = () => {
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
+  T(
+    `${TOOL}: the review sweep contract exactly matches the playbook inventory`,
+    isDeepStrictEqual(UI_REVIEW_SWEEP_CONTRACT, expectedReviewSweepContract),
+    JSON.stringify({ expected: expectedReviewSweepContract, actual: UI_REVIEW_SWEEP_CONTRACT }, null, 2),
+  )
   const real = realOrchestratorConfig()
-  const staged = stageWithConfig("compose-prompt", TOOL, { ...real, repos: { ui: REPO_PATH, api: API_PATH, landing: LANDING_PATH } })
+  T(`${TOOL}: review lanes stay in the worker session with exactly two close-gate sub-agents`,
+    /Run the four read-only lanes yourself, in this session, in order/.test(reviewSweepContract) &&
+      /Spawn exactly two sub-agents/.test(reviewSweepContract) &&
+      /Spawn no other sub-agent/.test(reviewSweepContract) &&
+      ["design-reviewer", "completeness-critic"].every((name) => reviewSweepContract.includes(`.claude/agents/${name}.md`)),
+    reviewSweepContract)
+  const staged = stageWithConfig("compose-prompt", TOOL, {
+    ...real,
+    repos: { ui: REPO_PATH, api: API_REPO_PATH, landing: LANDING_REPO_PATH },
+  })
   stage("staged/compose-prompt/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-215": { number: 221 } } }))
   const options = (plan) => ({ path: staged.path, env: plan ? orcaEnv(plan) : undefined })
   const out = join(root, "compose-prompt", "orb-215.md")
 
   check(TOOL, "refuses a missing repo key", ["--issue", "ORB-215", "--out", out], { status: 2, stderr: /usage: compose-prompt\.mjs/ }, options())
   check(TOOL, "refuses a relative output path", ["--issue", "ORB-215", "--repo", "ui", "--out", "prompts/orb-215.md"], { status: 2, stderr: /usage: compose-prompt\.mjs/ }, options())
-  check(TOOL, "refuses a repo key the config does not declare", ["--issue", "ORB-215", "--repo", "ghost", "--out", out], { status: 2, stderr: /unknown repo key "ghost"; declared: ui, api, landing/ }, options())
+  check(TOOL, "refuses a repo key the config does not declare", ["--issue", "ORB-215", "--repo", "ghost", "--out", out], { status: 2, stderr: /unknown repo key "ghost"; declared: ui/ }, options())
   check(
     TOOL,
     "refuses an output path inside a declared repository",
@@ -60,12 +163,14 @@ export const cases = () => {
   )
   const prompt = composed(out)
   T(`${TOOL}: the ticket body survives composition verbatim`, prompt.startsWith("# Ticket body\n\nKeep this verbatim."), prompt.slice(0, 200) || written.stderr)
+  T(
+    `${TOOL}: local ui delivery names the parity label and justification`,
+    prompt.includes("--label parity:exempt") && prompt.includes("## Parity") &&
+      prompt.includes("platform adapter") && prompt.includes("enumerated layout-shell divergence") &&
+      prompt.includes("mirror change"),
+    prompt,
+  )
 
-  /**
-   * Only the body, the comments and the labels reach the prompt, so a whole-board read here is pure
-   * GraphQL cost on the hot path. #308 memoized the read per process, which buys nothing when the
-   * orchestrator spawns one process per ticket.
-   */
   const boardMarker = stage("compose-prompt/board-read", "must remain")
   check(
     TOOL,
@@ -80,7 +185,7 @@ export const cases = () => {
   T(`${TOOL}: composing reads no Projects board item`, existsSync(boardMarker))
   T(
     `${TOOL}: size is advisory and mandatory generated artifacts stay with their source change`,
-    /File and line counts are advisory\s+review information, never delivery gates/.test(prompt) && /migrations with their\s+model change/.test(prompt) && /architecture artifacts\s+with the module or route change/.test(prompt),
+    /File and line counts are advisory\s+review information, never delivery gates/.test(prompt) && /migrations with their\s+model change/.test(prompt) && /required lockfiles\s+or codemod output/.test(prompt),
     prompt,
   )
   T(
@@ -100,7 +205,8 @@ export const cases = () => {
   )
   T(
     `${TOOL}: the brief keeps delivery and browser boundaries`,
-    /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) &&
+    /your own exit code counts for nothing/.test(prompt) &&
+      /tools\/verify-delivery\.mjs/.test(prompt) &&
       /NEVER open the app in a browser and never start a dev or production server/.test(prompt) &&
       /Playwright, Maestro or Cypress/.test(prompt) &&
       /nothing under `e2e\/`/.test(prompt) &&
@@ -110,39 +216,67 @@ export const cases = () => {
     prompt,
   )
   T(
-    `${TOOL}: the UI brief requires complete Vitest evidence including available Chromium geometry`,
+    `${TOOL}: the UI brief includes Chromium geometry within Vitest evidence`,
     /repository's own Vitest suites are required evidence: run them in full/.test(prompt) &&
       /including any headless Chromium geometry tests they launch/.test(prompt) &&
       !/apps\/web\/__tests__\/support\/chromium\.ts/.test(prompt) &&
       /That Chromium use is permitted within Vitest/.test(prompt),
     prompt,
   )
-  for (const [repoKey, repoPath] of [["api", API_PATH], ["landing", LANDING_PATH]]) {
-    const otherOut = join(root, "compose-prompt", `${repoKey}.md`)
-    check(
-      TOOL,
-      `composes the ${repoKey} order`,
-      ["--issue", "ORB-215", "--repo", repoKey, "--worktree", repoPath, "--out", otherOut],
-      { status: 0 },
-      options(ticketPlan(ticket({ labels: [{ name: `repo:${repoKey}` }] }))),
-    )
-    const otherPrompt = composed(otherOut)
-    T(
-      `${TOOL}: ${repoKey} keeps the browser boundary without UI test requirements`,
-      /NEVER open the app in a browser and never start a dev or production server/.test(otherPrompt) &&
-        /Playwright, Maestro or Cypress/.test(otherPrompt) &&
-        /nothing under `e2e\/`/.test(otherPrompt) &&
-        /no layout guard/.test(otherPrompt) &&
-        !/Vitest suites are required evidence/.test(otherPrompt) &&
-        !/Chromium geometry tests/.test(otherPrompt),
-      otherPrompt,
-    )
-  }
-  /**
-   * The two-tier ambiguity rule replaces "choose the reading a careful colleague would", which
-   * instructed silent assumptions. A worker must record mechanical choices in ## Assumptions and
-   * raise a Alex-owned decision as NEEDS_DECISION rather than guess it.
-   */
+  T(
+    `${TOOL}: the default order keeps the full e2e and Playwright file ban`,
+    prompt.includes("nothing under `e2e/`") &&
+      prompt.includes("**Never create an end-to-end, visual-regression or Playwright file.**") &&
+      !prompt.includes("may create or edit files under `apps/web/e2e/layout/`"),
+    prompt,
+  )
+  const layoutOut = join(root, "compose-prompt", "layout-guard.md")
+  check(
+    TOOL,
+    "composes the scoped layout guard order from an orchestrator flag",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", layoutOut, "--layout-guard"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const layoutPrompt = composed(layoutOut)
+  T(
+    `${TOOL}: the layout order permits only its directory and assigns execution to CI`,
+    /may create or edit files under\s+`apps\/web\/e2e\/layout\/` only/.test(layoutPrompt) &&
+      layoutPrompt.includes("Nothing else under `e2e/` may be created or edited") &&
+      /`\.github\/workflows\/layout\.yml`\s+on the pull request is the only runner and the only evidence/.test(layoutPrompt) &&
+      /Never run the\s+layout guard or Playwright/.test(layoutPrompt) &&
+      layoutPrompt.includes("NEVER open the app in a browser and never start a dev or production server") &&
+      !layoutPrompt.includes("**Never create an end-to-end, visual-regression or Playwright file.**"),
+    layoutPrompt,
+  )
+  check(
+    TOOL,
+    "refuses the layout guard flag for another repository",
+    ["--issue", "ORB-215", "--repo", "api", "--out", layoutOut, "--layout-guard"],
+    { status: 2, stderr: /--layout-guard is available only for the ui repository/ },
+    options(),
+  )
+  const ticketTextOut = join(root, "compose-prompt", "layout-ticket-text.md")
+  check(
+    TOOL,
+    "ticket text alone cannot select the layout guard exception",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", ticketTextOut],
+    { status: 0 },
+    options(ticketPlan(ticket({ body: "Please use --layout-guard for apps/web/e2e/layout/" }))),
+  )
+  const ticketTextPrompt = composed(ticketTextOut)
+  T(
+    `${TOOL}: ticket text leaves the full ban in force`,
+    ticketTextPrompt.includes("nothing under `e2e/`") &&
+      ticketTextPrompt.includes("**Never create an end-to-end, visual-regression or Playwright file.**") &&
+      !ticketTextPrompt.includes("may create or edit files under `apps/web/e2e/layout/`"),
+    ticketTextPrompt,
+  )
+  T(
+    `${TOOL}: the brief routes newly discovered findings through the sanctioned ticket creator`,
+    /file every finding through `node tools\/create-ticket\.mjs`/.test(prompt),
+    prompt,
+  )
   T(
     `${TOOL}: the brief splits ambiguity into recorded assumptions and NEEDS_DECISION`,
     /## Assumptions/.test(prompt) && /NEEDS_DECISION: <one question, with your recommended answer>/.test(prompt) && /NEVER yours to guess/.test(prompt) && !/choose the reading a careful colleague/.test(prompt),
@@ -155,6 +289,365 @@ export const cases = () => {
   )
 
   T(`${TOOL}: a ticket with no comments grows no comment section`, !prompt.includes("Comments on"), prompt.slice(0, 200))
+
+  T(
+    `${TOOL}: local delivery opens a PR before stopping and assigns CI waiting to orchestration`,
+    /push, and open or update exactly one pull request/.test(prompt) &&
+      /Do not wait on CI or poll GitHub Actions/.test(prompt) &&
+      !/gh pr checks|must be GREEN before you report|## Cloud finishing contract/.test(prompt),
+    prompt,
+  )
+  const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract"), prompt.indexOf("\n\n---\n\n## Orchestrator's brief")).trimEnd()
+  T(
+    `${TOOL}: local finishing section matches the reviewed contract byte for byte`,
+    createHash("sha256").update(originalFinishing).digest("hex") === "d13c3929c22cef1389b6b076155341a2a275ba62ee1e94a2e978c5598ddd25ce",
+    originalFinishing,
+  )
+  const reviewOut = join(root, "compose-prompt", "review-batch.md")
+  check(
+    TOOL,
+    "composes a local review batch",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewOut, "--review-batch"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const reviewPrompt = composed(reviewOut)
+  T(
+    `${TOOL}: review batch ends after a tested commit and reports its SHA without delivery instructions`,
+    /Run the broader suite/.test(reviewPrompt) &&
+      /Report the commit SHA/.test(reviewPrompt) &&
+      /Stop after the tested commit/.test(reviewPrompt) &&
+      /Do not push or open a pull request/.test(reviewPrompt) &&
+      !/Then, in order: run the broader suite, push/.test(reviewPrompt) &&
+      !/open or update exactly one pull request/.test(reviewPrompt) &&
+      !/One commit series on your branch, pushed/.test(reviewPrompt) &&
+      !/The pull request must NOT be a draft/.test(reviewPrompt),
+    reviewPrompt,
+  )
+  T(
+    `${TOOL}: review batch report ends with the literal sections the orchestrator copies into the body`,
+    /these literal sections, each one present even when it is empty/.test(reviewPrompt) &&
+      /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(reviewPrompt) &&
+      /`## Review harness` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern/.test(reviewPrompt),
+    reviewPrompt,
+  )
+  T(
+    `${TOOL}: review batch manual steps require the exact key, screen, and proof`,
+    /`## Manual steps`: every action outside the repository/.test(reviewPrompt) &&
+      /each naming the exact key, the exact console or screen, and what proves it\s+took effect/.test(reviewPrompt),
+    reviewPrompt,
+  )
+  const localFinishing = prompt.slice(prompt.indexOf("## Finishing contract"))
+  const deliverySentences = [
+    "Commit after each coherent piece of work, even if imperfect: a ceiling kill keeps commits and loses an uncommitted index.",
+    "If unsure, commit the piece and fix it forward.",
+    "A pushed branch without a pull request is invisible to review; open the pull request and correct its body, which becomes `main`'s squash commit message, before reporting success.",
+  ]
+  T(
+    `${TOOL}: local finishing leads with three standalone delivery sentences`,
+    localFinishing.startsWith(`## Finishing contract\n\n**${deliverySentences.join(" ")}**\n\n`),
+    localFinishing.slice(0, 600),
+  )
+  T(
+    `${TOOL}: local delivery appears before the long brief and review sweep`,
+    prompt.indexOf("## Finishing contract") < prompt.indexOf("## Orchestrator's brief"),
+    prompt.slice(0, 800),
+  )
+  for (const [index, sentence] of deliverySentences.entries()) {
+    T(`${TOOL}: local delivery sentence ${index + 1} survives composition`, localFinishing.includes(sentence), localFinishing.slice(0, 600))
+  }
+  T(
+    `${TOOL}: a main-based UI order carries no redesign review sweep`,
+    !prompt.includes("## UI review sweep"),
+    prompt,
+  )
+
+  const redesignOut = join(root, "compose-prompt", "ui-redesign.md")
+  check(
+    TOOL,
+    "composes the redesign UI review sweep",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", redesignOut, "--base", "redesign/main"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const redesignPrompt = composed(redesignOut)
+  const reviewRedesignOut = join(root, "compose-prompt", "review-redesign.md")
+  check(
+    TOOL,
+    "composes a redesign review batch",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewRedesignOut, "--base", "redesign/main", "--review-batch"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const reviewRedesignPrompt = composed(reviewRedesignOut)
+  T(
+    `${TOOL}: review batch UI sweep uses only paths in its own commit`,
+    /paths changed by this batch's commit/.test(reviewRedesignPrompt) &&
+      !/After implementation, inspect the complete diff/.test(reviewRedesignPrompt) &&
+      /After implementation, inspect the complete diff/.test(redesignPrompt),
+    reviewRedesignPrompt,
+  )
+  T(
+    `${TOOL}: redesign review batch requires harness evidence only for a UI-scope diff`,
+    /If no changed path matches, skip this sweep and omit the Review harness block/.test(reviewRedesignPrompt) &&
+      /`## Review harness` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern/.test(reviewRedesignPrompt) &&
+      /When a changed path matches, include the complete `## Review harness` block/.test(reviewRedesignPrompt),
+    reviewRedesignPrompt,
+  )
+  T(
+    `${TOOL}: redesign delivery appears before the review sweep`,
+    redesignPrompt.indexOf("## Finishing contract") < redesignPrompt.indexOf("## UI review sweep"),
+    redesignPrompt.slice(0, 800),
+  )
+  T(
+    `${TOOL}: a redesign UI order requires the complete review inventory, in-scope fixes, and the PR block`,
+    redesignPrompt.includes("## UI review sweep") &&
+      /\.claude\/playbooks\/redesign-screen\.md/.test(redesignPrompt) &&
+      /gh api "repos\/jakubkrehel\/skills\/git\/trees\/main\?recursive=1" --jq \.truncated/.test(redesignPrompt) &&
+      /\.tree\[\]\|select\(\.type=="blob" and \(\.path\|startswith\("skills\/<name>\/"\)\)\)\|\.path/.test(redesignPrompt) &&
+      ["interface-review", "better-interface", "better-accessibility", "better-layout", "better-writing", "better-typography", "better-colors", "better-ui"]
+        .every((directory) => redesignPrompt.includes(`\`${directory}\``)) &&
+      /Read every printed path from `https:\/\/raw\.githubusercontent\.com\/jakubkrehel\/skills\/main\/<path>`/.test(redesignPrompt) &&
+      /Fix every in-scope finding in this pull request/.test(redesignPrompt) &&
+      /## Review harness/.test(redesignPrompt) &&
+      /- interface-review: <what it found, or "no findings">/.test(redesignPrompt) &&
+      /- better-interface \(full mode\): <what it found, or "no findings">/.test(redesignPrompt) &&
+      /A line claiming a review you did not run is forbidden/.test(redesignPrompt),
+    redesignPrompt,
+  )
+  T(
+    `${TOOL}: a redesign UI order carries every source family, lane, and close-gate agent`,
+    carriesCompleteReviewSweep(redesignPrompt),
+    redesignPrompt,
+  )
+  T(
+    `${TOOL}: the redesign UI order exempts a diff with no path in the gate's exact scope`,
+    /\^apps\\\/\(\?:web\|mobile\)\\\/\(\?:app\|components\|hooks\|stores\|lib\)\\\//.test(redesignPrompt) &&
+      /If no changed path matches, skip this sweep and omit the Review harness block/.test(redesignPrompt),
+    redesignPrompt,
+  )
+
+  for (const [repository, repositoryPath] of [["api", API_REPO_PATH], ["landing", LANDING_REPO_PATH]]) {
+    const repositoryOut = join(root, "compose-prompt", `${repository}-redesign.md`)
+    check(
+      TOOL,
+      `composes a redesign order for ${repository}`,
+      ["--issue", "ORB-215", "--repo", repository, "--out", repositoryOut, "--base", "redesign/main"],
+      { status: 0 },
+      options(ticketPlan(ticket({ labels: [{ name: `repo:${repository}` }] }))),
+    )
+    const repositoryPrompt = composed(repositoryOut)
+    T(
+      `${TOOL}: a redesign ${repository} order carries no UI review sweep`,
+      !repositoryPrompt.includes("## UI review sweep") && repositoryPrompt.includes(`Repository \`${repository}\` at \`${repositoryPath}\``),
+      repositoryPrompt,
+    )
+    T(
+      `${TOOL}: a ${repository} order keeps the browser boundary without the UI Vitest carve-out`,
+      /NEVER open the app in a browser and never start a dev or production server/.test(repositoryPrompt) &&
+        /Playwright, Maestro or Cypress/.test(repositoryPrompt) &&
+        /nothing under `e2e\/`/.test(repositoryPrompt) &&
+        /no layout guard/.test(repositoryPrompt) &&
+        !/Vitest suites are required evidence/.test(repositoryPrompt) &&
+        !/Chromium geometry tests/.test(repositoryPrompt),
+      repositoryPrompt,
+    )
+  }
+
+  const cloudOut = join(root, "compose-prompt", "cloud.md")
+  check(
+    TOOL,
+    "composes the Cloud mode without local delivery instructions",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", cloudOut, "--cloud", "--base", "redesign/main", "--worktree", REPO_PATH, "--branch", "feature/local-materialization"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const cloudPrompt = composed(cloudOut)
+  const reviewCloudOut = join(root, "compose-prompt", "review-cloud.md")
+  check(
+    TOOL,
+    "composes Cloud with the review batch flag",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewCloudOut, "--cloud", "--review-batch", "--base", "redesign/main", "--worktree", REPO_PATH, "--branch", "feature/local-materialization"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  T(
+    `${TOOL}: Cloud order is byte-identical with the review batch flag`,
+    composed(reviewCloudOut) === cloudPrompt,
+    composed(reviewCloudOut),
+  )
+  T(
+    `${TOOL}: Cloud keeps its existing standalone commit instruction without local delivery text`,
+    cloudPrompt.includes("## Cloud finishing contract\n\n**Commit the implementation. Without a commit there is no diff and the work is lost.**\n\n-") &&
+      deliverySentences.every((sentence) => !cloudPrompt.includes(sentence)),
+    cloudPrompt.slice(-1200),
+  )
+  T(
+    `${TOOL}: Cloud leaves the owed redesign sweep to local post-materialization delivery`,
+    /The Cloud container must not run or claim this sweep/.test(cloudPrompt) &&
+      /orchestrator runs it locally after materialization and before opening the pull request/.test(cloudPrompt) &&
+      /## Review harness/.test(cloudPrompt) &&
+      /- interface-review: <what it found, or "no findings">/.test(cloudPrompt) &&
+      /- better-interface \(full mode\): <what it found, or "no findings">/.test(cloudPrompt),
+    cloudPrompt,
+  )
+  T(
+    `${TOOL}: Cloud delivery carries the same complete review sweep as local delivery`,
+    carriesCompleteReviewSweep(cloudPrompt),
+    cloudPrompt,
+  )
+  /**
+   * One brief feeds the local, Cloud and redesign orders, so each one is asserted separately: a
+   * later split could drop the block from any single mode and the other two would stay green. Each
+   * assertion names the edit ban rather than the bare word node_modules, which a prompt could
+   * carry for an unrelated reason.
+   */
+  for (const [mode, order] of [["local", prompt], ["Cloud", cloudPrompt], ["redesign", redesignPrompt]]) {
+    T(
+      `${TOOL}: the ${mode} order permits installs but forbids dependency edits`,
+      /Never edit installed files by hand inside `node_modules`/.test(order) &&
+        /Read installed source to confirm an external interface/.test(order) &&
+        /`npm ci` is allowed and expected/.test(order) &&
+        /never stage or commit a\s+path under `node_modules`/.test(order) &&
+        /patch-package/.test(order),
+      order,
+    )
+  }
+
+  const orchestrateSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
+  T(
+    `${TOOL}: the Cloud materialization skill mirrors the canonical review sweep contract`,
+    orchestrateSkill.includes(reviewSweepContract),
+    orchestrateSkill,
+  )
+  T(
+    `${TOOL}: orchestration resolves review batch threads before its single push`,
+    /compose its order with `--review-batch`/.test(orchestrateSkill) &&
+      /worker commits, runs the\s+broader suite, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
+      /resolve every identified thread on that commit, then push once/.test(orchestrateSkill) &&
+      !/A worker cannot keep that order\s+under today's contract/.test(orchestrateSkill),
+    orchestrateSkill,
+  )
+  T(
+    `${TOOL}: orchestration writes a review batch's report into the pull request body before resolving`,
+    /Its final report is the batch's\s+handoff/.test(orchestrateSkill) &&
+      /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(orchestrateSkill) &&
+      /node tools\/merge-review-batch-body\.mjs --body-file <current-body> --report-file <worker-report> --out <merged-body>/.test(orchestrateSkill) &&
+      /gh pr edit <n> --body-file <merged-body>/.test(orchestrateSkill) &&
+      /its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools\/lib\/review-harness\.mjs`/.test(orchestrateSkill) &&
+      /For a batch with no matching path, accept a report without that block and preserve any existing PR-body block/.test(orchestrateSkill) &&
+      /For a batch with a matching path, require the complete block and replace the PR-body block/.test(orchestrateSkill),
+    orchestrateSkill,
+  )
+  T(
+    `${TOOL}: orchestration preserves earlier handoff entries across two review batches`,
+    /Merge new entries into the existing `## Test evidence`, `## Assumptions` and `## Manual steps` sections/.test(orchestrateSkill) &&
+      /An empty second batch section preserves the first batch's entries/.test(orchestrateSkill) &&
+      /Deduplicate repeated evidence/.test(orchestrateSkill),
+    orchestrateSkill,
+  )
+  const sleepSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")
+  T(
+    `${TOOL}: the sleep entry policy selects --review-batch for review fixes and keeps resolve-before-push`,
+    /composed with `--review-batch`/.test(sleepSkill) && /stops WITHOUT pushing/.test(sleepSkill) &&
+      /resolves every thread on that commit, then pushes once/.test(sleepSkill),
+    sleepSkill,
+  )
+  const toolsCatalog = readFileSync(join(REPO_ROOT, "tools", "README.md"), "utf8")
+  T(
+    `${TOOL}: the tools catalog documents --review-batch in the compose-prompt usage`,
+    /--review-batch \\\| --cloud\]/.test(toolsCatalog) && /`--review-batch` selects a local review fix/.test(toolsCatalog),
+    "tools/README.md compose-prompt row",
+  )
+  for (const [mode, order] of [
+    ["local", prompt],
+    ["Cloud", cloudPrompt],
+  ]) {
+    T(
+      `${TOOL}: ${mode} requires the unchanged covered test before edits and a failing strengthened test before the fix`,
+      /When a round fixes a defect that an existing test did not catch/.test(order) &&
+        /Before changing the test or implementation, run that existing test unchanged/.test(order) &&
+        /report whether it passes with the defect present/.test(order) &&
+        /strengthen the test to exercise the real failing path and run it with the defect still present/.test(order) &&
+        /Observe it fail for the intended reason before fixing the implementation/.test(order) &&
+        /After the fix, rerun it and confirm it passes/.test(order),
+      order,
+    )
+    T(
+      `${TOOL}: ${mode} delivers both red-first observations with commands and outcomes to review`,
+      /Both observations must reach the pull request body/.test(order) &&
+        /unchanged test with the defect present, and strengthened test failing before the fix/.test(order) &&
+        /Name the test, exact commands, and observed outcomes/.test(order) &&
+        /If either observation cannot be obtained, report why; never claim an unobserved result/.test(order) &&
+        (mode === "Cloud"
+          ? /Record both observations in the committed handoff's `testResults` for the orchestrator to carry into the PR body/.test(order)
+          : /Put both observations in the PR body's `## Test evidence` section/.test(order)),
+      order,
+    )
+  }
+  const architectureRule = "You may run `node tools/arch-map.mjs` to read the generated map. Never stage or commit `architecture.json`, `architecture.html` or `architecture.mmd`."
+  for (const skill of ["orchestrate", "ticket"]) {
+    const skillText = readFileSync(join(REPO_ROOT, ".claude", "skills", skill, "SKILL.md"), "utf8")
+    T(
+      `${TOOL}: ${skill} skill keeps generated architecture artifacts out of delivery`,
+      skillText.includes(architectureRule) && !/architecture artifacts/.test(skillText),
+      skillText,
+    )
+  }
+  for (const [mode, order] of [
+    ["local", prompt],
+    ["review batch", reviewRedesignPrompt],
+    ["Cloud", cloudPrompt],
+  ]) {
+    T(
+      `${TOOL}: ${mode} permits reading the architecture map and forbids staging every generated artifact`,
+      order.includes(architectureRule),
+      order,
+    )
+    const otherInstructions = order.replace(architectureRule, "")
+    for (const artifact of ["architecture.json", "architecture.html", "architecture.mmd"]) {
+      T(
+        `${TOOL}: ${mode} has no other staging or commit instruction for ${artifact}`,
+        !otherInstructions.split("\n").some((line) => line.includes(artifact) && /\b(?:stag(?:e|ed|ing)|commit(?:ted|ting)?)\b/i.test(line)),
+        otherInstructions,
+      )
+    }
+    T(
+      `${TOOL}: ${mode} scope does not require architecture artifacts in the pull request`,
+      !/architecture artifacts\s+with the module or route change/.test(order),
+      order,
+    )
+  }
+  T(
+    `${TOOL}: Cloud retains the ticket and decision escalation without instructions to push or open a PR`,
+    cloudPrompt.startsWith("# Ticket body\n\nKeep this verbatim.") &&
+      /NEEDS_DECISION/.test(cloudPrompt) && /manualSteps/.test(cloudPrompt) &&
+      /committed handoff's `assumptions` array/.test(cloudPrompt) &&
+      /record the question in the handoff's `needsDecision` field/.test(cloudPrompt) &&
+      /\.claude\/cloud-handoff.json/.test(cloudPrompt) &&
+      /Use the current container checkout/.test(cloudPrompt) && !cloudPrompt.includes(REPO_PATH) &&
+      /Never push, never create a branch, never open a pull request/.test(cloudPrompt) &&
+      !/commit and push|open your pull request against|One commit series on your branch, pushed|## Finishing contract|gh pr (create|ready|view|checks)/.test(cloudPrompt),
+    cloudPrompt,
+  )
+  T(
+    `${TOOL}: submitting a composed Cloud order keeps one commit-first contract`,
+    cloudOrder(cloudPrompt) === cloudPrompt &&
+      cloudPrompt.includes("## Cloud finishing contract\n\n**Commit the implementation. Without a commit there is no diff and the work is lost.**\n\n-") &&
+      /Do not wait on CI or poll GitHub Actions/.test(cloudPrompt),
+    cloudOrder(cloudPrompt),
+  )
+  const otherCloud = stageWithConfig("compose-prompt-other-cloud", TOOL, {
+    ...real, repos: { ui: REPO_PATH, api: join(root, "compose-prompt", "repo-api") },
+    cloud: { ...real.cloud, repositoryKey: "api" },
+  })
+  check(
+    TOOL,
+    "refuses Cloud orders outside the configured repository before reading a ticket",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", cloudOut, "--cloud"],
+    { status: 2, stderr: /--cloud is bound to repository api; ui must run locally/ },
+    { path: otherCloud.path, env: orcaEnv([]) },
+  )
 
   /**
    * The regression this file exists to hold. Three documents claimed comments already reached the

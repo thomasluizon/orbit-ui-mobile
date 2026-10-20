@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { useCalendarData, useCalendarRangeChunked } from '@/hooks/use-calendar-data'
+import { useCalendarData, useCalendarRange, useCalendarRangeChunked } from '@/hooks/use-calendar-data'
+import { habitKeys } from '@orbit/shared/query'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { emptyCalendarMonth } from '../../e2e/layout/calendar-month-fixture'
 
-const { mockSessionAwareFetch } = vi.hoisted(() => ({
-  mockSessionAwareFetch: vi.fn(),
-}))
-
-vi.mock('@/lib/api-fetch', () => ({
-  sessionAwareFetch: mockSessionAwareFetch,
+const mockFetch = vi.fn()
+vi.mock('@/lib/throttle-fetch', () => ({
+  fetchWithThrottle: (...args: unknown[]) => mockFetch(...args),
 }))
 
 function createWrapper() {
@@ -26,7 +26,7 @@ function createWrapper() {
 
 describe('useCalendarData', () => {
   beforeEach(() => {
-    mockSessionAwareFetch.mockReset()
+    mockFetch.mockReset()
   })
 
   it('fetches calendar data and builds dayMap', async () => {
@@ -43,7 +43,8 @@ describe('useCalendarData', () => {
               frequencyUnit: 'Day',
               frequencyQuantity: 1,
               scheduledDates: ['2025-01-15', '2025-01-16'],
-              instances: null,
+              instances: [],
+              linkedGoals: [],
               isCompleted: false,
               isGeneral: false,
               isFlexible: false,
@@ -73,7 +74,7 @@ describe('useCalendarData', () => {
         }),
     }
     let settleResponse!: () => void
-    mockSessionAwareFetch.mockReturnValueOnce(new Promise((resolve) => {
+    mockFetch.mockReturnValueOnce(new Promise((resolve) => {
       settleResponse = () => resolve(response)
     }))
 
@@ -82,7 +83,7 @@ describe('useCalendarData', () => {
       wrapper: createWrapper(),
     })
 
-    expect(mockSessionAwareFetch).toHaveBeenCalledExactlyOnceWith(
+    expect(mockFetch).toHaveBeenCalledExactlyOnceWith(
       '/api/habits/calendar-month?dateFrom=2025-01-01&dateTo=2025-01-31',
     )
     expect(result.current.isLoading).toBe(true)
@@ -104,7 +105,7 @@ describe('useCalendarData', () => {
   })
 
   it('keeps only the requested month in the dayMap', async () => {
-    mockSessionAwareFetch.mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
@@ -117,6 +118,7 @@ describe('useCalendarData', () => {
               frequencyUnit: 'Week',
               frequencyQuantity: 1,
               scheduledDates: ['2025-01-03'],
+              linkedGoals: [],
               instances: [
                 { date: '2024-12-27', status: 'Overdue', logId: null },
                 { date: '2025-01-03', status: 'Overdue', logId: null },
@@ -158,10 +160,7 @@ describe('useCalendarData', () => {
   })
 
   it('returns empty dayMap when no data', async () => {
-    mockSessionAwareFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ habits: [], logs: {} }),
-    })
+    mockFetch.mockResolvedValue(new Response(JSON.stringify(emptyCalendarMonth)))
 
     const currentMonth = new Date(2025, 0, 1)
     const { result } = renderHook(() => useCalendarData(currentMonth), {
@@ -172,8 +171,15 @@ describe('useCalendarData', () => {
     expect(result.current.dayMap.size).toBe(0)
   })
 
+  it('reports a malformed calendar response as a query error without throwing during render', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
+    const { result } = renderHook(() => useCalendarData(new Date(2025, 0, 1)), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.error).not.toBeNull())
+    expect(result.current.dayMap.size).toBe(0)
+  })
+
   it('handles fetch error', async () => {
-    mockSessionAwareFetch.mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
       json: () => Promise.resolve({ error: 'Internal server error' }),
@@ -189,7 +195,7 @@ describe('useCalendarData', () => {
   })
 
   it('marks unlogged past dates as missed', async () => {
-    mockSessionAwareFetch.mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
@@ -202,7 +208,8 @@ describe('useCalendarData', () => {
               frequencyUnit: 'Day',
               frequencyQuantity: 1,
               scheduledDates: ['2020-06-15'],
-              instances: null,
+              instances: [],
+              linkedGoals: [],
               isCompleted: false,
               isGeneral: false,
               isFlexible: false,
@@ -243,7 +250,7 @@ describe('useCalendarData', () => {
   })
 
   it('detects one-time habits (no frequencyUnit)', async () => {
-    mockSessionAwareFetch.mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
@@ -256,7 +263,8 @@ describe('useCalendarData', () => {
               frequencyUnit: null,
               frequencyQuantity: null,
               scheduledDates: ['2020-03-10'],
-              instances: null,
+              instances: [],
+              linkedGoals: [],
               isCompleted: false,
               isGeneral: false,
               isFlexible: false,
@@ -299,7 +307,7 @@ describe('useCalendarData', () => {
 
 describe('useCalendarRangeChunked', () => {
   beforeEach(() => {
-    mockSessionAwareFetch.mockReset()
+    mockFetch.mockReset()
   })
 
   function habitScheduledOn(id: string, date: string) {
@@ -311,7 +319,8 @@ describe('useCalendarRangeChunked', () => {
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
       scheduledDates: [date],
-      instances: null,
+      instances: [],
+      linkedGoals: [],
       isCompleted: false,
       isGeneral: false,
       isFlexible: false,
@@ -337,7 +346,7 @@ describe('useCalendarRangeChunked', () => {
   }
 
   it('splits a beyond-cap range into chunked requests and merges the day maps', async () => {
-    mockSessionAwareFetch.mockImplementation((input: RequestInfo | URL) => {
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input)
       const from = new URL(url, 'http://localhost').searchParams.get('dateFrom') ?? '2025-01-01'
       return Promise.resolve({
@@ -353,8 +362,8 @@ describe('useCalendarRangeChunked', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-    expect(mockSessionAwareFetch.mock.calls.length).toBeGreaterThan(1)
-    for (const call of mockSessionAwareFetch.mock.calls) {
+    expect(mockFetch.mock.calls.length).toBeGreaterThan(1)
+    for (const call of mockFetch.mock.calls) {
       const url = new URL(String(call[0]), 'http://localhost')
       const from = new Date(url.searchParams.get('dateFrom') + 'T00:00:00Z')
       const to = new Date(url.searchParams.get('dateTo') + 'T00:00:00Z')
@@ -362,7 +371,7 @@ describe('useCalendarRangeChunked', () => {
       expect(diffDays).toBeLessThanOrEqual(62)
     }
 
-    expect(result.current.dayMap.size).toBe(mockSessionAwareFetch.mock.calls.length)
+    expect(result.current.dayMap.size).toBe(mockFetch.mock.calls.length)
     expect(result.current.error).toBeNull()
   })
 
@@ -392,7 +401,7 @@ describe('useCalendarRangeChunked', () => {
       ],
       hasSubHabits: true,
     }
-    mockSessionAwareFetch.mockImplementation((input: RequestInfo | URL) => {
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input)
       const from = new URL(url, 'http://localhost').searchParams.get('dateFrom')
       let body: unknown = { habits: [], logs: {} }
@@ -433,7 +442,7 @@ describe('useCalendarRangeChunked', () => {
 
   it('surfaces a chunk failure as the aggregate error', async () => {
     let callCount = 0
-    mockSessionAwareFetch.mockImplementation(() => {
+    mockFetch.mockImplementation(() => {
       callCount += 1
       if (callCount === 1) {
         return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) })
@@ -448,5 +457,50 @@ describe('useCalendarRangeChunked', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.error).not.toBeNull()
+  })
+})
+
+describe('calendar loading from the complete day cache', () => {
+  it.each([0, 1, 2, 4])('reserves %i cached habits before the delayed month response', async (count) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const day = '2026-09-04'
+    const habits = Array.from({ length: count }, (_, index) => makeHabitScheduleItem({ id: `habit-${index}`, title: index === 3 ? 'Caminhar pelo bairro depois do trabalho e conversar com amigos' : `Habit ${index}`, children: [], hasSubHabits: false, dueDate: day, scheduledDates: [day], isCompleted: index === 0, instances: index === 0 ? [{ date: day, status: 'Completed', logId: 'log-0' }] : [] }))
+    client.setQueryData(habitKeys.list({ dateFrom: day, dateTo: day, completeDay: true, includeOverdue: true }), habits)
+    let release!: (response: Response) => void
+    mockFetch.mockReturnValueOnce(new Promise<Response>((resolve) => { release = resolve }))
+    const wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(QueryClientProvider, { client }, children)
+    const { result, unmount } = renderHook(() => useCalendarData(new Date(2026, 8, 1)), { wrapper })
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.dayMap.size).toBe(0)
+    const loading = result.current.loadingDayMap!.get(day)!.map(({ habitId, title, dueTime }) => ({ habitId, title, dueTime }))
+    expect(loading.map((entry) => entry.title)).toEqual(habits.map((habit) => habit.title))
+    await act(async () => { release(new Response(JSON.stringify({ habits, logs: { 'habit-0': [{ id: 'log-0', date: day, value: 1, createdAtUtc: `${day}T09:00:00Z` }] } }))) })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect((result.current.dayMap.get(day) ?? []).map(({ habitId, title, dueTime }) => ({ habitId, title, dueTime }))).toEqual(loading)
+    expect((result.current.dayMap.get(day) ?? []).map((entry) => entry.status)).toEqual(habits.map((_, index) => index === 0 ? 'completed' : 'missed'))
+    expect(result.current.loadingDayMap).toBeUndefined()
+    unmount()
+    client.clear()
+  })
+
+  it('keeps cached completion out of a pending week range until its logs arrive', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const day = '2026-09-04'
+    const habit = makeHabitScheduleItem({ id: 'completed-habit', children: [], hasSubHabits: false, dueDate: day, scheduledDates: [day], isCompleted: true, instances: [{ date: day, status: 'Completed', logId: 'completed-log' }] })
+    client.setQueryData(habitKeys.list({ dateFrom: day, dateTo: day, completeDay: true, includeOverdue: true }), [habit])
+    let release!: (response: Response) => void
+    mockFetch.mockReturnValueOnce(new Promise<Response>((resolve) => { release = resolve }))
+    const wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(QueryClientProvider, { client }, children)
+    const { result, unmount } = renderHook(() => useCalendarRange(new Date(2026, 7, 31), new Date(2026, 8, 6)), { wrapper })
+    try {
+      expect(result.current.isLoading).toBe(true)
+      expect(result.current.dayMap.size).toBe(0)
+      await act(async () => { release(new Response(JSON.stringify({ habits: [habit], logs: { [habit.id]: [{ id: 'completed-log', date: day, value: 1, createdAtUtc: `${day}T09:00:00Z` }] } }))) })
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
+      expect(result.current.dayMap.get(day)).toEqual([expect.objectContaining({ habitId: habit.id, status: 'completed' })])
+    } finally {
+      unmount()
+      client.clear()
+    }
   })
 })

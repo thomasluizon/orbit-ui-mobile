@@ -1,10 +1,12 @@
-import React from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useUIStore } from '@/stores/ui-store'
+import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { collectSelectableDescendantIds, formatAPIDate } from '@orbit/shared/utils'
-import { TodayUtilityRow } from '@/app/(app)/today-shell'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -18,6 +20,8 @@ describe('ui store', () => {
   beforeEach(() => {
     globalThis.localStorage.clear()
     useUIStore.setState({
+      setupChecklistDismissed: false,
+      activeFilters: {},
       activeView: 'today',
       activeCelebration: null,
       queuedCelebrations: [],
@@ -30,16 +34,62 @@ describe('ui store', () => {
       manuallySelectedIds: new Set<string>(),
       lastCreatedHabitId: null,
       showCreateModal: false,
-      showCreateGoalModal: false,
+      astraConversationOpen: false,
+      astraEntryPointIntent: undefined,
       searchQuery: '',
-      selectedFrequency: null,
-      selectedTagIds: [],
-      showCompleted: false,
     })
   })
 
   afterEach(() => {
     globalThis.localStorage.clear()
+  })
+
+  it('keeps an opened create form through first account rehydration and clears it on account replacement', async () => {
+    useUIStore.getState().setShowCreateModal(true)
+    setUIAccountScope('first-account')
+    await useUIStore.persist.rehydrate()
+    expect(useUIStore.getState().showCreateModal).toBe(true)
+
+    setUIAccountScope('replacement-account')
+    await useUIStore.persist.rehydrate()
+    expect(useUIStore.getState().showCreateModal).toBe(false)
+    useUIStore.persist.setOptions({ name: 'orbit-ui-store' })
+  })
+
+
+  describe('filters', () => {
+    it('starts with empty filters', () => {
+      const state = useUIStore.getState()
+      expect(state.activeFilters).toEqual({})
+    })
+
+    it('merges partial filters', () => {
+      const { setFilters } = useUIStore.getState()
+      setFilters({ dateFrom: '2025-01-01', dateTo: '2025-01-01' })
+
+      const state = useUIStore.getState()
+      expect(state.activeFilters.dateFrom).toBe('2025-01-01')
+      expect(state.activeFilters.dateTo).toBe('2025-01-01')
+    })
+
+    it('preserves existing filters on partial update', () => {
+      const { setFilters } = useUIStore.getState()
+      setFilters({ dateFrom: '2025-01-01', dateTo: '2025-01-01' })
+      setFilters({ includeOverdue: true })
+
+      const state = useUIStore.getState()
+      expect(state.activeFilters.dateFrom).toBe('2025-01-01')
+      expect(state.activeFilters.includeOverdue).toBe(true)
+    })
+
+    it('overrides specific filter keys', () => {
+      const { setFilters } = useUIStore.getState()
+      setFilters({ dateFrom: '2025-01-01' })
+      setFilters({ dateFrom: '2025-02-01' })
+
+      const state = useUIStore.getState()
+      expect(state.activeFilters.dateFrom).toBe('2025-02-01')
+    })
   })
 
 
@@ -56,8 +106,8 @@ describe('ui store', () => {
       setActiveView('general')
       expect(useUIStore.getState().activeView).toBe('general')
 
-      setActiveView('goals')
-      expect(useUIStore.getState().activeView).toBe('goals')
+      setActiveView('all')
+      expect(useUIStore.getState().activeView).toBe('all')
     })
   })
 
@@ -83,9 +133,11 @@ describe('ui store', () => {
 
     it('sets and clears goal completed celebration', () => {
       const { setGoalCompletedCelebration } = useUIStore.getState()
-      setGoalCompletedCelebration({ name: 'Ship Orbit' })
+      setGoalCompletedCelebration({ name: 'Ship Orbit', count: 12, unit: 'releases' })
       expect(useUIStore.getState().goalCompletedCelebration).toEqual({
         name: 'Ship Orbit',
+        count: 12,
+        unit: 'releases',
       })
 
       setGoalCompletedCelebration(null)
@@ -364,18 +416,15 @@ describe('ui store', () => {
       expect(useUIStore.getState().showCreateModal).toBe(false)
     })
 
-    it('starts with create goal modal hidden', () => {
-      expect(useUIStore.getState().showCreateGoalModal).toBe(false)
-    })
+  })
 
-    it('toggles create goal modal', () => {
-      const { setShowCreateGoalModal } = useUIStore.getState()
-      setShowCreateGoalModal(true)
-      expect(useUIStore.getState().showCreateGoalModal).toBe(true)
-
-      setShowCreateGoalModal(false)
-      expect(useUIStore.getState().showCreateGoalModal).toBe(false)
-    })
+  it('keeps Support intent only while its conversation is open', () => {
+    const { setAstraConversationOpen } = useUIStore.getState()
+    setAstraConversationOpen(true, 'support')
+    expect(useUIStore.getState().astraEntryPointIntent).toBe('support')
+    setAstraConversationOpen(false)
+    setAstraConversationOpen(true)
+    expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined()
   })
 
 
@@ -397,121 +446,10 @@ describe('ui store', () => {
       expect(useUIStore.getState().searchQuery).toBe('')
     })
 
-    it.each([
-      { query: 'focus', searchOpen: false, pressed: 'true' },
-      { query: 'focus', searchOpen: true, pressed: 'true' },
-      { query: '   ', searchOpen: false, pressed: 'false' },
-    ])('renders the active search while its input is open', ({ query, searchOpen, pressed }) => {
-      render(
-        React.createElement(TodayUtilityRow, {
-          activeView: 'general',
-          searchOpen,
-          searchValue: query,
-          selectedFrequency: null,
-          selectedTagIds: [],
-          tags: [],
-          frequencyOptions: [],
-          isSelectMode: false,
-          showCompleted: false,
-          isFetching: false,
-          allCollapsed: false,
-          onSearchToggle: vi.fn(),
-          onSearchChange: vi.fn(),
-          onFrequencyChange: vi.fn(),
-          onTagToggle: vi.fn(),
-          onToggleSelect: vi.fn(),
-          onToggleCollapse: vi.fn(),
-          onRefresh: vi.fn(),
-          onToggleCompleted: vi.fn(),
-        }),
-      )
-
-      const searchControl = screen.getByRole('button', { name: 'habits.searchPlaceholder' })
-      expect(searchControl).toHaveAttribute('aria-pressed', pressed)
-      if (pressed === 'true') {
-        expect(searchControl).toHaveStyle({
-          background: 'var(--selection-bg)',
-          boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.45)',
-        })
-      }
-    })
-
-    it('closes and clears a populated search with one press on the X', () => {
-      function SearchHarness() {
-        const [searchOpen, setSearchOpen] = React.useState(true)
-        const [searchValue, setSearchValue] = React.useState('')
-
-        return React.createElement(
-          React.Fragment,
-          null,
-          React.createElement(
-            'output',
-            { 'data-testid': 'search-state', 'data-open': searchOpen },
-            searchValue,
-          ),
-          React.createElement(TodayUtilityRow, {
-            activeView: 'general',
-            searchOpen,
-            searchValue,
-            selectedFrequency: null,
-            selectedTagIds: [],
-            tags: [],
-            frequencyOptions: [],
-            isSelectMode: false,
-            showCompleted: false,
-            isFetching: false,
-            allCollapsed: false,
-            onSearchToggle: () => {
-              setSearchValue('')
-              setSearchOpen(false)
-            },
-            onSearchChange: setSearchValue,
-            onFrequencyChange: vi.fn(),
-            onTagToggle: vi.fn(),
-            onToggleSelect: vi.fn(),
-            onToggleCollapse: vi.fn(),
-            onRefresh: vi.fn(),
-            onToggleCompleted: vi.fn(),
-          }),
-        )
-      }
-
-      render(React.createElement(SearchHarness))
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'focus' } })
-
-      const closeControl = screen.getByRole('button', {
-        name: /^(common\.clear|habits\.closeSearch)$/,
-      })
-      const populatedAccessibleName = closeControl.getAttribute('aria-label')
-      fireEvent.click(closeControl)
-
-      expect(screen.getByTestId('search-state')).toHaveAttribute('data-open', 'false')
-      expect(screen.getByTestId('search-state')).toBeEmptyDOMElement()
-      expect(populatedAccessibleName).toBe('habits.closeSearch')
-      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    })
   })
 
-  describe('durable today context', () => {
-    it('updates the persisted today context fields', () => {
-      const {
-        setSelectedFrequency,
-        setSelectedTagIds,
-        setShowCompleted,
-      } = useUIStore.getState()
-
-      setSelectedFrequency('Week')
-      setSelectedTagIds(['fitness', 'health'])
-      setShowCompleted(true)
-
-      expect(useUIStore.getState()).toMatchObject({
-        selectedFrequency: 'Week',
-        selectedTagIds: ['fitness', 'health'],
-        showCompleted: true,
-      })
-    })
-
-    it('rehydrates durable today context without restoring search', async () => {
+  describe('persisted ui context', () => {
+    it('rehydrates an existing payload without restoring retired Today controls', async () => {
       globalThis.localStorage.setItem(
         'orbit-ui-store',
         JSON.stringify({
@@ -523,22 +461,23 @@ describe('ui store', () => {
             selectedTagIds: ['deep-work'],
             showCompleted: true,
           },
-          version: 2,
+          version: 4,
         }),
       )
 
       await useUIStore.persist.rehydrate()
 
       expect(useUIStore.getState()).toMatchObject({
-        activeView: 'goals',
+        activeFilters: {},
+        activeView: 'today',
         searchQuery: '',
-        selectedFrequency: 'Month',
-        selectedTagIds: ['deep-work'],
-        showCompleted: true,
       })
+      expect(useUIStore.getState()).not.toHaveProperty('selectedFrequency')
+      expect(useUIStore.getState()).not.toHaveProperty('selectedTagIds')
+      expect(useUIStore.getState()).not.toHaveProperty('showCompleted')
       expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
-      expect(useUIStore.getState()).not.toHaveProperty('activeFilters')
       expect(globalThis.localStorage.getItem('orbit-ui-store')).not.toContain('searchQuery')
+      expect(globalThis.localStorage.getItem('orbit-ui-store')).not.toContain('showCompleted')
     })
 
     it('drops legacy day-selection keys when rehydrating an old snapshot', async () => {
@@ -566,4 +505,16 @@ describe('ui store', () => {
       expect(persisted).not.toContain('followToday')
     })
   })
+  it('retains production checklist dismissals within their account', async () => {
+    localStorage.setItem('orbit-ui-store:checklist-account', JSON.stringify({ state: { setupChecklistDismissed: true }, version: 3 }))
+    setUIAccountScope('checklist-account')
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true)
+    setUIAccountScope('another-checklist-account')
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(false)
+    setUIAccountScope('checklist-account')
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true)
+    useUIStore.persist.setOptions({ name: 'orbit-ui-store' })
+  })
+
+
 })

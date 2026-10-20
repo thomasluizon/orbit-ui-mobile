@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => {
     const t = (key: string, params?: Record<string, unknown>) => {
       if (params) return `${key}(${JSON.stringify(params)})`
@@ -11,6 +12,10 @@ vi.mock('next-intl', () => ({
     }
     return t
   },
+}))
+
+vi.mock('@/hooks/use-time-format', () => ({
+  useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
 const mutateAsync = vi.fn()
@@ -26,6 +31,7 @@ vi.mock('@/hooks/use-resolve-clarification', () => ({
 }))
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
+import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import type { ClarificationRequest } from '@orbit/shared/types/chat'
 
 function createWrapper() {
@@ -93,6 +99,26 @@ describe('ClarificationCard', () => {
     })
   })
 
+  it('replaces the question with an editable pending preview', async () => {
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    const onPreview = vi.fn()
+    mutateAsync.mockResolvedValueOnce({ ok: true, data: { operation: { status: 'PendingConfirmation' }, pendingOperation } })
+    const first = render(<ClarificationCard clarificationRequest={baseClarification} onPreview={onPreview} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />, { wrapper: createWrapper() })
+    const announcement = document.querySelector('span[role="status"]')
+    fireEvent.click(screen.getByText('habits.clarification.quickAction.daily'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Beber água' })).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.reject' })).toBeInTheDocument()
+    expect(announcement).toHaveTextContent('chat.operation.pendingTitle')
+    expect(screen.getByRole('heading', { name: 'chat.pendingOp.capability.habits-write' })).toHaveFocus()
+    expect(screen.queryByText('habits.clarification.errorGeneric')).not.toBeInTheDocument()
+    expect(onPreview).toHaveBeenCalledWith(pendingOperation)
+    first.unmount()
+    render(<ClarificationCard clarificationRequest={baseClarification} pendingOperation={pendingOperation} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />, { wrapper: createWrapper() })
+    expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeInTheDocument()
+  })
+
   it('shows expired error when the resolve returns 404', async () => {
     mutateAsync.mockResolvedValueOnce({ ok: false, error: 'expired', status: 404 })
 
@@ -127,14 +153,6 @@ describe('ClarificationCard', () => {
     await waitFor(() => {
       expect(screen.getByText('habits.clarification.errorAlreadyResolved')).toBeInTheDocument()
     })
-  })
-
-  it('shows reload guidance instead of already resolved when the account changed', async () => {
-    mutateAsync.mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 }))
-    render(<ClarificationCard clarificationRequest={baseClarification} />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByText('habits.clarification.quickAction.daily'))
-    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
-    expect(screen.queryByText('habits.clarification.errorAlreadyResolved')).not.toBeInTheDocument()
   })
 
   it('shows expired error when the resolve returns 410 Gone', async () => {

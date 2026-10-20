@@ -132,7 +132,8 @@ describe('mobile useResolveClarification', () => {
 
     onSuccess(buildResponse('Succeeded'))
 
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(3)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.searches() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(4)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({

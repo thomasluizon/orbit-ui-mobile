@@ -1,25 +1,35 @@
-'use client'
+import { getRouteMetadata } from '@/lib/route-metadata'
+import { formatAPIDate } from '@orbit/shared/utils'
+import { API } from '@orbit/shared/api'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { serverAuthFetch } from '@/lib/server-fetch'
+import { loadTodayInitialHabits } from './today-initial-data'
+import { TodayPageClient } from './today-page-client'
 
-import { useTodayPage } from './use-today-page'
-import {
-  TodayHeaderRegion,
-  TodayGoalsPanel,
-  TodayHabitsPanel,
-  TodayOverlays,
-} from './today-page-view'
+export function generateMetadata() {
+  return getRouteMetadata('/')
+}
 
-export default function TodayPage() {
-  const view = useTodayPage()
+interface TodayPageProps {
+  searchParams: Promise<{ date?: string | string[] }>
+}
 
-  return (
-    <div className="relative">
-      <TodayHeaderRegion view={view} />
+async function loadTodayInitialProfile() {
+  try {
+    return await serverAuthFetch(API.profile.get, { cache: 'no-store' }, profileSchema)
+  } catch {
+    return null
+  }
+}
 
-      <TodayGoalsPanel view={view} />
+export default async function TodayPage({ searchParams }: Readonly<TodayPageProps>) {
+  const { date } = await searchParams
+  const requestedDate = Array.isArray(date) ? date[0] : date
+  const initialToday = formatAPIDate(new Date())
+  const [initialHabits, initialProfile] = await Promise.all([
+    loadTodayInitialHabits(requestedDate, initialToday),
+    loadTodayInitialProfile(),
+  ])
 
-      {view.currentActiveView !== 'goals' && <TodayHabitsPanel view={view} />}
-
-      <TodayOverlays view={view} />
-    </div>
-  )
+  return <TodayPageClient initialToday={initialToday} initialHabits={initialHabits} initialProfile={initialProfile} />
 }

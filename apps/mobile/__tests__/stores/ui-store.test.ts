@@ -1,35 +1,12 @@
-import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockHabit } from "@orbit/shared/__tests__/factories";
 import {
-  createTourUIState,
   getPersistedUIState,
-  getTourSessionUIState,
 } from "@orbit/shared/stores";
 
-import { TodayHabitsHeader } from "@/components/today/today-habits-header";
-import { TourProvider } from "@/components/tour/tour-provider";
-import { useTourStore } from "@/stores/tour-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setUIAccountScope, useUIStore } from "@/stores/ui-store";
-import { Animated } from "@/test-mocks/react-native";
 
-const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
-type RenderedNode = {
-  props: Record<string, unknown>;
-};
-type RenderedTree = {
-  root: {
-    findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[];
-  };
-};
-
-vi.mock("@/app/(tabs)/today-shell", () => ({
-  TodayDateNavigation: () => null,
-}));
-
-vi.mock("@/components/habits/today-ai-summary", () => ({
-  TodayAISummary: () => null,
-}));
 
 vi.mock("expo-router", () => ({
   usePathname: () => "/",
@@ -40,25 +17,6 @@ vi.mock("@/hooks/use-profile", () => ({
   useProfile: () => ({ profile: { hasProAccess: true } }),
 }));
 
-vi.mock("@/hooks/use-tour-mock-data", () => ({
-  useTourMockData: () => ({ inject: vi.fn(), restore: vi.fn() }),
-}));
-
-vi.mock("lucide-react-native", () => {
-  const Icon = () => null;
-  return {
-    Check: Icon,
-    CheckCircle2: Icon,
-    ChevronsDownUp: Icon,
-    ChevronsUpDown: Icon,
-    Eye: Icon,
-    Filter: Icon,
-    MoreVertical: Icon,
-    RefreshCw: Icon,
-    Search: Icon,
-    X: Icon,
-  };
-});
 
 const asyncStorageState = vi.hoisted(() => ({
   data: new Map<string, string>(),
@@ -85,13 +43,13 @@ describe("mobile ui store", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-06T12:00:00Z"));
     asyncStorageState.data.clear();
-    useTourStore.getState().endTour();
-    useTourStore.getState().setHiddenSections([]);
     useUIStore.setState({
+      setupChecklistDismissed: false,
+      activeFilters: {},
       activeView: "today",
+      streakCelebration: null,
       activeCelebration: null,
       queuedCelebrations: [],
-      streakCelebration: null,
       allDoneCelebration: false,
       allDoneCelebratedDate: "",
       goalCompletedCelebration: null,
@@ -100,11 +58,9 @@ describe("mobile ui store", () => {
       manuallySelectedIds: new Set<string>(),
       lastCreatedHabitId: null,
       showCreateModal: false,
-      showCreateGoalModal: false,
+      astraConversationOpen: false,
+      astraEntryPointIntent: undefined,
       searchQuery: "",
-      selectedFrequency: null,
-      selectedTagIds: [],
-      showCompleted: false,
     });
   });
 
@@ -113,126 +69,55 @@ describe("mobile ui store", () => {
     asyncStorageState.data.clear();
   });
 
-  it("updates search and view state", () => {
+  it("keeps an opened create form through first account rehydration and clears it on account replacement", async () => {
+    useUIStore.getState().setShowCreateModal(true);
+    await setUIAccountScope("first-account");
+    expect(useUIStore.getState().showCreateModal).toBe(true);
+
+    await setUIAccountScope("replacement-account");
+    expect(useUIStore.getState().showCreateModal).toBe(false);
+    useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+  });
+
+  it.each(["all", "general"] as const)("restores the saved %s view on account re-entry", async (activeView) => {
+    await setUIAccountScope("saved-view-account");
+    useUIStore.getState().setActiveView(activeView);
+    await setUIAccountScope(null);
+    expect(useUIStore.getState().activeView).toBe("today");
+
+    await setUIAccountScope("saved-view-account");
+
+    expect(useUIStore.getState().activeView).toBe(activeView);
+    useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+  });
+
+  it("merges filters and updates search state", () => {
     const {
+      setFilters,
       setSearchQuery,
       setActiveView,
-      setSelectedFrequency,
-      setSelectedTagIds,
-      setShowCompleted,
     } = useUIStore.getState();
 
+    setFilters({ dateFrom: "2026-04-06" });
+    setFilters({ dateTo: "2026-04-06" });
     setSearchQuery("focus");
-    setActiveView("goals");
-    setSelectedFrequency("Week");
-    setSelectedTagIds(["tag-1"]);
-    setShowCompleted(true);
+    setActiveView("all");
 
     expect(useUIStore.getState()).toMatchObject({
+      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
       searchQuery: "focus",
-      activeView: "goals",
-      selectedFrequency: "Week",
-      selectedTagIds: ["tag-1"],
-      showCompleted: true,
+      activeView: "all",
     });
   });
 
-  it.each([
-    { query: "focus", isSearchOpen: false, selected: true },
-    { query: "   ", isSearchOpen: false, selected: false },
-    { query: "   ", isSearchOpen: true, selected: false },
-  ])(
-    "marks the search control selected only for a trimmed query",
-    ({ query, isSearchOpen, selected }) => {
-      const emptyCallback = vi.fn();
-      let tree: RenderedTree | undefined;
-
-      void TestRenderer.act(() => {
-        tree = TestRenderer.create(
-          React.createElement(TodayHabitsHeader, {
-            header: null,
-            showSummary: false,
-            dateStr: "2026-04-06",
-            currentActiveView: "all",
-            dateLabel: "April 6",
-            selectedDate: new Date("2026-04-06T12:00:00Z"),
-            slideDirection: "left",
-            dateLabelAnim: new Animated.Value(
-              0,
-            ) as unknown as import("react-native").Animated.Value,
-            isSearchFocused: false,
-            showDayProgress: false,
-            dayProgress: { done: 0, total: 0 },
-            isSearchOpen,
-            searchQuery: query,
-            selectedFrequency: null,
-            selectedTagIds: [],
-            tags: [],
-            frequencyOptions: [],
-            isSelectMode: false,
-            showCompleted: false,
-            isFetching: false,
-            allCollapsed: false,
-            showControlsMenu: false,
-            isControlsMenuClosing: false,
-            controlsMenuOpenRevision: 0,
-            controlsMenuAnchorRect: null,
-            showFreqMenu: false,
-            isFreqMenuClosing: false,
-            freqMenuOpenRevision: 0,
-            freqMenuAnchorRect: null,
-            controlsButtonRef:
-              React.createRef<import("react-native").View | null>(),
-            freqMenuButtonRef:
-              React.createRef<import("react-native").View | null>(),
-            filtersAnimatedStyle: {},
-            onGoToPreviousDay: emptyCallback,
-            onGoToToday: emptyCallback,
-            onGoToNextDay: emptyCallback,
-            onSearchToggle: emptyCallback,
-            onSearchChange: emptyCallback,
-            onSearchFocusChange: emptyCallback,
-            onTagToggle: emptyCallback,
-            onToggleFreqMenu: emptyCallback,
-            onToggleControlsMenu: emptyCallback,
-            onCloseControlsMenu: emptyCallback,
-            onFinishControlsMenuClose: emptyCallback,
-            onCloseFreqMenu: emptyCallback,
-            onFinishFreqMenuClose: emptyCallback,
-            onToggleSelect: emptyCallback,
-            onToggleCollapse: emptyCallback,
-            onRefresh: emptyCallback,
-            onToggleCompleted: emptyCallback,
-            onSelectFrequency: emptyCallback,
-          }),
-        ) as unknown as RenderedTree;
-      });
-
-      const searchButton = tree?.root.findAll(
-        (node) =>
-          node.props.accessibilityLabel === "habits.searchPlaceholder" &&
-          typeof node.props.onPress === "function",
-      )[0];
-
-      expect(searchButton?.props.accessibilityState).toEqual({ selected });
-
-      const resolveStyle = searchButton?.props.style as (state: {
-        pressed: boolean;
-      }) => unknown[];
-      const restingStyle = resolveStyle({ pressed: false });
-      const pressedStyle = resolveStyle({ pressed: true });
-      const hasActiveIndicator = restingStyle.some(
-        (layer) =>
-          typeof layer === "object" &&
-          layer !== null &&
-          "borderColor" in layer,
-      );
-
-      expect(hasActiveIndicator).toBe(selected);
-      expect(restingStyle.at(-1)).toBeNull();
-      expect(pressedStyle.at(-1)).not.toBeNull();
-    },
-  );
+  it("keeps Support intent only while its conversation is open", () => {
+    const { setAstraConversationOpen } = useUIStore.getState();
+    setAstraConversationOpen(true, "support");
+    expect(useUIStore.getState().astraEntryPointIntent).toBe("support");
+    setAstraConversationOpen(false);
+    setAstraConversationOpen(true);
+    expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined();
+  });
 
   it("toggles selection mode and cascades descendant selection", () => {
     const { toggleSelectMode, toggleSelectionCascade } = useUIStore.getState();
@@ -280,8 +165,11 @@ describe("mobile ui store", () => {
     );
   });
 
-  it("shows all-done celebration for a completed habit due today without a range log", () => {
-    const habit = createMockHabit({ id: 'habit', scheduledDates: ['2026-04-06'], isCompleted: true, isLoggedInRange: false });
+  it.each([
+    ["a logged habit due today", { isLoggedInRange: true }],
+    ["a completed habit due today without a range log", { isCompleted: true, isLoggedInRange: false }],
+  ])("shows all-done celebration for %s", (_name, completion) => {
+    const habit = createMockHabit({ id: 'habit', scheduledDates: ['2026-04-06'], ...completion });
     useUIStore.getState().checkAllDoneCelebration(
       new Map([[habit.id, habit]]), new Map(), '2026-04-06',
     );
@@ -315,7 +203,7 @@ describe("mobile ui store", () => {
     expect(useUIStore.getState().lastCreatedHabitId).toBeNull();
   });
 
-  it("rehydrates durable today context without restoring search", async () => {
+  it("rehydrates an existing payload without restoring retired Today controls", async () => {
     asyncStorageState.data.set(
       "orbit-ui-store",
       JSON.stringify({
@@ -327,23 +215,46 @@ describe("mobile ui store", () => {
           selectedTagIds: ["tag-2"],
           showCompleted: true,
         },
-        version: 2,
+        version: 4,
       }),
     );
 
     await useUIStore.persist.rehydrate();
 
     expect(useUIStore.getState()).toMatchObject({
+      activeFilters: {},
       activeView: "general",
       searchQuery: "",
-      selectedFrequency: "Month",
-      selectedTagIds: ["tag-2"],
-      showCompleted: true,
     });
+    expect(useUIStore.getState()).not.toHaveProperty("selectedFrequency");
+    expect(useUIStore.getState()).not.toHaveProperty("selectedTagIds");
+    expect(useUIStore.getState()).not.toHaveProperty("showCompleted");
     expect(asyncStorageState.data.get("orbit-ui-store")).not.toContain(
       "searchQuery",
     );
-    expect(useUIStore.getState()).not.toHaveProperty("activeFilters");
+    expect(asyncStorageState.data.get("orbit-ui-store")).not.toContain(
+      "showCompleted",
+    );
+  });
+
+  it("migrates the retired goals view from the previous persistence version", async () => {
+    asyncStorageState.data.set(
+      "orbit-ui-store",
+      JSON.stringify({
+        state: {
+          activeFilters: {},
+          activeView: "goals",
+          selectedFrequency: null,
+          selectedTagIds: [],
+          showCompleted: false,
+        },
+        version: 3,
+      }),
+    );
+
+    await useUIStore.persist.rehydrate();
+
+    expect(useUIStore.getState().activeView).toBe("today");
   });
 
   it("drops legacy day-selection keys when rehydrating an old snapshot", async () => {
@@ -371,70 +282,48 @@ describe("mobile ui store", () => {
     expect(persisted).not.toContain("followToday");
   });
 
-  it("keeps a create tap during first account hydration and clears it on account switch", async () => {
-    useUIStore.getState().setShowCreateModal(true);
-    await setUIAccountScope("account-a");
-    expect(useUIStore.getState().showCreateModal).toBe(true);
-
-    await setUIAccountScope("account-b");
-    expect(useUIStore.getState().showCreateModal).toBe(false);
-  });
-
-  it("creates the canonical tour ui state for a fresh session", () => {
-    expect(createTourUIState()).toEqual({
-      activeView: "today",
-      searchQuery: "",
-      selectedFrequency: null,
-      selectedTagIds: [],
-      showCompleted: true,
-      setupChecklistDismissed: false,
-    });
-  });
-
-  it("restores an active search after applying the tour ui state", () => {
-    useUIStore.setState({ searchQuery: "focus" });
-    const snapshot = getTourSessionUIState(useUIStore.getState());
-
-    useUIStore.setState(createTourUIState());
-    expect(useUIStore.getState().searchQuery).toBe("");
-
-    useUIStore.setState(snapshot);
-    expect(useUIStore.getState().searchQuery).toBe("focus");
-  });
-
-  it("clears an active search during the mobile tour and restores it afterward", () => {
-    useUIStore.setState({ searchQuery: "focus" });
-    let tree: { unmount: () => void } | undefined;
-
-    void TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        React.createElement(TourProvider, null),
-      ) as unknown as { unmount: () => void };
-    });
-    void TestRenderer.act(() => {
-      useTourStore.getState().startSectionReplay("habits");
-    });
-    expect(useUIStore.getState().searchQuery).toBe("");
-
-    void TestRenderer.act(() => {
-      useTourStore.getState().endTour();
-    });
-    expect(useUIStore.getState().searchQuery).toBe("focus");
-
-    void TestRenderer.act(() => tree?.unmount());
-  });
-
   it("returns cloned persisted ui state snapshots", () => {
     useUIStore.setState({
-      selectedTagIds: ["focus"],
+      activeFilters: { dateFrom: "2026-04-06", includeOverdue: true },
     });
 
     const snapshot = getPersistedUIState(useUIStore.getState());
 
     useUIStore.setState({
-      selectedTagIds: ["health"],
+      activeFilters: { dateFrom: "2026-04-07" },
     });
 
-    expect(snapshot.selectedTagIds).toEqual(["focus"]);
+    expect(snapshot.activeFilters).toEqual({
+      dateFrom: "2026-04-06",
+      includeOverdue: true,
+    });
   });
+  it("keeps a replacement account dismissal when an earlier save rejects", async () => {
+    await setUIAccountScope("saving-account");
+    let rejectSave!: (error: Error) => void;
+    vi.mocked(AsyncStorage.setItem).mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectSave = reject; }));
+    const pending = useUIStore.getState().setSetupChecklistDismissed(true);
+    const outcome = expect(pending).rejects.toThrow("Save failed");
+    asyncStorageState.data.set("orbit-ui-store:replacement-checklist-account", JSON.stringify({ state: { setupChecklistDismissed: true }, version: 3 }));
+    await setUIAccountScope("replacement-checklist-account");
+    rejectSave(new Error("Save failed"));
+    await outcome;
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true);
+    await useUIStore.persist.rehydrate();
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true);
+    useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+  });
+
+  it("retains production checklist dismissals within their account", async () => {
+    asyncStorageState.data.set("orbit-ui-store:checklist-account", JSON.stringify({ state: { setupChecklistDismissed: true }, version: 3 }));
+    await setUIAccountScope("checklist-account");
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true);
+    await setUIAccountScope("another-checklist-account");
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(false);
+    await setUIAccountScope("checklist-account");
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true);
+    useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+  });
+
+
 });

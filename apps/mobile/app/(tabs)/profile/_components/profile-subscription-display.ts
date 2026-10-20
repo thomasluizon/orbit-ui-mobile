@@ -1,6 +1,5 @@
 import type { Profile } from '@orbit/shared/types/profile'
 import { plural } from '@/lib/plural'
-import type { BadgeTone } from '@/components/ui/badge'
 
 type TranslateFn = (key: string, values?: Record<string, string | number>) => string
 
@@ -8,7 +7,6 @@ export interface ProfileSubscriptionDisplay {
   label: string
   hint: string
   showBadge: boolean
-  badgeTone: BadgeTone
   badgeLabel: string
 }
 
@@ -66,7 +64,6 @@ export function resolveProfileSubscriptionDisplay(
     label,
     hint,
     showBadge: isTrialActive || hasProAccess,
-    badgeTone: isTrialActive ? 'soft' : 'violet',
     badgeLabel: isTrialActive ? t('trial.proBadge') : t('common.proBadge'),
   }
 }

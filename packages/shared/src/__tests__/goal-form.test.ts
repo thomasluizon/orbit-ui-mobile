@@ -1,3 +1,4 @@
+import { createGoalRequestSchema } from '../types/goal'
 import { describe, expect, it } from 'vitest'
 import {
   MAX_GOAL_TITLE_LENGTH,
@@ -10,6 +11,8 @@ import {
 } from '../validation/goal-form'
 import {
   buildGoalTitle,
+  getFirstGoalDraftFieldError,
+  getGoalDraftFieldErrorKeys,
   isGoalDeadlinePast,
   isStreakGoal,
   parseGoalTargetValue,
@@ -42,6 +45,31 @@ describe('goal form utils', () => {
     expect(validateGoalDraftInput('', 5, 'days')).toBeNull()
     expect(isStreakGoal('Streak')).toBe(true)
     expect(isStreakGoal('Standard')).toBe(false)
+  })
+
+  it('returns every invalid draft field without making a usable fallback description required', () => {
+    expect(getGoalDraftFieldErrorKeys('', '', '')).toEqual({
+      targetValue: 'goals.form.targetValueRequired',
+      unit: 'goals.form.unitRequired',
+    })
+    expect(getGoalDraftFieldErrorKeys('', '5', 'days')).toEqual({})
+    expect(getGoalDraftFieldErrorKeys('x'.repeat(MAX_GOAL_TITLE_LENGTH + 1), '5', 'days')).toEqual({
+      description: 'goals.form.titleTooLong',
+    })
+    expect(getGoalDraftFieldErrorKeys('', '1'.repeat(MAX_GOAL_TITLE_LENGTH + 1), 'days')).toEqual({
+      targetValue: 'goals.form.titleTooLong',
+    })
+  })
+
+  it('returns the first draft error in field order', () => {
+    expect(getFirstGoalDraftFieldError({
+      targetValue: 'goals.form.targetValueRequired',
+      unit: 'goals.form.unitRequired',
+    })).toEqual({
+      field: 'targetValue',
+      key: 'goals.form.targetValueRequired',
+    })
+    expect(getFirstGoalDraftFieldError({})).toBeNull()
   })
 })
 
@@ -85,5 +113,15 @@ describe('goal form validation', () => {
     expect(validateGoalProgressInput(' 12.5 ')).toBeNull()
     expect(validateGoalProgressInput(3)).toBeNull()
     expect(validateGoalProgressInput(null)).toBe('goals.form.progressValueInvalid')
+  })
+})
+
+
+describe('create goal contract', () => {
+  it('preserves optional linked habit IDs and accepts clients without them', () => {
+    const request = { title: 'Read every day', targetValue: 12, unit: 'books' }
+    expect(createGoalRequestSchema.parse(request)).toEqual(request)
+    expect(createGoalRequestSchema.parse({ ...request, habitIds: ['habit-reading'] }).habitIds).toEqual(['habit-reading'])
+    expect(createGoalRequestSchema.safeParse({ ...request, habitIds: 'habit-reading' }).success).toBe(false)
   })
 })

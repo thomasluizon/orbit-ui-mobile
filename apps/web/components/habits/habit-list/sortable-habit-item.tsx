@@ -14,7 +14,6 @@ export function SortableHabitItem({
   children: React.ReactNode
 }>) {
   const {
-    attributes,
     listeners,
     setNodeRef,
     transform,
@@ -22,16 +21,23 @@ export function SortableHabitItem({
     isDragging: isItemDragging,
   } = useSortable({ id })
 
+  const sensorListeners = listeners as Record<string, React.EventHandler<React.SyntheticEvent<HTMLElement>>> | undefined
+  const rowListeners = Object.fromEntries(
+    Object.entries(sensorListeners ?? {}).filter(([eventName]) => eventName === 'onPointerDown' || eventName === 'onTouchStart').map(([eventName, activate]) => [eventName, (event: React.SyntheticEvent<HTMLElement>) => {
+      if (event.target instanceof Node && event.currentTarget.contains(event.target)) activate(event)
+    }]),
+  )
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isItemDragging ? 0.5 : 1,
     position: 'relative' as const,
-    zIndex: isItemDragging ? 50 : 'auto',
+    zIndex: isItemDragging ? 1 : 'auto',
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} className="rounded-[20px]" style={style} {...rowListeners}>
       {children}
     </div>
   )

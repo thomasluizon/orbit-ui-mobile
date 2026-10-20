@@ -1,5 +1,6 @@
-import type { NormalizedHabit } from "../types/habit";
-import { formatAPIDate } from "../utils/dates";
+import type { HabitsFilter, NormalizedHabit } from "../types/habit";
+import type { ShellDestinationId } from "../utils/shell-destinations";
+import { getAccountDay } from "../utils/dates";
 import { getAllDoneOnDate } from "../utils/all-done";
 import { isRecord } from "../utils/is-record";
 import {
@@ -7,6 +8,7 @@ import {
   clearCelebrationKind,
   createCelebrationItem,
   enqueueCelebrationItem,
+  isStreakCelebrationMilestone,
   type CelebrationKind,
   type CelebrationPayloadMap,
   type CelebrationQueueItem,
@@ -25,73 +27,61 @@ type UIStoreSet = {
       | Partial<UIStoreState>
       | ((state: UIStoreState) => Partial<UIStoreState>),
     replace?: false,
-  ): void;
+  ): unknown;
   (
     state: UIStoreState | ((state: UIStoreState) => UIStoreState),
     replace: true,
-  ): void;
+  ): unknown;
 };
 
 type UIStoreGet = () => UIStoreState;
 
 export type HabitFrequencyFilter = "Day" | "Week" | "Month" | "Year" | "none";
-export type ActiveView = "today" | "all" | "general" | "goals";
-
-function isHabitFrequencyFilter(value: unknown): value is HabitFrequencyFilter {
-  return (
-    value === "Day" ||
-    value === "Week" ||
-    value === "Month" ||
-    value === "Year" ||
-    value === "none"
-  );
-}
+export type ActiveView = "today" | "all" | "general";
 
 function isActiveView(value: unknown): value is ActiveView {
   return (
     value === "today" ||
     value === "all" ||
-    value === "general" ||
-    value === "goals"
+    value === "general"
   );
 }
 
 export interface PersistedUIState {
-  activeView: ActiveView;
-  selectedFrequency: HabitFrequencyFilter | null;
-  selectedTagIds: string[];
-  showCompleted: boolean;
+  dailyStreakMomentDate: string;
   setupChecklistDismissed: boolean;
-}
-
-export interface TourUIState extends PersistedUIState {
-  searchQuery: string;
+  activeFilters: HabitsFilter;
+  activeView: ActiveView;
+  calendarShowRecurring: boolean;
 }
 
 export function migratePersistedUIState(
   persistedState: unknown,
 ): PersistedUIState {
   const state = isRecord(persistedState) ? persistedState : {};
+  const activeFilters = isRecord(state.activeFilters)
+    ? { ...state.activeFilters }
+    : {};
+  delete activeFilters.search;
   return {
+    dailyStreakMomentDate: typeof state.dailyStreakMomentDate === "string" ? state.dailyStreakMomentDate : "",
+    setupChecklistDismissed: state.setupChecklistDismissed === true,
+    activeFilters,
+    calendarShowRecurring: typeof state.calendarShowRecurring === "boolean" ? state.calendarShowRecurring : true,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
-    selectedFrequency: isHabitFrequencyFilter(state.selectedFrequency)
-      ? state.selectedFrequency
-      : null,
-    selectedTagIds: Array.isArray(state.selectedTagIds)
-      ? state.selectedTagIds.filter(
-          (tagId): tagId is string => typeof tagId === "string",
-        )
-      : [],
-    showCompleted:
-      typeof state.showCompleted === "boolean" ? state.showCompleted : false,
-    setupChecklistDismissed:
-      typeof state.setupChecklistDismissed === "boolean"
-        ? state.setupChecklistDismissed
-        : false,
   };
 }
 
 export interface UIStoreState {
+  setupChecklistDismissed: boolean;
+  setSetupChecklistDismissed: (dismissed: boolean) => Promise<void>;
+  lastDestination: ShellDestinationId;
+  setLastDestination: (destination: ShellDestinationId) => void;
+  activeFilters: HabitsFilter;
+  setFilters: (filters: Partial<HabitsFilter>) => void;
+
+  calendarShowRecurring: boolean;
+  setCalendarShowRecurring: (show: boolean) => void;
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
 
@@ -104,17 +94,26 @@ export interface UIStoreState {
   completeActiveCelebration: (id?: string) => void;
   hasCelebrationInFlight: () => boolean;
 
+  dailyStreakMomentDate: string;
+  showStreakMoment: (
+    streak: number,
+    previousStreak: number | null | undefined,
+    log: { date?: string; timeZone?: string | null; intent: "log" | "unlog"; countsTowardStreak: boolean },
+  ) => void;
   streakCelebration: { streak: number } | null;
   allDoneCelebration: boolean;
   allDoneCelebratedDate: string;
-  goalCompletedCelebration: { name: string } | null;
+  goalCompletedCelebration: { name: string; count: number; unit: string } | null;
   setStreakCelebration: (data: { streak: number } | null) => void;
-  setAllDoneCelebration: (value: boolean) => void;
-  setGoalCompletedCelebration: (data: { name: string } | null) => void;
+  setAllDoneCelebration: (value: boolean, count?: number) => void;
+  setGoalCompletedCelebration: (
+    data: { name: string; count: number; unit: string } | null,
+  ) => void;
   checkAllDoneCelebration: (
     habitsById: Map<string, NormalizedHabit>,
     childrenByParent: Map<string, string[]>,
     date: string,
+    timeZone?: string | null,
   ) => void;
 
   isSelectMode: boolean;
@@ -133,63 +132,45 @@ export interface UIStoreState {
 
   showCreateModal: boolean;
   setShowCreateModal: (show: boolean) => void;
-  showCreateGoalModal: boolean;
-  setShowCreateGoalModal: (show: boolean) => void;
   openOverlayIds: string[];
   registerOpenOverlay: (id: string) => void;
   unregisterOpenOverlay: (id: string) => void;
+  tryReservePromptOverlay: (id: string) => boolean;
+
+  /** Transient shell state. These values are deliberately excluded from persistence. */
+  todayFabHidden: boolean;
+  setTodayFabHidden: (hidden: boolean) => void;
+  calendarHasError: boolean;
+  setCalendarHasError: (hasError: boolean) => void;
+  astraConversationOpen: boolean;
+  astraEntryPointIntent: 'support' | undefined;
+  setAstraConversationOpen: (open: boolean, entryPointIntent?: 'support') => void;
 
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 
-  selectedFrequency: HabitFrequencyFilter | null;
-  setSelectedFrequency: (frequency: HabitFrequencyFilter | null) => void;
-
-  selectedTagIds: string[];
-  setSelectedTagIds: (tagIds: string[]) => void;
-
-  showCompleted: boolean;
-  setShowCompleted: (show: boolean) => void;
-
-  setupChecklistDismissed: boolean;
-  setSetupChecklistDismissed: (dismissed: boolean) => void;
 }
 
 export function hasOpenPromptBlockingOverlay(state: UIStoreState): boolean {
-  return state.showCreateModal || state.showCreateGoalModal || state.openOverlayIds.length > 0;
+  return state.showCreateModal || state.astraConversationOpen || state.openOverlayIds.length > 0;
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
+  const activeFilters = { ...state.activeFilters };
+  delete activeFilters.search;
   return {
+    dailyStreakMomentDate: state.dailyStreakMomentDate,
+    activeFilters,
     activeView: state.activeView,
-    selectedFrequency: state.selectedFrequency,
-    selectedTagIds: [...state.selectedTagIds],
-    showCompleted: state.showCompleted,
+    calendarShowRecurring: state.calendarShowRecurring,
     setupChecklistDismissed: state.setupChecklistDismissed,
-  };
-}
-
-export function getTourSessionUIState(state: UIStoreState): TourUIState {
-  return {
-    ...getPersistedUIState(state),
-    searchQuery: state.searchQuery,
-  };
-}
-
-export function createTourUIState(): TourUIState {
-  return {
-    activeView: "today",
-    searchQuery: "",
-    selectedFrequency: null,
-    selectedTagIds: [],
-    showCompleted: true,
-    setupChecklistDismissed: false,
   };
 }
 
 export function createUIStoreState(
   set: UIStoreSet,
   get: UIStoreGet,
+  getAccountGeneration: () => number = () => 0,
 ): UIStoreState {
   let createdHabitTimer: ReturnType<typeof setTimeout> | undefined;
   let celebrationSequence = 0;
@@ -207,6 +188,14 @@ export function createUIStoreState(
     return (payload) =>
       set((state) => {
         if (payload) {
+          if (
+            kind === "streak" &&
+            !isStreakCelebrationMilestone(
+              (payload as CelebrationPayloadMap["streak"]).streak,
+            )
+          ) {
+            return {};
+          }
           return enqueueCelebrationItem(
             state,
             createCelebrationItem(kind, payload, nextCelebrationSequence()),
@@ -218,9 +207,50 @@ export function createUIStoreState(
   }
 
   return {
+    setupChecklistDismissed: false,
+    setSetupChecklistDismissed: async (setupChecklistDismissed) => {
+      const previous = get().setupChecklistDismissed;
+      const accountGeneration = getAccountGeneration();
+      try {
+        await set({ setupChecklistDismissed });
+      } catch (error) {
+        if (getAccountGeneration() !== accountGeneration) throw error;
+        try {
+          await set({ setupChecklistDismissed: previous });
+        } catch (rollbackError) {
+          throw new AggregateError([error, rollbackError]);
+        }
+        throw error;
+      }
+    },
+    lastDestination: "hoje",
+    setLastDestination: (lastDestination) => set({ lastDestination }),
+    activeFilters: {},
+    setFilters: (filters) =>
+      set((state) => ({
+        activeFilters: { ...state.activeFilters, ...filters },
+      })),
+
+    calendarShowRecurring: true,
+    setCalendarShowRecurring: (calendarShowRecurring) => set({ calendarShowRecurring }),
     activeView: "today",
     setActiveView: (view) => set({ activeView: view }),
 
+    dailyStreakMomentDate: "",
+    showStreakMoment: (streak, previousStreak, log) => {
+      const today = getAccountDay(new Date(), log.timeZone);
+      if (log.intent !== "log" || !log.countsTowardStreak || (log.date && log.date !== today)) return;
+      if (previousStreak === undefined || previousStreak === null || streak !== previousStreak + 1) return;
+      set((state) => {
+        if (state.dailyStreakMomentDate === today) return {};
+        const kind = isStreakCelebrationMilestone(streak) ? "streak" : "daily-streak";
+        const moment = enqueueCelebrationItem(
+          state,
+          createCelebrationItem(kind, { streak }, nextCelebrationSequence()),
+        );
+        return { ...moment, dailyStreakMomentDate: today };
+      });
+    },
     activeCelebration: null,
     queuedCelebrations: [],
     streakCelebration: null,
@@ -228,13 +258,22 @@ export function createUIStoreState(
     allDoneCelebratedDate: "",
     goalCompletedCelebration: null,
 
-    enqueueCelebration: (kind, payload) =>
+    enqueueCelebration: (kind, payload) => {
+      if (
+        kind === "streak" &&
+        !isStreakCelebrationMilestone(
+          (payload as CelebrationPayloadMap["streak"]).streak,
+        )
+      ) {
+        return;
+      }
       set((state) =>
         enqueueCelebrationItem(
           state,
           createCelebrationItem(kind, payload, nextCelebrationSequence()),
         ),
-      ),
+      );
+    },
 
     completeActiveCelebration: (id) =>
       set((state) => {
@@ -254,12 +293,12 @@ export function createUIStoreState(
       streakCelebration: null,
     }),
 
-    setAllDoneCelebration: (value) =>
+    setAllDoneCelebration: (value, count = 1) =>
       set((state) => {
         if (value) {
           return enqueueCelebrationItem(
             state,
-            createCelebrationItem("all-done", { count: 0 }, nextCelebrationSequence()),
+            createCelebrationItem("all-done", { count }, nextCelebrationSequence()),
           );
         }
 
@@ -272,9 +311,9 @@ export function createUIStoreState(
       goalCompletedCelebration: null,
     }),
 
-    checkAllDoneCelebration: (habitsById, childrenByParent, date) => {
+    checkAllDoneCelebration: (habitsById, childrenByParent, date, timeZone) => {
       const { allDoneCelebratedDate, enqueueCelebration } = get();
-      const today = formatAPIDate(new Date());
+      const today = getAccountDay(new Date(), timeZone);
 
       if (date !== today) return;
       if (allDoneCelebratedDate === today) return;
@@ -359,34 +398,33 @@ export function createUIStoreState(
 
     showCreateModal: false,
     setShowCreateModal: (show) => set({ showCreateModal: show }),
-    showCreateGoalModal: false,
-    setShowCreateGoalModal: (show) => set({ showCreateGoalModal: show }),
     openOverlayIds: [],
-    registerOpenOverlay: (id) =>
-      set((state) => ({
-        openOverlayIds: state.openOverlayIds.includes(id)
-          ? state.openOverlayIds
-          : [...state.openOverlayIds, id],
-      })),
-    unregisterOpenOverlay: (id) =>
-      set((state) => ({
-        openOverlayIds: state.openOverlayIds.filter((openId) => openId !== id),
-      })),
+    registerOpenOverlay: (id) => set((state) => ({
+      openOverlayIds: state.openOverlayIds.includes(id)
+        ? state.openOverlayIds
+        : [...state.openOverlayIds, id],
+    })),
+    unregisterOpenOverlay: (id) => set((state) => ({
+      openOverlayIds: state.openOverlayIds.filter((openId) => openId !== id),
+    })),
+    tryReservePromptOverlay: (id) => {
+      if (hasOpenPromptBlockingOverlay(get())) return false;
+      get().registerOpenOverlay(id);
+      return true;
+    },
+    todayFabHidden: false,
+    setTodayFabHidden: (hidden) => set({ todayFabHidden: hidden }),
+    calendarHasError: false,
+    setCalendarHasError: (calendarHasError) => set({ calendarHasError }),
+    astraConversationOpen: false,
+    astraEntryPointIntent: undefined,
+    setAstraConversationOpen: (open, entryPointIntent) => set({
+      astraConversationOpen: open,
+      astraEntryPointIntent: open ? entryPointIntent : undefined,
+    }),
 
     searchQuery: "",
     setSearchQuery: (query) => set({ searchQuery: query }),
 
-    selectedFrequency: null,
-    setSelectedFrequency: (frequency) => set({ selectedFrequency: frequency }),
-
-    selectedTagIds: [],
-    setSelectedTagIds: (tagIds) => set({ selectedTagIds: tagIds }),
-
-    showCompleted: false,
-    setShowCompleted: (show) => set({ showCompleted: show }),
-
-    setupChecklistDismissed: false,
-    setSetupChecklistDismissed: (dismissed) =>
-      set({ setupChecklistDismissed: dismissed }),
   };
 }

@@ -1,38 +1,59 @@
 import { describe, expect, it } from 'vitest'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import {
   PROFILE_NAV_ITEMS,
-  buildProfileNavSections,
-  isProfileNavItemLocked,
-  resolveProfileNavHint,
+  PROFILE_SETTINGS_GROUPS,
+  PROFILE_SUBMENUS,
+  getProfileProEntry,
   shouldRedirectProfileNavItem,
 } from '../utils/profile-navigation'
-
-const translate = (key: string, values?: Record<string, string | number>) =>
-  values ? `${key}:${JSON.stringify(values)}` : key
+import { createMockProfile } from './factories'
 
 describe('profile-navigation', () => {
-  it('keeps the web-aligned profile card order and routes', () => {
+  it('keeps navigation before More of Orbit and sign out', () => {
+    expect(PROFILE_SETTINGS_GROUPS).toEqual([
+      { id: 'you', labelKey: null },
+      { id: 'more', labelKey: 'profile.groups.more' },
+      { id: 'ending', labelKey: null },
+    ])
+    expect(PROFILE_SUBMENUS.map((submenu) => 'iconKey' in submenu ? submenu.iconKey : undefined)).toEqual(['account', 'preferences', 'astra', 'notifications'])
+    expect(PROFILE_SUBMENUS.map(({ route }) => route)).toEqual([
+      '/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications',
+    ])
+  })
+
+  it('keeps the profile rows and their destinations in display order', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.id)).toEqual([
-      'preferences',
-      'ai-settings',
-      'retrospective',
       'wrapped',
-      'achievements',
+      'android-widget',
       'calendar-sync',
+      'support',
       'about',
-      'advanced',
     ])
 
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
-      '/preferences',
-      '/ai-settings',
-      '/retrospective',
       '/wrapped',
-      '/achievements',
-      '/calendar-sync',
+      null,
+      '/calendar?import=1',
+      '/support',
       '/about',
-      '/advanced',
     ])
+    expect(PROFILE_NAV_ITEMS.find((item) => item.id === 'android-widget')?.action).toBe('openWidget')
+    expect(PROFILE_NAV_ITEMS.map(({ titleKey, hintKey }) => [titleKey, hintKey])).toEqual([
+      ['profile.settingsRows.wrapped', null],
+      ['profile.widgetTitle', null],
+      ['profile.calendarSync.title', null],
+      ['profile.support.rowTitle', null],
+      ['profile.aboutRow', null],
+    ])
+  })
+
+  it('keeps Wrapped copy scoped to Perfil without changing Progress or notifications', () => {
+    expect(en.profile.settingsRows.wrapped).toBe('Orbit Wrapped')
+    expect(ptBR.profile.settingsRows.wrapped).toBe('Orbit Wrapped')
+    expect(en.profile.wrappedTitle).toBe('Your Wrapped')
+    expect(ptBR.profile.wrappedTitle).toBe('Seu Wrapped')
   })
 
   it('exposes Wrapped as a free, ungated feature entry', () => {
@@ -45,96 +66,28 @@ describe('profile-navigation', () => {
     expect(wrapped?.entitlementMode).toBeNull()
   })
 
-  it('keeps achievements title aligned with web source-of-truth key', () => {
-    const achievements = PROFILE_NAV_ITEMS.find((item) => item.id === 'achievements')
-    expect(achievements?.titleKey).toBe('gamification.profileCard.title')
-    expect(achievements?.hintMode).toBe('gamificationProfile')
-    expect(achievements?.proBadge).toBe(true)
-    expect(achievements?.variant).toBe('primary')
-    expect(achievements?.entitlementRequirement).toBe('pro')
-    expect(achievements?.entitlementMode).toBe('redirect')
-  })
-
   it('splits nav items between account and feature sections', () => {
     const account = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
     const features = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
-    expect(account).toHaveLength(2)
-    expect(features).toHaveLength(6)
+    expect(account).toHaveLength(0)
+    expect(features).toHaveLength(5)
   })
 
   it('marks locked destinations and mixed screens explicitly', () => {
     const calendar = PROFILE_NAV_ITEMS.find((item) => item.id === 'calendar-sync')
-    const retrospective = PROFILE_NAV_ITEMS.find((item) => item.id === 'retrospective')
-    const preferences = PROFILE_NAV_ITEMS.find((item) => item.id === 'preferences')
+    const about = PROFILE_NAV_ITEMS.find((item) => item.id === 'about')
 
     expect(calendar?.proBadge).toBe(true)
     expect(calendar?.entitlementRequirement).toBe('pro')
-    expect(retrospective?.entitlementRequirement).toBe('yearlyPro')
-    expect(preferences?.entitlementMode).toBe('mixed')
-  })
-
-  it('expands section definitions into groups selecting matching nav items in id order', () => {
-    const sections = buildProfileNavSections([
-      { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
-      { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
-    ])
-
-    expect(sections).toHaveLength(2)
-    expect(sections[0]?.labelKey).toBe('explore.sections.progress')
-    expect(sections[0]?.items.map((item) => item.id)).toEqual(['retrospective', 'wrapped'])
-    expect(sections[1]?.items.map((item) => item.id)).toEqual(['about', 'advanced'])
-  })
-
-  it('yields an empty item list for a section whose ids match nothing', () => {
-    const [section] = buildProfileNavSections([{ labelKey: 'missing.section', ids: ['missing'] }])
-    expect(section?.items).toEqual([])
-  })
-
-  it('builds the gamification hint for pro users with a loaded profile', () => {
-    expect(
-      resolveProfileNavHint(
-        { hintMode: 'gamificationProfile', hintKey: 'gamification.profileCard.hint' },
-        { hasProAccess: true, gamificationProfile: { level: 4, totalXp: 870 } },
-        translate,
-      ),
-    ).toBe(
-      'gamification.profileCard.level:{"level":4} · gamification.profileCard.totalXp:{"total":870}',
-    )
-  })
-
-  it('falls back to the static hint without pro access or gamification data', () => {
-    expect(
-      resolveProfileNavHint(
-        { hintMode: 'gamificationProfile', hintKey: 'gamification.profileCard.hint' },
-        { hasProAccess: false, gamificationProfile: { level: 4, totalXp: 870 } },
-        translate,
-      ),
-    ).toBe('gamification.profileCard.hint')
-
-    expect(
-      resolveProfileNavHint(
-        { hintMode: 'gamificationProfile', hintKey: 'gamification.profileCard.hint' },
-        { hasProAccess: true, gamificationProfile: null },
-        translate,
-      ),
-    ).toBe('gamification.profileCard.hint')
-
-    expect(
-      resolveProfileNavHint(
-        { hintMode: 'static', hintKey: 'profile.sections.preferencesHint' },
-        { hasProAccess: true, gamificationProfile: { level: 4, totalXp: 870 } },
-        translate,
-      ),
-    ).toBe('profile.sections.preferencesHint')
+    expect(about?.entitlementMode).toBeNull()
   })
 
   it('uses the shared entitlement rules for redirect decisions', () => {
-    const achievements = PROFILE_NAV_ITEMS.find((item) => item.id === 'achievements')
-    const retrospective = PROFILE_NAV_ITEMS.find((item) => item.id === 'retrospective')
-    const advanced = PROFILE_NAV_ITEMS.find((item) => item.id === 'advanced')
+    const calendar = PROFILE_NAV_ITEMS.find((item) => item.id === 'calendar-sync')
+    const about = PROFILE_NAV_ITEMS.find((item) => item.id === 'about')
 
     expect(
-      shouldRedirectProfileNavItem(achievements!, {
+      shouldRedirectProfileNavItem(calendar!, {
         hasProAccess: false,
         isLifetimePro: false,
         subscriptionInterval: null,
@@ -142,19 +95,53 @@ describe('profile-navigation', () => {
     ).toBe(true)
 
     expect(
-      isProfileNavItemLocked(retrospective!, {
-        hasProAccess: true,
-        isLifetimePro: false,
-        subscriptionInterval: 'monthly',
-      }),
-    ).toBe(true)
-
-    expect(
-      shouldRedirectProfileNavItem(advanced!, {
+      shouldRedirectProfileNavItem(about!, {
         hasProAccess: false,
         isLifetimePro: false,
         subscriptionInterval: null,
       }),
     ).toBe(false)
+  })
+
+  describe.each([
+    ['en', en],
+    ['pt-BR', ptBR],
+  ] as const)('the Orbit Pro entry in %s', (locale, messages) => {
+    const translate = (key: string, values?: Record<string, string>) => {
+      const message = key.split('.').reduce<unknown>(
+        (node, segment) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[segment] : undefined),
+        messages,
+      )
+      if (typeof message !== 'string') throw new Error(`missing ${key}`)
+      return message.replace(/\{(\w+)\}/g, (_, name: string) => values?.[name] ?? '')
+    }
+    const expected = locale === 'en'
+      ? { free: 'Free', pro: 'Active', lifetime: 'Lifetime', trial: 'Trial' }
+      : { free: 'Grátis', pro: 'Ativo', lifetime: 'Vitalício', trial: 'Teste' }
+
+    it('opens the pitch for a free account', () => {
+      const profile = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.free, href: '/upgrade' })
+    })
+
+    it('keeps the trial end date off Perfil and opens the pitch for a trial account', () => {
+      const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, isLifetimePro: false, trialEndsAt: '2099-10-09T12:00:00Z' })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.trial, href: '/upgrade' })
+    })
+
+    it('keeps the plain trial label when the trial has no end date', () => {
+      const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, isLifetimePro: false, trialEndsAt: null })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.trial, href: '/upgrade' })
+    })
+
+    it('opens the subscription for a paid Pro account', () => {
+      const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false, isLifetimePro: false })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.pro, href: '/upgrade' })
+    })
+
+    it('shows lifetime Pro read-only', () => {
+      const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false, isLifetimePro: true })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.lifetime, href: undefined })
+    })
   })
 })

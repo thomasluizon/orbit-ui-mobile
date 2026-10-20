@@ -27,7 +27,6 @@ describe('resolveProfileSubscriptionDisplay', () => {
     expect(display.label).toBe('profile.subscription.trial')
     expect(display.hint).toBe('1 day left')
     expect(display.showBadge).toBe(true)
-    expect(display.badgeTone).toBe('soft')
     expect(display.badgeLabel).toBe('trial.proBadge')
   })
 
@@ -64,7 +63,6 @@ describe('resolveProfileSubscriptionDisplay', () => {
     expect(display.label).toBe('profile.subscription.pro')
     expect(display.hint).toBe('profile.subscription.proHint')
     expect(display.showBadge).toBe(true)
-    expect(display.badgeTone).toBe('violet')
     expect(display.badgeLabel).toBe('common.proBadge')
   })
 
@@ -92,7 +90,6 @@ describe('resolveProfileSubscriptionDisplay', () => {
     expect(display.label).toBe('profile.subscription.free')
     expect(display.hint).toBe('profile.subscription.freeHint')
     expect(display.showBadge).toBe(false)
-    expect(display.badgeTone).toBe('violet')
     expect(display.badgeLabel).toBe('common.proBadge')
   })
 })

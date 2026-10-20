@@ -1,4 +1,3 @@
-
 const NUMERIC_COERCING_OPERATORS = new Set(['+', '-', '*', '/', '%', '**'])
 
 function isBooleanish(node) {

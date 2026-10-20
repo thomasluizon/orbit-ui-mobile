@@ -4,21 +4,27 @@ import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 
-vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
 }))
 
-vi.mock('@/components/ui/app-time-picker', () => ({
-  AppTimePicker: ({
+
+const clockState = vi.hoisted(() => ({ language: 'pt-BR', uses24HourClock: false }))
+vi.mock('next-intl', () => ({ useLocale: () => clockState.language }))
+
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: clockState.uses24HourClock } }) }))
+
+vi.mock('@/components/ui/time-field', () => ({
+  TimeField: ({
     value,
-    ariaLabel,
+    label,
     onChange,
   }: {
     value: string
-    ariaLabel?: string
+    label: string
     onChange: (value: string) => void
   }) => (
-    <input aria-label={ariaLabel} value={value} onChange={(event) => onChange(event.target.value)} />
+    <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />
   ),
 }))
 
@@ -55,6 +61,17 @@ describe('ScheduledReminderSection', () => {
     expect(screen.queryByRole('switch')).toBeNull()
   })
 
+  it.each([
+    ['pt-BR', false, '7:30 PM', '19:30'],
+    ['en', true, '19:30', '7:30 PM'],
+  ])('shows fixed reminder times with %s and the saved clock', (language, uses24HourClock, expected, excluded) => {
+    clockState.language = language
+    clockState.uses24HourClock = uses24HourClock
+    renderSection({ scheduledReminders: [sameDay('19:30')] })
+    expect(screen.getByText(new RegExp(expected))).toBeInTheDocument()
+    expect(screen.queryByText(new RegExp(excluded))).not.toBeInTheDocument()
+  })
+
   it('renders same-day and day-before chips and removes the clicked one', () => {
     const props = renderSection({
       scheduledReminders: [sameDay('08:00'), { when: 'day_before', time: '20:00' }],
@@ -82,7 +99,18 @@ describe('ScheduledReminderSection', () => {
   it('adds a valid scheduled reminder from the form', () => {
     const props = renderSection({ scheduledReminders: [] })
     fireEvent.click(screen.getByText('habits.form.scheduledReminderAdd'))
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.scheduledReminderDayBefore' }))
+    const group = screen.getByRole('radiogroup', { name: 'habits.form.scheduledReminder' })
+    const dayBefore = screen.getByRole('radio', { name: 'habits.form.scheduledReminderDayBefore' })
+    const sameDayOption = screen.getByRole('radio', { name: 'habits.form.scheduledReminderSameDay' })
+    expect(group).toContainElement(dayBefore)
+    expect([dayBefore.tabIndex, sameDayOption.tabIndex]).toEqual([-1, 0])
+    fireEvent.keyDown(sameDayOption, { key: 'ArrowRight' })
+    expect(dayBefore).toHaveFocus()
+    expect(dayBefore).toHaveAttribute('aria-checked', 'true')
+    expect([dayBefore.tabIndex, sameDayOption.tabIndex]).toEqual([0, -1])
+    fireEvent.keyDown(dayBefore, { key: 'ArrowRight' })
+    expect(sameDayOption).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(dayBefore)
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), {
       target: { value: '09:30' },
     })

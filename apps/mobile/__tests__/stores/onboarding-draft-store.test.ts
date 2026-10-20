@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { ONBOARDING_DRAFT_STORAGE_VERSION } from '@orbit/shared/stores'
 
 const asyncStorageState = vi.hoisted(() => ({
   data: new Map<string, string>(),
@@ -7,12 +8,14 @@ const asyncStorageState = vi.hoisted(() => ({
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: vi.fn(async (key: string) => asyncStorageState.data.get(key) ?? null),
-    setItem: vi.fn(async (key: string, value: string) => {
+    getItem: vi.fn((key: string) => Promise.resolve(asyncStorageState.data.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
       asyncStorageState.data.set(key, value)
+      return Promise.resolve()
     }),
-    removeItem: vi.fn(async (key: string) => {
+    removeItem: vi.fn((key: string) => {
       asyncStorageState.data.delete(key)
+      return Promise.resolve()
     }),
   },
 }))
@@ -20,7 +23,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 describe('onboarding draft store', () => {
   beforeEach(() => {
     asyncStorageState.data.clear()
-    useOnboardingDraftStore.getState().reset()
+    useOnboardingDraftStore.setState(useOnboardingDraftStore.getInitialState())
     useOnboardingDraftStore.setState({ _hasHydrated: false })
   })
 
@@ -58,14 +61,12 @@ describe('onboarding draft store', () => {
     store.bufferFirstLog(index, '2026-07-05')
     store.bufferGoal({ title: 'Run 100km', targetValue: 100, unit: 'km' })
     store.bufferWeekStartDay(1)
-    store.bufferColorScheme('blue')
 
     expect(useOnboardingDraftStore.getState().buildApplyPayload()).toEqual({
       habits: [{ title: 'Meditate' }],
       firstLog: { habitIndex: 0, date: '2026-07-05' },
       goal: { title: 'Run 100km', targetValue: 100, unit: 'km' },
       weekStartDay: 1,
-      colorScheme: 'blue',
     })
 
     useOnboardingDraftStore.getState().reset()
@@ -81,7 +82,7 @@ describe('onboarding draft store', () => {
       'orbit-onboarding-draft',
       JSON.stringify({
         state: {
-          step: 2,
+          accountKey: null,
           habits: [{ title: 'Stretch' }],
           firstLog: null,
           goal: null,
@@ -89,14 +90,14 @@ describe('onboarding draft store', () => {
           colorScheme: null,
           onboardingLocallyDone: true,
         },
-        version: 1,
+        version: ONBOARDING_DRAFT_STORAGE_VERSION,
       }),
     )
 
     await useOnboardingDraftStore.persist.rehydrate()
 
     expect(useOnboardingDraftStore.getState()).toMatchObject({
-      step: 2,
+      accountKey: null,
       habits: [{ title: 'Stretch' }],
       weekStartDay: 1,
       onboardingLocallyDone: true,

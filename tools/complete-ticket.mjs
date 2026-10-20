@@ -25,11 +25,8 @@ Without --preflight, posts the ticket's manual steps as a comment (when it has a
 board Status Done and closes the issue with reason completed. This is the post-merge path. The
 ordinary readiness status adapter still refuses Done.
 
-The comment is posted BEFORE the close on purpose. orbit-tickets#81 said "merge, deploy to Render,
-then set PostHog:ApiKey in the Render env"; the ticket closed Done on 2026-08-08 and nothing in the
-merge path ever mentioned the key. That it was already set is luck, not a mechanism. A step that
-survives only in a terminal report dies with the scrollback. A ticket with no such step produces no
-comment at all.
+The comment is posted BEFORE the close so required manual steps remain on the ticket. A ticket
+with no such step produces no comment.
 
 exit codes: 0 preflight or completion succeeded, 1 ticket read or write failed, 2 usage error`
 

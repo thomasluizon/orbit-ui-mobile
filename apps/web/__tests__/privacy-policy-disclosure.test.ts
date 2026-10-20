@@ -18,6 +18,7 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
+
 const REPO_ROOT = join(__dirname, '..', '..', '..')
 
 type ArchitectureMap = {
@@ -123,7 +124,10 @@ describe('privacy policy disclosures', () => {
   })
 
   it('keeps the complete privacy key set identical across locales', () => {
-    expect(flattenKeys(ptBR.privacy).sort()).toEqual(flattenKeys(en.privacy).sort())
+    const compareKeys = (left: string, right: string) => left.localeCompare(right)
+    expect(flattenKeys(ptBR.privacy).sort(compareKeys)).toEqual(
+      flattenKeys(en.privacy).sort(compareKeys),
+    )
   })
 
   it('keeps every processor, retention, and cookie disclosure owned by both privacy routes', () => {
@@ -168,9 +172,19 @@ describe('privacy policy disclosures', () => {
     expect(privacy.dataResidency.body).not.toMatch(/Supabase|Vercel|Resend/)
   })
 
+  it.each([
+    ['English', en.privacy.thirdParty],
+    ['Portuguese', ptBR.privacy.thirdParty],
+  ])('separates every %s processor name from its purpose the same way', (_locale, thirdParty) => {
+    for (const disclosure of disclosureValues(thirdParty)) {
+      expect(disclosure).toMatch(/^[^:]+: \S/)
+      expect(disclosure).not.toContain(' - ')
+    }
+  })
+
   it('discloses AdMob only for older Android versions in both locales', () => {
     expect(en.privacy.thirdParty.admob).toBe('Google AdMob: Orbit for Android before version 1.3.35 could show ads to free users and could use your device advertising identifier for them. Version 1.3.35 and later show no ads.')
-    expect(ptBR.privacy.thirdParty.admob).toBe('Google AdMob: o Orbit para Android antes da versão 1.3.35 podia mostrar anúncios para usuários do plano gratuito e podia usar o identificador de publicidade do seu dispositivo para isso. A versão 1.3.35 e as posteriores não mostram anúncios.')
+    expect(ptBR.privacy.thirdParty.admob).toBe('Google AdMob: o Orbit para Android antes da versão 1.3.35 podia mostrar anúncios para usuários do plano gratuito e podia usar o identificador de publicidade do seu aparelho para isso. A versão 1.3.35 e as posteriores não mostram anúncios.')
     expect(en.privacy.dataCollected.device).toBe('Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access')
     expect(ptBR.privacy.dataCollected.device).toBe('Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar')
   })
@@ -208,4 +222,10 @@ describe('privacy policy disclosures', () => {
     expect(en.privacy.lastUpdated).toBe('Last updated: October 2026')
     expect(ptBR.privacy.lastUpdated).toBe('Última atualização: outubro de 2026')
   })
+})
+
+it.each([['en', en], ['pt-BR', ptBR]] as const)('renders Notion access and retention disclosures in %s', (locale, messages) => {
+  render(React.createElement(TestIntlProvider, { locale, messages }, React.createElement(PrivacyPage)))
+  expect(screen.getByText(messages.privacy.thirdParty.notion)).toBeInTheDocument()
+  expect(screen.getByText(messages.privacy.retention.notion)).toBeInTheDocument()
 })

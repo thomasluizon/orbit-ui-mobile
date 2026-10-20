@@ -1,20 +1,152 @@
 import { describe, expect, it } from 'vitest'
+import { calendarSyncSuggestionSchema } from '../types/calendar'
+import { bulkCreateRequestSchema } from '../types/habit'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  calendarImportEventsKey,
+  calendarImportRouteRequestKey,
+  calendarImportTitleKey,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  formatCalendarSyncTimestamp,
+  filterCalendarSyncEventsByDate,
+  getCalendarSyncImportIssue,
+  getCalendarSyncImportIssueMessageKey,
+  isCalendarSyncEventImportable,
   isCalendarAutoSyncStatusReconnectRequired,
+  isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  resolveCalendarSyncEndDate,
+  reconcileCalendarAutoSyncGrantRevocation,
+  resolveCalendarEventsGrantRevocation,
+  resolveCalendarImportEvents,
+  resolveCalendarImportConnectionStep,
+  resolveCalendarImportSelection,
+  runCalendarSyncNowWithFeedback,
+  selectInitialCalendarImportEvent,
+  shouldOpenCalendarImportSheet,
+  shouldPromptForCalendarConnection,
 } from '../utils/calendar-sync'
 
 describe('calendar-sync utils', () => {
+  const importEvent = {
+    id: 'event-1', title: 'Meeting', description: null, startDate: '2026-09-12',
+    startTime: '09:00', endTime: '10:00', isRecurring: false,
+    recurrenceRule: null, reminders: [],
+  }
+
+  it('offers unimported events only after the calendar connects, while review uses suggestions', () => {
+    expect(resolveCalendarImportEvents(false, [], undefined)).toEqual([])
+    expect(resolveCalendarImportEvents(false, [], { status: 'not-connected' })).toEqual([])
+    const suggestion = {
+      id: 'suggestion-1', googleEventId: importEvent.id,
+      discoveredAtUtc: '2026-09-12T08:00:00Z', event: importEvent,
+    }
+    expect(resolveCalendarImportEvents(true, [suggestion], { status: 'not-connected' }))
+      .toEqual([importEvent])
+    expect(resolveCalendarImportEvents(false, [suggestion], {
+      status: 'connected', events: [importEvent, { ...importEvent, id: 'imported', isImported: true }],
+    })).toEqual([importEvent])
+    expect(calendarImportEventsKey(true, 0, [importEvent])).toBe('review:0:event-1')
+  })
+
+  it('selects a requested importable event and rejects an imported or missing event', () => {
+    const imported = { ...importEvent, id: 'imported', isImported: true }
+    expect([...selectInitialCalendarImportEvent(importEvent.id, false, [importEvent], 1)!])
+      .toEqual([importEvent.id])
+    expect([...selectInitialCalendarImportEvent(imported.id, false, [imported], 1)!])
+      .toEqual([])
+    expect([...selectInitialCalendarImportEvent('missing', false, [importEvent], 1)!])
+      .toEqual([])
+    expect(selectInitialCalendarImportEvent(importEvent.id, true, [importEvent], 1)).toBeNull()
+    expect(selectInitialCalendarImportEvent(null, false, [importEvent], 1)).toBeNull()
+    expect([...resolveCalendarImportSelection(importEvent.id, false, [importEvent, imported], 1, new Set(), null)])
+      .toEqual([importEvent.id])
+  })
+
+  it('reports a failed sync only for the account that started it', async () => {
+    const failures: unknown[] = []
+    let generation = 1
+    const reportFailure = (error: unknown) => { failures.push(error) }
+    const failure = new Error('sync failed')
+    await runCalendarSyncNowWithFeedback(async () => 'synced', reportFailure, () => generation)
+    expect(failures).toEqual([])
+    await runCalendarSyncNowWithFeedback(async () => { throw failure }, reportFailure, () => generation)
+    expect(failures).toEqual([failure])
+    await runCalendarSyncNowWithFeedback(async () => {
+      generation = 2
+      throw new Error('previous account failed')
+    }, reportFailure, () => generation)
+    expect(failures).toEqual([failure])
+  })
+
+  it('shows the connect step only for an online browsing account with settled disconnected state', () => {
+    expect(shouldPromptForCalendarConnection(false, false, true, true)).toBe(true)
+    expect(shouldPromptForCalendarConnection(true, false, true, true)).toBe(false)
+    expect(shouldPromptForCalendarConnection(false, true, true, true)).toBe(false)
+    expect(shouldPromptForCalendarConnection(false, false, false, true)).toBe(false)
+    expect(shouldPromptForCalendarConnection(false, false, true, false)).toBe(false)
+    expect(resolveCalendarImportConnectionStep('events', false, true, false, true, true)).toBe('error')
+    expect(resolveCalendarImportConnectionStep('events', false, true, false, false, true)).toBe('events')
+    expect(resolveCalendarImportConnectionStep('events', false, false, false, true, true)).toBe('not-connected')
+    expect(resolveCalendarImportConnectionStep('events', false, false, true, true, true)).toBe('events')
+  })
+
+  it('opens the import sheet after the profile is ready and gives review routes priority', () => {
+    expect(shouldOpenCalendarImportSheet(true, true, false)).toBe(true)
+    expect(shouldOpenCalendarImportSheet(true, false, true)).toBe(true)
+    expect(shouldOpenCalendarImportSheet(true, false, false)).toBe(false)
+    expect(shouldOpenCalendarImportSheet(false, true, true)).toBe(false)
+    expect(calendarImportRouteRequestKey(true, true)).toBe('review')
+    expect(calendarImportRouteRequestKey(true, false)).toBe('review')
+    expect(calendarImportRouteRequestKey(false, true)).toBe('import')
+    expect(calendarImportRouteRequestKey(false, false)).toBe('')
+    expect(calendarImportTitleKey(true)).toBe('calendar.autoSync.reviewModeTitle')
+    expect(calendarImportTitleKey(false)).toBe('calendar.calendars.title')
+  })
+
+  it('keeps imported events out of manual import and preserves review selection on refresh', () => {
+    const event = {
+      id: 'available', title: 'Meeting', description: null, startDate: '2026-09-12',
+      startTime: '09:00', endTime: '10:00', isRecurring: false,
+      recurrenceRule: null, reminders: [],
+    }
+    const imported = { ...event, id: 'imported', isImported: true }
+    const result = { status: 'connected' as const, events: [event, imported] }
+    const manualEvents = resolveCalendarImportEvents(false, [], result)
+    expect(manualEvents).toEqual([event])
+    expect(calendarImportEventsKey(false, 1, manualEvents)).toBe('manual:1:available')
+    expect([...resolveCalendarImportSelection(null, false, manualEvents, 1, new Set(), null)])
+      .toEqual(['available'])
+
+    const reviewEvents = resolveCalendarImportEvents(true, [{
+      id: 'suggestion', googleEventId: event.id,
+      discoveredAtUtc: '2026-09-12T08:00:00Z', event,
+    }], result)
+    expect(reviewEvents).toEqual([event])
+    expect([...resolveCalendarImportSelection(null, true, reviewEvents, 1, new Set(['available']), 'review:1:available')])
+      .toEqual(['available'])
+    expect([...resolveCalendarImportSelection(null, true, reviewEvents, 1, new Set(['gone']), 'review:1:gone')])
+      .toEqual([])
+  })
+
   it('parses RRULE recurrence data', () => {
     expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE')).toEqual({
       frequencyUnit: 'Week',
-      frequencyQuantity: 2,
+      frequencyQuantity: 1,
       days: ['Monday', 'Wednesday'],
+      intervalWeeks: 2,
+    })
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;BYDAY=MO,WE')).toEqual({
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: ['Monday', 'Wednesday'],
+    })
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=DAILY;INTERVAL=2')).toEqual({
+      frequencyUnit: 'Day',
+      frequencyQuantity: 2,
     })
   })
 
@@ -53,6 +185,7 @@ describe('calendar-sync utils', () => {
           frequencyUnit: 'Day',
           frequencyQuantity: 1,
           days: null,
+          endDate: null,
           reminderEnabled: true,
           reminderTimes: [15],
           googleEventId: 'event-1',
@@ -60,6 +193,672 @@ describe('calendar-sync utils', () => {
       ],
       fromSyncReview: true,
     })
+  })
+
+  it('encodes a weekly weekday event as a daily quantity-one habit', () => {
+    expect(
+      buildCalendarSyncImportRequest([
+        {
+          id: 'event-wednesday',
+          title: 'Wednesday class',
+          description: null,
+          startDate: '2026-09-23',
+          startTime: '18:00',
+          endTime: '19:00',
+          isRecurring: true,
+          recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=WE',
+          reminders: [],
+        },
+      ]),
+    ).toEqual({
+      habits: [
+        {
+          title: 'Wednesday class',
+          description: null,
+          dueDate: '2026-09-23',
+          dueTime: '18:00',
+          dueEndTime: '19:00',
+          frequencyUnit: 'Day',
+          frequencyQuantity: 1,
+          days: ['Wednesday'],
+          endDate: null,
+          reminderEnabled: false,
+          reminderTimes: null,
+          googleEventId: 'event-wednesday',
+        },
+      ],
+      fromSyncReview: true,
+    })
+  })
+
+  it('preserves every weekday in a multi-day weekly event', () => {
+    expect(
+      buildCalendarSyncImportRequest([
+        {
+          id: 'event-multiple-days',
+          title: 'Training days',
+          description: 'Strength work',
+          startDate: '2026-09-21',
+          startTime: '07:00',
+          endTime: '08:00',
+          isRecurring: true,
+          recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR',
+          reminders: [30],
+        },
+      ]),
+    ).toEqual({
+      habits: [
+        {
+          title: 'Training days',
+          description: 'Strength work',
+          dueDate: '2026-09-21',
+          dueTime: '07:00',
+          dueEndTime: '08:00',
+          frequencyUnit: 'Day',
+          frequencyQuantity: 1,
+          days: ['Monday', 'Wednesday', 'Friday'],
+          endDate: null,
+          reminderEnabled: true,
+          reminderTimes: [30],
+          googleEventId: 'event-multiple-days',
+        },
+      ],
+      fromSyncReview: true,
+    })
+  })
+
+  it('imports weekday intervals with both days and the interval', () => {
+    const event = {
+      id: 'event-alternate-weeks',
+      title: 'Alternate week training',
+      description: null,
+      startDate: '2026-09-21',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBeNull()
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(isCalendarSyncEventImportable({ ...event, isImported: true })).toBe(false)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]).toMatchObject({
+      days: ['Monday', 'Wednesday'],
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      intervalWeeks: 2,
+    })
+    expect(buildCalendarAutoSyncImportRequest([{
+      id: 'suggestion-interval',
+      googleEventId: event.id,
+      discoveredAtUtc: '2026-09-21T10:00:00Z',
+      event,
+    }]).habits[0]).toMatchObject({ intervalWeeks: 2 })
+    expect(bulkCreateRequestSchema.parse(buildCalendarSyncImportRequest([event])).habits[0])
+      .toMatchObject({ intervalWeeks: 2 })
+  })
+
+  it('accepts only valid interval week values in bulk create requests', () => {
+    const habit = { title: 'Monday training', intervalWeeks: 2 }
+    expect(bulkCreateRequestSchema.parse({ habits: [habit] }).habits[0]).toEqual(habit)
+    expect(bulkCreateRequestSchema.parse({ habits: [{ title: habit.title }] }).habits[0])
+      .not.toHaveProperty('intervalWeeks')
+    expect(bulkCreateRequestSchema.safeParse({ habits: [{ ...habit, intervalWeeks: 53 }] }).success)
+      .toBe(false)
+  })
+
+  it('ends a counted weekday interval on its final active week', () => {
+    const event = {
+      id: 'event-counted-alternate-weeks',
+      title: 'Alternate week training',
+      description: null,
+      startDate: '2026-09-21',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;COUNT=4',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate)).toBeNull()
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-10-07')
+  })
+
+  it('filters events to one calendar day, and to nothing when no day is selected', () => {
+    const onThatDay = { id: 'a', title: 'A', description: null, startDate: '2026-09-14', startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }
+    const anotherDay = { ...onThatDay, id: 'b', startDate: '2026-09-15' }
+
+    expect(filterCalendarSyncEventsByDate([onThatDay, anotherDay], '2026-09-14')).toEqual([onThatDay])
+    expect(filterCalendarSyncEventsByDate([onThatDay, anotherDay], null)).toEqual([])
+  })
+
+  it('names a message key per import issue', () => {
+    expect(getCalendarSyncImportIssueMessageKey('utc-until-offset-shift')).toBe('calendar.importIssue.utcUntilOffsetShift')
+  })
+
+  it('turns a revoked Google grant into a reconnect state and keeps the last sync time', () => {
+    expect(reconcileCalendarAutoSyncGrantRevocation({
+      enabled: true,
+      status: 'Idle',
+      lastSyncedAt: '2026-09-14T10:00:00Z',
+      hasGoogleConnection: true,
+    })).toEqual({
+      enabled: false,
+      status: 'ReconnectRequired',
+      lastSyncedAt: '2026-09-14T10:00:00Z',
+      hasGoogleConnection: false,
+    })
+
+    expect(reconcileCalendarAutoSyncGrantRevocation(undefined)).toEqual({
+      enabled: false,
+      status: 'ReconnectRequired',
+      lastSyncedAt: null,
+      hasGoogleConnection: false,
+    })
+  })
+
+  it('falls back to a quantity of one when a frequency carries none', () => {
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=MONTHLY')).toEqual({ frequencyUnit: 'Month', frequencyQuantity: 1 })
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;INTERVAL=0')).toEqual({ frequencyUnit: 'Week' })
+
+    const request = buildCalendarSyncImportRequest([{
+      id: 'event-zero-interval',
+      title: 'Zero interval',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=0',
+      reminders: [],
+    }])
+
+    const [habit] = request.habits
+    expect(habit).toBeDefined()
+    expect(habit?.frequencyUnit).toBe('Week')
+    expect(habit?.frequencyQuantity).toBe(1)
+  })
+
+
+  it('bounds a COUNT weekday series at its last occurrence', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=3', '2026-09-14')).toBe('2026-09-28')
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=3', '2026-09-14')).toBe('2026-09-21')
+  })
+
+  it('bounds a daily COUNT series using its interval', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=DAILY;INTERVAL=2;COUNT=3', '2026-09-14')).toBe('2026-09-18')
+  })
+
+  it('bounds a weekly COUNT series using its frequency', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;COUNT=3', '2026-09-14')).toBe('2026-09-28')
+  })
+
+  it('bounds a weekly COUNT series using its interval', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=3', '2026-09-14')).toBe('2026-10-12')
+  })
+
+  it('bounds a monthly COUNT series using its frequency', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=MONTHLY;COUNT=3', '2026-01-15')).toBe('2026-03-15')
+  })
+
+  it('keeps a finite monthly series whose anchor exists in every month', () => {
+    const event = {
+      id: 'event-monthly-28',
+      title: 'Monthly review',
+      description: null,
+      startDate: '2026-01-28',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+    )).toBeNull()
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-03-28')
+  })
+
+  it.each([
+    {
+      name: 'leap-day yearly interval',
+      id: 'event-leap-day-interval',
+      title: 'Leap day review',
+      startDate: '2024-02-29',
+      recurrenceRule: 'RRULE:FREQ=YEARLY;INTERVAL=4;COUNT=3',
+      frequencyUnit: 'Year',
+      frequencyQuantity: 4,
+      endDate: '2032-02-29',
+    },
+    {
+      name: 'month-end yearly interval',
+      id: 'event-month-end-interval',
+      title: 'Annual close',
+      startDate: '2026-03-31',
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;INTERVAL=12;COUNT=3',
+      frequencyUnit: 'Month',
+      frequencyQuantity: 12,
+      endDate: '2028-03-31',
+    },
+    {
+      name: 'single month-end occurrence',
+      id: 'event-month-end-once',
+      title: 'One month-end close',
+      startDate: '2026-01-31',
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=1',
+      frequencyUnit: 'Month',
+      frequencyQuantity: 1,
+      endDate: '2026-01-31',
+    },
+  ])('imports a safe finite $name without refusing its anchor', ({
+    id,
+    title,
+    startDate,
+    recurrenceRule,
+    frequencyUnit,
+    frequencyQuantity,
+    endDate,
+  }) => {
+    expect(buildCalendarSyncImportRequest([{
+      id,
+      title,
+      description: null,
+      startDate,
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule,
+      reminders: [],
+    }])).toEqual({
+      habits: [{
+        title,
+        description: null,
+        dueDate: startDate,
+        dueTime: null,
+        dueEndTime: null,
+        frequencyUnit,
+        frequencyQuantity,
+        days: null,
+        endDate,
+        reminderEnabled: false,
+        reminderTimes: null,
+        googleEventId: id,
+      }],
+      fromSyncReview: true,
+    })
+  })
+
+  it('imports a recurrence whose last candidate stays within year 9998', () => {
+    const event = {
+      id: 'event-year-9998',
+      title: 'Long range review',
+      description: null,
+      startDate: '2026-01-15',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=YEARLY;INTERVAL=7972;COUNT=2',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate)).toBeNull()
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('9998-01-15')
+  })
+
+  it.each([
+    {
+      name: 'monthly weekday rule',
+      id: 'event-monthly-weekdays-9999',
+      title: 'December review',
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR,SA,SU;COUNT=2',
+      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    },
+    {
+      name: 'yearly weekday rule',
+      id: 'event-yearly-weekdays-9999',
+      title: 'Year-end review',
+      recurrenceRule: 'RRULE:FREQ=YEARLY;BYDAY=WE,TH;COUNT=2',
+      days: ['Wednesday', 'Thursday'],
+    },
+  ])('imports an in-range $name using the emitted daily schedule', ({
+    id,
+    title,
+    recurrenceRule,
+    days,
+  }) => {
+    expect(buildCalendarSyncImportRequest([{
+      id,
+      title,
+      description: null,
+      startDate: '9999-12-01',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule,
+      reminders: [],
+    }])).toEqual({
+      habits: [{
+        title,
+        description: null,
+        dueDate: '9999-12-01',
+        dueTime: null,
+        dueEndTime: null,
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days,
+        endDate: '9999-12-02',
+        reminderEnabled: false,
+        reminderTimes: null,
+        googleEventId: id,
+      }],
+      fromSyncReview: true,
+    })
+  })
+
+  it('caps a weekday count whose emitted daily schedule leaves year 9999', () => {
+    expect(getCalendarSyncImportIssue(
+      'RRULE:FREQ=MONTHLY;BYDAY=FR;COUNT=2',
+      '9999-12-31',
+    )).toBeNull()
+  })
+
+  it('builds a large in-range weekday request promptly from the resolved offset', () => {
+    const startedAt = performance.now()
+    const request = buildCalendarSyncImportRequest([{
+      id: 'event-large-weekday-count',
+      title: 'Long-running Monday review',
+      description: null,
+      startDate: '2026-01-05',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=YEARLY;BYDAY=MO;COUNT=416000',
+      reminders: [],
+    }])
+
+    expect(request).toEqual({
+      habits: [{
+        title: 'Long-running Monday review',
+        description: null,
+        dueDate: '2026-01-05',
+        dueTime: null,
+        dueEndTime: null,
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: ['Monday'],
+        endDate: '9998-10-12',
+        reminderEnabled: false,
+        reminderTimes: null,
+        googleEventId: 'event-large-weekday-count',
+      }],
+      fromSyncReview: true,
+    })
+    expect(performance.now() - startedAt).toBeLessThan(100)
+  })
+
+  it('bounds an UNTIL series at the date the rule names', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261019T235959Z', '2026-09-14')).toBe('2026-10-19')
+  })
+
+  it('leaves an unbounded rule unbounded', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO', '2026-09-14')).toBeNull()
+    expect(resolveCalendarSyncEndDate(null, '2026-09-14')).toBeNull()
+  })
+
+  it('sends the finite bound with the import so a habit cannot outlive its series', () => {
+    const request = buildCalendarSyncImportRequest([{
+      id: 'event-three-mondays',
+      title: 'Three Mondays',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=3',
+      reminders: [],
+    }])
+
+    const [habit] = request.habits
+    expect(habit).toBeDefined()
+    expect(habit?.endDate).toBe('2026-09-28')
+    expect(habit?.days).toEqual(['Monday'])
+  })
+
+  it('sends the exact finite bound for a non-daily series without weekdays', () => {
+    expect(buildCalendarSyncImportRequest([{
+      id: 'event-three-weeks',
+      title: 'Three weeks',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;COUNT=3',
+      reminders: [],
+    }])).toEqual({
+      habits: [{
+        title: 'Three weeks',
+        description: null,
+        dueDate: '2026-09-14',
+        dueTime: null,
+        dueEndTime: null,
+        frequencyUnit: 'Week',
+        frequencyQuantity: 1,
+        days: null,
+        endDate: '2026-09-28',
+        reminderEnabled: false,
+        reminderTimes: null,
+        googleEventId: 'event-three-weeks',
+      }],
+      fromSyncReview: true,
+    })
+  })
+
+  it('converts a UTC UNTIL bound to the next local calendar date', () => {
+    const event = {
+      id: 'event-positive-offset',
+      title: 'Morning routine',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: '06:00',
+      startUtc: '2026-09-13T21:00:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
+      reminders: [],
+    }
+
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-10-01')
+  })
+
+  it('preserves startUtc when parsing a calendar sync suggestion', () => {
+    const suggestion = calendarSyncSuggestionSchema.parse({
+      id: 'suggestion-positive-offset',
+      googleEventId: 'event-positive-offset',
+      discoveredAtUtc: '2026-09-14T00:00:00Z',
+      event: {
+        id: 'event-positive-offset',
+        title: 'Morning routine',
+        description: null,
+        startDate: '2026-09-14',
+        startTime: '08:00',
+        startUtc: '2026-09-13T23:00:00Z',
+        recurrenceTimeZone: 'Asia/Tokyo',
+        endTime: null,
+        isRecurring: true,
+        recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
+        reminders: [],
+      },
+    })
+
+    expect(suggestion.event.startUtc).toBe('2026-09-13T23:00:00Z')
+    expect(suggestion.event.recurrenceTimeZone).toBe('Asia/Tokyo')
+  })
+
+  it('converts a UTC UNTIL bound to the same local calendar date', () => {
+    const event = {
+      id: 'event-negative-offset',
+      title: 'Morning routine',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: '08:00',
+      startUtc: '2026-09-14T13:00:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20261001T020000Z',
+      reminders: [],
+    }
+
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-09-30')
+  })
+
+  it('keeps a date-only UNTIL bound unchanged', () => {
+    const event = {
+      id: 'event-date-only-until',
+      title: 'Morning routine',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: '08:00',
+      startUtc: '2026-09-13T23:00:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930',
+      reminders: [],
+    }
+
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-09-30')
+  })
+
+  it('keeps the UTC UNTIL date when startUtc is null', () => {
+    const event = {
+      id: 'event-no-start-utc',
+      title: 'Morning routine',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: '08:00',
+      startUtc: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
+      reminders: [],
+    }
+
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-09-30')
+  })
+
+  it('refuses a UTC UNTIL bound whose date can change across a zone transition', () => {
+    const event = {
+      id: 'event-transition-edge',
+      title: 'Midnight routine',
+      description: null,
+      startDate: '2026-01-01',
+      startTime: '00:30',
+      startUtc: '2026-01-01T05:30:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+      event.startUtc,
+    )).toBe('utc-until-offset-shift')
+    expect(isCalendarSyncEventImportable(event)).toBe(false)
+    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
+      'Unsupported calendar recurrence: utc-until-offset-shift',
+    )
+  })
+
+  it.each([
+    {
+      direction: 'winter to summer',
+      startDate: '2026-01-01',
+      startUtc: '2026-01-01T05:30:00Z',
+      until: '20260701T043000Z',
+      expectedEndDate: '2026-07-01',
+    },
+    {
+      direction: 'summer to winter',
+      startDate: '2026-07-01',
+      startUtc: '2026-07-01T04:30:00Z',
+      until: '20270101T043000Z',
+      expectedEndDate: '2026-12-31',
+    },
+  ])('imports a zoned UTC UNTIL bound across the $direction shift', ({
+    startDate, startUtc, until, expectedEndDate,
+  }) => {
+    const event = {
+      id: 'event-zoned-transition',
+      title: 'Midnight routine',
+      description: null,
+      startDate,
+      startTime: '00:30',
+      startUtc,
+      recurrenceTimeZone: 'America/New_York',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: `RRULE:FREQ=DAILY;UNTIL=${until}`,
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+      event.startUtc,
+      event.recurrenceTimeZone,
+    )).toBeNull()
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe(expectedEndDate)
+  })
+
+  it('uses the projected start clock when the recurrence zone differs from the account zone', () => {
+    const event = {
+      id: 'event-projected-zone',
+      title: 'Midnight routine',
+      description: null,
+      startDate: '2026-01-01',
+      startTime: '00:00',
+      startUtc: '2026-01-01T06:00:00Z',
+      recurrenceTimeZone: 'America/New_York',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z',
+      reminders: [],
+    }
+
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-06-30')
+  })
+
+  it('imports a UTC UNTIL bound whose date is stable across a zone transition', () => {
+    const event = {
+      id: 'event-transition-safe',
+      title: 'Midday routine',
+      description: null,
+      startDate: '2026-01-01',
+      startTime: '12:00',
+      startUtc: '2026-01-01T17:00:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+      event.startUtc,
+    )).toBeNull()
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-06-30')
   })
 
   it('builds bulk create requests from suggestions', () => {
@@ -113,6 +912,37 @@ describe('calendar-sync utils', () => {
     expect(isCalendarAutoSyncStatusReconnectRequired('ReconnectRequired')).toBe(true)
     expect(isCalendarAutoSyncStatusReconnectRequired('Idle')).toBe(false)
     expect(isCalendarAutoSyncStatusReconnectRequired(null)).toBe(false)
+  })
+
+  it('recognizes the events signals that revoke a cached connection', () => {
+    const connectedState = {
+      enabled: true,
+      status: 'Idle' as const,
+      lastSyncedAt: null,
+      hasGoogleConnection: true,
+    }
+
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_RECONNECT_REQUIRED', undefined))
+      .toBe('reconcile')
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_NOT_CONNECTED', connectedState))
+      .toBe('reconcile')
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_NOT_CONNECTED', undefined))
+      .toBe('cancel-state-read')
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_FETCH_FAILED', connectedState))
+      .toBeNull()
+  })
+
+  it('derives the connection line from confirmed profile fields', () => {
+    expect(isCalendarSyncConnectionActive(true, 'Idle')).toBe(true)
+    expect(isCalendarSyncConnectionActive(true, 'TransientError')).toBe(true)
+    expect(isCalendarSyncConnectionActive(true, 'ReconnectRequired')).toBe(false)
+    expect(isCalendarSyncConnectionActive(false, 'Idle')).toBe(false)
+  })
+
+  it('formats the last sync date and clock in the account timezone', () => {
+    expect(formatCalendarSyncTimestamp('2026-09-12T09:12:00Z', 'pt-BR', 'America/Sao_Paulo', true)).toBe('12/09/2026, 06:12')
+    expect(formatCalendarSyncTimestamp(null, 'en', 'UTC', true)).toBeNull()
+    expect(formatCalendarSyncTimestamp('invalid', 'en', 'UTC', true)).toBeNull()
   })
 
   it('recognizes not-connected messages', () => {

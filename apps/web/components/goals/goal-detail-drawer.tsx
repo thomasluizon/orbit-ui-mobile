@@ -1,298 +1,149 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useRef, type MouseEvent } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { prepareChatRequest } from '@orbit/shared/stores'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
+import { ListRow } from '@/components/ui/list-row'
+import { AppBar } from '@/components/ui/app-bar'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { EditGoalModal } from './edit-goal-modal'
-import { GoalAskAstraRow } from './goal-ask-astra-row'
-import { GoalMetricsPanel } from './goal-metrics-panel'
-import { GoalProgressForm } from './goal-detail-sections'
+import { GoalForecast } from './goal-detail-drawer/goal-forecast'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
 import { GoalDetailCollections } from './goal-detail-drawer/goal-detail-collections'
 import { GoalLoadError } from './goal-detail-drawer/goal-load-error'
+import { GoalProgressForm } from './goal-detail-drawer/goal-progress-form'
 import { GoalProgressBlock } from './goal-detail-drawer/goal-progress-block'
-import {
-  useGoalDrawerInitialAction,
-  type GoalDrawerInitialAction,
-} from './goal-detail-drawer/use-goal-drawer-initial-action'
-import { useGoalProgressFormState } from './goal-detail-drawer/use-goal-progress-form-state'
 import { useGoalStatusActions } from './goal-detail-drawer/use-goal-status-actions'
-import {
-  formatLocaleDateTime,
-  getFriendlyErrorMessage,
-} from '@orbit/shared/utils'
-import { isStreakGoal } from '@orbit/shared/utils/goal-form'
-import { useAppToast } from '@/hooks/use-app-toast'
-import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
-
+import { useGoalDrawerInitialAction, type GoalDrawerInitialAction } from './goal-detail-drawer/use-goal-drawer-initial-action'
 export type { GoalDrawerInitialAction } from './goal-detail-drawer/use-goal-drawer-initial-action'
 
 interface GoalDetailDrawerProps {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  inline?: boolean
   goalId: string
-  /** When the drawer opens, immediately deep-link into one of its existing actions
-   *  (edit modal, mark-completed, delete confirm, or the progress form). Applied once
-   *  per open; omit for the normal view-details open. Lets the goal-card context menu
-   *  and the desktop panel CTAs reuse these handlers. */
+  onOpenChange: (open: boolean) => void
+  onLinkedHabitNavigate?: (habitId: string) => void
   initialAction?: GoalDrawerInitialAction | null
 }
 
-export function GoalDetailDrawer({
-  open,
-  onOpenChange,
-  goalId,
-  initialAction,
-}: Readonly<GoalDetailDrawerProps>) {
+export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, onLinkedHabitNavigate, initialAction }: Readonly<GoalDetailDrawerProps>) {
   const t = useTranslations()
-  const translate = useCallback(
-    (key: string, values?: Record<string, string | number | Date>) =>
-      t(key, values),
-    [t],
-  )
   const locale = useLocale()
+  const contentRef = useRef<HTMLDivElement>(null)
+  const barHeadingRef = useRef<HTMLHeadingElement>(null)
   const { showError } = useAppToast()
-
   const { data: goalsData } = useGoals()
-  const {
-    data: detailData,
-    isLoading: isLoadingDetail,
-    isError: loadError,
-    refetch: refetchDetail,
-  } = useGoalDetail(open ? goalId : null)
-  const deleteGoalMut = useDeleteGoal()
+  const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
+  const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
+  const draftHydrated = useChatStore(state => state.draftHydrated)
+  const deleteGoal = useDeleteGoal()
+  const [editing, setEditing] = useAccountScopedState(false)
+  const [editingProgress, setEditingProgress] = useAccountScopedState(false)
+  const [deleting, setDeleting] = useAccountScopedState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const onClose = useCallback(() => onOpenChange(false), [onOpenChange])
+  const close = useCallback((exitAction?: () => void) => {
+    const finish = () => {
+      onClose()
+      exitAction?.()
+    }
+    if (inline) finish()
+    else closeSheet(finish)
+  }, [inline, closeSheet, onClose])
+  const openProgressForm = useCallback(() => {
+    if (!goal || goal.status !== 'Active' || goal.isProgressDerived) return
+    if (inline) setEditingProgress(true)
+    else closeSheet(() => setEditingProgress(true))
+  }, [goal, inline, closeSheet, setEditingProgress])
+  const openLinkedHabit = useCallback((habitId: string, event: MouseEvent<HTMLElement>) => {
+    if (!onLinkedHabitNavigate || event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
 
-  const detail = detailData?.goal ?? null
-  const goal = detail ?? goalsData?.goalsById.get(goalId) ?? null
-  const metrics = detailData?.metrics ?? null
-
-  const isStreak = isStreakGoal(goal?.type)
-
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-
-  const {
-    progressValue,
-    setProgressValue,
-    progressNote,
-    setProgressNote,
-    showProgressForm,
-    showProgressDiscardDialog,
-    isProgressDirty,
-    progressExceedsTarget,
-    isUpdatingProgress,
-    openProgressForm,
-    submitProgress,
-    requestProgressDismiss,
-    confirmProgressDismiss,
-    cancelProgressDismiss,
-  } = useGoalProgressFormState({
-    open,
+    event.preventDefault()
+    const navigate = () => onLinkedHabitNavigate(habitId)
+    if (inline) navigate()
+    else close(navigate)
+  }, [inline, close, onLinkedHabitNavigate])
+  const actions = useGoalStatusActions({
     goalId,
-    goalCurrentValue: goal?.currentValue,
-    goalTargetValue: goal?.targetValue,
-    refetchDetail,
-    onOpenChange,
+    goalName: goal?.title,
+    goalCount: goal?.targetValue,
+    goalUnit: goal?.unit,
+    refetchDetail: refetch,
   })
+  const formatDate = (date: string) => formatLocaleDateTime(date, locale, { month: 'short', day: 'numeric' })
 
-  const openManualProgressForm = useCallback(() => {
-    if (goal?.isProgressDerived) return
-    openProgressForm()
-  }, [goal?.isProgressDerived, openProgressForm])
+  const openAstra = () => {
+    if (!goal || !draftHydrated) return
+    const request = {
+      id: `goal-detail:${goal.id}`,
+      label: t('nav.astra'),
+      prompt: t('goals.detail.askAstraSeedDefault', { title: goal.title }),
+    }
+    const openConversation = () => {
+      prepareChatRequest(useChatStore.getState(), request)
+      useUIStore.getState().setAstraConversationOpen(true)
+    }
+    if (inline) openConversation()
+    else close(openConversation)
+  }
 
-  const { markCompleted, markAbandoned, reactivate, isUpdatingStatus } =
-    useGoalStatusActions({ goalId, goalName: goal?.title, refetchDetail })
-
-  const confirmDelete = useCallback(async () => {
+  async function confirmDelete() {
     try {
-      await deleteGoalMut.mutateAsync(goalId)
-      onOpenChange(false)
-      setShowDeleteConfirm(false)
+      await deleteGoal.mutateAsync(goalId)
+      close()
     } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'))
+      showError(getFriendlyErrorMessage(error, t, 'goals.errors.delete', 'goal'))
     }
-  }, [deleteGoalMut, goalId, onOpenChange, showError, translate])
-
-  const router = useRouter()
-  function handleAskAstra() {
-    if (!goal) return
-    const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
-    if ('localStorage' in globalThis) {
-      globalThis.localStorage.setItem('orbit-chat-draft', seed)
-    }
-    onOpenChange(false)
-    router.push('/chat')
   }
 
-  const formatDate = useCallback(
-    (dateStr: string) => {
-      return formatLocaleDateTime(dateStr, locale, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: 'numeric',
-        minute: '2-digit',
+  useGoalDrawerInitialAction({ open, initialAction: goal ? initialAction : null, openEditModal: () => setEditing(true), openDeleteConfirm: () => setDeleting(true), openProgressForm })
+
+  useEffect(() => {
+    if (!open || !inline) return
+    const trigger = document.activeElement
+    const target = contentRef.current?.querySelector<HTMLHeadingElement>('h1') ?? barHeadingRef.current
+    target?.focus()
+    return () => {
+      requestAnimationFrame(() => {
+        if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus()
       })
-    },
-    [locale],
+    }
+  }, [open, inline])
+
+  useEffect(() => {
+    if (!open || !inline || !goal) return
+    if (document.activeElement === contentRef.current || document.activeElement === document.body) {
+      contentRef.current?.querySelector<HTMLHeadingElement>('h1')?.focus({ preventScroll: true })
+    }
+  }, [goal, inline, open])
+
+  const body = (
+    <div ref={contentRef} tabIndex={inline ? -1 : undefined} data-goal-detail className="flex flex-col gap-6">
+      {goal ? <>
+        <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onEditProgress={openProgressForm} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
+        <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
+        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={openLinkedHabit} />
+        <ListRow placement="column" title={t('nav.astra')} titleTranslate="no" accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
+        <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
+      </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
+      {isError ? <GoalLoadError onRetry={() => void refetch()} /> : null}
+    </div>
   )
-
-  useGoalDrawerInitialAction({
-    open,
-    initialAction,
-    openEditModal: () => setShowEditModal(true),
-    openDeleteConfirm: () => setShowDeleteConfirm(true),
-    openProgressForm: openManualProgressForm,
-    markCompleted,
-  })
-
-  let progressText = ''
-  if (goal) {
-    progressText = isStreak
-      ? t('goals.streak.ofTarget', {
-          current: goal.currentValue,
-          target: goal.targetValue,
-        })
-      : t('goals.progressOf', {
-          current: goal.currentValue,
-          target: goal.targetValue,
-          unit: goal.unit,
-        })
-  }
-
-  const unitSuffix = goal?.unit ? `  ·  ${goal.unit}` : ''
 
   return (
     <>
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
-        title={goal?.title ?? ''}
-        canDismiss={!isProgressDirty}
-        isDirty={isProgressDirty}
-        onAttemptDismiss={() => requestProgressDismiss('drawer')}
-        footer={
-          goal ? (
-            <GoalAskAstraRow
-              onClick={handleAskAstra}
-              style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
-            />
-          ) : undefined
-        }
-      >
-        {goal && (
-          <div className="overlay-bleed">
-            <div
-              className="t-eyebrow"
-              style={{
-                padding: '10px 20px',
-                borderBottom: '1px solid var(--hairline)',
-              }}
-            >
-              {isStreak
-                ? t('goals.form.typeStreak')
-                : `${t('goals.form.typeStandard')}${unitSuffix}`}
-            </div>
-
-            <GoalProgressBlock
-              progressPercentage={goal.progressPercentage}
-              progressFillColor={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
-              progressText={progressText}
-              showEdit={
-                goal.status === 'Active' &&
-                !goal.isProgressDerived &&
-                !showProgressForm
-              }
-              onEdit={openManualProgressForm}
-            />
-
-            {showProgressForm &&
-              goal.status === 'Active' &&
-              !goal.isProgressDerived && (
-              <GoalProgressForm
-                progressValue={progressValue}
-                progressNote={progressNote}
-                isUpdating={isUpdatingProgress}
-                progressExceedsTarget={progressExceedsTarget}
-                onProgressValueChange={setProgressValue}
-                onProgressNoteChange={setProgressNote}
-                onSubmit={() => void submitProgress()}
-                onCancel={() => requestProgressDismiss('form')}
-                labelValue={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
-                labelNote={t('goals.progressNote')}
-                labelSave={t('common.save')}
-                labelCancel={t('common.cancel')}
-                labelExceedsTarget={t('goals.form.progressExceedsTarget')}
-              />
-            )}
-
-            {goal.status === 'Active' && (
-              <GoalMetricsPanel
-                metrics={metrics}
-                unit={goal.unit}
-                isLoading={isLoadingDetail}
-                isStreak={isStreak}
-              />
-            )}
-
-            <GoalDetailCollections
-              isStreak={isStreak}
-              linkedHabits={goal.linkedHabits}
-              entries={detail?.progressHistory ?? []}
-              unit={goal.unit}
-              formatDate={formatDate}
-            />
-
-            {loadError && <GoalLoadError onRetry={() => void refetchDetail()} />}
-
-            <GoalActionFooter
-              isActive={goal.status === 'Active'}
-              isUpdatingStatus={isUpdatingStatus}
-              onMarkCompleted={() => void markCompleted()}
-              onMarkAbandoned={() => void markAbandoned()}
-              onReactivate={() => void reactivate()}
-              onEdit={() => setShowEditModal(true)}
-              onDelete={() => setShowDeleteConfirm(true)}
-            />
-          </div>
-        )}
-      </AppOverlay>
-
-      {goal && (
-        <EditGoalModal
-          open={showEditModal}
-          onOpenChange={setShowEditModal}
-          goal={goal}
-        />
-      )}
-
-      <ConfirmDialog
-        open={showProgressDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) cancelProgressDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        variant="warning"
-        onConfirm={confirmProgressDismiss}
-        onCancel={cancelProgressDismiss}
-      />
-
-      <ConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={setShowDeleteConfirm}
-        title={t('goals.detail.delete')}
-        description={t('goals.detail.deleteConfirm')}
-        confirmLabel={t('common.delete')}
-        cancelLabel={t('common.cancel')}
-        variant="danger"
-        onConfirm={() => void confirmDelete()}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
+      {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
+      {open && editingProgress && goal ? <GoalProgressForm key={goalId} goal={goal} refetchDetail={refetch} onClose={() => setEditingProgress(false)} /> : null}
+      {goal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={goal} /> : null}
+      <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>
   )
 }

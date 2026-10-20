@@ -7,19 +7,19 @@ describe('i18n interpolation config', () => {
     await i18n.changeLanguage('en')
 
     const message = i18n.t('common.syncDropped', {
-      item: i18n.t('common.syncEntity.habits'),
+      item: 'Walk',
     })
 
-    expect(message).toBe('The log for habit did not go up and was dropped.')
+    expect(message).toBe('The log for Walk did not sync and was discarded.')
   })
 
   it('resolves the dropped-sync placeholder in pt-BR too', async () => {
     await i18n.changeLanguage('pt-BR')
 
     const message = i18n.t('common.syncDropped', {
-      item: i18n.t('common.syncEntity.goals'),
+      item: 'Caminhada',
     })
 
-    expect(message).toBe('O registro de meta não subiu e foi descartado.')
+    expect(message).toBe('O registro de Caminhada não subiu e foi descartado.')
   })
 })

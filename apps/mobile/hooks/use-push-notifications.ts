@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, Platform } from 'react-native'
 import * as Device from 'expo-device'
@@ -20,6 +29,22 @@ import {
   type NotificationPermissionsResponse,
 } from '@/lib/push-notification-permissions'
 import { useAuthStore } from '@/stores/auth-store'
+import { hasPushSubscriptionCapacity } from '@/hooks/use-push-subscriptions'
+import { openCurrentProactiveItem } from '@/lib/proactive-item'
+import { proactiveKeys } from '@orbit/shared/query'
+import { getAccountId } from '@/lib/account-scope'
+import { getAccountGeneration, getSessionEpoch } from '@/lib/session-epoch'
+
+interface ExpoNotificationResponse {
+  notification: {
+    request: {
+      identifier: string
+      content?: {
+        data?: Record<string, unknown>
+      }
+    }
+  }
+}
 
 interface ExpoNotificationsModule {
   AndroidImportance: {
@@ -43,16 +68,11 @@ interface ExpoNotificationsModule {
   requestPermissionsAsync: () => Promise<NotificationPermissionsResponse>
   getExpoPushTokenAsync: (options: { projectId: string }) => Promise<{ data: string }>
   getDevicePushTokenAsync: () => Promise<{ type?: string; data: string }>
+  unregisterForNotificationsAsync: () => Promise<void>
+  getLastNotificationResponse: () => ExpoNotificationResponse | null
+  clearLastNotificationResponse: () => void
   addNotificationResponseReceivedListener: (
-    listener: (response: {
-      notification: {
-        request: {
-          content?: {
-            data?: Record<string, unknown>
-          }
-        }
-      }
-    }) => void,
+    listener: (response: ExpoNotificationResponse) => void,
   ) => { remove: () => void }
   addNotificationReceivedListener: (listener: () => void) => { remove: () => void }
 }
@@ -69,11 +89,48 @@ interface UsePushNotificationsReturn {
   permissionCanAskAgain: boolean
   registrationStatus: PushRegistrationStatus
   disablePushNotifications: () => Promise<boolean>
+  requestFirstUsePermission: (isCurrent?: () => boolean) => Promise<void>
   requestPermission: () => Promise<boolean>
+  requestPermissionOutcome: (registerDevice?: boolean, isCurrent?: () => boolean) => Promise<PushPermissionOutcome>
   refreshPermissionStatus: () => Promise<void>
 }
 
-let activeRegistration: { userId: string | null; promise: Promise<boolean> } | null = null
+export type PushPermissionOutcome = 'granted' | 'denied' | 'unsupported' | 'failed'
+
+const PUSH_PERMISSION_ASKED_STORAGE_KEY = 'orbit:push-permission-asked'
+
+const PushNotificationsContext = createContext<UsePushNotificationsReturn | null>(null)
+
+interface ActiveRegistration {
+  userId: string | null
+  accountId: string | null
+  accountGeneration: number
+  sessionEpoch: number
+  isCurrent?: () => boolean
+  promise: Promise<boolean>
+}
+
+let activeRegistration: ActiveRegistration | null = null
+
+function canReuseRegistration(
+  registration: ActiveRegistration | null,
+  userId: string | null,
+  accountId: string | null,
+  accountGeneration: number,
+  sessionEpoch: number,
+  isCurrent?: () => boolean,
+): registration is ActiveRegistration {
+  return registration?.userId === userId
+    && registration.accountId === accountId
+    && registration.accountGeneration === accountGeneration
+    && registration.sessionEpoch === sessionEpoch
+    && registration.isCurrent?.() !== false
+    && isCurrent?.() !== false
+}
+
+function ownsPushRegistration(userId: string | null, stillCurrent: () => boolean): boolean {
+  return (useAuthStore.getState().user?.userId ?? null) === userId && stillCurrent()
+}
 const PUSH_DISABLED_STORAGE_KEY_PREFIX = 'orbit_push_disabled'
 
 function hasFunctionProperty(value: object, key: string): boolean {
@@ -90,6 +147,9 @@ function isExpoNotificationsModule(value: unknown): value is ExpoNotificationsMo
     hasFunctionProperty(value, 'requestPermissionsAsync') &&
     hasFunctionProperty(value, 'getExpoPushTokenAsync') &&
     hasFunctionProperty(value, 'getDevicePushTokenAsync') &&
+    hasFunctionProperty(value, 'unregisterForNotificationsAsync') &&
+    hasFunctionProperty(value, 'getLastNotificationResponse') &&
+    hasFunctionProperty(value, 'clearLastNotificationResponse') &&
     hasFunctionProperty(value, 'addNotificationReceivedListener') &&
     hasFunctionProperty(value, 'addNotificationResponseReceivedListener')
   )
@@ -163,8 +223,33 @@ async function ensureAndroidChannel(): Promise<void> {
     name: i18n.t('notifications.channel.default'),
     importance: notificationsModule.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: schemes.purple.accent.dark.primary,
+    lightColor: schemes.orange.accent.dark.primary,
   })
+}
+
+async function readOrRequestNativePermission(
+  notifications: ExpoNotificationsModule,
+  firstUse: boolean,
+  isCurrent?: () => boolean,
+) {
+  await ensureAndroidChannel()
+  const permissions = await notifications.getPermissionsAsync()
+  const status = normalizePermissionStatus(permissions)
+  if ((firstUse && status !== 'undetermined') || status === 'granted' || permissions.canAskAgain === false) {
+    return { permissions, asked: false }
+  }
+  if (isCurrent?.() === false) return null
+  await AsyncStorage.setItem(PUSH_PERMISSION_ASKED_STORAGE_KEY, '1')
+  if (isCurrent?.() === false) {
+    await AsyncStorage.removeItem(PUSH_PERMISSION_ASKED_STORAGE_KEY)
+    return null
+  }
+  try {
+    return { permissions: await notifications.requestPermissionsAsync(), asked: true }
+  } catch (error: unknown) {
+    await AsyncStorage.removeItem(PUSH_PERMISSION_ASKED_STORAGE_KEY)
+    throw error
+  }
 }
 
 async function delay(ms: number): Promise<void> {
@@ -212,11 +297,27 @@ function buildNativePushPayload(token: string) {
   }
 }
 
-async function sendTokenToBackend(token: string): Promise<void> {
+async function sendTokenToBackend(token: string, isCurrent: () => boolean): Promise<void> {
   await apiClient(API.notifications.subscribe, {
     method: 'POST',
     body: JSON.stringify(buildNativePushPayload(token)),
+    isCurrent,
   })
+}
+
+async function replaceForeignPushToken(
+  token: string,
+  userId: string | null,
+  stillCurrent: () => boolean,
+  ownershipError: Error,
+): Promise<string | null> {
+  if (!ownsPushRegistration(userId, stillCurrent) || !notificationsModule) return null
+  await notificationsModule.unregisterForNotificationsAsync()
+  if (!ownsPushRegistration(userId, stillCurrent)) return null
+  const replacementToken = await getCurrentPushToken()
+  if (!replacementToken || replacementToken === token) throw ownershipError
+  await sendTokenToBackend(replacementToken, stillCurrent)
+  return replacementToken
 }
 
 async function removeTokenFromBackend(token: string): Promise<void> {
@@ -250,7 +351,7 @@ function getPushDisabledStorageKey(userId: string | null): string {
     : PUSH_DISABLED_STORAGE_KEY_PREFIX
 }
 
-export function usePushNotifications(): UsePushNotificationsReturn {
+function usePushNotificationsController(): UsePushNotificationsReturn {
   const router = useRouter()
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -259,6 +360,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   const [permissionCanAskAgain, setPermissionCanAskAgain] = useState(true)
   const [registrationStatus, setRegistrationStatus] = useState<PushRegistrationStatus>('idle')
   const [isRegistered, setIsRegistered] = useState(false)
+  const handledNotificationResponseIdentifiers = useRef(new Set<string>())
+  const loadingRequestId = useRef(0)
+  const firstUseRequestPending = useRef(false)
+  const pushTokenRef = useRef(expoPushToken)
+  useEffect(() => { pushTokenRef.current = expoPushToken }, [expoPushToken])
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const userId = useAuthStore((s) => s.user?.userId ?? null)
   const isSupported = !!notificationsModule && isPhysicalDevice()
@@ -283,12 +389,51 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
   }, [disabledStorageKey])
 
-  const registerAndSync = useCallback(async (): Promise<boolean> => {
-    if (activeRegistration?.userId === userId) {
+  const syncRegistrationToken = useCallback(async (token: string, stillCurrent: () => boolean): Promise<boolean> => {
+    try {
+      let registeredToken = token
+      try {
+        await sendTokenToBackend(token, stillCurrent)
+      } catch (error) {
+        if (!(error instanceof Error) || !('code' in error)
+          || error.code !== 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER') {
+          throw error
+        }
+        const replacementToken = await replaceForeignPushToken(token, userId, stillCurrent, error)
+        if (!replacementToken) return false
+        registeredToken = replacementToken
+      }
+      if (!ownsPushRegistration(userId, stillCurrent)) return false
+      setExpoPushToken(registeredToken)
+      await writeDisabledPreference(false)
+      if (!stillCurrent()) return false
+      setRegistrationStatus('registered')
+      setIsRegistered(true)
+      setError(null)
+      return true
+    } catch (err: unknown) {
+      if (!stillCurrent()) return false
+      setRegistrationStatus('sync-failed')
+      setError(err instanceof Error ? err.message : i18n.t('settings.notifications.syncFailed'))
+      return false
+    }
+  }, [userId, writeDisabledPreference])
+
+  const registerAndSync = useCallback(async (isCurrent?: () => boolean): Promise<boolean> => {
+    const accountId = getAccountId()
+    const accountGeneration = getAccountGeneration()
+    const sessionEpoch = getSessionEpoch()
+    if (canReuseRegistration(activeRegistration, userId, accountId, accountGeneration, sessionEpoch, isCurrent)) {
       return activeRegistration.promise
     }
 
+    const stillCurrent = () => getAccountId() === accountId
+      && getAccountGeneration() === accountGeneration
+      && getSessionEpoch() === sessionEpoch
+      && isCurrent?.() !== false
+
     const registrationPromise = (async () => {
+      if (!stillCurrent()) return false
       setRegistrationStatus('registering')
       setError(null)
       setIsRegistered(false)
@@ -297,11 +442,13 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       try {
         token = await getCurrentPushToken()
       } catch (err: unknown) {
+        if (!stillCurrent()) return false
         setExpoPushToken(null)
         setRegistrationStatus('token-missing')
         setError(err instanceof Error ? err.message : i18n.t('settings.notifications.tokenMissing'))
         return false
       }
+      if (!stillCurrent()) return false
       setExpoPushToken(token)
 
       if (!token) {
@@ -310,30 +457,24 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return false
       }
 
-      if (!isAuthenticated || useAuthStore.getState().user?.userId !== userId) {
+      if (!ownsPushRegistration(userId, stillCurrent)) return false
+      if (!isAuthenticated) {
         setRegistrationStatus('idle')
         return false
       }
 
-      try {
-        await sendTokenToBackend(token)
-        if (useAuthStore.getState().user?.userId !== userId) {
-          setRegistrationStatus('idle')
-          return false
-        }
-        await writeDisabledPreference(false)
-        setRegistrationStatus('registered')
-        setIsRegistered(true)
-        setError(null)
-        return true
-      } catch (err: unknown) {
-        setRegistrationStatus('sync-failed')
-        setError(err instanceof Error ? err.message : i18n.t('settings.notifications.syncFailed'))
+      const hasCapacity = await hasPushSubscriptionCapacity(token)
+      if (!stillCurrent()) return false
+      if (!hasCapacity) {
+        setRegistrationStatus('disabled')
+        setError(i18n.t('profile.settingsRows.pushDeviceLimit'))
         return false
       }
+      if (!stillCurrent()) return false
+      return syncRegistrationToken(token, stillCurrent)
     })()
 
-    const registration = { userId, promise: registrationPromise }
+    const registration = { userId, accountId, accountGeneration, sessionEpoch, isCurrent, promise: registrationPromise }
     activeRegistration = registration
 
     try {
@@ -343,11 +484,13 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         activeRegistration = null
       }
     }
-  }, [isAuthenticated, userId, writeDisabledPreference])
+  }, [isAuthenticated, syncRegistrationToken, userId])
 
-  const enablePushNotifications = useCallback(async (): Promise<boolean> => {
+  const enablePushNotifications = useCallback(async (isCurrent?: () => boolean): Promise<boolean> => {
+    if (isCurrent?.() === false) return false
     await writeDisabledPreference(false)
-    return registerAndSync()
+    if (isCurrent?.() === false) return false
+    return registerAndSync(isCurrent)
   }, [registerAndSync, writeDisabledPreference])
 
   const syncGrantedPermission = useCallback(async (): Promise<void> => {
@@ -401,47 +544,77 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
   }, [isSupported, readDisabledPreference, registerAndSync])
 
-  const requestPermission = useCallback(async (): Promise<boolean> => {
+  const canRequestPermission = useCallback(async (registerDevice: boolean, firstUse: boolean, isCurrent?: () => boolean) => {
+    if (firstUse && await AsyncStorage.getItem(PUSH_PERMISSION_ASKED_STORAGE_KEY) === '1') return false
+    if (isCurrent?.() === false) return false
+    if (!registerDevice) return true
+    const hasCapacity = await hasPushSubscriptionCapacity(pushTokenRef.current)
+    if (isCurrent?.() === false) return false
+    if (!hasCapacity && !firstUse) setError(i18n.t('profile.settingsRows.pushDeviceLimit'))
+    return hasCapacity
+  }, [])
+
+  const requestPermissionOutcome = useCallback(async (registerDevice = true, isCurrent?: () => boolean, firstUse = false): Promise<PushPermissionOutcome> => {
     const activeNotificationsModule = notificationsModule
     if (!isSupported || !activeNotificationsModule) {
       setPermissionStatus(null)
       setPermissionCanAskAgain(false)
       setRegistrationStatus('unsupported')
       setIsRegistered(false)
-      return false
+      return 'unsupported'
     }
 
+    const requestId = ++loadingRequestId.current
     setIsLoading(true)
     setError(null)
     try {
-      await ensureAndroidChannel()
-      let permissions = await activeNotificationsModule.getPermissionsAsync()
-      let status = normalizePermissionStatus(permissions)
-
-      if (status !== 'granted' && permissions.canAskAgain !== false) {
-        permissions = await activeNotificationsModule.requestPermissionsAsync()
-        status = normalizePermissionStatus(permissions)
-      }
-
+      if (!await canRequestPermission(registerDevice, firstUse, isCurrent)) return 'failed'
+      const result = await readOrRequestNativePermission(activeNotificationsModule, firstUse, isCurrent)
+      if (!result || isCurrent?.() === false) return 'failed'
+      const { permissions } = result
+      const status = normalizePermissionStatus(permissions)
       setPermissionStatus(status)
       setPermissionCanAskAgain(permissions.canAskAgain !== false)
       if (status !== 'granted') {
         setExpoPushToken(null)
         setRegistrationStatus(status === 'denied' ? 'permission-denied' : 'permission-undetermined')
         setIsRegistered(false)
-        return false
+        return 'denied'
       }
 
-      return enablePushNotifications()
+      if (isCurrent?.() === false) return 'failed'
+      if (firstUse && !result.asked) return 'granted'
+      if (!registerDevice) return 'granted'
+      return await enablePushNotifications(isCurrent) ? 'granted' : 'failed'
     } catch (err: unknown) {
       setRegistrationStatus('sync-failed')
       setIsRegistered(false)
       setError(err instanceof Error ? err.message : i18n.t('settings.notifications.syncFailed'))
-      return false
+      return 'failed'
     } finally {
-      setIsLoading(false)
+      if (loadingRequestId.current === requestId) setIsLoading(false)
     }
-  }, [enablePushNotifications, isSupported])
+  }, [canRequestPermission, enablePushNotifications, isSupported])
+
+  const requestFirstUsePermission = useCallback(async (isCurrent?: () => boolean): Promise<void> => {
+    if (!useAuthStore.getState().isAuthenticated || firstUseRequestPending.current) return
+    const accountId = getAccountId()
+    const generation = getAccountGeneration()
+    const epoch = getSessionEpoch()
+    const stillCurrent = () => useAuthStore.getState().isAuthenticated
+      && getAccountId() === accountId && getAccountGeneration() === generation
+      && getSessionEpoch() === epoch && isCurrent?.() !== false
+    firstUseRequestPending.current = true
+    try {
+      await requestPermissionOutcome(true, stillCurrent, true)
+    } finally {
+      firstUseRequestPending.current = false
+    }
+  }, [requestPermissionOutcome])
+
+  const requestPermission = useCallback(async (): Promise<boolean> => (
+    await requestPermissionOutcome()
+  ) === 'granted', [requestPermissionOutcome])
 
   const disablePushNotifications = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
@@ -517,19 +690,29 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }
     })
 
+    const routeNotificationResponse = (response: ExpoNotificationResponse) => {
+      if (!useAuthStore.getState().isAuthenticated) return
+      const maybeUrl = response.notification.request.content?.data?.url
+      if (typeof maybeUrl !== 'string') return
+      const destination = getNotificationDestination(maybeUrl)
+      if (!destination) return
+
+      const responseIdentifier = response.notification.request.identifier
+      if (handledNotificationResponseIdentifiers.current.has(responseIdentifier)) return
+      handledNotificationResponseIdentifiers.current.add(responseIdentifier)
+      activeNotificationsModule.clearLastNotificationResponse()
+      router.push(destination.url)
+      if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
+    }
+
     const responseSubscription = activeNotificationsModule.addNotificationResponseReceivedListener(
-      (response) => {
-        const maybeUrl = response.notification.request.content?.data?.url
-        const destination = typeof maybeUrl === 'string'
-          ? getNotificationDestination(maybeUrl)
-          : null
-        if (destination) {
-          router.push(destination.url)
-        }
-      },
+      routeNotificationResponse,
     )
+    const initialResponse = activeNotificationsModule.getLastNotificationResponse()
+    if (initialResponse) routeNotificationResponse(initialResponse)
     const receivedSubscription = activeNotificationsModule.addNotificationReceivedListener(() => {
       void invalidateNotificationList(queryClient)
+      void queryClient.invalidateQueries({ queryKey: proactiveKeys.current() })
     })
 
     return () => {
@@ -537,7 +720,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       responseSubscription.remove()
       receivedSubscription.remove()
     }
-  }, [isSupported, router, syncGrantedPermission])
+  }, [isAuthenticated, isSupported, router, syncGrantedPermission])
 
   return {
     expoPushToken,
@@ -551,6 +734,27 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     registrationStatus,
     disablePushNotifications,
     requestPermission,
+    requestFirstUsePermission,
+    requestPermissionOutcome,
     refreshPermissionStatus: syncGrantedPermission,
   }
+}
+
+export function PushNotificationsProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  const pushNotifications = usePushNotificationsController()
+  return createElement(
+    PushNotificationsContext.Provider,
+    { value: pushNotifications },
+    children,
+  )
+}
+
+export function usePushNotifications(): UsePushNotificationsReturn {
+  const pushNotifications = useContext(PushNotificationsContext)
+  if (!pushNotifications) {
+    throw new Error('usePushNotifications must be used within PushNotificationsProvider')
+  }
+  return pushNotifications
 }

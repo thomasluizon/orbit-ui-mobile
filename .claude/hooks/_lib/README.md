@@ -3,27 +3,24 @@
 The surviving session hooks keep their rule logic **once** in this `_lib/`
 directory. The `.mjs` files in `.claude/hooks/` are thin adapters: read the stdin
 payload, call a `_lib` rule, `exit 2` + stderr on a block. Wired in
-`.claude/settings.json` (`PreToolUse` / `PostToolUse`).
+`.claude/settings.json` (`SessionStart` / `PreToolUse` / `PostToolUse`).
 
-`forbid-stale-text.mjs` delegates Write, Edit, and MultiEdit to `tools/check-timeless.mjs --hook`.
+Every `PreToolUse` guard is registered on **PowerShell** and `Bash` so either
+shell receives the same checks.
 
-Every `PreToolUse` guard is registered on the **PowerShell** tool as well as
-`Bash`. A matcher of `"Bash"` alone leaves the other shell unguarded, which is not
-hypothetical: it defeated every command guard in both repositories until ORB-163.
-
-Most of the old hook fleet migrated to deterministic gates (D6)
-(ESLint `local/*` rules, Roslyn `ORBIT0001..0005`, `tools/check-dashes.mjs`,
-`tools/check-copy.mjs`, and the `guards.yml` CI jobs) and was deleted in Phase 3,
-along with the opencode dual-target plugin (D22). What stays here is what only a
-session hook can do: block a command or an edit BEFORE it happens, for rules
-that have no CI equivalent.
+Deterministic checks live in ESLint, Roslyn, and `guards.yml`.
+Session hooks block commands or edits before they happen.
 
 | `_lib` module | rules | Claude Code hook |
 |---|---|---|
 | `rules-git.mjs` | git workflow (protected main, no-verify, worktree junction footgun) | git-guardrails (PreToolUse Bash, PowerShell) |
 | `rules-orchestrator.mjs` | model spend routes through the launcher; no agent admin merge | orchestrator-guardrails (PreToolUse Bash, PowerShell) |
+| `rules-lessons.mjs` | count unreviewed lesson headings before `## Graduated` | surface-pending-lessons (SessionStart) |
 | `rules-source.mjs` | idempotent raw index SQL in EF migrations | forbid-ef-migration-raw-index (PostToolUse Edit/Write) |
+| `rules-dependencies.mjs` | nothing writes inside `node_modules`, for any caller | forbid-node-modules-write (PreToolUse Write/Edit/MultiEdit, Bash, PowerShell) |
 | `repo-roots.mjs` | which repository owns a path, and the linked worktree that resolves to its main checkout | orchestrator-guardrails, forbid-worker-browser, forbid-invented-identifier |
+| `rules-handoff.mjs` | a committed or stopping `NEXT.md` matches the handoff mode the owner asked for | require-handoff-prompt (PreToolUse Bash, PowerShell; Stop) |
+| `handoff-git.mjs` | every `NEXT.md` version a commit could record, and the newest committed one on any branch | require-handoff-prompt |
 | `io.mjs` | payload normalizers | both |
 
 `rules-orchestrator.mjs` is **cost-raising defence in depth and never the control**:
@@ -31,8 +28,11 @@ it is bypassable through another tool, a shell wrapper, or script-file indirecti
 and its own header says so. The control for the admin merge is the prohibition in
 the worker contract, `AGENTS.md` and `CLAUDE.md`.
 
-`node .claude/hooks/test-hooks.mjs` proves it: `_lib` unit checks, the real hook
-files run against stdin payloads (regression guard), and a guard asserting no
-agent's frontmatter contains a parenthesized tool specifier (`tools: Bash(gh:*)`
-**fails open**: it resolves to bare `Bash` and hands over a full shell). Run it
-locally after touching anything here.
+`rules-dependencies.mjs` splits the same way, and its header names the split. The
+FILE path (Write, Edit, MultiEdit) is the one it really closes, because that is
+how an agent edits. The COMMAND path is defence in depth with disclosed bypasses.
+Detection for whatever still arrives is `node tools/check-dependency-edits.mjs`.
+
+`node .claude/hooks/test-hooks.mjs` proves it with `_lib` unit checks, real hook
+files run against stdin payloads, bidirectional wiring checks, and required
+agent and skill frontmatter fields. Run it locally after touching anything here.

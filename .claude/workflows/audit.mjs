@@ -389,6 +389,11 @@ function resolvePerformanceMeasurement(input, options = {}) {
     const queries = (input.queryStats ?? []).map((entry, index) =>
       analyzeQuery(entry, index, windowDays, tableByName, thresholds))
     if (queries.length === 0) throw new Error("queryStats must contain at least one statement")
+    const queryIds = new Set()
+    for (const query of queries) {
+      if (queryIds.has(query.queryId)) throw new Error(`duplicate queryId: ${query.queryId}`)
+      queryIds.add(query.queryId)
+    }
 
     const rowsRanking = [...queries].sort((left, right) => right.rows - left.rows)
     const egressRanking = [...queries].sort((left, right) =>
@@ -544,12 +549,6 @@ const MEASURED_METRIC_KEYS = ["calls", "rowsPerCall", "bytesPerRow", "callsPerMo
 
 function attachPerformanceMetrics(findings, measurement) {
   if (!measurement) return findings
-  /**
-   * CODE_ONLY is the MOST dangerous path to trust, not the safest. With no measurement there is
-   * nothing to overwrite an agent's numbers with, and the skeptic prompt reads any finding carrying
-   * a `queryId` as normalized production evidence, so an unmeasured run could rank and ticket
-   * invented egress as measured fact. Strip it all.
-   */
   if (measurement.status !== "available") {
     return findings.map((finding) => {
       const stripped = { ...finding }
@@ -583,11 +582,9 @@ function attachPerformanceMetrics(findings, measurement) {
 // </generated:performance-measurement>
 
 const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
-for (const name of ['ui', 'api']) {
-  const root = parsedArgs.roots?.[name]
-  if (typeof root !== 'string' || !/^(?:\/|[A-Za-z]:[\\/]|\\\\[^\\]+\\)/.test(root)) {
-    throw new Error(`audit workflow: args.roots.${name} must be an absolute path`)
-  }
+const absolutePath = (path) => typeof path === 'string' && /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(path)
+if (!absolutePath(parsedArgs.roots?.ui) || !absolutePath(parsedArgs.roots?.api)) {
+  throw new Error('audit workflow requires absolute ui and api roots')
 }
 const { ui: UI, api: API } = parsedArgs.roots
 const VERIFY_CAP = 60
@@ -744,7 +741,7 @@ const KIND = {
 const EXCLUDE = 'Exclude generated/vendored dirs (node_modules, .next, dist, build, bin, obj, coverage, .turbo, Migrations/ except when reading them to confirm an index, design/handoff/).'
 
 const GATE_OWNED =
-  'D11 boundary: audit ONLY what no gate can check; NEVER emit a finding a gate already fails on. The mechanical layer, owned by gates, is off-limits: ESLint local/* (comment policy, spacing scale, console/any bans, animate-presence), the Guards job steps (Dash Ban, Copy Register, Expo SDK Pin), the PR Metadata parity and suppressions checks in pr-metadata.yml, Roslyn ORBIT0001..0005 (narration comments, redundant tx rollbacks, controller-missing-[Authorize], raw DateTime.UtcNow for user-facing dates, DbSet without entity config), the React Doctor step in guards.yml (React correctness plus its a11y/perf rules), perf.yml (the web LCP/TBT/bundle budgets), and the Architecture map drift steps in guards.yml. When a concern is half-mechanical, keep ONLY the judgement half and name the gate that owns the other.'
+  'D11 boundary: audit ONLY what no gate can check; NEVER emit a finding a gate already fails on. The mechanical layer, owned by gates, is off-limits: ESLint local/* (comment policy, spacing scale, console/any bans, animate-presence), the Guards job in guards.yml (Dash Ban, Copy Register, Lint Severity, Expo SDK Pin, React Doctor, Architecture map drift), the PR Metadata parity check in pr-metadata.yml, Roslyn ORBIT0001..0005 (narration comments, redundant tx rollbacks, controller-missing-[Authorize], raw DateTime.UtcNow for user-facing dates, DbSet without entity config), perf.yml (the web LCP/TBT/bundle budgets). When a concern is half-mechanical, keep ONLY the judgement half and name the gate that owns the other.'
 
 const isApiSurface = (s) => s.label.startsWith('api-') || /orbit-api/.test(s.where)
 const surfaceRepos = (s) => s.repos || (isApiSurface(s) ? 'api' : 'ui')

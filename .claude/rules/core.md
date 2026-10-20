@@ -1,7 +1,7 @@
 # Standing rules: the always-loaded core
 
-Write rules, docs, and comments timelessly: no dates except load-bearing data, names or attributions,
-incident stories, or machine paths. `tools/check-timeless.mjs` enforces this.
+Tracked rules, prompts, specs and comments state current requirements without dated incidents,
+attributed quotes, session IDs or personal machine paths. Keep timed run evidence in the scratchpad.
 
 **At a glance:** the judgement that loads on EVERY turn. Everything else lives in
 `.claude/playbooks/`: **read the playbook yourself** when you start that activity, because no file
@@ -12,6 +12,7 @@ path predicts it.
 | `debugging.md` | a bug, a triage, `/investigate`, a merge conflict |
 | `review-and-audit.md` | `/audit-*`, a Pullfrog review to act on, any fan-out assessment |
 | `planning-and-artifacts.md` | `/ticket`, `/orchestrate`, ticket writing, ADRs |
+| `redesign-screen.md` | any of the thirteen redesign screens: the D76 loop and its ui-skills sweep |
 | `context-engineering.md` | authoring anything the agent reads: a rule, playbook, skill, agent, tool, ticket |
 
 ### 1. No red-capable command, no hypothesising
@@ -28,13 +29,16 @@ and asserts the exact symptom. Until it is red you have a story, not a bug. Cut 
 Every GitHub or ticket-tracker identifier you pass to a tool (node id, PR number, SHA, run id, comment id,
 issue key) is COPIED from output produced in the same run. Never from memory, never reconstructed.
 **A `||` fallback that retries a failed write is forbidden**: it makes the write the probe. Node ids
-are globally unique, so a wrong one can target another repository.
+are globally unique, so a wrong one can hit a stranger's repository.
 Gates: `.claude/hooks/forbid-invented-identifier.mjs`, `tools/lib/github-target.mjs`.
 
 ### 4. Never re-flag what a gate already enforces
 
-If ESLint `local/*`, a `guards.yml` step (Dash Ban, Copy Register, Expo SDK
-Pin), the `PR Metadata` parity and suppressions checks, or Roslyn `ORBIT0001..0005` fails on it, saying it by hand is noise.
+If ESLint `local/*`, a step in the `Guards` job (Dash Ban, Copy Register, Lint Severity, Expo SDK
+Pin), the `PR Metadata` parity check, or Roslyn `ORBIT0001..0005` fails on it, saying it by hand is noise.
+
+A gate fails only on files the pull request changed. Whole-tree findings are advisory.
+Every committed gate inventory names its regeneration command. Every threshold names its real source.
 
 ### 5. Load-bearing strings need approval before they change
 
@@ -55,3 +59,17 @@ would annotate "Recommend: X"; decide X and move on.
 
 Retry once with different wording, then say the answer came from built-in defaults, not a match.
 Never invent ratings, prices, reviews, or org details, or a `file:line` no tool gave you.
+Before any item reaches the owner as a blocker, try every installed tool and existing account that could reach the same goal, and write what each returned. A blocker names the goal, not the first method's precondition.
+This never crosses an identity, authorization, manual-step or redaction limit a skill sets: a method such a limit forbids is written down as forbidden, not tried, and no credential appears in what you write.
+
+### 9. Carry the standing operating contract (D89, D90)
+
+Enter through `/orchestrate`: Codex writes every code change, or Claude headless through the same
+launcher when the Codex allowance is exhausted (`orchestrate/SKILL.md` §5.4.1); the orchestrating session never edits code itself,
+except a review fix (`orchestrate/SKILL.md` step 8).
+A bare ticket stays local.
+Redesign queues use `/orchestrate --cloud --parallel` for UI, a small local pool for `api`/`landing` (D89).
+D76 covers the thirteen redesign screens; groundwork runs autonomously. See `.claude/playbooks/redesign-screen.md`.
+Until shipping, D90 suspends D76 steps 1/3/7/8 and D88's hold; steps 2/4/5/6 stand. No human wait; screens merge like groundwork. D76/D88 then return.
+`design/canvas/`, authoritative `DESIGN.md` under D42, step 6 ui-skills sweep, Pullfrog and gates still apply.
+`hot.md` and brain ADRs are the decision record. Every `/handoff` carries this contract before its task, pointing here and to the playbook.

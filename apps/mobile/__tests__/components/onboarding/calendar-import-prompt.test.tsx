@@ -1,14 +1,19 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { useUIStore } from '@/stores/ui-store'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
+const renderedTrees: any[] = []
 
 const mocks = vi.hoisted(() => ({
   profile: undefined as Record<string, unknown> | undefined,
   pathname: '/',
+  push: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -17,7 +22,7 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('expo-router', () => ({
   usePathname: () => mocks.pathname,
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: mocks.push, replace: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -25,7 +30,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
-  performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
+  performQueuedApiMutation: vi.fn(async () => { await Promise.resolve(); return undefined; }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -36,22 +41,19 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? React.createElement('Sheet', null, children) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('PillButton', null, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButton', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
-async function renderPrompt() {
-  let tree: { root: { findAllByType: (type: string) => unknown[] } } | null = null
-  await TestRenderer.act(async () => {
+function renderPrompt() {
+  let tree: any = null
+  TestRenderer.act(() => {
     tree = TestRenderer.create(React.createElement(CalendarImportPrompt))
-    await Promise.resolve()
   })
+  renderedTrees.push(tree)
   return tree!
 }
 
@@ -69,48 +71,149 @@ function baseProfile(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
-  useUIStore.setState({ openOverlayIds: [], showCreateModal: false, showCreateGoalModal: false })
+  vi.clearAllMocks()
   mocks.profile = undefined
   mocks.pathname = '/'
+  useUIStore.setState({ openOverlayIds: [], showCreateModal: false })
+})
+afterEach(() => {
+  TestRenderer.act(() => {
+    for (const tree of renderedTrees.splice(0)) tree.unmount()
+  })
+})
+
+describe('CalendarImportPrompt navigation', () => {
+  beforeEach(() => {
+    sheetTestControls.defer(true)
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
+  it('opens calendar sync only after the sheet dismisses', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    const importAction = tree.root.findAllByType('PillButton').find((node: any) => node.props.variant !== 'ghost')
+
+    TestRenderer.act(() => {
+      importAction.props.onClick()
+    })
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(mocks.push).toHaveBeenCalledWith('/calendar?import=1')
+    expect(mocks.push).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('CalendarImportPrompt gating', () => {
-  it('waits for the create modal to close', async () => {
+  it('waits until another sheet closes', async () => {
     mocks.profile = baseProfile()
-    useUIStore.getState().setShowCreateModal(true)
-    const tree = await renderPrompt()
+    useUIStore.getState().registerOpenOverlay('already-open')
+    const tree = renderPrompt()
     expect(sheetCount(tree)).toBe(0)
 
     await TestRenderer.act(async () => {
-      useUIStore.getState().setShowCreateModal(false)
+      useUIStore.getState().unregisterOpenOverlay('already-open')
       await Promise.resolve()
     })
     expect(sheetCount(tree)).toBe(1)
+    await TestRenderer.act(async () => {
+      tree.unmount()
+      await Promise.resolve()
+    })
   })
-
-  it('shows the sheet once onboarding and the tour are both complete', async () => {
+  it('shows the sheet once onboarding is complete', () => {
     mocks.profile = baseProfile()
-    expect(sheetCount(await renderPrompt())).toBe(1)
+    expect(sheetCount(renderPrompt())).toBe(1)
   })
 
-  it('stays hidden while the tour is still running (hasCompletedTour false)', async () => {
+  it('centres its copy and uses a ghost pill to dismiss', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    const quiet = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
+    const description = tree.root.findAll((node: any) => node.type === 'Text' && node.props.children === 'onboarding.wizard.calendarDescription')[0]
+
+    expect(quiet.props.variant).toBe('ghost')
+    expect(StyleSheet.flatten(description.props.style).textAlign).toBe('center')
+  })
+
+  it('leaves the body outer inset to the sheet primitive', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    const body = tree.root.findByType('SheetBody')
+    const caller = body.findByType('View')
+    const style = StyleSheet.flatten(caller.props.style) ?? {}
+    expect(Object.entries(style).filter(([property]) => property.startsWith('padding'))).toEqual([])
+    expect(caller.findByType('Text').props.children).toBe('onboarding.wizard.calendarDescription')
+  })
+
+  it('pins Import and Later in the sheet footer, never in the scrolling body', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.later', 'onboarding.wizard.calendarButton'])
+    expectSmallSheetActions(tree.root)
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('does not wait for the retired tour state', () => {
     mocks.profile = baseProfile({ hasCompletedTour: false })
-    expect(sheetCount(await renderPrompt())).toBe(0)
+    expect(sheetCount(renderPrompt())).toBe(1)
   })
 
-  it('stays hidden before onboarding completes', async () => {
+  it('stays hidden before onboarding completes', () => {
     mocks.profile = baseProfile({ hasCompletedOnboarding: false })
-    expect(sheetCount(await renderPrompt())).toBe(0)
+    expect(sheetCount(renderPrompt())).toBe(0)
   })
 
-  it('stays hidden once the calendar has been imported', async () => {
+  it('stays hidden once the calendar has been imported', () => {
     mocks.profile = baseProfile({ hasImportedCalendar: true })
-    expect(sheetCount(await renderPrompt())).toBe(0)
+    expect(sheetCount(renderPrompt())).toBe(0)
   })
 
-  it('stays hidden on the calendar-sync route', async () => {
+  it('stays hidden on the calendar-sync route', () => {
     mocks.profile = baseProfile()
-    mocks.pathname = '/calendar-sync'
-    expect(sheetCount(await renderPrompt())).toBe(0)
+    mocks.pathname = '/calendar'
+    expect(sheetCount(renderPrompt())).toBe(0)
+  })
+})
+
+/** Wait for TrueSheet dismissal before changing the state that unmounts it. */
+describe('CalendarImportPrompt quiet dismissal', () => {
+  beforeEach(() => {
+    sheetTestControls.defer(true)
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
+  it('keeps the sheet mounted until the dismissal completes, then dismisses the prompt', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    expect(sheetCount(tree)).toBe(1)
+
+    const later = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
+    if (!later) throw new Error('Later action not found')
+    TestRenderer.act(() => {
+      later.props.onPress()
+    })
+
+    expect(sheetCount(tree)).toBe(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(sheetCount(tree)).toBe(0)
   })
 })

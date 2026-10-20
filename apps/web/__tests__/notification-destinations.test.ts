@@ -20,6 +20,21 @@ const routes = readdirSync(resolve(__dirname, '../app'), { recursive: true, enco
   .map((file) => file.startsWith('/') ? file : `/${file}`)
 
 describe('notification destinations', () => {
+  it.each([
+    ['/progress', '/progress'],
+    ['/progress?source=notification#freezes', '/progress?source=notification#freezes'],
+    ['/streak?source=notification#freezes', '/progress/streak?source=notification#freezes'],
+    ['/goals?status=Active', '/progress/goals?status=Active'],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
+    ['/progress/streak', '/progress/streak'],
+    ['/progress/goals?status=Active', '/progress/goals?status=Active'],
+    ['/progress/achievements?earned=latest', '/progress/achievements?earned=latest'],
+  ])('opens notification %s in its owning screen', (url, expected) => {
+    const destination = getNotificationDestination(url)
+    expect(destination).toEqual({ url: expected, opensAstra: false })
+    expect(routes).toContain(expected.split(/[?#]/)[0])
+  })
+
   it.each(notificationUrls)('%s resolves to a web page', (url) => {
     const destination = getNotificationDestination(url)
     expect(destination).not.toBeNull()

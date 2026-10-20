@@ -1,20 +1,31 @@
-import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { personalText } from '@/__tests__/support/personal-text'
+import React, { useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { CalendarSyncEvent } from '@orbit/shared'
+import { calendarImportTitleKey } from '@orbit/shared/utils'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { Sheet } from '@/components/ui/sheet'
 import { ApiClientError } from '@orbit/shared/utils/error-utils'
-import { toast } from 'sonner'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+const toastError = vi.hoisted(() => vi.fn())
 
 const useCalendarEventsMock = vi.fn()
 const bulkMutateMock = vi.fn()
 const dismissMutateMock = vi.fn()
-const pageState = vi.hoisted(() => ({ reviewMode: false, suggestions: [] as unknown[] }))
+const pageState = vi.hoisted(() => ({ reviewMode: false, suggestions: [] as unknown[], initialEventId: null as string | null }))
+const syncNowMock = vi.hoisted(() => vi.fn())
+const setAutoSyncMock = vi.hoisted(() => vi.fn())
+const clockState = vi.hoisted(() => ({ language: 'en', uses24HourClock: true, hasProAccess: true, neverSynced: false }))
 
 vi.mock('next-intl', () => ({
+  useLocale: () => clockState.language,
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}(${JSON.stringify(params)})` : key,
+    key === 'calendar.calendars.title' ? (clockState.language === 'pt-BR' ? ptBR : en).calendar.calendars.title : params ? `${key}(${JSON.stringify(params)})` : key,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -27,8 +38,8 @@ vi.mock('next/link', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: createMockProfile({ hasProAccess: true }) }),
-  useHasProAccess: () => true,
+  useProfile: () => ({ profile: createMockProfile({ hasProAccess: clockState.hasProAccess, uses24HourClock: clockState.uses24HourClock }) }),
+  useHasProAccess: () => clockState.hasProAccess,
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -40,11 +51,11 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
 }))
 
 vi.mock('@/hooks/use-calendar-auto-sync', () => ({
-  useCalendarAutoSyncState: () => ({ data: { hasGoogleConnection: false }, isLoading: false }),
+  useCalendarAutoSyncState: () => ({ data: { enabled: false, status: 'Idle', hasGoogleConnection: true, lastSyncedAt: clockState.neverSynced ? null : '2026-09-12T09:12:00Z' }, isLoading: false }),
   useCalendarSyncSuggestions: () => ({ data: pageState.suggestions, isLoading: false, isError: false }),
   useDismissCalendarSuggestion: () => ({ mutateAsync: dismissMutateMock, isPending: false }),
-  useRunCalendarSyncNow: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useSetCalendarAutoSync: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRunCalendarSyncNow: () => ({ mutateAsync: syncNowMock, isPending: false }),
+  useSetCalendarAutoSync: () => ({ mutateAsync: setAutoSyncMock, isPending: false }),
 }))
 
 vi.mock('@/hooks/use-calendar-events', () => ({
@@ -58,15 +69,26 @@ vi.mock('@/hooks/use-calendars', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError, showSuccess: vi.fn() }) }))
 
-import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 
-function renderPage() {
+function CalendarSyncScreen({ inSheet = false }: Readonly<{ inSheet?: boolean }>) {
+  const [action, setAction] = useState<CalendarImportActionState | null>(null)
+  const actionRef = useRef<CalendarImportActionHandle>(null)
+  const t = useTranslations()
+  const content = <>
+    <div data-testid="sheet-body"><CalendarImportContent reviewMode={pageState.reviewMode} initialEventId={pageState.initialEventId} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} /></div>
+    {action ? <div data-testid="sheet-actions"><button disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</button></div> : null}
+  </>
+  return inSheet ? <Sheet title={t(calendarImportTitleKey(pageState.reviewMode))} onClose={() => {}}>{content}</Sheet> : content
+}
+
+function renderPage(inSheet = false) {
   const queryClient = new QueryClient()
   return render(
     <QueryClientProvider client={queryClient}>
-      <CalendarSyncPage />
+      <CalendarSyncScreen inSheet={inSheet} />
     </QueryClientProvider>,
   )
 }
@@ -87,17 +109,182 @@ function buildEvents(count: number): CalendarSyncEvent[] {
 }
 
 function countEventRows(): number {
-  return screen.getAllByText(/^Event \d+$/).length
+  return screen.getAllByText(personalText(/^Event \d+$/)).length
 }
 
 describe('CalendarSyncPage pagination', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+
   beforeEach(() => {
     useCalendarEventsMock.mockReset()
     bulkMutateMock.mockReset()
     dismissMutateMock.mockReset()
-    vi.mocked(toast.error).mockReset()
+    vi.mocked(toastError).mockReset()
     pageState.reviewMode = false
     pageState.suggestions = []
+    pageState.initialEventId = null
+    syncNowMock.mockReset()
+    setAutoSyncMock.mockReset()
+    clockState.language = 'en'
+    clockState.uses24HourClock = true
+    clockState.hasProAccess = true
+    clockState.neverSynced = false
+  })
+
+  it('keeps one title in place and hides the provider description', () => {
+    const event = { ...buildEvents(1)[0]!, description: 'Event Name / Interview Calendar / Location: Google Meet' }
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: [event] }, isLoading: false, isError: false })
+    renderPage()
+    expect(screen.queryByText(event.description)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'contextMenu.viewDetails' }))
+    expect(screen.getAllByText(personalText(event.title))).toHaveLength(1)
+  })
+
+  it('shows the automatic sync Pro gate before attempting any mutation', () => {
+    clockState.hasProAccess = false
+    useCalendarEventsMock.mockReturnValue({ isLoading: false, isError: false })
+    renderPage()
+    expect(screen.getByText('calendar.autoSync.proRequired')).toBeVisible()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(syncNowMock).not.toHaveBeenCalled()
+    expect(setAutoSyncMock).not.toHaveBeenCalled()
+  })
+
+  it('shows one Calendários heading in the connected import sheet', () => {
+    clockState.language = 'pt-BR'
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(2) }, isLoading: false, isError: false })
+    renderPage(true)
+    expect(screen.getAllByRole('heading', { name: ptBR.calendar.calendars.title })).toHaveLength(1)
+  })
+
+  it('keeps plain, selected and blocked event rows rounded without separators in the sheet', () => {
+    const events = buildEvents(3)
+    events[2] = { ...events[2]!, isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null }
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events }, isLoading: false, isError: false })
+    renderPage(true)
+    const buttons = events.map((event) => screen.getByRole('button', { name: new RegExp(event.title) }))
+    fireEvent.click(buttons[0]!)
+    expect(buttons[0]).toHaveAttribute('aria-pressed', 'false')
+    expect(buttons[1]).toHaveAttribute('aria-pressed', 'true')
+    expect(buttons[2]).toBeDisabled()
+    expect(buttons[2]).toHaveAccessibleDescription('calendar.importIssue.utcUntilOffsetShift')
+    for (const button of buttons) {
+      const row = button.closest<HTMLElement>('[data-focus-inset]')!
+      expect(row.style.borderBottom).toBe('')
+      expect(row.style.boxShadow).toBe('')
+      expect(row.style.borderRadius).toBe('12px')
+      expect(row.style.overflow).toBe('')
+    }
+  })
+
+  it.each([['pt-BR', 'sex., 16 de out.'], ['en', 'Fri, Oct 16']])('localizes calendar dates in %s west of UTC', (language, expected) => {
+    vi.stubEnv('TZ', 'America/Los_Angeles')
+    expect(new Date(2026, 9, 16).getTimezoneOffset()).toBeGreaterThan(0)
+    clockState.language = language
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: [{ ...buildEvents(1)[0]!, startDate: '2026-10-16' }] }, isLoading: false, isError: false })
+    renderPage(true)
+    expect(screen.getByText(expected)).toBeVisible()
+    expect(screen.queryByText('2026-10-16')).not.toBeInTheDocument()
+    vi.unstubAllEnvs()
+  })
+
+  it('opens an event beyond the first page in place', () => {
+    pageState.initialEventId = 'ev-25'
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(45) }, isLoading: false, isError: false })
+    renderPage()
+    expect(screen.getByText(personalText('Event 25'))).toBeVisible()
+    expect(screen.getByText(personalText('Event 25'))).toHaveAttribute('data-personal-text-expanded')
+    expect(screen.getByText('calendar.importButton({"count":1})')).toBeEnabled()
+  })
+
+  it('preselects only the event opened from the day card', () => {
+    pageState.initialEventId = 'ev-1'
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(3) }, isLoading: false, isError: false })
+    renderPage()
+    expect(screen.getByText('calendar.importButton({"count":1})')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('calendar.importButton({"count":1})'))
+    expect(bulkMutateMock.mock.calls[0]![0].habits).toHaveLength(1)
+    expect(bulkMutateMock.mock.calls[0]![0].habits[0].title).toBe('Event 1')
+  })
+
+  it('discloses an imported event title without selecting other events', () => {
+    const title = 'Already imported event ' + 'long title '.repeat(30)
+    pageState.initialEventId = 'ev-0'
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: [{ ...buildEvents(2)[0]!, title, isImported: true }, buildEvents(2)[1]!] }, isLoading: false, isError: false })
+    renderPage()
+    expect(screen.getByText(personalText(title.trim()))).toBeInTheDocument()
+    expect(screen.getByText('calendar.importButton({"count":0})')).toBeDisabled()
+    expect(bulkMutateMock).not.toHaveBeenCalled()
+  })
+
+  it('shows a Pro gate if access expires during sync', async () => {
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(1) }, isLoading: false, isError: false })
+    syncNowMock.mockRejectedValueOnce(new ApiClientError(403, 'Calendar integration is a Pro feature.', { code: 'PAY_GATE' }))
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.autoSync.syncNow' }))
+    await waitFor(() => expect(screen.getByText('calendar.autoSync.proRequired')).toBeVisible())
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps a never-synced conflict retryable and prevents another sync while pending', async () => {
+    clockState.neverSynced = true
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(1) }, isLoading: false, isError: false })
+    let rejectSync!: (failure: Error) => void
+    syncNowMock.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectSync = reject }))
+    renderPage()
+    expect(screen.getByText('calendar.autoSync.lastSyncedNever')).toBeVisible()
+    const refresh = screen.getByRole('button', { name: 'calendar.autoSync.syncNow' })
+    fireEvent.click(refresh)
+    expect(refresh).toBeDisabled()
+    expect(refresh).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByText('calendar.autoSync.syncing')).toHaveAttribute('role', 'status')
+    fireEvent.click(refresh)
+    expect(syncNowMock).toHaveBeenCalledTimes(1)
+    await act(async () => { rejectSync(new ApiClientError(409, 'Concurrent update', { code: 'CONCURRENT_UPDATE_CONFLICT' })) })
+    expect(screen.getByRole('alert')).toHaveTextContent('toast.errors.conflict')
+    fireEvent.click(refresh)
+    await waitFor(() => expect(refresh).not.toBeDisabled())
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(syncNowMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('owns dated sync controls and keeps sync failures in the sheet', async () => {
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(1) }, isLoading: false, isError: false })
+    syncNowMock.mockRejectedValueOnce(new ApiClientError(403, 'Forbidden'))
+    renderPage()
+    expect(screen.getByText('calendar.dayDetail.googleConnected')).toBeInTheDocument()
+    expect(screen.getByText(/2026, 06:12/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.autoSync.automaticImport' }))
+    await waitFor(() => expect(setAutoSyncMock).toHaveBeenCalledWith({ enabled: true }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'calendar.autoSync.syncNow' })).not.toBeDisabled())
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.autoSync.syncNow' }))
+    await waitFor(() => expect(screen.getAllByRole('alert')[0]!).toHaveTextContent('errors.api.edgeBlockedRetry'))
+    expect(toastError).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.autoSync.syncNow' }))
+    await waitFor(() => expect(syncNowMock).toHaveBeenCalledTimes(2))
+    expect(screen.queryAllByRole('alert').every((node) => node.textContent === '')).toBe(true)
+  })
+
+  it('replaces visible event details when accounts share an event id', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('calendar-account-a')
+    let currentEvents = [{ ...buildEvents(1)[0]!, id: 'shared-event', title: 'Account A event' }]
+    useCalendarEventsMock.mockImplementation(() => ({
+      data: { status: 'connected', events: currentEvents },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }))
+
+    renderPage()
+    expect(screen.getByText(personalText('Account A event'))).toBeInTheDocument()
+
+    currentEvents = [{ ...currentEvents[0]!, title: 'Account B event' }]
+    await replaceAccountWith('calendar-account-b')
+
+    expect(screen.queryByText(personalText('Account A event'))).not.toBeInTheDocument()
+    expect(screen.getByText(personalText('Account B event'))).toBeInTheDocument()
   })
 
   it('renders only the first page of events and reveals more on demand', () => {
@@ -129,8 +316,10 @@ describe('CalendarSyncPage pagination', () => {
   })
 
   it('does not show the pager when events fit on one page', () => {
+    const events = buildEvents(8)
+    events[0] = { ...events[0]!, isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' }
     useCalendarEventsMock.mockReturnValue({
-      data: { status: 'connected', events: buildEvents(8) },
+      data: { status: 'connected', events },
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
@@ -138,7 +327,8 @@ describe('CalendarSyncPage pagination', () => {
 
     renderPage()
 
-    expect(countEventRows()).toBe(8)
+    expect(countEventRows()).toBe(7)
+    expect(screen.queryByText(personalText('Event 0'))).not.toBeInTheDocument()
     expect(screen.queryByText('calendar.showMore')).not.toBeInTheDocument()
   })
 
@@ -153,6 +343,22 @@ describe('CalendarSyncPage pagination', () => {
     renderPage()
 
     expect(screen.getByText('Work')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['pt-BR', false, '7:30 PM - 8:15 PM'],
+    ['en', true, '19:30 - 20:15'],
+  ])('shows imported event times with %s and the saved clock', (language, uses24HourClock, expected) => {
+    clockState.language = language
+    clockState.uses24HourClock = uses24HourClock
+    useCalendarEventsMock.mockReturnValue({
+      data: { status: 'connected', events: [{ ...buildEvents(1)[0]!, startTime: '19:30', endTime: '20:15' }] },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+    renderPage()
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
   it('shows text-bearing recovery when importing an event is blocked', async () => {
@@ -238,7 +444,8 @@ describe('CalendarSyncPage pagination', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' }))
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
+    await waitFor(() => expect(screen.getAllByRole('alert').some((node) => node.textContent === 'errors.api.edgeBlockedRetry')).toBe(true))
+    expect(toastError).not.toHaveBeenCalled()
     expect(dismissMutateMock).toHaveBeenCalledWith({ id: 'suggestion-1' })
   })
 })

@@ -1,13 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import { runServerAction } from '@/lib/client-action'
 import { useAuthStore } from '@/stores/auth-store'
 
-vi.mock('sonner', () => ({
-  toast: { error: vi.fn() },
-}))
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -21,11 +23,10 @@ describe('session refresh recovery', () => {
     mockFetch.mockReset()
     useAuthStore.setState({
       isAuthenticated: true,
-      heldAccountId: 'user-1',
       user: {
         userId: 'user-1',
         name: 'Alex',
-        email: 'thomas@example.com',
+        email: 'alex@example.com',
       },
       expiresAt: Date.now() + 60_000,
       sessionRefreshFailed: false,
@@ -39,7 +40,7 @@ describe('session refresh recovery', () => {
         status: 401,
         headers: { 'x-orbit-session-refresh': 'failed' },
       }))
-      .mockResolvedValueOnce(Response.json({ expiresAt, refreshFailed: false }))
+      .mockResolvedValueOnce(Response.json({ expiresAt, userId: 'user-1', refreshFailed: false }))
 
     render(<ExpiryWarning />)
     await act(() => sessionAwareFetch('/api/profile'))
@@ -50,7 +51,7 @@ describe('session refresh recovery', () => {
       expiresAt,
       sessionRefreshFailed: false,
     })
-    expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/auth/session')
+    expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/auth/session', { headers: expect.any(Headers) })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -66,10 +67,10 @@ describe('session refresh recovery', () => {
         headers: { 'x-orbit-session-refresh': 'failed' },
       }))
       .mockResolvedValueOnce(Response.json(
-        { expiresAt: null, refreshFailed: true },
+        { expiresAt: null, userId: null, refreshFailed: true },
         { status: 401 },
       ))
-      .mockResolvedValueOnce(Response.json({ expiresAt, refreshFailed: false }))
+      .mockResolvedValueOnce(Response.json({ expiresAt, userId: 'user-1', refreshFailed: false }))
 
     const winner = sessionAwareFetch('/api/winner')
     await act(() => sessionAwareFetch('/api/loser'))
@@ -88,7 +89,7 @@ describe('session refresh recovery', () => {
       expiresAt,
       sessionRefreshFailed: false,
     })
-    expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/auth/session')
+    expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/auth/session', { headers: expect.any(Headers) })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -101,10 +102,10 @@ describe('session refresh recovery', () => {
     const winner = runServerAction(winnerResult)
     mockFetch
       .mockResolvedValueOnce(Response.json(
-        { expiresAt: null, refreshFailed: true },
+        { expiresAt: null, userId: null, refreshFailed: true },
         { status: 401 },
       ))
-      .mockResolvedValueOnce(Response.json({ expiresAt, refreshFailed: false }))
+      .mockResolvedValueOnce(Response.json({ expiresAt, userId: 'user-1', refreshFailed: false }))
 
     await expect(runServerAction(Promise.resolve({
       ok: false as const,

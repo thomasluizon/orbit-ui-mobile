@@ -1,0 +1,318 @@
+import React, { type ReactNode } from 'react'
+import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
+import Yoga, { type Node as YogaNode } from 'yoga-layout'
+import { afterEach, expect, it, vi } from 'vitest'
+import ProgressScreen from '@/app/(tabs)/progress'
+import ProfileScreen from '@/app/(tabs)/profile'
+import { CalendarOptions } from '@/app/(tabs)/calendar/_components/calendar-options'
+import { TodayAstra } from '@/components/today/today-astra'
+import { TodayDateControl } from '@/components/today/today-date-control'
+import { Shell412 } from '@/components/shell/shell-412'
+import { createTokensV2 } from '@/lib/theme'
+import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { notificationKeys, proactiveKeys } from '@orbit/shared/query'
+import { createMockNotification, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { formatAPIDate } from '@orbit/shared/utils'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { queryClient, persistQueryCache, restoreQueryCache, setQueryCacheScope } from '@/lib/query-client'
+
+const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
+const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), count: 0, restored: false }))
+vi.mock('expo-router', () => ({ useRouter: () => navigation, usePathname: () => '/', useLocalSearchParams: () => ({}) }))
+vi.mock('react-native-safe-area-context', async () => ({
+  SafeAreaView: (await import('react-native')).View,
+  useSafeAreaInsets: () => ({ top: 24, bottom: 0, left: 0, right: 0 }),
+}))
+vi.mock('@/hooks/use-notification-inbox', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-notification-inbox')>()
+  return { useNotificationInbox: () => navigation.restored ? original.useNotificationInbox() : { visibleUnreadCount: navigation.count } }
+})
+vi.mock('@/lib/api-client', () => ({ apiClient: () => new Promise(() => {}) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined, isLoading: true, refetch: vi.fn(), patchProfile: vi.fn() }) }))
+vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isLoading: true }) }))
+vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ isLoading: true }) }))
+vi.mock('@/hooks/use-logout', () => ({ useLogout: () => ({ logout: vi.fn(), isPending: false }) }))
+
+interface Host {
+  type: string
+  props: {
+    style?: (ViewStyle & TextStyle) | ((state: { pressed: boolean }) => ViewStyle & TextStyle)
+    contentContainerStyle?: ViewStyle
+    accessibilityHint?: string
+    accessibilityLabel?: string
+    accessibilityRole?: string
+    testID?: string
+    size?: number
+  }
+  children: (Host | string)[] | null
+}
+
+interface Instance {
+  type: unknown
+  props: Host['props'] & { onPress: () => void }
+  parent: Instance | null
+}
+
+type Tree = ReturnType<typeof renderer.create> & {
+  toJSON: () => Host
+  root: { find: (predicate: (node: Instance) => boolean) => Instance }
+  unmount: () => void
+}
+
+function applyFlexStyle(node: YogaNode, style: ViewStyle) {
+  if (style.flex !== undefined) node.setFlex(style.flex)
+  if (style.flexGrow !== undefined) node.setFlexGrow(style.flexGrow)
+  if (style.flexShrink !== undefined) node.setFlexShrink(style.flexShrink)
+  if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
+  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (style.alignSelf === 'center') node.setAlignSelf(Yoga.ALIGN_CENTER)
+  if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
+  if (style.justifyContent === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
+  if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
+}
+
+function applyDimensions(node: YogaNode, style: ViewStyle) {
+  if (typeof style.width === 'number' || style.width === '100%') node.setWidth(style.width)
+  if (typeof style.maxWidth === 'number') node.setMaxWidth(style.maxWidth)
+  if (typeof style.height === 'number') node.setHeight(style.height)
+  if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
+  if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
+}
+
+function applyStyle(node: YogaNode, style: ViewStyle) {
+  applyFlexStyle(node, style)
+  applyDimensions(node, style)
+  if (typeof style.padding === 'number') node.setPadding(Yoga.EDGE_ALL, style.padding)
+  if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
+  if (typeof style.paddingTop === 'number') node.setPadding(Yoga.EDGE_TOP, style.paddingTop)
+  if (typeof style.paddingBottom === 'number') node.setPadding(Yoga.EDGE_BOTTOM, style.paddingBottom)
+  if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
+  if (typeof style.paddingStart === 'number') node.setPadding(Yoga.EDGE_START, style.paddingStart)
+  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
+  if (typeof style.top === 'number') node.setPosition(Yoga.EDGE_TOP, style.top)
+  if (typeof style.right === 'number') node.setPosition(Yoga.EDGE_RIGHT, style.right)
+  if (style.display === 'none') node.setDisplay(Yoga.DISPLAY_NONE)
+}
+
+function bounds(node: YogaNode) {
+  let left = 0
+  let top = 0
+  let ancestor: YogaNode | null = node
+  while (ancestor) { left += ancestor.getComputedLeft(); top += ancestor.getComputedTop(); ancestor = ancestor.getParent() }
+  return { left, top, bottom: top + node.getComputedHeight(), right: left + node.getComputedWidth(), centerY: top + node.getComputedHeight() / 2, width: node.getComputedWidth(), height: node.getComputedHeight() }
+}
+
+function measureBell(host: Host, width: number, fontScale: number, pressed = false) {
+  const bells: YogaNode[] = []
+  const rows: YogaNode[] = []
+  const glyphs: YogaNode[] = []
+  const counts: YogaNode[] = []
+  const controls: YogaNode[] = []
+  const summaries: YogaNode[] = []
+  function build(host: Host, inHeader = false): YogaNode {
+    const node = Yoga.Node.create()
+    const declared = host.props.style
+    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed }) : declared ?? {})
+    applyStyle(node, style)
+    if (host.props.accessibilityHint === 'todayAstra.openConversation') summaries.push(node)
+    if (host.type === 'Bell') {
+      node.setWidth(host.props.size)
+      node.setHeight(host.props.size)
+      glyphs.push(node)
+    }
+    if (host.props.testID === 'notification-count') counts.push(node)
+    if (host.props.accessibilityRole === 'button' && host.props.accessibilityLabel?.startsWith('notifications.bell')) bells.push(node)
+    const header = inHeader || ['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(host.props.testID ?? '')
+    if (['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(host.props.testID ?? '')) rows.push(node)
+    if (header && host.props.accessibilityRole === 'button') controls.push(node)
+    if (host.type === 'Text') {
+      const text = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
+      const intrinsicWidth = text.length * (style.fontSize ?? 14) * 0.5 * fontScale
+      const lineHeight = (style.lineHeight ?? 24) * fontScale
+      node.setMeasureFunc((available, mode) => ({
+        width: mode === Yoga.MEASURE_MODE_UNDEFINED ? intrinsicWidth : Math.min(available, intrinsicWidth),
+        height: lineHeight,
+      }))
+      return node
+    }
+    let owner = node
+    if (host.props.contentContainerStyle) {
+      owner = Yoga.Node.create()
+      applyStyle(owner, StyleSheet.flatten(host.props.contentContainerStyle))
+      node.insertChild(owner, 0)
+    }
+    ;(host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => owner.insertChild(build(child, header), index))
+    return node
+  }
+  const layout = build(host)
+  try {
+    layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
+    expect(bells).toHaveLength(1)
+    expect(rows).toHaveLength(1)
+    return { summary: summaries[0] ? bounds(summaries[0]) : undefined, bell: bounds(bells[0]!), row: bounds(rows[0]!), controls: controls.map(bounds), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
+  } finally { layout.freeRecursive() }
+}
+
+const noop = () => {}
+const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isTodaySelected={false} nextDisabled={false}
+  previousLabel="Previous" goToTodayLabel="Today" nextLabel="Next" moreLabel="Options"
+  selectLabel="Select" collapseLabel="Collapse" allCollapsed={false} refreshLabel="Refresh" completedLabel="Completed"
+  showCompleted={false} isFetching={false} searchLabel="Search" onSearch={noop} onToggleSelect={noop}
+  onToggleCollapse={noop} onRefresh={noop} onToggleCompleted={noop} onGoToPreviousDay={noop} onGoToToday={noop} onGoToNextDay={noop} />
+
+afterEach(() => { __resetTestHostConfig(); navigation.count = 0; navigation.restored = false; queryClient.clear(); vi.restoreAllMocks() })
+
+it.each([412, 1352])('keeps the pressed header fills clear of the Astra summary at %s', async (width) => {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  navigation.count = 12
+  queryClient.setQueryData(proactiveKeys.current(), createMockProactiveItem({ text: 'Routine summary' }))
+  let tree!: Tree
+  await renderer.act(() => {
+    tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>
+      <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
+      {today}
+    </Shell412></QueryClientProvider>) as Tree
+  })
+  try {
+    const geometry = measureBell(tree.toJSON(), width, 1, true)
+    expect(geometry.summary).toBeDefined()
+    for (const control of geometry.controls.slice().reverse()) {
+      expect(control.width).toBeGreaterThanOrEqual(48)
+      expect(control.height).toBeGreaterThanOrEqual(48)
+      expect(geometry.summary!.top - control.bottom).toBeGreaterThanOrEqual(24)
+    }
+    const bell = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel?.startsWith('notifications.bell') === true)
+    const declared = bell.props.style
+    expect(typeof declared).toBe('function')
+    expect(StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: true }) : declared).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+  } finally { await renderer.act(() => tree.unmount()) }
+})
+
+it('paints every root bell from the restored notification cache before a delayed refetch', async () => {
+  navigation.restored = true
+  __setWindowDimensions({ width: 600, height: 915, scale: 1, fontScale: 1 })
+  await setQueryCacheScope('bell-first-frame')
+  let persistedNotifications = ''
+  vi.spyOn(AsyncStorage, 'setItem').mockImplementation((_key, value) => { persistedNotifications = value; return Promise.resolve() })
+  vi.spyOn(AsyncStorage, 'getItem').mockImplementation(() => Promise.resolve(persistedNotifications))
+  const notifications = { items: [createMockNotification({ isRead: false })], unreadCount: 15 }
+  queryClient.setQueryData(notificationKeys.lists(), notifications, { updatedAt: 1 })
+  await persistQueryCache()
+  queryClient.clear()
+  await restoreQueryCache()
+  expect(await AsyncStorage.getItem('@orbit/query-cache:bell-first-frame')).toContain('unreadCount')
+  const surfaces = [today, <CalendarOptions key="calendar" tokens={createTokensV2('purple', 'dark')} />,
+    <ProgressScreen key="progress" />, <ProfileScreen key="profile" />]
+  for (const surface of surfaces) {
+    let tree!: Tree
+    await renderer.act(() => {
+      tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>{surface}</Shell412></QueryClientProvider>) as Tree
+    })
+    try {
+      const first = measureBell(tree.toJSON(), 600, 1)
+      expect(first.count).toBeDefined()
+      expect(first.bell.width).toBeGreaterThan(48)
+      await renderer.act(async () => { await Promise.resolve() })
+      expect(measureBell(tree.toJSON(), 600, 1)).toEqual(first)
+    } finally { await renderer.act(() => tree.unmount()) }
+  }
+  await setQueryCacheScope(null)
+})
+
+it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
+  'aligns all four root bells at $width with text scale $fontScale and opens Avisos', async ({ width, fontScale }) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+    const surfaces: [string, ReactNode][] = [
+      ['Hoje', today],
+      ['Calendário', <CalendarOptions key="calendar" tokens={createTokensV2('purple', 'dark')} />],
+      ['Progresso', <ProgressScreen key="progress" />],
+      ['Perfil', <ProfileScreen key="profile" />],
+    ]
+    let reference: ReturnType<typeof measureBell> | undefined
+    for (const [name, surface] of surfaces) {
+      let tree!: Tree
+      await renderer.act(() => { tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>{surface}</Shell412></QueryClientProvider>) as Tree })
+      try {
+        const host = tree.toJSON()
+        function checkHeaderIcons(node: Host, inHeader = false) {
+          const header = inHeader || ['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(node.props.testID ?? '')
+          if (header && node.props.accessibilityRole === 'button') {
+            const style = node.props.style
+            const rest = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
+            const pressed = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style)
+            expect(rest.backgroundColor ?? 'transparent', `${name} ${node.props.accessibilityLabel}`).toBe('transparent')
+            expect(pressed.backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+          }
+          for (const child of node.children ?? []) if (typeof child !== 'string') checkHeaderIcons(child, header)
+        }
+        checkHeaderIcons(host)
+        const geometry = measureBell(host, width, fontScale)
+        reference ??= geometry
+        expect(Math.abs(geometry.bell.right - reference.bell.right), `${name} trailing edge`).toBeLessThanOrEqual(1)
+        if (fontScale === 1) expect.soft(Math.abs(geometry.bell.centerY - reference.bell.centerY), `${name} vertical centre`).toBeLessThanOrEqual(1)
+        expect(geometry.bell.width).toBeGreaterThanOrEqual(48)
+        expect(geometry.bell.height).toBeGreaterThanOrEqual(48)
+        expect(geometry.row.height).toBeGreaterThanOrEqual(48)
+        expect(Math.abs(geometry.bell.centerY - (geometry.row.centerY - 12)), `${name} row centre`).toBeLessThanOrEqual(1)
+        if (name === 'Hoje') {
+          const baseline = measureBell(host, width, 1)
+          expect(geometry.bell.right).toBe(baseline.bell.right)
+          expect(geometry.row.height).toBe(baseline.row.height)
+          expect(geometry.controls).toHaveLength(3)
+          const jump = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Wednesday, 08/04/2026, Today' && node.props.accessibilityRole === 'button')
+          expect(jump).toBeDefined()
+        }
+        const bell = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'notifications.bell' && node.props.accessibilityRole === 'button')
+        await renderer.act(() => bell.props.onPress())
+        expect(navigation.push).toHaveBeenLastCalledWith('/notifications')
+        navigation.push.mockClear()
+        if (name === 'Progresso' || name === 'Perfil') {
+          let ancestor = bell.parent
+          while (ancestor && ancestor.type !== 'ScrollView' && ancestor.type !== 'NestableScrollContainer') ancestor = ancestor.parent
+          expect(ancestor, `${name} scrolling bell row`).not.toBeNull()
+        }
+      } finally { await renderer.act(() => tree.unmount()) }
+    }
+  },
+)
+
+it.each([320, 600, 840].flatMap((width) => [1, 2].flatMap((fontScale) => [5, 12].map((count) => ({ width, fontScale, count })))))(
+  'centres $count unread inside every root bell at $width with text scale $fontScale', async ({ width, fontScale, count }) => {
+    navigation.count = count
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+    const surfaces = [today, <CalendarOptions key="calendar" tokens={createTokensV2('purple', 'dark')} />,
+      <ProgressScreen key="progress" />, <ProfileScreen key="profile" />]
+    let trailingEdge: number | undefined
+    for (const surface of surfaces) {
+      let tree!: Tree
+      await renderer.act(() => { tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>{surface}</Shell412></QueryClientProvider>) as Tree })
+      try {
+        const geometry = measureBell(tree.toJSON(), width, fontScale)
+        const { bell, row, glyph, count: marker } = geometry
+        expect(glyph).toBeDefined()
+        expect(marker).toBeDefined()
+        expect(Math.abs(marker!.centerY - glyph!.centerY)).toBeLessThanOrEqual(1)
+        expect(marker!.top - row.top).toBeGreaterThanOrEqual(4)
+        expect(marker!.left - glyph!.right).toBe(4)
+        for (const content of [glyph!, marker!]) {
+          expect(content.left - bell.left).toBeGreaterThanOrEqual(8)
+          expect(bell.right - content.right).toBeGreaterThanOrEqual(8)
+          expect(content.top - bell.top).toBeGreaterThanOrEqual(4)
+          expect(bell.bottom - content.bottom).toBeGreaterThanOrEqual(4)
+        }
+        expect(bell.width).toBeGreaterThan(48)
+        expect(bell.height).toBeGreaterThanOrEqual(48)
+        trailingEdge ??= bell.right
+        expect(bell.right).toBe(trailingEdge)
+        expect(bell.right).toBe(row.right - 16)
+        for (const control of geometry.controls) {
+          expect(control.left).toBeGreaterThanOrEqual(row.left + 16)
+          expect(control.right).toBeLessThanOrEqual(row.right - 16)
+        }
+      } finally { await renderer.act(() => tree.unmount()) }
+    }
+  },
+)

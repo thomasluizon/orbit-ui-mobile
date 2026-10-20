@@ -1,3 +1,5 @@
+import { SPACING } from '@orbit/shared/theme'
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 import {
   forwardRef,
   useCallback,
@@ -6,7 +8,7 @@ import {
   useState,
   type ComponentProps,
 } from 'react'
-import { StyleSheet, Text, TextInput } from 'react-native'
+import { StyleSheet, Text, type TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
@@ -69,7 +71,7 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
 
     return (
       <>
-        <TextInput
+        <TypedTextInput
           ref={assignRef}
           placeholderTextColor={placeholderTextColor ?? tokens.fg3}
           {...props}
@@ -96,32 +98,32 @@ function createStyles(tokens: AppTokens) {
       borderRadius: 14,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
-      borderColor: tokens.hairline,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      fontFamily: 'Rubik_400Regular',
+      borderColor: tokens.borderControl,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       color: tokens.fg1,
     },
     inputFocused: {
       borderWidth: 2,
       borderColor: tokens.primary,
-      paddingHorizontal: 15,
-      paddingVertical: 13,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
     },
     inputError: {
       borderWidth: 2,
       borderColor: tokens.statusBad,
-      paddingHorizontal: 15,
-      paddingVertical: 13,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
     },
     inputDisabled: {
       opacity: 0.6,
     },
     errorCaption: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 12,
-      marginTop: 4,
+      marginTop: SPACING.s4,
       color: tokens.statusBadText,
     },
   })

@@ -1,7 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/subscriptions/plans/route'
 import { resolveServerSession } from '@/lib/auth-api'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 vi.mock('@/lib/auth-api', () => ({
   resolveServerSession: vi.fn(),
@@ -51,12 +57,13 @@ describe('subscriptions plans route', () => {
         method: 'GET',
         cache: 'no-store',
         headers: {
+          'api-version': '2.0',
           Authorization: 'Bearer token',
           'X-Orbit-Country-Code': 'BR',
           'X-Forwarded-For': '177.10.20.30',
           'X-Real-IP': '198.51.100.5',
           'CloudFront-Viewer-Country': 'BR',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'Accept-Language': 'pt-BR',
           'X-Orbit-Time-Zone': 'America/Sao_Paulo',
         },
       }),
@@ -123,3 +130,5 @@ describe('subscriptions plans route', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

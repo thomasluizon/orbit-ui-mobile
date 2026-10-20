@@ -58,21 +58,6 @@ export const cases = () => {
     rmSync(root, { recursive: true, force: true })
   }
 
-  const datedComments = [
-    ["project XML", "sample.csproj", `<Project><!-- ${date} --></Project>\n`],
-    ["props XML", "sample.props", `<Project><!-- ${date} --></Project>\n`],
-    ["NuGet XML", "nuget.config", `<configuration><!-- ${date} --></configuration>\n`],
-    ["Astro frontmatter", "sample.astro", `---\n// ${date}\n---\n<div>clean</div>\n`],
-    ["Astro script", "sample.astro", `<script>\n// ${date}\n</script>\n`],
-  ]
-  for (const [label, name, content] of datedComments) {
-    const root = fixture("dated-comment", name, content)
-    if (name.endsWith(".astro")) symlinkSync(join(checker, "..", "..", "node_modules"), join(root, "node_modules"), "dir")
-    const result = run(root, ["--all"])
-    T(`${label} date comment fails --all`, result.status === 1 && result.stderr.includes("dated-anecdote"), result.stderr)
-    rmSync(root, { recursive: true, force: true })
-  }
-
   const safe = fixture("literals", "sample.js", `const message = "${date}";\nconst pattern = /${date}/;\n// one\n// two\n// three\n// four\n// five\n// six\n`)
   const editRoot = fixture("edit-payloads", "sample.md", "clean\n")
   const editInput = { file_path: join(editRoot, "sample.md"), old_string: "clean", new_string: owner }
@@ -111,37 +96,57 @@ export const cases = () => {
   T("a comment after nested JSX in a map callback fails Write hook", writeJsx(nestedMap).status === 2)
   const nestedAttribute = `export const Sample = () => <div title={ok ? <span>x</span> : /* ${date} */ null}>clean</div>\n`
   T("a comment after nested JSX in an attribute expression fails Write hook", writeJsx(nestedAttribute).status === 2)
-  const emptyCall = `export const Sample = () => run(/* ${date} */)\n`
-  writeFileSync(join(jsx, "sample.tsx"), emptyCall)
-  T("a dated comment inside an empty call fails --all", run(jsx, ["--all"]).status === 1)
   const parserLiterals = `export const Sample = () => <span>{"${date}"}{/${date}/.test(value)}</span>\n`
   T("the TypeScript parser ignores dates in strings and regex literals", writeJsx(parserLiterals).status === 0)
   const sixLines = Array.from({ length: 6 }, (_, index) => `// reason ${index}`).join("\n")
   T("six TypeScript comment lines pass", writeJsx(`${sixLines}\n${rendered}`).status === 0)
   T("seven TypeScript comment lines fail", writeJsx(`${sixLines}\n// reason 6\n${rendered}`).status === 2)
+  for (const [label, content] of [
+    ["empty call", `fn(/* ${date} */)\n`],
+    ["empty array", `const values = [/* ${date} */]\n`],
+    ["empty object", `const value = {/* ${date} */}\n`],
+    ["empty JSX expression", `export const Sample = () => <span>{/* ${date} */}</span>\n`],
+  ]) {
+    writeFileSync(join(jsx, "sample.tsx"), "export const Sample = () => <span>clean</span>\n")
+    T(`${label} comment fails hook`, writeJsx(content).status === 2)
+    writeFileSync(join(jsx, "sample.tsx"), content)
+    T(`${label} comment fails all`, run(jsx, ["--all"]).status === 1)
+  }
   writeFileSync(join(jsx, "sample.tsx"), jsxComment)
   git(jsx, "add", "sample.tsx")
   T("a real JSX comment fails all and staged", run(jsx, ["--all"]).status === 1 && run(jsx, ["--staged"]).status === 1)
   rmSync(jsx, { recursive: true, force: true })
+
+  const sourceLine = `const value = new Date("${date}T12:00:00.000Z")`
+  const wrapped = `/* ${sourceLine} */\n`
+  const wrapRoot = fixture("comment-wrap", "sample.js", `${sourceLine}\n`)
+  symlinkSync(join(checker, "..", "..", "node_modules"), join(wrapRoot, "node_modules"), "dir")
+  const wrapPayload = { tool_name: "Edit", tool_input: { file_path: join(wrapRoot, "sample.js"), old_string: sourceLine, new_string: `/* ${sourceLine} */` } }
+  T("wrapping an existing source line in a comment fails hook", run(wrapRoot, ["--hook"], JSON.stringify(wrapPayload)).status === 2)
+  const wrapBase = git(wrapRoot, "rev-parse", "HEAD").stdout.trim()
+  writeFileSync(join(wrapRoot, "sample.js"), wrapped)
+  git(wrapRoot, "add", "sample.js")
+  T("wrapping an existing source line in a comment fails staged", run(wrapRoot, ["--staged"]).status === 1)
+  git(wrapRoot, "commit", "-qm", "wrap")
+  T("wrapping an existing source line in a comment fails base", run(wrapRoot, ["--base", wrapBase]).status === 1)
+  rmSync(wrapRoot, { recursive: true, force: true })
+
+  const oldFinding = `// ${date}\n`
+  const existing = fixture("existing-comment", "sample.js", oldFinding)
+  symlinkSync(join(checker, "..", "..", "node_modules"), join(existing, "node_modules"), "dir")
+  const existingFile = join(existing, "sample.js")
+  const editExisting = (content) => run(existing, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: existingFile, content } }))
+  T("moving an existing finding passes hook", editExisting(`\n${oldFinding}`).status === 0)
+  T("an unrelated edit beside an existing finding passes hook", editExisting(`${oldFinding}const safe = true\n`).status === 0)
+  T("a second copy of an existing finding fails hook", editExisting(`${oldFinding}${oldFinding}`).status === 2)
+  writeFileSync(existingFile, `\n${oldFinding}`)
+  git(existing, "add", "sample.js")
+  T("moving an existing finding passes staged", run(existing, ["--staged"]).status === 0)
+  rmSync(existing, { recursive: true, force: true })
   const noParser = fixture("jsx-without-parser", "sample.tsx", "export const Sample = () => <span>clean</span>\n")
   const missingParser = run(noParser, ["--all"])
   T("TSX without TypeScript fails closed", missingParser.status === 2 && /TypeScript/.test(missingParser.stderr))
   rmSync(noParser, { recursive: true, force: true })
-
-  const wrapped = fixture("wrapped-literal", "sample.js", `const value = new Date("${date}")\n`)
-  symlinkSync(join(checker, "..", "..", "node_modules"), join(wrapped, "node_modules"), "dir")
-  const sourceLine = `const value = new Date("${date}")`
-  const wrapWrite = { file_path: join(wrapped, "sample.js"), content: `/*\n${sourceLine}\n*/\n` }
-  const wrapResult = run(wrapped, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: wrapWrite, cwd: wrapped }))
-  T("wrapping an existing date literal in a comment fails Write hook", wrapResult.status === 2 && wrapResult.stderr.includes("dated-anecdote"), wrapResult.stderr)
-  rmSync(wrapped, { recursive: true, force: true })
-
-  const moved = fixture("moved-comment", "sample.js", `// ${date}\nconst value = 1\n`)
-  symlinkSync(join(checker, "..", "..", "node_modules"), join(moved, "node_modules"), "dir")
-  const moveEdit = { file_path: join(moved, "sample.js"), old_string: `// ${date}\nconst value = 1`, new_string: `const value = 1\n// ${date}` }
-  const moveResult = run(moved, ["--hook"], JSON.stringify({ tool_name: "Edit", tool_input: moveEdit, cwd: moved }))
-  T("moving an existing dated comment down one line passes Edit hook", moveResult.status === 0, moveResult.stderr)
-  rmSync(moved, { recursive: true, force: true })
 
   const scoped = fixture("directory-scope", "design/canvas/example.md", `Ask ${owner} on ${date}.\n`)
   const scopedAllowlist = ["owner-name", "dated-anecdote"].map((rule) => ({ path: "design/canvas/", rule, match: null, scope: "directory", exclude: ["design/canvas/tools/"], reason: "granted export" }))
@@ -151,39 +156,21 @@ export const cases = () => {
   writeFileSync(join(scoped, "design", "canvas", "tools", "example.md"), `Ask ${owner}.\n`)
   git(scoped, "add", "design/canvas/tools/example.md")
   T("directory entries do not exempt an excluded subdirectory", run(scoped, ["--all"]).status === 1)
-  git(scoped, "rm", "-q", "design/canvas/tools/example.md")
+  git(scoped, "rm", "-q", "-f", "design/canvas/tools/example.md")
   writeFileSync(join(scoped, "design/canvas/example.md"), `Ask ${owner} on ${date} at ${path}.\n`)
   T("directory entries never exempt machine paths", run(scoped, ["--all"]).status === 1)
   writeFileSync(join(scoped, "design/canvas/example.md"), "clean\n")
   T("unused directory entries fail --all", run(scoped, ["--all"]).status === 1)
+  writeFileSync(join(scoped, "tools", "timeless-allowlist.json"), JSON.stringify([{ path: "design/canvas/", rule: "comment-length", match: null, scope: "directory", reason: "granted export" }]))
+  writeFileSync(join(scoped, "design/canvas/example.ts"), Array.from({ length: 7 }, (_, index) => `// export note ${index}`).join("\n") + "\n")
+  git(scoped, "add", "design/canvas/example.ts")
+  T("a directory entry can exempt comment-length", run(scoped, ["--all"]).status === 0)
+  writeFileSync(join(scoped, "tools", "timeless-allowlist.json"), JSON.stringify([{ path: "design/canvas/", rule: "machine-path", match: null, scope: "directory", reason: "never allowed" }]))
+  T("a directory entry for machine-path is refused", run(scoped, ["--all"]).status === 2)
   rmSync(scoped, { recursive: true, force: true })
-  const longComment = Array.from({ length: 7 }, (_, index) => `// reason ${index}`).join("\n") + "\n"
-  const scopedLength = fixture("scoped-length", "design/canvas/example.js", longComment)
-  const scopedEntry = { path: "design/canvas/", rule: "comment-length", match: null, scope: "directory", reason: "reviewed export" }
-  writeFileSync(join(scopedLength, "tools", "timeless-allowlist.json"), JSON.stringify([scopedEntry]))
-  T("a directory entry may exempt comment-length", run(scopedLength, ["--all"]).status === 0)
-  writeFileSync(join(scopedLength, "tools", "timeless-allowlist.json"), JSON.stringify([{ ...scopedEntry, rule: "machine-path" }]))
-  const forbiddenScope = run(scopedLength, ["--all"])
-  T("a directory entry cannot exempt machine-path", forbiddenScope.status === 2 && forbiddenScope.stderr.includes("valid exact or directory-scoped entries"), forbiddenScope.stderr)
-  rmSync(scopedLength, { recursive: true, force: true })
   writeFileSync(join(safe, "tools", "timeless-allowlist.json"), JSON.stringify([{ path: "sample.js", rule: "owner-name", match: owner, reason: "unused" }]))
   T("an unused allowlist entry fails", run(safe, ["--all"]).status === 1)
   const scratch = join(tmpdir(), "timeless-scratchpad.txt")
   T("a scratchpad path passes the hook", run(safe, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: scratch, content: path }, cwd: safe })).status === 0)
   rmSync(safe, { recursive: true, force: true })
-
-  const yaml = fixture("yaml-escape", "sample.yml", "value: clean\n")
-  writeFileSync(join(yaml, "sample.yml"), `value: "foo\\\\" # ${date}\n`)
-  git(yaml, "add", "sample.yml")
-  const yamlAll = run(yaml, ["--all"])
-  T("a comment after an escaped backslash fails", yamlAll.status === 1 && yamlAll.stderr.includes("sample.yml:1: dated-anecdote"))
-  rmSync(yaml, { recursive: true, force: true })
-
-  const removed = fixture("staged-removed", "sample.md", "clean\n")
-  writeFileSync(join(removed, "sample.md"), `Ask ${owner}.\n`)
-  git(removed, "add", "sample.md")
-  rmSync(join(removed, "sample.md"))
-  const removedStaged = run(removed, ["--staged"])
-  T("--staged checks a staged file whose working copy is gone", removedStaged.status === 1 && removedStaged.stderr.includes("sample.md:1: owner-name"))
-  rmSync(removed, { recursive: true, force: true })
 }

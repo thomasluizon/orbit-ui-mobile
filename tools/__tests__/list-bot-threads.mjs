@@ -4,38 +4,51 @@ import { readObservedIdentifiers } from "../lib/identifier-ledger.mjs"
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "list-bot-threads.mjs"
-/**
- * The GraphQL spelling, because that is the only API this tool reads. Both spellings were read on
- * request 711.
- */
 const BOT = "pullfrog"
 const RUN_IDENTIFIER = "list-bot-threads-current-run"
 let testedToolPath = null
 
 const THREAD_BODY = "**Honor the configured timeout for every GitHub child**\n\nWhen the poller runs, this still uses the default bound.\n\n<!-- Pullfrog review metadata -->"
 
-const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", isResolved = false, isOutdated = false, path = "tools/launch-worker.mjs", line = 42, body = THREAD_BODY, login = BOT } = {}) => ({
+const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", reviewId = "PRR_kwDOR5Siws8AAAABNo7WdA", isResolved = false, isOutdated = false, path = "tools/launch-worker.mjs", line = 42, body = THREAD_BODY, login = BOT } = {}) => ({
   id,
   isResolved,
   isOutdated,
   path,
   line,
-  comments: { nodes: [{ author: { login }, body }] },
+  comments: { nodes: [{ author: { login }, body, pullRequestReview: { id: reviewId } }] },
 })
 
 const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
 const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
 const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
+const REPOINTED_HEAD = "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf"
+/** Keep the activity response shape for review freshness checks. */
+const activity = (after = HEAD, timestamp = "2026-08-04T22:01:00Z", activity_type = "push") => [{
+  activity_type, actor: { login: "<actor>" }, after, before: OLD_HEAD, id: 1,
+  node_id: "<activity-id>", ref: "refs/heads/fix/example", timestamp,
+}]
 
-const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], headRefOid = HEAD, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
+const approvalCheck = (status = "COMPLETED", conclusion = "SUCCESS", startedAt = "2026-08-12T20:36:00Z") => ({
+  __typename: "CheckRun", name: "pullfrog-approval", status, conclusion, startedAt,
+  completedAt: status === "COMPLETED" ? startedAt : null,
+  checkSuite: { app: { databaseId: 1768019 } },
+})
+
+const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], checks = [approvalCheck()], headRefOid = HEAD, repositoryName = "thomasluizon/orbit-ui-mobile", headRepositoryName = repositoryName, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
   JSON.stringify({
     data: {
       repository: {
+        nameWithOwner: repositoryName,
         pullRequest: {
           number: 681,
           isDraft,
           baseRefOid: BASE,
           headRefOid,
+          headRefName: "fix/example",
+          headRepository: { nameWithOwner: headRepositoryName },
+          commits: { nodes: [{ commit: { oid: headRefOid } }] },
+          statusCheckRollup: { contexts: { nodes: checks } },
           reviews: { nodes: reviews },
           comments: { nodes: comments },
           reviewThreads: { pageInfo, nodes: threads },
@@ -44,16 +57,23 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], h
     },
   })
 
-/** APPROVED is the state Pullfrog really used for its clean pass on pull request 711. */
-const botReview = (state = "APPROVED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "") => ({ author: { login: BOT }, state, submittedAt, body, commit: { oid } })
-const ghPlan = (stdout, exit = 0) => ({
+const botReview = (state = "APPROVED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "", id = "PRR_kwDOR5Siws8AAAABNo7WdA") => ({ id, author: { login: BOT }, state, submittedAt, body, commit: { oid } })
+const ghPlan = (stdout, exit = 0, activities) => {
+  let headRefOid = HEAD
+  try { headRefOid = JSON.parse(stdout).data.repository.pullRequest.headRefOid } catch { /* The malformed-response case fails in the tool. */ }
+  return {
   ...orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "api graphql", stdout, exit },
+    { match: "/activity?", stdout: JSON.stringify(activities ?? activity(
+      headRefOid,
+      headRefOid === REPOINTED_HEAD ? "2026-09-26T02:48:44Z" : "2026-08-04T22:01:00Z",
+    )) },
   ]),
   CLAUDE_CODE_SESSION_ID: RUN_IDENTIFIER,
   CODEX_THREAD_ID: "",
-})
+  }
+}
 const parsed = (result) => {
   try {
     return JSON.parse(result.stdout)
@@ -62,7 +82,7 @@ const parsed = (result) => {
   }
 }
 
-const readPr = (stdout, exit = 0, argv = []) => run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "0", ...argv], { path: testedToolPath, env: ghPlan(stdout, exit) })
+const readPr = (stdout, exit = 0, argv = [], activities) => run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "0", ...argv], { path: testedToolPath, env: ghPlan(stdout, exit, activities) })
 
 export const cases = () => {
   check(TOOL, "refuses a missing pull request", ["--wait-seconds", "0"], { status: 2, stderr: /--pr must be a pull request number or full GitHub/ })
@@ -83,12 +103,6 @@ export const cases = () => {
   hermeticConfig.repos = { ...hermeticConfig.repos, ui: uiContext.path, api: apiContext.path }
   testedToolPath = stageWithConfig("list-bot-threads-hermetic", TOOL, hermeticConfig).path
 
-  /**
-   * THE ambiguity this tool exists to remove. Zero threads plus a real review is CLEAN; zero
-   * threads and no review is NOT, and a caller reading the thread count alone cannot tell them
-   * apart. The verdict is derived from the review, never from the count. Pull request 711 is the
-   * live case: Pullfrog approved and opened no thread at all.
-   */
   const clean = readPr(payload({ reviews: [botReview()] }))
   const cleanPlan = parsed(clean)
   T(
@@ -100,7 +114,8 @@ export const cases = () => {
 
   const apiNumber = run(TOOL, ["--pr", "681", "--repo", "api", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-    { match: "repo=orbit-api", stdout: payload({ reviews: [botReview()] }) },
+    { match: "repo=orbit-api", stdout: payload({ reviews: [botReview()], repositoryName: "thomasluizon/orbit-api", headRepositoryName: "thomasluizon/orbit-api" }) },
+    { match: "/activity?", stdout: JSON.stringify(activity()) },
   ]) })
   T(`${TOOL}: the same numbered API PR is queried through API, never UI cwd inference`, apiNumber.status === 0 && parsed(apiNumber)?.verdict === "REVIEWED", apiNumber.stdout || apiNumber.stderr)
 
@@ -140,11 +155,6 @@ export const cases = () => {
     changes.status === 0 && changesPlan?.verdict === "CHANGES_REQUESTED" && changesPlan.counts.total === 0,
     changes.stdout || changes.stderr,
   )
-  /**
-   * Raised in review on this tool's own pull request (#682). Without the body a caller learns it is
-   * blocked and NOTHING about why, because this verdict's whole complaint lives in the review body
-   * and no thread carries it.
-   */
   T(
     `${TOOL}: CHANGES_REQUESTED carries the review body, which is its only statement of the problem`,
     changesPlan?.reviewBody === "The migration drops a column old clients still read.",
@@ -170,15 +180,76 @@ export const cases = () => {
     commentedWithBody.status === 0 && commentedPlan?.verdict === "REVIEWED" && commentedPlan.reviewState === "COMMENTED" && commentedPlan.counts.total === 0 && commentedPlan.reviewBody === COMMENTED_BODY,
     commentedWithBody.stdout || commentedWithBody.stderr,
   )
-  /**
-   * The empty-body case, kept exactly as it was. `null` now means the body held nothing to read,
-   * never that a COMMENTED body is dropped, so a caller can tell the two apart.
-   */
-  const commented = readPr(payload({ reviews: [botReview("COMMENTED")] }))
+  const commented = readPr(payload({ reviews: [botReview("COMMENTED")], checks: [approvalCheck("IN_PROGRESS", null)] }))
   T(
-    `${TOOL}: a COMMENTED review with an empty body is REVIEWED and reports no body to read`,
-    commented.status === 0 && parsed(commented)?.verdict === "REVIEWED" && parsed(commented)?.reviewBody === null,
+    `${TOOL}: an empty COMMENTED review is a progress marker, never a verdict`,
+    commented.status === 1 && parsed(commented)?.verdict === "NO_REVIEW" && parsed(commented)?.progressMarkers === 1,
     commented.stdout || commented.stderr,
+  )
+
+  const markerSequence = stage("list-bot-threads/marker-sequence", "0")
+  const markerThenBody = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "3", "--poll-seconds", "1", "--no-request"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "/activity?", stdout: JSON.stringify(activity()) },
+    { match: "api graphql", stdoutSequence: [
+      payload({ reviews: [botReview("COMMENTED")], checks: [approvalCheck("IN_PROGRESS", null)] }),
+      payload({ reviews: [botReview("COMMENTED"), botReview("COMMENTED", "2026-08-05T10:00:00Z", HEAD, "A real finding.", "PRR_later_review")], checks: [approvalCheck("IN_PROGRESS", null)] }),
+    ], sequenceFile: markerSequence },
+  ]) })
+  T(
+    `${TOOL}: a marker followed by a body waits and returns the body`,
+    markerThenBody.status === 0 && parsed(markerThenBody)?.reviewBody === "A real finding." && parsed(markerThenBody)?.progressMarkers === 1,
+    markerThenBody.stdout || markerThenBody.stderr,
+  )
+
+  const completedOverMarkers = readPr(payload({ reviews: [botReview("COMMENTED")], checks: [approvalCheck("COMPLETED", "FAILURE")] }))
+  T(
+    `${TOOL}: a completed approval check ends the wait and reports failure over markers`,
+    completedOverMarkers.status === 1 && parsed(completedOverMarkers)?.verdict === "CHECK_FAILED" && parsed(completedOverMarkers)?.checkConclusion === "FAILURE" && parsed(completedOverMarkers)?.progressMarkers === 1,
+    completedOverMarkers.stdout || completedOverMarkers.stderr,
+  )
+
+  const approvedPending = readPr(payload({ reviews: [botReview()], checks: [approvalCheck("IN_PROGRESS", null)] }))
+  T(
+    `${TOOL}: an APPROVED review with a pending check is CHECK_PENDING and keeps its review evidence`,
+    approvedPending.status === 1 && parsed(approvedPending)?.verdict === "CHECK_PENDING" &&
+      parsed(approvedPending)?.reviewState === "APPROVED" && parsed(approvedPending)?.reviewedAt === "2026-08-04T23:16:35Z" &&
+      parsed(approvedPending)?.reviewedCommit === HEAD && parsed(approvedPending)?.checkStatus === "PENDING" &&
+      parsed(approvedPending)?.checkConclusion === null,
+    approvedPending.stdout || approvedPending.stderr,
+  )
+
+  const approvedWithoutCheck = readPr(payload({ reviews: [botReview()], checks: [] }))
+  T(
+    `${TOOL}: an exact-head APPROVED review with no check is REVIEWED, the unprotected-base evidence`,
+    approvedWithoutCheck.status === 0 && parsed(approvedWithoutCheck)?.verdict === "REVIEWED" &&
+      parsed(approvedWithoutCheck)?.reviewState === "APPROVED" && parsed(approvedWithoutCheck)?.reviewedAt === "2026-08-04T23:16:35Z" &&
+      parsed(approvedWithoutCheck)?.reviewedCommit === HEAD && parsed(approvedWithoutCheck)?.checkStatus === "ABSENT" &&
+      parsed(approvedWithoutCheck)?.checkConclusion === null,
+    approvedWithoutCheck.stdout || approvedWithoutCheck.stderr,
+  )
+
+  const markerWithOwnThread = readPr(payload({ reviews: [botReview("COMMENTED")], threads: [thread()], checks: [approvalCheck("IN_PROGRESS", null)] }))
+  T(
+    `${TOOL}: an empty COMMENTED review with its own thread carries a verdict`,
+    markerWithOwnThread.status === 0 && parsed(markerWithOwnThread)?.verdict === "REVIEWED" && parsed(markerWithOwnThread)?.progressMarkers === 0,
+    markerWithOwnThread.stdout || markerWithOwnThread.stderr,
+  )
+  const markerWithOtherThread = readPr(payload({ reviews: [botReview("COMMENTED")], threads: [thread({ reviewId: "PRR_another_review" })], checks: [approvalCheck("IN_PROGRESS", null)] }))
+  T(
+    `${TOOL}: another review's thread does not turn a marker into a verdict`,
+    markerWithOtherThread.status === 1 && parsed(markerWithOtherThread)?.progressMarkers === 1,
+    markerWithOtherThread.stdout || markerWithOtherThread.stderr,
+  )
+
+  const superseded = readPr(payload({
+    reviews: [botReview("APPROVED"), botReview("COMMENTED", "2026-08-05T10:00:00Z", HEAD, "A later P1 finding.", "PRR_later_review")],
+    checks: [approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z"), approvalCheck("COMPLETED", "FAILURE", "2026-08-05T10:02:00Z")],
+  }))
+  T(
+    `${TOOL}: a later same-head finding and latest failing check supersede approval`,
+    superseded.status === 1 && parsed(superseded)?.verdict === "CHECK_FAILED" && parsed(superseded)?.reviewState === "COMMENTED" && parsed(superseded)?.reviewBody === "A later P1 finding." && parsed(superseded)?.checkConclusion === "FAILURE",
+    superseded.stdout || superseded.stderr,
   )
   const contradiction = readPr(payload({}), 0, ["--re-review", "--no-request"])
   T(
@@ -211,12 +282,17 @@ export const cases = () => {
       `reviews selection was "${reviewsSelection}"`,
     )
   }
+  T(`${TOOL}: the query selects check run identity, status, conclusion, and time`, ["statusCheckRollup", "checkSuite{app{databaseId}}", "status", "conclusion", "startedAt", "completedAt"].every((field) => querySource.includes(field)), querySource)
+  T(`${TOOL}: the query selects the head branch and repository without check suites`,
+    querySource.includes("headRefName headRepository{nameWithOwner}") && !querySource.includes("checkSuites"), querySource)
+  T(`${TOOL}: the query selects each thread's owning review`, querySource.includes("pullRequestReview{id}"), querySource)
 
   const REQUEST_URL = "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-2026081201"
   const requestComment = (createdAt) => ({ author: { login: "thomasluizon" }, body: "@pullfrog review", createdAt, url: REQUEST_URL })
   const reReviewPlan = (stdout) => ({
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: "/activity?", stdout: JSON.stringify(activity()) },
       { match: "pr comment", stdout: REQUEST_URL },
       { match: "api graphql", stdout },
     ]),
@@ -230,6 +306,7 @@ export const cases = () => {
   const inFlight = run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--re-review", "--wait-seconds", "3", "--poll-seconds", "1"], { path: testedToolPath, env: {
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: "/activity?", stdout: JSON.stringify(activity()) },
       { match: "pr comment", stdout: REQUEST_URL },
       { match: "api graphql", stdoutSequence: [
         payload({ reviews: [botReview("COMMENTED", "2026-08-12T20:10:00Z", HEAD, COMMENTED_BODY)] }),
@@ -320,6 +397,7 @@ export const cases = () => {
   const pagedSequence = stage("list-bot-threads/page-sequence", "0")
   const paged = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "/activity?", stdout: JSON.stringify(activity()) },
     { match: "api graphql", stdoutSequence: [
       payload({ reviews: [botReview()], threads: [thread({ id: "PRRT_page_one" })], pageInfo: { hasNextPage: true, endCursor: "cursor-1" } }),
       payload({ reviews: [botReview()], threads: [thread({ id: "PRRT_page_two" })], pageInfo: { hasNextPage: false, endCursor: null } }),
@@ -361,12 +439,6 @@ export const cases = () => {
   const otherBot = readPr(payload({ reviews: [{ author: { login: "sonarqubecloud" }, state: "COMMENTED", submittedAt: "2026-08-04T23:00:00Z", commit: { oid: HEAD } }] }))
   T(`${TOOL}: another bot's review does not stand in for Pullfrog's`, otherBot.status === 1 && parsed(otherBot)?.verdict === "NO_REVIEW", otherBot.stdout || otherBot.stderr)
 
-  /**
-   * Raised in review on this tool's own pull request (#682), and it was right. Pullfrog re-reviews
-   * after a push, so between the push and the re-review its newest review still names the OLD head.
-   * Accepting it reports REVIEWED for code Pullfrog never saw, which is the very defect this tool
-   * exists to remove. A review is evidence about its own commit and nothing else.
-   */
   const stale = readPr(payload({ reviews: [botReview("APPROVED", "2026-08-04T23:16:35Z", OLD_HEAD)], threads: [thread()] }))
   const stalePlan = parsed(stale)
   T(
@@ -379,6 +451,39 @@ export const cases = () => {
     stalePlan?.staleReviewCommit === OLD_HEAD && stalePlan.headRefOid === HEAD && /@pullfrog review/.test(stalePlan.note ?? ""),
     stale.stdout,
   )
+  /** GitHub's PR 1107 reports the old review with the later merge head's oid. */
+  const repointed = readPr(payload({
+    headRefOid: REPOINTED_HEAD,
+    reviews: [botReview("APPROVED", "2026-09-25T21:50:13Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  }))
+  T(`${TOOL}: PR 1107's repointed older review is NO_REVIEW`,
+    repointed.status === 1 && parsed(repointed)?.verdict === "NO_REVIEW" &&
+      parsed(repointed)?.staleReviewCommit === "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
+    repointed.stdout || repointed.stderr)
+  const reviewedAfterMerge = readPr(payload({
+    headRefOid: REPOINTED_HEAD,
+    reviews: [botReview("APPROVED", "2026-09-26T02:59:43Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  }))
+  T(`${TOOL}: PR 1107's later real review is REVIEWED`, reviewedAfterMerge.status === 0 && parsed(reviewedAfterMerge)?.verdict === "REVIEWED", reviewedAfterMerge.stdout || reviewedAfterMerge.stderr)
+  const beforeSuite = readPr(payload({
+    headRefOid: REPOINTED_HEAD,
+    reviews: [botReview("APPROVED", "2026-09-26T02:48:44.500Z", REPOINTED_HEAD)],
+  }))
+  T(`${TOOL}: a review after the push but before the first suite is REVIEWED`,
+    beforeSuite.status === 0 && parsed(beforeSuite)?.verdict === "REVIEWED", beforeSuite.stdout || beforeSuite.stderr)
+  const atPushTime = readPr(payload({
+    headRefOid: REPOINTED_HEAD,
+    reviews: [botReview("APPROVED", "2026-09-26T02:48:44Z", REPOINTED_HEAD)],
+  }))
+  T(`${TOOL}: a review submitted exactly at the push is NO_REVIEW`, atPushTime.status === 1 && parsed(atPushTime)?.verdict === "NO_REVIEW", atPushTime.stdout || atPushTime.stderr)
+  const noActivity = readPr(payload({ reviews: [botReview()] }), 0, [], [])
+  T(`${TOOL}: no matching head activity means NO_REVIEW with a reason`, noActivity.status === 1 && /no matching head activity/.test(parsed(noActivity)?.note ?? ""), noActivity.stdout || noActivity.stderr)
+  const forkHead = readPr(payload({ headRepositoryName: "fork/orbit-ui-mobile", reviews: [botReview()] }))
+  T(`${TOOL}: a head from another repository is NO_REVIEW with a reason`, forkHead.status === 1 && /different repository/.test(parsed(forkHead)?.note ?? ""), forkHead.stdout || forkHead.stderr)
+  const forcePush = readPr(payload({ reviews: [botReview()] }), 0, [], activity(HEAD, "2026-08-04T22:01:00Z", "force_push"))
+  T(`${TOOL}: force_push activity establishes the head boundary`, forcePush.status === 0 && parsed(forcePush)?.verdict === "REVIEWED", forcePush.stdout || forcePush.stderr)
+  const invalidActivity = readPr(payload({ reviews: [botReview()] }), 0, [], activity(HEAD, "invalid"))
+  T(`${TOOL}: an unparseable activity time cannot prove a review current`, invalidActivity.status === 1 && /unparseable/.test(parsed(invalidActivity)?.note ?? ""), invalidActivity.stdout || invalidActivity.stderr)
   /**
    * NO_REVIEW is ambiguous unless it says whether anyone asked, and the two readings justify
    * different actions: a reviewer that was asked and stayed silent is evidence about the reviewer,

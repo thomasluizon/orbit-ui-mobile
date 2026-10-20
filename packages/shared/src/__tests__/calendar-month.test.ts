@@ -1,0 +1,221 @@
+import { describe, expect, it } from 'vitest'
+import type { CalendarDayEntry } from '../types/calendar'
+import { buildCalendarMonthModel } from '../utils/calendar-month'
+import { buildCalendarDayMap } from '../utils/habits'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem } from './factories'
+import type { CalendarMonthResponse, HabitScheduleChild } from '../types/habit'
+import { formatAPIDate } from '../utils/dates'
+import { formatCalendarSpanEnds, resolveCalendarMonthDisplayState } from '../utils/calendar-month-state'
+
+function entry(status: CalendarDayEntry['status'], habitId = 'h'): CalendarDayEntry {
+  return { habitId, title: 't', status, isBadHabit: false, dueTime: null, isOneTime: false }
+}
+
+const june = new Date(2026, 5, 1)
+const juneToday = '2026-06-30'
+const key = (date: Date) => formatAPIDate(date)
+
+function sampleMonth(): Map<string, CalendarDayEntry[]> {
+  return new Map<string, CalendarDayEntry[]>([
+    [key(new Date(2026, 5, 1)), [entry('completed'), entry('completed', 'h2')]],
+    [key(new Date(2026, 5, 2)), [entry('completed')]],
+    [key(new Date(2026, 5, 3)), [entry('completed'), entry('missed', 'h2')]],
+    [key(new Date(2026, 5, 5)), [entry('completed')]],
+  ])
+}
+
+describe('buildCalendarMonthModel', () => {
+  it('computes statistics from only the current month', () => {
+    const dayMap = sampleMonth()
+    dayMap.set(key(new Date(2026, 4, 31)), [entry('completed')])
+
+    expect(buildCalendarMonthModel(june, dayMap, 1, juneToday).monthStats).toEqual({
+      totalLogs: 5,
+      missed: 1,
+      bestStreak: 4,
+      hasEntries: true,
+    })
+  })
+
+  it('builds whole weeks with counts and ratios', () => {
+    const { gridDays } = buildCalendarMonthModel(june, sampleMonth(), 1, juneToday)
+    const june1 = gridDays.find((day) => day.dateStr === key(new Date(2026, 5, 1)))
+
+    expect(gridDays.length % 7).toBe(0)
+    expect(gridDays.filter((day) => day.isCurrentMonth)).toHaveLength(30)
+    expect(june1).toMatchObject({
+      isCurrentMonth: true,
+      completedCount: 2,
+      totalCount: 2,
+      completionRatio: 1,
+    })
+  })
+
+  it('supports Sunday-first weeks and an empty month', () => {
+    const model = buildCalendarMonthModel(june, new Map(), 0, juneToday)
+
+    expect(model.gridDays[0]?.date.getDay()).toBe(0)
+    expect(model.monthStats).toEqual({
+      totalLogs: 0,
+      missed: 0,
+      bestStreak: 0,
+      hasEntries: false,
+    })
+  })
+
+  it('computes tile counts from scheduled days through today', () => {
+    const august = new Date(2026, 7, 1)
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [key(new Date(2026, 7, 1)), [entry('completed'), entry('completed', 'h2')]],
+      [key(new Date(2026, 7, 3)), [entry('completed'), entry('missed', 'h2')]],
+      [key(new Date(2026, 7, 4)), [entry('missed')]],
+      [key(new Date(2026, 7, 5)), [entry('completed')]],
+      [key(new Date(2026, 7, 17)), [entry('completed'), entry('upcoming', 'h2')]],
+      [key(new Date(2026, 7, 18)), [entry('completed')]],
+    ])
+
+    expect(buildCalendarMonthModel(august, dayMap, 1, '2026-08-17').monthStats).toEqual({
+      totalLogs: 5,
+      missed: 3,
+      bestStreak: 2,
+      hasEntries: true,
+    })
+  })
+
+  it('updates every statistic when today advances and other inputs stay unchanged', () => {
+    const august = new Date(2026, 7, 1)
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [key(new Date(2026, 7, 17)), [entry('completed')]],
+      [key(new Date(2026, 7, 18)), [entry('completed'), entry('missed', 'h2')]],
+    ])
+
+    expect(buildCalendarMonthModel(august, dayMap, 1, '2026-08-17').monthStats).toEqual({
+      totalLogs: 1,
+      missed: 0,
+      bestStreak: 1,
+      hasEntries: true,
+    })
+    expect(buildCalendarMonthModel(august, dayMap, 1, '2026-08-18').monthStats).toEqual({
+      totalLogs: 2,
+      missed: 1,
+      bestStreak: 2,
+      hasEntries: true,
+    })
+  })
+})
+
+describe('resolveCalendarMonthDisplayState', () => {
+  const currentMonth = new Date(2026, 5, 1)
+  const today = '2026-06-15'
+
+  it('gives loading priority while data is unresolved', () => {
+    expect(resolveCalendarMonthDisplayState({
+      currentMonth,
+      today,
+      hasEntries: false,
+      isLoading: true,
+    })).toBe('loading')
+  })
+
+  it('separates empty, future, and ready months', () => {
+    expect(resolveCalendarMonthDisplayState({
+      currentMonth,
+      today,
+      hasEntries: false,
+      isLoading: false,
+    })).toBe('empty')
+    expect(resolveCalendarMonthDisplayState({
+      currentMonth: new Date(2026, 6, 1),
+      today,
+      hasEntries: false,
+      isLoading: false,
+    })).toBe('future')
+    expect(resolveCalendarMonthDisplayState({
+      currentMonth,
+      today,
+      hasEntries: true,
+      isLoading: false,
+    })).toBe('ready')
+  })
+})
+
+describe("buildCalendarMonthModel with sub-habit logs (shared)", () => {
+  const september = new Date(2026, 8, 1)
+  const loggedDate = "2026-09-28"
+
+  function loggedChild(id: string): HabitScheduleChild {
+    return createMockHabitScheduleChild({
+      id,
+      frequencyUnit: "Week",
+      frequencyQuantity: 3,
+      dueDate: "2026-10-19",
+      scheduledDates: [loggedDate],
+      isLoggedInRange: true,
+      instances: [{ date: loggedDate, status: "Completed", logId: `${id}-log` }],
+    })
+  }
+
+  function subHabitLogMonth(): CalendarMonthResponse {
+    return {
+      habits: [
+        createMockHabitScheduleItem({
+          id: "flexible-parent",
+          frequencyUnit: "Year",
+          isFlexible: true,
+          dueDate: "2026-01-01",
+          flexibleTarget: 1,
+          flexibleCompleted: 1,
+          children: [loggedChild("flexible-child")],
+          hasSubHabits: true,
+        }),
+        createMockHabitScheduleItem({
+          id: "weekly-parent",
+          frequencyUnit: "Week",
+          dueDate: "2026-10-05",
+          scheduledDates: [loggedDate],
+          isLoggedInRange: true,
+          instances: [{ date: loggedDate, status: "Completed", logId: "parent-log" }],
+          children: [loggedChild("weekly-child")],
+          hasSubHabits: true,
+        }),
+      ],
+      logs: {
+        "flexible-parent": [],
+        "weekly-parent": [
+          { id: "parent-log", date: loggedDate, value: 1, createdAtUtc: "2026-09-28T08:00:00Z" },
+        ],
+      },
+    }
+  }
+
+  it("counts each logged occurrence once", () => {
+    const dayMap = buildCalendarDayMap(
+      subHabitLogMonth(),
+      { from: "2026-09-01", to: "2026-09-30" },
+      new Date(2026, 8, 29, 12),
+    )
+    const { gridDays, monthStats } = buildCalendarMonthModel(september, dayMap, 1, "2026-09-29")
+    const loggedDay = gridDays.find((gridDay) => gridDay.dateStr === loggedDate)
+
+    expect(loggedDay?.entries.map((dayEntry) => dayEntry.habitId)).toEqual([
+      "flexible-child",
+      "weekly-parent",
+    ])
+    expect(loggedDay?.completedCount).toBe(2)
+    expect(loggedDay?.totalCount).toBe(2)
+    expect(monthStats).toEqual({ totalLogs: 2, missed: 0, bestStreak: 1, hasEntries: true })
+  })
+})
+
+describe('formatCalendarSpanEnds', () => {
+  it.each([
+    ['pt-BR', new Date(2026, 9, 5), new Date(2026, 9, 11), { start: '5 out', end: '11 out' }],
+    ['en', new Date(2026, 9, 5), new Date(2026, 9, 11), { start: 'Oct 5', end: 'Oct 11' }],
+    ['pt-BR', new Date(2026, 8, 22), new Date(2026, 9, 5), { start: '22 set', end: '5 out' }],
+    ['en', new Date(2026, 8, 22), new Date(2026, 9, 5), { start: 'Sep 22', end: 'Oct 5' }],
+    ['pt-BR', new Date(2026, 11, 28), new Date(2027, 0, 3), { start: '28 dez', end: '3 jan' }],
+    ['en', new Date(2026, 11, 28), new Date(2027, 0, 3), { start: 'Dec 28', end: 'Jan 3' }],
+  ] as const)('names both span ends in %s', (locale, start, end, labels) => {
+    expect(formatCalendarSpanEnds(start, end, locale)).toEqual(labels)
+  })
+})

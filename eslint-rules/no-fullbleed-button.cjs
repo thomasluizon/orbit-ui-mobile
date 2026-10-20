@@ -1,4 +1,3 @@
-
 const WIDTH_TOKEN_RE = /(?:^|\s)(w-full|flex-1)(?:\s|$)/
 const PILL_RADIUS_RE = /rounded-full|rounded-\[999/
 const CLASSED_ELEMENTS = new Set(['button', 'PillButton'])

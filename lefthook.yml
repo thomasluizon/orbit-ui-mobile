@@ -1,10 +1,13 @@
 min_version: "2.1.10"
 pre-commit:
   commands:
-    root-allowlist:
-      run: node tools/check-root-allowlist.mjs
     timeless:
       run: node tools/check-timeless.mjs --staged
+    root-allowlist:
+      run: node tools/check-root-allowlist.mjs
+    lockup-crop:
+      glob: "design/brand/orbit-lockup.svg"
+      run: node tools/check-lockup-crop.mjs
     web-eslint:
       root: "apps/web/"
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
@@ -18,16 +21,18 @@ pre-commit:
       root: "apps/mobile/"
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
       # No --fix here, unlike web and shared above. `expo lint` ignores the file
-      # arguments and always walks the whole app, so --fix repaired all 718
-      # suppressed local/spacing-scale violations across 65 files nobody staged,
-      # which orphaned those same 718 suppressions and exited 2. The hook could
-      # never pass while a fixable rule was suppressed. Without --fix it exits 0.
+      # arguments and always walks the whole app, so --fix rewrites files nobody
+      # staged: it once repaired 718 local/spacing-scale violations across 65 of
+      # them in one commit. Those violations and the baseline that recorded them
+      # are gone (#175), but the whole-app rewrite is not, so --fix stays off.
       run: npx expo lint --no-cache -- {staged_files}
     dashes:
       run: node tools/check-dashes.mjs --files {staged_files}
     copy-register:
       glob: "packages/shared/src/i18n/*.json"
       run: node tools/check-copy.mjs --check
+    i18n-usage:
+      run: node tools/check-i18n-usage.mjs --staged
 pre-push:
   commands:
     protect-main:

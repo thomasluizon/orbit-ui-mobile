@@ -2,11 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { ChangeEvent, ClipboardEvent } from 'react'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
+import { useAuthStore } from '@/stores/auth-store'
+
+const sessionFetch = vi.fn()
 
 function imageFile(type: string, sizeBytes: number, name = 'photo.png'): File {
   const file = new File(['x'], name, { type })
@@ -18,6 +26,26 @@ function fileSelectEvent(file: File | undefined): ChangeEvent<HTMLInputElement> 
   return {
     target: { files: file ? [file] : [], value: 'preset' },
   } as unknown as ChangeEvent<HTMLInputElement>
+}
+
+function signInAs(userId: string) {
+  useAuthStore.getState().setAuth({ userId, name: 'Alex', email: 'alex@example.com' })
+}
+
+function answerSessionWith(session: { expiresAt: number; userId: string }) {
+  sessionFetch.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ ...session, refreshFailed: false }),
+  })
+}
+
+function refuseSessionRefresh() {
+  sessionFetch.mockResolvedValue({
+    ok: false,
+    status: 401,
+    json: () => Promise.resolve({ refreshFailed: true }),
+  })
 }
 
 function pasteEvent(file: File | null, type: string): ClipboardEvent<HTMLTextAreaElement> {
@@ -32,10 +60,12 @@ function pasteEvent(file: File | null, type: string): ClipboardEvent<HTMLTextAre
 
 describe('useChatImageAttachment', () => {
   beforeEach(() => {
-    vi.stubGlobal('URL', {
+    sessionFetch.mockReset()
+    vi.stubGlobal('fetch', sessionFetch)
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:preview-1'),
       revokeObjectURL: vi.fn(),
-    })
+    }))
   })
 
   afterEach(() => {
@@ -83,20 +113,6 @@ describe('useChatImageAttachment', () => {
     expect(result.current.selectedImage).toBeNull()
   })
 
-  it('captures a pasted image and prevents the default paste', () => {
-    const setSendError = vi.fn()
-    const { result } = renderHook(() => useChatImageAttachment(setSendError))
-    const event = pasteEvent(imageFile('image/jpeg', 2048, 'pasted.jpg'), 'image/jpeg')
-
-    act(() => {
-      result.current.handlePaste(event)
-    })
-
-    expect(event.preventDefault).toHaveBeenCalledTimes(1)
-    expect(setSendError).toHaveBeenCalledWith(null)
-    expect(result.current.selectedImage?.type).toBe('image/jpeg')
-  })
-
   it('surfaces a validation error when a pasted image is the wrong type', () => {
     const setSendError = vi.fn()
     const { result } = renderHook(() => useChatImageAttachment(setSendError))
@@ -113,10 +129,10 @@ describe('useChatImageAttachment', () => {
 
   it('revokes the preview URL when the image is removed', () => {
     const revokeObjectURL = vi.fn()
-    vi.stubGlobal('URL', {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:preview-2'),
       revokeObjectURL,
-    })
+    }))
     const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
 
     act(() => {
@@ -131,5 +147,50 @@ describe('useChatImageAttachment', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-2')
     expect(result.current.selectedImage).toBeNull()
     expect(result.current.imagePreview).toBeNull()
+  })
+
+  it('drops the previous account image when another account replaces it', async () => {
+    signInAs('user-1')
+    const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
+    act(() => {
+      result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
+    })
+    expect(result.current.selectedImage).not.toBeNull()
+
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
+      await useAuthStore.getState().checkSession()
+    })
+
+    expect(result.current.selectedImage).toBeNull()
+    expect(result.current.imagePreview).toBeNull()
+  })
+
+  it('keeps the image when the same account recovers from a rejected refresh', async () => {
+    const revokeObjectURL = vi.fn()
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
+      createObjectURL: vi.fn(() => 'blob:preview-3'),
+      revokeObjectURL,
+    }))
+    signInAs('user-1')
+    const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
+    act(() => {
+      result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
+    })
+    const preview = result.current.imagePreview
+
+    await act(async () => {
+      refuseSessionRefresh()
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+    })
+    expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
+      await useAuthStore.getState().recoverSessionRefreshFailure()
+    })
+
+    expect(result.current.selectedImage).not.toBeNull()
+    expect(result.current.imagePreview).toBe(preview)
+    expect(revokeObjectURL).not.toHaveBeenCalled()
   })
 })

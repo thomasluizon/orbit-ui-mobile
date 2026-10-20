@@ -35,12 +35,26 @@ export const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
 
 const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
+    nameWithOwner
     pullRequest(number: $number) {
       number
       baseRefName
       baseRefOid
       headRefOid
+      headRefName
+      headRepository { nameWithOwner }
       isDraft
+      commits(last: 1) { nodes { commit { oid } } }
+      reviews(last: 50, author: "pullfrog[bot]") {
+        totalCount
+        pageInfo { hasPreviousPage startCursor }
+        nodes {
+          state
+          submittedAt
+          author { __typename login }
+          commit { oid }
+        }
+      }
       statusCheckRollup {
         contexts(first: 100) {
           nodes {
@@ -99,11 +113,159 @@ const normalizeRollupNode = (node) => {
   return null
 }
 
+export const REVIEW_APP_LOGIN = "pullfrog"
+export const REVIEW_APP_CONTEXT = "pullfrog-approval"
+export const REVIEW_APP_ID = 1768019
+
+export const REVIEW_APP_AUTHOR_FILTER = "pullfrog[bot]"
+
+/**
+ * The key an out-of-band excuse is stored and looked up under: the required check's context AND its app
+ * pin. Both readers build it from the same function, so a caller cannot excuse a pair it did not mean
+ * to. `appId: null` on a protection entry means any producer may supply the check, so it is a distinct
+ * key from a pinned one rather than a wildcard.
+ */
+export const outOfBandKey = (required) => JSON.stringify([required.context, required.appId ?? null])
+
+export const reviewSatisfiedOutOfBand = (reviewVerdict) => {
+  if (reviewVerdict?.state !== "APPROVED") return new Set()
+  return new Set([outOfBandKey({ context: REVIEW_APP_CONTEXT, appId: REVIEW_APP_ID }), outOfBandKey({ context: REVIEW_APP_CONTEXT, appId: null })])
+}
+
+const normalizeReviewNode = (node) => {
+  if (typeof node?.state !== "string" || node.state === "") return null
+  const commitOid = node.commit?.oid ?? null
+  if (commitOid !== null && typeof commitOid !== "string") return null
+  const author = node.author
+  const identified = typeof author?.login === "string" && typeof author?.__typename === "string"
+  return {
+    state: node.state,
+    submittedAt: typeof node.submittedAt === "string" ? node.submittedAt : null,
+    login: identified ? author.login.replace(/\[bot\]$/, "") : null,
+    isBot: identified && author.__typename === "Bot",
+    commitOid,
+  }
+}
+
+/** One 100-entry page for this branch. A missing transition blocks review evidence. */
+export const headActivityArgv = (repository, headRefName) => ["api", `repos/${repository}/activity?ref=${encodeURIComponent(`refs/heads/${headRefName}`)}&per_page=100`]
+
+/** Both clocks belong to GitHub. The activity must describe this exact branch transition. */
+export const headActivityBoundary = (activities, headOid, headRefName, baseRepository, headRepository) => {
+  if (headRepository !== baseRepository || !headRepository) return { time: null, reason: "the head is in a different repository" }
+  if (!Array.isArray(activities)) return { time: null, reason: "the repository activity response is incomplete" }
+  const acceptedTypes = new Set(["push", "force_push", "branch_creation"])
+  const matching = activities.filter((activity) => acceptedTypes.has(activity?.activity_type) &&
+    activity.ref === `refs/heads/${headRefName}` && activity.after === headOid)
+  if (matching.length === 0) return { time: null, reason: "no matching head activity in the latest 100 branch entries" }
+  const times = matching.map((activity) => Date.parse(activity.timestamp ?? ""))
+  if (times.some((time) => !Number.isFinite(time))) return { time: null, reason: "the head activity timestamp is unparseable" }
+  return { time: Math.max(...times), reason: null }
+}
+
+/** The newest review must follow the branch push because GitHub can repoint its commit. */
+export const reviewAppVerdictAtHead = (reviews, headOid, headTime) => {
+  if (!Array.isArray(reviews) || typeof headOid !== "string" || headOid === "" || !Number.isFinite(headTime)) return null
+  const atHead = reviews.filter((review) => review.isBot && review.login === REVIEW_APP_LOGIN && review.commitOid === headOid &&
+    review.submittedAt !== null && Number.isFinite(Date.parse(review.submittedAt)) && Date.parse(review.submittedAt) > headTime)
+  if (atHead.length === 0) return null
+  return atHead.reduce((newest, review) => (String(review.submittedAt ?? "") >= String(newest.submittedAt ?? "") ? review : newest))
+}
+
+const REVIEW_PAGE_QUERY = `query ReviewPage($owner: String!, $name: String!, $number: Int!, $before: String!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviews(last: 50, before: $before, author: "pullfrog[bot]") {
+        totalCount
+        pageInfo { hasPreviousPage startCursor }
+        nodes {
+          state
+          submittedAt
+          author { __typename login }
+          commit { oid }
+        }
+      }
+    }
+  }
+}`
+
+const truncationOf = (connection) => {
+  const hasPreviousPage = connection?.pageInfo?.hasPreviousPage
+  return typeof hasPreviousPage === "boolean" ? hasPreviousPage : null
+}
+
+/** The one argv both readers send for an older review page, for the same reason they share the
+ * state argv: two spellings of the same walk is how the two readers drift apart. */
+export const reviewPageArgv = (repository, prNumber, before) => {
+  const [owner, name, ...rest] = String(repository).split("/")
+  if (!owner || !name || rest.length > 0) throw new Error(`"${repository}" is not an owner/name GitHub repository`)
+  if (typeof before !== "string" || before === "") throw new Error("an older review page needs the cursor the previous page reported")
+  return ["api", "graphql", "-F", `owner=${owner}`, "-F", `name=${name}`, "-F", `number=${prNumber}`, "-F", `before=${before}`, "-f", `query=${REVIEW_PAGE_QUERY}`]
+}
+
+/**
+ * One older review page, or null when the response is not the confirmed shape. Nullability matches
+ * the newest page exactly: a null connection and a null node list both read as no reviews, a null
+ * ELEMENT is skipped, and a malformed but PRESENT review object is refused.
+ */
+export const reviewPageFromGraphQl = (payload) => {
+  const connection = payload?.data?.repository?.pullRequest?.reviews
+  if (connection === undefined) return null
+  const nodes = connection === null || connection?.nodes === null ? [] : connection?.nodes
+  if (!Array.isArray(nodes)) return null
+  const reviews = []
+  for (const node of nodes) {
+    if (node === null) continue
+    const normalized = normalizeReviewNode(node)
+    if (!normalized) return null
+    reviews.push(normalized)
+  }
+  if (connection === null) return { reviews, truncated: false, startCursor: null }
+  const truncated = truncationOf(connection)
+  if (truncated === null) return null
+  return {
+    reviews,
+    truncated,
+    startCursor: typeof connection.pageInfo.startCursor === "string" ? connection.pageInfo.startCursor : null,
+  }
+}
+
+export const MAX_REVIEW_PAGES = 4
+
+export const resolveReviewVerdict = async (state, fetchOlderPage) => {
+  if (!Number.isFinite(state?.headActivityBoundary?.time)) {
+    return { verdict: null, complete: true, pagesRead: 0, reason: state?.headActivityBoundary?.reason ?? "no head activity boundary" }
+  }
+  const verdict = reviewAppVerdictAtHead(state?.reviews, state?.headRefOid, state?.headActivityBoundary?.time)
+  if (verdict) return { verdict, complete: true, pagesRead: 0 }
+  let truncated = state?.reviewsTruncated === true
+  let cursor = state?.reviewsStartCursor ?? null
+  let pagesRead = 0
+  while (truncated && cursor !== null && pagesRead < MAX_REVIEW_PAGES) {
+    const page = await fetchOlderPage(cursor)
+    pagesRead += 1
+    if (!page) return { verdict: null, complete: false, pagesRead }
+    const found = reviewAppVerdictAtHead(page.reviews, state?.headRefOid, state?.headActivityBoundary?.time)
+    if (found) return { verdict: found, complete: true, pagesRead }
+    truncated = page.truncated
+    cursor = page.startCursor
+  }
+  /**
+   * `!truncated` and nothing else. A null cursor beside `hasPreviousPage: true` means older records
+   * remain and there is no way to reach them, which is a read that could not finish, not a proof that
+   * the verdict is absent. Treating an exhausted cursor as an absence would reintroduce the exact
+   * silent false negative this walk exists to remove.
+   */
+  return { verdict: null, complete: !truncated, pagesRead }
+}
+
 export const pullRequestStateFromGraphQl = (payload) => {
   const pullRequest = payload?.data?.repository?.pullRequest
   if (!pullRequest) return null
-  const { number, baseRefName, baseRefOid, headRefOid, isDraft } = pullRequest
-  if (!Number.isInteger(number) || typeof baseRefName !== "string" || typeof baseRefOid !== "string" || typeof headRefOid !== "string" || typeof isDraft !== "boolean") return null
+  const { number, baseRefName, baseRefOid, headRefOid, headRefName, isDraft } = pullRequest
+  if (!Number.isInteger(number) || typeof baseRefName !== "string" || typeof baseRefOid !== "string" || typeof headRefOid !== "string" || typeof headRefName !== "string" || typeof isDraft !== "boolean") return null
+  const headCommit = pullRequest.commits?.nodes?.[0]?.commit
+  if (headCommit?.oid !== headRefOid) return null
   const nodes = pullRequest.statusCheckRollup === null ? [] : pullRequest.statusCheckRollup?.contexts?.nodes
   if (!Array.isArray(nodes)) return null
   const statusCheckRollup = []
@@ -112,7 +274,20 @@ export const pullRequestStateFromGraphQl = (payload) => {
     if (!normalized || contextOf(normalized) === null) return null
     statusCheckRollup.push(normalized)
   }
-  return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup }
+  const reviewsConnection = pullRequest.reviews
+  const reviewNodes = reviewsConnection === null || reviewsConnection?.nodes === null ? [] : reviewsConnection?.nodes
+  if (!Array.isArray(reviewNodes)) return null
+  const reviews = []
+  for (const node of reviewNodes) {
+    if (node === null) continue
+    const normalized = normalizeReviewNode(node)
+    if (!normalized) return null
+    reviews.push(normalized)
+  }
+  const reviewsTruncated = reviewsConnection === null || reviewsConnection === undefined ? false : truncationOf(reviewsConnection)
+  if (reviewsTruncated === null) return null
+  const reviewsStartCursor = typeof reviewsConnection?.pageInfo?.startCursor === "string" ? reviewsConnection.pageInfo.startCursor : null
+  return { number, baseRefName, baseRefOid, headRefOid, headRefName, repositoryName: payload.data.repository.nameWithOwner ?? null, headRepository: pullRequest.headRepository?.nameWithOwner ?? null, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
 }
 
 export const requiredChecksOf = (payload) => {
@@ -127,6 +302,12 @@ export const requiredChecksOf = (payload) => {
   }
   return required
 }
+
+export const requiredChecksFromResponse = (payload, succeeded) =>
+  succeeded ? requiredChecksOf(payload) : payload?.status === "404" ? [] : null
+
+export const reviewChecksFor = (requiredChecks) =>
+  requiredChecks.length === 0 ? [{ context: REVIEW_APP_CONTEXT, appId: REVIEW_APP_ID }] : requiredChecks
 
 const requiredChecksAreValid = (required) =>
   Array.isArray(required) && required.every((entry) => typeof entry?.context === "string" && entry.context !== "" && (entry.appId === null || Number.isInteger(entry.appId)))
@@ -150,12 +331,23 @@ export const newestChecks = (rollup) => {
   return newest
 }
 
+export const registrationFingerprint = (state, newestByCheck) => JSON.stringify([
+  state.headRefOid, state.baseRefOid, state.baseRefName,
+  [...newestByCheck].sort(([left], [right]) => left.localeCompare(right)),
+])
+
 export const findRegisteredCheck = (newest, required) => {
   for (const node of newest.values()) {
     if (contextOf(node) !== required.context) continue
     if (required.appId === null || node.appId === required.appId) return node
   }
   return null
+}
+
+export const requiredCheckSatisfied = (newest, required, satisfiedOutOfBand = new Set()) => {
+  if (findRegisteredCheck(newest, required)) return true
+  if (!satisfiedOutOfBand.has(outOfBandKey(required))) return false
+  return ![...newest.values()].some((node) => contextOf(node) === required.context)
 }
 
 /** The single pass rule. Delivery classifies a failure apart from a pending check, and its two
@@ -166,11 +358,11 @@ const checkPasses = (node) => {
 }
 
 /** Same newest-rerun-wins CI reading as delivery, used by record-readiness's live evaluation. */
-export const readinessCiIsGreen = (rollup, requiredChecks) => {
+export const readinessCiIsGreen = (rollup, requiredChecks, satisfiedOutOfBand = new Set()) => {
   if (!requiredChecksAreValid(requiredChecks)) return false
   const newest = newestChecks(rollup)
   if (!newest) return false
-  if (requiredChecks.some((required) => !findRegisteredCheck(newest, required))) return false
+  if (requiredChecks.some((required) => !requiredCheckSatisfied(newest, required, satisfiedOutOfBand))) return false
   for (const node of newest.values()) {
     if (!checkPasses(node)) return false
   }

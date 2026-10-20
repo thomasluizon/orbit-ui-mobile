@@ -1,14 +1,16 @@
 'use client'
 
-import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-
+import { useContext, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   useQuery,
+  useMutation,
   useQueryClient,
+  type QueryClient,
 } from '@tanstack/react-query'
 import {
   notificationKeys,
-  NOTIFICATIONS_REFETCH_INTERVAL,
+  attachNotificationPolling,
   QUERY_STALE_TIMES,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -31,15 +33,56 @@ import {
   deleteNotification as deleteNotificationAction,
   deleteAllNotifications as deleteAllNotificationsAction,
 } from '@/lib/actions/notifications'
+import { createSessionScopedRunner } from '@orbit/shared/utils/session-scope'
 import { fetchJson } from '@/lib/api-fetch'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { getSessionEpoch } from '@/lib/session-epoch'
+import { getHeldAccountId } from '@/stores/auth-store'
+import { PreloadedNotificationsContext } from '@/lib/notifications-preload'
+
+const runForNotificationSession = createSessionScopedRunner(getSessionEpoch)
+
+interface NotificationWriteIntent {
+  sessionEpoch: number
+  intendedAccountId: string | null
+}
+
+/**
+ * Records who is acting, and when, at the moment the person clicks. The epoch guards what
+ * comes BACK: a callback the previous session started writes nothing into the next one's
+ * cache.
+ */
+function captureNotificationWriteIntent(): NotificationWriteIntent {
+  return { sessionEpoch: getSessionEpoch(), intendedAccountId: getHeldAccountId() }
+}
+
+/**
+ * Cancels the list refetch for the session that owns the mutation. The await is the gap an account
+ * replacement fits through, and this reports nothing about who owns the session once it closes:
+ * every caller wraps the work that follows in runForNotificationSession, which re-reads the current
+ * epoch immediately before each write, so a second check here would decide nothing.
+ */
+async function cancelNotificationListForSession(
+  queryClient: QueryClient,
+  sessionEpoch: number,
+): Promise<void> {
+  await runForNotificationSession(
+    sessionEpoch,
+    () => queryClient.cancelQueries({ queryKey: notificationKeys.lists() }),
+  )
+}
 
 export function useNotifications() {
+  const queryClient = useQueryClient()
+  const initialNotifications = useContext(PreloadedNotificationsContext)
+  useEffect(() => attachNotificationPolling(queryClient), [queryClient])
+
   const query = useQuery({
     queryKey: notificationKeys.lists(),
     queryFn: () => fetchJson<NotificationsResponse>(API.notifications.list, notificationsResponseSchema),
+    initialData: initialNotifications?.notifications,
+    initialDataUpdatedAt: initialNotifications?.updatedAt,
     staleTime: QUERY_STALE_TIMES.notifications,
-    refetchInterval: NOTIFICATIONS_REFETCH_INTERVAL,
-    refetchIntervalInBackground: false,
   })
 
   const notifications = query.data?.items ?? []
@@ -54,116 +97,217 @@ export function useNotifications() {
 
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
 
-  return useAccountScopedMutation({
-    mutationFn: (notificationId: string) => markNotificationRead(notificationId),
+  const mutation = useMutation({
+    mutationFn: ({ notificationId, sessionEpoch, intendedAccountId }: NotificationWriteIntent & {
+      notificationId: string
+    }) => {
+      return runForNotificationSession(
+        sessionEpoch,
+        () => markNotificationRead(notificationId, intendedAccountId),
+      ) ?? Promise.resolve(undefined)
+    },
 
-    onMutate: async (notificationId) => {
-      await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
+    onMutate: async ({ notificationId, sessionEpoch }) => {
+      await cancelNotificationListForSession(queryClient, sessionEpoch)
 
-      const previous = snapshotNotificationList(queryClient)
-
-      queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
-        if (!old) return old
-        return markNotificationReadInList(old, notificationId)
+      const previous = runForNotificationSession(sessionEpoch, () => {
+        const snapshot = snapshotNotificationList(queryClient)
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
+          if (!old) return old
+          return markNotificationReadInList(old, notificationId)
+        })
+        return snapshot
       })
 
-      return { previous }
+      return { previous, sessionEpoch }
     },
 
-    onError: (_err, _id, context) => {
-      restoreNotificationList(queryClient, context?.previous)
+    onError: (_err, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        restoreNotificationList(queryClient, context.previous)
+        showError(t('notifications.markReadError'))
+      })
     },
 
-    onSettled: () => {
-      void invalidateNotificationList(queryClient)
+    onSettled: (_data, _error, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        void invalidateNotificationList(queryClient)
+      })
     },
   })
+
+  return {
+    ...mutation,
+    mutate: (notificationId: string) => mutation.mutate({
+      notificationId,
+      ...captureNotificationWriteIntent(),
+    }),
+    mutateAsync: (notificationId: string) => mutation.mutateAsync({
+      notificationId,
+      ...captureNotificationWriteIntent(),
+    }),
+  }
 }
 
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
 
-  return useAccountScopedMutation({
-    mutationFn: () => markAllNotificationsRead(),
+  const mutation = useMutation({
+    mutationFn: ({ sessionEpoch, intendedAccountId }: NotificationWriteIntent) => {
+      return runForNotificationSession(
+        sessionEpoch,
+        () => markAllNotificationsRead(intendedAccountId),
+      ) ?? Promise.resolve(undefined)
+    },
 
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
+    onMutate: async ({ sessionEpoch }) => {
+      await cancelNotificationListForSession(queryClient, sessionEpoch)
 
-      const previous = snapshotNotificationList(queryClient)
-
-      queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
-        if (!old) return old
-        return markAllNotificationsReadInList(old)
+      const previous = runForNotificationSession(sessionEpoch, () => {
+        const snapshot = snapshotNotificationList(queryClient)
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
+          if (!old) return old
+          return markAllNotificationsReadInList(old)
+        })
+        return snapshot
       })
 
-      return { previous }
+      return { previous, sessionEpoch }
     },
 
-    onError: (_err, _vars, context) => {
-      restoreNotificationList(queryClient, context?.previous)
+    onError: (_err, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        restoreNotificationList(queryClient, context.previous)
+        showError(t('notifications.markAllReadError'))
+      })
     },
 
-    onSettled: () => {
-      void invalidateNotificationList(queryClient)
+    onSettled: (_data, _error, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        void invalidateNotificationList(queryClient)
+      })
     },
   })
+
+  return {
+    ...mutation,
+    mutate: () => mutation.mutate(captureNotificationWriteIntent()),
+    mutateAsync: () => mutation.mutateAsync(captureNotificationWriteIntent()),
+  }
 }
 
 export function useDeleteNotification() {
   const queryClient = useQueryClient()
 
-  return useAccountScopedMutation({
-    mutationFn: (notificationId: string) => deleteNotificationAction(notificationId),
+  const mutation = useMutation({
+    mutationFn: ({ notificationId, sessionEpoch, intendedAccountId }: NotificationWriteIntent & {
+      notificationId: string
+    }) => {
+      return runForNotificationSession(
+        sessionEpoch,
+        () => deleteNotificationAction(notificationId, intendedAccountId),
+      ) ?? Promise.resolve(undefined)
+    },
 
-    onMutate: async (notificationId) => {
-      await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
+    onMutate: async ({ notificationId, sessionEpoch }) => {
+      await cancelNotificationListForSession(queryClient, sessionEpoch)
 
-      const previous = snapshotNotificationList(queryClient)
-
-      queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
-        if (!old) return old
-        return deleteNotificationFromList(old, notificationId)
+      const previous = runForNotificationSession(sessionEpoch, () => {
+        const snapshot = snapshotNotificationList(queryClient)
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
+          if (!old) return old
+          return deleteNotificationFromList(old, notificationId)
+        })
+        return snapshot
       })
 
-      return { previous }
+      return { previous, sessionEpoch }
     },
 
-    onError: (_err, _id, context) => {
-      restoreNotificationList(queryClient, context?.previous)
+    onError: (_err, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        restoreNotificationList(queryClient, context.previous)
+      })
     },
 
-    onSettled: () => {
-      void invalidateNotificationList(queryClient)
+    onSettled: (_data, _error, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        void invalidateNotificationList(queryClient)
+      })
     },
   })
+
+  return {
+    ...mutation,
+    mutate: (notificationId: string) => mutation.mutate({
+      notificationId,
+      ...captureNotificationWriteIntent(),
+    }),
+    mutateAsync: (notificationId: string) => mutation.mutateAsync({
+      notificationId,
+      ...captureNotificationWriteIntent(),
+    }),
+  }
 }
 
 export function useDeleteAllNotifications() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
 
-  return useAccountScopedMutation({
-    mutationFn: () => deleteAllNotificationsAction(),
-
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
-
-      const previous = snapshotNotificationList(queryClient)
-
-      queryClient.setQueryData<NotificationsResponse>(
-        notificationKeys.lists(),
-        () => createEmptyNotificationsResponse(),
-      )
-
-      return { previous }
+  const mutation = useMutation({
+    mutationFn: ({ sessionEpoch, intendedAccountId }: NotificationWriteIntent) => {
+      return runForNotificationSession(
+        sessionEpoch,
+        () => deleteAllNotificationsAction(intendedAccountId),
+      ) ?? Promise.resolve(undefined)
     },
 
-    onError: (_err, _vars, context) => {
-      restoreNotificationList(queryClient, context?.previous)
+    onMutate: async ({ sessionEpoch }) => {
+      await cancelNotificationListForSession(queryClient, sessionEpoch)
+
+      const previous = runForNotificationSession(sessionEpoch, () => {
+        const snapshot = snapshotNotificationList(queryClient)
+        queryClient.setQueryData<NotificationsResponse>(
+          notificationKeys.lists(),
+          () => createEmptyNotificationsResponse(),
+        )
+        return snapshot
+      })
+
+      return { previous, sessionEpoch }
     },
 
-    onSettled: () => {
-      void invalidateNotificationList(queryClient)
+    onError: (_err, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        restoreNotificationList(queryClient, context.previous)
+        showError(t('notifications.deleteAllError'))
+      })
+    },
+
+    onSettled: (_data, _error, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        void invalidateNotificationList(queryClient)
+      })
     },
   })
+
+  return {
+    ...mutation,
+    mutate: () => mutation.mutate(captureNotificationWriteIntent()),
+    mutateAsync: () => mutation.mutateAsync(captureNotificationWriteIntent()),
+  }
 }

@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
-import { statSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { PASSING_CONCLUSIONS, findRegisteredCheck, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, requiredChecksOf } from "./lib/readiness-receipt.mjs"
+import { PASSING_CONCLUSIONS, headActivityArgv, headActivityBoundary, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredCheckSatisfied, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand } from "./lib/readiness-receipt.mjs"
+import { gitDirectoryOf } from "./lib/run-state.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
@@ -15,8 +17,8 @@ const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path>
   --branch <name>     branch the worker pushed (required)
   --repo <key>        repository key from .claude/orchestrator.json (required); GitHub is
                       queried with that repository's owner-scoped token
-  --base <ref>        base the commit count is taken against (default: main)
-  --wait-ci <s>       seconds to wait for still-running checks to settle before
+  --base <ref>        explicit base override; must match the pull request's base
+  --wait-ci <s>       seconds to observe registering or still-running checks before
                       reporting CI_PENDING (default: 0, report immediately)
   --command-timeout-seconds <s>
                       hard bound for each Git/GitHub child (default: 45)
@@ -24,8 +26,20 @@ const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path>
 
 Derives delivery from git and GitHub artifacts only, never from a worker's own
 report. Checks run in order and the first failure decides the verdict:
-NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, DRAFT, OUT_OF_DATE,
+NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, MISSING_PARITY_LABEL, DRAFT, OUT_OF_DATE,
 CI_FAILING, CI_PENDING, or DELIVERED.
+
+A cancelled current-head Actions run is rerun once when a run from the same pull request
+branch and workflow, created for an ancestor head, finished later. The report records
+the run ID, original attempt, and request outcome. An accepted request stays pending
+until the new attempt completes. A failed request or missing outcome is CI_FAILING
+and is never requested again.
+
+An unprotected base has no required checks. Delivery needs a nonempty rollup
+observed unchanged for at least 60 seconds in this invocation (use --wait-ci),
+and every latest check must pass the shared readiness rule
+(SUCCESS, NEUTRAL, or SKIPPED for completed CheckRuns; SUCCESS for statuses).
+No reported checks means CI_PENDING, never delivery evidence.
 
 stdout carries ONE JSON object and nothing else. Errors go to stderr.
 
@@ -53,7 +67,7 @@ const issueArgument = argOf("--issue")
 const worktree = argOf("--worktree")
 const branch = argOf("--branch")
 const repoKey = argOf("--repo")
-const base = argOf("--base") ?? "main"
+const baseOverride = argOf("--base")
 const waitCiRaw = argOf("--wait-ci") ?? "0"
 const waitCiSeconds = Number(waitCiRaw)
 if (!Number.isFinite(waitCiSeconds) || waitCiSeconds < 0) fail(2, `${USAGE}\n\n--wait-ci requires a non-negative number of seconds`)
@@ -63,7 +77,7 @@ const safeValue = (value) => typeof value === "string" && value.length > 0 && !v
 if (!safeValue(issueArgument)) fail(2, `${USAGE}\n\n--issue requires ORB-N, #N, or N`)
 if (!safeValue(worktree)) fail(2, `${USAGE}\n\n--worktree requires a path`)
 if (!safeValue(branch)) fail(2, `${USAGE}\n\n--branch requires a branch name`)
-if (!safeValue(base)) fail(2, `${USAGE}\n\n--base requires a ref`)
+if (baseOverride !== null && !safeValue(baseOverride)) fail(2, `${USAGE}\n\n--base requires a ref`)
 if (!safeValue(repoKey)) fail(2, `${USAGE}\n\n--repo requires a repository key`)
 
 let worktreePresent = false
@@ -87,12 +101,16 @@ if (typeof githubCwd !== "string" || githubCwd.trim().length === 0) {
 }
 
 let issue
+let ticketReference
+let ticketUrl
 try {
   const resolvedTicket = resolveTicket(issueArgument)
   /** Labels are the only field asserted here, so the board read is pure cost on the hottest path. */
   const liveTicket = await readTicket(resolvedTicket.number, { withProjectItem: false })
   assertRepositoryLabel(liveTicket, repoKey)
-  issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
+  issue = resolvedTicket.reference
+  ticketReference = `${config.tickets.repository}#${resolvedTicket.number}`
+  ticketUrl = `https://github.com/${config.tickets.repository}/issues/${resolvedTicket.number}`
 } catch (error) {
   fail(2, `ticket assertion failed: ${error.message}`)
 }
@@ -107,11 +125,12 @@ try {
 }
 const run = async (file, args, cwd, input) => {
   const result = await runBounded(file, args, { cwd, env: file === GH ? githubAuth.environment : process.env, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 32 * 1024 * 1024, input })
-  if (result.timedOut) return { ok: false, stdout: result.stdout, error: `${file} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated` }
-  if (result.overflowed) return { ok: false, stdout: result.stdout, error: `${file} exceeded the 32 MiB output bound; the complete child process tree was terminated` }
+  const stderr = redactSecrets(result.stderr, githubAuth.secrets)
+  if (result.timedOut) return { ok: false, stdout: result.stdout, status: result.status, stderr, error: `${file} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated` }
+  if (result.overflowed) return { ok: false, stdout: result.stdout, status: result.status, stderr, error: `${file} exceeded the 32 MiB output bound; the complete child process tree was terminated` }
   if (result.error || result.status !== 0) {
-    const detail = result.stderr || result.stdout || result.error?.message || `exit ${result.status}`
-    return { ok: false, stdout: result.stdout, error: redactSecrets(detail.trim(), githubAuth.secrets) }
+    const detail = stderr || result.stdout || result.error?.message || `exit ${result.status}`
+    return { ok: false, stdout: result.stdout, status: result.status, stderr, error: redactSecrets(detail.trim(), githubAuth.secrets) }
   }
   return { ok: true, stdout: result.stdout }
 }
@@ -160,6 +179,23 @@ checks.cleanTree = {
   allDiscardable: dirtyEntries.length > 0 && sourcePaths.length === 0,
 }
 
+const listed = await run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,baseRefName,additions,deletions,title,body,changedFiles,labels"], githubCwd)
+if (!listed.ok) fail(2, `gh pr list --head ${branch} failed: ${listed.error}`)
+let pullRequests
+try {
+  pullRequests = JSON.parse(listed.stdout)
+} catch {
+  fail(2, `gh pr list --head ${branch} returned unparseable JSON: ${listed.stdout.trim().slice(0, 240) || "empty output"}`)
+}
+if (!Array.isArray(pullRequests)) fail(2, `gh pr list --head ${branch} did not return an array`)
+const [pullRequest] = pullRequests
+if (pullRequest && !safeValue(pullRequest.baseRefName)) fail(2, `gh pr list reported no baseRefName for pull request #${pullRequest.number}`)
+if (pullRequest && baseOverride !== null && baseOverride !== pullRequest.baseRefName) {
+  fail(2, `--base ${baseOverride} disagrees with pull request #${pullRequest.number} base ${pullRequest.baseRefName}`)
+}
+/** No pull request can supply a base yet. Preserve the NO_COMMIT verdict for an empty branch. */
+const base = pullRequest?.baseRefName ?? baseOverride ?? "main"
+
 /**
  * ALWAYS evaluated, dirty tree or not. A finished deliverable and a worker that did nothing produced
  * the same one-key report until this stopped short-circuiting, and on an unattended night that is the
@@ -184,16 +220,6 @@ const localOnly = ahead.ok ? Number(ahead.stdout.trim()) : `origin/${branch} doe
 checks.pushed = { pass: localOnly === 0, observed: localOnly }
 if (!checks.pushed.pass) emit("UNPUSHED")
 
-const listed = await run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions,title,body,changedFiles"], githubCwd)
-if (!listed.ok) fail(2, `gh pr list --head ${branch} failed: ${listed.error}`)
-let pullRequests
-try {
-  pullRequests = JSON.parse(listed.stdout)
-} catch {
-  fail(2, `gh pr list --head ${branch} returned unparseable JSON: ${listed.stdout.trim().slice(0, 240) || "empty output"}`)
-}
-if (!Array.isArray(pullRequests)) fail(2, `gh pr list --head ${branch} did not return an array`)
-const [pullRequest] = pullRequests
 checks.prCount = {
   pass: pullRequests.length === 1,
   observed: pullRequests.length,
@@ -207,8 +233,12 @@ if (!checks.prCount.pass) emit("NO_PR")
  * still lands here and would read as delivered. The composed work order requires a pull request
  * that links the issue, and this file is the only thing that checks the work order was honoured.
  */
-const escapedIssue = issue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-const mentionsIssue = (text) => typeof text === "string" && new RegExp(`(^|[^A-Za-z0-9])${escapedIssue}(?![A-Za-z0-9])`, "i").test(text)
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+/** Keep bare #N and migrated identifiers for compatibility: this checks a ticket mention, not
+ * GitHub's closing semantics. Qualified references must name the configured ticket repository;
+ * the wider leading boundary prevents a different owner or repository from matching by suffix. */
+const ticketMention = new RegExp(`(?:(^|[^A-Za-z0-9])${escapeRegex(issue)}|(^|[^A-Za-z0-9_./-])(?:${escapeRegex(ticketReference)}|${escapeRegex(ticketUrl)}))(?![A-Za-z0-9])`, "i")
+const mentionsIssue = (text) => typeof text === "string" && ticketMention.test(text)
 checks.linksTicket = {
   pass: mentionsIssue(pullRequest.title) || mentionsIssue(pullRequest.body),
   observed: mentionsIssue(pullRequest.title) ? "title" : mentionsIssue(pullRequest.body) ? "body" : "neither title nor body names the issue",
@@ -233,6 +263,29 @@ const fileCount = pullRequest.changedFiles
 
 checks.sizeAdvisory = { changedFiles: fileCount, additions: pullRequest.additions, deletions: pullRequest.deletions, diffLines: size, blocking: false }
 
+const merged = await git(["merge-base", base, "HEAD"])
+if (!merged.ok) fail(2, `git merge-base ${base} HEAD failed in ${worktree}: ${merged.error}`)
+const mergeBase = merged.stdout.trim()
+const changed = await git(["diff", "--name-only", "-z", `${mergeBase}..HEAD`, "--", "apps/web/", "apps/mobile/"])
+if (!changed.ok) fail(2, `git diff --name-only ${mergeBase}..HEAD failed in ${worktree}: ${changed.error}`)
+const changedPaths = changed.stdout.split("\0").filter(Boolean)
+const webPaths = changedPaths.filter((path) => /^apps\/web\/(app|components|hooks|stores|lib)\//.test(path))
+const mobilePaths = changedPaths.filter((path) => /^apps\/mobile\/(app|components|hooks|stores|lib)\//.test(path))
+if (!Array.isArray(pullRequest.labels) || !pullRequest.labels.every((label) => typeof label?.name === "string")) {
+  fail(2, `gh pr list reported no labels array for pull request #${pullRequest.number}`)
+}
+const oneSided = (webPaths.length > 0) !== (mobilePaths.length > 0)
+const hasParityLabel = pullRequest.labels.some((label) => label.name === "parity:exempt")
+checks.parityLabel = {
+  pass: !oneSided || hasParityLabel,
+  baseBranch: base,
+  mergeBase,
+  platform: oneSided ? (webPaths.length > 0 ? "web" : "mobile") : null,
+  changedPaths: oneSided ? (webPaths.length > 0 ? webPaths : mobilePaths) : [],
+  observed: hasParityLabel ? "parity:exempt" : "label absent",
+}
+if (!checks.parityLabel.pass) emit("MISSING_PARITY_LABEL")
+
 const repositoryFromUrl = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/\d+\/?$/i.exec(pullRequest.url)?.[1]
 if (!repositoryFromUrl) fail(2, `pull request #${pullRequest.number} carried no parseable GitHub URL`)
 
@@ -253,7 +306,30 @@ const readPullRequestState = async () => {
   }
   const state = pullRequestStateFromGraphQl(parsed)
   if (state === null) fail(2, `the pull request read for ${pullRequest.number} returned incomplete base/head/draft/rollup state`)
+  const activity = state.headRepository === state.repositoryName
+    ? await run(GH, headActivityArgv(state.repositoryName, state.headRefName), githubCwd) : null
+  let activities = null
+  if (activity?.ok) {
+    try { activities = JSON.parse(activity.stdout) } catch { /* An invalid page cannot prove a review current. */ }
+  }
+  state.headActivityBoundary = headActivityBoundary(activities, state.headRefOid, state.headRefName, state.repositoryName, state.headRepository)
   return state
+}
+
+/**
+ * One older page of the reviewing app's reviews, or null when the request or the parse failed.
+ *
+ * `resolveReviewVerdict` reads a null as an INCOMPLETE walk rather than as an absence, so a failed
+ * page can never be mistaken for "this app never approved this head".
+ */
+const readOlderReviewPage = async (cursor) => {
+  const viewed = await run(GH, reviewPageArgv(repositoryFromUrl, pullRequest.number, cursor), githubCwd)
+  if (!viewed.ok) return null
+  try {
+    return reviewPageFromGraphQl(JSON.parse(viewed.stdout))
+  } catch {
+    return null
+  }
 }
 
 const validatePullRequestState = async (state) => {
@@ -293,14 +369,15 @@ const readRequiredChecks = async (state) => {
     ["api", `repos/${repositoryFromUrl}/branches/${encodeURIComponent(state.baseRefName)}/protection/required_status_checks`],
     githubCwd,
   )
-  if (!protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
   let parsed
   try {
     parsed = JSON.parse(protection.stdout)
   } catch {
+    if (!protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
     fail(2, `gh api required status checks returned unparseable JSON: ${protection.stdout.trim().slice(0, 240) || "empty output"}`)
   }
-  const parsedChecks = requiredChecksOf(parsed)
+  const parsedChecks = requiredChecksFromResponse(parsed, protection.ok)
+  if (parsedChecks === null && !protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
   if (parsedChecks === null) fail(2, `gh api required status checks returned no { context, app_id } checks array for ${state.baseRefName}`)
   return parsedChecks
 }
@@ -325,24 +402,43 @@ const checkMetadata = (name, node) => {
   }
 }
 
-const readRollup = () => {
-  /**
-   * A re-run does NOT replace the old entry: the rollup carries BOTH, so a re-run of a red check
-   * reads as failing and pending at once and could never clear. Measured on #685, where a re-queued
-   * `Dash Ban` appeared twice. `newestChecks` keeps only the newest entry per check and producer,
-   * which is what the GitHub UI shows and the only reading under which a re-run can go green.
-   */
+const REGISTRATION_WINDOW_MS = 60_000
+let registrationObservation = null
+
+const registrationPending = (newestByCheck, fingerprint) => {
+  if (requiredChecks.length > 0 || newestByCheck.size === 0) {
+    registrationObservation = null
+    return null
+  }
+  const now = Date.now()
+  if (registrationObservation?.fingerprint !== fingerprint) registrationObservation = { fingerprint, since: now }
+  const observedSeconds = Math.floor((now - registrationObservation.since) / 1000)
+  if (now - registrationObservation.since >= REGISTRATION_WINDOW_MS) return null
+  return {
+    ...checkMetadata("Check registration", { status: "OBSERVING", conclusion: null }),
+    reason: `Unprotected check rollup has been unchanged for ${observedSeconds}s; requires 60s of observation because successful checks may precede later registrations`,
+  }
+}
+
+const readRollup = async () => {
   // Never null here: readPullRequestState rejects any rollup entry that carries no check name.
   const newestByCheck = newestChecks(pullRequestState.statusCheckRollup)
+  const fingerprint = registrationFingerprint(pullRequestState, newestByCheck)
   const failing = []
   const pending = []
-  /**
-   * A required check the rollup does not carry UNDER ITS PINNED PRODUCER is pending, never green.
-   * That absence is the mechanism by which a missing `pullfrog-approval` blocks, and it is now also
-   * the mechanism by which a same-named success from another app fails to clear the review gate.
-   */
+  const registering = registrationPending(newestByCheck, fingerprint)
+  if (registering) pending.push(registering)
+  if (requiredChecks.length === 0 && newestByCheck.size === 0) {
+    pending.push({
+      ...checkMetadata("Reported checks", { status: "NOT_REGISTERED", conclusion: null }),
+      reason: "No checks reported; an empty required set is not evidence of successful CI",
+    })
+  }
+  /** The review fallback must also clear cached CI evidence when the pinned check is absent. */
+  const { verdict: reviewVerdict, complete: reviewComplete, reason: reviewReason } = await resolveReviewVerdict(pullRequestState, readOlderReviewPage)
+  const satisfiedOutOfBand = reviewSatisfiedOutOfBand(reviewVerdict)
   for (const required of requiredChecks) {
-    if (findRegisteredCheck(newestByCheck, required)) continue
+    if (requiredCheckSatisfied(newestByCheck, required, satisfiedOutOfBand)) continue
     pending.push({ ...checkMetadata(required.context, { status: "NOT_REGISTERED", conclusion: null }), requiredAppId: required.appId })
   }
   for (const node of newestByCheck.values()) {
@@ -359,7 +455,10 @@ const readRollup = () => {
     }
     if (!PASSING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
   }
-  return { total: newestByCheck.size, failing, pending }
+  // Which evidence carried the review axis, so an artifact that leaned on the fallback says so rather
+  // than reading like an ordinary green (#440). The receipt records the same three fields.
+  const review = { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null, complete: reviewComplete, reason: reviewReason ?? null }
+  return { total: newestByCheck.size, failing, pending, registrationFingerprint: fingerprint, review }
 }
 
 // The same synchronous wait list-bot-threads.mjs uses, so the two tools poll the same way.
@@ -368,25 +467,141 @@ const sleep = (seconds) => {
   Atomics.wait(buffer, 0, 0, seconds * 1000)
 }
 
-let rollup = readRollup()
+let rollup = await readRollup()
 const deadline = Date.now() + waitCiSeconds * 1000
 while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < deadline) {
   sleep(Math.min(30, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   pullRequestState = await readPullRequestState()
   await validatePullRequestState(pullRequestState)
   requiredChecks = await readRequiredChecks(pullRequestState)
-  rollup = readRollup()
+  rollup = await readRollup()
 }
 
+const rerunDirectory = join(gitDirectoryOf(worktree), "orbit-ci-reruns")
+const markerPath = (runId) => join(rerunDirectory, `${pullRequest.number}-${runId}.json`)
+const readMarker = (runId) => {
+  const path = markerPath(runId)
+  if (!existsSync(path)) return null
+  let marker
+  try { marker = JSON.parse(readFileSync(path, "utf8")) } catch { fail(2, `rerun record for ${runId} is unreadable`) }
+  if (marker.runId !== runId || marker.headSha !== localHead) fail(2, `rerun record for ${runId} does not match the current head`)
+  return marker
+}
+const writeOutcome = (runId, marker) => {
+  const path = markerPath(runId)
+  const stagedPath = `${path}.${process.pid}`
+  writeFileSync(stagedPath, JSON.stringify(marker))
+  renameSync(stagedPath, path)
+}
+const checksByRunId = new Map()
+for (const check of [...rollup.failing, ...rollup.pending]) {
+  if (check.runId !== null) checksByRunId.set(Number(check.runId), check)
+}
+const candidateRunIds = [...new Set([
+  ...rollup.failing.filter((check) => check.conclusion === "CANCELLED" && check.runId !== null)
+    .map((check) => Number(check.runId)),
+  ...[...checksByRunId.keys()].filter((runId) => existsSync(markerPath(runId))),
+])]
+const reruns = []
+if (candidateRunIds.length > 0) {
+  const listedRuns = await run(GH, ["run", "list", "--branch", pullRequestState.headRefName,
+    "--event", "pull_request", "--limit", "1000", "--repo", repositoryFromUrl,
+    "--json", "attempt,conclusion,createdAt,databaseId,event,headBranch,headSha,number,startedAt,status,updatedAt,url,workflowDatabaseId,workflowName"], githubCwd)
+  if (!listedRuns.ok) fail(2, `gh run list failed: ${listedRuns.error}`)
+  let runs
+  try { runs = JSON.parse(listedRuns.stdout) } catch { fail(2, "gh run list returned unparseable JSON") }
+  if (!Array.isArray(runs)) fail(2, "gh run list did not return an array")
+
+  for (const runId of candidateRunIds) {
+    let marker = readMarker(runId)
+    const current = runs.find((entry) => entry.databaseId === runId &&
+      entry.headSha === localHead && entry.headBranch === pullRequestState.headRefName && entry.event === "pull_request")
+    if (marker) {
+      reruns.push({ ...marker, workflow: current?.workflowName ?? null, currentAttempt: current?.attempt ?? null,
+        currentStatus: current?.status ?? null, currentConclusion: current?.conclusion ?? null })
+      continue
+    }
+    if (!current || !Number.isInteger(current.workflowDatabaseId) || current.status !== "completed" ||
+      current.conclusion !== "cancelled" || current.attempt !== 1) continue
+    const currentCreated = Date.parse(current.createdAt)
+    const currentEnded = Date.parse(current.updatedAt)
+    if (!Number.isFinite(currentCreated) || !Number.isFinite(currentEnded)) continue
+    let olderRun = null
+    for (const candidate of runs) {
+      if (candidate.databaseId === runId || candidate.workflowDatabaseId !== current.workflowDatabaseId ||
+        candidate.headBranch !== current.headBranch || candidate.event !== "pull_request" ||
+        candidate.headSha === localHead || candidate.status !== "completed" || candidate.attempt !== 1 ||
+        !Number.isFinite(Date.parse(candidate.createdAt)) || !Number.isFinite(Date.parse(candidate.updatedAt)) ||
+        Date.parse(candidate.createdAt) >= currentCreated || Date.parse(candidate.updatedAt) <= currentEnded) continue
+      const ancestor = await git(["merge-base", "--is-ancestor", candidate.headSha, localHead])
+      if (ancestor.ok) { olderRun = candidate; break }
+    }
+    if (!olderRun) continue
+
+    mkdirSync(rerunDirectory, { recursive: true })
+    let requested = false
+    try {
+      marker = { runId, headSha: localHead, olderRunId: olderRun.databaseId, attempt: current.attempt }
+      writeFileSync(markerPath(runId), JSON.stringify(marker), { flag: "wx" })
+      requested = true
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error
+      marker = readMarker(runId)
+    }
+    if (requested) {
+      const result = await run(GH, ["run", "rerun", String(runId), "--repo", repositoryFromUrl], githubCwd)
+      marker = result.ok ? { ...marker, outcome: "accepted" } : {
+        ...marker, outcome: "failed", exitCode: result.status,
+        stderr: (result.stderr || result.error).split(/\r?\n/, 1)[0],
+      }
+      writeOutcome(runId, marker)
+    }
+    reruns.push({ ...marker, workflow: current.workflowName, currentAttempt: current.attempt,
+      currentStatus: current.status, currentConclusion: current.conclusion })
+  }
+}
+
+const rerunById = new Map(reruns.map((entry) => [String(entry.runId), entry]))
+const rerunReason = (rerun) => rerun.outcome === "failed" ? "RERUN_REQUEST_FAILED"
+  : rerun.outcome !== "accepted" ? "RERUN_REQUEST_UNKNOWN" : null
+const completedRerun = (rerun) => rerun.outcome === "accepted" &&
+  rerun.currentAttempt > rerun.attempt && rerun.currentStatus === "completed"
+const successfulRerun = (rerun) => completedRerun(rerun) &&
+  ["success", "neutral", "skipped"].includes(rerun.currentConclusion)
+const failingChecks = rollup.failing.flatMap((check) => {
+  const rerun = rerunById.get(check.runId)
+  if (!rerun) return [check]
+  const reason = rerunReason(rerun)
+  if (reason) return [{ ...check, reason }]
+  if (successfulRerun(rerun) || !completedRerun(rerun)) return []
+  return [{ ...check, reason: "RERUN_ATTEMPT_FAILED" }]
+})
+const stillFailing = [...failingChecks, ...reruns.filter((rerun) =>
+  (rerunReason(rerun) || (completedRerun(rerun) && !successfulRerun(rerun))) &&
+  !rollup.failing.some((check) => check.runId === String(rerun.runId)))
+  .map((rerun) => ({ ...checksByRunId.get(rerun.runId),
+    reason: rerunReason(rerun) ?? "RERUN_ATTEMPT_FAILED" }))]
+const rerunPending = rollup.failing.filter((check) => {
+  const rerun = rerunById.get(check.runId)
+  return rerun?.outcome === "accepted" && !completedRerun(rerun)
+}).map((check) => ({ ...check, reason: "Accepted rerun has not completed" }))
+const pending = rollup.pending.filter((check) => {
+  const rerun = rerunById.get(check.runId)
+  return !rerun || (!completedRerun(rerun) && rerunReason(rerun) === null)
+})
+
 checks.ci = {
-  pass: rollup.failing.length === 0 && rollup.pending.length === 0,
-  observed: `${rollup.total} checks: ${rollup.failing.length} failing, ${rollup.pending.length} pending`,
-  failing: rollup.failing,
-  pending: rollup.pending,
+  pass: stillFailing.length === 0 && pending.length === 0 && rerunPending.length === 0,
+  observed: `${rollup.total} checks: ${stillFailing.length} failing, ${pending.length + rerunPending.length} pending`,
+  failing: stillFailing,
+  pending: [...pending, ...rerunPending],
+  reruns,
   requiredChecks,
+  registrationFingerprint: rollup.registrationFingerprint,
+  review: rollup.review,
   waitedSeconds: waitCiSeconds,
 }
-if (rollup.failing.length > 0) emit("CI_FAILING")
-if (rollup.pending.length > 0) emit("CI_PENDING")
+if (stillFailing.length > 0 || reruns.some((entry) => rerunReason(entry))) emit("CI_FAILING")
+if (pending.length > 0 || rerunPending.length > 0) emit("CI_PENDING")
 
 emit("DELIVERED")

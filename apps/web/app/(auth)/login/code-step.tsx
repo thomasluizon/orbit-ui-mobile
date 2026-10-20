@@ -1,132 +1,82 @@
 import type { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
-// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
-import { CodeInput } from '@/components/ui/code-input'
+import { motionEasings } from '@orbit/shared/theme'
+import { formatLoginCountdown, type LoginCodeFailure } from '@orbit/shared/utils'
+import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
-import { QuietLink } from '@/components/ui/quiet-link'
-import { Spinner } from './login-atoms'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { LoginHeader, LoginOfflineNotice } from './login-sections'
 
 interface CodeStepProps {
   email: string
   codeDigits: string[]
   isSubmitting: boolean
+  isResending: boolean
   canResend: boolean
   resendCountdown: number
-  codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
-  errorSignal?: string | null
+  lockCountdown: number
+  codeFailure: LoginCodeFailure
+  fieldError?: string
+  onCodeBlur?: () => void
+  codeFocusRequest?: number
+  errorSignal: string | null
+  successMessage: string | null
   isOnline: boolean
   canSubmitTurnstile: boolean
   turnstileWidget: ReactNode
   onVerifyCode: () => void
-  onCodeInput: (index: number, value: string) => void
-  onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
-  onCodePaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  onCodeChange: (value: string) => void
   onBackToEmail: () => void
   onResendCode: () => void
   t: ReturnType<typeof useTranslations>
 }
 
-export function CodeStep({
-  email,
-  codeDigits,
-  isSubmitting,
-  canResend,
-  resendCountdown,
-  codeInputRefs,
-  errorSignal = null,
-  isOnline,
-  canSubmitTurnstile,
-  turnstileWidget,
-  onVerifyCode,
-  onCodeInput,
-  onCodeKeydown,
-  onCodePaste,
-  onBackToEmail,
-  onResendCode,
-  t,
-}: Readonly<CodeStepProps>) {
-  const prefersReducedMotion = useReducedMotion()
-  const shake = Boolean(errorSignal) && !prefersReducedMotion
-
+export function CodeStep({ email, codeDigits, isSubmitting, isResending, canResend, resendCountdown, lockCountdown,
+  codeFailure, fieldError: backendFieldError, onCodeBlur, codeFocusRequest, errorSignal, successMessage, isOnline, onVerifyCode, onCodeChange, onBackToEmail,
+  onResendCode, canSubmitTurnstile, turnstileWidget, t }: Readonly<CodeStepProps>) {
+  const reduced = useReducedMotion()
+  const locked = codeFailure === 'locked'
+  const waiting = locked && lockCountdown > 0
+  const expired = codeFailure === 'expired'
+  const fieldError = isOnline && !locked ? backendFieldError ?? errorSignal ?? undefined : undefined
+  const shake = Boolean(fieldError) && !reduced
   return (
-    <div className="flex flex-col" style={{ gap: 16 }}>
-      <p
-        id="code-sent-to"
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          lineHeight: 1.55,
-          color: 'var(--fg-2)',
-          margin: 0,
-        }}
-      >
-        {t('auth.codeSentTo')} <span style={{ color: 'var(--fg-1)' }}>{email}</span>.
-      </p>
-
-      <form
-        className="flex flex-col"
-        style={{ gap: 24 }}
-        onSubmit={(e) => {
-          e.preventDefault()
-          onVerifyCode()
-        }}
-      >
-        <motion.div
-          key={errorSignal || 'code-steady'}
-          animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
-          transition={{ duration: 0.28, ease: 'easeInOut' }}
-        >
-          <CodeInput
-            digits={codeDigits}
-            inputRefs={codeInputRefs}
-            onChange={onCodeInput}
-            onKeyDown={onCodeKeydown}
-            onPaste={onCodePaste}
-            ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
-            ariaLabelledBy="code-sent-to"
-          />
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <LoginHeader step="code" t={t} />
+        <p className="wrap-anywhere text-base leading-normal text-[var(--fg-2)]">{t('auth.codeSentTo', { email })}</p>
+        {successMessage && <p aria-hidden className="font-mono text-xs text-[var(--fg-3)]">{successMessage}</p>}
+        <div className="self-start">
+          <PillButton variant="ghost" size="sm" disabled={isSubmitting} onClick={onBackToEmail}>{t('auth.changeEmail')}</PillButton>
+        </div>
+      </div>
+      <form className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onVerifyCode() }}>
+        <motion.div animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
+          transition={{ duration: reduced ? 0 : 0.28, ease: motionEasings.standard }} data-mock={expired || undefined}>
+          <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')}
+            onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest} error={fieldError}
+            hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
+            disabled={isSubmitting || expired || waiting} />
         </motion.div>
         {turnstileWidget}
-
-        <PillButton
-          type="submit"
-          fullWidth
-          disabled={isSubmitting || codeDigits.join('').length !== 6 || !canSubmitTurnstile || !isOnline}
-          busy={isSubmitting}
-          leading={isSubmitting ? <Spinner /> : undefined}
-          dataTestId="auth-verify-code"
-        >
-          {t('auth.verify')}
-        </PillButton>
+        {!isOnline && <LoginOfflineNotice t={t} />}
+        {!waiting && !expired && <PillButton disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
+          loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
       </form>
-
-      <div className="flex justify-center">
-        {canResend ? (
-          <QuietLink emphasized onClick={onResendCode} disabled={!isOnline || !canSubmitTurnstile || isSubmitting}>
-            {t('auth.resendCode')}
-          </QuietLink>
-        ) : (
-          <span
-            className="inline-flex items-center"
-            style={{
-              minHeight: 44,
-              padding: '6px 12px',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              color: 'var(--fg-3)',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {t('auth.resendIn', { seconds: resendCountdown })}
-          </span>
-        )}
-      </div>
-
-      <div className="flex justify-center">
-        <QuietLink onClick={onBackToEmail}>{t('auth.changeEmail')}</QuietLink>
-      </div>
+      {!waiting && <div className="flex flex-col items-start gap-2">
+        {canResend || expired
+          ?
+            <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>
+              {t('auth.resendCode')}
+            </PillButton>
+          : <p className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
+              {t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}
+            </p>}
+      </div>}
+      {locked && <div className="flex flex-col gap-2">
+        <div role="status"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></div>
+      </div>}
     </div>
   )
 }

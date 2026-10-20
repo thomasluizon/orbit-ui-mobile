@@ -1,23 +1,26 @@
 'use client'
 
-import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
-import { habitKeys } from '@orbit/shared/query'
+import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
+import { resolveSystemLocale } from '@orbit/shared/utils'
 import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
-import type { ColorScheme } from '@orbit/shared/theme'
+import { useAccountId } from '@/lib/account-scope'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
-import { useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   updateWeekStartDay,
-  updateColorScheme as updateColorSchemeAction,
+  updateClockFormat,
   updateLanguage,
+  updateTimezone,
 } from '@/lib/actions/profile'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
 import type { PreferencePicker } from './preference-picker-sheet'
 
 function writeLocaleCookie(value: string) {
@@ -27,13 +30,15 @@ function writeLocaleCookie(value: string) {
 }
 
 export function usePreferenceControls() {
-  const router = useRouter()
+  const accountId = useAccountId()
+  const t = useTranslations()
+  const { showPersistentError } = useAppToast()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const { currentScheme, currentTheme, applyScheme, applyTheme } = useColorScheme()
+  const { currentTheme, applyTheme } = useColorScheme()
 
-  const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
+  const [activePicker, setActivePicker] = useAccountScopedState<PreferencePicker | null>(null)
 
   useEffect(() => {
     localStorage.removeItem('orbit_time_format')
@@ -41,17 +46,25 @@ export function usePreferenceControls() {
   }, [])
 
   const locale = useLocale()
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(locale)
+  const [selectedLanguage, setSelectedLanguage] = useState<SupportedLocale>(() =>
+    resolveSystemLocale(locale),
+  )
 
   const handleLanguageChange = useCallback(
     async (nextLocale: SupportedLocale) => {
       const previousLocale = selectedLanguage
+      const intendedAccountId = getHeldAccountId()
       setSelectedLanguage(nextLocale)
       writeLocaleCookie(nextLocale)
       if (isAuthenticated) {
         try {
-          await updateLanguage({ language: nextLocale })
-        } catch {
+          await updateLanguage({ language: nextLocale }, intendedAccountId)
+        } catch (error) {
+          if (reportsAccountChanged(error)) {
+            showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+            return
+          }
+          if (getHeldAccountId() !== intendedAccountId) return
           setSelectedLanguage(previousLocale)
           writeLocaleCookie(previousLocale)
           return
@@ -59,11 +72,12 @@ export function usePreferenceControls() {
       }
       globalThis.location.reload()
     },
-    [isAuthenticated, selectedLanguage],
+    [isAuthenticated, selectedLanguage, showPersistentError, t],
   )
 
   const weekStartMutation = useAccountScopedMutation({
-    mutationFn: (day: 0 | 1) => updateWeekStartDay({ weekStartDay: day }),
+    mutationFn: (day: 0 | 1, intendedAccountId) =>
+      updateWeekStartDay({ weekStartDay: day }, intendedAccountId),
     onMutate: (day) => {
       const previous = profile?.weekStartDay
       patchProfile({ weekStartDay: day })
@@ -81,62 +95,69 @@ export function usePreferenceControls() {
     },
   })
 
-  // react-doctor-disable-next-line query-mutation-missing-invalidation -- optimistic cache update via patchProfile (setQueryData) + onError rollback keeps the profile cache in sync; no dependent query to refetch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const colorSchemeMutation = useAccountScopedMutation({
-    mutationFn: (scheme: string) => updateColorSchemeAction({ colorScheme: scheme }),
-    onMutate: (scheme) => {
-      const previous = profile?.colorScheme
-      patchProfile({ colorScheme: scheme })
+  const clockFormatMutation = useAccountScopedMutation({
+    mutationFn: (uses24HourClock: boolean, intendedAccountId) =>
+      updateClockFormat({ uses24HourClock }, intendedAccountId),
+    onMutate: (uses24HourClock) => {
+      const previous = profile?.uses24HourClock
+      patchProfile({ uses24HourClock })
       return { previous }
     },
-    onError: (_err, _scheme, context) => {
-      if (context?.previous !== undefined) {
-        patchProfile({ colorScheme: context.previous })
-        if (context.previous) {
-          applyScheme(context.previous as ColorScheme)
-        }
-      }
+    onError: (_error, _value, context) => {
+      patchProfile({ uses24HourClock: context?.previous })
     },
   })
 
-  function handleSchemeChange(scheme: ColorScheme) {
-    if (!profile?.hasProAccess && scheme !== 'purple') {
-      setActivePicker(null)
-      router.push('/upgrade')
-      return
-    }
-    applyScheme(scheme)
-    colorSchemeMutation.mutate(scheme)
-  }
+  const timeZoneMutation = useAccountScopedMutation({
+    mutationFn: (timeZone: string, intendedAccountId) =>
+      updateTimezone({ timeZone }, intendedAccountId),
+    onMutate: (timeZone) => {
+      const previous = profile?.timeZone ?? null
+      patchProfile({ timeZone })
+      return { previous }
+    },
+    onError: (_error, _timeZone, context) => {
+      patchProfile({ timeZone: context?.previous ?? null })
+    },
+    onSettled: async () => {
+      await queryClient.cancelQueries({ queryKey: calendarKeys.all })
+      await queryClient.invalidateQueries({ queryKey: calendarKeys.all })
+      await queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
+      await queryClient.invalidateQueries({ queryKey: habitKeys.all })
+    },
+  })
 
   function handleThemeModeChange(mode: ThemeMode) {
     if (mode === currentTheme) return
     applyTheme(mode)
   }
 
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState<boolean>(() => {
-    if (typeof localStorage === 'undefined') return false
-    return readShowGeneralOnToday()
-  })
+  const [showGeneralPreference, setShowGeneralPreference] = useState(() => ({
+    accountId,
+    value: readShowGeneralOnToday(),
+  }))
+  const showGeneralOnToday = showGeneralPreference.accountId === accountId
+    ? showGeneralPreference.value
+    : readShowGeneralOnToday()
 
   function toggleShowGeneral() {
     const next = !showGeneralOnToday
-    setShowGeneralOnToday(next)
+    setShowGeneralPreference({ accountId, value: next })
     writeShowGeneralOnToday(next)
   }
 
   return {
     profile,
-    currentScheme,
     currentTheme,
     activePicker,
     setActivePicker,
     selectedLanguage,
     showGeneralOnToday,
     handleLanguageChange,
-    handleSchemeChange,
     handleThemeModeChange,
     toggleShowGeneral,
+    timeZoneMutation,
     weekStartMutation,
+    clockFormatMutation,
   }
 }

@@ -8,9 +8,8 @@ export function isCalendarPromptCriteriaMet(
   return !!(
     profile &&
     profile.hasCompletedOnboarding &&
-    profile.hasCompletedTour &&
     !profile.hasImportedCalendar &&
-    pathname !== '/calendar-sync'
+    pathname !== '/calendar'
   )
 }
 
@@ -26,7 +25,6 @@ export function isImportPromptCriteriaMet(
   return !!(
     profile &&
     profile.hasCompletedOnboarding &&
-    profile.hasCompletedTour &&
     !profile.hasSeenImportPrompt &&
     !context.calendarPromptCriteriaMet &&
     !context.showCalendarPrompt &&

@@ -1,12 +1,34 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { personalText } from '@/__tests__/support/personal-text'
+import userEvent from '@testing-library/user-event'
+import type { Locator } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { Sheet } from '@/components/ui/sheet'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import type { CalendarSyncEvent } from '@orbit/shared'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
+import { plural as resolvePlural } from '@orbit/shared/utils/plural'
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
-import { toast } from 'sonner'
+import { useRef, useState } from 'react'
+const toastError = vi.hoisted(() => vi.fn())
+const toastSuccess = vi.hoisted(() => vi.fn())
 
+
+let countLocale: 'en' | 'pt-BR' | null = null
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    if (key === 'calendar.eventsFound' && countLocale) return (countLocale === 'pt-BR' ? ptBR : en).calendar.eventsFound.replaceAll('{count}', String(params?.count))
     if (params) return `${key}:${JSON.stringify(params)}`
     return key
   },
@@ -33,7 +55,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/lib/plural', () => ({
-  plural: (text: string) => text,
+  plural: (text: string, count: number) => resolvePlural(text, count),
 }))
 
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
@@ -82,6 +104,8 @@ let mockAutoSyncState: {
       }
     | undefined
   isLoading: boolean
+  isError: boolean
+  refetch: ReturnType<typeof vi.fn>
 } = {
   data: {
     enabled: false,
@@ -90,6 +114,8 @@ let mockAutoSyncState: {
     hasGoogleConnection: true,
   },
   isLoading: false,
+  isError: false,
+  refetch: vi.fn(),
 }
 let mockSuggestions: { data: unknown[] | undefined; isLoading: boolean } = {
   data: [],
@@ -112,6 +138,7 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
   }),
   useDismissCalendarSuggestion: () => ({
     mutate: mockDismissSuggestion,
+    mutateAsync: mockDismissSuggestion,
     isPending: false,
   }),
 }))
@@ -208,25 +235,34 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   }
 })
 
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError, showSuccess: toastSuccess }) }))
 
 let mockFetchResponse: { ok: boolean; status: number; json: () => Promise<unknown> } | null = null
 
 const originalFetch = globalThis.fetch
 
 
-import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
+import { useTranslations } from 'next-intl'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
-function renderPage() {
+function CalendarSyncScreen() {
+  const [action, setAction] = useState<CalendarImportActionState | null>(null)
+  const actionRef = useRef<CalendarImportActionHandle>(null)
+  const t = useTranslations()
+  return <>
+    <div data-testid="sheet-body">
+      <CalendarImportContent reviewMode={mockSearchParams.get('mode') === 'review'} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} />
+    </div>
+    {action ? <div data-testid="sheet-actions"><button disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</button></div> : null}
+  </>
+}
+
+function renderPage(inSheet = false) {
   const queryClient = new QueryClient()
   const view = render(
     <QueryClientProvider client={queryClient}>
-      <CalendarSyncPage />
+      {inSheet ? <Sheet title="calendar.calendars.title" onClose={() => {}}><CalendarSyncScreen /></Sheet> : <CalendarSyncScreen />}
     </QueryClientProvider>,
   )
   return { ...view, queryClient }
@@ -241,6 +277,7 @@ function setNavigatorOnline(value: boolean) {
 
 describe('CalendarSyncPage', () => {
   beforeEach(() => {
+    countLocale = null
     mockProfile = { id: 'u1', hasProAccess: true }
     mockHasProAccess = true
     mockPush.mockClear()
@@ -256,13 +293,15 @@ describe('CalendarSyncPage', () => {
         hasGoogleConnection: true,
       },
       isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
     }
     mockSuggestions = { data: [], isLoading: false }
     mockSetAutoSync.mockClear()
     mockRunSyncNow.mockClear()
     mockDismissSuggestion.mockClear()
     mockGoogleAssign.mockClear()
-    vi.mocked(toast.error).mockClear()
+    vi.mocked(toastError).mockClear()
     setNavigatorOnline(true)
 
     globalThis.fetch = vi.fn().mockImplementation(() => {
@@ -279,24 +318,219 @@ describe('CalendarSyncPage', () => {
     globalThis.fetch = originalFetch
   })
 
+
+  describe('complete event text before import', () => {
+    const longEvent: CalendarSyncEvent = {
+      id: 'long-event',
+      title: `Planning the weekly training schedule and reviewing every commitment ${'UnbrokenTitle'.repeat(20)}`,
+      calendarName: `The shared calendar for family routines and work commitments ${'UnbrokenCalendar'.repeat(20)}`,
+      description: `Review the complete agenda before deciding whether to import this event. ${'Include every preparation step and follow-up commitment. '.repeat(30)}${'UnbrokenDescription'.repeat(20)}`,
+      startDate: '2026-07-01', startTime: '09:00', endTime: '10:00',
+      isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY', reminders: [10],
+    }
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+    let stylesheet: string
+
+    registerChromeLaunchHook(beforeAll, async (launch) => {
+      browserLaunch = launch
+      browser = await launch
+    })
+    beforeAll(async () => {
+      const source = resolve(process.cwd(), 'app/globals.css')
+      stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    })
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each((['pt-BR', 'en'] as const).flatMap((locale) => [2, 20, 100].map((count) => ({ locale, count }))))('keeps $count events on one line beside select all in $locale at 320', async ({ locale, count }) => {
+      countLocale = locale
+      const events = Array.from({ length: count }, (_, index) => createMockCalendarSyncEvent({ id: `count-${index}`, title: `Event ${index}`, isRecurring: false, recurrenceRule: null }))
+      mockFetchResponse = { ok: true, status: 200, json: () => Promise.resolve(events) }
+      renderPage(true)
+      await screen.findByText(personalText('Event 0'))
+      const row = screen.getByTestId('section-heading-row')
+      const expected = `${count} ${locale === 'pt-BR' ? 'eventos' : 'events'}`
+      expect(row.querySelector('h2')?.textContent).toBe(expected)
+      const page = await browser.newPage({ viewport: { width: 320, height: 900 } })
+      try {
+        const portal = document.querySelector('.orbit-sheet-portal')!
+        await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.getByTestId('section-heading-row').getByRole('heading').evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const fragments = [...range.getClientRects()]
+          return { lines: bounds.height / Number.parseFloat(getComputedStyle(element).lineHeight), textWidth: fragments[0]!.width, measure: bounds.width, contentMeasure: element.parentElement!.getBoundingClientRect().width }
+        })
+        process.stdout.write(`${JSON.stringify({ platform: 'web', locale, count, ...geometry })}\n`)
+        expect(geometry.contentMeasure).toBe(272)
+        expect(geometry.measure).toBe(216)
+        expect(geometry.lines).toBe(1)
+        expect(geometry.textWidth).toBeLessThanOrEqual(geometry.measure)
+      } finally { await page.close() }
+    })
+
+    function provideEvents(review: boolean, blocked: boolean, rowEvent: CalendarSyncEvent = longEvent) {
+      const event = blocked ? { ...rowEvent, isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null } : rowEvent
+      const events = [event, { ...longEvent, id: 'short-event', title: 'Short event', calendarName: null, description: null }]
+      if (review) {
+        mockSearchParams.set('mode', 'review')
+        mockSuggestions = { data: events.map((entry) => ({ id: `suggestion-${entry.id}`, event: entry })), isLoading: false }
+      } else {
+        mockFetchResponse = { ok: true, status: 200, json: () => Promise.resolve(events) }
+      }
+    }
+
+    async function expectInteractivePaint(row: Locator, state: string, blocked: boolean) {
+      const shape = await row.locator('[data-press-fill]').evaluate((element) => {
+        const style = getComputedStyle(element)
+        return { radius: style.borderRadius, overflowX: style.overflowX, overflowY: style.overflowY }
+      })
+      expect(shape).toEqual({ radius: '12px', overflowX: 'hidden', overflowY: 'hidden' })
+      if (state === 'rest' || blocked) return
+      const fills = await row.evaluate((element) => {
+        const reference = document.createElement('span')
+        reference.style.backgroundColor = 'var(--bg-hover)'
+        element.append(reference)
+        const fills = { actual: getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor, expected: getComputedStyle(reference).backgroundColor }
+        reference.remove()
+        return fills
+      })
+      expect(fills.actual).toBe(fills.expected)
+      const clearance = await row.evaluate((element) => {
+        const fill = element.querySelector('[data-press-fill]')!.getBoundingClientRect()
+        const content = element.parentElement!.querySelector('[data-slot="list-row-content"]')!.getBoundingClientRect()
+        return { leading: content.left - fill.left, trailing: fill.right - element.getBoundingClientRect().right }
+      })
+      expect(clearance.leading).toBeGreaterThanOrEqual(8)
+      expect(clearance.trailing).toBeGreaterThanOrEqual(8)
+      if (state === 'press') expect(await row.getAttribute('data-contrast-pressed')).toBe('true')
+    }
+
+    it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].flatMap((selected) =>
+      [false, true].map((blocked) => ({ mode, selected, blocked })),
+    )))('keeps painted row text readable in $mode, selected: $selected, blocked: $blocked', async ({ mode, selected, blocked }) => {
+      const contrastEvent = { ...longEvent, title: 'Planning the weekly training schedule', calendarName: 'Work calendar', description: 'Review every preparation step before importing.' }
+      provideEvents(true, blocked, contrastEvent)
+      const { container } = renderPage()
+      await screen.findByText(personalText(contrastEvent.title))
+      const row = screen.getByRole('button', { name: new RegExp('Planning the weekly training') })
+      if (!selected && !blocked) fireEvent.click(row)
+      const page = await browser.newPage({ viewport: { width: 412, height: 900 } })
+      try {
+        const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
+        await page.setContent(`<style>${stylesheet} :root { ${theme} }</style><div class="${mode}" style="background:var(--bg-sheet)">${container.innerHTML}</div>`)
+        const paintedRow = page.getByRole('button', { name: new RegExp('Planning the weekly training') })
+        for (const state of ['rest', 'hover', 'press']) {
+          if (state !== 'rest') await paintedRow.hover()
+          if (state === 'press') {
+            const center = await paintedRow.evaluate((element) => {
+              element.addEventListener('pointerdown', () => { element.setAttribute('data-contrast-pressed', 'true') }, { once: true })
+              const bounds = element.getBoundingClientRect()
+              return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+            })
+            await page.mouse.move(center.x, center.y)
+            await page.mouse.down()
+          }
+          await paintedRow.evaluate(async (element) => {
+            await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished))
+          })
+          await expectInteractivePaint(paintedRow, state, blocked)
+          const pairs = await paintedRow.evaluate((element) => {
+            const content = element.parentElement!.querySelector('[data-personal-text-content]')!
+            return Array.from(content.querySelectorAll('span'))
+            .filter((field) => Array.from(field.childNodes).some((child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim()))
+            .map((field) => {
+              const layers: string[] = []
+              for (let surface: HTMLElement | null = field; surface; surface = surface.parentElement) {
+                layers.unshift(getComputedStyle(surface).backgroundColor)
+                if (surface === element.parentElement) layers.unshift(getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor)
+              }
+              return { text: field.textContent, color: getComputedStyle(field).color, layers }
+            })
+          })
+          expect(pairs.length).toBeGreaterThanOrEqual(7)
+          for (const pair of pairs) {
+            expect.soft(contrastOnSurface(pair.color, pair.layers), `${mode}, selected: ${selected}, blocked: ${blocked}, state: ${state}, ${pair.text.slice(0, 80)}, ${pair.color} on ${pair.layers.join(' over ')}`).toBeGreaterThanOrEqual(4.5)
+          }
+          if (state === 'press') await page.mouse.up()
+        }
+      } finally { await page.close() }
+    })
+
+    it.each([
+      [320, false, false], [412, true, false], [320, true, true], [1200, false, false],
+    ])('wraps all full values at %ipx, review: %s, blocked: %s', async (width, review, blocked) => {
+      provideEvents(review, blocked)
+      const { container } = renderPage()
+      await screen.findByText(personalText(longEvent.title))
+      const disclosure = screen.getAllByRole('button', { name: 'contextMenu.viewDetails' })[0]!
+      expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(disclosure)
+      expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+      const controlled = document.getElementById(disclosure.getAttribute('aria-controls')!)!
+      expect(controlled.querySelector('[data-personal-text-expanded]')).toHaveTextContent(longEvent.title)
+      expect(screen.getAllByText(personalText(longEvent.title))).toHaveLength(1)
+      expect(screen.queryByText(longEvent.description!)).not.toBeInTheDocument()
+      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div style="width: min(100%, 480px)">${container.innerHTML}</div>`)
+        await loadAppFonts(page)
+        for (const value of [longEvent.title, longEvent.calendarName!]) {
+          const field = page.locator('[data-calendar-event-disclosure]').getByText(value, { exact: true })
+          const geometry = await field.evaluate((element) => {
+            const bounds = element.getBoundingClientRect()
+            const style = getComputedStyle(element)
+            const range = document.createRange()
+            range.selectNodeContents(element)
+            return {
+              height: bounds.height,
+              lineHeight: Number.parseFloat(style.lineHeight),
+              textInside: [...range.getClientRects()].every((rect) => rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1 && rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1),
+              horizontalOverflow: element.scrollWidth > element.clientWidth + 1,
+            }
+          })
+          expect(geometry.height, value).toBeGreaterThan(geometry.lineHeight)
+          expect(await field.getAttribute('data-personal-text')).toBe('')
+          expect(geometry.horizontalOverflow, value).toBe(false)
+        }
+      } finally { await page.close() }
+      const row = screen.getByRole('button', { name: new RegExp('Planning the weekly training') })
+      expect(row).toHaveAttribute('aria-pressed', blocked ? 'false' : 'true')
+      if (blocked) {
+        expect(row).toBeDisabled()
+        expect(row).toHaveAccessibleDescription('calendar.importIssue.utcUntilOffsetShift')
+      } else {
+        row.focus()
+        expect(row).toHaveFocus()
+        const user = userEvent.setup()
+        await user.keyboard(' ')
+        expect(row).toHaveAttribute('aria-pressed', 'false')
+        await user.keyboard('{Enter}')
+        expect(row).toHaveAttribute('aria-pressed', 'true')
+      }
+      if (review) {
+        fireEvent.click(screen.getAllByRole('button', { name: 'calendar.autoSync.dismissSuggestion' })[0]!)
+        expect(mockDismissSuggestion).toHaveBeenCalledWith({ id: 'suggestion-long-event' })
+        expect(row).toHaveAttribute('aria-pressed', blocked ? 'false' : 'true')
+      }
+      expect(mockBulkMutate).not.toHaveBeenCalled()
+    })
+  })
+
   it('renders without crashing', () => {
     const { container } = renderPage()
     expect(container).toBeTruthy()
   })
 
-  it('renders the page header with title and back button', () => {
-    renderPage()
-    expect(screen.getAllByText('calendar.title').length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
-  })
-
-
-  it('redirects non-Pro users to upgrade', async () => {
+  it('shows the Pro gate without redirecting', async () => {
     mockHasProAccess = false
     mockProfile = { id: 'u1', hasProAccess: false }
     renderPage()
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/upgrade')
+      expect(screen.getByText('calendar.autoSync.proRequired')).toBeVisible()
+      expect(mockReplace).not.toHaveBeenCalled()
     })
   })
 
@@ -304,7 +538,7 @@ describe('CalendarSyncPage', () => {
   it('shows loading state initially for Pro users', () => {
     globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {})) as unknown as typeof fetch
     renderPage()
-    expect(screen.getByText('calendar.fetchingEvents')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'calendar.fetchingEvents' })).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
@@ -323,6 +557,34 @@ describe('CalendarSyncPage', () => {
     expect(screen.getByText('calendar.notConnectedDesc')).toBeInTheDocument()
     expect(screen.getByText('auth.signInWithGoogle')).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')[0]).toHaveTextContent('auth.signInWithGoogle')
+    const linkGlyph = screen.getByRole('status').querySelector('svg.tabler-icon-link')
+    expect(linkGlyph?.getAttribute('class')).toContain('text-[var(--fg-1)]')
+    expect(linkGlyph?.parentElement).toHaveStyle({ background: 'var(--bg-well)' })
+  })
+
+  it('shows the connection action in a disconnected review sheet', () => {
+    mockSearchParams.set('mode', 'review')
+    mockAutoSyncState.data = {
+      enabled: false, status: 'ReconnectRequired', lastSyncedAt: null, hasGoogleConnection: false,
+    }
+
+    renderPage()
+
+    expect(screen.getByText('calendar.notConnectedTitle')).toBeInTheDocument()
+    expect(screen.getByText('auth.signInWithGoogle')).toBeInTheDocument()
+  })
+
+  it('shows retry when connection status fails instead of claiming disconnection', () => {
+    mockAutoSyncState.data = undefined
+    mockAutoSyncState.isError = true
+    renderPage()
+
+    expect(screen.getByText('calendar.errorTitle')).toBeInTheDocument()
+    expect(screen.queryByText('calendar.notConnectedTitle')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('calendar.retry'))
+    expect(mockAutoSyncState.refetch).toHaveBeenCalled()
   })
 
   it('requests renewed Google calendar consent from the not-connected state', async () => {
@@ -339,7 +601,7 @@ describe('CalendarSyncPage', () => {
     fireEvent.click(connectButton)
 
     expect(mockGoogleAssign).toHaveBeenCalledWith('/api/auth/google/start?purpose=calendar')
-    expect(sessionStorage.getItem('auth_return_url')).toBe('/calendar-sync')
+    expect(sessionStorage.getItem('auth_return_url')).toBe('/calendar?import=1')
     vi.unstubAllGlobals()
   })
 
@@ -372,11 +634,174 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+      expect(screen.getByText(personalText('Morning Workout'))).toBeInTheDocument()
     })
-    expect(screen.getByText('Team Meeting')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Team Meeting'))).toBeInTheDocument()
     expect(document.body.textContent).toContain('calendar.eventsFound')
     expect(screen.getAllByRole('button').some((button) => button.getAttribute('aria-pressed') === 'true')).toBe(true)
+  })
+
+  it('adapts and imports a second Monday suggestion as a monthly habit', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [
+        {
+          id: 'suggestion-second-monday',
+          event: {
+            id: 'event-second-monday',
+            title: 'Second Monday review',
+            description: null,
+            startDate: '2026-09-14',
+            startTime: null,
+            endTime: null,
+            isRecurring: true,
+            recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO',
+            reminders: [],
+          },
+        },
+      ],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    const row = await screen.findByRole('button', { name: /Second Monday review/ })
+    expect(row).not.toBeDisabled()
+    expect(screen.getByText('calendar.recurrenceMonthly')).toBeVisible()
+    expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
+    const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
+    expect(importButton).not.toBeDisabled()
+    fireEvent.click(importButton!)
+    expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({ dueDate: '2026-09-14', frequencyUnit: 'Month', frequencyQuantity: 1, days: null })],
+    }), expect.anything())
+  })
+
+  it('enables and imports an alternating weekday suggestion', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [{
+        id: 'suggestion-alternate-weeks',
+        event: {
+          id: 'event-alternate-weeks',
+          title: 'Alternate week training',
+          description: null,
+          startDate: '2026-09-21',
+          startTime: null,
+          endTime: null,
+          isRecurring: true,
+          recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE',
+          reminders: [],
+        },
+      }],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /Alternate week training/ })).not.toBeDisabled()
+    const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
+    expect(importButton).not.toBeDisabled()
+    fireEvent.click(importButton!)
+    expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({
+        days: ['Monday', 'Wednesday'],
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        intervalWeeks: 2,
+      })],
+    }), expect.anything())
+  })
+
+  it.each([
+    ['a monthly weekday interval', 'RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO', '2026-09-21', 1],
+    ['a weekday interval above the API bound', 'RRULE:FREQ=WEEKLY;INTERVAL=53;BYDAY=MO', '2026-09-21', 1],
+    ['a different active-week partition', 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO', '2026-09-27', 0],
+  ])('adapts %s in review', async (_name, recurrenceRule, startDate, weekStartDay) => {
+    mockProfile = { id: 'u1', hasProAccess: true, weekStartDay }
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = { data: [{
+      id: 'suggestion-unsupported',
+      event: { id: 'event-unsupported', title: 'Unsupported training', description: null,
+        startDate, startTime: null, endTime: null, isRecurring: true, recurrenceRule, reminders: [] },
+    }], isLoading: false }
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /Unsupported training/ })).not.toBeDisabled()
+    expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
+    const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
+    expect(importButton).not.toBeDisabled()
+    fireEvent.click(importButton!)
+    const expected = recurrenceRule.includes('MONTHLY')
+      ? { frequencyUnit: 'Month', frequencyQuantity: 2, days: null }
+      : recurrenceRule.includes('53')
+        ? { frequencyUnit: 'Week', frequencyQuantity: 53, days: null }
+        : { frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Sunday', 'Monday'], intervalWeeks: 2 }
+    expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({ habits: [expect.objectContaining(expected)] }), expect.anything())
+  })
+
+  it('adapts and imports a finite month-end suggestion', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [
+        {
+          id: 'suggestion-month-end',
+          event: {
+            id: 'event-month-end',
+            title: 'Month end close',
+            description: null,
+            startDate: '2026-01-31',
+            startTime: null,
+            endTime: null,
+            isRecurring: true,
+            recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3',
+            reminders: [],
+          },
+        },
+      ],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /Month end close/ })).not.toBeDisabled()
+    expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
+    fireEvent.click((await screen.findByText(/calendar.importButton/)).closest('button')!)
+    expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({ frequencyUnit: 'Month', frequencyQuantity: 1, endDate: '2026-03-31' })],
+    }), expect.anything())
+  })
+
+  it('keeps the actionable hover treatment on a row that can still be imported', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [
+        {
+          id: 'suggestion-weekly',
+          event: {
+            id: 'event-weekly',
+            title: 'Weekly review',
+            description: null,
+            startDate: '2026-09-14',
+            startTime: null,
+            endTime: null,
+            isRecurring: true,
+            recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=MO',
+            reminders: [],
+          },
+        },
+      ],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    const hitArea = await screen.findByRole('button', { name: /Weekly review/ })
+    expect(hitArea).not.toBeDisabled()
+    expect(hitArea.className).toContain('enabled:hover:bg-[var(--bg-hover)]')
+    expect(hitArea.className).toContain('rounded-[12px]')
+    expect(hitArea.parentElement?.className).not.toContain('hover:bg-')
   })
 
   it('shows select all / deselect all toggle', async () => {
@@ -409,11 +834,11 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Event 1')).toBeInTheDocument()
+      expect(screen.getByText(personalText('Event 1'))).toBeInTheDocument()
     })
 
     expect(screen.getByLabelText('calendar.deselectAll')).toBeInTheDocument()
-    expect(document.body.textContent).toContain('calendar.importButton')
+    expect(await screen.findByText(/calendar.importButton/)).toBeInTheDocument()
   })
 
   it('renders import button with selected count', async () => {
@@ -461,7 +886,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Daily Standup')).toBeInTheDocument()
+      expect(screen.getByText(personalText('Daily Standup'))).toBeInTheDocument()
     })
     expect(screen.getByText('calendar.recurrenceDaily')).toBeInTheDocument()
   })
@@ -476,14 +901,66 @@ describe('CalendarSyncPage', () => {
   it('shows the offline state instead of the wizard when the browser is offline', () => {
     setNavigatorOnline(false)
     renderPage()
-    expect(screen.getByText('offline.title')).toBeInTheDocument()
-    expect(screen.getByText('offline.description')).toBeInTheDocument()
+    expect(screen.getByText('offline.calendar.title')).toBeInTheDocument()
+    expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
     expect(screen.queryByText('calendar.fetchingEvents')).not.toBeInTheDocument()
   })
 
-  it('lists imported habits on the done step and toasts partial failures', async () => {
+  it('keeps loaded events visible and refuses import after disconnect', async () => {
     const events = [
       { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(events),
+    }) as unknown as typeof fetch
+
+    renderPage()
+    await screen.findByText(personalText('Morning Workout'))
+    const offlineStatus = screen.getByRole('status')
+    setNavigatorOnline(false)
+    act(() => { globalThis.dispatchEvent(new Event('offline')) })
+
+    expect(screen.getByText(personalText('Morning Workout'))).toBeVisible()
+    const refusals = screen.getAllByText('offline.calendar.reason')
+    expect(refusals).toHaveLength(1)
+    expect(offlineStatus).toHaveTextContent('offline.calendar.reason')
+    const importButton = (await screen.findByText('calendar.importButton:{"count":1}')).closest('button')!
+    expect(screen.getByTestId('sheet-body')).toContainElement(refusals[0]!)
+    expect(screen.getByTestId('sheet-actions')).toContainElement(importButton)
+    expect(screen.getByTestId('sheet-body')).not.toContainElement(importButton)
+    expect(importButton).toBeDisabled()
+    expect(mockBulkMutate).not.toHaveBeenCalled()
+  })
+
+  it('keeps loaded review suggestions visible and refuses writes after disconnect', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [{
+        id: 'suggestion-1',
+        event: { id: 'e1', title: 'Team meeting', description: null, startDate: '2025-06-01', startTime: '09:00', endTime: '10:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+      }],
+      isLoading: false,
+    }
+
+    renderPage()
+    await screen.findByText(personalText('Team meeting'))
+    setNavigatorOnline(false)
+    act(() => { globalThis.dispatchEvent(new Event('offline')) })
+
+    expect(screen.getByText(personalText('Team meeting'))).toBeVisible()
+    expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' })).toBeDisabled()
+    expect(mockBulkMutate).not.toHaveBeenCalled()
+    expect(mockDismissSuggestion).not.toHaveBeenCalled()
+  })
+
+  it('lists imported habits on the done step and keeps partial failures visible', async () => {
+    const habitName = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana'
+    const events = [
+      { id: 'e1', title: habitName, description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+      { id: 'e3', title: 'Read', description: null, startDate: '2025-06-01', startTime: '12:00', endTime: '13:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
       { id: 'e2', title: 'Team Meeting', description: null, startDate: '2025-06-01', startTime: '10:00', endTime: '11:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
     ]
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -502,7 +979,8 @@ describe('CalendarSyncPage', () => {
       ) => {
         options.onSuccess({
           results: [
-            { status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null },
+            { status: 'Success', habitId: 'h1', title: habitName, error: null },
+            { status: 'Success', habitId: 'h2', title: 'Read', error: null },
             { status: 'Failed', habitId: null, title: 'Team Meeting', error: 'boom' },
           ],
         })
@@ -511,17 +989,109 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+      expect(screen.getByText(personalText(habitName))).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText(/calendar\.importButton/))
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
 
     await waitFor(() => {
       expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
     })
-    expect(screen.getByText('Morning Workout')).toBeInTheDocument()
-    expect(screen.queryByText('Team Meeting')).not.toBeInTheDocument()
-    expect(toast.error).toHaveBeenCalledWith('calendar.importPartialFailure:{"count":1}')
+    expect(screen.getByText(personalText(habitName))).toBeInTheDocument()
+    const importedHabit = screen.getByRole('button', { name: habitName })
+    const group = importedHabit.closest('.orbit-list-row-shell')!.parentElement!.parentElement!
+    expect(Array.from(group.querySelectorAll('[aria-hidden="true"]')).filter((node) => (node as HTMLElement).style.height === '1px')).toHaveLength(1)
+    expect(importedHabit).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(importedHabit)
+    expect(importedHabit).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText(personalText(habitName))).toBeVisible()
+    expect(screen.queryByText(personalText('Team Meeting'))).not.toBeInTheDocument()
+    expect(screen.getAllByRole('alert').some((alert) => alert.textContent === 'calendar.importPartialFailure:{"count":1}')).toBe(true)
+    expect(toastError).not.toHaveBeenCalled()
+  })
+
+  it('drops the import result when another account replaces the tab', async () => {
+    const events = [
+      { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(events),
+    }) as unknown as typeof fetch
+    holdAccount('user-1')
+    mockBulkMutate.mockImplementation(
+      (
+        _variables: unknown,
+        options: {
+          onSuccess: (result: {
+            results: { status: string; habitId: string | null; title: string | null; error: string | null }[]
+          }) => void
+        },
+      ) => {
+        options.onSuccess({
+          results: [{ status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null }],
+        })
+      },
+    )
+
+    renderPage()
+    await waitFor(() => {
+      expect(screen.getByText(personalText('Morning Workout'))).toBeInTheDocument()
+    })
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
+    await waitFor(() => {
+      expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
+    })
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
+  })
+
+  it('ignores an old import callback after account replacement', async () => {
+    const events = [
+      { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: () => Promise.resolve(events),
+    }) as unknown as typeof fetch
+    holdAccount('user-1')
+    let finishImport!: (result: { results: { status: string; habitId: string | null; title: string | null; error: string | null }[] }) => void
+    mockBulkMutate.mockImplementation((_variables: unknown, options: { onSuccess: typeof finishImport }) => {
+      finishImport = options.onSuccess
+    })
+    renderPage()
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
+
+    await replaceAccountWith('user-2')
+    finishImport({ results: [
+      { status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null },
+      { status: 'Failed', habitId: null, title: 'Account A event', error: 'failed' },
+    ] })
+
+    expect(toastError).not.toHaveBeenCalled()
+    expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
+  })
+
+  it('does not show a previous account suggestion error after replacement', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [{
+        id: 'sug-1',
+        event: { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+      }],
+      isLoading: false,
+    }
+    holdAccount('user-1')
+    let failDismiss!: (error: Error) => void
+    mockDismissSuggestion.mockImplementationOnce(() => new Promise((_resolve, reject) => { failDismiss = reject }))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'calendar.autoSync.dismissSuggestion' }))
+    await waitFor(() => expect(mockDismissSuggestion).toHaveBeenCalledWith({ id: 'sug-1' }))
+    await replaceAccountWith('user-2')
+    await act(async () => { failDismiss(new Error('old failure')); await Promise.resolve() })
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('invalidates sync suggestions after a review-mode import', async () => {
@@ -560,6 +1130,9 @@ describe('CalendarSyncPage', () => {
     })
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: calendarKeys.syncSuggestions(),
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...calendarKeys.all, 'manual-fetch'],
     })
   })
 })

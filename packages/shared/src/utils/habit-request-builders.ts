@@ -22,6 +22,7 @@ function applyScheduleFields(
   data: HabitFormData,
 ): void {
   if (data.dueDate) req.dueDate = data.dueDate
+  if (data.isFlexible || data.frequencyUnit) req.intervalWeeks = data.intervalWeeks ?? 1
   if (data.isFlexible) {
     req.isFlexible = true
     if (data.frequencyUnit) req.frequencyUnit = data.frequencyUnit
@@ -128,6 +129,7 @@ function applyUpdateScheduleFields(
   if (isOneTime) return
   request.frequencyUnit = data.frequencyUnit ?? undefined
   request.frequencyQuantity = data.frequencyQuantity ?? undefined
+  if (data.isFlexible || data.frequencyUnit) request.intervalWeeks = data.intervalWeeks ?? 1
   if (data.days.length) request.days = data.days
   if (data.endDate) {
     request.endDate = data.endDate
@@ -136,6 +138,12 @@ function applyUpdateScheduleFields(
   }
 }
 
+/**
+ * Writes only the reminder store the edit form is actually editing, so a Save never wipes
+ * the store it left untouched. Reminders live in two mutually-exclusive stores:
+ * `reminderTimes` (minute offsets, used with a due time) and `scheduledReminders` (absolute
+ * times, used without one).
+ */
 function applyUpdateReminderFields(
   request: UpdateHabitRequest,
   data: HabitFormData,

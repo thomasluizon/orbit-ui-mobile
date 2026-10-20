@@ -1,0 +1,596 @@
+'use client'
+
+import { PADDING, SPACING } from '@orbit/shared/theme'
+
+
+import { ActionRow } from '@/components/ui/action-row'
+
+import { useEffect, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { useQueryClient } from '@tanstack/react-query'
+import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
+import { openApiKeyScopeOrStartStepUp, submitApiKeyCreation } from '@orbit/shared/utils'
+import type { Profile } from '@orbit/shared/types/profile'
+import { API_KEY_EXPIRY_DEFAULT, apiKeyFormSchema, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
+import { McpCodeClient } from '@/components/profile/mcp-code-client'
+import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { Input } from '@/components/ui/input'
+import { Key } from '@/components/ui/icons'
+import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { ProBadge } from '@/components/ui/pro-badge'
+import { RowList } from '@/components/ui/row-list'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { StepUp } from '@/components/ui/step-up'
+import { Switch } from '@/components/ui/switch'
+import { useDateFormat } from '@/hooks/use-date-format'
+import { useApiKeyManagement } from '@/hooks/use-api-key-management'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { beginStepUpChallenge, clearPendingApiKeyPermission, readPendingApiKeyPermission, rememberApiKeyCreationPermission, readApiKeyExpiryDraft, retainApiKeyExpiryDraft } from '@/lib/step-up-storage'
+import { accountEventApiBase } from '@/lib/account-event-api-base'
+import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
+
+
+interface ProfileApiKeysProps {
+  profile: Profile | undefined
+  unlocked: boolean
+}
+
+function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
+  const t = useTranslations()
+  const { displayDateMedium } = useDateFormat()
+  return (
+    <div className="flex min-w-0 flex-col font-mono text-[12px] leading-[1.4] tracking-[0.02em] tabular-nums text-[var(--fg-3)]" style={{ gap: 8, paddingInline: PADDING.rowInline, paddingBottom: SPACING.s16 }}>
+      <p className="[overflow-wrap:anywhere]" translate={apiKey.scopes.length > 0 ? 'no' : undefined}>{apiKey.scopes.length > 0 ? apiKey.scopes.join(', ') : t('orbitMcp.noScopes')}</p>
+      <p>{apiKey.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}</p>
+      <dl className="flex flex-col tabular-nums" style={{ gap: 4 }}>
+        <div className="flex flex-wrap" style={{ gap: 8 }}>
+          <dt>{t('orbitMcp.created')}</dt>
+          <dd><time dateTime={apiKey.createdAtUtc}>{displayDateMedium(apiKey.createdAtUtc)}</time></dd>
+        </div>
+        <div className="flex flex-wrap" style={{ gap: 8 }}>
+          <dt>{t('orbitMcp.lastUsed')}</dt>
+          <dd>{apiKey.lastUsedAtUtc
+            ? <time dateTime={apiKey.lastUsedAtUtc}>{displayDateMedium(apiKey.lastUsedAtUtc)}</time>
+            : t('orbitMcp.never')}</dd>
+        </div>
+      </dl>
+      {apiKey.expiresAtUtc ? <p>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</p> : null}
+    </div>
+  )
+}
+
+interface ApiKeyListProps {
+  apiKeys: ApiKey[]
+  isLoading: boolean
+  loadError: Error | null
+  onRevoke: (id: string) => void
+  onRetry: () => void
+}
+
+function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readonly<ApiKeyListProps>) {
+  const t = useTranslations()
+  if (isLoading) {
+    return <p role="status" className="text-sm text-[var(--fg-3)]">{t('common.loading')}</p>
+  }
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-start" style={{ gap: 8 }}>
+        <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('orbitMcp.apiKeysError')}</p>
+        <PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+      </div>
+    )
+  }
+  if (apiKeys.length === 0) {
+    return <p className="text-sm text-[var(--fg-3)]">{t('orbitMcp.noKeys')}</p>
+  }
+
+  return (
+    <RowList>
+      {apiKeys.map((apiKey) => (
+        <div key={apiKey.id}>
+          <ListRow
+            compact
+            icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
+            title={apiKey.name}
+            textMode="personal"
+            wrapTitle
+            value={`${apiKey.keyPrefix}…`}
+            chevron={false}
+            action={{
+              icon: 'trash',
+              label: t('profile.apiKeys.revokeNamed', { name: apiKey.name }),
+              danger: true,
+              onPress: () => onRevoke(apiKey.id),
+            }}
+          />
+          <ApiKeyDetails apiKey={apiKey} />
+        </div>
+      ))}
+    </RowList>
+  )
+}
+
+interface CreateKeySheetProps {
+  scoped: boolean
+  busy: boolean
+  error: string | null
+  onClose: () => void
+  expiresAt: string
+  onExpiryChange: (value: string) => void
+  onCreate: (
+    request: ApiKeyCreateRequest,
+    onCreateGrantRequired: () => Promise<void>,
+  ) => Promise<ApiKeyCreateResponse | null>
+  onCreateGrantRequired: () => void
+  onCreated: (createdKey: ApiKeyCreateResponse) => void
+}
+
+function CreateKeySheet({
+  scoped,
+  busy,
+  error,
+  onClose,
+  onCreate,
+  onCreateGrantRequired,
+  expiresAt,
+  onExpiryChange,
+  onCreated,
+}: Readonly<CreateKeySheetProps>) {
+  const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
+  const [scope, setScope] = useAccountScopedState('')
+  const [name, setName] = useAccountScopedState('')
+  const [nameFocusRequest, setNameFocusRequest] = useAccountScopedState(0)
+  const [expiryFocusRequest, setExpiryFocusRequest] = useAccountScopedState(0)
+  const expiryError = expiryFocusRequest > 0 && !validateApiKeyExpiry(expiresAt).valid
+  const nameError = nameFocusRequest > 0 ? getApiKeyNameError(name) : null
+  const dismissGuard = useDismissGuard({
+    isDirty: name !== '' || scope !== '' || expiresAt !== '',
+    onDismiss: () => closeSheet(onClose),
+  })
+  async function submit() {
+    if (busy) return
+    const form = apiKeyFormSchema.safeParse({ name, expiresAt })
+    if (!form.success) {
+      if (getApiKeyNameError(name)) setNameFocusRequest((request) => request + 1)
+      else setExpiryFocusRequest((request) => request + 1)
+      return
+    }
+    const trimmedScope = scope.trim()
+    if (scoped && !trimmedScope) return
+    const result = await onCreate(
+      { name: form.data.name, ...(scoped ? { scopes: [trimmedScope] } : {}), expiresAtUtc: form.data.expiresAt },
+      () => Promise.resolve(closeSheet(onCreateGrantRequired)),
+    )
+    if (result) closeSheet(() => onCreated(result))
+  }
+
+  return (
+    <>
+      <Sheet
+        ref={sheetRef}
+        title={t(scoped ? 'profile.apiKeys.scopeTitle' : 'profile.apiKeys.create')}
+        onClose={!busy && dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={busy ? undefined : dismissGuard.requestDismiss}
+        actions={(
+          <ActionRow>
+            <PillButton size="sm" variant="ghost" disabled={busy} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
+            <PillButton size="sm" disabled={scoped && !scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
+          </ActionRow>
+        )}
+      >
+        <div className="flex flex-col" style={{ gap: 16 }}>
+          <Input
+            label={t('orbitMcp.keyName')}
+            placeholder={t('orbitMcp.keyNamePlaceholder')}
+            name="api-key-name"
+            autoComplete="off"
+            required
+            value={name}
+            onChange={setName}
+            error={nameError ? t(nameError) : undefined}
+            disabled={busy}
+            autoFocus
+            focusRequest={nameFocusRequest}
+            onSubmit={() => void submit()}
+          />
+          <Input
+            label={t('orbitMcp.expiresAtLabel')}
+            name="api-key-expiry"
+            value={expiresAt}
+            onChange={onExpiryChange}
+            placeholder={t('common.never')}
+            hint={t('orbitMcp.expiryFormatExample')}
+            error={expiryError ? t('orbitMcp.invalidExpiry') : undefined}
+            focusRequest={expiryFocusRequest}
+            autoComplete="off"
+            mono
+            disabled={busy}
+            onSubmit={() => void submit()}
+          />
+          {scoped ? (
+            <Input
+              label={t('profile.apiKeys.scopeLabel')}
+              value={scope}
+              onChange={setScope}
+              disabled={busy}
+              onSubmit={() => void submit()}
+            />
+          ) : null}
+          {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
+        </div>
+      </Sheet>
+      <DiscardChangesSheet
+        open={dismissGuard.showDiscardDialog}
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
+      />
+    </>
+  )
+}
+
+interface RevealSheetProps {
+  createdKey: ApiKeyCreateResponse
+  onClose: () => void
+}
+
+function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
+  const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
+  const [copied, setCopied] = useAccountScopedState(false)
+  const key = createdKey.key
+
+  async function copyKey() {
+    try {
+      await navigator.clipboard.writeText(key)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <Sheet
+      ref={sheetRef}
+      title={t('orbitMcp.revealHeading')}
+      onClose={onClose}
+      actions={<PillButton size="sm" onClick={() => closeSheet()}>{t('orbitMcp.done')}</PillButton>}
+    >
+      <div className="flex flex-col" style={{ gap: 12 }}>
+        <p className="text-sm font-medium text-[var(--status-overdue-text)]">
+          {t('orbitMcp.keyCreatedWarning')}
+        </p>
+        <div className="flex items-center rounded-[12px] bg-[var(--bg-field)]" style={{ gap: 8, padding: SPACING.s16, boxShadow: 'inset 0 0 0 1px var(--border-control)' }}>
+          <code className="min-w-0 flex-1 break-all font-mono text-[12px] text-[var(--fg-2)]">{key}</code>
+          <PillButton size="sm" variant="ghost" onClick={() => void copyKey()}>
+            {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
+          </PillButton>
+        </div>
+      </div>
+    </Sheet>
+  )
+}
+
+interface ApiKeyGateProps {
+  busy: boolean
+  accountReady: boolean
+  error: string | null
+  activeApiKeyCount: number | null | undefined
+  onStartStepUp: () => Promise<void>
+}
+
+function ApiKeyGate({ busy, accountReady, error, activeApiKeyCount, onStartStepUp }: Readonly<ApiKeyGateProps>) {
+  const t = useTranslations()
+  const [showStepUp, setShowStepUp] = useAccountScopedState(false)
+
+  if (!showStepUp) {
+    return (
+      <RowList>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
+        <ListRow
+          compact
+          icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
+          title={t('profile.apiKeys.open')}
+          wrapTitle
+          value={activeApiKeyCount == null ? undefined : activeApiKeyCount === 0
+            ? t('profile.apiKeys.noKeys')
+            : t('profile.apiKeys.activeCount', { count: activeApiKeyCount })}
+          wrapValue
+          onClick={() => setShowStepUp(true)}
+        />
+      </RowList>
+    )
+  }
+
+  return (
+    <>
+      <fieldset disabled={!accountReady} className="m-0 min-w-0 border-0 p-0">
+        <StepUp
+          message={t('profile.apiKeys.stepUpBody')}
+          actionLabel={t('profile.apiKeys.stepUpAction')}
+          busy={busy}
+          onAction={() => void onStartStepUp()}
+        />
+      </fieldset>
+      {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
+
+    </>
+  )
+}
+
+interface ApiKeyAccessContentProps extends ApiKeyGateProps {
+  children: ReactNode
+  hasProAccess: boolean
+  onUpgrade: () => void
+  unlocked: boolean
+}
+
+function ApiKeyAccessContent({
+  busy,
+  accountReady,
+  children,
+  error,
+  activeApiKeyCount,
+  hasProAccess,
+  onStartStepUp,
+  onUpgrade,
+  unlocked,
+}: Readonly<ApiKeyAccessContentProps>) {
+  const t = useTranslations()
+  if (!hasProAccess) {
+    return (
+      <RowList>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 108 controls this label under D42. */}
+        <ListRow
+          compact
+          title={t('profile.apiKeys.unlock')}
+          accessibilityLabel={t('profile.apiKeys.unlock')}
+          textMode="label"
+          value={<ProBadge alwaysVisible label={t('common.proBadge')} />}
+          chevron={false}
+          onClick={onUpgrade}
+        />
+      </RowList>
+    )
+  }
+  if (!unlocked) {
+    return <ApiKeyGate busy={busy} accountReady={accountReady} error={error} activeApiKeyCount={activeApiKeyCount} onStartStepUp={onStartStepUp} />
+  }
+  return children
+}
+
+interface ApiKeyCreateControlsProps {
+  canCreate: boolean
+  creating: boolean
+  isReadOnly: boolean
+  onReadOnlyChange: (checked: boolean) => void
+  onCreate: () => void
+  onCreateScoped: () => void
+  stepUpBusy: boolean
+}
+
+function ApiKeyCreateControls({
+  canCreate,
+  creating,
+  isReadOnly,
+  onReadOnlyChange,
+  onCreate,
+  onCreateScoped,
+  stepUpBusy,
+}: Readonly<ApiKeyCreateControlsProps>) {
+  const t = useTranslations()
+  if (!canCreate) {
+    return <p className="text-sm text-[var(--fg-3)]">{t('orbitMcp.maxKeysReached')}</p>
+  }
+  return (
+    <div className="flex flex-col" style={{ gap: 8 }}>
+      <Switch
+        label={t('orbitMcp.readOnlyKeyLabel')}
+        checked={isReadOnly}
+        disabled={creating || stepUpBusy}
+        onChange={onReadOnlyChange}
+      />
+      <ActionRow>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
+        <PillButton variant="ghost" size="sm" loading={stepUpBusy} disabled={creating || stepUpBusy} onClick={onCreateScoped}>
+          {t('profile.apiKeys.createScoped')}
+        </PillButton>
+        <PillButton
+          variant="secondary"
+          size="sm"
+          disabled={creating || stepUpBusy}
+          loading={stepUpBusy}
+          onClick={onCreate}
+        >
+          {t('profile.apiKeys.create')}
+        </PillButton>
+      </ActionRow>
+    </div>
+  )
+}
+
+function useApiKeyStepUp(isReadOnly: boolean, expiresAt: string) {
+  const router = useRouter()
+  const t = useTranslations()
+  const accountId = useHeldAccountId()
+  const [busy, setBusy] = useAccountScopedState(false)
+  const [error, setError] = useAccountScopedState<string | null>(null)
+
+  async function start() {
+    if (busy || accountId === null) return
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
+
+    setBusy(true)
+    setError(null)
+    try {
+      await requestApiKeyCreationChallenge(intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setError(t('errors.api.accountChanged'))
+        setBusy(false)
+        return
+      }
+      beginStepUpChallenge('keys', accountId)
+      rememberApiKeyCreationPermission(isReadOnly)
+      retainApiKeyExpiryDraft(expiresAt)
+      router.push('/step-up?operation=keys')
+    } catch (error) {
+      setError(getFriendlyErrorMessage(error, t, 'stepUp.requestError'))
+
+      setBusy(false)
+    }
+  }
+
+  return { busy, error, start, accountReady: accountId !== null }
+}
+
+export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysProps>) {
+  const t = useTranslations()
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const hasProAccess = profile?.hasProAccess ?? false
+  const [creationMode, setCreationMode] = useAccountScopedState<'simple' | 'scoped' | null>(null)
+  const [creating, setCreating] = useAccountScopedState(false)
+  const [expiresAt, setExpiresAt] = useAccountScopedState(readApiKeyExpiryDraft)
+  const [isReadOnly, setIsReadOnly] = useAccountScopedState(readPendingApiKeyPermission)
+  const [createdKey, setCreatedKey] = useAccountScopedState<ApiKeyCreateResponse | null>(null)
+  const stepUp = useApiKeyStepUp(isReadOnly, expiresAt)
+
+  useEffect(clearPendingApiKeyPermission, [])
+
+  const management = useApiKeyManagement({
+    hasProAccess: hasProAccess && unlocked,
+    queryClient,
+    t,
+  })
+
+  async function createKey(
+    request: ApiKeyCreateRequest,
+    onCreateGrantRequired: () => Promise<void> = stepUp.start,
+  ) {
+    if (creating) return null
+    return submitApiKeyCreation(request, {
+      getAccountGeneration,
+      setCreating,
+      createKey: (request) => management.handleCreateKey(request, onCreateGrantRequired),
+      retainExpiryDraft: retainApiKeyExpiryDraft,
+    })
+  }
+
+  const revokingKey = management.apiKeys.find((apiKey) => apiKey.id === management.revokingKeyId)
+
+  return (
+    <section
+      data-testid="profile-api-keys"
+      aria-busy={unlocked && management.apiKeysQuery.isLoading}
+      className="flex flex-col"
+      style={{ gap: 8 }}
+    >
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <h2 className="font-sans text-[14px] font-medium text-[var(--fg-2)]">
+          {t('profile.settingsRows.apiKeysMcp')}
+        </h2>
+        <ProBadge alwaysVisible label={t('common.proBadge')} />
+      </div>
+      <p className="font-sans text-[14px] leading-[1.5] text-[var(--fg-3)] [text-wrap:pretty]">
+        {t('profile.apiKeys.description')}
+      </p>
+
+      <ApiKeyAccessContent
+        activeApiKeyCount={profile?.activeApiKeyCount}
+        accountReady={stepUp.accountReady}
+        busy={stepUp.busy}
+        error={stepUp.error}
+        hasProAccess={hasProAccess}
+        onStartStepUp={stepUp.start}
+        onUpgrade={() => router.push('/upgrade?from=%2Fprofile%2Fastra')}
+        unlocked={unlocked}
+      >
+        <>
+          <ApiKeyList
+            apiKeys={management.apiKeys}
+            isLoading={management.apiKeysQuery.isLoading}
+            loadError={management.apiKeysQuery.error}
+            onRevoke={management.setRevokingKeyId}
+            onRetry={() => void management.apiKeysQuery.refetch()}
+          />
+          <ApiKeyCreateControls
+            canCreate={management.canCreateKey}
+            creating={creating}
+            isReadOnly={isReadOnly}
+            onReadOnlyChange={setIsReadOnly}
+            onCreate={() => openApiKeyScopeOrStartStepUp(
+              management.createGrantAvailable,
+              management.clearCreateKeyError,
+              () => setCreationMode('simple'),
+              stepUp.start,
+            )}
+            onCreateScoped={() => openApiKeyScopeOrStartStepUp(
+              management.createGrantAvailable,
+              management.clearCreateKeyError,
+              () => setCreationMode('scoped'),
+              stepUp.start,
+            )}
+            stepUpBusy={stepUp.busy}
+          />
+          {management.createKeyError && !creationMode ? (
+            <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.createKeyError}</p>
+          ) : null}
+          {management.revokeKeyError ? (
+            <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.revokeKeyError}</p>
+          ) : null}
+          {stepUp.error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{stepUp.error}</p> : null}
+          <McpCodeClient endpoint={getMcpEndpointUrl(accountEventApiBase())} />
+        </>
+      </ApiKeyAccessContent>
+
+      {creationMode ? (
+        <CreateKeySheet
+          scoped={creationMode === 'scoped'}
+          busy={creating}
+          error={management.createKeyError}
+          onClose={() => { setCreationMode(null); setExpiresAt(API_KEY_EXPIRY_DEFAULT); retainApiKeyExpiryDraft(API_KEY_EXPIRY_DEFAULT) }}
+          onCreate={(request, onCreateGrantRequired) => createKey({ ...request, isReadOnly }, onCreateGrantRequired)}
+          expiresAt={expiresAt}
+          onExpiryChange={setExpiresAt}
+          onCreateGrantRequired={() => {
+            setCreationMode(null)
+            void stepUp.start()
+          }}
+          onCreated={(result) => {
+            setCreationMode(null)
+            setCreatedKey(result)
+          }}
+        />
+      ) : null}
+      {createdKey ? (
+        <RevealSheet createdKey={createdKey} onClose={() => setCreatedKey(null)} />
+      ) : null}
+      <ConfirmSheet
+        open={revokingKey != null}
+        title={revokingKey ? t('profile.apiKeys.revokeNamedQuestion', { name: revokingKey.name }) : ''}
+        titleMode="typed"
+        message={t('profile.apiKeys.revokeBody')}
+        cancelLabel={t('orbitMcp.cancel')}
+        confirmLabel={t('orbitMcp.revoke')}
+        destructive
+        onCancel={() => management.setRevokingKeyId(null)}
+        onConfirm={() => {
+          if (revokingKey) {
+            management.clearRevokeKeyError()
+            management.revokeKeyMutation.mutate(revokingKey.id)
+            management.setRevokingKeyId(null)
+          }
+        }}
+      />
+    </section>
+  )
+}

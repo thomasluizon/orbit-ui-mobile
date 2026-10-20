@@ -1,0 +1,46 @@
+{
+  "id": "<string>",
+  "ok": true,
+  "result": {
+    "screenshotStatus": {
+      "reason": "<string>",
+      "state": "<string>"
+    },
+    "snapshot": {
+      "treeText": "App=<bundle id> (pid 42)\nWindow: \"Orca\", App: Orca.\n\n0 janela padrão Orca\n\t1 container Orca\n\t2 botão fechar\n\t3 botão tela cheia, Secondary Actions: zoom the window\n\t4 botão minimizar\n\nNo UI element is currently focused.",
+      "elementCount": 42,
+      "app": {
+        "name": "<string>",
+        "bundleId": "<string>",
+        "pid": 42
+      },
+      "focusedElementId": null,
+      "window": {
+        "y": 42,
+        "width": 42,
+        "isMinimized": false,
+        "height": 42,
+        "id": 42,
+        "screenIndex": 42,
+        "title": "<string>",
+        "isOffscreen": false,
+        "platform": {
+          "layer": 42
+        },
+        "x": 42
+      },
+      "coordinateSpace": "<string>",
+      "truncation": {
+        "truncated": false,
+        "maxDepthReached": false,
+        "maxNodes": 42,
+        "maxDepth": 42
+      },
+      "id": "<string>"
+    },
+    "screenshot": null
+  },
+  "_meta": {
+    "runtimeId": "<string>"
+  }
+}

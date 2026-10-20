@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   dismissTopOverlay,
+  hasOpenModalFocusOwner,
   isTopOverlay,
+  isTopModalFocusOwner,
+  registerModalFocusOwner,
   registerOverlay,
+  subscribeToModalFocusOwners,
+  unregisterModalFocusOwner,
   unregisterOverlay,
 } from '@/lib/overlay-stack'
 
@@ -40,5 +45,25 @@ describe('web overlay stack', () => {
     expect(replacementDismiss).toHaveBeenCalledWith('system-back')
 
     unregisterOverlay('shared')
+  })
+
+  it('gives modal focus ownership to only the top registered layer', () => {
+    const listener = vi.fn()
+    const unsubscribe = subscribeToModalFocusOwners(listener)
+
+    registerModalFocusOwner('palette')
+    registerModalFocusOwner('sheet')
+
+    expect(hasOpenModalFocusOwner()).toBe(true)
+    expect(isTopModalFocusOwner('palette')).toBe(false)
+    expect(isTopModalFocusOwner('sheet')).toBe(true)
+
+    unregisterModalFocusOwner('sheet')
+    expect(isTopModalFocusOwner('palette')).toBe(true)
+
+    unregisterModalFocusOwner('palette')
+    unsubscribe()
+    expect(hasOpenModalFocusOwner()).toBe(false)
+    expect(listener).toHaveBeenCalledTimes(4)
   })
 })

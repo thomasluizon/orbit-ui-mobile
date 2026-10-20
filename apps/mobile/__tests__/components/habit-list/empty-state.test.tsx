@@ -1,9 +1,13 @@
 import React from 'react'
+import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { expectPressFill } from '@/__tests__/support/press-feedback'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { createTokensV2 } from '@/lib/theme'
 import {
   HabitListEmptyState,
-  SkeletonCard,
-  getEmptyHabitsMessage,
 } from '@/components/habit-list/empty-state'
 
 vi.mock('react-i18next', () => ({
@@ -50,12 +54,25 @@ function textStrings(tree: TestTree): string[] {
 function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined {
   return tree.root.findAll(
     (node) =>
-      node.props?.accessibilityRole === 'button' &&
-      node.props?.accessibilityLabel === label,
+      node.props.accessibilityRole === 'button' &&
+      node.props.accessibilityLabel === label,
   )[0]
 }
 
 describe('HabitListEmptyState', () => {
+  it.each([en, ptBR])('uses the shared empty-state mark and title sizes without clipping large text', (words) => {
+    const title = words.habits.emptyState
+    const tree = render(<HabitListEmptyState title={title} description="" />)
+    const label = tree.root.findAllByType('Text').find((node) => node.props.children === title)!
+    const style = StyleSheet.flatten(label.props.style as StyleProp<TextStyle>)
+    expect.soft(style.fontSize).toBe(20)
+    expect(style.fontFamily).toBe('Geist_500Medium')
+    expect(label.props.numberOfLines).toBeUndefined()
+    expect(label.props.ellipsizeMode).toBeUndefined()
+    expect(label.props.allowFontScaling).not.toBe(false)
+    expect.soft(tree.root.findAllByType(OrbitMark)[0]!.props.size).toBe(96)
+  })
+
   it('renders the title and a distinct description', () => {
     const tree = render(
       <HabitListEmptyState title="No habits yet" description="Add one to begin" />,
@@ -115,6 +132,7 @@ describe('HabitListEmptyState', () => {
     expect(textStrings(tree)).not.toContain('Ask Astra')
     const link = pressableWithLabel(tree, 'Browse all')
     expect(link).toBeTruthy()
+    expectPressFill(tree, 'Browse all', createTokensV2('purple', 'dark').bgHover, 999)
     TestRenderer.act(() => {
       ;(link!.props as { onPress: () => void }).onPress()
     })
@@ -124,34 +142,7 @@ describe('HabitListEmptyState', () => {
   it('renders nothing actionable when no labels are provided', () => {
     const tree = render(<HabitListEmptyState title="Empty" description="" />)
     expect(
-      tree.root.findAll((node) => node.props?.accessibilityRole === 'button'),
+      tree.root.findAll((node) => node.props.accessibilityRole === 'button'),
     ).toHaveLength(0)
-  })
-})
-
-describe('SkeletonCard', () => {
-  it('renders its structural skeleton nodes', () => {
-    const styles = {
-      skeletonCard: {},
-      skeletonCircle: {},
-      skeletonContent: {},
-      skeletonTitle: {},
-      skeletonSubtitle: {},
-      skeletonCheck: {},
-    }
-    const tree = render(<SkeletonCard styles={styles} />)
-    expect(tree.toJSON()).not.toBeNull()
-  })
-})
-
-describe('getEmptyHabitsMessage', () => {
-  it('resolves a distinct message key per view', () => {
-    const translate = (key: string) => key
-    const today = getEmptyHabitsMessage('today', translate)
-    const all = getEmptyHabitsMessage('all', translate)
-    const general = getEmptyHabitsMessage('general', translate)
-    expect(today).not.toBe(all)
-    expect(all).not.toBe(general)
-    expect(today).toBe('habits.noDueToday')
   })
 })

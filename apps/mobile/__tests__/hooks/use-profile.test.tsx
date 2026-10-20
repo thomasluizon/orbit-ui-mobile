@@ -38,7 +38,7 @@ const mocks = vi.hoisted(() => {
     useQueryClient: vi.fn(() => queryClient),
     i18n: {
       language: 'en',
-      changeLanguage: vi.fn(async () => undefined),
+      changeLanguage: vi.fn(() => Promise.resolve(undefined)),
     },
   }
 })
@@ -86,13 +86,32 @@ describe('mobile useProfile', () => {
     mocks.i18n.language = 'en'
   })
 
+  it('withholds the cached profile while the stored session is unvalidated', async () => {
+    mocks.state.isAuthenticated = false
+    mocks.state.profile = createMockProfile({ themePreference: null, timeZone: null, language: 'pt-BR' })
+    let observedProfile: Profile | undefined
+    function Harness() {
+      observedProfile = useProfile().profile
+      return null
+    }
+    let renderer: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { renderer = TestRenderer.create(<Harness />) })
+    expect(observedProfile).toBeUndefined()
+    expect(mocks.i18n.changeLanguage).not.toHaveBeenCalled()
+    mocks.state.isAuthenticated = true
+    await TestRenderer.act(() => { renderer.update(<Harness />) })
+    expect(observedProfile).toBe(mocks.state.profile)
+    expect(mocks.i18n.changeLanguage).toHaveBeenCalledWith('pt-BR')
+    await TestRenderer.act(() => { renderer.unmount() })
+  })
+
   it('renders without error and exposes profile data', async () => {
-    mocks.state.profile = createMockProfile({ email: 'thomas@example.com' })
+    mocks.state.profile = createMockProfile({ email: 'alex@example.com' })
 
     await renderHookHarness()
 
     expect(mocks.useQuery).toHaveBeenCalled()
-    expect(mocks.state.profile.email).toBe('thomas@example.com')
+    expect(mocks.state.profile.email).toBe('alex@example.com')
   })
 
   it('syncs i18n language when profile language differs', async () => {

@@ -1,11 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
-import { Gift } from 'lucide-react'
-import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { referralKeys } from '@orbit/shared/query'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import {
@@ -13,49 +11,65 @@ import {
   hasOpenPromptBlockingOverlay,
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
-import { AppOverlay } from '@/components/ui/app-overlay'
 import { PillButton } from '@/components/ui/pill-button'
-import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { useUIStore } from '@/stores/ui-store'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
+import { ActionRow } from '@/components/ui/action-row'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { useUIStore } from '@/stores/ui-store'
 
 const SETTLE_DELAY_MS = 500
-const DEFAULT_DISCOUNT_PERCENT = 10
+const ReferralDrawer = dynamic(() =>
+  import('@/components/referral/referral-drawer').then((module) => module.ReferralDrawer),
+)
 
-function enterTransition(delayMs: number) {
-  return {
-    duration: motionDurations.base / 1000,
-    ease: motionEasings.enter,
-    delay: delayMs / 1000,
-  }
-}
-
-/** One-shot milestone nudge: shows once no celebration is in flight and the re-prompt guard allows it, then hands off to the referral drawer. */
+/** One-shot milestone nudge that hands off to the referral drawer. */
 export function ReferralPrompt() {
   const t = useTranslations()
-  const prefersReducedMotion = useReducedMotion()
+  const { sheetRef, closeSheet } = useSheetHost()
   const queryClient = useQueryClient()
-  const armedPrompt = useReferralPromptStore((s) => s.armedPrompt)
+  const armedPrompt = useReferralPromptStore((state) => state.armedPrompt)
   const markEngagementPrompted = useReferralPromptStore(
-    (s) => s.markEngagementPrompted,
+    (state) => state.markEngagementPrompted,
   )
   const clearArmedMilestone = useReferralPromptStore(
-    (s) => s.clearArmedMilestone,
+    (state) => state.clearArmedMilestone,
   )
   const celebrationInFlight = useUIStore(
-    (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
+    (state) => state.activeCelebration !== null || state.queuedCelebrations.length > 0,
   )
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const armedMilestoneKey =
     armedPrompt?.kind === 'referral' ? armedPrompt.milestoneKey : null
-
-  const [visibleKey, setVisibleKey] = useState<string | null>(null)
-  const [showDrawer, setShowDrawer] = useState(false)
+  const [visibleKey, setVisibleKey] = useAccountScopedState<string | null>(null)
+  const [showDrawer, setShowDrawer] = useAccountScopedState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visibleKey) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visibleKey, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
+  const retiredPromptRef = useRef<typeof armedPrompt>(null)
+  /**
+   * The settle timer is the one thing the state reset above cannot reach: with no prompt on
+   * screen its effect never re-runs, so a timer armed for the previous account would open this
+   * prompt under the next one.
+   */
+  useResetOnAccountChange(() => {
+    clearTimeout(settleTimerRef.current)
+    retiredPromptRef.current = armedPrompt
+  })
 
   useEffect(() => {
-    if (visibleKey || !armedMilestoneKey || celebrationInFlight || anotherOverlayOpen) return
+    if (visibleKey || !armedMilestoneKey || celebrationInFlight || anotherOverlayOpen || armedPrompt === retiredPromptRef.current) return
 
     if (
       !canPromptReferral(
@@ -69,7 +83,7 @@ export function ReferralPrompt() {
     }
 
     settleTimerRef.current = setTimeout(() => {
-      if (hasOpenPromptBlockingOverlay(useUIStore.getState())) return
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(armedMilestoneKey, new Date().toISOString())
       setVisibleKey(armedMilestoneKey)
     }, SETTLE_DELAY_MS)
@@ -78,111 +92,59 @@ export function ReferralPrompt() {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
   }, [
+    armedPrompt,
     armedMilestoneKey,
     celebrationInFlight,
     anotherOverlayOpen,
+    promptId,
     visibleKey,
     markEngagementPrompted,
     clearArmedMilestone,
+    setVisibleKey,
   ])
 
   const milestone = visibleKey ? parseReferralMilestoneKey(visibleKey) : null
   const cached = queryClient.getQueryData<ReferralDashboard>(referralKeys.all)
-  const discount = cached?.stats.discountPercent ?? DEFAULT_DISCOUNT_PERCENT
-
-  const title =
-    milestone?.kind === 'level'
-      ? t('referral.prompt.levelTitle', { level: milestone.value })
-      : t('referral.prompt.streakTitle', { count: milestone?.value ?? 0 })
-
-  function dismiss() {
-    setVisibleKey(null)
-  }
+  const discount = cached?.stats.discountPercent
+  const title = milestone?.kind === 'level'
+    ? t('referral.prompt.levelTitle', { level: milestone.value })
+    : t('referral.prompt.streakTitle', { count: milestone?.value ?? 0 })
+  const body = discount == null
+    ? t('referral.prompt.bodyFallback')
+    : t('referral.prompt.body', { discount })
 
   function openDrawer() {
-    setVisibleKey(null)
-    setShowDrawer(true)
+    closeSheet(() => {
+      setVisibleKey(null)
+      setShowDrawer(true)
+    })
   }
 
   return (
     <>
-      <AppOverlay
-        open={visibleKey !== null}
-        onOpenChange={(open) => {
-          if (!open) dismiss()
-        }}
-        title={title}
-      >
-        <LazyMotion features={domAnimation}>
-          <div
-            className="flex flex-col items-center text-center"
-            style={{ gap: 16, padding: '4px 0 4px' }}
-          >
-            <m.p
-              className="t-eyebrow"
-              style={{ margin: 0 }}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={enterTransition(70)}
-            >
-              {t('referral.prompt.eyebrow')}
-            </m.p>
-            <m.span
-              aria-hidden="true"
-              className="flex items-center justify-center rounded-full"
-              style={{
-                width: 64,
-                height: 64,
-                background: 'rgba(var(--primary-rgb), 0.15)',
-              }}
-              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={enterTransition(0)}
-            >
-              <Gift size={30} strokeWidth={1.8} color="var(--primary-soft)" />
-            </m.span>
-            <m.p
-              style={{
-                margin: 0,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 15,
-                lineHeight: 1.5,
-                color: 'var(--fg-2)',
-              }}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={enterTransition(70)}
-            >
-              {t('referral.prompt.body', { discount })}
-            </m.p>
-            <m.div
-              className="flex w-full flex-col"
-              style={{ gap: 8, paddingTop: 4 }}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={enterTransition(140)}
-            >
-              <PillButton fullWidth onClick={openDrawer}>
-                {t('referral.prompt.cta')}
-              </PillButton>
-              <button
-                type="button"
-                onClick={dismiss}
-                className="w-full text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-                style={{
-                  padding: '12px 0',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  fontWeight: 500,
-                }}
-              >
+      {visibleKey !== null ? (
+        <Sheet
+          ref={sheetRef}
+          open
+          onClose={() => setVisibleKey(null)}
+          title={title}
+          actions={(
+            <ActionRow>
+              <PromptQuietAction onClick={() => closeSheet()}>
                 {t('referral.prompt.later')}
-              </button>
-            </m.div>
+              </PromptQuietAction>
+              <PillButton size="sm" onClick={openDrawer}>{t('referral.prompt.cta')}</PillButton>
+            </ActionRow>
+          )}
+        >
+          <div className="flex flex-col items-center text-center">
+            <p className="m-0 max-w-[42ch] text-base leading-[1.5] text-[var(--fg-2)]">
+              {body}
+            </p>
           </div>
-        </LazyMotion>
-      </AppOverlay>
-      <ReferralDrawer open={showDrawer} onOpenChange={setShowDrawer} />
+        </Sheet>
+      ) : null}
+      {showDrawer ? <ReferralDrawer open onOpenChange={setShowDrawer} /> : null}
     </>
   )
 }

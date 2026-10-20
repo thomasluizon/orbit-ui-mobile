@@ -1,59 +1,83 @@
 'use client'
 
+import { useThrottleStore } from '@/stores/throttle-store'
+
 import {
   useState,
   useRef,
+  useId,
   useCallback,
   useEffect,
   useMemo,
   useSyncExternalStore,
-  type KeyboardEvent,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
 import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
+  hasComposerContent,
+  toComposerSuggestions,
+  type ComposerProps,
+} from '@orbit/shared/contracts/composer'
+import {
+  BlockAnswerSubmission,
+  type ChatStreamRequest,
+  type ChatStreamResult,
+  type BlockAnswerRequest,
+  type BlockAnswerResult,
   buildChatMessageWithFileContent,
-  CHAT_STARTER_CHIP_KEYS,
+  buildChatClientContext,
+  buildChatFinalMessageFields,
+  buildComposerChips,
+  resolveComposerChipStatus,
+  resolveComposerChipSurface,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
 } from '@orbit/shared/chat'
 import {
-  buildAgentExecutionMessage,
   CHAT_DRAFT_STORAGE_KEY,
+  createChatThreadScroll,
   classifySendFailure,
-  findPremiumPolicyDenial,
+  sendInConversation,
   invalidateAgentQueries,
   selectActionInvalidations,
 } from '@orbit/shared/hooks'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import {
   buildRecentChatHistory,
-  canAccessEntitlement,
-  detectDefaultTimeFormat,
   getFriendlyErrorMessage,
-  resolveUpgradeEntitlementFromPolicyDenial,
+  formatAPIDateInTimeZone,
 } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
+import type { ChatStoreState } from '@orbit/shared/stores'
+import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
+import { useHabitDetail, useHabits } from '@/hooks/use-habit-queries'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
 import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
+import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
-import { reportAccountChanged } from '@/lib/client-action'
+import { getAccountGeneration } from '@/lib/session-epoch'
+
 
 interface AttemptedSend {
   intendedAccountId: string | null
   content: string
+  draftContent: string
   image: File | null
   preview: string | null
+  restoreDraftOnFailure: boolean
+  clearDraftOnSuccess: boolean
+  restoredDraftRevision: number | null
+  messageOrigin?: 'followUp'
+  contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>
 }
 
 interface StreamSendFailure {
@@ -107,12 +131,22 @@ async function* streamTextChunks(
  * send is the one sanctioned client-side `fetch` to the API (a Server Action
  * cannot return a streaming `ReadableStream`); see apps/web/CLAUDE.md.
  */
-export function useChatComposer() {
+export function useChatComposer(options: { pathname?: string; selectedDate?: string; today?: string; totalHabitCount?: number | null; includeGeneral?: boolean } = {}) {
   const t = useTranslations()
   const locale = useLocale()
-  const router = useRouter()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
+  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion)
+  const calendarHasError = useUIStore((state) => state.calendarHasError)
+  const today = options.today ?? formatAPIDateInTimeZone(new Date(), profile?.timeZone)
+  const selectedDate = options.selectedDate ?? today
+  const surface = resolveComposerChipSurface(options.pathname ?? '/')
+  const habitsQuery = useHabits(surface === 'progress'
+    ? {}
+    : { dateFrom: selectedDate, dateTo: selectedDate, includeOverdue: selectedDate === today, includeGeneral: options.includeGeneral || undefined },
+  undefined, { completeDay: true })
+  const detailId = surface === 'habitDetail' ? options.pathname?.split('/')[2] ?? null : null
+  const detailQuery = useHabitDetail(detailId)
 
   const messages = useChatStore((s) => s.messages)
   const isTyping = useChatStore((s) => s.isTyping)
@@ -122,6 +156,10 @@ export function useChatComposer() {
   const appendToMessageContent = useChatStore((s) => s.appendToMessageContent)
   const setIsTyping = useChatStore((s) => s.setIsTyping)
   const setStreamingMessageId = useChatStore((s) => s.setStreamingMessageId)
+  const input = useChatStore((s) => s.draft)
+  const setInput = useChatStore((s) => s.setDraft)
+  const draftHydrated = useChatStore((s) => s.draftHydrated)
+  const hydrateDraft = useChatStore((s) => s.hydrateDraft)
 
   const {
     isRecording,
@@ -134,17 +172,14 @@ export function useChatComposer() {
   } = useSpeechToText()
 
   const chatContainerRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [threadScroll] = useState(createChatThreadScroll)
+  const composerInputId = useId()
   const pendingVoiceCommit = useRef(false)
 
-  const [input, setInput] = useState<string>(() => {
-    if (!('localStorage' in globalThis)) return ''
-    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `'localStorage' in globalThis` SSR check above (the repo's canonical guard, #490); never reads on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    return globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY) ?? ''
-  })
   const [sendError, setSendError] = useState<string | null>(null)
+  const [activeSteps, setActiveSteps] = useState<{ domain: string; access: string }[]>([])
+  const activeStepsRef = useRef<{ domain: string; access: string }[]>([])
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
-  const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
 
   const {
     fileInputRef,
@@ -165,12 +200,19 @@ export function useChatComposer() {
     removeTextFile,
   } = useChatTextFileAttachment(setSendError)
 
-  if (speechError !== previousSpeechError) {
-    setPreviousSpeechError(speechError)
-    if (speechError) {
-      setSendError(speechError)
-    }
-  }
+  /**
+   * The app shell keeps this hook mounted through an account change, so the previous account's
+   * attempted send would otherwise stay armed behind Retry and post its text under the next
+   * account's cookie. The store reset cannot reach React state, so it follows the session
+   * itself.
+   */
+  useResetOnAccountChange(() => {
+    activeStepsRef.current = []
+    setActiveSteps([])
+    setLastFailedSend(null)
+    setSendError(null)
+    useUIStore.getState().setAstraConversationOpen(false)
+  })
 
   const isOnline = useSyncExternalStore(
     subscribeToNetworkStatus,
@@ -180,20 +222,23 @@ export function useChatComposer() {
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
-  const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
-  const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
+  const aiMessagesLimit = profile?.aiMessagesLimit ?? (hasProAccess ? 50 : 5)
+  const atMessageLimit = aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
-  const canSend =
-    (input.trim().length > 0 || selectedImage !== null || selectedTextFile !== null) &&
-    !isSending &&
-    !atMessageLimit &&
-    isOnline
-  const showSuggestions = messages.length === 0 && !isTyping
-
-  const starterChips = useMemo(
-    () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
-    [t],
+  const attachments = useMemo(
+    () => [
+      ...(selectedTextFile
+        ? [{ id: 'chat-file', kind: 'file' as const, name: selectedTextFile.name }]
+        : []),
+      ...(selectedImage
+        ? [{ id: 'chat-image', kind: 'image' as const, name: selectedImage.name }]
+        : []),
+    ],
+    [selectedImage, selectedTextFile],
   )
+  const canSend =
+    hasComposerContent(input, attachments) && !isSending && !atMessageLimit && isOnline
+  const showSuggestions = messages.length === 0 && !isTyping && !atMessageLimit
 
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60)
@@ -201,61 +246,51 @@ export function useChatComposer() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }, [recordingDuration])
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((afterScroll?: () => void) => {
     requestAnimationFrame(() => {
       const el = chatContainerRef.current
-      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      if (el && threadScroll.isFollowing()) el.scrollTo({
+        top: el.scrollHeight,
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      })
+      afterScroll?.()
     })
-  }, [])
+  }, [threadScroll])
 
-  const shouldRouteToUpgrade = useCallback(
-    (resolution: { shouldUpgrade: boolean; requirement: 'pro' | 'yearlyPro' | null }) =>
-      resolution.shouldUpgrade && !canAccessEntitlement(profile, resolution.requirement),
-    [profile],
-  )
-
-  const appendExecutionMessage = useCallback(async (response: AgentExecuteOperationResponse) => {
-    addMessage({
-      id: crypto.randomUUID(),
-      role: 'ai',
-      content: buildAgentExecutionMessage(response, {
-        done: t('chat.operationDone'),
-        failed: t('chat.operationFailed'),
-      }),
-      operations: [response.operation],
-      pendingOperations: response.pendingOperation ? [response.pendingOperation] : undefined,
-      policyDenials: response.policyDenial ? [response.policyDenial] : undefined,
-      timestamp: new Date(),
-    })
-
-    scrollToBottom()
-
+  const handleExecutedOperation = useCallback(async (response: AgentExecuteOperationResponse) => {
     if (response.operation.status === 'Succeeded') {
       await invalidateAgentQueries(queryClient)
     }
-    if (response.policyDenial) {
-      const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(response.policyDenial)
-      if (shouldRouteToUpgrade(upgradeResolution)) {
-        setSendError(response.policyDenial.reason)
-        router.push('/upgrade')
-      }
-    }
-  }, [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade, t])
+  }, [queryClient])
 
   const {
+    revisePendingOperationForBubble,
+    refreshPendingOperationForBubble,
+    isPendingOperationBusy,
+    trackCardOperation,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
-  } = useChatPendingOperations(appendExecutionMessage)
+  } = useChatPendingOperations(handleExecutedOperation)
 
   const handleFailedSend = useCallback((
     failureInput: StreamSendFailure,
     attempted: AttemptedSend,
     draftMessageId: string | null,
   ) => {
+    activeStepsRef.current = []
+    setActiveSteps([])
     setIsTyping(false)
+    let failedAttempt = attempted
+    if (attempted.restoreDraftOnFailure) {
+      setInput(attempted.draftContent)
+      failedAttempt = {
+        ...attempted,
+        restoreDraftOnFailure: false,
+        restoredDraftRevision: useChatStore.getState().draftRevision,
+      }
+    }
     if (failureInput.code === ACCOUNT_CHANGED_ERROR_CODE) {
-      reportAccountChanged()
       const message = t('errors.api.accountChanged')
       setSendError(message)
       setLastFailedSend(null)
@@ -271,20 +306,27 @@ export function useChatComposer() {
       reason: resolvedError,
     })
 
-    if (failure.kind === 'upgrade' && shouldRouteToUpgrade(failure.upgrade)) {
-      setSendError(t('chat.proGate.body'))
-      router.push('/upgrade')
-      return
-    }
-
     if (failure.kind === 'timeout') {
       setSendError(t('chat.timeoutError'))
-      setLastFailedSend(attempted)
+      setLastFailedSend(failedAttempt)
     } else if (failure.kind === 'limit') {
-      setSendError(t('chat.limitReachedError'))
+      setSendError(null)
+      const limitReason = t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
+      if (draftMessageId) {
+        updateMessage(draftMessageId, { content: limitReason })
+      } else {
+        addMessage({
+          id: crypto.randomUUID(),
+          role: 'ai',
+          content: limitReason,
+          timestamp: new Date(),
+        })
+      }
+      scrollToBottom()
+      return
     } else {
       setSendError(t('chat.sendError'))
-      setLastFailedSend(attempted)
+      setLastFailedSend(failedAttempt)
     }
 
     if (draftMessageId) {
@@ -298,22 +340,20 @@ export function useChatComposer() {
       })
     }
     scrollToBottom()
-  }, [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t, updateMessage])
+  }, [addMessage, aiMessagesLimit, scrollToBottom, setInput, setIsTyping, t, updateMessage])
 
-  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null) => {
-    setIsTyping(false)
-
-    const finalFields = {
-      content: response.aiMessage || '',
-      actions: response.actions,
-      operations: response.operations,
-      pendingOperations: response.pendingOperations,
-      policyDenials: response.policyDenials,
-      correlationId: response.correlationId,
-      relatedSurfaces: response.relatedSurfaces,
-      habitList: response.habitList,
-      goalList: response.goalList,
+  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost: 0 | 1) => {
+    if (draftMessageId && response.parts?.some(part => part?.type === 'block')) {
+      const accountGeneration = getAccountGeneration()
+      await firstReveal
+      if (getAccountGeneration() !== accountGeneration) return
+      threadScroll.holdPosition()
     }
+    setIsTyping(false)
+    activeStepsRef.current = []
+    setActiveSteps([])
+
+    const finalFields = buildChatFinalMessageFields(response, toolSteps)
     if (draftMessageId) {
       updateMessage(draftMessageId, finalFields)
     } else {
@@ -330,23 +370,17 @@ export function useChatComposer() {
 
     scrollToBottom()
 
-    const premiumDenial = findPremiumPolicyDenial(response.policyDenials)
-    if (premiumDenial) {
-      const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(premiumDenial)
-      if (shouldRouteToUpgrade(upgradeResolution)) {
-        router.push('/upgrade')
-      }
-    }
-
-    if (!hasProAccess) {
-      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-        old ? { ...old, aiMessagesUsed: old.aiMessagesUsed + 1 } : old,
-      )
-    }
+    if (messageCost) queryClient.setQueryData<Profile>(profileKeys.detail(), current =>
+      current ? { ...current, aiMessagesUsed: current.aiMessagesUsed + messageCost } : current,
+    )
 
     const invalidations = selectActionInvalidations(response.actions)
+    if (invalidations.habits || invalidations.tags) {
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
+    }
     if (invalidations.habits) {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     }
     if (invalidations.goals) {
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
@@ -358,37 +392,24 @@ export function useChatComposer() {
     if (response.operations?.some((operation) => operation.status === 'Succeeded')) {
       await invalidateAgentQueries(queryClient)
     }
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, setStreamingMessageId, shouldRouteToUpgrade, updateMessage])
+  }, [addMessage, queryClient, scrollToBottom, setIsTyping, setStreamingMessageId, threadScroll, updateMessage])
 
   useEffect(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-    const fit = () => {
-      textarea.style.height = 'auto'
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+    if (!draftHydrated) {
+      const textarea = document.getElementById(composerInputId) as HTMLTextAreaElement | null
+      hydrateDraft(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY), textarea?.value)
     }
-    fit()
-    let lastWidth = textarea.clientWidth
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width ?? lastWidth
-      if (Math.abs(width - lastWidth) < 0.5) return
-      lastWidth = width
-      fit()
-    })
-    observer.observe(textarea)
-    return () => observer.disconnect()
-  }, [input])
-
+  }, [composerInputId, draftHydrated, hydrateDraft])
 
   useEffect(() => {
+    if (!draftHydrated) return
     const trimmedDraft = input.trim()
     if (!trimmedDraft) {
       globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
       return
     }
     globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, input)
-  }, [input])
+  }, [draftHydrated, input])
 
   useEffect(() => {
     if (isRecording) {
@@ -397,35 +418,42 @@ export function useChatComposer() {
       pendingVoiceCommit.current = false
       setInput((current) => (current ? `${current} ${transcript.trim()}` : transcript.trim()))
     }
-  }, [isRecording, transcript])
+  }, [isRecording, setInput, transcript])
 
-  useEffect(() => {
-    if (!speechError) return
-    const timer = globalThis.setTimeout(() => {
-      setSendError((current) => (current === speechError ? null : current))
-    }, 4000)
-    return () => globalThis.clearTimeout(timer)
-  }, [speechError])
-
-  const buildChatFormData = useCallback((attempted: AttemptedSend) => {
+  const buildChatFormData = useCallback((attempted: ChatStreamRequest<File>) => {
     const formData = new FormData()
-    if (attempted.content) formData.append('message', attempted.content)
+    formData.append('message', attempted.content)
+    if (attempted.blockAnswer) formData.append('blockAnswer', JSON.stringify(attempted.blockAnswer))
     if (attempted.image) formData.append('image', attempted.image)
 
-    const recentHistory = buildRecentChatHistory(useChatStore.getState().messages)
+    const historyMessages = useChatStore.getState().messages
+    const recentHistory = buildRecentChatHistory(attempted.blockAnswer ? [...historyMessages, { role: 'user', content: attempted.content }] : historyMessages)
     formData.append('history', JSON.stringify(recentHistory))
-    formData.append('clientContext', JSON.stringify({
+    const entryPointIntent = useUIStore.getState().astraEntryPointIntent
+    const clientContext = buildChatClientContext({
       platform: 'web',
       locale,
-      timeFormat: detectDefaultTimeFormat(locale),
-      currentAppArea: 'chat',
-      supportsHabitListCard: true,
-      supportsGoalListCard: true,
-    }))
+      uses24HourClock: profile?.uses24HourClock,
+      messageOrigin: attempted.messageOrigin,
+      entryPointIntent,
+    })
+    formData.append('clientContext', JSON.stringify(clientContext))
     return formData
-  }, [locale])
+  }, [locale, profile?.uses24HourClock])
 
-  const runStreamingSend = useCallback(async (attempted: AttemptedSend) => {
+  const finishStreamingSend = useCallback((accountGeneration: number, draftMessageId: string | null, finalReceived: boolean) => {
+    if (getAccountGeneration() !== accountGeneration) return
+    if (!finalReceived) {
+      setIsTyping(false)
+      activeStepsRef.current = []
+      setActiveSteps([])
+    }
+    if (useChatStore.getState().streamingMessageId === draftMessageId) setStreamingMessageId(null)
+  }, [setIsTyping, setStreamingMessageId])
+
+  const runStreamingSend = useCallback(async (attempted: ChatStreamRequest<File>, onAccepted?: () => void): Promise<ChatStreamResult> => {
+    const startingAccountGeneration = getAccountGeneration()
+    const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
     const controller = new AbortController()
     let idleTimer: ReturnType<typeof setTimeout> | undefined
     const armIdleTimer = () => {
@@ -434,13 +462,15 @@ export function useChatComposer() {
     }
 
     let draftMessageId: string | null = null
+    let finalReceived = false
+    const firstReveal = { completion: Promise.resolve() }
     const ensureDraftMessage = () => {
       if (draftMessageId) return draftMessageId
       draftMessageId = crypto.randomUUID()
       setStreamingMessageId(draftMessageId)
       setIsTyping(false)
-      addMessage({ id: draftMessageId, role: 'ai', content: '', timestamp: new Date() })
-      scrollToBottom()
+      addMessage({ id: draftMessageId, role: 'ai', content: '', timestamp: new Date(), answerToBlockId: attempted.blockAnswer?.blockId })
+      firstReveal.completion = new Promise<void>((resolve) => scrollToBottom(resolve))
       return draftMessageId
     }
 
@@ -452,75 +482,70 @@ export function useChatComposer() {
         body: buildChatFormData(attempted),
         signal: controller.signal,
       })
+      if (!ownsAccount()) return { kind: 'cancelled' }
       if (!response.ok || !response.body) {
         const errorBody = (await response.json().catch(() => null)) as
           | { error?: string; errorCode?: string }
           | null
-        handleFailedSend(
-          {
+        if (!ownsAccount()) return { kind: 'cancelled' }
+        useThrottleStore.getState().show(response.status, errorBody)
+        return { kind: 'failed', failure: {
             status: response.status,
             error: errorBody?.error ?? t('chat.sendError'),
             code: errorBody?.errorCode ?? null,
-          },
-          attempted,
-          draftMessageId,
-        )
-        return
+          }, draftMessageId }
       }
 
+      onAccepted?.()
       const outcome = await consumeChatSseStream(
         streamTextChunks(response.body, armIdleTimer),
         {
           onDelta: (text) => {
+            if (!ownsAccount()) return
             appendToMessageContent(ensureDraftMessage(), text)
             scrollToBottom()
           },
           onReset: () => {
+            if (!ownsAccount()) return
             if (draftMessageId) updateMessage(draftMessageId, { content: '' })
             setIsTyping(true)
+          },
+          onStep: (step) => {
+            if (!ownsAccount()) return
+            activeStepsRef.current = [...activeStepsRef.current, step]
+            setActiveSteps(activeStepsRef.current)
           },
         },
       )
 
+      if (!ownsAccount()) return { kind: 'cancelled' }
+
       if (outcome.kind === 'final') {
-        await applyFinalResponse(outcome.response, draftMessageId)
-        return
+        finalReceived = true
+        await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost)
+        return ownsAccount() ? { kind: 'final' } : { kind: 'cancelled' }
       }
       if (outcome.kind === 'error') {
-        handleFailedSend(
-          { status: outcome.status, error: outcome.error, code: outcome.code },
-          attempted,
-          draftMessageId,
-        )
-        return
+        return { kind: 'failed', failure: { status: outcome.status, error: outcome.error, code: outcome.code }, draftMessageId }
       }
-      handleFailedSend(
-        { status: null, error: t('chat.sendError'), code: null },
-        attempted,
-        draftMessageId,
-      )
+      return { kind: 'failed', failure: { status: null, error: t('chat.sendError'), code: null }, draftMessageId }
     } catch (error: unknown) {
-      handleFailedSend(
-        {
+      if (!ownsAccount()) return { kind: 'cancelled' }
+      return { kind: 'failed', failure: {
           status: isAbortError(error) ? 408 : null,
           error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
           code: null,
-        },
-        attempted,
-        draftMessageId,
-      )
+        }, draftMessageId }
     } finally {
       clearTimeout(idleTimer)
-      if (useChatStore.getState().streamingMessageId === draftMessageId) {
-        setStreamingMessageId(null)
-      }
+      finishStreamingSend(startingAccountGeneration, draftMessageId, finalReceived)
     }
   }, [
     addMessage,
     appendToMessageContent,
     applyFinalResponse,
     buildChatFormData,
-    handleFailedSend,
+    finishStreamingSend,
     scrollToBottom,
     setIsTyping,
     setStreamingMessageId,
@@ -528,69 +553,124 @@ export function useChatComposer() {
     updateMessage,
   ])
 
+  const beginSend = useCallback(() => {
+    threadScroll.followLatest(chatContainerRef.current?.scrollTop)
+    activeStepsRef.current = []
+    setActiveSteps([])
+    setSendError(null)
+    setLastFailedSend(null)
+    scrollToBottom()
+    setIsTyping(true)
+    scrollToBottom()
+  }, [scrollToBottom, setIsTyping, threadScroll])
+
   const performSend = useCallback(
-    async (attempted: AttemptedSend, isRetry: boolean) => {
-      setSendError(null)
-      setLastFailedSend(null)
+    async (attempted: AttemptedSend, isRetry: boolean) => sendInConversation(useUIStore.getState(), async () => {
+      beginSend()
 
       if (!isRetry) {
         addMessage({
           id: crypto.randomUUID(),
           role: 'user',
-          content: attempted.content || '(image)',
+          content: attempted.content,
           imageUrl: attempted.preview,
           timestamp: new Date(),
         })
       }
 
-      scrollToBottom()
-      setIsTyping(true)
-      scrollToBottom()
-
-      await runStreamingSend(attempted)
-    },
-    [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
+      const startingAccountGeneration = getAccountGeneration()
+      const result = await runStreamingSend({ ...attempted, messageCost: 1 })
+      const succeeded = result.kind === 'final'
+      if (result.kind === 'failed') handleFailedSend(result.failure, attempted, result.draftMessageId)
+      if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
+        useChatStore.getState().setContextualSuggestion(null)
+      }
+      return succeeded
+    }),
+    [addMessage, beginSend, handleFailedSend, runStreamingSend],
   )
 
-  const sendMessage = useCallback(
-    async (content?: string) => {
-      const typedContent = content || input.trim()
-      const sendState = useChatStore.getState()
-      if (
-        (!typedContent && !selectedImage && !selectedTextFile) ||
-        sendState.isTyping ||
-        sendState.streamingMessageId !== null
-      ) return
+  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
+  const sendBlockAnswer = useCallback((request: BlockAnswerRequest): Promise<BlockAnswerResult> =>
+    blockSubmission.send(request, {
+      isOnline, atMessageLimit, locale, intendedAccountId: getHeldAccountId(),
+      getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(),
+      conversation: useUIStore.getState(), beginSend, run: runStreamingSend,
+      refreshProfile: () => queryClient.invalidateQueries({ queryKey: profileKeys.all }),
+      words: { answered: content => t('chat.choice.answered', { options: content }),
+        closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered') },
+    }), [atMessageLimit, beginSend, blockSubmission, isOnline, locale, queryClient, runStreamingSend, t])
+  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, allowance: aiMessagesLimit, send: sendBlockAnswer }
 
-      const messageContent = selectedTextFile
+  const sendMessage = useCallback(
+    async (content?: string, messageOrigin?: 'followUp', contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
+      const sendsComposerDraft = content === undefined && messageOrigin !== 'followUp'
+      const typedContent = content?.trim() ?? input.trim()
+      const messageContent = selectedTextFile && sendsComposerDraft
         ? buildChatMessageWithFileContent({
             message: typedContent,
             fileLabel: t('chat.fileAttached', { name: selectedTextFile.name }),
             fileContent: selectedTextFile.content,
           })
         : typedContent
+      const sendState = useChatStore.getState()
+      if (!hasComposerContent(typedContent, sendsComposerDraft ? attachments : [])) return
+      if (sendState.isTyping || sendState.streamingMessageId !== null) {
+        setSendError(t('shell.composer.busy.reason'))
+        return
+      }
+      if (!isOnline) {
+        setSendError(t('shell.composer.offline.reason'))
+        return
+      }
+      if (atMessageLimit) {
+        setSendError(null)
+        addMessage({
+          id: crypto.randomUUID(),
+          role: 'ai',
+          content: t('shell.composer.limit.reason', { allowance: aiMessagesLimit }),
+          timestamp: new Date(),
+        })
+        scrollToBottom()
+        return
+      }
 
       const attempted: AttemptedSend = {
         intendedAccountId: getHeldAccountId(),
         content: messageContent,
-        image: selectedImage,
-        preview: imagePreview,
+        draftContent: typedContent,
+        image: sendsComposerDraft ? selectedImage : null,
+        preview: sendsComposerDraft ? imagePreview : null,
+        restoreDraftOnFailure: content === undefined,
+        clearDraftOnSuccess: content === undefined,
+        restoredDraftRevision: null,
+        messageOrigin,
+        contextualRequest,
       }
 
-      setInput('')
-      clearImage()
-      removeTextFile()
+      if (sendsComposerDraft) {
+        setInput('')
+        clearImage()
+        removeTextFile()
+      }
 
       await performSend(attempted, false)
     },
     [
       clearImage,
+      attachments,
+      addMessage,
+      aiMessagesLimit,
+      atMessageLimit,
       imagePreview,
       input,
+      isOnline,
       performSend,
       removeTextFile,
       selectedImage,
       selectedTextFile,
+      setInput,
+      scrollToBottom,
       t,
     ],
   )
@@ -598,30 +678,158 @@ export function useChatComposer() {
   const retryLastSend = useCallback(async () => {
     const sendState = useChatStore.getState()
     if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return
-    await performSend(lastFailedSend, true)
-  }, [lastFailedSend, performSend])
+    const attempted = lastFailedSend
+    const startingAccountGeneration = getAccountGeneration()
+    const succeeded = await performSend(attempted, true)
+    if (
+      getAccountGeneration() === startingAccountGeneration &&
+      succeeded &&
+      attempted.clearDraftOnSuccess &&
+      attempted.restoredDraftRevision !== null &&
+      useChatStore.getState().draftRevision === attempted.restoredDraftRevision
+    ) {
+      setInput('')
+      globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
+    }
+  }, [lastFailedSend, performSend, setInput])
 
   const canRetryLastSend = lastFailedSend !== null && !isSending
+  const chipStatus = resolveComposerChipStatus(surface, {
+    habitsError: habitsQuery.isError,
+    habitsReady: Boolean(habitsQuery.data),
+    detailError: detailQuery.isError,
+    detailReady: Boolean(detailQuery.data),
+    calendarError: calendarHasError,
+  })
+  const composerSuggestions = useMemo(() => {
+    const chips = buildComposerChips({
+      surface,
+      status: chipStatus,
+      habits: habitsQuery.data?.topLevelHabits ?? [],
+      selectedDateIsToday: selectedDate === today,
+      totalHabitCount: options.totalHabitCount === undefined ? habitsQuery.data?.totalCount ?? null : options.totalHabitCount,
+      profile: profile ?? null,
+      detailHabit: detailQuery.data,
+      contextualSuggestion,
+    })
+    return toComposerSuggestions(chips.map(({ id, key, params, promptKey, label: providedLabel, prompt: providedPrompt }) => {
+      const label = providedLabel ?? t(key)
+      const prompt = providedPrompt ?? (promptKey ? t(promptKey, params) : label)
+      return { id, label, onSelect: () => {
+        void sendMessage(prompt, undefined, contextualSuggestion?.id === id ? contextualSuggestion : undefined)
+      } }
+    }))
+  }, [surface, chipStatus, habitsQuery.data, detailQuery.data, contextualSuggestion, options.totalHabitCount, profile, selectedDate, today, sendMessage, t])
 
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      void sendMessage()
+  const composerProps = useMemo(() => {
+    const words = {
+      placeholder: t(isOnline ? 'shell.composer.placeholder' : 'shell.composer.offline.placeholder'),
+      inputLabel: t('shell.composer.inputLabel'),
+      ...(!isOnline ? { offlineReason: t('shell.composer.offline.reason') } : {}),
+      send: t('shell.composer.send'),
+      clear: t('shell.composer.clear'),
+      paste: t('shell.composer.paste'),
+      nothingToPaste: t('shell.composer.nothingToPaste'),
+      actions: t('shell.composer.actions'),
+      suggestionsLabel: t('shell.composer.suggestionsLabel'),
+      retry: t('shell.composer.retry'),
     }
-  }
+    const voiceWords = {
+      start: t('shell.composer.voice.start'),
+      stop: t('shell.composer.voice.stop'),
+      recording: t('shell.composer.voice.recording'),
+      transcribing: t('shell.composer.voice.transcribing'),
+    }
+    const common = {
+      words,
+      value: input,
+      errorMessage: speechError ?? sendError ?? undefined,
+      onChangeValue: setInput,
+      onSend: () => void sendMessage(),
+      onPaste: handlePaste,
+      suggestions: composerSuggestions,
+      onAttachFile: openTextFilePicker,
+      onAttachImage: openFilePicker,
+      attachWords: {
+        file: t('shell.composer.attach.file'),
+        image: t('shell.composer.attach.image'),
+        trayLabel: t('shell.composer.attach.trayLabel'),
+        remove: (name: string) => t('shell.composer.attach.remove', { name }),
+      },
+      attachments,
+      onAttachRemove: (id: string) => {
+        if (id === 'chat-file') removeTextFile()
+        if (id === 'chat-image') removeImage()
+      },
+      ...(canRetryLastSend ? { onRetry: () => void retryLastSend() } : {}),
+    }
+
+    if (isRecording) return { ...common, state: 'recording', onVoice: toggleRecording, voiceWords }
+    if (isTranscribing) return { ...common, state: 'transcribing', onVoice: toggleRecording, voiceWords }
+
+    if (!isOnline) {
+      const limitReason = t('shell.composer.offline.reason')
+      return speechSupported
+        ? { ...common, state: 'offline', limitReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, state: 'offline', limitReason }
+    }
+
+    if (atMessageLimit) {
+      const limitWords = { ...words, placeholder: t('shell.composer.limit.placeholder') }
+      const limitReason = t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
+      return speechSupported
+        ? { ...common, words: limitWords, state: 'atLimit', limitReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, words: limitWords, state: 'atLimit', limitReason }
+    }
+
+    const state: 'idle' | 'sending' = isSending ? 'sending' : 'idle'
+    return speechSupported
+      ? { ...common, state, onVoice: toggleRecording, voiceWords }
+      : { ...common, state }
+  }, [
+    aiMessagesLimit,
+    attachments,
+    atMessageLimit,
+    canRetryLastSend,
+    composerSuggestions,
+    input,
+    handlePaste,
+    isOnline,
+    isRecording,
+    isSending,
+    isTranscribing,
+    openFilePicker,
+    openTextFilePicker,
+    removeImage,
+    removeTextFile,
+    retryLastSend,
+    setInput,
+    sendMessage,
+    sendError,
+    speechError,
+    speechSupported,
+    t,
+    toggleRecording,
+  ]) as ComposerProps & { onPaste: typeof handlePaste }
 
   function handleBreakdownConfirmed() {
     void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+    void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
   }
 
   return {
+    blockAnswerInteraction,
+    activeSteps,
+    canShowFollowUps: isOnline && !isSending && !atMessageLimit && profile != null,
     chatContainerRef,
-    textareaRef,
+    threadScroll,
     fileInputRef,
+    textFileInputRef,
     input,
     setInput,
     sendError,
     selectedImage,
+    selectedTextFile,
     imagePreview,
     isRecording,
     isTranscribing,
@@ -630,12 +838,12 @@ export function useChatComposer() {
     speechError,
     toggleRecording,
     recordingTime,
-    starterChips,
     messages,
     isTyping,
     isSending,
     streamingMessageId,
     hasProAccess,
+    hasGoogleConnection: profile?.hasGoogleConnection ?? false,
     aiMessagesUsed,
     aiMessagesLimit,
     atMessageLimit,
@@ -644,18 +852,18 @@ export function useChatComposer() {
     showSuggestions,
     openFilePicker,
     handleFileSelect,
-    handlePaste,
-    removeImage,
-    textFileInputRef,
-    selectedTextFileName: selectedTextFile?.name ?? null,
-    openTextFilePicker,
     handleTextFileSelect,
-    removeTextFile,
+    removeImage,
+    composerProps,
+    composerInputId,
     sendMessage,
     retryLastSend,
     canRetryLastSend,
-    handleKeyDown,
     handleBreakdownConfirmed,
+    revisePendingOperationForBubble,
+    refreshPendingOperationForBubble,
+    isPendingOperationBusy,
+    trackCardOperation,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

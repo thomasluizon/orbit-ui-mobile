@@ -1,36 +1,20 @@
+import { resolveRequestLanguage } from '@/lib/resolve-request-language'
 import { NextResponse, type NextRequest } from 'next/server'
 import {
+  ACCOUNT_ID_HEADER,
   AUTH_COOKIE,
   REFRESH_COOKIE,
+  getAccountIdFromToken,
   resolveSessionTokens,
   setSessionCookies,
   type SessionTokens,
 } from '@/lib/auth-api'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
+import { isPublicPath } from '@/lib/public-paths'
 
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
 const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
 const PUBLIC_ROOT_FILES = new Set(['/sw.js', '/robots.txt'])
-
-const PUBLIC_PATHS = [
-  '/login',
-  '/onboarding',
-  '/auth-callback',
-  '/r/',
-  '/terms',
-  '/privacy',
-  '/delete-account',
-  '/turnstile-bridge',
-  '/.well-known',
-  '/ingest',
-]
-
-function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.some(
-    (publicPath) =>
-      pathname === publicPath || pathname.startsWith(publicPath + '/')
-  )
-}
 
 async function resolveProxySession(request: NextRequest): Promise<{
   token: string | null
@@ -43,6 +27,7 @@ async function resolveProxySession(request: NextRequest): Promise<{
   const session = await resolveSessionTokens({
     authToken,
     refreshToken,
+    language: resolveRequestLanguage(request.cookies.get('i18n_locale')?.value, request.headers.get('accept-language')),
     persistSession: (tokens) => {
       refreshedTokens = tokens
     },
@@ -105,6 +90,7 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set(CONTENT_SECURITY_POLICY, contentSecurityPolicy)
+  requestHeaders.delete(ACCOUNT_ID_HEADER)
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
     ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
@@ -115,7 +101,8 @@ export async function proxy(request: NextRequest) {
     siteUrl &&
     siteUrl.hostname !== 'localhost' &&
     requestHost &&
-    requestHost.toLowerCase() !== siteUrl.host
+    requestHost.toLowerCase() !== siteUrl.host &&
+    request.headers.get('x-forwarded-host')?.toLowerCase() !== siteUrl.host
   ) {
     const redirectUrl = new URL(siteUrl.origin)
     redirectUrl.pathname = pathname
@@ -143,6 +130,9 @@ export async function proxy(request: NextRequest) {
   const session = shouldResolveSession
     ? await resolveProxySession(request)
     : { token: null, refreshedTokens: null }
+
+  const accountId = session.token ? getAccountIdFromToken(session.token) : null
+  if (accountId) requestHeaders.set(ACCOUNT_ID_HEADER, accountId)
 
   if (!session.token && !isPublic) {
     const url = new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')
@@ -173,5 +163,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|api/health$).*)'],
+  matcher: ['/((?!_next/static|_next/image|api/health$|manifest\\.webmanifest$|pwa-(?:192x192|512x512)\\.png$).*)'],
 }

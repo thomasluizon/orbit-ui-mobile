@@ -1,0 +1,172 @@
+---
+name: questions
+description: Filter every question you were about to ask the owner, answer the ones you can, and put only what survives to him through AskUserQuestion with a recommendation. Then give him a numbered step-by-step for every manual action only he can do, after the same kind of gate. Use before asking him anything, when a run is blocked on a decision, or when he says /questions.
+argument-hint: [optional scope, for example "the redesign" or "ticket 67"]
+effort: high
+---
+
+# Questions
+
+Write decisions in tracked specs as current rules without dates, attributed quotes or session IDs.
+Keep timed decision evidence in the session scratchpad outside the repository.
+
+**At a glance:** most questions are not his. Answer them yourself, then ask what is left, all at
+once, with a recommendation on each.
+
+## List every candidate first, in writing
+
+Before filtering anything, enumerate every open question you can find, as a written list. Read the
+sources rather than your memory of them: the opening prompt of this session, the spec if one exists,
+`questions.md`, each relevant ticket's body and comments, and any "blocked" or "needs the owner" note
+anywhere in the run.
+
+Read `openSessionChain` from `tools/lib/session-chain.mjs` with the current session id.
+Add every entry's `openOwnerQuestions` to the candidate list, plus the current run state's
+questions. Deduplicate identical questions while retaining every source and what it blocks.
+Apply the same filter and give every surviving chain question a disposition. Keep the chain
+open until the owner's `/handoff` completes. Context relays never invoke this skill.
+
+A question you never wrote down cannot be filtered, cannot be asked, and disappears silently. That
+is the failure this list exists to prevent.
+
+## Give every candidate a disposition
+
+Each question on that list leaves with exactly one of these, and nothing else:
+
+| disposition | what it requires |
+|---|---|
+| **answered** | the answer itself, plus where it came from: a file and line, a ticket comment, an ADR, a primary source |
+| **decided** | the decision you made, plus the reasoning, recorded where the work will read it |
+| **asked** | it went to him in an `AskUserQuestion` call |
+
+"I could probably work this out" is not a disposition. Either produce the answer with its evidence
+now, or ask. A question you set aside as settleable and did not settle is an asked question you
+skipped.
+
+**Cross-check before you finish.** Anything still open at the end of the run must appear in the
+asked list. If a question is open and he was never asked it, the run failed; ask it.
+
+**Never name an unasked question in a reply.** If you can write "this one is still yours", you could
+have asked it in that same turn. Mentioning it instead of asking turns one grilling session into a
+loop, which is the thing he does not want. Ask everything, then report.
+
+## The filter, in order
+
+Run every candidate question through these. Stop at the first that resolves it.
+
+### 1. Is it already answered somewhere?
+
+Check, in this order, and only the ones that could plausibly hold it:
+
+- **The code.** Read the implementation, the contract type, the API source in the sibling repo.
+  A question about what a field contains is a question about a file you have not opened yet.
+- **The ticket, body AND comments.** The body often already decides what the question asks, and a
+  worker's question is frequently a line it did not read. The comments hold what came later: an
+  answer the owner gave, a capability the API does not have, a scope correction. Read both, because a
+  decision recorded as a comment is the most recent one and the body will not mention it.
+- **The brain.** `/brain` holds every decision the owner has made. A question shaped like "is this Pro
+  or free", "did we keep X", "which direction did we pick" is almost always already an ADR.
+- **The web.** A vendor limit, an API's real behaviour, a library's actual semantics. If a search
+  settles it against a primary source, it was never his question.
+
+### 2. Is it "simpler or more correct"?
+
+If the question is some form of "do you want the quick version or the proper one", the answer is
+the proper one. Always.
+
+That holds no matter what it costs: more code, a change in the sibling repo, a new shared
+abstraction, a migration, a longer run, more review rounds. Take the correct and scalable path and
+say in one line what it costs.
+
+This question never reaches him. Asking it is asking permission to do worse work.
+
+### 3. Is it an engineering call?
+
+Naming, structure, which layer owns something, how to test it, what to name a file: yours. Decide
+it now and write the decision down. Deciding it later is not deciding it.
+
+A question about what a screen SHOWS is yours too, whenever one answer is clearly better. Take the
+better one. `DESIGN.md`, `BRAND.md`, `design/canvas/` under the D42 ladder, and the decisions in
+`/brain` are the authority, and between them they settle most of these: a dead end loses to a way
+forward, an honest state loses to nothing, a drawn behaviour wins over an invented one.
+
+Only a real toss-up reaches him: two answers both defensible against all four of those, where the
+difference is taste or positioning rather than quality.
+
+### What survives
+
+What is left is genuinely his: product, copy, pricing, positioning, brand, design direction, and
+any choice where two answers are both defensible and only he knows which one he wants.
+
+## Asking
+
+`AskUserQuestion` takes at most four questions per call, so ask in rounds of four until every
+surviving question is answered. Order the rounds by how much work each question unblocks.
+
+Never drop a question because the list is long. A question you filtered out is answered; a question
+you simply did not ask is still blocking something, and nobody knows it exists. Say how many rounds
+are left when you send one, so he can see the end of it.
+
+Each question carries:
+
+- the decision stated plainly, checked against the owner's answer rather than a ticket paraphrase
+- what goes wrong today if nobody decides, so he can see why it matters
+- a recommendation FIRST, labelled `(Recommended)`, with the reason in its description
+- two to four real options, each a path you would actually take
+
+He can always type his own answer, so never add an "other" option yourself.
+
+Write the options in product terms. He should be able to answer without opening a file.
+
+## After he answers
+
+Record each answer where the work will read it: a comment on the ticket that needed it, and an ADR
+in the brain when it is a decision that outlives the ticket. Then unblock whatever was waiting.
+
+## Then: the manual steps only he can do
+
+Questions are decisions. A manual step is an action: a click in a console, a sign-in, a purchase on a
+device. After every question is answered, give him a numbered step-by-step for every manual action
+the run cannot do itself. It comes AFTER the questions, never instead of them, and never mixed into
+them.
+
+### List every candidate step first, in writing
+
+Read the same sources as for questions, plus every "waiting on the owner", "owner's click", "manual
+step" or blocker note in the spec, the tickets, the pull request bodies' `## Manual steps` and the
+session's decision log. A step you never wrote down cannot be filtered or handed over.
+
+### The gate: only what you ABSOLUTELY cannot do
+
+Every candidate passes this gate before it reaches him. Run the lines in order and stop at the first
+line that resolves it. The owner-only rule comes first, because a tool that can do a step does not
+make the run allowed to do it.
+
+1. **Is it his by rule?** It is his when it needs one of these: his password, a 2FA prompt, a
+   payment or purchase, a legal identity choice, a credential the run may not read or type, a
+   physical device in his hands, a permanent deletion only a browser can do, or a permission only
+   his account can grant. Name which one. It goes on his list even when an installed tool could
+   click it, and the run never tries it by another method.
+2. **Can an installed tool do it?** A CLI, an API, an MCP server, Terraform, a repository tool, or
+   the browser through `claude-in-chrome`. If yes, it is the run's work: do it now, or put it in the
+   handoff as the run's next task. Never hand him a step a tool can take.
+3. **Did the first method fail?** Try every other installed tool and account that reaches the same
+   goal, and write down what each returned. A step reaches him only when every method is exhausted,
+   and the step names the goal, not the first method's precondition.
+
+What fails the gate becomes run work and is recorded where the next session reads it. What passes is
+his.
+
+### The shape of each step
+
+One numbered list, ordered by how much work each step unblocks. Each step carries:
+
+- one action in one sentence, starting with the verb ("Open", "Click", "Paste")
+- exactly where: the URL or the menu path, and the field or button name as the screen shows it
+- what to enter or choose, with no secret written out (point to where the value lives instead)
+- how he knows it worked
+- in one short clause, why the run cannot do it (the rule from gate 1, or the methods gate 3 exhausted)
+- what it unblocks
+
+Split a long action into several numbered steps rather than one long one. If no step survives the
+gate, say so in one line and name what you filtered out and how the run will do it instead.

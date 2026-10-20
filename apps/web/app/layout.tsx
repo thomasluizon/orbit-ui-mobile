@@ -1,31 +1,94 @@
 import type { Metadata, Viewport } from 'next'
-import { headers } from 'next/headers'
-import { Suspense } from 'react'
+import { cookies, headers } from 'next/headers'
+import { Suspense, type CSSProperties } from 'react'
+import { geist, geistMono, spaceGrotesk } from './fonts'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
-import { Bell, Check, X } from 'lucide-react'
-import { Toaster } from 'sonner'
+import { neutralColors, skeletonPulseIterations } from '@orbit/shared/theme'
+import { API } from '@orbit/shared/api'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { captureException } from '@sentry/nextjs'
 import { PostHogProvider } from '@/components/posthog-provider'
-import { colorSchemeOptions, resolveDarkNeutrals, resolveLightNeutrals } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
-import { rubik, inter, roboto } from './fonts'
+import { RouteContext } from '@/components/navigation/route-context'
+import { normalizeThemeMode, resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
+import { serverRenderFetch } from '@/lib/server-fetch'
+import { ThrottleScreen } from '@/components/ui/throttle-screen'
+import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
+import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
+import { SessionCookieProvider } from '@/lib/session-cookie-provider'
+import { KeyboardPlatformProvider } from '@/components/shell/keyboard-platform-provider'
+import { NotificationsPreload } from '@/lib/notifications-preload'
+import { loadInitialNotifications } from '@/lib/server-notifications'
 import './globals.css'
+
+const schemeNames = Array.from(VALID_COLOR_SCHEMES)
+const canvasByScheme = Object.fromEntries(
+  schemeNames.map((scheme) => [
+    scheme,
+    { dark: neutralColors.dark.bg, light: neutralColors.light.bg },
+  ]),
+)
+const variablesByScheme = Object.fromEntries(
+  schemeNames.map((scheme) => [
+    scheme,
+    {
+      dark: resolveWebThemeVariables(scheme, 'dark'),
+      light: resolveWebThemeVariables(scheme, 'light'),
+    },
+  ]),
+)
+async function loadInitialTheme(hasSessionCookie: boolean, cookieTheme: string | undefined) {
+  if (hasSessionCookie) {
+    try {
+      const profile = await serverRenderFetch(API.profile.get, { cache: 'no-store', signal: AbortSignal.timeout(10000) }, profileSchema)
+      return normalizeThemeMode(profile?.themePreference ?? cookieTheme)
+    } catch (error) {
+      // WHY: Public routes must still render when the profile API or session is unavailable; https://github.com/thomasluizon/orbit-tickets/issues/1311.
+      captureException(error)
+    }
+  }
+  return normalizeThemeMode(cookieTheme)
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')
+  const title = t('title')
+  const description = t('description')
   return {
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.useorbit.org'),
-    title: t('title'),
-    description: t('description'),
+    description,
+    manifest: '/manifest.webmanifest',
+    icons: {
+      icon: [
+        { url: '/favicon.ico', type: 'image/x-icon' },
+        { url: '/favicon-16.png', type: 'image/png', sizes: '16x16' },
+        { url: '/favicon-32.png', type: 'image/png', sizes: '32x32' },
+      ],
+      apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '180x180' }],
+    },
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: ['/og-image.png'],
+    },
   }
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: resolveLightNeutrals('purple').bg },
-    { media: '(prefers-color-scheme: dark)', color: resolveDarkNeutrals('purple').bg },
+    { media: '(prefers-color-scheme: light)', color: neutralColors.light.bg },
+    { media: '(prefers-color-scheme: dark)', color: neutralColors.dark.bg },
   ],
 }
 
@@ -36,22 +99,24 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale()
   const messages = await getMessages()
-  const nonce = (await headers()).get('x-nonce') ?? undefined
-  const canvasByScheme = Object.fromEntries(
-    colorSchemeOptions.map(({ value }) => [
-      value,
-      { dark: resolveDarkNeutrals(value).bg, light: resolveLightNeutrals(value).bg },
-    ]),
-  )
+  const requestHeaders = await headers()
+  const nonce = requestHeaders.get('x-nonce') ?? undefined
+  const platform = requestHeaders.get('sec-ch-ua-platform') || requestHeaders.get('user-agent') || ''
+  const applePlatform = /Mac|iPhone|iPad|iPod|iOS/i.test(platform)
+  const cookieStore = await cookies()
+  const hasSessionCookie = Boolean(cookieStore.get(AUTH_COOKIE)?.value || cookieStore.get(REFRESH_COOKIE)?.value)
+  const [initialTheme, initialNotifications] = await Promise.all([
+    loadInitialTheme(hasSessionCookie, cookieStore.get('orbit_theme_mode')?.value),
+    loadInitialNotifications(hasSessionCookie),
+  ])
+  const initialThemeStyle = {
+    ...resolveWebThemeVariables('orange', initialTheme),
+    colorScheme: initialTheme,
+    '--skeleton-pulse-iterations': skeletonPulseIterations,
+  } as CSSProperties
   const themeBootstrapScript = `
     try {
-      const cookie = document.cookie
-      const readCookie = (name) => {
-        const match = cookie.match(new RegExp('(?:^|; )' + name + '=([^;]+)'))
-        return match ? decodeURIComponent(match[1]) : null
-      }
-      const schemeName = readCookie('orbit_color_scheme')
-      const themeName = readCookie('orbit_theme_mode') === 'light' ? 'light' : 'dark'
+      const themeName = ${JSON.stringify(initialTheme)}
       const root = document.documentElement
 
       if (themeName === 'dark') {
@@ -62,12 +127,16 @@ export default async function RootLayout({
         root.classList.remove('dark')
       }
 
-      const schemeNames = ['purple','blue','green','rose','orange','cyan']
+      const schemeNames = ${JSON.stringify(schemeNames)}
       schemeNames.forEach((s) => root.classList.remove('scheme-' + s))
-      const activeScheme = schemeNames.indexOf(schemeName) >= 0 ? schemeName : 'purple'
+      const activeScheme = 'orange'
       root.classList.add('scheme-' + activeScheme)
 
       root.style.setProperty('color-scheme', themeName)
+      const variables = ${JSON.stringify(variablesByScheme)}
+      Object.entries(variables[activeScheme][themeName]).forEach(([property, value]) => {
+        root.style.setProperty(property, value)
+      })
 
       const canvases = ${JSON.stringify(canvasByScheme)}
       document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
@@ -77,7 +146,12 @@ export default async function RootLayout({
   `
 
   return (
-    <html lang={locale} className={`dark scheme-purple ${rubik.variable} ${inter.variable} ${roboto.variable}`} suppressHydrationWarning>
+    <html
+      lang={locale}
+      className={`${initialTheme} scheme-orange ${geist.variable} ${spaceGrotesk.variable} ${geistMono.variable}`}
+      style={initialThemeStyle}
+      suppressHydrationWarning
+    >
       <head>
         <script
           nonce={nonce}
@@ -88,35 +162,22 @@ export default async function RootLayout({
       </head>
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <PostHogProvider>
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <Suspense fallback={null}>
-            <NavigationHistoryTracker />
-          </Suspense>
-          {children}
-          <Toaster
-            theme="dark"
-            position="top-center"
-            icons={{
-              success: <Check size={17} strokeWidth={2.4} />,
-              error: <X size={17} strokeWidth={2.4} />,
-              info: <Bell size={17} strokeWidth={2.4} />,
-            }}
-            toastOptions={{
-              style: {
-                background: 'var(--bg-sheet)',
-                boxShadow:
-                  '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
-                border: 'none',
-                color: 'var(--fg-1)',
-                borderRadius: 18,
-                padding: '14px 16px',
-                gap: 12,
-                alignItems: 'center',
-                fontFamily: 'var(--font-sans)',
-              },
-            }}
-          />
-        </NextIntlClientProvider>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <RouteContext>
+              <Suspense fallback={null}>
+                <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
+                <NavigationHistoryTracker />
+              </Suspense>
+              <SessionCookieProvider hasSessionCookie={hasSessionCookie}>
+                <KeyboardPlatformProvider applePlatform={applePlatform}>
+                  <NotificationsPreload initialNotifications={initialNotifications}>
+                    {children}
+                  </NotificationsPreload>
+                </KeyboardPlatformProvider>
+              </SessionCookieProvider>
+              <ThrottleScreen />
+            </RouteContext>
+          </NextIntlClientProvider>
         </PostHogProvider>
       </body>
     </html>

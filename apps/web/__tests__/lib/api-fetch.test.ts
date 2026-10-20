@@ -1,11 +1,7 @@
+import en from '@orbit/shared/i18n/en.json'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { z } from 'zod'
 
-vi.mock('sonner', () => ({
-  toast: {
-    error: vi.fn(),
-  },
-}))
 
 const mockLogout = vi.fn()
 const mockConfirmSessionRefreshFailure = vi.fn()
@@ -49,17 +45,70 @@ vi.stubGlobal('fetch', mockFetch)
 
 const originalLocation = globalThis.location
 
-import { apiFetch, fetchJson, ApiError } from '@/lib/api-fetch'
-import { toast } from 'sonner'
+import { apiFetch, fetchJson, ApiError, fetchWithUpgradeGuidance } from '@/lib/api-fetch'
+import { useAppToastStore } from '@/stores/app-toast-store'
+const toastError = vi.fn()
 
 describe('apiFetch', () => {
+  it.each(['/api/habits', 'https://api.example.test/api/events?ticket=stream-ticket'])(
+    'pins API v2 for %s and preserves request headers', async (url) => {
+      mockFetch.mockResolvedValue(Response.json({ accepted: true }))
+      const response = await fetchWithUpgradeGuidance(url, {
+        headers: { 'api-version': '1.0', 'Last-Event-ID': 'epoch.1' },
+      })
+      expect(await response.json()).toEqual({ accepted: true })
+      const headers = new Headers(mockFetch.mock.calls[0]?.[1]?.headers)
+      expect(headers.get('api-version')).toBe('2.0')
+      expect(headers.get('Last-Event-ID')).toBe('epoch.1')
+    },
+  )
+
+  it('wakes the public API once per minute for starting refusals without publishing an error', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(0)
+    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://api-staging.useorbit.org/')
+    const wake = vi.fn(async (_input: string, _init?: RequestInit) => new Response(null))
+    mockFetch.mockImplementation((input: string, init?: RequestInit) => init?.mode === 'no-cors'
+      ? wake(input, init)
+      : Promise.resolve(Response.json({ error: 'Upstream service is starting', errorCode: 'UPSTREAM_STARTING' }, { status: 503, headers: { 'Retry-After': '5' } })))
+    try {
+      for (let count = 0; count < 3; count++) {
+        await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 503, retryAfter: '5' })
+      }
+      expect(wake).toHaveBeenCalledOnce()
+      expect(wake).toHaveBeenCalledWith('https://api-staging.useorbit.org/health', { mode: 'no-cors', cache: 'no-store' })
+      vi.advanceTimersByTime(59_999)
+      await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 503 })
+      expect(wake).toHaveBeenCalledOnce()
+      vi.advanceTimersByTime(1)
+      await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 503 })
+      expect(wake).toHaveBeenCalledTimes(2)
+      expect(toastError).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllEnvs()
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    { status: 429, errorCode: 'RATE_LIMITED' },
+    { status: 503, errorCode: 'INTERNAL_SERVER_ERROR' },
+    { status: 500, errorCode: 'UPSTREAM_STARTING' },
+  ])('does not wake the API for $status/$errorCode', async ({ status, errorCode }) => {
+    mockFetch.mockImplementation(async () => Response.json({ error: 'Unavailable', errorCode }, { status }))
+    const response = await fetchWithUpgradeGuidance('/api/habits')
+    expect(response.status).toBe(status)
+    expect(mockFetch).toHaveBeenCalledOnce()
+  })
+
   beforeEach(() => {
     mockFetch.mockReset()
     mockLogout.mockReset()
     mockConfirmSessionRefreshFailure.mockReset()
     mockRecoverSessionRefreshFailure.mockReset()
     mockMarkUpgradeRequired.mockReset()
-    vi.mocked(toast.error).mockReset()
+    toastError.mockReset()
+    useAppToastStore.setState({ showError: toastError, currentToast: null, queue: [] })
   })
 
   afterEach(() => {
@@ -116,7 +165,7 @@ describe('apiFetch', () => {
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(mockConfirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
     expect(mockLogout).not.toHaveBeenCalled()
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('shows the failed-refresh state when a public endpoint still succeeds', async () => {
@@ -130,14 +179,14 @@ describe('apiFetch', () => {
     await expect(apiFetch('/api/subscriptions/plans')).resolves.toEqual({ plans: [] })
     expect(mockConfirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
     expect(mockLogout).not.toHaveBeenCalled()
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('throws ApiError with status 401', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
-      status: 401,
       headers: new Headers(),
+      status: 401,
       json: () => Promise.resolve({ error: 'Token expired' }),
     })
 
@@ -161,13 +210,14 @@ describe('apiFetch', () => {
 
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 403,
       json: () => Promise.resolve({ error: 'Upgrade required', code: 'PAY_GATE' }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(mockHref.href).toBe('/upgrade')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('does not redirect again when already on /upgrade', async () => {
@@ -183,13 +233,42 @@ describe('apiFetch', () => {
 
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 403,
       json: () => Promise.resolve({ error: 'Upgrade required', code: 'PAY_GATE' }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(locationOnUpgrade.href).toBe('https://app.useorbit.org/upgrade')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
+  })
+
+  it('returns a pay-gate error without redirecting when the caller handles it', async () => {
+    const locationOnProgress = {
+      href: 'https://app.useorbit.org/progress',
+      pathname: '/progress',
+    }
+    Object.defineProperty(globalThis, 'location', {
+      value: locationOnProgress,
+      writable: true,
+      configurable: true,
+    })
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      headers: new Headers(),
+      status: 403,
+      json: () => Promise.resolve({
+        error: 'Gamification is a Pro feature. Upgrade to unlock!',
+        errorCode: 'PAY_GATE',
+      }),
+    })
+
+    await expect(apiFetch('/api/gamification/profile', undefined, undefined, {
+      handlesPayGate: true,
+    })).rejects.toThrow(ApiError)
+    expect(locationOnProgress.href).toBe('https://app.useorbit.org/progress')
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('does not redirect on a non-PAY_GATE 403 and shows an error toast', async () => {
@@ -202,21 +281,20 @@ describe('apiFetch', () => {
 
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 403,
       json: () => Promise.resolve({ error: 'You do not own this habit', code: 'NO_PERMISSION' }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(mockHref.href).toBe('')
-    expect(toast.error).toHaveBeenCalledWith('Something went wrong', {
-      description: 'You do not own this habit',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Something went wrong: You do not own this habit')
   })
 
   it('flags upgrade required on a 426 without toast', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 426,
       json: () =>
         Promise.resolve({
@@ -229,12 +307,13 @@ describe('apiFetch', () => {
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(mockMarkUpgradeRequired).toHaveBeenCalledWith('1.5.0')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('flags upgrade required on a 426 with a null minVersion when absent', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 426,
       json: () => Promise.resolve({ error: 'Upgrade required' }),
     })
@@ -246,104 +325,111 @@ describe('apiFetch', () => {
   it('shows validation error toast on 400', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 400,
-      json: () => Promise.resolve({ error: 'Title is required' }),
+      json: () => Promise.resolve({ error: en.habits.form.titleRequired }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Validation error', {
-      description: 'Title is required',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith(`Validation error: ${en.habits.form.titleRequired}`)
   })
 
   it('shows not found toast on 404', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 404,
       json: () => Promise.resolve({ error: 'Habit not found' }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Not found', {
-      description: 'Habit not found',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Not found: Habit not found')
   })
 
   it('shows conflict toast on 409', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 409,
       json: () => Promise.resolve({ error: 'Already exists' }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Conflict', {
-      description: 'Already exists',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Conflict: Already exists')
   })
 
-  it('shows rate limit toast on 429', async () => {
+  it('keeps a background read 429 quiet and preserves Retry-After', async () => {
+    mockFetch.mockResolvedValue(Response.json({ error: 'Rate limited', retryAfterUtc: new Date(Date.now() + 60_000).toISOString() }, { status: 429, headers: { 'Retry-After': '60' } }))
+    await expect(apiFetch('/api/test')).rejects.toMatchObject({ status: 429, retryAfter: '60' })
+    expect(toastError).not.toHaveBeenCalled()
+  })
+
+  it('shows rate limit toast on a mutation 429', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 429,
       json: () => Promise.resolve({ error: 'Slow down' }),
     })
 
-    await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Too many requests', {
-      description: 'Slow down',
-      duration: 5000,
-    })
+    await expect(apiFetch('/api/test', { method: 'POST' })).rejects.toThrow(ApiError)
+    expect(toastError).toHaveBeenCalledWith('Too many requests: Slow down')
   })
 
   it('shows server error toast on 500', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 500,
       json: () => Promise.resolve({ error: 'Internal server error' }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Server error', {
-      description: 'Internal server error',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Server error: Internal server error')
+  })
+
+  it('lets a caller handle a 503 without a global toast', async () => {
+    mockFetch.mockResolvedValue(Response.json({
+      error: 'Payment service temporarily unavailable',
+      code: 'PAYMENT_SERVICE_UNAVAILABLE',
+    }, { status: 503 }))
+
+    await expect(
+      apiFetch('/api/subscriptions/plans', undefined, undefined, {
+        handlesError: true,
+      }),
+    ).rejects.toThrow(ApiError)
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('shows server error toast on 502', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 502,
       json: () => Promise.resolve({}),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Server error', {
-      description: undefined,
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Server error')
   })
 
   it('uses generic title when no backend error message', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 418,
       json: () => Promise.resolve({}),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Something went wrong', {
-      description: undefined,
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Something went wrong')
   })
 
   it('handles body parse failure gracefully', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 500,
       json: () => Promise.reject(new Error('Invalid JSON')),
     })
@@ -384,7 +470,7 @@ describe('apiFetch', () => {
       status: 502,
       code: 'INVALID_RESPONSE_SCHEMA',
     })
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 })
 

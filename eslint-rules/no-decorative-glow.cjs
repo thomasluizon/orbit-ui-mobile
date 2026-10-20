@@ -1,4 +1,3 @@
-
 const { collectStaticStrings, getAttribute, getAttributeValueNode, getElementName, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const GLOW_TOKEN_RE = /--primary-glow/
@@ -126,12 +125,6 @@ module.exports = {
         }
 
       },
-      /**
-       * Any shadow property in any object, not only a JSX `style` attribute. The
-       * previous version read `style={{ }}` alone, so a glow inside
-       * `StyleSheet.create({ })` or a module-level style object was never visited
-       * at all - the whole mobile surface was blind to this rule.
-       */
       Property(node) {
         const key = getPropertyKeyName(node)
         if (!key || !SHADOW_STYLE_KEYS.has(key)) return

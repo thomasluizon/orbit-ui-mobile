@@ -60,14 +60,15 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listLabels,listMilestones,listProjectViews,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setProjectViewFilter,setStatus,updateBody,updateTitle",
+      "addComment,addTicketToProject,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listLabels,listMilestones,listProjectViews,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setProjectViewFilter,setStatus,updateBody,updateTitle",
     Object.keys(githubIssues).sort().join(","),
   )
 
   const migrated = githubIssues.resolveTicket("orb-215")
-  T(`${TOOL}: resolves a migrated ORB identifier only through the recorded map`, migrated.number === 221 && migrated.identifier === "ORB-215", JSON.stringify(migrated))
-  T(`${TOOL}: resolves a raw migrated issue number back to its identifier`, githubIssues.resolveTicket("#221").identifier === "ORB-215")
-  T(`${TOOL}: leaves a post-migration raw issue without an invented identifier`, githubIssues.resolveTicket(9999).identifier === null)
+  T(`${TOOL}: resolves a migrated ORB identifier only through the recorded map`, migrated.number === 221 && migrated.identifier === "ORB-215" && migrated.reference === "ORB-215", JSON.stringify(migrated))
+  T(`${TOOL}: resolves every migrated spelling to one recorded reference`, ["221", "#221", "ORB-215"].every((reference) => githubIssues.resolveTicket(reference).reference === "ORB-215"))
+  const unmigrated = githubIssues.resolveTicket(9999)
+  T(`${TOOL}: leaves a post-migration raw issue without an invented identifier`, unmigrated.identifier === null && unmigrated.reference === "#9999", JSON.stringify(unmigrated))
   T(
     `${TOOL}: refuses an ORB identifier absent from the migration map`,
     /Unknown migrated ticket ORB-999999/.test(await messageOf(() => githubIssues.resolveTicket("ORB-999999")) ?? ""),

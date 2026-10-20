@@ -25,13 +25,28 @@ describe('onboarding draft store', () => {
     expect(store.getState().habits).toHaveLength(2)
   })
 
+  it('replaces one buffered habit without changing its index', () => {
+    const store = makeStore()
+    store.getState().bufferHabit({ title: 'Drink water' })
+    store.getState().bufferHabit({ title: 'Read' })
+
+    store.getState().replaceHabit(0, {
+      title: 'Drink water',
+      frequencyUnit: 'Day',
+    })
+
+    expect(store.getState().habits).toEqual([
+      { title: 'Drink water', frequencyUnit: 'Day' },
+      { title: 'Read' },
+    ])
+  })
+
   it('builds an apply payload from buffered answers', () => {
     const store = makeStore()
     store.getState().bufferHabit({ title: 'Drink water', frequencyUnit: 'Day' })
     store.getState().bufferFirstLog(0, '2026-07-05')
     store.getState().bufferGoal({ title: 'Run 100km', targetValue: 100, unit: 'km' })
     store.getState().bufferWeekStartDay(0)
-    store.getState().bufferColorScheme('blue')
 
     const payload = store.getState().buildApplyPayload()
 
@@ -40,7 +55,6 @@ describe('onboarding draft store', () => {
       firstLog: { habitIndex: 0, date: '2026-07-05' },
       goal: { title: 'Run 100km', targetValue: 100, unit: 'km' },
       weekStartDay: 0,
-      colorScheme: 'blue',
     })
   })
 
@@ -58,7 +72,23 @@ describe('onboarding draft store', () => {
     expect(store.getState().hasPendingAnswers()).toBe(false)
 
     store.getState().markOnboardingLocallyDone()
-    expect(store.getState().hasPendingAnswers()).toBe(true)
+    expect(store.getState().hasPendingAnswers()).toBe(false)
+  })
+
+  it('keeps deferred push registration outcomes in the persisted draft', () => {
+    const store = makeStore()
+
+    store.getState().markPushPermissionGranted()
+    expect(getPersistedOnboardingDraft(store.getState())).toMatchObject({
+      pushPermissionGranted: true,
+      pushRegistrationFailed: false,
+    })
+
+    store.getState().markPushRegistrationFailed()
+    expect(getPersistedOnboardingDraft(store.getState())).toMatchObject({
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
   })
 
   it('resets back to the initial draft', () => {
@@ -70,25 +100,43 @@ describe('onboarding draft store', () => {
 
     const persisted = getPersistedOnboardingDraft(store.getState())
     expect(persisted.habits).toHaveLength(0)
-    expect(persisted.onboardingLocallyDone).toBe(false)
+    expect(persisted.onboardingLocallyDone).toBe(true)
+  })
+
+  it('ends device onboarding on sign-in without creating pending account answers', () => {
+    const store = makeStore()
+    store.getState().setAccountScope('account-a', true)
+    expect(store.getState().onboardingLocallyDone).toBe(true)
+    expect(store.getState().hasPendingAnswers()).toBe(false)
+    store.getState().setAccountScope(null)
+    expect(store.getState().onboardingLocallyDone).toBe(true)
+    store.getState().setAccountScope('account-b')
+    expect(store.getState().hasPendingAnswers()).toBe(false)
   })
 
   it('migrates unknown persisted shapes to a clean draft', () => {
     expect(migrateOnboardingDraft(null)).toEqual({
       accountKey: null,
-      step: 0,
       habits: [],
       firstLog: null,
       goal: null,
       weekStartDay: null,
-      colorScheme: null,
       onboardingLocallyDone: false,
+      pushPermissionGranted: false,
+      pushRegistrationFailed: false,
     })
 
-    const partial = migrateOnboardingDraft({ step: 3, onboardingLocallyDone: true })
-    expect(partial.step).toBe(3)
+    const partial = migrateOnboardingDraft({ onboardingLocallyDone: true })
     expect(partial.onboardingLocallyDone).toBe(true)
     expect(partial.habits).toEqual([])
+  })
+
+  it('drops a retired scheme from a persisted draft before applying onboarding', () => {
+    const draft = migrateOnboardingDraft({
+      habits: [{ title: 'Read' }],
+      colorScheme: 'rose',
+    })
+    expect(buildApplyOnboardingPayload(draft)).toEqual({ habits: [{ title: 'Read' }] })
   })
 
   it('claims an anonymous signup draft and clears it for another account', () => {
@@ -107,13 +155,13 @@ describe('onboarding draft store', () => {
 
   it('round-trips a payload through the pure builder', () => {
     const payload = buildApplyOnboardingPayload({
-      step: 6,
       habits: [{ title: 'Stretch' }],
       firstLog: null,
       goal: null,
       weekStartDay: 1,
-      colorScheme: null,
       onboardingLocallyDone: true,
+      pushPermissionGranted: false,
+      pushRegistrationFailed: false,
     })
 
     expect(payload).toEqual({ habits: [{ title: 'Stretch' }], weekStartDay: 1 })

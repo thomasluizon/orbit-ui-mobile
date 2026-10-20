@@ -1,4 +1,3 @@
-import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { achievementEmoji } from '@orbit/shared/utils'
@@ -16,9 +15,10 @@ import { MilestoneShareCard } from '@/components/milestone-share/milestone-share
 
 describe('MilestoneShareCard', () => {
   it('renders the streak variant with the day count and streak eyebrow', () => {
-    render(<MilestoneShareCard variant={{ kind: 'streak', streak: 30 }} referralUrl="https://useorbit.org/r/XY" />)
+    const { container } = render(<MilestoneShareCard variant={{ kind: 'streak', streak: 30 }} referralUrl="https://useorbit.org/r/XY" />)
     expect(screen.getByText('30 🔥')).toBeInTheDocument()
     expect(screen.getByText('milestoneShare.streakEyebrow')).toBeInTheDocument()
+    expect(container.querySelector('[data-asset="orbit-mark-accent"]')).toBeInTheDocument()
   })
 
   it('renders the achievement variant with its emoji, name, and rarity', () => {
@@ -41,8 +41,8 @@ describe('MilestoneShareCard', () => {
   })
 
   it('forwards the capture ref to the card root', () => {
-    const ref = React.createRef<HTMLDivElement>()
-    render(<MilestoneShareCard ref={ref} variant={{ kind: 'streak', streak: 1 }} referralUrl="https://useorbit.org/r/A" />)
-    expect(ref.current).toBe(screen.getByTestId('milestone-share-card'))
+    let target: HTMLDivElement | null = null
+    render(<MilestoneShareCard ref={(node) => { target = node }} variant={{ kind: 'streak', streak: 1 }} referralUrl="https://useorbit.org/r/A" />)
+    expect(target).toBe(screen.getByTestId('milestone-share-card'))
   })
 })

@@ -1,3 +1,4 @@
+vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import { createApiClientError } from '@orbit/shared'
@@ -27,12 +28,13 @@ async function settleWithin<T>(promise: Promise<T>): Promise<T> {
 }
 
 async function installSignedInBrowser() {
-  const { useAuthStore } = await import('@/stores/auth-store')
+  const { useAuthStore, seedRenderedAccount } = await import('@/stores/auth-store')
   const { setAccountId } = await import('@/lib/account-scope')
   const { recordPushSubscriptionOwner } = await import('@/lib/push-subscription-owner')
   const { setApiFetchTranslate } = await import('@/lib/api-fetch')
   setApiFetchTranslate((key) => `translated:${key}`)
-  useAuthStore.setState({ isAuthenticated: true, heldAccountId: 'account-a' })
+  seedRenderedAccount('account-a')
+  useAuthStore.setState({ isAuthenticated: true })
   setAccountId('account-a')
   recordPushSubscriptionOwner('account-a')
   const subscription = {
@@ -67,7 +69,7 @@ describe('sign-out through the real notifications action wrapper', () => {
     await settleWithin(signedOut)
     expect(await settleWithin(followingCookieOperation)).toBe('cookies available')
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
-    expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) })
     expect(subscription.unsubscribe).toHaveBeenCalledOnce()
   })
 
@@ -76,7 +78,7 @@ describe('sign-out through the real notifications action wrapper', () => {
     const { serializePushSubscriptionMutation } = await import('@/lib/push-subscription-owner')
     const { unsubscribePush } = await import('@/lib/actions/notifications')
     actions.unsubscribePush.mockRejectedValue(new UnrecognizedActionError('Unknown action'))
-    void serializePushSubscriptionMutation(() => unsubscribePush(subscription.toJSON()))
+    void serializePushSubscriptionMutation(() => unsubscribePush(subscription.toJSON(), 'account-a'))
     await vi.waitFor(() => expect(actions.unsubscribePush).toHaveBeenCalledOnce())
     const { withSessionCookieLock } = await import('@/lib/session-cookie-lock')
 

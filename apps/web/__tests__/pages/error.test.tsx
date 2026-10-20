@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { captureException } from '@sentry/nextjs'
 
 vi.mock('next-intl', () => ({
   NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -10,12 +11,14 @@ vi.mock('@sentry/nextjs', () => ({
   captureException: vi.fn(),
 }))
 
-vi.mock('next/font/local', () => ({
-  default: () => ({ variable: 'font-rubik', className: 'font-rubik' }),
+vi.mock('@/app/fonts', () => ({
+  spaceGrotesk: { variable: 'font-display' },
+  geistMono: { variable: 'font-mono' },
+  geist: { variable: 'font-geist', className: 'font-geist' },
 }))
 
-vi.mock('lucide-react', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('lucide-react')>()
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
   return {
     ...actual,
     TriangleAlert: (props: Record<string, unknown>) => <svg data-testid="triangle-alert" {...props} />,
@@ -40,25 +43,19 @@ describe('AppError', () => {
     { name: 'handles error with digest property', error: Object.assign(new Error('Server error'), { digest: 'abc123' }) },
   ])('$name', ({ error }) => {
     render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
-  })
-
-  it('renders the alert triangle icon', () => {
-    const error = new Error('fail') as Error & { digest?: string }
-    render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByTestId('triangle-alert')).toBeInTheDocument()
+    expect(screen.getByText('errorScreen.title')).toBeInTheDocument()
   })
 
   it('renders the retry button with correct label', () => {
     const error = new Error('fail') as Error & { digest?: string }
     render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByText('common.retry')).toBeInTheDocument()
+    expect(screen.getByText('errorScreen.retry')).toBeInTheDocument()
   })
 
   it('calls reset when retry button is clicked', () => {
     const error = new Error('fail') as Error & { digest?: string }
     render(<AppError error={error} reset={mockReset} />)
-    fireEvent.click(screen.getByText('common.retry'))
+    fireEvent.click(screen.getByText('errorScreen.retry'))
     expect(mockReset).toHaveBeenCalledTimes(1)
   })
 })
@@ -93,11 +90,12 @@ describe('AuthError', () => {
     expect(mockReset).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the SVG warning icon', () => {
-    const error = new Error('fail') as Error & { digest?: string }
-    const { container } = render(<AuthError error={error} reset={mockReset} />)
-    const svg = container.querySelector('svg')
-    expect(svg).toBeTruthy()
+  it('reports the failure while keeping raw details out of the message', () => {
+    const error = new Error('Internal authentication detail')
+    render(<AuthError error={error} reset={mockReset} />)
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(error)
+    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
+    expect(screen.queryByText(error.message)).not.toBeInTheDocument()
   })
 })
 
@@ -112,32 +110,25 @@ describe('GlobalError', () => {
   it('renders the generic error message through i18n', () => {
     const error = new Error('Boom') as Error & { digest?: string }
     render(<GlobalError error={error} reset={mockReset} />)
-    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
-  })
-
-  it('renders a go-home escape link to the site root', () => {
-    const error = new Error('Boom') as Error & { digest?: string }
-    render(<GlobalError error={error} reset={mockReset} />)
-    const link = screen.getByRole('link', { name: 'common.goHome' })
-    expect(link).toHaveAttribute('href', '/')
+    expect(screen.getByText('errorScreen.title')).toBeInTheDocument()
   })
 
   it('renders the retry button label through i18n', () => {
     const error = new Error('Boom') as Error & { digest?: string }
     render(<GlobalError error={error} reset={mockReset} />)
-    expect(screen.getByText('common.retry')).toBeInTheDocument()
+    expect(screen.getByText('errorScreen.retry')).toBeInTheDocument()
   })
 
   it('calls reset when retry button is clicked', () => {
     const error = new Error('Boom') as Error & { digest?: string }
     render(<GlobalError error={error} reset={mockReset} />)
-    fireEvent.click(screen.getByText('common.retry'))
+    fireEvent.click(screen.getByText('errorScreen.retry'))
     expect(mockReset).toHaveBeenCalledTimes(1)
   })
 
   it('handles error with digest property', () => {
     const error = Object.assign(new Error('Server error'), { digest: 'abc123' })
     render(<GlobalError error={error} reset={mockReset} />)
-    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
+    expect(screen.getByText('errorScreen.title')).toBeInTheDocument()
   })
 })

@@ -9,6 +9,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 vi.mock('@/hooks/use-bulk-actions', () => ({
   useBulkActions: () => ({}),
 }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
 
 const habits = [
   createMockHabit({ id: 'parent', parentId: null }),
@@ -22,6 +23,8 @@ function renderSelection() {
   } as React.RefObject<HabitListHandle | null>
 
   return renderHook(() => useTodaySelection({
+    selectedDateStr: '2026-04-01',
+    today: '2026-04-01',
     habitsById: new Map(habits.map((habit) => [habit.id, habit])),
     childrenByParent: new Map([['parent', ['child-a', 'child-b']]]),
     habitsCount: habits.length,

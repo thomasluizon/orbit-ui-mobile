@@ -1,12 +1,23 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { NotificationDetailModal } from '@/components/navigation/notification-detail-modal'
 
 const TestRenderer = require('react-test-renderer')
+
+type TestNode = {
+  type: unknown
+  props: Record<string, unknown>
+  findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
+}
+
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
 }))
+
+vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: vi.fn() }))
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mocks.push }),
@@ -20,68 +31,91 @@ vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
 
-vi.mock('@/lib/theme', () => ({
-  createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
-  tintFromPrimary: () => '#222222',
-}))
+vi.mock('@/lib/theme', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>()
+  return { ...actual, createTokensV2: () => new Proxy({}, { get: () => '#111111' }) }
+})
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, onDidDismiss }: {
-    open: boolean
-    children: React.ReactNode
-    onDidDismiss?: () => void
-  }) => open ? React.createElement('Sheet', { onDidDismiss }, children) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 function renderModal(url: string | null) {
   const onClose = vi.fn()
-  let tree!: ReturnType<typeof TestRenderer.create>
+  let tree!: { root: TestNode }
   TestRenderer.act(() => {
     tree = TestRenderer.create(
-      <NotificationDetailModal
+      <QueryClientProvider client={new QueryClient()}><NotificationDetailModal
         open
         onClose={onClose}
         notification={createMockNotification({ url })}
         onMarkAsRead={vi.fn()}
         onDelete={vi.fn()}
-      />,
+      /></QueryClientProvider>,
     )
   })
   return { tree, onClose }
 }
 
-describe('NotificationDetailModal navigation', () => {
-  beforeEach(() => mocks.push.mockClear())
+function findOpenAction(root: TestNode) {
+  return root
+    .findAll((node) => typeof node.type === 'function' && node.props.onClick !== undefined)
+    .find((node) => node.props.children === 'notifications.openIn')
+}
 
-  it('opens progress on the streak screen after the sheet closes', () => {
-    const { tree, onClose } = renderModal('/progress')
-    const view = tree.root.findAllByType('Pressable')
-      .find((node: { props: { accessibilityLabel: string } }) => node.props.accessibilityLabel === 'notifications.view')
-    expect(view).toBeDefined()
+describe('NotificationDetailModal navigation', () => {
+  beforeEach(() => {
+    mocks.push.mockClear()
+    sheetTestControls.defer(false)
+  })
+
+  it.each([
+    ['/progress', '/progress'],
+    ['/progress/streak', '/progress/streak'],
+    ['/progress/goals', '/progress/goals'],
+    ['/progress/achievements', '/progress/achievements'],
+    ['/streak?source=inbox#freezes', '/progress/streak?source=inbox#freezes'],
+    ['/goals?status=Active', '/progress/goals?status=Active'],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
+  ])('opens notification %s in its screen after the sheet closes', (url, destination) => {
+    const { tree, onClose } = renderModal(url)
+    const openAction = findOpenAction(tree.root)
+    expect(openAction).toBeDefined()
+
     TestRenderer.act(() => {
-      view.props.onPress()
-      tree.root.findByType('Sheet').props.onDidDismiss()
+      ;(openAction?.props.onClick as () => void)()
     })
+
     expect(onClose).toHaveBeenCalled()
-    expect(mocks.push).toHaveBeenCalledWith('/streak')
+    expect(mocks.push).toHaveBeenCalledWith(destination)
   })
 
   it('preserves the closed month after the sheet closes', () => {
     const { tree } = renderModal('/progress?wrapped=month&year=2024&month=2')
-    const view = tree.root.findAllByType('Pressable')
-      .find((node: { props: { accessibilityLabel: string } }) => node.props.accessibilityLabel === 'notifications.view')
-    expect(view).toBeDefined()
+    const openAction = findOpenAction(tree.root)
+    expect(openAction).toBeDefined()
+
     TestRenderer.act(() => {
-      view.props.onPress()
-      tree.root.findByType('Sheet').props.onDidDismiss()
+      ;(openAction?.props.onClick as () => void)()
     })
-    expect(mocks.push).toHaveBeenCalledWith('/wrapped?wrapped=month&year=2024&month=2')
+
+    expect(mocks.push).toHaveBeenCalledWith('/wrapped?period=month&year=2024&month=2')
   })
 
-  it('hides View for a missing destination', () => {
+  it('never navigates before the sheet finishes its dismissal', () => {
+    sheetTestControls.defer(true)
+    const { tree, onClose } = renderModal('/progress')
+
+    TestRenderer.act(() => {
+      ;(findOpenAction(tree.root)?.props.onClick as () => void)()
+    })
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(onClose).toHaveBeenCalled()
+    expect(mocks.push).toHaveBeenCalledWith('/progress')
+  })
+
+  it('hides the open action for a missing destination', () => {
     const { tree } = renderModal(null)
-    const view = tree.root.findAllByType('Pressable')
-      .find((node: { props: { accessibilityLabel: string } }) => node.props.accessibilityLabel === 'notifications.view')
-    expect(view).toBeUndefined()
+    expect(findOpenAction(tree.root)).toBeUndefined()
   })
 })

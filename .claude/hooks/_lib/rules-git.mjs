@@ -1,12 +1,4 @@
-// Command (Bash) invariants: the git workflow guard.
-// Pure: they take the command string (and, for the bare-push case, a resolver so
-// the module stays runtime-agnostic) and return { block, message } or null.
-// The Claude Code PreToolUse(Bash) git-guardrails hook calls these.
-
-// Branch protection is Orbit's, not a universal law. These three repos have it;
-// a session launched from orbit-ui-mobile routinely drives sibling repos (the
-// brain vault, thomas-brain) whose sanctioned workflow IS direct-to-main, and
-// blocking those was a false positive that forced a manual push workaround.
+// Only these three repositories protect main; other repositories may allow direct pushes.
 const PROTECTED_REPOS = ["orbit-ui-mobile", "orbit-api", "orbit-landing-page"]
 
 const unquote = (token) => token.replace(/^["']|["']$/g, "")
@@ -41,7 +33,25 @@ function pushTargetDir(segments, pushIndex, cwd) {
   return cwd
 }
 
-const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n[\s\S]*?^\3[ \t]*$/gm
+const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n([\s\S]*?)^\3[ \t]*$/gm
+
+/** An unquoted heredoc expands command substitutions before its consumer starts. */
+export function unquotedHeredocRunsCommand(command) {
+  for (const match of command.matchAll(heredoc)) {
+    if (match[2] !== "") continue
+    const body = match[5]
+    const escapedAt = (index) => {
+      let backslashes = 0
+      for (let cursor = index - 1; cursor >= 0 && body[cursor] === "\\"; cursor--) backslashes++
+      return backslashes % 2 === 1
+    }
+    for (let index = 0; index < body.length; index++) {
+      if (body[index] === "`" && !escapedAt(index)) return true
+      if (body[index] === "$" && body[index + 1] === "(" && body[index + 2] !== "(" && !escapedAt(index)) return true
+    }
+  }
+  return false
+}
 
 /** Strip heredoc bodies so a message that NAMES a flag is not read as using it. */
 export function stripHeredocBodies(command) {
@@ -86,22 +96,11 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   // actually have it.
   const segments = scannable.split(/[&|;\n]/)
 
-  /**
-   * The git SUBCOMMAND, read the way git reads it: skip the global options that take a value, then
-   * the remaining flags, and take the first bare word. Keying off the word `push` appearing anywhere
-   * in the segment instead blocked `git checkout -b chore/x-push-guard main`, because the branch name
-   */
   const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/["']/g, "")
 
   /** A leading `NAME=value` is an environment assignment, not the command word. */
   const isEnvironmentAssignment = (token) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)
 
-  /**
-   * The git BINARY as a whole token, so `git`, `/usr/bin/git` and `git.exe` all count and
-   * `FOO=git` does not. Matching the first textual `git` instead let an environment assignment
-   * stand in for the command word: `FOO=git git push origin main` read its subcommand as `git`
-   * and the push went unjudged (Pullfrog, PR #743).
-   */
   const isGitBinary = (token) => /(?:^|[\\/])git(?:\.exe)?$/i.test(token)
 
   /** Everything after the git command word, normalized to what argv would carry. */

@@ -22,12 +22,13 @@ describe('uploads server action', () => {
       publicUrl: 'https://cdn/k',
     })
 
-    const result = await signUpload(input)
+    const result = await signUpload(input, null)
 
     expect(result).toEqual({ key: 'k', signedUrl: 'https://s3/put', publicUrl: 'https://cdn/k' })
-    expect(mockServerAuthMutate).toHaveBeenCalledWith(API.uploads.sign, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }, null)
+    expect(mockServerAuthMutate).toHaveBeenCalledWith(
+      API.uploads.sign,
+      { method: 'POST', body: JSON.stringify(input) },
+      null,
+    )
   })
 })

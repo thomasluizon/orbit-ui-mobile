@@ -1,8 +1,10 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { subscriptionKeys } from '@orbit/shared/query'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
+import { setAccountId } from '@/lib/account-scope'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -30,13 +32,15 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
 }))
 
-async function renderUseSubscriptionPlans(): Promise<ReturnType<typeof useSubscriptionPlans>> {
+async function renderUseSubscriptionPlans(
+  options?: Parameters<typeof useSubscriptionPlans>[0],
+): Promise<ReturnType<typeof useSubscriptionPlans>> {
   const latestValueHolder: {
     current: ReturnType<typeof useSubscriptionPlans> | null
   } = { current: null }
 
   function Harness() {
-    latestValueHolder.current = useSubscriptionPlans()
+    latestValueHolder.current = useSubscriptionPlans(options)
     return null
   }
 
@@ -54,14 +58,27 @@ async function renderUseSubscriptionPlans(): Promise<ReturnType<typeof useSubscr
 
 describe('mobile useSubscriptionPlans', () => {
   beforeEach(() => {
+    setAccountId('subscription-test-account')
     mocks.state.data = undefined
     mocks.useQuery.mockClear()
+  })
+
+  afterEach(() => {
+    setAccountId(null)
   })
 
   it('returns null plans when nothing has loaded yet', async () => {
     const result = await renderUseSubscriptionPlans()
 
     expect(result.plans).toBeNull()
+  })
+
+  it('waits for the account session before fetching plans', async () => {
+    setAccountId(null)
+    const result = await renderUseSubscriptionPlans()
+
+    expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
+    expect(result.isLoading).toBe(true)
   })
 
   it('uses the shared pricing helpers for loaded plans', async () => {
@@ -86,5 +103,19 @@ describe('mobile useSubscriptionPlans', () => {
     expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({
       refetchOnMount: 'always',
     }))
+  })
+
+  it('keeps caller handled and upgrade observers on the shared plans query', async () => {
+    await renderUseSubscriptionPlans({ handlesError: true })
+    await renderUseSubscriptionPlans()
+
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ queryKey: subscriptionKeys.plans() }),
+    )
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ queryKey: subscriptionKeys.plans() }),
+    )
   })
 })

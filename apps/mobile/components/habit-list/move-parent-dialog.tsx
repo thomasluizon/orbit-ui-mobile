@@ -1,12 +1,15 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useMemo, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { Home, Search } from 'lucide-react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { AppTextInput } from '@/components/ui/app-text-input'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGlyph } from '@/components/ui/select-check'
-import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { ActionRow } from '@/components/ui/action-row'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioRow } from '@/components/ui/select-check'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface MoveParentOption {
@@ -37,6 +40,15 @@ const SEARCH_THRESHOLD = 8
 
 type Styles = ReturnType<typeof createStyles>
 
+function MoveDialogDescription({
+  title,
+  text,
+  styles,
+}: Readonly<{ title: string | null; text: string; styles: Styles }>) {
+  if (!title) return null
+  return <Text style={styles.moveDialogDescription}>{text}</Text>
+}
+
 function MoveTargetRow({
   option,
   selected,
@@ -54,52 +66,24 @@ function MoveTargetRow({
   styles: Styles
   onSelect: (optionId: string | null) => void
 }>) {
-  const isRoot = option.id === null
-  const unselectedOptionStyle = isRoot ? styles.moveOptionRoot : styles.moveOptionDefault
+  const availability = option.disabled
+    ? { disabled: true as const, reason: option.reason ?? currentLabel }
+    : { disabled: false as const }
 
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.moveOption,
-        selected ? styles.moveOptionSelected : unselectedOptionStyle,
-        option.disabled && styles.moveOptionDisabled,
-        pressed && !option.disabled && !selected ? styles.moveOptionPressed : null,
-      ]}
-      disabled={option.disabled}
-      onPress={() => onSelect(option.id)}
-      accessibilityRole="radio"
-      accessibilityLabel={option.label}
-      accessibilityState={{ selected, disabled: option.disabled }}
-    >
-      <View style={styles.moveOptionHeader}>
-        {Array.from({ length: option.depth }, (_, index) => (
-          // react-doctor-disable-next-line no-array-index-as-key -- decorative indent rails: identical stateless spacers keyed by position, with no data identity to preserve https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-          <View key={index} style={styles.rail} />
-        ))}
-        <View style={[styles.well, isRoot ? styles.wellRoot : styles.wellFilled]}>
-          {isRoot ? (
-            <Home size={18} strokeWidth={1.8} color={tokens.fg2} />
-          ) : (
-            <Text style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>
-          )}
-        </View>
-        <Text style={styles.moveOptionLabel} numberOfLines={1}>
-          {option.label}
-        </Text>
-        {option.childCount > 0 ? (
-          <Text style={styles.moveOptionCount}>{option.childCount}</Text>
-        ) : null}
-        {isCurrentParent ? (
-          <Text style={styles.moveOptionCurrent}>{currentLabel}</Text>
-        ) : null}
-        {selected ? <RadioGlyph selected size={22} tokens={tokens} /> : null}
-      </View>
-      {option.reason ? (
-        <Text style={[styles.moveOptionReason, { paddingLeft: option.depth * 20 }]}>
-          {option.reason}
-        </Text>
-      ) : null}
-    </Pressable>
+    <RadioRow
+      label={option.label}
+      textMode={option.id === null ? undefined : 'personal'}
+      selected={selected}
+      {...availability}
+      depth={option.depth}
+      meta={option.childCount > 0 ? String(option.childCount) : undefined}
+      tag={isCurrentParent ? currentLabel : undefined}
+      leading={option.id === null
+        ? <Home size={20} strokeWidth={1.8} color={tokens.fg2} />
+        : <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>}
+      onSelect={() => onSelect(option.id)}
+    />
   )
 }
 
@@ -118,6 +102,7 @@ export function MoveParentDialog({
   onConfirm,
   onSelectOption,
 }: Readonly<MoveParentDialogProps>) {
+  const { sheetRef, closeSheet } = useSheetHost()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
@@ -141,241 +126,127 @@ export function MoveParentDialog({
 
   const isSearchEmpty = showSearch && searchQuery.trim().length > 0 && treeRows.length === 0
 
-  const handleClose = () => {
+  const hideDialog = () => {
     setSearchQuery('')
     onClose()
   }
 
   return (
-    <BottomSheetModal
-      open={visible}
-      onClose={handleClose}
+    visible ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={isPending ? undefined : hideDialog}
       title={t('habits.moveParent.title')}
-      canDismiss={!isPending}
-      contentManagesScroll
+      actions={
+        <ActionRow>
+          <PillButton size="sm" variant="ghost" disabled={isPending} onClick={() => closeSheet()}>
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton size="sm" disabled={!canSubmit} loading={isPending} onClick={onConfirm}>
+            {t('habits.moveParent.confirm')}
+          </PillButton>
+        </ActionRow>
+      }
     >
-      <View style={styles.sheetBody}>
-        {movingHabitTitle ? (
-          <Text style={styles.moveDialogDescription}>
-            {t('habits.moveParent.description', { name: movingHabitTitle })}
-          </Text>
-        ) : null}
+      <View>
+        <MoveDialogDescription
+          title={movingHabitTitle}
+          text={t('habits.moveParent.description', { name: movingHabitTitle })}
+          styles={styles}
+        />
 
         {showSearch ? (
           <View style={styles.searchWrap}>
-            <AppTextInput
+            <Input
+              label={t('habits.moveParent.searchPlaceholder')}
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChange={setSearchQuery}
               placeholder={t('habits.moveParent.searchPlaceholder')}
-              accessibilityLabel={t('habits.moveParent.searchPlaceholder')}
-              autoCorrect={false}
+              trailing={<Search size={20} strokeWidth={1.8} color={tokens.fg3} />}
             />
-            <View style={styles.searchIcon} pointerEvents="none">
-              <Search size={18} strokeWidth={1.8} color={tokens.fg3} />
-            </View>
           </View>
-        ) : null}
-
-        {rootOption ? (
-          <MoveTargetRow
-            option={rootOption}
-            selected={rootOption.id === selectedMoveParentId}
-            isCurrentParent={rootOption.id === movingHabitParentId}
-            currentLabel={t('habits.moveParent.currentParent')}
-            tokens={tokens}
-            styles={styles}
-            onSelect={onSelectOption}
-          />
         ) : null}
 
         {treeRows.length > 0 ? (
           <Text style={styles.eyebrow}>{t('habits.moveParent.destinations')}</Text>
         ) : null}
 
-        <ScrollView
-          style={styles.moveOptionsList}
-          contentContainerStyle={styles.moveOptionsContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- bounded move-target picker inside a bottom sheet; search collapses long lists (threshold 8) and nesting a VirtualizedList in the sheet ScrollView is discouraged https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
-          {treeRows.map((option) => (
+        <RadioGroup accessibilityLabel={t('habits.moveParent.destinations')}>
+          {rootOption ? (
             <MoveTargetRow
-              key={option.id}
-              option={option}
-              selected={option.id === selectedMoveParentId}
-              isCurrentParent={option.id === movingHabitParentId}
+              option={rootOption}
+              selected={rootOption.id === selectedMoveParentId}
+              isCurrentParent={rootOption.id === movingHabitParentId}
               currentLabel={t('habits.moveParent.currentParent')}
               tokens={tokens}
               styles={styles}
               onSelect={onSelectOption}
             />
-          ))}
-          {isSearchEmpty ? (
-            <Text style={styles.moveDialogEmpty}>
-              {t('habits.moveParent.noSearchResults')}
-            </Text>
           ) : null}
-        </ScrollView>
 
-        <View style={styles.footer}>
-          <PillButton
-            variant="ghost"
-            disabled={isPending}
-            onPress={handleClose}
-            style={styles.footerPill}
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-            disabled={!canSubmit}
-            busy={isPending}
-            onPress={onConfirm}
-            style={styles.footerPill}
-          >
-            {isPending ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
-          </PillButton>
-        </View>
+          <View style={styles.moveOptionsContent}>
+            {treeRows.map((option) => (
+              <MoveTargetRow
+                key={option.id}
+                option={option}
+                selected={option.id === selectedMoveParentId}
+                isCurrentParent={option.id === movingHabitParentId}
+                currentLabel={t('habits.moveParent.currentParent')}
+                tokens={tokens}
+                styles={styles}
+                onSelect={onSelectOption}
+              />
+            ))}
+          </View>
+        </RadioGroup>
+
+        {isSearchEmpty ? (
+          <Text style={styles.moveDialogEmpty}>
+            {t('habits.moveParent.noSearchResults')}
+          </Text>
+        ) : null}
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    sheetBody: {
-      flex: 1,
-      paddingHorizontal: 22,
-      paddingTop: 4,
-      paddingBottom: 24,
-    },
     moveDialogDescription: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24.8,
       color: tokens.fg2,
-      marginBottom: 16,
+      marginBottom: SPACING.s16,
     },
     searchWrap: {
       position: 'relative',
       justifyContent: 'center',
-      marginBottom: 12,
-    },
-    searchIcon: {
-      position: 'absolute',
-      right: 16,
+      marginBottom: SPACING.s12,
     },
     eyebrow: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       textTransform: 'uppercase',
       color: tokens.fg3,
-      marginTop: 4,
-      marginBottom: 2,
-    },
-    moveOptionsList: {
-      flex: 1,
+      marginTop: SPACING.s4,
+      marginBottom: SPACING.s8,
     },
     moveOptionsContent: {
-      gap: 6,
-      paddingTop: 6,
-      paddingBottom: 8,
-    },
-    moveOption: {
-      borderRadius: 14,
-      borderWidth: 1,
-      paddingHorizontal: 12,
-      paddingVertical: 9,
-    },
-    moveOptionDefault: {
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgField,
-    },
-    moveOptionRoot: {
-      borderStyle: 'dashed',
-      borderColor: tokens.hairlineStrong,
-      backgroundColor: 'transparent',
-    },
-    moveOptionSelected: {
-      borderWidth: 1.5,
-      borderColor: tokens.primary,
-      backgroundColor: tintFromPrimary(tokens, 0.1),
-    },
-    moveOptionDisabled: {
-      opacity: 0.5,
-    },
-    moveOptionPressed: {
-      backgroundColor: tokens.bgElevPressed,
-    },
-    moveOptionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    rail: {
-      width: 20,
-      alignSelf: 'stretch',
-    },
-    well: {
-      width: 30,
-      height: 30,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    wellFilled: {
-      backgroundColor: tokens.bgWell,
-    },
-    wellRoot: {
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: tokens.hairline,
+      gap: 4,
+      paddingTop: SPACING.s4,
     },
     wellEmoji: {
       fontSize: 16,
       lineHeight: 20,
     },
-    moveOptionLabel: {
-      flex: 1,
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.fg1,
-    },
-    moveOptionCount: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 12,
-      fontVariant: ['tabular-nums'],
-      color: tokens.fg3,
-    },
-    moveOptionCurrent: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 10.5,
-      textTransform: 'uppercase',
-      letterSpacing: 0.63,
-      color: tokens.fg3,
-    },
-    moveOptionReason: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 11,
-      lineHeight: 15,
-      color: tokens.fg3,
-      marginTop: 5,
-    },
     moveDialogEmpty: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.fg3,
       textAlign: 'center',
-      paddingVertical: 16,
-    },
-    footer: {
-      flexDirection: 'row',
-      gap: 12,
-      marginTop: 16,
-    },
-    footerPill: {
-      flex: 1,
+      paddingVertical: SPACING.s16,
     },
   })
 }

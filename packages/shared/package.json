@@ -8,9 +8,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./chat": "./src/chat/index.ts",
+    "./chat/prompt-library": "./src/chat/prompt-library.ts",
     "./hooks": "./src/hooks/index.ts",
     "./types": "./src/types/index.ts",
     "./types/*": "./src/types/*.ts",
+    "./contracts/*": "./src/contracts/*/index.ts",
     "./utils": "./src/utils/index.ts",
     "./stores": "./src/stores/index.ts",
     "./i18n": "./src/i18n/index.ts",
@@ -18,19 +20,27 @@
     "./theme": "./src/theme/index.ts",
     "./api": "./src/api/index.ts",
     "./query": "./src/query/index.ts",
+    "./test-support/validation-fixtures": "./src/test-support/validation-fixtures.ts",
+    "./test-support/chat-fixtures": "./src/test-support/chat-fixtures.ts",
+    "./test-support/habit-detail-fixtures": "./src/test-support/habit-detail-fixtures.ts",
     "./validation": "./src/validation/index.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:barrel-import": "vitest run --config vitest.barrel-import.config.ts",
+    "test:theme": "vitest run src/__tests__/theme.test.ts",
     "generate:zod": "orval --config ./orval.config.ts",
     "mutation": "stryker run",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@tanstack/query-core": "^5.101.2",
+    "@vvo/tzdb": "^6.198.0",
     "date-fns": "^4.4.0",
+    "html-entities": "2.6.0",
+    "marked": "18.0.9",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -39,12 +49,16 @@
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
     "@types/node": "^26.1.1",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@types/react": "^19.2.17",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.6.0",
     "eslint-plugin-sonarjs": "^4.1.0",
     "orval": "^8.37.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.63.0",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0"
   }
 }

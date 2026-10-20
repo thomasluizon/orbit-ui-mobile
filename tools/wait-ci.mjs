@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 import { setTimeout as wait } from "node:timers/promises"
 
-import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
-import { configuredRepositorySlug, readGithub } from "./lib/admission.mjs"
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { readGithub } from "./lib/admission.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REPO_ROOT, clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
-import { existsSync } from "node:fs"
+import { clearWakeSource, registerWakeSource, readRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-ci.mjs --repo <key> --pr <n> [--pr <n> ...] [--require-check <name> ...] [--ceiling-minutes <n>]
 
@@ -70,15 +69,15 @@ const finish = (reason, code, error = null) => {
 process.once("exit", () => clearWakeSource(process.pid))
 process.once("SIGINT", () => finish("SIGINT", 130))
 process.once("SIGTERM", () => finish("SIGTERM", 143))
-if (!registerWakeSource({ pid: process.pid, what: `CI ${repositoryKey} pull requests ${result.pullRequests.map((entry) => `#${entry.number}`).join(", ")}`, startedAt: new Date().toISOString() })) {
+if (!registerWakeSource({ pid: process.pid, sessionId: process.env.CLAUDE_CODE_SESSION_ID ?? readRunState()?.sessionId, repositoryKey, prNumbers: result.pullRequests.map((entry) => entry.number), what: `CI ${repositoryKey} pull requests ${result.pullRequests.map((entry) => `#${entry.number}`).join(", ")}`, startedAt: new Date().toISOString() })) {
   finish("WAKE_REGISTRATION_FAILED", 1)
 }
 
 const requiredChecks = [...new Set(values["--require-check"])]
 const deadline = Date.now() + ceilingMinutes * 60_000
 try {
-  const auth = await githubEnvironment(existsSync(repositoryPath) ? repositoryPath : REPO_ROOT)
-  const slug = configuredRepositorySlug(repositoryPath, auth.owner)
+  const auth = await githubEnvironment(repositoryPath)
+  const slug = repositorySlug(repositoryPath)
   const read = (path) => readGithub(`repos/${slug}/${path}`, auth.environment)
   const checksForHead = async (sha) => {
     const checks = []
@@ -121,12 +120,6 @@ try {
     }
     return statuses
   }
-  /**
-   * A head is settled only when the same completed set is seen on two consecutive quiet polls, with no
-   * workflow run for that head still queued or running. A fast check can finish before a slower
-   * workflow has registered its checks (Pullfrog on PR 1091, twice), and a workflow run exists from
-   * dispatch, before any of its check runs does.
-   */
   const lastQuietSet = new Map()
   while (!finished) {
     for (const entry of result.pullRequests) {
@@ -160,8 +153,6 @@ try {
         ...statuses.filter((item) => ["failure", "error"].includes(item.state)).map((item) => item.context),
       ]
       const runsPending = (await runsForHead(entry.head)).some((run) => run.status !== "completed")
-      // A head that has registered no check yet is not settled: the workflows it will start are still
-      // being dispatched, and an empty set would pass `every` vacuously (Pullfrog on PR 1091).
       const quiet = completedNames.size > 0 && !pending && !runsPending && requiredChecks.every((name) => completedNames.has(name))
       const observed = [...completedNames].sort().join("\n")
       entry.settled = quiet && lastQuietSet.get(entry.number) === observed

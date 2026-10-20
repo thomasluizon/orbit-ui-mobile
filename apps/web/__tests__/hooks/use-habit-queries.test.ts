@@ -1,8 +1,11 @@
+import { createHabitViewItems, createHabitViewScheduleItems } from '@orbit/shared/__tests__/habit-view-fixtures'
+import { buildHabitDateBuckets, canLogHabitOnDate } from '@orbit/shared/utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import {
   useHabits,
   useHabitDetail,
@@ -10,6 +13,7 @@ import {
   useHabitLogs,
   useHabitFullDetail,
   useTotalHabitCount,
+  useSearchHabits,
 } from '@/hooks/use-habit-queries'
 import type {
   HabitScheduleItem,
@@ -20,8 +24,32 @@ import type {
 } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 
+const validMetrics = {
+  weeklyCompletionRate: 85,
+  monthlyCompletionRate: 70,
+  currentStreak: 5,
+  longestStreak: 14,
+  totalCompletions: 100,
+  lastCompletedDate: null,
+}
+const validDetail = { ...createMockHabit({ id: 'h-1' }), children: [] }
+const validLogs = [{ id: 'log-1', date: '2025-01-15', value: 1, createdAtUtc: '2025-01-15T10:00:00Z' }]
+const validFullDetail = { habit: validDetail, metrics: validMetrics, logs: validLogs }
+const invalidMetricsBodies = [
+  { label: 'empty body', body: {} },
+  ...Object.keys(validMetrics).map((field) => ({
+    label: `missing ${field}`,
+    body: Object.fromEntries(Object.entries(validMetrics).filter(([key]) => key !== field)),
+  })),
+  { label: 'wrong completion rate type', body: { ...validMetrics, monthlyCompletionRate: '70' } },
+]
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => ({ confirmSessionRefreshFailure: vi.fn(), recoverSessionRefreshFailure: vi.fn() }) },
+}))
 
 function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
@@ -69,8 +97,10 @@ function makePaginatedResponse(items: HabitScheduleItem[]): PaginatedResponse<Ha
   }
 }
 
+let queryClient: QueryClient
+
 function createWrapper() {
-  const queryClient = new QueryClient({
+  queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
@@ -84,6 +114,22 @@ function createWrapper() {
 describe('useHabits (query hook)', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  it('enriches undated Todos membership with dated overdue and schedule facts', async () => {
+    const today = '2026-09-12'
+    mockFetch.mockImplementation(async (url: string) => Response.json(makePaginatedResponse(
+      url.includes('dateFrom=') ? createHabitViewScheduleItems(today) : createHabitViewItems(today, 'all'),
+    )))
+    const { result } = renderHook(() => useHabits({}, undefined, { scheduleDate: today }), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    const habits = result.current.data!
+    expect(habits.habitsById.has('future')).toBe(true)
+    expect(result.current.getChildren('parent').map((habit) => habit.id)).toEqual(['today-child', 'future-child'])
+    const overdue = habits.habitsById.get('overdue')!
+    expect(buildHabitDateBuckets([overdue], today)[0]?.key).toBe('__overdue__')
+    expect(canLogHabitOnDate(overdue, today, today)).toBe(true)
+    expect(canLogHabitOnDate(habits.habitsById.get('parent')!, today, today)).toBe(true)
   })
 
   it('fetches habits and provides getChildren helper', async () => {
@@ -130,11 +176,29 @@ describe('useHabits (query hook)', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     const children = result.current.getChildren('parent')
     expect(children).toHaveLength(1)
     expect(children[0]!.id).toBe('child-1')
+  })
+
+  it('renders server-provided habits without waiting for a client request', () => {
+    const initialHabit = makeScheduleItem({ title: 'Already available' })
+
+    const { result } = renderHook(
+      () => useHabits(
+        { dateFrom: '2025-01-01', dateTo: '2025-01-01' },
+        [initialHabit],
+      ),
+      { wrapper: createWrapper() },
+    )
+
+    expect(result.current.isSuccess).toBe(true)
+    expect(result.current.data?.habitsById.get(initialHabit.id)?.title).toBe('Already available')
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('returns empty array for getChildren when no data', async () => {
@@ -148,6 +212,12 @@ describe('useHabits (query hook)', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.getChildren('nonexistent')).toEqual([])
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.topLevelHabits).toEqual([])
+    expect(result.current.data?.habitsById.size).toBe(0)
     expect(result.current.getChildren('nonexistent')).toEqual([])
   })
 
@@ -182,11 +252,39 @@ describe('useHabits (query hook)', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.habitsById.size).toBe(2)
     expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?pageSize=200')
     expect(mockFetch.mock.calls[1]?.[0]).toBe('/api/habits?page=2&pageSize=200')
+  })
+
+  it('loads a scheduled detail parent from page two while keeping ordinary day lists on page one', async () => {
+    const firstPage = { items: [makeScheduleItem({ id: 'other' })], page: 1, pageSize: 1, totalCount: 2, totalPages: 2 }
+    const secondPage = { items: [makeScheduleItem({ id: 'parent', children: [{
+      id: 'child', title: 'Child', description: null, frequencyUnit: null, frequencyQuantity: null,
+      isBadHabit: false, isCompleted: false, isGeneral: false, isFlexible: false, days: [],
+      dueDate: '2025-01-01', dueTime: null, dueEndTime: null, endDate: null, position: 0,
+      checklistItems: [], tags: [], children: [], hasSubHabits: false, isLoggedInRange: false, instances: [],
+    }] })], page: 2, pageSize: 1, totalCount: 2, totalPages: 2 }
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(firstPage) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(secondPage) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(firstPage) })
+    const filters = { dateFrom: '2025-01-01', dateTo: '2025-01-01' }
+    const wrapper = createWrapper()
+    const detail = renderHook(() => useHabits(filters, undefined, { completeDay: true }), { wrapper })
+    expect(detail.result.current.isFetching).toBe(true)
+    await act(async () => { await detail.result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(detail.result.current.isSuccess).toBe(true))
+    expect(detail.result.current.getChildren('parent').map((child) => child.id)).toEqual(['child'])
+    const ordinary = renderHook(() => useHabits(filters), { wrapper })
+    expect(ordinary.result.current.isFetching).toBe(true)
+    await act(async () => { await ordinary.result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(ordinary.result.current.isSuccess).toBe(true))
+    expect(ordinary.result.current.getChildren('parent')).toEqual([])
+    expect(mockFetch).toHaveBeenCalledTimes(3)
   })
 
   it('uses a larger page size for all-view habit lists', async () => {
@@ -202,6 +300,8 @@ describe('useHabits (query hook)', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -215,14 +315,16 @@ describe('useHabits (query hook)', () => {
       json: () => Promise.resolve({ ...makePaginatedResponse(items), totalCount: 450, totalPages: 3 }),
     })
 
-    const { result } = renderHook(() => useHabits({ search: 'run', page: 1, pageSize: 50 }), {
+    const { result } = renderHook(() => useSearchHabits({ search: 'run', page: 1, pageSize: 20 }), {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(QUERY_STALE_TIMES.habits).toBe(5 * 60 * 1000)
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=run&page=1&pageSize=50')
+    expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=run&page=1&pageSize=20')
   })
 
   it('keeps unbounded search results complete', async () => {
@@ -233,6 +335,8 @@ describe('useHabits (query hook)', () => {
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(secondPage) })
 
     const { result } = renderHook(() => useHabits({ search: 'run' }), { wrapper: createWrapper() })
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.habitsById.size).toBe(2)
     expect(mockFetch).toHaveBeenCalledTimes(2)
@@ -277,6 +381,8 @@ describe('useHabitDetail', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.title).toBe('Exercise')
   })
@@ -313,6 +419,8 @@ describe('useHabitMetrics', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.weeklyPercentage).toBe(85)
     expect(result.current.monthlyPercentage).toBe(70)
@@ -347,6 +455,8 @@ describe('useHabitLogs', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toHaveLength(2)
   })
@@ -409,6 +519,8 @@ describe('useHabitFullDetail', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.habit.title).toBe('Exercise')
   })
@@ -437,6 +549,9 @@ describe('useTotalHabitCount', () => {
       wrapper: createWrapper(),
     })
 
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: habitKeys.count() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(42))
   })
 
@@ -448,5 +563,72 @@ describe('useTotalHabitCount', () => {
     })
 
     expect(result.current).toBe(0)
+  })
+})
+
+describe('habit detail response validation', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+
+  it.each([
+    { label: 'empty habit page', body: {} },
+    { label: 'missing page totals', body: { items: [] } },
+    { label: 'invalid scheduled habit', body: { items: [{}], page: 1, pageSize: 200, totalCount: 1, totalPages: 1 } },
+  ])('rejects $label used by habit detail', async ({ body }) => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
+    const { result } = renderHook(() => useHabits({}), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toMatchObject({ name: 'ZodError' })
+  })
+
+  it('rejects an invalid later habit page', async () => {
+    const firstPage = { items: [createMockHabitScheduleItem()], page: 1, pageSize: 1, totalCount: 2, totalPages: 2 }
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(firstPage) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
+    const { result } = renderHook(() => useHabits({}), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toMatchObject({ name: 'ZodError' })
+  })
+
+  it.each(invalidMetricsBodies)('rejects metrics with $label', async ({ body }) => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
+    const { result } = renderHook(() => useHabitMetrics('h-1'), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toMatchObject({ name: 'ZodError' })
+  })
+
+  it.each([
+    { label: 'habit detail', hook: useHabitDetail, body: {} },
+    { label: 'logs container', hook: useHabitLogs, body: {} },
+    { label: 'log entry', hook: useHabitLogs, body: [{}] },
+    { label: 'full detail container', hook: useHabitFullDetail, body: {} },
+    { label: 'nested habit', hook: useHabitFullDetail, body: { ...validFullDetail, habit: {} } },
+    { label: 'nested metrics', hook: useHabitFullDetail, body: { ...validFullDetail, metrics: {} } },
+    { label: 'nested logs', hook: useHabitFullDetail, body: { ...validFullDetail, logs: [{}] } },
+  ])('rejects invalid $label', async ({ hook, body }) => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
+    const { result } = renderHook(() => hook('h-1'), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toMatchObject({ name: 'ZodError' })
+  })
+
+  it.each([
+    { label: 'metrics', hook: useHabitMetrics },
+    { label: 'habit detail', hook: useHabitDetail },
+    { label: 'logs', hook: useHabitLogs },
+    { label: 'full detail', hook: useHabitFullDetail },
+  ])('propagates a failed $label request', async ({ hook }) => {
+    const failure = new Error('Request failed')
+    mockFetch.mockRejectedValue(failure)
+    const { result } = renderHook(() => hook('h-1'), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toBe(failure)
   })
 })

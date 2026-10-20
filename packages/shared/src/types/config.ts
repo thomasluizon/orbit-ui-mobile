@@ -6,6 +6,37 @@ export const featureFlagSchema = z.object({
 })
 export type FeatureFlag = z.infer<typeof featureFlagSchema>
 
+export type FeatureKey =
+  | 'redesign'
+  | 'offline_mode'
+  | 'ai_chat'
+  | 'ai_summary'
+  | 'ai_retrospective'
+  | 'sub_habits'
+  | 'goal_tracking'
+  | 'push_notifications'
+  | 'scheduled_reminders'
+  | 'slip_alerts'
+  | 'checklist_templates'
+  | 'habit_duplication'
+  | 'bulk_operations'
+  | 'calendar_integration'
+  | 'notion_integration'
+  | 'api_keys'
+  | 'gamification_free_tier'
+  | 'astra_ask_blocks_disabled'
+  | 'astra_proactive_engine_disabled'
+  | 'astra_crisis_resources_disabled'
+  | 'astra_change_preview_disabled'
+  | 'astra_tool_steps_disabled'
+  | 'astra_parts_disabled'
+  | 'astra_follow_ups_disabled'
+  | 'astra_period_blocks_disabled'
+  | 'astra_goal_projections_disabled'
+  | 'astra_status_blocks_disabled'
+  | 'astra_record_lists_disabled'
+  | 'astra_account_rows_disabled'
+
 const configLimitsSchema = z.object({
   maxHabitDepth: z.number(),
   maxTagsPerHabit: z.number(),
@@ -55,17 +86,16 @@ export const DEFAULT_CONFIG: AppConfig = {
   features: {
     'analytics': { enabled: false, planRequirement: null },
     'habits.create': { enabled: true, planRequirement: null },
-    'habits.subHabits': { enabled: true, planRequirement: 'Pro' },
-    'habits.bulk': { enabled: true, planRequirement: 'Pro' },
-    'goals': { enabled: true, planRequirement: 'Pro' },
+    'sub_habits': { enabled: true, planRequirement: 'Pro' },
+    'habits.bulk': { enabled: true, planRequirement: null },
+    'goals': { enabled: true, planRequirement: null },
     'chat': { enabled: true, planRequirement: null },
-    'chat.imageUpload': { enabled: true, planRequirement: 'Pro' },
     'summary': { enabled: true, planRequirement: 'Pro' },
     'retrospective': { enabled: true, planRequirement: 'Pro' },
-    'gamification': { enabled: true, planRequirement: 'Pro' },
+    'gamification': { enabled: true, planRequirement: null },
     'apiKeys': { enabled: true, planRequirement: 'Pro' },
-    'slipAlerts': { enabled: true, planRequirement: null },
-    'calendarSync': { enabled: true, planRequirement: null },
+    'slipAlerts': { enabled: true, planRequirement: 'Pro' },
+    'calendarSync': { enabled: true, planRequirement: 'Pro' },
     'checklistTemplates': { enabled: true, planRequirement: null },
   },
   settings: {

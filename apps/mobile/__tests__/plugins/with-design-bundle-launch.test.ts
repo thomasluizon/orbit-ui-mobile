@@ -4,18 +4,22 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { AndroidConfig, ExportedConfig, ExportedConfigWithProps } from '@expo/config-plugins'
-import withDesignBundleLaunch from '../../plugins/with-design-bundle-launch'
 
 const require = createRequire(import.meta.url)
-const template = execFileSync('tar', [
+const withDesignBundleLaunch = require('../../plugins/with-design-bundle-launch') as (config: ExportedConfig) => ExportedConfig
+const template = execFileSync('/usr/bin/tar', [
   '-xOf', require.resolve('expo/template.tgz'),
   'package/android/app/src/main/java/com/helloworld/MainApplication.kt',
 ], { encoding: 'utf8' })
 
 async function apply(contents: string, enabled = true): Promise<string> {
-  const config = withDesignBundleLaunch({ name: 'Orbit', slug: 'orbit', updates: { enabled } }) as ExportedConfig
+  const config = withDesignBundleLaunch({ name: 'Orbit', slug: 'orbit', updates: { enabled } })
   const mod = config.mods?.android?.mainApplication
-  if (!mod) return contents
+  if (!enabled) {
+    expect(mod).toBeUndefined()
+    return contents
+  }
+  if (!mod) throw new Error('Missing application mod')
   const request: ExportedConfigWithProps<AndroidConfig.Paths.ApplicationProjectFile> = {
     ...config,
     modResults: { path: 'MainApplication.kt', language: 'kt', contents },

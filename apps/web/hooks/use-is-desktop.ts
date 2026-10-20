@@ -1,9 +1,10 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 
 const DESKTOP_QUERY = '(min-width: 768px)'
-const WIDE_DESKTOP_QUERY = '(min-width: 1024px)'
+const WIDE_DESKTOP_QUERY = `(min-width: ${WIDE_DESKTOP_BREAKPOINT}px)`
 
 function createViewportMatch(query: string) {
   return {

@@ -1,23 +1,38 @@
 'use client'
 
-import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { ActionRow } from '@/components/ui/action-row'
 
-import { Mail } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Mail } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/lib/actions/profile'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 
 /** Self-contained "Product updates by email" preference row: reflects and optimistically toggles marketing-email consent, rolling back on error. Never Pro-gated. */
-export function MarketingConsentSection() {
+export function MarketingConsentSection({
+  showSectionLabel = true,
+  contained = false,
+  acceptVariant = 'primary',
+  trailingRow,
+}: Readonly<{
+  showSectionLabel?: boolean
+  contained?: boolean
+  acceptVariant?: 'primary' | 'secondary'
+  trailingRow?: ReactNode
+}>) {
   const t = useTranslations()
   const { profile, patchProfile } = useProfile()
   const enabled = profile?.marketingEmailConsent === true
 
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- optimistic cache update via patchProfile (setQueryData) + onError rollback keeps the profile cache in sync; no dependent query to refetch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const mutation = useAccountScopedMutation({
-    mutationFn: (next: boolean) => updateMarketingConsent({ enabled: next }),
+    mutationFn: (next: boolean, intendedAccountId) =>
+      updateMarketingConsent({ enabled: next }, intendedAccountId),
     onMutate: (next) => {
       const previous = profile?.marketingEmailConsent ?? null
       patchProfile({ marketingEmailConsent: next })
@@ -27,24 +42,48 @@ export function MarketingConsentSection() {
       patchProfile({ marketingEmailConsent: context?.previous ?? null })
     },
   })
+  const content = profile?.marketingEmailConsent == null ? (
+    <div
+      className="flex flex-col bg-[var(--bg-well)] p-4"
+      style={{ gap: 12, borderRadius: 12 }}
+    >
+      <p className="m-0 font-sans text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
+        {t('profile.marketingEmails.question')}
+      </p>
+      <p className="m-0 font-sans text-sm leading-[1.55] text-[var(--fg-2)]">
+        {t('profile.marketingEmails.questionDescription')}
+      </p>
+      <fieldset
+        disabled={mutation.isPending}
+        className="m-0 flex flex-wrap gap-2 border-0 p-0"
+      ><ActionRow>
+        <PillButton size="sm" variant="ghost" onClick={() => mutation.mutate(false)}>
+          {t('profile.marketingEmails.decline')}
+        </PillButton>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42. */}
+        <PillButton size="sm" variant={acceptVariant} onClick={() => mutation.mutate(true)}>
+          {t('profile.marketingEmails.accept')}
+        </PillButton>
+      </ActionRow></fieldset>
+    </div>
+  ) : (
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil emailOn controls this label under D42. */
+    <ListRow textMode="label" icon={contained ? undefined : <Mail size={24} />} title={t('profile.marketingEmails.title')} chevron={false} toggle={{ checked: enabled, pending: mutation.isPending, onChange: (checked) => mutation.mutate(checked) }} />
+  )
 
   return (
     <>
-      <SectionLabel bottom={4}>{t('profile.sections.communication')}</SectionLabel>
-      <SettingsRow
-        icon={Mail}
-        label={t('profile.marketingEmails.title')}
-        desc={t('profile.marketingEmails.description')}
-        accessory="none"
-        divider={false}
-      >
-        <Switch
-          on={enabled}
-          onToggle={() => mutation.mutate(!enabled)}
-          ariaLabel={t('profile.marketingEmails.title')}
-          disabled={mutation.isPending}
-        />
-      </SettingsRow>
+      {showSectionLabel ? (
+        <SectionLabel>{t('profile.sections.communication')}</SectionLabel>
+      ) : null}
+      {contained && profile?.marketingEmailConsent != null ? (
+        <RowList>{content}{trailingRow}</RowList>
+      ) : (
+        <>
+          {content}
+          {trailingRow ? <RowList>{trailingRow}</RowList> : null}
+        </>
+      )}
     </>
   )
 }

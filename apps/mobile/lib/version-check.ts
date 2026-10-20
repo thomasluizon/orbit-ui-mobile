@@ -3,6 +3,10 @@ export interface AppStoreLookup {
   storeUrl: string | null
 }
 
+/**
+ * Fetches the latest published version from the Apple App Store via the public iTunes Search
+ * API. No auth, no scraping -- this is the official standard for iOS update detection.
+ */
 export async function getAppStoreLookup(bundleId: string): Promise<AppStoreLookup | null> {
   try {
     const url = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(bundleId)}&_=${Date.now()}`

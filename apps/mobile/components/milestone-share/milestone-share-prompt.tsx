@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import { Share2 } from 'lucide-react-native'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { useShareCard } from '@/hooks/use-share-card'
 import { createTokensV2 } from '@/lib/theme'
 import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
@@ -58,12 +59,24 @@ export function MilestoneSharePrompt() {
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const { shareRef, isSharing, hasError, share } = useShareCard()
 
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
 
   const [visibleKey, setVisibleKey] = useState<string | null>(null)
+  const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visibleKey) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visibleKey, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   useEffect(() => {
     if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen) return
@@ -82,7 +95,7 @@ export function MilestoneSharePrompt() {
     }
 
     settleTimerRef.current = setTimeout(() => {
-      if (hasOpenPromptBlockingOverlay(useUIStore.getState())) return
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(armedKey, new Date().toISOString())
       setVisibleKey(armedKey)
     }, SETTLE_DELAY_MS)
@@ -94,6 +107,7 @@ export function MilestoneSharePrompt() {
     armedKey,
     celebrationInFlight,
     anotherOverlayOpen,
+    promptId,
     visibleKey,
     queryClient,
     markEngagementPrompted,
@@ -106,69 +120,64 @@ export function MilestoneSharePrompt() {
   const referralUrl = buildReferralUrl(cachedReferral?.code, APP_LINK_ORIGIN)
 
   function dismiss() {
-    setVisibleKey(null)
+    closeSheet()
   }
 
   return (
-    <BottomSheetModal open={variant !== null} onClose={dismiss} snapPoints={['85%']} contentManagesScroll>
-      {variant ? (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
+    variant !== null ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={() => setVisibleKey(null)}
+      title={t('milestoneShare.title')}
+      actions={(
+        <>
+          {hasError ? (
+            <Text
+              accessibilityRole="alert"
+              style={[styles.errorText, { width: '100%' }]}
+            >
+              {t('milestoneShare.shareError')}
+            </Text>
+          ) : null}
+          <ActionRow>
+            <PromptQuietAction
+              accessibleName={t('milestoneShare.later')}
+              onClick={dismiss}
+            >
+              {t('milestoneShare.later')}
+            </PromptQuietAction>
+            <PillButton
+              size="sm"
+              loading={isSharing}
+              disabled={isSharing}
+              onClick={() =>
+                void share({
+                  shareTitle: t('milestoneShare.shareTitle'),
+                  shareText: t('milestoneShare.shareText'),
+                  url: referralUrl,
+                })
+              }
+            >
+              {t('milestoneShare.share')}
+            </PillButton>
+          </ActionRow>
+        </>
+      )}
+    >
+      <View style={styles.content}>
           <View style={styles.cardWrap}>
             <MilestoneShareCard ref={shareRef} variant={variant} referralUrl={referralUrl} />
           </View>
 
           <Text style={styles.body}>{t('milestoneShare.body')}</Text>
-
-          {hasError ? (
-            <Text style={styles.errorText}>{t('milestoneShare.shareError')}</Text>
-          ) : null}
-
-          <View style={styles.actions}>
-            <PillButton
-              fullWidth
-              busy={isSharing}
-              disabled={isSharing}
-              onPress={() => void share(t('milestoneShare.shareTitle'))}
-              accessibilityLabel={t('milestoneShare.share')}
-              leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
-            >
-              {t('milestoneShare.share')}
-            </PillButton>
-            <Pressable
-              onPress={dismiss}
-              accessibilityRole="button"
-              accessibilityLabel={t('milestoneShare.later')}
-              style={({ pressed }) => [
-                styles.laterButton,
-                pressed ? styles.laterButtonPressed : null,
-              ]}
-            >
-              {({ pressed }) => (
-                <Text style={[styles.laterText, pressed ? styles.laterTextPressed : null]}>
-                  {t('milestoneShare.later')}
-                </Text>
-              )}
-            </Pressable>
-          </View>
-        </ScrollView>
-      ) : null}
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     content: {
-      paddingHorizontal: 16,
-      paddingTop: 8,
-      paddingBottom: 28,
       gap: 16,
       alignItems: 'center',
     },
@@ -176,37 +185,17 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: 'center',
     },
     body: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
     },
     errorText: {
       textAlign: 'center',
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
-      color: tokens.statusBad,
-    },
-    actions: {
-      alignSelf: 'stretch',
-      gap: 8,
-      paddingTop: 4,
-    },
-    laterButton: {
-      alignItems: 'center',
-      paddingVertical: 12,
-    },
-    laterButtonPressed: {
-      transform: [{ scale: 0.98 }],
-    },
-    laterText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
-    },
-    laterTextPressed: {
-      color: tokens.fg1,
+      color: tokens.statusBadText,
     },
   })
 }

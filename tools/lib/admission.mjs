@@ -3,8 +3,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, s
 import { join } from "node:path"
 
 import { runBounded } from "./bounded-process.mjs"
+import { isCloudTaskId, isTerminalTaskStatus, mirrorPathFor, reservationPathFor } from "./cloud-worker.mjs"
 import { repositorySlug } from "./github-auth.mjs"
-import { gitDirectoryOf, processIsAlive, processStartIdentity, REPO_ROOT } from "./run-state.mjs"
+import { gitDirectoryOf, processIsAlive, processStartIdentity, REPO_ROOT, workerLaunchDirectory } from "./run-state.mjs"
 
 /** The checked-in repo paths are Windows paths. On macOS, their final directory names match the
  * verified GitHub origins, while the Windows checkouts themselves do not exist. */
@@ -20,15 +21,9 @@ const LOCK_WAIT_MS = 5000
 const LOCK_RETRY_MS = 25
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const reservationDirectory = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-admission-reservations")
+const reservationDirectory = workerLaunchDirectory
 const lockPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-admission.lock")
 
-/**
- * GitHub can show a new pull request, or create its Actions runs, after the launcher that opened it
- * has exited. So a released claim keeps holding a queued run, and a pull request until its branch
- * has one, for this window instead of vanishing (reviews of ui#1105). The window, not a guess about
- * GitHub's timing, is where this guard's regress stops (D117).
- */
 export const RELEASE_HOLD_MS = 5 * 60 * 1000
 
 const publishReservation = (directory, name, reservation) => {
@@ -40,9 +35,18 @@ const publishReservation = (directory, name, reservation) => {
 export const releaseAdmission = (reservationId, repoRoot = REPO_ROOT, releasedAt = Date.now()) => {
   if (!reservationId) return
   const directory = reservationDirectory(repoRoot)
-  const reservation = readReservation(join(directory, `${reservationId}.json`))
+  const reservation = readReservation(join(directory, `admission-${reservationId}.json`))
   if (!reservation || Number.isFinite(reservation.releasedAt)) return
-  publishReservation(directory, reservationId, { ...reservation, releasedAt })
+  publishReservation(directory, `admission-${reservationId}`, { ...reservation, releasedAt })
+}
+
+export const bindCloudAdmission = (reservationId, stateRoot, cloudReservationId, repoRoot = REPO_ROOT) => {
+  if (!reservationId) return
+  reservationPathFor(stateRoot, cloudReservationId)
+  const directory = reservationDirectory(repoRoot)
+  const reservation = readReservation(join(directory, `admission-${reservationId}.json`))
+  if (!reservation || Number.isFinite(reservation.releasedAt)) throw new Error("admission claim was released before Cloud submission")
+  publishReservation(directory, `admission-${reservationId}`, { ...reservation, cloud: { stateRoot, reservationId: cloudReservationId } })
 }
 
 const acquireLock = async (repoRoot, startIdentity, waitMs) => {
@@ -125,32 +129,67 @@ const readReservation = (path) => {
   }
 }
 
+const cloudReceipt = (cloud) => {
+  const reservationPath = reservationPathFor(cloud.stateRoot, cloud.reservationId)
+  if (existsSync(reservationPath)) {
+    try {
+      const reservation = JSON.parse(readFileSync(reservationPath, "utf8"))
+      if (reservation.submissionState !== "confirmed" || !isCloudTaskId(reservation.taskId)) return reservation
+      const mirrorPath = mirrorPathFor(cloud.stateRoot, reservation.taskId)
+      if (existsSync(mirrorPath)) return JSON.parse(readFileSync(mirrorPath, "utf8"))
+      return reservation
+    } catch { return null }
+  }
+  const directory = join(cloud.stateRoot, "receipts")
+  if (!existsSync(directory)) return null
+  for (const name of readdirSync(directory)) {
+    if (!name.endsWith(".json")) continue
+    let receipt
+    try { receipt = JSON.parse(readFileSync(join(directory, name), "utf8")) } catch { continue }
+    if (receipt?.kind === "task-receipt" && receipt.transitionReservationId === cloud.reservationId) return receipt
+  }
+  return null
+}
+
+const cloudTerminalAt = (receipt) => {
+  if (receipt?.submissionState === "released") return Date.parse(receipt.released?.at ?? "")
+  if (isTerminalTaskStatus(receipt?.terminal?.status)) return Date.parse(receipt.terminal.at)
+  return NaN
+}
+
 const liveReservations = async (repoRoot, owner, environment, now) => {
   const directory = reservationDirectory(repoRoot)
   const counts = { pullRequests: 0, queuedRuns: 0 }
   if (!existsSync(directory)) return counts
   for (const name of readdirSync(directory)) {
-    if (!name.endsWith(".json")) continue
+    if (!name.startsWith("admission-") || !name.endsWith(".json")) continue
     const path = join(directory, name)
     const reservation = readReservation(path)
     if (!reservation) {
       rmSync(path, { force: true })
       continue
     }
-    if (!Number.isFinite(reservation.releasedAt)) {
+    if (!Number.isFinite(reservation.releasedAt) && reservation.cloud) {
+      const terminalAt = cloudTerminalAt(cloudReceipt(reservation.cloud))
+      if (Number.isFinite(terminalAt)) releaseAdmission(name.slice("admission-".length, -".json".length), repoRoot, terminalAt)
+    } else if (!Number.isFinite(reservation.releasedAt)) {
       const observedIdentity = processStartIdentity(reservation.pid)
       if (observedIdentity === null && processIsAlive(reservation.pid)) {
         throw new Error(`could not verify live admission reservation ${name}`)
       }
-      if (observedIdentity !== reservation.startIdentity) releaseAdmission(name.slice(0, -".json".length), repoRoot, now)
+      if (observedIdentity !== reservation.startIdentity) releaseAdmission(name.slice("admission-".length, -".json".length), repoRoot, now)
     }
     const released = readReservation(path)?.releasedAt
     if (Number.isFinite(released) && now - released >= RELEASE_HOLD_MS) {
       rmSync(path, { force: true })
       continue
     }
+    const branchHasPullRequest = (await branchPullRequests(reservation.repository, owner, reservation.branch, environment)).length > 0
+    if (reservation.cloud && branchHasPullRequest && !Number.isFinite(released)) {
+      releaseAdmission(name.slice("admission-".length, -".json".length), repoRoot, now)
+    }
     counts.queuedRuns++
-    if ((await branchPullRequests(reservation.repository, owner, reservation.branch, environment)).length === 0) counts.pullRequests++
+    if (!branchHasPullRequest) counts.pullRequests++
   }
   return counts
 }
@@ -188,7 +227,7 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
     }
     const reservationId = randomUUID()
     mkdirSync(reservationDirectory(repoRoot), { recursive: true })
-    publishReservation(reservationDirectory(repoRoot), reservationId,
+    publishReservation(reservationDirectory(repoRoot), `admission-${reservationId}`,
       { pid: process.pid, startIdentity, repository: target, branch, timestamp: new Date(now).toISOString() })
     return { admitted: true, reservationId, counts, limits }
   } catch (error) {
@@ -196,4 +235,26 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
   } finally {
     if (unlock) unlock()
   }
+}
+
+/** Snapshot counts never reconcile, release, reserve, lock or delete admission records. */
+export const readAdmissionCounts = ({ repoRoot = REPO_ROOT, snapshots, limits, now = Date.now() }) => {
+  const reservations = { pullRequests: 0, queuedRuns: 0, unreadable: 0 }
+  const directory = reservationDirectory(repoRoot)
+  const names = existsSync(directory) ? readdirSync(directory).filter((name) => name.startsWith("admission-") && name.endsWith(".json")) : []
+  for (const name of names) {
+    const reservation = readReservation(join(directory, name))
+    if (!reservation) { reservations.unreadable++; continue }
+    const terminalAt = reservation.cloud ? cloudTerminalAt(cloudReceipt(reservation.cloud)) : NaN
+    const releasedAt = Number.isFinite(reservation.releasedAt) ? reservation.releasedAt : terminalAt
+    if (Number.isFinite(releasedAt) && now - releasedAt >= RELEASE_HOLD_MS) continue
+    reservations.queuedRuns++
+    const snapshot = snapshots.find((entry) => entry.slug === reservation.repository)
+    if (!snapshot?.openBranches.includes(reservation.branch)) reservations.pullRequests++
+  }
+  const complete = snapshots.every((entry) => entry.status === "OK" && Number.isInteger(entry.openPullRequests) && Number.isInteger(entry.queuedRuns)) && reservations.unreadable === 0
+  const openPullRequests = complete ? snapshots.reduce((sum, entry) => sum + entry.openPullRequests, 0) : null
+  const queuedRuns = complete ? snapshots.reduce((sum, entry) => sum + entry.queuedRuns, 0) : null
+  return { openPullRequests, queuedRuns, reservations, complete,
+    slotFree: complete && openPullRequests + reservations.pullRequests <= limits.maxOpenPullRequests && queuedRuns + reservations.queuedRuns <= limits.maxQueuedRuns }
 }

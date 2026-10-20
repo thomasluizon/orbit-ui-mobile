@@ -1,6 +1,17 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { parseAPIDate, formatAPIDate, nowDate } from '../utils/dates'
+import {
+  parseAPIDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  getAccountDay,
+  getAccountDateTime,
+  millisecondsUntilNextDay,
+  nowDate,
+  resolveHabitDetailRouteDate,
+} from '../utils/dates'
 import { getTimezoneList } from '../utils/timezones'
+import en from '../i18n/en.json'
+import pt from '../i18n/pt-BR.json'
 import { isValidEmail } from '../utils/email'
 import {
   buildClientTimeZoneHeaders,
@@ -78,6 +89,78 @@ describe('formatAPIDate', () => {
   })
 })
 
+describe('formatAPIDateInTimeZone', () => {
+  it('formats the account date when it differs from the browser-local date', () => {
+    const instant = new Date('2026-09-12T01:30:00.000Z')
+
+    expect(formatAPIDateInTimeZone(instant, 'Pacific/Kiritimati')).toBe('2026-09-12')
+    expect(formatAPIDateInTimeZone(instant, 'America/Sao_Paulo')).toBe('2026-09-11')
+  })
+
+  it('uses UTC for a nullable or invalid account timezone', () => {
+    const instant = new Date('2026-09-12T01:30:00.000Z')
+
+    expect(formatAPIDateInTimeZone(instant, null)).toBe('2026-09-12')
+    expect(formatAPIDateInTimeZone(instant, 'Invalid/Zone')).toBe('2026-09-12')
+  })
+})
+
+describe('getAccountDay', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it.each([
+    { timeZone: undefined, expected: '2026-06-15' },
+    { timeZone: null, expected: '2026-06-16' },
+    { timeZone: 'America/Sao_Paulo', expected: '2026-06-15' },
+    { timeZone: 'Pacific/Kiritimati', expected: '2026-06-16' },
+  ])('resolves $timeZone to $expected on a different device calendar', ({ timeZone, expected }) => {
+    vi.stubEnv('TZ', 'America/Sao_Paulo')
+
+    expect(getAccountDay(new Date('2026-06-16T02:59:00Z'), timeZone)).toBe(expected)
+  })
+})
+
+describe('millisecondsUntilNextDay', () => {
+  it('finds the exact account midnight across a device timezone mismatch', () => {
+    expect(millisecondsUntilNextDay(new Date('2026-08-30T09:59:59.000Z'), 'Pacific/Kiritimati')).toBe(1_000)
+    expect(millisecondsUntilNextDay(new Date('2026-09-11T23:59:59.000Z'), null)).toBe(1_000)
+  })
+
+  it('accounts for a daylight saving transition', () => {
+    expect(millisecondsUntilNextDay(new Date('2026-11-01T04:00:00.000Z'), 'America/New_York')).toBe(25 * 60 * 60 * 1_000)
+  })
+})
+
+describe('getAccountDateTime', () => {
+  it('derives the account day and minute from one instant', () => {
+    const instant = new Date('2026-09-11T10:30:00.000Z')
+
+    expect(getAccountDateTime(instant, 'Pacific/Kiritimati')).toEqual({
+      date: '2026-09-12',
+      minutes: 30,
+    })
+    expect(getAccountDateTime(instant, 'America/Sao_Paulo')).toEqual({
+      date: '2026-09-11',
+      minutes: 450,
+    })
+  })
+})
+
+describe('resolveHabitDetailRouteDate', () => {
+  it('preserves one valid API date', () => {
+    expect(resolveHabitDetailRouteDate('2026-08-29')).toBe('2026-08-29')
+  })
+
+  it.each([
+    'bad',
+    '2026-02-30',
+    ['2026-08-28', '2026-08-29'],
+    [],
+  ])('leaves malformed or repeated route input to the account-day fallback %#', (value) => {
+    expect(resolveHabitDetailRouteDate(value)).toBeNull()
+  })
+})
+
 
 describe('nowDate', () => {
   it('returns a Date instance carrying the current instant', () => {
@@ -119,10 +202,24 @@ describe('getTimezoneList', () => {
     }
   })
 
-  it('falls back to an empty list when Intl.supportedValuesOf is unavailable', () => {
+  it('includes the UTC value accepted by the profile API exactly once', () => {
+    vi.stubGlobal('Intl', {
+      supportedValuesOf: () => ['Etc/UTC', 'UTC', 'Europe/London'],
+    })
+
+    const list = getTimezoneList()
+    expect(list).toContain('UTC')
+    expect(list.filter((timeZone) => ['UTC', 'Etc/UTC'].includes(timeZone))).toEqual(['UTC'])
+  })
+
+  it('falls back to the bundled IANA list when Intl.supportedValuesOf is unavailable', () => {
     vi.stubGlobal('Intl', {})
 
-    expect(getTimezoneList()).toEqual([])
+    const list = getTimezoneList()
+    expect(list.length).toBeGreaterThan(0)
+    expect(list).toContain('UTC')
+    expect(list).toContain('America/Sao_Paulo')
+    expect(list).toContain('Europe/London')
   })
 })
 
@@ -353,10 +450,22 @@ describe('translateErrorKey', () => {
 
 
 describe('getFriendlyErrorKey', () => {
+  it('routes an account switch refusal to reload guidance in both locales', () => {
+    const err = createApiClientError(409, {
+      error: 'The signed in account changed before this request ran',
+      errorCode: 'ACCOUNT_CHANGED',
+    }, 'fallback')
+    expect(getFriendlyErrorKey(err, 'auth.genericError')).toBe('errors.api.accountChanged')
+    expect(getFriendlyErrorMessage(err, (key) => key === 'errors.api.accountChanged' ? en.errors.api.accountChanged : '', 'auth.genericError'))
+      .toBe('Your account changed. Reload this page before trying again.')
+    expect(getFriendlyErrorMessage(err, (key) => key === 'errors.api.accountChanged' ? pt.errors.api.accountChanged : '', 'auth.genericError'))
+      .toBe('Sua conta mudou. Recarregue esta página antes de tentar de novo.')
+  })
+
   it('maps tag color validation errors', () => {
     const err = createApiClientError(
       400,
-      { error: 'Color must be a valid hex color' },
+      { error: 'Color must be a valid hex color (e.g. #FF5733)' },
       'fallback',
     )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'tag')).toBe(
@@ -415,7 +524,7 @@ describe('getFriendlyErrorMessage', () => {
   it('translates the resolved friendly key', () => {
     const err = createApiClientError(
       400,
-      { error: 'Color must be a valid hex color' },
+      { error: 'Color must be a valid hex color (e.g. #FF5733)' },
       'fallback',
     )
     expect(getFriendlyErrorMessage(err, translate, 'errors.generic', 'tag')).toBe(

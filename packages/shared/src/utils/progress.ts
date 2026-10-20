@@ -1,0 +1,222 @@
+import {
+  differenceInCalendarDays,
+  format,
+  isValid,
+  parseISO,
+  startOfDay,
+} from 'date-fns'
+import type { Achievement, StreakInfo } from '../types/gamification'
+import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
+import { formatAPIDateInTimeZone, nowDate } from './dates'
+import { getGoalMetricsStatusPresentation } from './goal-metrics'
+import { formatLocaleDate } from './locale-format'
+
+export const PROGRESS_GOAL_FILTERS = ['all', 'active', 'completed', 'abandoned'] as const
+export type ProgressGoalFilter = (typeof PROGRESS_GOAL_FILTERS)[number]
+
+export function getProgressGoalLabelKey(goal: Goal): string | null {
+  if (goal.status === 'Abandoned') return 'goals.status.abandoned'
+  if (goal.status === 'Completed') return 'goals.status.completed'
+  if (goal.progressPercentage >= 100) return 'progressScreen.goals.targetReached'
+  return getGoalMetricsStatusPresentation(goal.trackingStatus)?.labelKey ?? null
+}
+export type GoalDeadlineState = 'overdue' | 'dueToday' | 'soon' | 'later'
+export type AchievementGlyphKey =
+  | 'calendar'
+  | 'flame'
+  | 'moon'
+  | 'satellite'
+  | 'shield'
+  | 'star'
+  | 'sun'
+  | 'target'
+  | 'trophy'
+  | 'zap'
+
+const HIDDEN_ACHIEVEMENT_CATEGORIES = new Set(['Social', 'Sharing', 'Together'])
+const GAMIFICATION_LEVEL_TITLE_KEYS = [
+  'starter',
+  'explorer',
+  'orbiter',
+  'navigator',
+  'pilot',
+  'captain',
+  'commander',
+  'admiral',
+  'elite',
+  'legend',
+] as const
+
+export function achievementGlyphKey(iconKey: string): AchievementGlyphKey {
+  if (/goal|target|dream/.test(iconKey)) return 'target'
+  if (/streak|warrior|momentum|habit|dedicated|relentless/.test(iconKey)) return 'flame'
+  if (/week|month|year|quarter|calendar/.test(iconKey)) return 'calendar'
+  if (/night_owl/.test(iconKey)) return 'moon'
+  if (/perfect_day|early_bird/.test(iconKey)) return 'sun'
+  if (/breaker|shield/.test(iconKey)) return 'shield'
+  if (/liftoff|orbit|mission|onboarding/.test(iconKey)) return 'satellite'
+  if (/perfect|comeback|bolt/.test(iconKey)) return 'zap'
+  if (/champion|centurion|hero|titan|overachiever|trophy/.test(iconKey)) return 'trophy'
+  return 'star'
+}
+
+export function filterProgressGoals(
+  goals: readonly Goal[],
+  filter: ProgressGoalFilter,
+): Goal[] {
+  if (filter === 'all') return [...goals]
+  const status: GoalStatus =
+    filter === 'active' ? 'Active' : filter === 'completed' ? 'Completed' : 'Abandoned'
+  return goals.filter((goal) => goal.status === status)
+}
+
+export function buildGoalMovePositions(
+  goals: readonly Goal[],
+  goalId: string,
+  targetIndex: number,
+): GoalPositionItem[] | null {
+  const fromIndex = goals.findIndex((goal) => goal.id === goalId)
+  const boundedTarget = Math.max(0, Math.min(goals.length - 1, targetIndex))
+  if (fromIndex < 0 || fromIndex === boundedTarget) return null
+
+  const reordered = [...goals]
+  const [moved] = reordered.splice(fromIndex, 1)
+  if (!moved) return null
+  reordered.splice(boundedTarget, 0, moved)
+  return reordered.map((goal, position) => ({ id: goal.id, position }))
+}
+
+export function getGoalDeadlinePresentation(
+  deadline: string | null | undefined,
+  status: GoalStatus,
+  now: Date = new Date(),
+): { days: number; state: GoalDeadlineState } | null {
+  if (!deadline || status !== 'Active') return null
+  const days = differenceInCalendarDays(parseISO(deadline), now)
+  if (days < 0) return { days: Math.abs(days), state: 'overdue' }
+  if (days === 0) return { days, state: 'dueToday' }
+  return { days, state: days <= 7 ? 'soon' : 'later' }
+}
+
+export function visibleProgressAchievements(
+  achievements: readonly Achievement[],
+): Achievement[] {
+  return achievements.filter(
+    (achievement) => !HIDDEN_ACHIEVEMENT_CATEGORIES.has(achievement.category),
+  )
+}
+
+export function getGamificationLevelTitleKey(level: number): string {
+  const index = Math.max(0, Math.min(GAMIFICATION_LEVEL_TITLE_KEYS.length - 1, level - 1))
+  return `progressScreen.achievements.levelTitles.${GAMIFICATION_LEVEL_TITLE_KEYS[index]}`
+}
+
+type StreakRepairSource = Pick<
+  StreakInfo,
+  | 'currentStreak'
+  | 'isRepairAvailable'
+  | 'lastActiveDate'
+  | 'longestStreak'
+  | 'repairDate'
+  | 'repairableGapDates'
+>
+
+export type StreakRepairState = {
+  dates: string[]
+  count: number
+  banked: number
+  canRepair: boolean
+  showGap: boolean
+  gapUnavailable: boolean
+  bankFull: boolean
+}
+
+export function getStreakRepairErrorMessageKey(status: number | undefined):
+  'progressScreen.streak.repairError' | 'progressScreen.streak.repairRateLimited' {
+  return status === 429
+    ? 'progressScreen.streak.repairRateLimited'
+    : 'progressScreen.streak.repairError'
+}
+
+export function formatStreakDate(date: string, locale: string): string {
+  return formatLocaleDate(date, locale, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+export function formatStreakRepairDates(dates: readonly string[], locale: string): string {
+  return new Intl.ListFormat(locale, {
+    style: 'long',
+    type: 'conjunction',
+  }).format(dates.map((date) => formatStreakDate(date, locale)))
+}
+
+function isApiDate(value: string | null | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = startOfDay(parseISO(value))
+  return isValid(parsed) && format(parsed, 'yyyy-MM-dd') === value
+}
+
+export function deriveStreakRepairState({
+  streak,
+  freezesAvailable,
+  banked,
+  ceiling,
+  now = nowDate(),
+  accountTimeZone,
+}: {
+  streak: StreakRepairSource | null | undefined
+  freezesAvailable: number
+  banked: number
+  ceiling: number
+  now?: Date
+  accountTimeZone?: string | null
+}): StreakRepairState {
+  const dates = streak?.repairableGapDates != null
+    ? streak.repairableGapDates.filter(isApiDate)
+    : streak?.isRepairAvailable === true && isApiDate(streak.repairDate)
+      ? [streak.repairDate]
+      : []
+  const count = dates.length
+  const canRepair = count > 0 && freezesAvailable >= count
+  const gapUnavailable = count === 0
+    && streak?.currentStreak === 1
+    && streak.longestStreak > 1
+    && streak.lastActiveDate === getAccountToday(accountTimeZone, now)
+  return {
+    dates,
+    count,
+    banked,
+    canRepair,
+    showGap: gapUnavailable || count > 0,
+    gapUnavailable,
+    bankFull: banked >= ceiling,
+  }
+}
+
+function getAccountToday(timeZone?: string | null, now = nowDate()): string {
+  return formatAPIDateInTimeZone(now, timeZone)
+}
+
+export function buildProtectedDayLabels(
+  dates: readonly string[],
+  locale?: string,
+  isFrozenToday = false,
+  accountTimeZone?: string | null,
+): { id: string; dateLabel: string; isToday: boolean }[] {
+  const accountToday = isFrozenToday ? getAccountToday(accountTimeZone) : null
+  const protectedDays = [...new Set(dates)].sort((leftDate, rightDate) => {
+    if (leftDate === rightDate) return 0
+    return leftDate < rightDate ? 1 : -1
+  }).flatMap((date) => {
+    const parsed = startOfDay(parseISO(date))
+    if (!isValid(parsed)) return []
+    return [{
+      id: date,
+      dateLabel: locale ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(parsed) : format(parsed, 'yyyy-MM-dd'),
+    }]
+  })
+  return protectedDays.map((day) => ({ ...day, isToday: isFrozenToday && day.id === accountToday }))
+}

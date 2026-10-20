@@ -1,0 +1,333 @@
+import { ActionRow } from './action-row'
+
+import { SPACING, SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import type {
+  BlockFrameItem,
+  BlockFrameItemStatus,
+  BlockFrameProps,
+} from '@orbit/shared/contracts/blocks'
+import {
+  resolveBlockFrameState,
+  PROPOSED_RADIUS,
+  resolveBlockFrameRows,
+} from '@orbit/shared/contracts/blocks'
+import { useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+import { AccessibilityInfo, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+  CheckCircle2,
+  Pencil,
+  RefreshCw,
+  ShieldAlert,
+  XCircle,
+} from '@/components/ui/icons'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { Proposed } from '@/components/ui/proposed'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+
+const actionHitPadding = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
+
+type FrameRowProps = Readonly<{
+  item: BlockFrameItem
+  frameState: BlockFrameProps['state']
+  statusLabel?: string
+  irreversibleLabel?: string
+  proposedLabel?: string
+  editLabel?: string
+  onEditItem?: (itemId: string) => void
+  tokens: AppTokensV2
+}>
+
+type StatusLabels = Readonly<Record<BlockFrameItemStatus, string>>
+
+function StatusView({ status, label, tokens }: Readonly<{
+  status: BlockFrameItemStatus
+  label: string
+  tokens: AppTokensV2
+}>) {
+  const Glyph = status === 'done' ? CheckCircle2 : status === 'failed' ? XCircle : RefreshCw
+  const statusColors = {
+    iconColor: status === 'failed' ? tokens.statusBad : status === 'done' ? tokens.fg1 : tokens.fg2,
+  }
+  const labelColor = status === 'failed' ? tokens.statusBadText : status === 'done' ? tokens.fg1 : tokens.fg2
+
+  return (
+    <View style={styles.status}>
+      <Glyph accessible={false} color={statusColors.iconColor} size={20} strokeWidth={1.5} />
+      <Text style={[styles.statusLabel, { color: labelColor }]}>{label}</Text>
+    </View>
+  )
+}
+
+function IrreversibleMark({ label, tokens }: Readonly<{ label: string; tokens: AppTokensV2 }>) {
+  return (
+    <View style={styles.irreversibleMark}>
+      <ShieldAlert accessible={false} color={tokens.fg3} size={20} strokeWidth={1.5} />
+      <Text style={[styles.irreversibleLabel, { color: tokens.fg3 }]}>{label}</Text>
+    </View>
+  )
+}
+
+function MetaLine({ meta, wrap, tokens }: Readonly<{ meta: string; wrap: boolean; tokens: AppTokensV2 }>) {
+  return <Text numberOfLines={wrap ? undefined : 1} style={[styles.meta, { color: tokens.fg3 }, wrap && { lineHeight: 12 * 1.4 }]}>{meta}</Text>
+}
+
+function getRowStyle(wrapLabel: boolean | undefined) {
+  return [styles.row, wrapLabel && { alignItems: 'flex-start' as const }]
+}
+
+function FrameRow(props: FrameRowProps) {
+  const { item, frameState, statusLabel, onEditItem, tokens } = props
+  const status = frameState === 'acting' ? 'acting' : item.status
+  const isEditable = status == null && frameState !== 'stale' && item.editable !== false
+  const row = (
+    <View
+      style={getRowStyle(item.wrapLabel)}
+      testID={`block-frame-item-${item.id}-${status ?? 'pending'}${item.proposed ? '-proposed' : ''}`}
+    >
+      <View style={styles.rowWords}>
+        {typeof item.label === 'string' || typeof item.label === 'number' ? (
+          <Text numberOfLines={item.wrapLabel ? undefined : 1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
+            {item.label}
+          </Text>
+        ) : <View style={styles.rowLabelNode}>{item.label}</View>}
+        {item.meta ? <MetaLine meta={item.meta} wrap={item.wrapMeta === true} tokens={tokens} /> : null}
+        {item.irreversible && props.irreversibleLabel ? (
+          <IrreversibleMark label={props.irreversibleLabel} tokens={tokens} />
+        ) : null}
+      </View>
+      <View style={styles.trailing}>
+        {item.control}
+        {isEditable && onEditItem && props.editLabel ? (
+          <Pressable
+            accessibilityLabel={props.editLabel}
+            accessibilityRole="button"
+            onPress={() => onEditItem(item.id)}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { backgroundColor: pressed ? tokens.bgHover : 'transparent' },
+            ]}
+          >
+            <Pencil accessible={false} color={tokens.fg2} size={20} strokeWidth={1.5} />
+          </Pressable>
+        ) : null}
+        {status && statusLabel ? <StatusView status={status} label={statusLabel} tokens={tokens} /> : null}
+      </View>
+    </View>
+  )
+
+  return (
+    <Proposed proposed={item.proposed === true} scope="row" label={props.proposedLabel ?? ''}>
+      {row}
+    </Proposed>
+  )
+}
+
+function LoadingBody({ rows, tokens, hasActions }: Readonly<{
+  rows: number
+  tokens: AppTokensV2
+  hasActions: boolean
+}>) {
+  return (
+    <>
+      <View style={styles.loadingBody} testID="block-frame-loading-skeleton">
+        {Array.from({ length: rows }, (_, index) => (
+          <View key={index} style={styles.row}>
+            <View style={[styles.rowSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+            <View style={[styles.iconSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+          </View>
+        ))}
+      </View>
+      {hasActions ? <View style={[styles.actionSkeleton, { backgroundColor: tokens.bgElev2 }]} /> : null}
+    </>
+  )
+}
+
+function FrameRows({ frameProps, tokens }: Readonly<{
+  frameProps: Readonly<BlockFrameProps>
+  tokens: AppTokensV2
+}>) {
+  const { t } = useTranslation()
+  const labels: StatusLabels = {
+    done: t('blockFrame.status.done'),
+    acting: t('blockFrame.status.acting'),
+    failed: t('blockFrame.status.failed'),
+  }
+
+  return resolveBlockFrameRows(frameProps, labels).map((rowProps) => (
+    <FrameRow
+      editLabel={rowProps.editLabel}
+      frameState={rowProps.frameState}
+      irreversibleLabel={rowProps.irreversibleLabel}
+      item={rowProps.item}
+      key={rowProps.item.id}
+      onEditItem={rowProps.onEditItem}
+      proposedLabel={rowProps.proposedLabel}
+      statusLabel={rowProps.statusLabel}
+      tokens={tokens}
+    />
+  ))
+}
+
+function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens }: Readonly<{
+  frameProps: Readonly<BlockFrameProps>
+  canRenderActions: boolean
+  hasIrreversibleItem: boolean
+  tokens: AppTokensV2
+}>) {
+  const { t } = useTranslation()
+
+  if (frameProps.state === 'stale') {
+    return (
+      <View style={styles.staleRow}>
+        {frameProps.onRefresh ? <Pressable
+          accessibilityLabel={frameProps.refreshLabel ?? t('blockFrame.refresh')}
+          accessibilityRole="button"
+          onPress={frameProps.onRefresh}
+          style={({ pressed }) => [
+            styles.refreshButton,
+            { backgroundColor: pressed ? tokens.bgHover : 'transparent' },
+          ]}
+        >
+          <RefreshCw accessible={false} color={tokens.fg1} size={20} strokeWidth={1.5} />
+          <Text style={[styles.refreshLabel, { color: tokens.fg1 }]}>{frameProps.refreshLabel ?? t('blockFrame.refresh')}</Text>
+        </Pressable> : null}
+      </View>
+    )
+  }
+
+  if (!hasIrreversibleItem && (!canRenderActions || frameProps.actions == null)) return null
+
+  return (
+    <View style={styles.actionRow} testID="block-frame-action-row">
+      {hasIrreversibleItem && frameProps.confirmNote ? (
+        <Text style={[styles.confirmNote, { color: tokens.fg2 }]}>{frameProps.confirmNote}</Text>
+      ) : null}
+      {canRenderActions && frameProps.actions != null ? (
+        <View
+          accessibilityState={{ disabled: frameProps.state === 'acting' }}
+          importantForAccessibility={frameProps.state === 'acting' && frameProps.items.length > 0 ? 'no-hide-descendants' : 'auto'}
+          pointerEvents={frameProps.state === 'acting' ? 'none' : 'auto'}
+          style={styles.actionGuard}
+        >
+          <ActionRow>{frameProps.actions}</ActionRow>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFrameProps>; tokens: AppTokensV2 }>) {
+  const titleRef = useRef<Text>(null)
+  const personalTitleRef = useRef<View>(null)
+  const titleFocused = useRef(false)
+  const focusTitle = () => {
+    if (!props.focusTitleOnMount || titleFocused.current) return
+    const tag = findNodeHandle(props.titleMode === 'typed' ? personalTitleRef.current : titleRef.current)
+    if (tag == null) return
+    AccessibilityInfo.setAccessibilityFocus(tag)
+    titleFocused.current = true
+  }
+  return (
+      <View style={[styles.header, props.titleMode === 'typed' && { flexDirection: 'column', alignItems: 'stretch' }]}>
+        {props.titleMode === 'typed' ? <View onLayout={props.focusTitleOnMount ? focusTitle : undefined}><PersonalText accessibilityRef={personalTitleRef} accessibilityRole="header" style={[styles.title, { flex: 0, color: tokens.fg1 }]}>{props.title}</PersonalText></View> : <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+          {props.count !== null && (props.count !== undefined || props.items.length > 0) ? <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text> : null}
+          {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly>{props.title}</PersonalTextDetails> : null}
+        </View>
+      </View>
+  )
+}
+
+export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const { missingLabels, hasIrreversibleItem, canRenderActions } = resolveBlockFrameState(props)
+  if (__DEV__ && missingLabels.length > 0) {
+    throw new Error(`Missing BlockFrame props: ${missingLabels.join(', ')}`)
+  }
+
+
+  return (
+    <View
+      style={[
+        styles.frame,
+        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+      ]}
+      accessibilityState={props.state === 'acting' ? { busy: true } : undefined}
+      testID={`block-frame-${props.state}`}
+    >
+      <FrameHeader props={props} tokens={tokens} />
+      <Text accessibilityLiveRegion={props.items.length || props.state === 'stale' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }, props.state !== 'stale' && styles.hiddenMessage]}>
+        {props.state === 'stale' ? props.staleMessage : ''}
+      </Text>
+      {props.state === 'loading' ? (
+        <LoadingBody
+          hasActions={canRenderActions && props.actions != null}
+          rows={props.items.length}
+          tokens={tokens}
+        />
+      ) : (
+        <>
+          {props.body}
+          {props.items.length > 0 ? <ScrollView
+            accessibilityLiveRegion="polite"
+            accessibilityState={props.state === 'acting' ? { busy: true } : undefined}
+            contentContainerStyle={styles.rows}
+            style={styles.body}
+            testID="block-frame-body"
+          >
+            <FrameRows frameProps={props} tokens={tokens} />
+          </ScrollView> : null}
+          <FrameFooter
+            canRenderActions={canRenderActions}
+            frameProps={props}
+            hasIrreversibleItem={hasIrreversibleItem}
+            tokens={tokens}
+          />
+        </>
+      )}
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  frame: {
+    maxHeight: '100%',
+    minHeight: 0,
+    gap: 24,
+    borderRadius: PROPOSED_RADIUS.block,
+    borderWidth: 1,
+    padding: SPACING.s24,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  title: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 16 },
+  count: { fontFamily: 'Geist_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
+  body: { flexShrink: 1, minHeight: 0 },
+  rows: { gap: 8 },
+  row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.s12 },
+  rowWords: { flex: 1, minWidth: 0 },
+  rowLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
+  rowLabelNode: { minWidth: 0 },
+  meta: { fontFamily: 'Geist_400Regular', fontSize: 12 },
+  trailing: { flexDirection: 'row', flexShrink: 0, flexWrap: 'wrap', maxWidth: '60%', alignItems: 'center', gap: 8 },
+  iconButton: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
+  status: { flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', alignItems: 'center', gap: 4 },
+  statusLabel: { maxWidth: '100%', fontFamily: 'Geist_400Regular', fontSize: 12 },
+  irreversibleMark: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  irreversibleLabel: { fontFamily: 'GeistMono_500Medium', fontSize: 12, textTransform: 'uppercase' },
+  loadingBody: { flex: 1, minHeight: 0, gap: 8 },
+  rowSkeleton: { height: 16, flex: 1, borderRadius: 8 },
+  iconSkeleton: { height: 20, width: 20, borderRadius: 8 },
+  actionSkeleton: { height: TOUCH_TARGET_MIN, borderRadius: 8 },
+  staleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  hiddenMessage: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
+  staleMessage: { fontFamily: 'Geist_400Regular', fontSize: 14 },
+  refreshButton: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: SPACING.s12 },
+  refreshLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
+  actionRow: { gap: 12, padding: actionHitPadding, margin: -actionHitPadding },
+  actionGuard: { padding: actionHitPadding, margin: -actionHitPadding },
+  confirmNote: { fontFamily: 'Geist_400Regular', fontSize: 14 },
+})

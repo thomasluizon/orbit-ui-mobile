@@ -8,6 +8,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   store: {
+    activeFilters: {},
     activeView: 'today',
     isSelectMode: false,
     selectedHabitIds: new Set<string>(),
@@ -17,15 +18,12 @@ const mocks = vi.hoisted(() => ({
   },
   bulkActions: {
     showBulkDeleteConfirm: false,
-    showBulkLogConfirm: false,
-    showBulkSkipConfirm: false,
     setShowBulkDeleteConfirm: vi.fn(),
-    setShowBulkLogConfirm: vi.fn(),
-    setShowBulkSkipConfirm: vi.fn(),
     confirmBulkDelete: vi.fn(),
     confirmBulkLog: vi.fn(),
     confirmBulkSkip: vi.fn(),
   },
+  useBulkActions: vi.fn(),
 }))
 
 vi.mock('@/stores/ui-store', () => ({
@@ -33,7 +31,14 @@ vi.mock('@/stores/ui-store', () => ({
 }))
 
 vi.mock('@/hooks/use-bulk-actions', () => ({
-  useBulkActions: () => mocks.bulkActions,
+  useBulkActions: (options: unknown) => {
+    mocks.useBulkActions(options)
+    return mocks.bulkActions
+  },
+}))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: 'UTC' } }),
 }))
 
 function asMockBackHandler(handler: unknown): { emitBackPress: () => boolean } {
@@ -43,6 +48,8 @@ function asMockBackHandler(handler: unknown): { emitBackPress: () => boolean } {
 type SelectionApi = ReturnType<typeof useTodaySelection>
 
 interface RenderOptions {
+  selectedDateStr?: string
+  today?: string
   habitListAllLoadedIds?: Set<string> | null
   closeControlsMenu?: () => void
 }
@@ -53,28 +60,37 @@ function renderSelection(options: RenderOptions = {}) {
   const ref: { current: SelectionApi | null } = { current: null }
   const habitListRef = { current: null } as React.RefObject<HabitListHandle | null>
 
-  function Harness() {
+  function Harness({ selectedDateStr, today }: { selectedDateStr: string; today: string }) {
     ref.current = useTodaySelection({
-      selectedDateStr: '2026-09-25',
+      selectedDateStr,
+      today,
       habitListRef,
       habitListAllLoadedIds: options.habitListAllLoadedIds ?? null,
+      habitsById: new Map(),
       closeControlsMenu: options.closeControlsMenu ?? vi.fn(),
     })
     return null
   }
 
   let tree!: { update: (node: React.ReactElement) => void; unmount: () => void }
+  const initialSelectedDateStr = options.selectedDateStr ?? '2026-04-01'
+  const initialToday = options.today ?? '2026-04-08'
   TestRenderer.act(() => {
-    tree = TestRenderer.create(React.createElement(Harness))
+    tree = TestRenderer.create(
+      React.createElement(Harness, {
+        selectedDateStr: initialSelectedDateStr,
+        today: initialToday,
+      }),
+    )
   })
 
   if (!ref.current) throw new Error('useTodaySelection did not render')
   mountedTrees.push(tree)
   return {
     api: ref as { current: SelectionApi },
-    rerender: () =>
+    rerender: (selectedDateStr = initialSelectedDateStr, today = initialToday) =>
       TestRenderer.act(() => {
-        tree.update(React.createElement(Harness))
+        tree.update(React.createElement(Harness, { selectedDateStr, today }))
       }),
   }
 }
@@ -97,6 +113,8 @@ describe('mobile useTodaySelection', () => {
     Object.values(mocks.bulkActions).forEach((value) => {
       if (typeof value === 'function' && 'mockReset' in value) value.mockReset()
     })
+    mocks.bulkActions.showBulkDeleteConfirm = false
+    mocks.useBulkActions.mockReset()
   })
 
   it('derives selected count and all-selected against the loaded ids', () => {
@@ -145,14 +163,14 @@ describe('mobile useTodaySelection', () => {
     expect(closeControlsMenu).toHaveBeenCalled()
   })
 
-  it('opens bulk confirms only when at least one habit is selected', () => {
+  it('confirms deletion but runs reversible bulk actions directly when habits are selected', () => {
     const empty = renderSelection()
     empty.api.current.handleOpenBulkDelete()
     empty.api.current.handleOpenBulkLog()
     empty.api.current.handleOpenBulkSkip()
     expect(mocks.bulkActions.setShowBulkDeleteConfirm).not.toHaveBeenCalled()
-    expect(mocks.bulkActions.setShowBulkLogConfirm).not.toHaveBeenCalled()
-    expect(mocks.bulkActions.setShowBulkSkipConfirm).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.confirmBulkLog).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.confirmBulkSkip).not.toHaveBeenCalled()
 
     mocks.store.selectedHabitIds = new Set(['a'])
     const filled = renderSelection()
@@ -160,8 +178,8 @@ describe('mobile useTodaySelection', () => {
     filled.api.current.handleOpenBulkLog()
     filled.api.current.handleOpenBulkSkip()
     expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(true)
-    expect(mocks.bulkActions.setShowBulkLogConfirm).toHaveBeenCalledWith(true)
-    expect(mocks.bulkActions.setShowBulkSkipConfirm).toHaveBeenCalledWith(true)
+    expect(mocks.bulkActions.confirmBulkLog).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkActions.confirmBulkSkip).toHaveBeenCalledTimes(1)
   })
 
   it('deselect-all delegates to the store clearSelection', () => {
@@ -194,6 +212,74 @@ describe('mobile useTodaySelection', () => {
 
     expect(closeControlsMenu).not.toHaveBeenCalled()
     expect(mocks.store.clearSelection).not.toHaveBeenCalled()
+  })
+
+  it('keeps a pinned selection when today advances past its loggable window', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    const view = renderSelection({ selectedDateStr: '2026-04-01', today: '2026-04-08' })
+
+    mocks.store.clearSelection.mockClear()
+    view.rerender('2026-04-01', '2026-04-09')
+
+    expect(mocks.store.clearSelection).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).not.toHaveBeenCalled()
+    expect(mocks.useBulkActions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ completionReadOnly: true }),
+    )
+  })
+
+  it('keeps an open bulk delete confirmation when today makes the pinned date old', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    mocks.bulkActions.showBulkDeleteConfirm = true
+    const view = renderSelection({ selectedDateStr: '2026-04-01', today: '2026-04-08' })
+
+    view.rerender('2026-04-01', '2026-04-09')
+
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).not.toHaveBeenCalled()
+  })
+
+  it('clears selection and closes bulk delete when navigating between loggable days', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    mocks.bulkActions.showBulkDeleteConfirm = true
+    const view = renderSelection({ selectedDateStr: '2026-04-01', today: '2026-04-08' })
+
+    mocks.store.clearSelection.mockClear()
+    view.rerender('2026-04-02', '2026-04-08')
+
+    expect(mocks.store.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
+  })
+
+  it('clears a loggable-day selection when navigation makes the viewed date read only', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    const view = renderSelection({ selectedDateStr: '2026-04-01' })
+
+    mocks.store.clearSelection.mockClear()
+    view.rerender('2026-03-31')
+
+    expect(mocks.store.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
+  })
+
+  it('leaves selection and bulk actions unchanged on a loggable day', () => {
+    mocks.store.isSelectMode = true
+    mocks.store.selectedHabitIds = new Set(['a'])
+    const view = renderSelection({ selectedDateStr: '2026-04-02', today: '2026-04-08' })
+
+    mocks.store.clearSelection.mockClear()
+    view.rerender()
+    view.api.current.handleOpenBulkLog()
+
+    expect(mocks.store.clearSelection).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.confirmBulkLog).toHaveBeenCalledTimes(1)
+    expect(mocks.useBulkActions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ completionReadOnly: false }),
+    )
   })
 
   it('clears the selection on a hardware back press while in select mode', () => {

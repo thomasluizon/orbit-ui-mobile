@@ -26,11 +26,12 @@ finding is noise. ESLint `local/*` and Roslyn `ORBIT0001..0005`
 buttons, overshoot easing, and `will-change` discipline. `Type Check`, `Unit Tests`, `Build`, `Dash Ban`
 (em and en dashes, PR title and body included), `Copy Register` (shouted strings and the cliche register in
 i18n values), `Design Token Guard` (raw `--slate-*`, `transition-all`, `h-screen` in `apps/*`),
-`Suppressions Ratchet`, `Expo SDK Pin`, `Dependency Review`, `Dependency Audit`, `GitGuardian Security
-Checks`, `Analyze` (CodeQL), `SonarCloud Code Analysis`, and `React Doctor` own the rest. Three gates are
-partial and the uncovered half is yours: `local/no-decorative-glow` and `local/no-raw-gradient` ship at
-`warn` in `apps/*`, so pre-existing violations are known debt but a **newly introduced** one is a finding;
-`PR Metadata` parity check and `Contract Drift` are scoped in dimensions 8 and 7.
+`Lint Severity` (a `local/*` rule lowered to `warn` or `off`, and any lint-suppression baseline),
+`Expo SDK Pin`, `Dependency Review`, `Dependency Audit`, `GitGuardian Security
+Checks`, `Analyze` (CodeQL), `SonarCloud Code Analysis`, and `React Doctor` own the rest. Every
+`local/*` rule runs at `error` with no baseline behind it, so a violation of one is never a
+hand-written finding, old or new. Two gates are partial and the uncovered half is yours:
+the `PR Metadata` parity check and `Contract Drift` are scoped in dimensions 8 and 7.
 
 ## Finding template
 
@@ -55,7 +56,8 @@ invent a finding to fill a dimension.
 Does it do what the ticket says, across every boundary it crosses? Follow the data flow (request shape in,
 handler, response shape out, consumer reads it) and name any mismatch. Check the boundaries (empty list,
 zero, null, first and last item, timezone edges), that loading, error, and empty states are all handled,
-and any concurrency or ordering assumption the diff silently relies on.
+and any concurrency or ordering assumption the diff silently relies on. For shared-resource
+writes, apply the Concurrency checklist in `.claude/skills/prod-readiness/SKILL.md` inventory item 13.
 
 ### 2. Dead / stale code
 
@@ -202,16 +204,20 @@ name belong to dimension 1; do not over-claim completeness here.
 
 ### 8. Cross-platform parity
 
-> Reference: root CLAUDE.md "Cross-platform parity (MANDATORY)". **The `PR Metadata` parity check only
+> Reference: root CLAUDE.md "Cross-platform parity (MANDATORY)" and generated `architecture.json` at the
+> repository root. Run `node tools/arch-map.mjs` to create it. **The `PR Metadata` parity check only
 > counts changed files per platform**, so it catches a wholly one-sided PR and nothing else. Per-file
 > mirrors and behavioural equivalence are yours.
+
+A new screen or route triggers this dimension. Verify its generated `routes.web` or `routes.mobile` entry,
+including `platform`, `routePath`, and `sourceFile`, then check `routes.parityPairs` and `routes.unpaired`.
 
 Every changed `apps/web/**` file has its `apps/mobile/**` mirror changed in the same PR and vice versa:
 `hooks/use-<x>.ts`, `stores/<x>-store.ts`, and `components/<feature>/<X>.tsx` map one to one,
 `app/(app)/<page>/page.tsx` maps to `app/<page>.tsx`, and `app/actions/<x>.ts` maps to a mobile hook calling
 `apiClient` directly. The mirror is **behaviourally identical**: same logic, data flow, and error handling,
 reverts included. Allowed differences are platform adapters (BFF vs direct API, cookie vs SecureStore,
-shadcn vs NativeWind, next-intl vs i18next) and a layout shell divergence enumerated in `DESIGN.md`, limited
+shadcn vs React Native StyleSheet, next-intl vs i18next) and a layout shell divergence enumerated in `DESIGN.md`, limited
 to navigation chrome (sidebar vs tab bar), the desktop stats rail, the command palette and keyboard
 shortcuts, and hover affordances on that shell chrome. Everything below the shell, including a screen,
 component, data flow, error path, or behavior, remains parity-bound. The per-file mirror requirement does
@@ -225,7 +231,9 @@ mirror file, or one that exists but was not updated, is **High** until proven in
 
 ### 9. i18n
 
-> Reference: root CLAUDE.md. No gate checks locale parity.
+> Reference: root CLAUDE.md and `packages/shared/src/i18n/en.json` plus `pt-BR.json`. The `i18n key
+> usage` gate checks catalog key parity, missing keys, and statically resolvable callsites. It does not
+> judge whether translated behaviour or meaning agrees.
 
 Every new user-facing string has a key in **both** `packages/shared/src/i18n/en.json` and `pt-BR.json`, in
 the same edit (`MISSING_PT` / `MISSING_EN`), and no callsite references a key that exists in neither
@@ -290,19 +298,43 @@ one-global-timezone behavior is a P1 finding. **Validator placement**: `Orbit.Ap
 catch block that swallows an error silently. **Test scope**: every new command or query handler, validator,
 and service has a unit test, and unit is all there is, so never ask for an integration or E2E suite.
 
-### 12. FEATURES.md gating
+### 12. Feature-surface evidence
 
-> Reference: `FEATURES.md` at the orbit-ui-mobile root. **Gated: only when the diff changes the user-facing
-> feature surface.** Hand-maintained, so nothing generates it and no gate checks it.
+> References: generated `architecture.json` in this repository, generated `gating-matrix.json` at the
+> `thomasluizon/orbit-api` repository root, the count-only `FEATURES.md` tool inventory, the shared
+> locale catalogs, and the `PR Metadata` parity check and the `i18n key usage` step. **Gated: only when the
+> diff changes the user-facing feature surface.**
 
-Triggers: a new screen, route, or tab; a new or removed Astra (`IAiTool`) or MCP (`[McpServerTool]`) tool; a
-plan-gating change (`PayGateService`, `AppConstants`); a platform-availability or locale-specific behaviour
-change. Pure refactors, bugfixes, and visual polish are N/A. The same PR updates the row, keeping the
-Gating, Platform, and Locale columns accurate and the stated tool counts correct; a missing update is
-**High**, as is a gating or platform claim the diff makes stale, and a change that makes the in-app guide
-(`onboarding.featureGuide.*`) wrong is **Medium**. In the orbit-api repo the file is not checked out, so do
-not guess: emit "FEATURES.md update required in thomasluizon/orbit-ui-mobile" (**High**) so it lands in the
-paired frontend PR.
+`gating-matrix.json` contains PayGate methods, config keys, and feature flags. It contains no route, screen,
+tab, tool, platform-availability, locale-behaviour, description, or guide-coverage field. Run
+`node tools/gating-matrix.mjs` in `thomasluizon/orbit-api` and use it only for plan-gating evidence.
+
+Triggers and their evidence:
+
+- **Screen or route:** run `node tools/arch-map.mjs`, then verify `routes.web`, `routes.mobile`,
+  `routes.parityPairs`, and `routes.unpaired` in generated `architecture.json`. Route entries carry
+  `platform`, `routePath`, `sourceFile`, and `layouts`.
+- **Tab:** inspect the owning navigation composition in `apps/web/components/shell/destination-shell.tsx`,
+  `apps/mobile/components/navigation/destination-tab-bar.tsx`, and `apps/mobile/app/(tabs)/_layout.tsx`.
+  Apply dimension 8 and the `PR Metadata` parity check to any availability change.
+- **Astra or MCP tool:** after the change reaches deployed `orbit-api` `main`, recount
+  `orbit-api/src/Orbit.Api/Extensions/ServiceCollectionExtensions.AiServices.cs` and every class in
+  `orbit-api/src/Orbit.Api/Mcp/Tools/*.cs`. Update the count-only `FEATURES.md` inventory and both
+  catalogs' guide counts in a paired UI pull request. No generated artifact currently carries tool
+  inventory.
+- **Plan gating:** generate `gating-matrix.json` from the candidate API tree and verify the affected `gates`,
+  `appConfigs`, and `featureFlags` entry. Treat compiled defaults as offline evidence because live
+  `AppConfigs` rows can override them.
+- **Platform availability:** apply dimension 8 and the `PR Metadata` parity check. The check detects a
+  wholly one-sided UI change; the reviewer still verifies per-file mirrors and behavioural equivalence.
+- **Locale-specific behaviour:** compare the affected keys and values in
+  `packages/shared/src/i18n/en.json` and `packages/shared/src/i18n/pt-BR.json`, then require the
+  `i18n key usage` job. The job checks catalog parity, missing keys, and statically resolvable callsites.
+- **Guide drift:** compare the changed capability with both catalogs' `onboarding.featureGuide.*` entries.
+  The `i18n key usage` job proves key parity and usage, while the reviewer verifies semantic accuracy.
+
+Pure refactors, unrelated bugfixes, and visual polish are N/A. A stale gating, platform, or tool claim, or a
+missing required inventory update, is **High**. A change that makes the in-app guide wrong is **Medium**.
 
 ### 13. External-interface evidence
 

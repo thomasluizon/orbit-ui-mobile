@@ -1,4 +1,3 @@
-
 const { collectStaticStrings, collectStyleProperties, getAttribute, getAttributeValueNode, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const STRIPE_WIDTH_CLASS_RE = /(?:^|\s|:)border-([lr])-(\d+)(?:\s|$)/g

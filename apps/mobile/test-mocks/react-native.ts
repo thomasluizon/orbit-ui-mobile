@@ -1,7 +1,11 @@
 import React from 'react'
 
 type HostProps = Readonly<{
-  children?: React.ReactNode
+  children?: React.ReactNode | ((state: { pressed: boolean }) => React.ReactNode)
+  onFocus?: (event: { nativeEvent: { target: number } }) => void
+  onBlur?: (event: { nativeEvent: { target: number } }) => void
+  onPressIn?: () => void
+  onPressOut?: () => void
   [key: string]: unknown
 }>
 
@@ -12,12 +16,32 @@ type MeasureInWindowCallback = (
   height: number,
 ) => void
 type MeasureInWindowImpl = (callback: MeasureInWindowCallback) => void
+type ScrollToImpl = (options: {
+  x?: number
+  y?: number
+  animated?: boolean
+}) => void
+type FocusImpl = (props: HostProps) => void
 
 const DEFAULT_MEASURE_IN_WINDOW: MeasureInWindowImpl = (callback) =>
   callback(0, 0, 32, 32)
 
 let measureInWindowImpl: MeasureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
+let scrollToImpl: ScrollToImpl = () => {}
+let focusImpl: FocusImpl = () => {}
 let hostRefsNull = false
+let nextNativeTag = 1
+type NativeHost = {
+  name: string
+  props: HostProps
+  ancestors: number[]
+  focusableInTouchMode: boolean
+  selection?: { start: number; end: number }
+}
+const nativeHosts = new Map<number, NativeHost>()
+const HostAncestors = React.createContext<number[]>([])
+let focusedNativeTag: number | null = null
+let touchMode = true
 const DEFAULT_WINDOW_DIMENSIONS = { width: 412, height: 892, scale: 1, fontScale: 1 }
 let windowDimensions = DEFAULT_WINDOW_DIMENSIONS
 
@@ -27,6 +51,51 @@ export function __setMeasureInWindowImpl(impl: MeasureInWindowImpl) {
 
 export function __setHostRefsNull(value: boolean) {
   hostRefsNull = value
+}
+
+export function __setScrollToImpl(impl: ScrollToImpl) {
+  scrollToImpl = impl
+}
+
+export function __setFocusImpl(impl: FocusImpl) {
+  focusImpl = impl
+}
+
+export function __setTouchMode(value: boolean) {
+  touchMode = value
+}
+
+export function __getFocusedNativeTag() {
+  return focusedNativeTag
+}
+
+export function __getFocusedInputSelection() {
+  return focusedNativeTag === null ? undefined : nativeHosts.get(focusedNativeTag)?.selection
+}
+
+function emitNativeFocusEvent(nativeTag: number, event: 'onFocus' | 'onBlur') {
+  const host = nativeHosts.get(nativeTag)
+  if (!host) return
+  for (const tag of [nativeTag, ...[...host.ancestors].reverse()]) {
+    const handler = nativeHosts.get(tag)?.props[event]
+    handler?.({ nativeEvent: { target: nativeTag } })
+  }
+}
+
+export function __focusHost(nativeTag: number) {
+  const host = nativeHosts.get(nativeTag)
+  if (!host) return
+  const accessibilityState = host.props.accessibilityState as { disabled?: boolean } | undefined
+  const enabled = !accessibilityState?.disabled && host.props.disabled !== true
+    && (host.name !== 'TextInput' || host.props.editable !== false)
+  const focusable = host.name === 'TextInput' || host.name === 'Pressable' || host.props.focusable === true
+    || host.focusableInTouchMode
+  if (!enabled || !focusable || (touchMode && !host.focusableInTouchMode)) return
+  if (focusedNativeTag === nativeTag) return
+  if (focusedNativeTag !== null) emitNativeFocusEvent(focusedNativeTag, 'onBlur')
+  focusedNativeTag = nativeTag
+  focusImpl(host.props)
+  emitNativeFocusEvent(nativeTag, 'onFocus')
 }
 
 export function __setWindowDimensions(
@@ -39,38 +108,84 @@ const keyboardListeners = new Map<string, Set<(payload: unknown) => void>>()
 
 export function __resetTestHostConfig() {
   measureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
+  scrollToImpl = () => {}
+  focusImpl = () => {}
   hostRefsNull = false
+  nextNativeTag = 1
+  nativeHosts.clear()
+  focusedNativeTag = null
+  touchMode = true
   windowDimensions = DEFAULT_WINDOW_DIMENSIONS
   keyboardListeners.clear()
 }
 
 function createHostComponent(name: string) {
   const HostComponent = React.forwardRef<unknown, HostProps>(function HostComponent(
-    { children, ...props },
+    { children, ...props }: HostProps,
     ref,
   ) {
-    const hostRef = {
+    const [nativeTag] = React.useState(() => nextNativeTag++)
+    const [pressed, setPressed] = React.useState(false)
+    const ancestors = React.useContext(HostAncestors)
+    React.useLayoutEffect(() => {
+      const existing = nativeHosts.get(nativeTag)
+      nativeHosts.set(nativeTag, {
+        name, props, ancestors,
+        focusableInTouchMode: existing?.focusableInTouchMode ?? name === 'TextInput',
+        selection: existing?.selection,
+      })
+    })
+    React.useLayoutEffect(() => () => {
+      nativeHosts.delete(nativeTag)
+      if (focusedNativeTag === nativeTag) focusedNativeTag = null
+    }, [nativeTag])
+    React.useImperativeHandle(hostRefsNull ? null : ref, () => ({
+      __nativeTag: nativeTag,
       measure: (callback?: (...args: number[]) => void) => callback?.(0, 0, 32, 32, 0, 0),
       measureInWindow: (callback?: MeasureInWindowCallback) => {
         if (callback) measureInWindowImpl(callback)
       },
-      setNativeProps: () => {},
-      focus: () => {},
-      blur: () => {},
-      scrollTo: () => {},
+      setNativeProps: (updates: HostProps) => {
+        const host = nativeHosts.get(nativeTag)
+        if (!host) return
+        host.props = { ...host.props, ...updates }
+        if (updates.hasTVPreferredFocus === true) {
+          host.focusableInTouchMode = true
+          __focusHost(nativeTag)
+        }
+      },
+      focus: () => __focusHost(nativeTag),
+      setSelection: (start: number, end: number) => {
+        const host = nativeHosts.get(nativeTag)
+        if (host) host.selection = { start, end }
+      },
+      blur: () => {
+        if (focusedNativeTag !== nativeTag) return
+        emitNativeFocusEvent(nativeTag, 'onBlur')
+        focusedNativeTag = null
+      },
+      scrollTo: scrollToImpl,
+      scrollToOffset: ({ offset, animated }: { offset: number; animated?: boolean }) => scrollToImpl({ y: offset, animated }),
       scrollToEnd: () => {},
-    }
+    }), [nativeTag])
 
-    if (!hostRefsNull) {
-      if (typeof ref === 'function') {
-        // react-doctor-disable-next-line no-prop-callback-in-render -- Test-only mock of a React Native host component; it synchronously assigns the ref callback to emulate native measure()/setNativeProps() behavior for Vitest. Not a production render path. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-        ref(hostRef)
-      } else if (ref && typeof ref === 'object') {
-        ;(ref as { current: unknown }).current = hostRef
-      }
-    }
-
-    return React.createElement(name, props, children as React.ReactNode)
+    return React.createElement(HostAncestors.Provider, { value: [...ancestors, nativeTag] },
+      React.createElement(name, {
+        ...props,
+        __nativeTag: nativeTag,
+        ...(name === 'Pressable' ? {
+          onPressIn: () => {
+            setPressed(true)
+            if (typeof props.onPressIn === 'function') props.onPressIn()
+          },
+          onPressOut: () => {
+            setPressed(false)
+            if (typeof props.onPressOut === 'function') props.onPressOut()
+          },
+        } : {}),
+      },
+        typeof children === 'function' && name === 'Pressable' ? children({ pressed }) : children as React.ReactNode),
+    )
   })
 
   HostComponent.displayName = name
@@ -140,6 +255,11 @@ export const Dimensions = {
   }),
 }
 
+/** The theme layer reads the OS scheme; tests pin it so a render never depends on the host. */
+export function useColorScheme(): 'light' | 'dark' {
+  return 'dark'
+}
+
 export function useWindowDimensions() {
   return windowDimensions
 }
@@ -183,6 +303,8 @@ export const AccessibilityInfo = {
     remove: () => {},
   }),
   announceForAccessibility: (_announcement: string) => {},
+  setAccessibilityFocus: (_reactTag: number) => {},
+  sendAccessibilityEvent: (_handle: unknown, _eventType: 'focus' | 'click' | 'viewHoverEnter') => {},
 }
 
 export const Vibration = {
@@ -213,8 +335,14 @@ export function __emitKeyboardEvent(event: string, payload?: unknown) {
 export function findNodeHandle(input: unknown): number | null {
   if (input === null || input === undefined) return null
   if (typeof input === 'number') return input
-  return 1
+  if (typeof input === 'object' && '__nativeTag' in input) {
+    const nativeTag = (input as { __nativeTag?: unknown }).__nativeTag
+    return typeof nativeTag === 'number' ? nativeTag : null
+  }
+  return null
 }
+
+export const I18nManager = { isRTL: false }
 
 export const Platform = {
   OS: 'android',
@@ -222,8 +350,23 @@ export const Platform = {
 }
 
 export const StyleSheet = {
+  get hairlineWidth() {
+    const scale = windowDimensions.scale
+    return Math.round(0.4 * scale) / scale || 1 / scale
+  },
+  absoluteFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   create: <T extends Record<string, unknown>>(styles: T) => styles,
-  flatten: (style: unknown) => style,
+  flatten: (style: unknown): unknown => {
+    if (style === null || typeof style !== 'object') return undefined
+    if (!Array.isArray(style)) return style
+
+    return style.reduce<Record<string, unknown>>((flattened, entry) => {
+      const computedStyle = StyleSheet.flatten(entry)
+      return computedStyle && typeof computedStyle === 'object'
+        ? Object.assign(flattened, computedStyle)
+        : flattened
+    }, {})
+  },
 }
 
 export const LayoutAnimation = {
@@ -261,6 +404,7 @@ export default {
   useWindowDimensions,
   findNodeHandle,
   Image,
+  I18nManager,
   Keyboard,
   KeyboardAvoidingView,
   LayoutAnimation,

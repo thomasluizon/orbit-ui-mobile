@@ -1,115 +1,54 @@
-import { describe, it, expect } from 'vitest'
-import { buildCalendarMonthModel } from '@/lib/calendar-month-model'
-import { buildCalendarDayMap, formatAPIDate } from '@orbit/shared/utils'
-import {
-  createMockHabitScheduleChild,
-  createMockHabitScheduleItem,
-} from '@orbit/shared/__tests__/factories'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import type { CalendarMonthResponse, HabitScheduleChild } from '@orbit/shared/types/habit'
+import { describe, expect, it } from 'vitest'
+import { buildCalendarDayMap, buildCalendarMonthModel } from '@orbit/shared/utils'
+import { createMockHabit } from '../../../../packages/shared/src/__tests__/factories'
 
-function entry(status: CalendarDayEntry['status'], habitId = 'h'): CalendarDayEntry {
-  return { habitId, title: 't', status, isBadHabit: false, dueTime: null, isOneTime: false }
-}
-
-const june = new Date(2026, 5, 1)
-const key = (d: Date) => formatAPIDate(d)
-
-function sampleMonth(): Map<string, CalendarDayEntry[]> {
-  return new Map<string, CalendarDayEntry[]>([
-    [key(new Date(2026, 5, 1)), [entry('completed'), entry('completed', 'h2')]],
-    [key(new Date(2026, 5, 2)), [entry('completed')]],
-    [key(new Date(2026, 5, 3)), [entry('completed'), entry('missed', 'h2')]],
-    [key(new Date(2026, 5, 5)), [entry('completed')]],
-  ])
-}
-
-describe('buildCalendarMonthModel (web)', () => {
-  it('sums completed logs across the month', () => {
-    expect(buildCalendarMonthModel(june, sampleMonth()).monthStats.totalLogs).toBe(5)
-  })
-
-  it('counts missed entries', () => {
-    expect(buildCalendarMonthModel(june, sampleMonth()).monthStats.missed).toBe(1)
-  })
-
-  it('computes the best consecutive fully-completed streak', () => {
-    expect(buildCalendarMonthModel(june, sampleMonth()).monthStats.bestStreak).toBe(2)
-  })
-
-  it('reports whether the month has any entries', () => {
-    expect(buildCalendarMonthModel(june, sampleMonth()).monthStats.hasEntries).toBe(true)
-    expect(buildCalendarMonthModel(june, new Map()).monthStats.hasEntries).toBe(false)
-  })
-
-  it('ignores entries outside the current month', () => {
-    const withPrev = sampleMonth()
-    withPrev.set(key(new Date(2026, 4, 31)), [entry('completed')])
-    expect(buildCalendarMonthModel(june, withPrev).monthStats.totalLogs).toBe(5)
-  })
-})
-
-describe('buildCalendarMonthModel with sub-habit logs (web)', () => {
-  const september = new Date(2026, 8, 1)
-  const loggedDate = '2026-09-28'
-
-  function loggedChild(id: string): HabitScheduleChild {
-    return createMockHabitScheduleChild({
-      id,
-      frequencyUnit: 'Week',
-      frequencyQuantity: 3,
-      dueDate: '2026-10-19',
-      scheduledDates: [loggedDate],
-      isLoggedInRange: true,
-      instances: [{ date: loggedDate, status: 'Completed', logId: `${id}-log` }],
-    })
-  }
-
-  function subHabitLogMonth(): CalendarMonthResponse {
-    return {
-      habits: [
-        createMockHabitScheduleItem({
-          id: 'flexible-parent',
-          frequencyUnit: 'Year',
-          isFlexible: true,
-          dueDate: '2026-01-01',
-          flexibleTarget: 1,
-          flexibleCompleted: 1,
-          children: [loggedChild('flexible-child')],
-          hasSubHabits: true,
-        }),
-        createMockHabitScheduleItem({
-          id: 'weekly-parent',
-          frequencyUnit: 'Week',
-          dueDate: '2026-10-05',
-          scheduledDates: [loggedDate],
-          isLoggedInRange: true,
-          instances: [{ date: loggedDate, status: 'Completed', logId: 'parent-log' }],
-          children: [loggedChild('weekly-child')],
-          hasSubHabits: true,
-        }),
-      ],
-      logs: {
-        'flexible-parent': [],
-        'weekly-parent': [
-          { id: 'parent-log', date: loggedDate, value: 1, createdAtUtc: '2026-09-28T08:00:00Z' },
-        ],
-      },
+describe('calendar descendant day map and month figures', () => {
+  it.each([true, false])('counts an instance-free descendant once, flexible: %s', (isFlexible) => {
+    const child = {
+      ...createMockHabit({
+        id: 'child',
+        isFlexible,
+        isCompleted: !isFlexible,
+        frequencyUnit: isFlexible ? 'Week' : null,
+        frequencyQuantity: isFlexible ? 1 : null,
+        dueDate: '2026-04-04',
+        scheduledDates: isFlexible ? ['2026-04-04', '2026-04-05', '2026-04-06'] : ['2026-04-05'],
+        isLoggedInRange: true,
+      }),
+      children: [],
     }
-  }
+    const sibling = { ...child, id: 'sibling' }
+    const parent = {
+      ...createMockHabit({
+        scheduledDates: ['2026-04-06'],
+        instances: [{ date: '2026-04-06', status: 'Pending', logId: null }],
+        hasSubHabits: true,
+      }),
+      children: [child, sibling],
+      linkedGoals: [],
+    }
+    const log = { id: 'child-log', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' }
+    const dayMap = buildCalendarDayMap({
+      habits: [parent],
+      logs: {
+        child: [log, { ...log, id: 'duplicate' }, { ...log, id: 'same-day', date: '2026-04-06' }],
+        sibling: [log, { ...log, id: 'skip', date: '2026-04-04', value: 0 }],
+      },
+    }, { from: '2026-04-01', to: '2026-04-30' }, new Date('2026-04-07T12:00:00'))
+    const model = buildCalendarMonthModel(new Date(2026, 3, 1), dayMap, 1, '2026-04-07')
 
-  it('counts each logged occurrence once', () => {
-    const dayMap = buildCalendarDayMap(
-      subHabitLogMonth(),
-      { from: '2026-09-01', to: '2026-09-30' },
-      new Date(2026, 8, 29, 12),
-    )
-    const { monthStats } = buildCalendarMonthModel(september, dayMap)
-
-    expect(dayMap.get(loggedDate)?.map((dayEntry) => dayEntry.habitId)).toEqual([
-      'flexible-child',
-      'weekly-parent',
+    expect(dayMap.has('2026-04-04')).toBe(false)
+    expect(dayMap.get('2026-04-05')).toEqual([
+      expect.objectContaining({ habitId: child.id, status: 'completed', isOneTime: !isFlexible }),
+      expect.objectContaining({ habitId: sibling.id, status: 'completed', isOneTime: !isFlexible }),
     ])
-    expect(monthStats).toEqual({ bestStreak: 1, totalLogs: 2, missed: 0, hasEntries: true })
+    expect(dayMap.get('2026-04-06')).toEqual([expect.objectContaining({ habitId: parent.id, status: 'missed' })])
+    expect(model.gridDays.find((day) => day.dateStr === '2026-04-05')).toMatchObject({
+      completedCount: 2, totalCount: 2, completionRatio: 1,
+    })
+    expect(model.gridDays.find((day) => day.dateStr === '2026-04-06')).toMatchObject({
+      completedCount: 0, totalCount: 1, completionRatio: 0,
+    })
+    expect(model.monthStats).toEqual({ totalLogs: 2, missed: 1, bestStreak: 1, hasEntries: true })
   })
 })

@@ -10,6 +10,7 @@ import {
 
 vi.mock('@/lib/offline-mutations', () => ({
   getMutationScope: (type: string) => type === 'retiredMutation' ? undefined : 'habits',
+  isAutomaticReplayBlocked: (type: string) => type === 'bulkCascadeDeleteHabits',
   hasPendingOfflineDependencies: (queuedMutation: PersistedQueuedMutation) =>
     Boolean(queuedMutation.targetEntityId?.startsWith('offline-')) ||
     queuedMutation.endpoint.includes('offline-'),

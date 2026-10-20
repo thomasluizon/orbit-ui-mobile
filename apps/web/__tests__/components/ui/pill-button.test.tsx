@@ -1,11 +1,201 @@
-import { describe, it, expect, vi } from 'vitest'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { PillButton } from '@/components/ui/pill-button'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { measureTextOverflow } from '../../../e2e/layout/text-overflow-geometry'
+import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
+import { PillButton, PillLink } from '@/components/ui/pill-button'
+import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
+import { Copy } from '@/components/ui/icons'
+import { BUTTON_SIZES } from '@orbit/shared/theme'
+import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import {
+  closeChrome,
+  registerChromeLaunchHook,
+  type Browser,
+  type BrowserLaunch,
+} from '@/__tests__/support/chromium'
 
 describe('PillButton', () => {
+
+  it('defaults ordinary pills to small', () => {
+    render(<PillButton>Continue</PillButton>)
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveAttribute('data-size', 'sm')
+  })
+  describe('small touch targets in Chromium', () => {
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+    let stylesheet: string
+
+    registerChromeLaunchHook(beforeAll, async (launch) => {
+      browserLaunch = launch
+      browser = await browserLaunch
+    })
+
+    beforeAll(async () => {
+      const source = resolve(process.cwd(), 'app/globals.css')
+      const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}: ${value};`).join(' ')
+      stylesheet = `${compiled.css}
+        :root { ${variables} }
+        body { padding: 48px; }`
+    })
+
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([412, 1280])('measures only rendered onboarding action text lines at %ipx', async (width) => {
+      const { container } = render(<main><div><div><section>
+        <PillButton>See day</PillButton><PillButton>Ver dia</PillButton>
+        <PillButton>Subscribe</PillButton><PillButton>Assinar</PillButton>
+      </section></div></div></main>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        const step = page.locator('section')
+        expect((await step.evaluate(measureOnboardingProStep)).wrappedActions).toEqual([])
+        await step.evaluate((root) => {
+          const action = document.createElement('button')
+          action.textContent = 'Actually wrapped action'
+          action.style.cssText = 'display:block;width:60px;white-space:normal'
+          root.append(action)
+          const hidden = document.createElement('button')
+          hidden.style.cssText = 'visibility:hidden;display:block;width:30px'
+          hidden.textContent = 'Hidden measurement action'
+          root.append(hidden)
+        })
+        expect((await step.evaluate(measureOnboardingProStep)).wrappedActions).toEqual(['Actually wrapped action'])
+      } finally {
+        await page.close()
+      }
+    })
+
+    it('distinguishes expanded hit areas from real label overflow', async () => {
+      const { container } = render(<section><PillButton>Subscribe</PillButton></section>)
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const section = page.locator('section')
+        expect(await section.evaluate(measureTextOverflow)).toEqual([])
+        await section.locator('button').evaluate((button) => {
+          button.style.width = '44px'
+          button.style.paddingInline = '0px'
+        })
+        expect(await section.evaluate(measureTextOverflow)).toContain('Subscribe')
+      } finally {
+        await page.close()
+      }
+    })
+
+    it.each([412, 1280])('paints the import icon target including both pseudo-elements at %ipx', async (width) => {
+      const { container } = render(<SelectAllToggle allSelected={false} onToggle={() => {}} selectAllLabel="Select all" deselectAllLabel="Deselect all" />)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        await page.locator('button').hover()
+        const geometry = await page.locator('button').evaluate((button) => {
+          for (const animation of button.getAnimations()) animation.finish()
+          const bounds = button.getBoundingClientRect()
+          const style = getComputedStyle(button)
+          return {
+            width: bounds.width, height: bounds.height, fill: style.backgroundColor,
+            extensions: ['::before', '::after'].map((pseudo) => getComputedStyle(button, pseudo).content),
+          }
+        })
+        expect(geometry.width).toBe(48)
+        expect(geometry.height).toBe(48)
+        expect(geometry.fill).not.toBe('rgba(0, 0, 0, 0)')
+        expect(geometry.extensions).toEqual(['none', 'none'])
+      } finally {
+        await page.close()
+      }
+    })
+
+    it.each([
+      { label: 'Continue', iconOnly: false },
+      { label: 'i', iconOnly: false },
+      { label: 'Open menu', iconOnly: true },
+    ])('keeps the visible pill and expands its hit area to 48px: $label', async ({ label, iconOnly }) => {
+      const { container } = render(iconOnly
+        ? <PillButton size="sm" iconOnly label={label}><span /></PillButton>
+        : <PillButton size="sm">{label}</PillButton>)
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const measured = await page.evaluate(() => {
+          const button = document.querySelector('button')!
+          const bounds = button.getBoundingClientRect()
+          const extensions = ['::before', '::after'].map((pseudo) => {
+            const style = getComputedStyle(button, pseudo)
+            return { content: style.content, left: style.left, right: style.right, top: style.top, bottom: style.bottom }
+          })
+          const hits = ([
+            [bounds.left - 2, bounds.y + bounds.height / 2],
+            [bounds.right + 1.99, bounds.y + bounds.height / 2],
+            [bounds.x + 0.25, bounds.y + bounds.height / 2],
+            [bounds.right - 0.25, bounds.y + bounds.height / 2],
+            [bounds.x + bounds.width / 2, bounds.y + 0.25],
+            [bounds.x + bounds.width / 2, bounds.bottom - 0.25],
+            [bounds.x + bounds.width / 2, bounds.y - 2],
+            [bounds.x + bounds.width / 2, bounds.bottom + 1.99],
+          ] as const).map(([x, y]) => button.contains(document.elementFromPoint(x, y)))
+          return { width: bounds.width, height: bounds.height, extensions, hits }
+        })
+        expect(measured.width).toBeGreaterThanOrEqual(44)
+        expect(measured.height).toBe(44)
+        expect(measured.extensions.some(({ content }) => content !== 'none')).toBe(true)
+        expect(measured.hits).toEqual([true, true, true, true, true, true, true, true])
+      } finally {
+        await page.close()
+      }
+    })
+  })
+
   it('renders its label', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+    const button = screen.getByRole('button', { name: 'Continue' })
+    expect(button).toHaveClass('whitespace-nowrap')
+    expect(button).toHaveStyle({ paddingInlineStart: `${BUTTON_SIZES.sm.paddingX}px`, paddingInlineEnd: `${BUTTON_SIZES.sm.paddingX}px` })
+  })
+
+  it('keeps a leading glyph decorative and tightens its side of the pill', () => {
+    render(<PillButton size="sm" leadingIcon={<Copy size={BUTTON_SIZES.sm.iconSize} aria-hidden="true" />}>Copy</PillButton>)
+    const button = screen.getByRole('button', { name: 'Copy' })
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(button.querySelector('svg')).toHaveAttribute('width', '16')
+    expect(button).toHaveStyle({ paddingInlineStart: '16px', paddingInlineEnd: `${BUTTON_SIZES.sm.paddingX}px` })
+  })
+
+  it('gives pill links the interactive states their button variants expose', () => {
+    render(
+      <>
+        <PillLink href="/primary">Primary</PillLink>
+        <PillLink href="/secondary" variant="secondary">Secondary</PillLink>
+        <PillLink href="/ghost" variant="ghost">Ghost</PillLink>
+      </>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Primary' })).toHaveClass(
+      'hover:bg-[var(--primary-hover)]',
+      'active:scale-[0.96]',
+    )
+    expect(screen.getByRole('link', { name: 'Secondary' })).toHaveClass(
+      'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
+      'active:scale-[0.96]',
+      'active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
+    )
+    expect(screen.getByRole('link', { name: 'Ghost' })).toHaveAttribute('href', '/ghost')
+    expect(screen.getByRole('link', { name: 'Primary' })).toHaveStyle({
+      paddingInlineStart: `${BUTTON_SIZES.sm.paddingX}px`,
+      paddingInlineEnd: `${BUTTON_SIZES.sm.paddingX}px`,
+    })
   })
 
   it('fires onClick when clicked', () => {
@@ -13,6 +203,35 @@ describe('PillButton', () => {
     render(<PillButton onClick={onClick}>Continue</PillButton>)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('submits an associated form outside the button subtree', () => {
+    const onSubmit = vi.fn((event: React.SubmitEvent<HTMLFormElement>) => event.preventDefault())
+    render(
+      <>
+        <form id="habit-form" onSubmit={onSubmit} />
+        <PillButton formId="habit-form">Create</PillButton>
+      </>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a loading action focusable while blocking associated form submission', () => {
+    const onSubmit = vi.fn((event: React.SubmitEvent<HTMLFormElement>) => event.preventDefault())
+    const view = render(<><form id="busy-form" onSubmit={onSubmit} /><PillButton formId="busy-form" loading focusableWhenLoading>Save</PillButton></>)
+    const button = screen.getByRole('button', { name: 'Save' })
+    button.focus()
+    expect(button).toHaveFocus()
+    expect(button).not.toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(button)
+    expect(onSubmit).not.toHaveBeenCalled()
+    view.rerender(<PillButton disabled loading focusableWhenLoading>Save</PillButton>)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-disabled')
   })
 
   it('does not fire onClick when disabled', () => {
@@ -28,19 +247,22 @@ describe('PillButton', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('renders a leading node', () => {
+  it('requires and exposes the name of an icon-only button', () => {
     render(
-      <PillButton onClick={() => {}} leading={<span data-testid="leading-node" />}>
-        Go
+      <PillButton onClick={() => {}} iconOnly label="Open menu">
+        <span data-testid="leading-node" />
       </PillButton>,
     )
     expect(screen.getByTestId('leading-node')).toBeInTheDocument()
+    const button = screen.getByRole('button', { name: 'Open menu' })
+    expect(button).toBeInTheDocument()
+    expect(button).toHaveStyle({ paddingInlineStart: '0px', paddingInlineEnd: '0px' })
   })
 
-  it('no-ops clicks and exposes the busy state while busy', () => {
+  it('no-ops clicks and exposes the loading state', () => {
     const onClick = vi.fn()
     render(
-      <PillButton onClick={onClick} busy>
+      <PillButton onClick={onClick} loading>
         Saving
       </PillButton>,
     )
@@ -50,7 +272,92 @@ describe('PillButton', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('renders secondary, ghost, and destructive variants', () => {
+  it('keeps its loading spinner perceivable under reduced motion', () => {
+    render(<PillButton loading>Saving</PillButton>)
+    const button = screen.getByRole('button', { name: 'Saving' })
+    expect(button.querySelector('svg')).toHaveClass('animate-spin')
+    expect(button.querySelector('svg')).toHaveClass('orbit-essential-loading')
+
+    const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
+    const declarations: string[] = []
+    css.walkAtRules('media', (media) => {
+      if (media.params !== '(prefers-reduced-motion: reduce)') return
+      media.walkRules('.orbit-essential-loading', (rule) => {
+        rule.walkDecls((declaration) => {
+          declarations.push(`${declaration.prop}: ${declaration.value}${declaration.important ? ' !important' : ''}`)
+        })
+      })
+    })
+    expect(declarations).toEqual([
+      'animation-duration: 3s !important',
+      'animation-iteration-count: infinite !important',
+    ])
+  })
+
+  it('transitions the scale property the press utility writes, apart from the hover colour', () => {
+    render(<PillButton onClick={() => {}}>Continue</PillButton>)
+    const button = screen.getByRole('button', { name: 'Continue' })
+    expect(button).toHaveClass('orbit-pill-action', 'enabled:active:scale-[0.96]')
+
+    const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
+    const transitions: string[] = []
+    css.walkRules('.orbit-pill-action', (rule) => {
+      rule.walkDecls('transition', (declaration) => { transitions.push(declaration.value) })
+    })
+    expect(transitions).toHaveLength(1)
+    expect(transitions[0]).toContain('background-color var(--dur-hover-control) var(--ease-standard)')
+    expect(transitions[0]).toContain('opacity var(--dur-1) var(--ease-out)')
+    expect(transitions[0]).toContain('scale var(--dur-1) var(--ease-out)')
+    expect(transitions[0]).not.toContain('transform')
+    const activeDurations: string[] = []
+    css.walkRules('.orbit-pill-action:active:not(:disabled)', (rule) => {
+      rule.walkDecls('transition-duration', (declaration) => { activeDurations.push(declaration.value) })
+    })
+    expect(activeDurations).toHaveLength(0)
+
+    render(<PillButton variant="secondary">Secondary</PillButton>)
+    const secondary = screen.getByRole('button', { name: 'Secondary' })
+    expect(secondary).toHaveClass('enabled:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]')
+    expect(secondary).not.toHaveClass('enabled:hover:opacity-90')
+  })
+
+  it.each(['dark', 'light'] as const)('keeps loading text and focus visible in %s', (mode) => {
+    render(<PillButton loading>Saving</PillButton>)
+    const button = screen.getByRole('button', { name: 'Saving' })
+    const label = screen.getByText('Saving')
+    const tokens = resolveWebThemeVariables('purple', mode)
+
+    expect(button).not.toHaveClass('disabled:opacity-40')
+    expect(label).not.toHaveClass('opacity-60')
+    expect(contrastOnSurface(tokens['--fg-on-primary']!, [tokens['--primary']!])).toBeGreaterThanOrEqual(4.5)
+    expect(contrastOnSurface(tokens['--primary']!, [tokens['--bg']!])).toBeGreaterThanOrEqual(3)
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
+    const focusOutlines: string[] = []
+    css.walkRules(':focus-visible', (rule) => {
+      rule.walkDecls('outline', (declaration) => { focusOutlines.push(declaration.value) })
+    })
+    expect(focusOutlines).toContain('2px solid var(--primary)')
+  })
+
+  it('dims explicitly disabled buttons without dimming a loading button', () => {
+    render(<PillButton disabled>Continue</PillButton>)
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('disabled:opacity-40')
+    render(<PillButton disabled loading>Saving</PillButton>)
+    expect(screen.getByRole('button', { name: 'Saving' })).not.toHaveClass('disabled:opacity-40')
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the destructive hover foreground legible in %s', (mode) => {
+    render(<PillButton variant="destructive">Delete</PillButton>)
+    const button = screen.getByRole('button', { name: 'Delete' })
+    expect(button).toHaveClass('enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))]')
+    const tokens = resolveWebThemeVariables('purple', mode)
+    const fill = tokens['--status-bad']!
+    const hover = withAlpha(tokens['--fg-1']!, 0.15)
+    expect(contrastOnSurface(tokens['--fg-on-bad']!, [fill, hover])).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('renders all five variants', () => {
     render(
       <>
         <PillButton variant="secondary" onClick={() => {}}>
@@ -62,37 +369,34 @@ describe('PillButton', () => {
         <PillButton variant="destructive" onClick={() => {}}>
           Delete
         </PillButton>
+        <PillButton variant="caution" onClick={() => {}}>
+          Caution
+        </PillButton>
       </>,
     )
     expect(screen.getByRole('button', { name: 'Secondary' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ghost' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Caution' })).toBeInTheDocument()
   })
 
-  it('renders an icon-only square (width = height) when given a leading icon and no label', () => {
-    render(
-      <PillButton ariaLabel="Create" leading={<span data-testid="icon-only-leading" />} />,
-    )
-    const button = screen.getByRole('button', { name: 'Create' })
-    expect(button).toHaveStyle({ width: '50px', height: '50px' })
-    expect(button).toHaveTextContent('')
-    expect(screen.getByTestId('icon-only-leading')).toBeInTheDocument()
-  })
-
-  it('drives the pill height from the size scale (sm < md < lg)', () => {
+  it('drives the pill height from the two-size scale', () => {
     render(
       <>
         <PillButton size="sm" onClick={() => {}}>
           Small
         </PillButton>
-        <PillButton onClick={() => {}}>Medium</PillButton>
-        <PillButton size="lg" onClick={() => {}}>
-          Large
-        </PillButton>
+        <PillButton size="md" onClick={() => {}}>Medium</PillButton>
       </>,
     )
     expect(screen.getByRole('button', { name: 'Small' })).toHaveStyle({ height: '40px' })
     expect(screen.getByRole('button', { name: 'Medium' })).toHaveStyle({ height: '50px' })
-    expect(screen.getByRole('button', { name: 'Large' })).toHaveStyle({ height: '56px' })
   })
+})
+
+it('exposes the shared button hint without replacing its label', () => {
+  render(<><p id="tag-context">Use the habit title</p><PillButton descriptionId="tag-context" hint="Suggesting tags" loading>Suggest tags</PillButton></>)
+  const button = screen.getByRole('button', { name: 'Suggest tags' })
+  expect(button).toHaveAccessibleDescription('Use the habit title Suggesting tags')
+  expect(button).toHaveAttribute('aria-busy', 'true')
 })

@@ -12,7 +12,6 @@ export function useBilling(enabled = false) {
       try {
         return await apiClient<BillingDetails>(API.subscription.billing)
       } catch (err: unknown) {
-        // 404 = no Stripe subscription (e.g. lifetime Pro) -- not an error
         if (isMissingBillingError(err)) {
           return null
         }

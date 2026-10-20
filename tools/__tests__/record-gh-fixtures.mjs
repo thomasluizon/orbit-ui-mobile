@@ -112,10 +112,6 @@ export const cases = () => {
     JSON.stringify(manifest.commands.projectItemList.paths),
   )
 
-  /**
-   * because the one sampled ticket had been closed, and every stub of an open ticket then failed.
-   * A second recording over the same manifest must union the observed types, never replace them.
-   */
   const rerun = check(TOOL, "a re-recording unions observed types with the manifest on disk", ["--output", output], { status: 0 }, {
     env: plan(issueWith("COMPLETED")),
   })

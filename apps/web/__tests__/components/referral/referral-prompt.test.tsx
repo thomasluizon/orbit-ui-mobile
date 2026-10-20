@@ -6,37 +6,32 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ getQueryData: () => undefined }),
+/**
+ * One client for every render, the way the real `useQueryClient` reads one off a context. A fresh
+ * object per render changes the identity of an effect dependency, which re-arms a settle timer
+ * this test exists to prove stays cleared.
+ */
+const queryClientDouble = { getQueryData: () => undefined }
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueryClient: () => queryClientDouble,
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    children,
-    title,
-  }: {
-    open: boolean
-    children?: React.ReactNode
-    title?: string
-    onOpenChange?: (open: boolean) => void
-  }) =>
-    open ? (
-      <div data-testid="referral-prompt">
-        {title}
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
+const { drawerRender } = vi.hoisted(() => ({ drawerRender: vi.fn() }))
 vi.mock('@/components/referral/referral-drawer', () => ({
-  ReferralDrawer: ({ open }: { open: boolean; onOpenChange?: (open: boolean) => void }) =>
-    open ? <div data-testid="referral-drawer" /> : null,
+  ReferralDrawer: ({ open }: { open: boolean; onOpenChange?: (open: boolean) => void }) => {
+    drawerRender(open)
+    return open ? <div data-testid="referral-drawer" /> : null
+  },
 }))
 
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 function resetStores() {
   useReferralPromptStore.setState({
@@ -45,7 +40,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 async function arm(milestoneKey: string) {
@@ -62,8 +57,15 @@ async function settle() {
 }
 
 describe('ReferralPrompt', () => {
+  it('does not mount the drawer before the referral action', () => {
+    drawerRender.mockClear()
+    render(<ReferralPrompt />)
+    expect(drawerRender).not.toHaveBeenCalled()
+  })
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
     resetStores()
   })
 
@@ -71,24 +73,45 @@ describe('ReferralPrompt', () => {
     cleanup()
     vi.clearAllTimers()
     vi.useRealTimers()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
   })
 
   it('renders nothing when no milestone is armed', () => {
     render(<ReferralPrompt />)
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('shows the prompt after the settle delay and marks it prompted', async () => {
     render(<ReferralPrompt />)
     await arm('streak-7')
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
 
     await settle()
 
-    expect(screen.getByTestId('referral-prompt')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(useReferralPromptStore.getState().promptedMilestoneKeys).toContain(
       'streak-7',
     )
+  })
+
+  it('pins the invite and Later actions in the sheet footer, never in the scrolling body', async () => {
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['referral.prompt.later', 'referral.prompt.cta'])
+    expectSmallSheetActions()
+    expect(sheetActionsUseActionPair()).toBe(true)
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
+  it('uses a ghost pill for Later', async () => {
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+
+    expect(screen.getByRole('button', { name: 'referral.prompt.later' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('stays hidden while a celebration is in flight', async () => {
@@ -100,7 +123,19 @@ describe('ReferralPrompt', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('waits for another sheet to close before offering a referral', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+    expect(screen.queryByTestId('sheet')).toBeNull()
+
+    await act(async () => useUIStore.getState().unregisterOpenOverlay('already-open'))
+    await settle()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
   })
 
   it('stays hidden and clears the arm when the milestone was already prompted', async () => {
@@ -112,7 +147,7 @@ describe('ReferralPrompt', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
     expect(useReferralPromptStore.getState().armedPrompt).toBeNull()
   })
 
@@ -125,7 +160,7 @@ describe('ReferralPrompt', () => {
 
     await settle()
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('opens the drawer from the CTA', async () => {
@@ -135,8 +170,9 @@ describe('ReferralPrompt', () => {
 
     fireEvent.click(screen.getByText('referral.prompt.cta'))
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
-    expect(screen.getByTestId('referral-drawer')).toBeInTheDocument()
+    expect(screen.queryByTestId('sheet')).toBeNull()
+    vi.useRealTimers()
+    expect(await screen.findByTestId('referral-drawer')).toBeInTheDocument()
   })
 
   it('dismisses without opening the drawer from "maybe later"', async () => {
@@ -146,7 +182,31 @@ describe('ReferralPrompt', () => {
 
     fireEvent.click(screen.getByText('referral.prompt.later'))
 
-    expect(screen.queryByTestId('referral-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
     expect(screen.queryByTestId('referral-drawer')).toBeNull()
+  })
+
+  it('takes the prompt off the screen when another account replaces the tab', async () => {
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('does not open under the next account from a timer the previous one armed', async () => {
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    await replaceAccountWith('user-2')
+    await settle()
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 })

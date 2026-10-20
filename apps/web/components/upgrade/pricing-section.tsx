@@ -1,20 +1,22 @@
-import { AlertTriangle, Tag } from 'lucide-react'
+import { ProPitch } from './pro-pitch'
 import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 import { PlanSelection } from './plan-selection'
-import { PlanComparisonCards } from './plan-comparison-cards'
-import { cardSurface } from './styles'
-import { plural } from '@/lib/plural'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 
 interface PricingSectionProps {
+  stayFreeHref?: string
+  dateHint?: string
+  focusOnMount?: boolean
   profile: { isTrialActive?: boolean } | null
   plans: ReturnType<typeof useSubscriptionPlans>['plans']
   isLoadingPlans: boolean
   isPlansError: boolean
+  isOnline: boolean
   trialDaysLeft: number | null
-  checkoutLoading: string | null
+  checkoutLoading: SubscriptionInterval | null
   checkoutError: string
   discountedAmount: (amount: number) => number
   onCheckout: (interval: SubscriptionInterval) => void
@@ -24,10 +26,14 @@ interface PricingSectionProps {
 }
 
 export function PricingSection({
+  stayFreeHref = '/profile',
+  focusOnMount = false,
+  dateHint,
   profile,
   plans,
   isLoadingPlans,
   isPlansError,
+  isOnline,
   trialDaysLeft,
   checkoutLoading,
   checkoutError,
@@ -37,101 +43,60 @@ export function PricingSection({
   onRetryPlans,
   t,
 }: Readonly<PricingSectionProps>) {
-  const trialActive = !!profile?.isTrialActive
-  let eyebrow: string
-  if (!trialActive) {
-    eyebrow = t('upgrade.convert.freeEyebrow')
-  } else if (trialDaysLeft === 0) {
-    eyebrow = t('upgrade.convert.trialLastDay')
-  } else {
-    eyebrow = plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
-  }
-  const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
-
   return (
-    <>
-      <header style={{ marginBottom: 20 }}>
-        <p className="t-eyebrow" style={{ margin: 0, color: 'var(--primary-soft)' }}>
-          {eyebrow}
-        </p>
-        <h1 className="t-display" style={{ margin: '6px 0 0', textWrap: 'balance' }}>
-          {heading}
-        </h1>
-        <p className="t-secondary" style={{ margin: '10px 0 0', maxWidth: '46ch' }}>
-          {t('upgrade.convert.promise')}
-        </p>
-        {!trialActive ? (
-          <p className="t-meta" style={{ margin: '10px 0 0', maxWidth: '46ch' }}>
-            {t('upgrade.convert.trustLine')}
-          </p>
-        ) : null}
-      </header>
+    <div className="flex flex-col gap-8">
+      <ProPitch dateHint={dateHint} profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} />
 
-      {isLoadingPlans ? (
-        <div className="grid grid-cols-1" style={{ gap: 16 }}>
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-[18px]" style={{ padding: '22px', ...cardSurface }}>
-              <div className="skeleton-pulse h-4 w-20 rounded" style={{ background: 'var(--bg-elev-2)' }} />
-              <div className="skeleton-pulse mt-3 h-7 w-24 rounded" style={{ background: 'var(--bg-elev-2)' }} />
-              <div className="skeleton-pulse mt-5 h-9 w-full rounded-full" style={{ background: 'var(--bg-elev-2)' }} />
-            </div>
-          ))}
-        </div>
-      ) : null}
+      <div className="flex flex-col gap-4">
+        <PlanSelection
+          plans={plans}
+          isLoading={isLoadingPlans}
+          isError={isPlansError}
+          isOnline={isOnline}
+          discountedAmount={discountedAmount}
+          checkoutLoading={checkoutLoading}
+          checkoutDisabled={!isOnline}
+          onCheckout={onCheckout}
+          onRetry={onRetryPlans}
+          t={t}
+        />
 
-      {isPlansError && !plans && !isLoadingPlans ? (
-        <div className="rounded-[18px] text-center" style={{ padding: '28px 18px', ...cardSurface }}>
-          <AlertTriangle size={26} strokeWidth={1.8} className="mx-auto text-[var(--fg-3)]" />
-          <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
-            {t('upgrade.plans.error')}
-          </p>
-          <button type="button" className="chip touch-target" style={{ marginTop: 10 }} onClick={onRetryPlans}>
-            {t('upgrade.plans.retry')}
-          </button>
-        </div>
-      ) : null}
-
-      {plans ? (
-        <>
-          <PlanSelection
-            plans={plans}
-            discountedAmount={discountedAmount}
-            trialActive={trialActive}
-            checkoutLoading={checkoutLoading}
-            onCheckout={onCheckout}
-            onStayFree={onStayFree}
-            t={t}
-          />
-
-          <div className="flex flex-col items-center" style={{ gap: 6, marginTop: 20 }}>
-            {plans.couponPercentOff ? (
+        <div className="flex flex-col items-start gap-4">
+          {plans ? <div className="flex flex-col items-start gap-2">
               <p
-                className="flex items-center justify-center"
-                style={{ gap: 6, margin: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--status-done)' }}
+                role="alert"
+                className="text-left text-sm leading-[1.55] text-[var(--fg-2)]"
               >
-                <Tag size={13} strokeWidth={1.8} aria-hidden="true" />
-                {t('upgrade.plans.coupon.appliedNote')}
-              </p>
-            ) : null}
-            {checkoutError ? (
-              <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-bad)' }}>
                 {checkoutError}
               </p>
-            ) : null}
-            <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--fg-2)' }}>
-              {t('upgrade.convert.cancelAnytime')}
-            </p>
-            <p
-              className="text-center"
-              style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.5, color: 'var(--fg-3)', maxWidth: '52ch' }}
+              <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
+                {t('upgrade.convert.cancelAnytime')}
+              </p>
+              <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+                {t('upgrade.plans.renewalNote')}
+              </p>
+              <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+                {t('upgrade.convert.handOff')}
+              </p>
+            </div> : null}
+            <Link
+              href={stayFreeHref}
+              aria-disabled={checkoutLoading !== null}
+              onClick={(event) => {
+                if (checkoutLoading !== null) {
+                  event.preventDefault()
+                  return
+                }
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+                event.preventDefault()
+                onStayFree()
+              }}
+              className="inline-flex min-h-[var(--touch-min)] items-center text-base leading-[1.5] text-[var(--fg-1)] underline underline-offset-4 transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              {t('upgrade.plans.renewalNote')}
-            </p>
+              {t('upgrade.convert.stayFree')}
+            </Link>
           </div>
-
-          <PlanComparisonCards t={t} />
-        </>
-      ) : null}
-    </>
+      </div>
+    </div>
   )
 }

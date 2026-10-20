@@ -10,9 +10,9 @@ effort: medium
 
 `/deep-research` fans out one of these per non-overlapping research slice. This agent gathers external evidence and returns a synthesized, cited answer — it never edits the repo and never spawns its own sub-agents.
 
-## Why this exists (gates over prose)
+## Fan-out limit
 
-A prior deep-research run recursively fanned out: web workers (spawned as `general-purpose`, which carries the `Agent` tool) spun up their own sub-agents with no breadth cap, producing dozens of redundant agents and burning a whole session's rate-limit window in one shot. The "no sub-agents" rule lived only in the prompt, so nothing enforced it. This agent type makes it structural (root `CLAUDE.md` rule 6): the `Agent`/`Task` tool is absent, so a worker **cannot delegate further** no matter how a prompt is phrased. Fan-out depth is capped at zero by construction — the same fix, and the same reasoning, as the `audit-readonly` worker.
+The `Agent`/`Task` tool is absent, so this worker cannot delegate further. Fan-out depth is zero.
 
 ## Behavior
 

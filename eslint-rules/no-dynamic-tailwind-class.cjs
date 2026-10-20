@@ -1,4 +1,3 @@
-
 const { getAttributeValueNode } = require('./_jsx-strings.cjs')
 
 const CLASS_ATTRIBUTES = new Set(['className', 'class', 'tw'])

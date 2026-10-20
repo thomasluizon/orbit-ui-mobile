@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
@@ -10,10 +12,10 @@ interface StreakBadgeProps {
 }
 
 /**
- * Kit streak entry point — 40px circled button (inset hairline-strong ring,
+ * Kit streak entry point: touch-floor circled button (inset hairline-strong ring,
  * translucent well) with the 🔥 flame emoji and a tabular count. Frozen state
- * swaps the flame for a snowflake stroked in status-frozen. Tapping navigates
- * to the streak page.
+ * swaps the flame for a snowflake stroked in the second foreground neutral. Tapping opens
+ * the streak section in Progresso.
  */
 export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   const t = useTranslations()
@@ -24,13 +26,13 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
     <button
       type="button"
       aria-label={plural(t('streakDisplay.badge.tooltip', { count: streak }), streak)}
-      onClick={() => router.push('/streak')}
-      className="touch-target appearance-none border-0 cursor-pointer inline-flex items-center justify-center bg-[var(--bg-elev)] hover:bg-[var(--bg-elev-2)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+      onClick={() => router.push('/progress/streak')}
+      className="orbit-streak-badge touch-target appearance-none border-0 cursor-pointer inline-flex items-center justify-center bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
       style={{
-        minWidth: 40,
-        height: 40,
+        minWidth: TOUCH_TARGET_MIN,
+        minHeight: TOUCH_TARGET_MIN,
         borderRadius: 999,
-        padding: '0 9px',
+        padding: "var(--orbit-space-0) var(--orbit-space-8)",
         gap: 4,
         boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
       }}
@@ -41,7 +43,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
           height="14"
           viewBox="0 0 12 14"
           fill="none"
-          stroke="var(--status-frozen)"
+          stroke="var(--fg-2)"
           strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -52,7 +54,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
       ) : (
         <span
           aria-hidden="true"
-          style={{ fontSize: 15, lineHeight: 1, opacity: dormant ? 0.45 : 1 }}
+          style={{ fontSize: 16, lineHeight: 1, opacity: dormant ? 0.45 : 1 }}
         >
           🔥
         </span>
@@ -62,7 +64,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
           fontFamily: 'var(--font-mono)',
           fontSize: 12,
           fontWeight: 500,
-          color: dormant ? 'var(--fg-3)' : 'var(--fg-1)',
+          color: dormant ? 'var(--streak-count-color, var(--fg-3))' : 'var(--fg-1)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >

@@ -1,0 +1,73 @@
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { PersonalText } from '@/components/ui/personal-text'
+import { SPACING, hoverForeground, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { useEffect, useMemo, useState } from 'react'
+import { Animated, StyleSheet, Text, View, Pressable } from 'react-native'
+import { Trans, useTranslation } from 'react-i18next'
+import { buildSearchMatchLines, habitInitial } from '@orbit/shared/utils'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { ChevronRight } from '@/components/ui/icons'
+import { Button } from '@/components/ui/pill-button'
+import { createTokensV2, radius } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
+import { useAppTheme } from '@/lib/use-app-theme'
+
+export function Searching() {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const reducedMotion = usePrefersReducedMotion()
+  const dots = useMemo(() => ['first', 'second', 'third'].map((id) => ({ id, opacity: new Animated.Value(1) })), [])
+  useEffect(() => {
+    if (reducedMotion) return
+    const animations = dots.map(({ opacity }, index) => Animated.sequence([
+      Animated.delay(index * 150),
+      Animated.loop(Animated.sequence([
+      Animated.timing(opacity, { toValue: 0.35, duration: 550, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 550, useNativeDriver: true }),
+    ])),
+    ]))
+    animations.forEach((animation) => animation.start())
+    return () => animations.forEach((animation) => animation.stop())
+  }, [dots, reducedMotion])
+  return <View role="status" accessibilityRole="text" accessibilityLiveRegion="polite" style={styles.loading}>
+    <View importantForAccessibility="no-hide-descendants" style={styles.dots}>{dots.map(({ id, opacity }) => <Animated.View key={id} style={[styles.dot, { opacity, backgroundColor: tokens.fg3 }]} />)}</View>
+    <Text style={[styles.body, { color: tokens.fg3 }]}>{t('habits.search.searching')}</Text>
+  </View>
+}
+
+export function SearchEmpty({ query, onCreate, onClearSearch }: Readonly<{ query: string; onCreate?: () => void; onClearSearch?: () => void }>) {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <View style={styles.empty}>
+    <Text style={[styles.name, { color: tokens.fg1 }]}><Trans i18nKey="habits.search.emptyTitle" values={{ query }} components={{ queryText: <Text /> }} /></Text>
+    <Text style={[styles.body, { color: tokens.fg3 }]}>{t('habits.search.emptyBody')}</Text>
+    <Button size="sm" onClick={onClearSearch ?? onCreate}>{t(onClearSearch ? 'common.clear' : 'habits.search.create')}</Button>
+  </View>
+}
+
+export function SearchResult({ habit, query, onOpen, actionLabel, disabled = false }: Readonly<{ habit: NormalizedHabit; query: string; onOpen: () => void; actionLabel?: string; disabled?: boolean }>) {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const [pressed, setPressed] = useState(false)
+  const matches = buildSearchMatchLines(query, habit, t)
+  const accessibleName = [actionLabel ?? t('habits.search.open', { name: habit.title }), ...matches.map((match) => match.text)].join(' ')
+  return <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><Pressable role="button" accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ disabled }} onPress={onOpen} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} style={({ pressed }) => [styles.row, { flex: 1, minWidth: 0 }, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
+    <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Text style={[styles.initial, { color: tokens.fg2 }]}>{habitInitial(habit.title)}</Text>}</View>
+    <View style={styles.content}><PersonalText style={[styles.name, { color: tokens.fg1, lineHeight: 23.8 }]}>{habit.title}</PersonalText>
+      {matches.map((match) => <View key={match.id} style={{ minWidth: 0 }}><Text style={[styles.match, { color: hoverForeground(currentTheme, tokens.fg3, pressed) }]}>{match.label}</Text>{match.fragment !== null ? <PersonalText style={[styles.match, { color: tokens.fg2 }]}>{match.fragment}</PersonalText> : null}</View>)}
+    </View><ChevronRight size={20} color={tokens.fg3} />
+  </Pressable>{actionLabel ? <PersonalTextDetails iconOnly>{habit.title}</PersonalTextDetails> : null}</View>
+}
+
+const styles = StyleSheet.create({
+  row: { minHeight: TOUCH_TARGET_MIN, padding: SPACING.s12, gap: 12, borderRadius: radius.md, overflow: 'hidden', flexDirection: 'row', alignItems: 'center' },
+  well: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  emoji: { fontSize: 20 }, content: { flex: 1, minWidth: 0, gap: 0 },
+  initial: { fontFamily: 'Geist_500Medium', fontSize: 16 },
+  name: { fontFamily: 'Geist_400Regular', fontSize: 17 }, match: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
+  body: { fontFamily: 'Geist_400Regular', fontSize: 14 }, empty: { alignItems: 'flex-start', padding: SPACING.s12, gap: 12 },
+  loading: { flexDirection: 'row', alignItems: 'center', padding: SPACING.s12, gap: 12 }, dots: { flexDirection: 'row', gap: 4 }, dot: { width: 4, height: 4, borderRadius: radius.full },
+})

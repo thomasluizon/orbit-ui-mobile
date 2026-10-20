@@ -1,36 +1,120 @@
-import { act, render, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import AuthLayout from '@/app/(auth)/layout'
+import { useVersionGateStore } from '@/stores/version-gate-store'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ setAuth: vi.fn(), push: vi.fn(), replace: vi.fn(), generation: 0 }))
+const mocks = vi.hoisted(() => ({ setAuth: vi.fn(), push: vi.fn(), replace: vi.fn(), generation: 0,
+  continueAccount: null as null | (() => void) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }) }))
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (store: { setAuth: typeof mocks.setAuth }) => unknown) => selector({ setAuth: mocks.setAuth }),
-  withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
-  getAccountGeneration: () => mocks.generation,
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
+  usePathname: () => '/auth-callback',
+  useSearchParams: () => new URLSearchParams(globalThis.location.search),
 }))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (selector?: (state: { setAuth: typeof mocks.setAuth; isAuthenticated: boolean; sessionInactive: boolean }) => unknown) => {
+    const state = { setAuth: mocks.setAuth, isAuthenticated: false, sessionInactive: false }
+    return selector ? selector(state) : state
+  },
+  withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
+}))
+vi.mock('@/app/(auth)/login/login-content', () => ({
+  LoginContent: ({ callback }: { callback: { state: string; onContinue: () => void } }) => {
+    mocks.continueAccount = callback.onContinue
+    return <div data-testid="callback-state">{callback.state}</div>
+  },
+}))
+vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation }))
 vi.mock('@/lib/profile-presentation', () => ({ hydrateProfilePresentation: () => Promise.resolve() }))
-import AuthCallbackPage from '@/app/(auth)/auth-callback/page'
+import { AuthCallbackContent } from '@/app/(auth)/auth-callback/auth-callback-content'
 
 const fetchMock = vi.fn()
 
 describe('Google code callback', () => {
-  beforeEach(() => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+  beforeEach(async () => {
+    await useOnboardingDraftStore.persist.rehydrate()
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
     mocks.setAuth.mockReset()
     mocks.push.mockReset()
     mocks.replace.mockReset()
     fetchMock.mockReset()
     mocks.generation = 0
+    mocks.continueAccount = null
     vi.stubGlobal('fetch', fetchMock)
     sessionStorage.clear()
     window.history.replaceState(null, '', '/auth-callback')
+  })
+
+  it.each([['app.useorbit.org', 'org.useorbit.app'], ['app-staging.useorbit.org', 'org.useorbit.app.staging']])
+  ('hands an Android callback with an unknown state to %s', async (host, packageName) => {
+    const query = '?code=mobile%2Bcode&state=mobile-state&scope=openid+email&scope=profile&authuser=1'
+    const assign = vi.fn()
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', packageName)
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 15) Chrome/130.0' })
+    vi.stubGlobal('location', { protocol: 'https:', host, search: query, assign })
+    fetchMock.mockResolvedValue(new Response('{}', { status: 400 }))
+    render(<AuthCallbackContent pendingWebState={null} />)
+
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(
+      `intent://${host}/auth-callback${query}#Intent;scheme=https;package=${packageName};end`,
+    ))
+    expect(screen.getByRole('link', { name: 'auth.openInOrbit' })).toHaveAttribute('href',
+      `intent://${host}/auth-callback${query}#Intent;scheme=https;package=${packageName};end`)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    expect(document.body.textContent).not.toContain('mobile+code')
+    expect(assign).toHaveBeenCalledOnce()
+  })
+
+  it('exchanges a web-owned Android callback on the web', async () => {
+    const assign = vi.fn()
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app')
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 15) Chrome/130.0' })
+    vi.stubGlobal('location', { protocol: 'https:', host: 'app.useorbit.org',
+      search: '?code=web-code&state=web-state', assign })
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A', email: 'a@example.com' })))
+    render(<AuthCallbackContent pendingWebState="web-state" />)
+
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/'))
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code', expect.objectContaining({
+      body: JSON.stringify({ code: 'web-code', state: 'web-state', language: 'pt-BR' }),
+    }))
+    expect(assign).not.toHaveBeenCalled()
+    expect(screen.queryByRole('link', { name: 'auth.openInOrbit' })).not.toBeInTheDocument()
+  })
+
+  it('returns Android consent denial to the app without clearing a different web attempt', async () => {
+    const assign = vi.fn()
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app.staging')
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 15) Chrome/130.0' })
+    const query = '?error=access_denied&state=mobile-state&error_description=User+cancelled'
+    vi.stubGlobal('location', { protocol: 'https:', host: 'app-staging.useorbit.org', search: query, assign })
+    render(<AuthCallbackContent pendingWebState="older-web-state" />)
+
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(
+      `intent://app-staging.useorbit.org/auth-callback${query}#Intent;scheme=https;package=org.useorbit.app.staging;end`,
+    ))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('shows upgrade guidance in the auth layout when Google returns 426', async () => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    fetchMock.mockResolvedValue(new Response(null, { status: 426 }))
+    render(<AuthLayout><AuthCallbackContent pendingWebState={null} /></AuthLayout>)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('forceUpdate.banner'))
+    expect(screen.getByRole('button', { name: 'forceUpdate.refresh' })).toBeEnabled()
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('leaves a replacement session untouched when the response body arrives late', async () => {
     window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
     let releaseBody!: (value: unknown) => void
     fetchMock.mockResolvedValue({ ok: true, json: () => new Promise((resolve) => { releaseBody = resolve }) })
-    render(<AuthCallbackPage />)
+    render(<AuthCallbackContent pendingWebState={null} />)
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
     mocks.generation += 1
     await act(async () => {
@@ -41,44 +125,71 @@ describe('Google code callback', () => {
     expect(mocks.push).not.toHaveBeenCalled()
   })
 
+  it.each(['logout', 'replacement login'])('does not continue a reactivated callback after %s', async () => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'old-user', name: 'Old',
+      email: 'old@example.com', wasReactivated: true }), { status: 200 }))
+    render(<AuthCallbackContent pendingWebState={null} />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
+
+    mocks.generation += 1
+    await act(async () => { mocks.continueAccount?.() })
+
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it.each(['/calendar?import=1', '/calendar?mode=review'])('returns a reactivated account to %s', async (returnUrl) => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    sessionStorage.setItem('auth_return_url', returnUrl)
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A',
+      email: 'a@example.com', wasReactivated: true }), { status: 200 }))
+    render(<AuthCallbackContent pendingWebState={null} />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
+    await act(async () => { mocks.continueAccount?.() })
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith(returnUrl))
+    expect(sessionStorage.getItem('auth_return_url')).toBeNull()
+  })
+
   it.each(['access_denied', 'cancel', 'dismiss'])('returns to calendar after consent %s', async (error) => {
     window.history.replaceState(null, '', `/auth-callback?error=${error}&state=oauth-state`)
-    sessionStorage.setItem('auth_return_url', '/calendar-sync')
+    sessionStorage.setItem('auth_return_url', '/calendar?import=1')
     fetchMock.mockResolvedValue({ ok: true })
-    render(<AuthCallbackPage />)
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/calendar-sync'))
+    render(<AuthCallbackContent pendingWebState={null} />)
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/calendar?import=1'))
     expect(mocks.replace).not.toHaveBeenCalledWith('/login?googleError=1')
   })
 
   it('posts the code and state then navigates to the saved destination', async () => {
     window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
-    sessionStorage.setItem('auth_return_url', '/calendar-sync')
-    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ userId: 'user-1', name: 'A', email: 'a@example.com' }) })
-    render(<AuthCallbackPage />)
+    sessionStorage.setItem('auth_return_url', '/calendar?import=1')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A', email: 'a@example.com' }), { status: 200 }))
+    render(<AuthCallbackContent pendingWebState={null} />)
     await waitFor(() => expect(mocks.setAuth).toHaveBeenCalledOnce())
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code', expect.objectContaining({
       body: JSON.stringify({ code: 'google-code', state: 'oauth-state', language: 'pt-BR' }),
     }))
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/calendar-sync'))
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/calendar?import=1'))
   })
 
-  it.each(['?error=access_denied&state=oauth-state', '?code=google-code'])('returns to login for invalid callback %s', async (query) => {
+  it.each(['?error=access_denied&state=oauth-state', '?code=google-code'])('shows a visible error for invalid callback %s', async (query) => {
     window.history.replaceState(null, '', `/auth-callback${query}`)
-    fetchMock.mockResolvedValue({ ok: true })
-    render(<AuthCallbackPage />)
+    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }))
+    render(<AuthCallbackContent pendingWebState={null} />)
     if (query.includes('state=')) {
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code?state=oauth-state', { method: 'DELETE' })
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code?state=oauth-state', { method: 'DELETE', headers: expect.any(Headers) })
     } else {
       expect(fetchMock).not.toHaveBeenCalled()
     }
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/login?googleError=1'))
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 
-  it('returns to login when the API rejects the code', async () => {
+  it('shows a visible error when the API rejects the code', async () => {
     window.history.replaceState(null, '', '/auth-callback?code=bad&state=oauth-state')
-    fetchMock.mockResolvedValue({ ok: false })
-    render(<AuthCallbackPage />)
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/login?googleError=1'))
+    fetchMock.mockResolvedValue(new Response('{}', { status: 400 }))
+    render(<AuthCallbackContent pendingWebState={null} />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(mocks.setAuth).not.toHaveBeenCalled()
   })
 })

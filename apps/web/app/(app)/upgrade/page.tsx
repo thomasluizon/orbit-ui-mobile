@@ -1,160 +1,264 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import { useTranslations, useLocale } from 'next-intl'
-import { AppBar } from '@/components/ui/app-bar'
+
+import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
+
+import { useCallback, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
+import { useDocumentTitle } from '@/hooks/use-document-title'
+import {
+  getTrialDaysLeft,
+  resolveSubscriptionScreen,
+  resolveUpgradeHeader,
+  playManageSubscriptionUrl,
+} from '@orbit/shared/utils'
+import type { SubscriptionPortalState, SubscriptionScreenContent, SubscriptionScreenState } from '@orbit/shared/utils'
+import { PageHeader } from '@/components/ui/page-header'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
-import {
-  createApiClientError,
-  getClientTimeZone,
-  getFriendlyErrorMessage,
-} from '@orbit/shared/utils'
-import { API } from '@orbit/shared/api'
-import { useProfile, useHasProAccess, useTrialDaysLeft } from '@/hooks/use-profile'
-import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
-import { useBilling } from '@/hooks/use-billing'
+import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import { openCustomerPortal } from '@/lib/actions/subscription'
-import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { sessionAwareFetch } from '@/lib/api-fetch'
 import { getHeldAccountId } from '@/stores/auth-store'
-import { reportAccountChangedIfNeeded } from '@/lib/client-action'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useStripeCheckout } from '@/hooks/use-stripe-checkout'
+import { useStripeCheckoutReturn } from '@/hooks/use-stripe-checkout-return'
+import { useBilling } from '@/hooks/use-billing'
+import { useBackLabel } from '@/hooks/use-back-label'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useOffline } from '@/hooks/use-offline'
+import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
+import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useHeldAccountId } from '@/stores/auth-store'
 
-type SubscriptionInterval = 'monthly' | 'yearly'
+
+const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
+
+function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {
+  const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
+  return isPitch ? 'pitch' : undefined
+}
 
 export default function UpgradePage() {
   const t = useTranslations()
-  const goBackOrFallback = useGoBackOrFallback()
   const locale = useLocale()
+  const from = useSearchParams().get('from')
+  const fallbackRoute = from === '/profile/astra' ? from : '/profile'
+  const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel(fallbackRoute)
+  const { showSuccess, showPersistentError } = useAppToast()
+  const { isOnline } = useOffline()
+  const heldAccountId = useHeldAccountId()
+  const {
+    status,
+    isLoading: isStatusLoading,
+    isError: isStatusError,
+    refetch: refetchStatus,
+  } = useSubscriptionStatus()
+  const trialDaysLeft = getTrialDaysLeft(status)
+  const {
+    plans,
+    isLoading: isLoadingPlans,
+    isError: isPlansError,
+    refetch: refetchPlans,
+    discountedAmount,
+  } = useSubscriptionPlans()
 
-  const { profile } = useProfile()
-  const hasProAccess = useHasProAccess()
-  const trialDaysLeft = useTrialDaysLeft()
-  const { plans, isLoading: isLoadingPlans, isError: isPlansError, refetch: refetchPlans, discountedAmount } = useSubscriptionPlans()
+  const isManageView = Boolean(status?.hasProAccess && !status.isTrialActive)
+  const isStripeBilling = isManageView && status?.source !== 'play' && !status?.isLifetimePro
+  const {
+    billing,
+    isLoading: isBillingLoading,
+    isError: isBillingError,
+    refetch: refetchBilling,
+  } = useBilling(isStripeBilling)
 
-  const isPlaySource = profile?.subscriptionSource === 'play'
-  const isBillingEnabled = hasProAccess && !profile?.isTrialActive && !isPlaySource && !profile?.isLifetimePro
-  const { billing, isLoading: isBillingLoading, isError: isBillingError, refetch: refetchBilling } = useBilling(isBillingEnabled)
+  const { checkout: handleCheckout, checkoutLoading, checkoutError } = useStripeCheckout()
+  const { hasReturnError, isSettling, retryReturn } = useStripeCheckoutReturn()
+  const [showPitch, setShowPitch] = useAccountScopedState(false)
+  const [portalState, setPortalState] = useAccountScopedState<SubscriptionPortalState>('idle')
 
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
-  const [checkoutError, setCheckoutError] = useState('')
-  const [portalError, setPortalError] = useState('')
+  const model = resolveSubscriptionScreen({
+    status,
+    isStatusLoading,
+    isStatusError: isStatusError || hasReturnError,
+    isBillingLoading,
+    isBillingError,
+    billingStatus: billing?.status,
+    cancelAtPeriodEnd: billing?.cancelAtPeriodEnd,
+    isOnline,
+    portalState,
+  })
+  const screenState = heldAccountId === null ? 'loading' : model.state
+  const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch, heldAccountId !== null)
+  useDocumentTitle(t(titleKey ?? 'upgrade.pitchTitle'))
 
   const usagePercent = useMemo(() => {
-    if (!profile || profile.aiMessagesLimit === 0) return 0
-    return Math.min(100, Math.round((profile.aiMessagesUsed / profile.aiMessagesLimit) * 100))
-  }, [profile])
-  const usageUrgent = usagePercent > 80
+    if (!status || status.aiMessagesLimit === 0) return 0
+    return Math.min(100, Math.round((status.aiMessagesUsed / status.aiMessagesLimit) * 100))
+  }, [status])
 
-  const isManageView = hasProAccess && !profile?.isTrialActive
-
-  const handleCheckout = useCallback(async (interval: SubscriptionInterval) => {
-    const intendedAccountId = getHeldAccountId()
-    setCheckoutLoading(interval)
-    setCheckoutError('')
-    try {
-      const timeZone = getClientTimeZone()
-      const checkoutUrl = timeZone
-        ? `${API.subscription.checkout}?timeZone=${encodeURIComponent(timeZone)}`
-        : API.subscription.checkout
-      const response = await sessionAwareFetch(checkoutUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(intendedAccountId ? { 'X-Orbit-Held-Account-Id': intendedAccountId } : {}),
-        },
-        body: JSON.stringify({ interval }),
+  useEffect(() => {
+    const refreshAfterPortal = () => {
+      const portalOwner = globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY)
+      if (portalOwner === null || heldAccountId === null) return
+      const portalAccount = getAccountGeneration()
+      globalThis.sessionStorage.removeItem(PORTAL_RETURN_KEY)
+      if (portalOwner !== heldAccountId) return
+      setPortalState('idle')
+      void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
+        if (getAccountGeneration() === portalAccount) showSuccess(t('upgrade.billing.portalReturned'))
       })
-      if (!response.ok) {
-        const errorBody: unknown = await response.json().catch(() => null)
-        throw createApiClientError(response.status, errorBody, `Failed with status ${response.status}`)
-      }
-      const data = (await response.json()) as { url?: string }
-      if (data.url) {
-        globalThis.location.href = data.url
-      }
-    } catch (err: unknown) {
-      reportAccountChangedIfNeeded(err)
-      setCheckoutError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
-    } finally {
-      setCheckoutLoading(null)
     }
-  }, [t])
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) refreshAfterPortal()
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshAfterPortal()
+    }
+    globalThis.addEventListener('pageshow', handlePageShow)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    if (portalState !== 'opening') refreshAfterPortal()
+    return () => {
+      globalThis.removeEventListener('pageshow', handlePageShow)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [heldAccountId, portalState, refetchBilling, refetchStatus, setPortalState, showSuccess, t])
 
   const handleOpenPortal = useCallback(async () => {
-    setPortalError('')
-    try {
-      const data = await openCustomerPortal()
-      if (data.url) {
-        globalThis.location.href = data.url
-      }
-    } catch (err: unknown) {
-      reportAccountChangedIfNeeded(err)
-      setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
-    }
-  }, [t])
+    const intendedAccountId = getHeldAccountId()
+    if (!isOnline || intendedAccountId === null) return
+    const accountGeneration = getAccountGeneration()
 
-  const renderBillingView = () => {
-    if (!isManageView) {
-      return (
+    setPortalState('opening')
+    try {
+      if (status?.source === 'play') {
+        const packageName = process.env.NEXT_PUBLIC_PLAY_PACKAGE_NAME
+        if (!packageName) throw new Error('Missing NEXT_PUBLIC_PLAY_PACKAGE_NAME')
+        globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, intendedAccountId)
+        globalThis.location.href = playManageSubscriptionUrl(packageName)
+        return
+      }
+      const data = await openCustomerPortal(intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setPortalState('idle')
+        showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+        return
+      }
+      globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, intendedAccountId)
+    globalThis.location.href = data.url
+    } catch (error) {
+      if (getAccountGeneration() !== accountGeneration) return
+      if (reportsAccountChanged(error)) {
+        setPortalState('idle')
+        showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+        return
+      }
+      setPortalState('failed')
+    }
+  }, [isOnline, setPortalState, showPersistentError, status, t])
+
+
+  const retryLoad = () => {
+    if (hasReturnError) { retryReturn(); return }
+    void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])
+  }
+
+  let content
+  if (screenState === 'loading') {
+    content = (
+      <div className="flex flex-col gap-3">
+        <Skeleton variant="settings" label={t('common.loading')} />
+        <Skeleton variant="settings" label={t('common.loading')} />
+        <Skeleton variant="settings" label={t('common.loading')} />
+      </div>
+    )
+  } else if (screenState === 'load-failed') {
+    content = (
+      <ErrorState
+        message={t('upgrade.billing.error')}
+        action={
+          <PillButton variant="ghost" loading={isSettling} onClick={retryLoad}>
+            {t('upgrade.billing.retry')}
+          </PillButton>
+        }
+      />
+    )
+  } else if (lapsedNoticeStatus) {
+    content = <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} />
+  } else if (model.content === 'pitch') {
+    content = (
+      <div className="flex flex-col gap-6">
         <PricingSection
-          profile={profile ?? null}
+          focusOnMount={showPitch}
+          profile={status}
           plans={plans}
           isLoadingPlans={isLoadingPlans}
           isPlansError={isPlansError}
+          isOnline={isOnline}
+          dateHint={getProfileTrialEndHint(status, locale, t)}
           trialDaysLeft={trialDaysLeft}
           checkoutLoading={checkoutLoading}
           checkoutError={checkoutError}
           discountedAmount={discountedAmount}
           onCheckout={(interval) => void handleCheckout(interval)}
-          onStayFree={() => goBackOrFallback('/profile')}
+          stayFreeHref={fallbackRoute}
+          onStayFree={() => goBackOrFallback(fallbackRoute)}
           onRetryPlans={() => void refetchPlans()}
           t={t}
         />
-      )
-    }
-    if (isPlaySource) {
-      return (
+      </div>
+    )
+  } else if (model.content === 'play') {
+    content = (
+      <div className="flex flex-col gap-6">
         <PlayBillingDashboard
-          profile={profile}
+          state={model.state}
+          onManagePlay={() => void handleOpenPortal()}
+          status={status}
           locale={locale}
           usagePercent={usagePercent}
-          usageUrgent={usageUrgent}
+          usageUrgent={usagePercent >= 80}
           t={t}
         />
-      )
-    }
-    return (
-      <BillingDashboard
-        billing={billing}
-        isBillingLoading={isBillingLoading}
-        isBillingError={isBillingError}
-        profile={profile ?? null}
-        locale={locale}
-        usagePercent={usagePercent}
-        usageUrgent={usageUrgent}
-        portalError={portalError}
-        onOpenPortal={() => void handleOpenPortal()}
-        onRetryBilling={() => void refetchBilling()}
-        t={t}
-      />
+      </div>
+    )
+  } else {
+    content = (
+      <div className="flex flex-col gap-6">
+        <BillingDashboard
+          state={model.state}
+          billing={billing}
+          status={status}
+          locale={locale}
+          usagePercent={usagePercent}
+          usageUrgent={usagePercent >= 80}
+          onOpenPortal={() => void handleOpenPortal()}
+          onRetryPortal={() => void handleOpenPortal()}
+          t={t}
+        />
+      </div>
     )
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col">
-      <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
-        <AppBar
-          back
-          backLabel={t('common.backToProfile')}
-          onBack={() => goBackOrFallback('/profile')}
-          title={t('upgrade.title')}
-        />
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
-
-        {renderBillingView()}
-        </div>
+    <div className="flex flex-1 flex-col">
+      <PageHeader
+        backLabel={backLabel}
+        onBack={() => goBackOrFallback(fallbackRoute)}
+        title={titleKey ? t(titleKey) : ''}
+        titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
+      />
+      <div data-upgrade-screen="" className="orbit-content-frame flex flex-1 flex-col justify-center pt-4" data-content-cap={upgradeContentCap(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
+        {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
+        {content}
       </div>
     </div>
   )

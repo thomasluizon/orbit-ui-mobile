@@ -1,12 +1,50 @@
+import { buildCalendarDayMap } from '../utils/habits'
+import { formatAPIDate, parseAPIDate } from '../utils/dates'
+import type { CalendarDayEntry } from '../types/calendar'
 import type { QueryClient } from '@tanstack/query-core'
 import type { HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
-import { clearOptimisticSkipMarker } from '../utils/habit-optimistic'
-import { habitKeys } from './keys'
+import { buildOptimisticSkipPatch, optimisticSetDatedCompletion, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
+import type { HabitListSnapshots } from './keys'
+import { gamificationKeys, habitKeys } from './keys'
 
 function includesDate(filters: HabitsFilter, date: string): boolean {
   if (!filters.dateFrom) return true
   return filters.dateFrom <= date && (!filters.dateTo || date <= filters.dateTo)
+}
+
+type HabitListFilters = HabitsFilter & { completeDay?: boolean }
+
+const skippedHabitRows = new WeakMap<QueryClient, WeakMap<readonly unknown[], Map<string, HabitTreeNode>>>()
+
+function refreshRetainedSkippedRows(queryClient: QueryClient): void {
+  for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+    if (!items) continue
+    const retained = skippedHabitRows.get(queryClient)?.get(key)
+    for (const habitId of retained?.keys() ?? []) {
+      const habit = findHabitInList(items, habitId)
+      if (habit) retained?.set(habitId, habit)
+    }
+  }
+}
+
+function retainedSkippedRows(queryClient: QueryClient, key: readonly unknown[]): Map<string, HabitTreeNode> {
+  let lists = skippedHabitRows.get(queryClient)
+  if (!lists) {
+    lists = new WeakMap<readonly unknown[], Map<string, HabitTreeNode>>()
+    skippedHabitRows.set(queryClient, lists)
+    queryClient.getQueryCache().subscribe(() => refreshRetainedSkippedRows(queryClient))
+  }
+  const rows = lists.get(key) ?? new Map<string, HabitTreeNode>()
+  lists.set(key, rows)
+  return rows
+}
+
+/** A complete-day list shares its day's total with the ordinary list, so the count key omits `completeDay`. */
+function listTotalCountKey(filters: HabitListFilters) {
+  const countFilters = { ...filters }
+  delete countFilters.completeDay
+  return habitKeys.listTotalCount(countFilters)
 }
 
 function setCachedHabitList(
@@ -15,9 +53,9 @@ function setCachedHabitList(
   previous: HabitScheduleItem[],
   next: HabitScheduleItem[],
 ): void {
-  const filters = key[2] as HabitsFilter
-  if (filters.dateFrom && filters.dateFrom === filters.dateTo) {
-    const countKey = habitKeys.listTotalCount(filters)
+  const filters = key[2] as HabitListFilters | undefined
+  if (filters?.completeDay === true && filters.dateFrom && filters.dateFrom === filters.dateTo) {
+    const countKey = listTotalCountKey(filters)
     const count = queryClient.getQueryData<number>(countKey)
     if (count !== undefined) {
       const scheduledCount = (items: HabitScheduleItem[]) => items.filter((item) => !item.isGeneral).length
@@ -25,6 +63,16 @@ function setCachedHabitList(
     }
   }
   queryClient.setQueryData(key, next)
+}
+
+export function applyCachedHabitSkip(queryClient: QueryClient, habitId: string, date: string): void {
+  for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+    if (!items || !includesDate(key[2] as HabitsFilter, date)) continue
+    const habit = findHabitInList(items, habitId)
+    if (!habit) continue
+    retainedSkippedRows(queryClient, key).set(habitId, habit)
+    setCachedHabitList(queryClient, key, items, optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, date)))
+  }
 }
 
 export function updateCachedHabitLists(
@@ -60,12 +108,84 @@ export function restoreCachedHabitLists(
   }
 }
 
+export function restoreCachedHabitSkip(
+  queryClient: QueryClient,
+  snapshots: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[],
+  habitId: string,
+  occurrence: { date: string; postponed: boolean },
+): void {
+  for (const [key, items] of snapshots) {
+    if (!includesDate(key[2] as HabitsFilter, occurrence.date)) continue
+    const current = queryClient.getQueryData<HabitScheduleItem[]>(key)
+    if (!items || !current) continue
+    setCachedHabitList(queryClient, key, current,
+      restoreSkipBranch(current, items, habitId, occurrence, skippedHabitRows.get(queryClient)?.get(key)))
+  }
+  clearCachedOptimisticSkip(queryClient, habitId, occurrence.date)
+}
+
+function reverseSkippedOccurrence<T extends HabitTreeNode>(
+  current: T,
+  previous: T,
+  { date, postponed }: { date: string; postponed: boolean },
+): T {
+  const occurrencePresent = current.scheduledDates?.includes(date) || current.instances.some((instance) => instance.date === date)
+  const postponedDate = postponed ? getTomorrowDateString(date) : null
+  const hasLaterLog = current.instances.some((instance) => instance.date === postponedDate &&
+    (instance.status === 'Completed' || instance.logId !== null))
+  const removedDate = hasLaterLog ? null : postponedDate
+  const scheduledDates = [...new Set([
+    ...(current.scheduledDates ?? []).filter((scheduled) => scheduled !== removedDate),
+    ...(previous.scheduledDates ?? []).filter((scheduled) => scheduled === date),
+  ])].sort((first, second) => first.localeCompare(second))
+  const instances = current.instances.filter((instance) => instance.date !== removedDate)
+  for (const instance of previous.instances.filter((instance) => instance.date === date)) {
+    if (!instances.some((currentInstance) => currentInstance.date === date)) instances.push(instance)
+  }
+  const dueDate = postponed && current.dueDate === postponedDate ? previous.dueDate
+    : scheduledDates.filter((scheduled) => scheduled <= current.dueDate)[0] ?? current.dueDate
+  return {
+    ...current,
+    dueDate,
+    scheduledDates,
+    instances: instances.sort((first, second) => first.date.localeCompare(second.date)),
+    isOverdue: dueDate === previous.dueDate && dueDate === date ? previous.isOverdue : current.isOverdue,
+    ...(current.isFlexible && current.flexibleTarget != null && !occurrencePresent
+      ? { flexibleTarget: current.flexibleTarget + 1 } : {}),
+  }
+}
+
+function restoreSkipBranch<T extends HabitTreeNode>(
+  current: T[], previous: T[], habitId: string, occurrence: { date: string; postponed: boolean },
+  retained: ReadonlyMap<string, HabitTreeNode> | undefined,
+): T[] {
+  const restored = [...current]
+  for (const [index, original] of previous.entries()) {
+    if (!findHabitInTree(original, habitId)) continue
+    const item = restored.find((entry) => entry.id === original.id)
+    if (!item) {
+      restored.splice(Math.min(index, restored.length), 0, original.id === habitId
+        ? reverseSkippedOccurrence({ ...original, scheduledDates: [], instances: [],
+          flexibleTarget: original.flexibleTarget == null ? original.flexibleTarget : original.flexibleTarget - 1,
+          ...retained?.get(habitId) }, original, occurrence)
+        : withChildren(original, restoreSkipBranch([], original.children, habitId, occurrence, retained)))
+      continue
+    }
+    const currentIndex = restored.indexOf(item)
+    restored[currentIndex] = item.id === habitId ? reverseSkippedOccurrence(item, original, occurrence)
+      : withChildren(item, restoreSkipBranch(item.children, original.children, habitId, occurrence, retained))
+  }
+  return restored
+}
+
 export function updateHabitListsForDate(
   queryClient: QueryClient,
   date: string,
   updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
+  options: { includeUnfiltered?: boolean } = {},
 ): void {
   for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+    if (options.includeUnfiltered === false && !(key[2] as HabitsFilter).dateFrom) continue
     if (!items || !includesDate(key[2] as HabitsFilter, date)) continue
     setCachedHabitList(queryClient, key, items, updater(items))
   }
@@ -73,13 +193,13 @@ export function updateHabitListsForDate(
 
 function findTodayHabitList(queryClient: QueryClient, date: string, requireFresh: boolean): HabitScheduleItem[] | undefined {
   for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
-    const filters = key[2] as HabitsFilter
-    if (filters.dateFrom === date && filters.dateTo === date && filters.includeOverdue === true &&
+    const filters = key[2] as HabitListFilters
+    if (filters.completeDay === true && filters.dateFrom === date && filters.dateTo === date && filters.includeOverdue === true &&
       !filters.search && !filters.frequencyUnit && !filters.tagIds?.length &&
       filters.page === undefined && filters.isCompleted === undefined &&
       filters.isGeneral === undefined && items) {
       if (requireFresh && queryClient.getQueryState(key)?.isInvalidated !== false) continue
-      const totalCount = queryClient.getQueryData<number>(habitKeys.listTotalCount(filters))
+      const totalCount = queryClient.getQueryData<number>(listTotalCountKey(filters))
       const scheduledCount = items.filter((item) => !item.isGeneral).length
       if (totalCount === undefined ? scheduledCount < (filters.pageSize ?? 50) : totalCount === scheduledCount) {
         return items
@@ -91,6 +211,18 @@ function findTodayHabitList(queryClient: QueryClient, date: string, requireFresh
 
 export function getTodayHabitList(queryClient: QueryClient, date: string): HabitScheduleItem[] | undefined {
   return findTodayHabitList(queryClient, date, false)
+}
+
+export function getCachedCalendarDayMap(queryClient: QueryClient, from: string, to: string): Map<string, CalendarDayEntry[]> {
+  const dayMap = new Map<string, CalendarDayEntry[]>()
+  const date = parseAPIDate(from)
+  while (formatAPIDate(date) <= to) {
+    const day = formatAPIDate(date)
+    const habits = getTodayHabitList(queryClient, day)
+    if (habits) dayMap.set(day, buildCalendarDayMap({ habits, logs: {} }, { from: day, to: day }).get(day) ?? [])
+    date.setDate(date.getDate() + 1)
+  }
+  return dayMap
 }
 
 export function checkTodayAllDoneOrDefer(
@@ -124,10 +256,51 @@ export function deduplicateHabitList(items: HabitScheduleItem[]): HabitScheduleI
 
 export function invalidateHabitDependents(queryClient: QueryClient, habitId: string, includeLists = true): void {
   if (includeLists) void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+  void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
   void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
   void queryClient.invalidateQueries({ queryKey: habitKeys.logs(habitId) })
   void queryClient.invalidateQueries({ queryKey: habitKeys.metrics(habitId) })
   void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+  void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
+  void queryClient.invalidateQueries({ queryKey: gamificationKeys.recapPrefix() })
+}
+
+export function rollbackDatedHabitLists(
+  queryClient: QueryClient,
+  previousLists: HabitListSnapshots,
+  habitId: string,
+  date: string,
+  optimisticLogId: string,
+): void {
+  for (const [key, previousItems] of previousLists) {
+    const previousHabit = previousItems && findHabitInList(previousItems, habitId)
+    if (!previousHabit) continue
+    const previousOccurrence = previousHabit.instances.find((instance) => instance.date === date)
+
+    queryClient.setQueryData<HabitScheduleItem[]>(key, (currentItems) => {
+      if (!currentItems) return currentItems
+      const currentHabit = findHabitInList(currentItems, habitId)
+      const currentOccurrence = currentHabit?.instances.find((instance) => instance.date === date)
+      const previousCompleted = previousOccurrence?.status === 'Completed'
+      const patchStillApplied = previousCompleted
+        ? currentOccurrence?.status !== 'Completed'
+        : currentOccurrence?.logId === optimisticLogId
+      if (!patchStillApplied) return currentItems
+
+      const restoredItems = optimisticSetDatedCompletion(
+        currentItems,
+        habitId,
+        date,
+        previousCompleted,
+        previousOccurrence?.logId ?? '',
+      )
+      const restoredHabit = findHabitInList(restoredItems, habitId)
+      if (restoredHabit && previousHabit.isLoggedInRange === undefined) {
+        delete restoredHabit.isLoggedInRange
+      }
+      return restoredItems
+    })
+  }
 }

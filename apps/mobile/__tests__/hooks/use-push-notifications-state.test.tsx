@@ -1,34 +1,45 @@
 import React from 'react'
+import type { ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { createApiClientError } from '@orbit/shared'
 
 const TestRenderer = require('react-test-renderer')
-const mocks = vi.hoisted(() => ({
-  storage: new Map<string, string>(),
-  apiClient: vi.fn(() => Promise.resolve(undefined)),
-  invalidateQueries: vi.fn(async () => {}),
-  router: {
-    push: vi.fn(),
-  },
-  appState: {
-    listener: null as ((state: string) => void) | null,
-  },
-  constants: {
-    appOwnership: 'standalone',
-    executionEnvironment: 'standalone',
-    expoGoConfig: { name: 'Orbit' },
-    expoConfig: {},
-    easConfig: {},
-  },
-  device: {
-    isDevice: true,
-  },
-  expoGo: false,
-  auth: {
+const mocks = vi.hoisted(() => {
+  const auth: { isAuthenticated: boolean; user: { userId: string } | null } = {
     isAuthenticated: true,
     user: { userId: 'user-1' },
-  },
-}))
+  }
+  return {
+    capacity: vi.fn(() => Promise.resolve(true)),
+    storage: new Map<string, string>(),
+    setAstraConversationOpen: vi.fn(),
+    invalidateQueries: vi.fn(() => Promise.resolve()),
+    apiClient: vi.fn((_path: string, _options?: { isCurrent?: () => boolean }) => Promise.resolve(undefined)),
+    router: {
+      push: vi.fn(),
+    },
+    appState: {
+      listener: null as ((state: string) => void) | null,
+    },
+    constants: {
+      appOwnership: 'standalone',
+      executionEnvironment: 'standalone',
+      expoGoConfig: { name: 'Orbit' },
+      expoConfig: {},
+      easConfig: {},
+    },
+    device: {
+      isDevice: true,
+    },
+    expoGo: false,
+    auth,
+  }
+})
+
+vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: () => { mocks.setAstraConversationOpen(true); return Promise.resolve() } }))
+
+vi.mock('@/hooks/use-push-subscriptions', () => ({ hasPushSubscriptionCapacity: mocks.capacity }))
 
 vi.mock('expo', () => ({
   isRunningInExpoGo: () => mocks.expoGo,
@@ -87,6 +98,10 @@ vi.mock('expo-router', () => ({
   useRouter: () => mocks.router,
 }))
 
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) => selector(mocks),
+}))
+
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
@@ -105,6 +120,7 @@ vi.mock('@/stores/auth-store', () => {
 
 type NotificationsModule = typeof import('expo-notifications')
 type PermissionResponse = Awaited<ReturnType<NotificationsModule['getPermissionsAsync']>>
+type NotificationResponse = NonNullable<ReturnType<NotificationsModule['getLastNotificationResponse']>>
 type UsePushNotificationsHook = typeof import('@/hooks/use-push-notifications')['usePushNotifications']
 type UsePushNotificationsModule = typeof import('@/hooks/use-push-notifications')
 type PushNotificationsResult = ReturnType<UsePushNotificationsHook>
@@ -120,22 +136,64 @@ function createPermissionResponse(
   } as PermissionResponse
 }
 
+function createNotificationResponse(identifier: string, url: string): NotificationResponse {
+  return {
+    actionIdentifier: 'expo.modules.notifications.actions.DEFAULT',
+    notification: {
+      date: 1788670800000,
+      request: {
+        identifier,
+        trigger: { type: 'push', channelId: null },
+        content: { title: 'Reminder', data: { url } },
+      },
+    },
+  } as unknown as NotificationResponse
+}
+
 describe('usePushNotifications', () => {
   let latestResult: PushNotificationsResult | null = null
+  let globalPromptResult: PushNotificationsResult | null = null
+  let profileSurfaceResult: PushNotificationsResult | null = null
   let notificationsModule: NotificationsModule
   let usePushNotifications: UsePushNotificationsHook
   let pushNotificationsModule: UsePushNotificationsModule
+  let PushNotificationsProvider: UsePushNotificationsModule['PushNotificationsProvider']
 
   function Harness() {
     latestResult = usePushNotifications()
     return null
   }
 
+  function GlobalPromptSurface() {
+    globalPromptResult = usePushNotifications()
+    return null
+  }
+
+  function ProfileNotificationSurface() {
+    profileSurfaceResult = usePushNotifications()
+    return null
+  }
+
+  function MountedPushSurfaces() {
+    return (
+      <>
+        <GlobalPromptSurface />
+        <ProfileNotificationSurface />
+      </>
+    )
+  }
+
   async function renderHarness() {
+    let renderer: ReactTestRenderer | undefined
     await TestRenderer.act(async () => {
-      TestRenderer.create(<Harness />)
+      renderer = TestRenderer.create(
+        <PushNotificationsProvider>
+          <Harness />
+        </PushNotificationsProvider>,
+      )
       await Promise.resolve()
     })
+    return renderer!
   }
 
   async function flush() {
@@ -147,10 +205,14 @@ describe('usePushNotifications', () => {
   beforeEach(async () => {
     vi.resetModules()
     latestResult = null
+    globalPromptResult = null
+    profileSurfaceResult = null
     mocks.storage.clear()
+    mocks.capacity.mockReset().mockResolvedValue(true)
     mocks.apiClient.mockClear()
     mocks.invalidateQueries.mockClear()
     mocks.router.push.mockClear()
+    mocks.setAstraConversationOpen.mockClear()
     mocks.appState.listener = null
     mocks.auth.isAuthenticated = true
     mocks.auth.user = { userId: 'user-1' }
@@ -178,6 +240,11 @@ describe('usePushNotifications', () => {
       type: 'fcm',
       data: 'native-token',
     })
+    vi.mocked(notificationsModule.unregisterForNotificationsAsync).mockReset()
+    vi.mocked(notificationsModule.unregisterForNotificationsAsync).mockResolvedValue()
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReset()
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
+    vi.mocked(notificationsModule.clearLastNotificationResponse).mockReset()
     vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockReset()
     vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockImplementation(() => ({
       remove: vi.fn(),
@@ -189,6 +256,7 @@ describe('usePushNotifications', () => {
     pushNotificationsModule = await import('@/hooks/use-push-notifications')
     pushNotificationsModule.__setNotificationsModuleForTests(notificationsModule)
     usePushNotifications = pushNotificationsModule.usePushNotifications
+    PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
   })
 
   it('keeps Orbit notifications disabled after the user opted out locally', async () => {
@@ -206,14 +274,10 @@ describe('usePushNotifications', () => {
 
   it('invalidates the notification list when a push arrives', async () => {
     await renderHarness()
-
     const listener = vi.mocked(notificationsModule.addNotificationReceivedListener).mock.calls[0]?.[0]
     expect(listener).toBeTypeOf('function')
-    listener?.({} as Parameters<typeof listener>[0])
-
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: ['notifications', 'list'],
-    })
+    listener?.({} as Parameters<NonNullable<typeof listener>>[0])
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications', 'list'] })
   })
 
   it('loads native notifications in a standalone embedded-manifest build', async () => {
@@ -228,6 +292,7 @@ describe('usePushNotifications', () => {
       vi.resetModules()
       pushNotificationsModule = await import('@/hooks/use-push-notifications')
       usePushNotifications = pushNotificationsModule.usePushNotifications
+      PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
     } finally {
       moduleLoader._load = originalLoad
     }
@@ -256,6 +321,7 @@ describe('usePushNotifications', () => {
       vi.resetModules()
       pushNotificationsModule = await import('@/hooks/use-push-notifications')
       usePushNotifications = pushNotificationsModule.usePushNotifications
+      PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
     } finally {
       moduleLoader._load = originalLoad
     }
@@ -281,6 +347,7 @@ describe('usePushNotifications', () => {
       vi.resetModules()
       pushNotificationsModule = await import('@/hooks/use-push-notifications')
       usePushNotifications = pushNotificationsModule.usePushNotifications
+      PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
     } finally {
       moduleLoader._load = originalLoad
     }
@@ -295,6 +362,9 @@ describe('usePushNotifications', () => {
   })
 
   it('re-registers for the new account when it switches while a registration is in flight', async () => {
+    const { setAccountId } = await import('@/lib/account-scope')
+    const { advanceSessionEpoch } = await import('@/lib/session-epoch')
+    setAccountId('user-1')
     vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
       createPermissionResponse('granted'),
     )
@@ -307,7 +377,7 @@ describe('usePushNotifications', () => {
         }),
     )
 
-    await renderHarness()
+    const renderer = await renderHarness()
     await TestRenderer.act(async () => {
       for (let i = 0; i < 10; i++) await Promise.resolve()
     })
@@ -316,8 +386,11 @@ describe('usePushNotifications', () => {
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
 
     mocks.auth.user = { userId: 'user-2' }
+    setAccountId('user-2')
+    advanceSessionEpoch()
 
     await TestRenderer.act(async () => {
+      renderer.update(<PushNotificationsProvider><Harness /></PushNotificationsProvider>)
       resolveFirstSubscribe?.()
       for (let i = 0; i < 10; i++) await Promise.resolve()
     })
@@ -326,6 +399,21 @@ describe('usePushNotifications', () => {
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(mocks.storage.get('orbit_push_disabled:user-1')).toBeUndefined()
     expect(mocks.storage.get('orbit_push_disabled:user-2')).toBeUndefined()
+  })
+
+  it('does not register a token when there is no authenticated account', async () => {
+    mocks.auth.isAuthenticated = false
+    mocks.auth.user = null
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+
+    await renderHarness()
+    await flush()
+
+    expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalled()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(latestResult?.registrationStatus).toBe('idle')
   })
 
   it('subscribes with the current payload shape and unsubscribes without re-registering on resume', async () => {
@@ -348,6 +436,7 @@ describe('usePushNotifications', () => {
     )
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(latestResult?.isEnabled).toBe(true)
+    expect(notificationsModule.unregisterForNotificationsAsync).not.toHaveBeenCalled()
 
     await TestRenderer.act(async () => {
       await latestResult?.disablePushNotifications()
@@ -375,6 +464,29 @@ describe('usePushNotifications', () => {
 
     expect(mocks.apiClient).toHaveBeenCalledTimes(2)
     expect(latestResult?.registrationStatus).toBe('disabled')
+  })
+
+  it('rotates an FCM token owned by another account before registering this one', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+    vi.mocked(notificationsModule.getDevicePushTokenAsync)
+      .mockResolvedValueOnce({ type: 'fcm', data: 'account-a-token' })
+      .mockResolvedValue({ type: 'fcm', data: 'account-b-token' })
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(400, {
+      error: 'Push subscription endpoint is already registered to a different user.',
+      errorCode: 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER',
+    }, 'Failed with status 400'))
+
+    await renderHarness()
+
+    expect(mocks.apiClient).toHaveBeenNthCalledWith(1, API.notifications.subscribe,
+      expect.objectContaining({ body: JSON.stringify({ endpoint: 'account-a-token', p256dh: 'fcm', auth: 'fcm' }) }))
+    expect(notificationsModule.unregisterForNotificationsAsync).toHaveBeenCalledTimes(1)
+    expect(mocks.apiClient).toHaveBeenNthCalledWith(2, API.notifications.subscribe,
+      expect.objectContaining({ body: JSON.stringify({ endpoint: 'account-b-token', p256dh: 'fcm', auth: 'fcm' }) }))
+    expect(latestResult?.expoPushToken).toBe('account-b-token')
+    expect(latestResult?.registrationStatus).toBe('registered')
   })
 
   it('leaves registration undetermined until the user is prompted', async () => {
@@ -452,6 +564,7 @@ describe('usePushNotifications', () => {
     expect(latestResult?.registrationStatus).toBe('sync-failed')
     expect(latestResult?.isSupported).toBe(true)
     expect(latestResult?.isEnabled).toBe(false)
+    expect(notificationsModule.unregisterForNotificationsAsync).not.toHaveBeenCalled()
 
     mocks.apiClient.mockResolvedValue(undefined)
     await TestRenderer.act(async () => {
@@ -459,6 +572,118 @@ describe('usePushNotifications', () => {
     })
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(latestResult?.isEnabled).toBe(true)
+  })
+
+  it('grants first use and registers this device once', async () => {
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => {
+      await Promise.all([latestResult!.requestFirstUsePermission(), latestResult!.requestFirstUsePermission()])
+    })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+    expect(latestResult!.isEnabled).toBe(true)
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('finishes first-use registration when the token arrives while Hoje stays focused', async () => {
+    let finishCapacityCheck: ((hasCapacity: boolean) => void) | undefined
+    mocks.capacity.mockImplementation((token?: string | null) => token
+      ? new Promise<boolean>((resolve) => { finishCapacityCheck = resolve })
+      : Promise.resolve(true))
+    function FocusedToday() {
+      const { requestFirstUsePermission } = usePushNotifications()
+      React.useEffect(() => {
+        let focused = true
+        void requestFirstUsePermission(() => focused)
+        return () => { focused = false }
+      }, [requestFirstUsePermission])
+      return <Harness />
+    }
+    await TestRenderer.act(() => {
+      TestRenderer.create(<PushNotificationsProvider><FocusedToday /></PushNotificationsProvider>)
+    })
+    await flush()
+    expect(finishCapacityCheck).toBeDefined()
+    await TestRenderer.act(() => { finishCapacityCheck!(true) })
+    await flush()
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+    expect(latestResult!.isEnabled).toBe(true)
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('does not prompt or register a sixth device on first use or from settings', async () => {
+    mocks.capacity.mockResolvedValue(false)
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    await TestRenderer.act(async () => { await latestResult!.requestPermission() })
+    expect(notificationsModule.requestPermissionsAsync).not.toHaveBeenCalled()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(latestResult!.isEnabled).toBe(false)
+    expect(latestResult!.error).toBe('Turn off notifications on another device to use this one.')
+  })
+
+  it('does not prompt after focus was lost while checking capacity', async () => {
+    let focused = true
+    mocks.capacity.mockImplementation(() => { focused = false; return Promise.resolve(true) })
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission(() => focused) })
+    expect(notificationsModule.requestPermissionsAsync).not.toHaveBeenCalled()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('asks on first use once per install, even after an askable refusal', async () => {
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(createPermissionResponse('denied', true))
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+    expect(latestResult!.isEnabled).toBe(false)
+  })
+
+  it('keeps first use eligible after the native request rejects', async () => {
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockRejectedValueOnce(new Error('React context lost'))
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(latestResult!.registrationStatus).toBe('sync-failed')
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledTimes(2)
+    expect(latestResult!.isEnabled).toBe(true)
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('keeps the answered fact across provider remounts and account changes', async () => {
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(createPermissionResponse('denied', true))
+    const first = await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    await TestRenderer.act(() => { first.update(<></>) })
+    mocks.auth.user = { userId: 'user-2' }
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+  })
+
+  it('does not ask on first use when onboarding already asked on this install', async () => {
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(createPermissionResponse('denied', true))
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestPermissionOutcome(false) })
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+  })
+
+  it('never asks on first use after sign-out', async () => {
+    await renderHarness()
+    await flush()
+    mocks.auth.isAuthenticated = false
+    mocks.auth.user = null
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).not.toHaveBeenCalled()
   })
 
   it('prompts for permission and registers once the user grants it', async () => {
@@ -485,6 +710,196 @@ describe('usePushNotifications', () => {
     )
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(latestResult?.isEnabled).toBe(true)
+  })
+
+  it('drops registration when the account changes while the API loads its token', async () => {
+    const { setAccountId } = await import('@/lib/account-scope')
+    setAccountId('user-1')
+    let finishTokenLoad!: () => void
+    let backendPostSent = false
+    mocks.apiClient.mockImplementationOnce(async (_path: string, options?: { isCurrent?: () => boolean }) => {
+      await new Promise<void>((resolve) => { finishTokenLoad = resolve })
+      if (options?.isCurrent?.() === false) throw new Error('Account changed')
+      backendPostSent = true
+    })
+    await renderHarness()
+    await flush()
+
+    let registration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      registration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    mocks.auth.user = { userId: 'user-2' }
+    setAccountId('user-2')
+    await TestRenderer.act(async () => {
+      finishTokenLoad()
+      await registration
+    })
+
+    expect(backendPostSent).toBe(false)
+  })
+
+  it('registers again for the same user after the session changes mid-registration', async () => {
+    const { setAccountId } = await import('@/lib/account-scope')
+    const { advanceSessionEpoch } = await import('@/lib/session-epoch')
+    setAccountId('user-1')
+    let finishFirstToken!: () => void
+    vi.mocked(notificationsModule.getDevicePushTokenAsync).mockReturnValueOnce(
+      new Promise((resolve) => { finishFirstToken = () => resolve({ type: 'fcm', data: 'old-token' }) }),
+    )
+    await renderHarness()
+    await flush()
+
+    let firstRegistration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      firstRegistration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalledTimes(1))
+
+    advanceSessionEpoch()
+    let secondRegistration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      secondRegistration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalledTimes(2))
+    await TestRenderer.act(async () => { expect(await secondRegistration).toBe('granted') })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+    await TestRenderer.act(async () => {
+      finishFirstToken()
+      expect(await firstRegistration).toBe('failed')
+    })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(latestResult?.registrationStatus).toBe('registered')
+  })
+
+  it('keeps the replacement registration loading when the obsolete request finishes first', async () => {
+    const { setAccountId } = await import('@/lib/account-scope')
+    const { advanceSessionEpoch } = await import('@/lib/session-epoch')
+    setAccountId('user-1')
+    let finishFirstToken!: () => void
+    let finishSecondToken!: () => void
+    vi.mocked(notificationsModule.getDevicePushTokenAsync)
+      .mockReturnValueOnce(new Promise((resolve) => {
+        finishFirstToken = () => resolve({ type: 'fcm', data: 'old-token' })
+      }))
+      .mockReturnValueOnce(new Promise((resolve) => {
+        finishSecondToken = () => resolve({ type: 'fcm', data: 'new-token' })
+      }))
+    await renderHarness()
+    await flush()
+
+    let firstRegistration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      firstRegistration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalledTimes(1))
+
+    advanceSessionEpoch()
+    let secondRegistration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      secondRegistration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalledTimes(2))
+
+    await TestRenderer.act(async () => {
+      finishFirstToken()
+      expect(await firstRegistration).toBe('failed')
+    })
+    expect(latestResult?.isLoading).toBe(true)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+
+    await TestRenderer.act(async () => {
+      finishSecondToken()
+      expect(await secondRegistration).toBe('granted')
+    })
+    expect(latestResult?.isLoading).toBe(false)
+    expect(latestResult?.registrationStatus).toBe('registered')
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+  })
+
+  it('requests signed-out permission without registering the device', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('undetermined'),
+    )
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+
+    await renderHarness()
+    await flush()
+
+    let outcome = 'failed'
+    await TestRenderer.act(async () => {
+      outcome = (await latestResult?.requestPermissionOutcome(false)) ?? 'failed'
+    })
+
+    expect(outcome).toBe('granted')
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalled()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('reports denial and registration failure as different outcomes', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('undetermined'),
+    )
+    vi.mocked(notificationsModule.requestPermissionsAsync)
+      .mockResolvedValueOnce(createPermissionResponse('denied', true))
+
+    await renderHarness()
+    await flush()
+
+    let outcome = 'granted'
+    await TestRenderer.act(async () => {
+      outcome = (await latestResult?.requestPermissionOutcome()) ?? 'granted'
+    })
+    expect(outcome).toBe('denied')
+
+    vi.mocked(notificationsModule.requestPermissionsAsync)
+      .mockResolvedValueOnce(createPermissionResponse('granted'))
+    mocks.apiClient.mockRejectedValueOnce(new Error('registration failed'))
+    await TestRenderer.act(async () => {
+      outcome = (await latestResult?.requestPermissionOutcome()) ?? 'granted'
+    })
+    expect(outcome).toBe('failed')
+  })
+
+  it('updates the mounted Profile surface when the global prompt registers push', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('undetermined'),
+    )
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+
+    await TestRenderer.act(async () => {
+      TestRenderer.create(
+        <PushNotificationsProvider>
+          <MountedPushSurfaces />
+        </PushNotificationsProvider>,
+      )
+      await Promise.resolve()
+    })
+    await flush()
+
+    await TestRenderer.act(async () => {
+      await globalPromptResult?.requestPermission()
+    })
+
+    expect(profileSurfaceResult?.permissionStatus).toBe('granted')
+    expect(profileSurfaceResult?.registrationStatus).toBe('registered')
+    expect(profileSurfaceResult?.isEnabled).toBe(true)
   })
 
   it('does not re-prompt when permission is permanently denied', async () => {
@@ -547,14 +962,6 @@ describe('usePushNotifications', () => {
     })
 
     await TestRenderer.act(() => {
-      notify(buildResponse('/progress'))
-      notify(buildResponse('/progress?wrapped=month&year=2026&month=8'))
-    })
-    expect(mocks.router.push).toHaveBeenNthCalledWith(1, '/streak')
-    expect(mocks.router.push).toHaveBeenNthCalledWith(2, '/wrapped?wrapped=month&year=2026&month=8')
-    mocks.router.push.mockClear()
-
-    await TestRenderer.act(() => {
       notify(buildResponse('/social'))
     })
     expect(mocks.router.push).not.toHaveBeenCalled()
@@ -565,6 +972,146 @@ describe('usePushNotifications', () => {
       notify({ notification: { request: { content: {} } } })
     })
     expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['/chat', '/', true],
+    ['/calendar-sync', '/calendar', false],
+    ['/calendar-sync?mode=review', '/calendar?mode=review', false],
+    ['/streak', '/progress/streak', false],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest', false],
+    ['/insights?range=year', '/progress?range=year', false],
+    ['/retrospective/year', '/progress', false],
+    ['/', '/', false],
+    ['/calendar', '/calendar', false],
+    ['/progress', '/progress', false],
+    ['/streak?source=push#freezes', '/progress/streak?source=push#freezes', false],
+    ['/progress/streak', '/progress/streak', false],
+    ['/progress/goals', '/progress/goals', false],
+    ['/progress/achievements', '/progress/achievements', false],
+    ['/goals?status=Active', '/progress/goals?status=Active', false],
+    ['/progress?wrapped=month&year=2026&month=8', '/wrapped?period=month&year=2026&month=8', false],
+    ['/profile', '/profile', false],
+  ])('routes the accepted push %s and applies its Astra overlay intent', async (url, destination, opensAstra) => {
+    await renderHarness()
+    await flush()
+    const listener = vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => {
+      listener({
+        actionIdentifier: 'expo.modules.notifications.actions.DEFAULT',
+        notification: {
+          date: 1788670800000,
+          request: {
+            identifier: 'message-1', trigger: { type: 'push', channelId: null },
+            content: { title: 'Reminder', data: { url } },
+          },
+        },
+      } as unknown as Parameters<typeof listener>[0])
+    })
+    expect(mocks.router.push).toHaveBeenCalledWith(destination)
+    if (opensAstra) expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(true)
+    else expect(mocks.setAstraConversationOpen).not.toHaveBeenCalled()
+  })
+
+  it('routes the Wrapped response that launched the app before listener registration', async () => {
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(
+      createNotificationResponse('wrapped-startup', '/progress?wrapped=month&year=2026&month=8'),
+    )
+
+    await renderHarness()
+    await flush()
+
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('keeps a startup proactive push pending until the account signs in', async () => {
+    mocks.auth.isAuthenticated = false
+    mocks.auth.user = null
+    const response = createNotificationResponse('proactive-login', '/chat')
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(response)
+    vi.mocked(notificationsModule.clearLastNotificationResponse).mockImplementation(() => {
+      vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
+    })
+    const renderer = await renderHarness()
+    await flush()
+    expect(mocks.router.push).not.toHaveBeenCalled()
+    expect(mocks.setAstraConversationOpen).not.toHaveBeenCalled()
+    expect(notificationsModule.clearLastNotificationResponse).not.toHaveBeenCalled()
+    mocks.auth.isAuthenticated = true
+    mocks.auth.user = { userId: 'user-1' }
+    await TestRenderer.act(() => {
+      renderer.update(<PushNotificationsProvider><Harness /></PushNotificationsProvider>)
+    })
+    await flush()
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
+    expect(mocks.setAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
+    expect(notificationsModule.clearLastNotificationResponse).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(() => renderer.update(<></>))
+  })
+
+  it('navigates once when startup recovery and the live listener receive the same response', async () => {
+    const response = createNotificationResponse(
+      'wrapped-duplicate',
+      '/progress?wrapped=month&year=2026&month=8',
+    )
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(response)
+
+    await renderHarness()
+    await flush()
+    const listener = vi.mocked(
+      notificationsModule.addNotificationResponseReceivedListener,
+    ).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => listener(response))
+
+    expect(notificationsModule.getLastNotificationResponse).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('does not replay a handled startup response after the provider remounts', async () => {
+    const response = createNotificationResponse(
+      'wrapped-retry',
+      '/progress?wrapped=month&year=2026&month=8',
+    )
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(response)
+    vi.mocked(notificationsModule.clearLastNotificationResponse).mockImplementation(() => {
+      vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
+    })
+
+    const firstRenderer = await renderHarness()
+    await flush()
+    await TestRenderer.act(() => firstRenderer.update(
+      <PushNotificationsProvider key="retry">
+        <Harness />
+      </PushNotificationsProvider>,
+    ))
+    await flush()
+
+    expect(notificationsModule.clearLastNotificationResponse).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('navigates for a startup response followed by a different live response', async () => {
+    const startupResponse = createNotificationResponse(
+      'wrapped-startup',
+      '/progress?wrapped=month&year=2026&month=8',
+    )
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(startupResponse)
+
+    await renderHarness()
+    await flush()
+    const listener = vi.mocked(
+      notificationsModule.addNotificationResponseReceivedListener,
+    ).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => listener(createNotificationResponse('chat-live', '/chat')))
+
+    expect(mocks.router.push).toHaveBeenNthCalledWith(
+      1,
+      '/wrapped?period=month&year=2026&month=8',
+    )
+    expect(mocks.router.push).toHaveBeenNthCalledWith(2, '/')
+    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(true)
   })
 
   it('reports unsupported and no-ops the actions when the module is unavailable', async () => {

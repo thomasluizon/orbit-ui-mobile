@@ -1,65 +1,98 @@
 import { useMemo, useState } from 'react'
 import { View } from 'react-native'
-import { useTranslation } from 'react-i18next'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams } from 'expo-router'
-import { getClosedMonthFromWrappedParams, type ClosedMonth, type RecapSharePeriod } from '@orbit/shared/utils'
-import { useProfile } from '@/hooks/use-profile'
+import {
+  parseWrappedRouteSelection,
+  type RecapSharePeriod,
+  type WrappedRouteSelection,
+} from '@orbit/shared/utils'
+import { AppBar } from '@/components/ui/app-bar'
+import { useBackLabel } from '@/hooks/use-back-label'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { AppBar } from '@/components/ui/app-bar'
-import { WrappedCover } from './wrapped-cover'
-import { WrappedPlayer } from './wrapped-player'
+import { WrappedCover } from '@/components/wrapped/wrapped-cover'
+import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
 import { styles } from './wrapped-styles'
 
 export default function WrappedScreen() {
-  const params = useLocalSearchParams<{
-    wrapped?: string | string[]
+  const routeParams = useLocalSearchParams<{
+    period?: string | string[]
     year?: string | string[]
     month?: string | string[]
   }>()
-  const notifiedMonth = getClosedMonthFromWrappedParams(params)
-  const notifiedMonthKey = notifiedMonth ? `${notifiedMonth.year}-${notifiedMonth.month}` : 'current'
+  const initialSelection = parseWrappedRouteSelection(
+    routeParams.period,
+    routeParams.year,
+    routeParams.month,
+  )
+  const routeKey = initialSelection.closedMonth
+    ? `${initialSelection.period}:${initialSelection.closedMonth.year}:${initialSelection.closedMonth.month}`
+    : initialSelection.period
 
-  return <WrappedScreenContent key={notifiedMonthKey} notifiedMonth={notifiedMonth} />
+  return <WrappedScreenContent key={routeKey} initialSelection={initialSelection} />
 }
 
-function WrappedScreenContent({ notifiedMonth }: Readonly<{ notifiedMonth: ClosedMonth | null }>) {
-  const { t } = useTranslation()
+function WrappedScreenContent({ initialSelection }: Readonly<{
+  initialSelection: WrappedRouteSelection
+}>) {
+  const insets = useSafeAreaInsets()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const { profile } = useProfile()
-  const [selection, setSelection] = useState<{ period: RecapSharePeriod; closedMonth: ClosedMonth | null }>(() => ({
-    period: notifiedMonth ? 'month' : 'week',
-    closedMonth: notifiedMonth,
-  }))
+  const [selection, setSelection] = useState(initialSelection)
   const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isRetrying, setIsRetrying] = useState(false)
   const { recap, slides, isEmpty, isLoading, isError, refetch } = useWrapped(period, {
     active: isPlaying,
     closedMonth,
   })
 
   function selectPeriod(next: RecapSharePeriod) {
-    setSelection({ period: next, closedMonth: null })
+    setSelection({ period: next })
     setIsPlaying(false)
   }
 
-  if (isPlaying && recap) {
+  function startPlayer() {
+    if (!recap || isEmpty) return
+    setIsPlaying(true)
+  }
+
+  async function retryCover() {
+    setIsRetrying(true)
+    try {
+      await refetch()
+    } finally {
+      setIsRetrying(false)
+    }
+  }
+
+  const coverState = isLoading || isRetrying
+    ? 'loading'
+    : isError
+      ? 'failed'
+      : isEmpty
+        ? 'empty'
+        : recap
+          ? 'ready'
+          : 'loading'
+
+  if (isPlaying && recap && !isEmpty) {
     return (
       <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
         <WrappedPlayer
           slides={slides}
           recap={recap}
           period={period}
+          closedMonth={closedMonth}
           tokens={tokens}
-          displayName={profile?.name ?? undefined}
           onClose={() => setIsPlaying(false)}
         />
       </View>
@@ -67,19 +100,21 @@ function WrappedScreenContent({ notifiedMonth }: Readonly<{ notifiedMonth: Close
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
-      <AppBar back onBack={() => goBackOrFallback('/profile')} backLabel={t('wrapped.back')} />
+    <View style={[styles.safeArea, { backgroundColor: tokens.bg, paddingTop: insets.top }]}>
+      <AppBar
+        title=""
+        titleIsHeading={false}
+        backLabel={backLabel}
+        onBack={() => goBackOrFallback('/profile')}
+      />
       <WrappedCover
         tokens={tokens}
         period={period}
         onSelectPeriod={selectPeriod}
-        isLoading={isLoading}
-        isError={isError}
-        isEmpty={isEmpty}
-        canStart={!!recap && !isEmpty}
-        onStart={() => setIsPlaying(true)}
-        onRetry={() => void refetch()}
+        state={coverState}
+        onStart={startPlayer}
+        onRetry={() => void retryCover()}
       />
-    </SafeAreaView>
+    </View>
   )
 }

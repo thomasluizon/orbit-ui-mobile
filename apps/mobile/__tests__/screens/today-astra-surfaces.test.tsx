@@ -1,0 +1,465 @@
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import type { ProactiveItem } from '@orbit/shared/types/proactive'
+import { View } from 'react-native'
+import React from 'react'
+import { measureSafeArea, type GeometryTree } from '../support/safe-area-geometry'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import TodayScreen from '@/app/(tabs)/index'
+import { useUIStore } from '@/stores/ui-store'
+vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: vi.fn(async () => {}) }) }))
+
+const mocks = vi.hoisted(() => ({
+  habit: { id: 'habit-1', parentId: null, title: 'Walk' } as NormalizedHabit,
+  habitListProps: null as Record<string, unknown> | null,
+  routerPush: vi.fn(),
+  lastCompletionDate: undefined as string | null | undefined,
+  noHabits: false,
+  hasData: true,
+  isFetching: false,
+  isError: false,
+  geometry: false,
+  profileReady: true,
+  hasProAccess: true,
+  timeZone: 'UTC',
+  today: '2026-08-29',
+  selectedDay: null as string | null,
+  proactiveItem: null as ProactiveItem | null,
+}))
+
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: vi.fn(() => Promise.resolve(null)),
+    setItem: vi.fn(() => Promise.resolve()),
+    removeItem: vi.fn(() => Promise.resolve()),
+  },
+}))
+vi.mock('expo-router', () => ({
+  useRouter: () => ({ push: mocks.routerPush }),
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    React.useEffect(callback, [callback])
+  },
+}))
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string, values?: { days: number }) =>
+    values ? `${key}:${values.days}` : key }),
+}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/utils')>(),
+  parseShowGeneralOnTodayPreference: () => false,
+}))
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate, hasProAccess: mocks.hasProAccess, aiSummaryEnabled: false, language: 'en' } : undefined }),
+}))
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: mocks.proactiveItem, openItem: vi.fn() }),
+}))
+vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
+vi.mock('@/hooks/use-habits', () => ({
+  EMPTY_HABITS_BY_ID: new Map(),
+  useHabits: () => ({
+    data: mocks.hasData ? { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]) } : undefined,
+    isLoading: !mocks.hasData && mocks.isFetching,
+    isFetching: mocks.isFetching,
+    isError: mocks.isError,
+    refetch: vi.fn(),
+  }),
+}))
+vi.mock('@/components/habit-list', () => ({
+  HabitList: React.forwardRef((props: Record<string, unknown>, _ref) => {
+    mocks.habitListProps = props
+    return React.createElement(
+      React.Fragment,
+      null,
+      props.listHeader as React.ReactNode,
+      React.createElement('HabitList', { testID: 'today-list-surface', style: { height: 68 } }),
+    )
+  }),
+}))
+vi.mock('@/components/habits/selection-tray', () => ({ SelectionTray: () => null }))
+vi.mock('@/components/today/today-date-control', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/today/today-date-control')>()
+  return { TodayDateControl: (props: React.ComponentProps<typeof original.TodayDateControl>) => mocks.geometry
+    ? <original.TodayDateControl {...props} /> : React.createElement(React.Fragment, null, props.beforeDate, React.createElement('TodayDate', { date: mocks.today })) }
+})
+vi.mock('@/components/shell/shell-header-slot', () => ({ useShellHeaderSlot: () => true }))
+vi.mock('@/components/today/today-modals', () => ({ TodayModals: () => null }))
+vi.mock('@/components/today/today-astra', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/today/today-astra')>()
+  return {
+    TodayAstra: (props: { today: string; isTodaySelected: boolean; suppressed: boolean }) =>
+      React.createElement(React.Fragment, null,
+        React.createElement('TodayAstraMock', { suppressed: props.suppressed, style: { display: 'none' } }),
+        React.createElement(original.TodayAstra, props),
+      ),
+  }
+})
+vi.mock('@/app/(tabs)/use-today-motion', () => ({
+  useTodayMotion: () => ({
+    dayAnimatedStyle: {},
+    refetchAnimatedStyle: {},
+    bulkBarAnimatedStyle: {},
+    renderBulkActionBar: false,
+  }),
+}))
+vi.mock('@/components/shell/shell-composer-slot', () => ({ useShellComposerSlot: () => {} }))
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/theme')>(),
+  createTokensV2: () => ({ bg: '#111111', fg1: '#ffffff', fg2: '#eeeeee', fg3: '#aaaaaa' }),
+}))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }),
+}))
+vi.mock('@/app/(tabs)/use-today-date', () => ({
+  useTodayDate: () => ({
+    dateStr: mocks.selectedDay ?? mocks.today,
+    today: mocks.today,
+    selectedDate: new Date('2026-08-29T12:00:00Z'),
+    dayName: 'Saturday',
+    numericDate: '29',
+    nextDisabled: true,
+    goToPreviousDay: vi.fn(),
+    goToToday: vi.fn(),
+    goToNextDay: vi.fn(),
+  }),
+}))
+vi.mock('@/app/(tabs)/use-today-selection', () => ({
+  useTodaySelection: () => ({
+    selectedCount: 0,
+    allSelected: false,
+    handleSelectAll: vi.fn(),
+    handleDeselectAll: vi.fn(),
+    handleOpenBulkLog: vi.fn(),
+    handleOpenBulkSkip: vi.fn(),
+    handleOpenBulkDelete: vi.fn(),
+    clearSelection: vi.fn(),
+    handleToggleSelectMode: vi.fn(),
+  }),
+}))
+
+const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
+
+const mountedTrees: { unmount: () => void }[] = []
+function createTestTree(node: React.ReactElement) {
+  const tree = TestRenderer.create(node)
+  mountedTrees.push(tree as typeof tree & { unmount: () => void })
+  return tree
+}
+afterEach(async () => {
+  await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.unmount() })
+})
+
+function isSuppressed(tree: ReturnType<typeof TestRenderer.create>): boolean {
+  const astra = tree.root.findAll((node) => String(node.type) === 'TodayAstraMock')[0]
+  if (!astra) throw new Error('Today Astra did not render')
+  return astra.props.suppressed === true
+}
+
+describe('mobile Today Astra owned surfaces', () => {
+  it.each(['past day', 'create', 'edit', 'select', 'list', 'first load', 'load error'])('withholds the reachable daily summary during %s', async (state) => {
+    mocks.hasProAccess = false
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+    const upgrade = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'summary.freePrompt')
+    try {
+      expect(upgrade()).toHaveLength(1)
+      await TestRenderer.act(() => {
+        if (state === 'past day') mocks.selectedDay = '2026-08-28'
+        if (state === 'create') (mocks.habitListProps?.onCreatePress as () => void)()
+        if (state === 'edit') (mocks.habitListProps?.onEditHabit as (habit: NormalizedHabit) => void)(mocks.habit)
+        if (state === 'select') useUIStore.setState({ isSelectMode: true })
+        if (state === 'list') (mocks.habitListProps?.onSurfaceOpenChange as (open: boolean) => void)(true)
+        mocks.hasData = state !== 'first load' && state !== 'load error'
+        mocks.isFetching = state === 'first load'
+        mocks.isError = state === 'load error'
+        tree.update(<TodayScreen />)
+      })
+      expect(upgrade()).toHaveLength(0)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('gives the unread check-in the only insight slot ahead of the free summary', async () => {
+    mocks.hasProAccess = false
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+    try {
+      const upgrade = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'summary.freePrompt')
+      expect(upgrade).toHaveLength(0)
+      expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in').length).toBeGreaterThan(0)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([320, 412, 840, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
+    'scales only the single Astra slot gap at $width and $fontScale text scale', async ({ width, fontScale }) => {
+      const native = await import('react-native')
+      const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
+      mocks.geometry = true
+      mocks.hasProAccess = false
+      mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
+      let tree!: GeometryTree
+      await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+      const measure = () => measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+        ? 'date' : host.props.testID === 'habit-view-switch' ? 'views' : host.props.testID === 'today-astra-slot' ? 'line'
+          : host.props.testID === 'today-list-surface' ? 'list' : undefined, { width, height: 915 })
+      const expectSlot = (label: string) => {
+        const slots = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'today-astra-slot')
+        expect(slots).toHaveLength(1)
+        expect(slots[0]!.props.accessibilityLabel).toBe(label)
+        const geometry = measure()
+        expect(geometry.get('date')!.top - geometry.get('line')!.bottom).toBe(24 * fontScale)
+        expect(geometry.get('list')!.top - geometry.get('date')!.bottom).toBe(24)
+        expect(geometry.get('line')!.top - geometry.get('views')!.bottom).toBe(24)
+      }
+      try {
+        expectSlot('Check in')
+        mocks.proactiveItem = null
+        await TestRenderer.act(() => tree.update(<TodayScreen />))
+        expectSlot('summary.freePrompt')
+        mocks.hasProAccess = true
+        await TestRenderer.act(() => tree.update(<TodayScreen />))
+        expect(measure().has('line')).toBe(false)
+        const withoutLine = measure()
+        expect(withoutLine.get('date')!.top - withoutLine.get('views')!.bottom).toBe(24)
+        expect(withoutLine.get('list')!.top - withoutLine.get('date')!.bottom).toBe(24)
+      } finally { await TestRenderer.act(() => tree.unmount()); dimensions.mockRestore() }
+    },
+  )
+
+  it.each([320, 412, 840, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [
+    { date: '2026-08-22', boundary: 'lastLoggable' },
+    { date: '2026-08-21', boundary: 'readOnly' },
+    { date: '2026-08-30', boundary: 'future' },
+    { date: '2026-08-28', boundary: null },
+    { date: '2026-08-29', boundary: null },
+  ].map((day) => ({ width, fontScale, ...day })))))(
+    'keeps the date notice and list gaps fixed for $date at $width and $fontScale text scale', async ({ width, fontScale, date, boundary }) => {
+      const native = await import('react-native')
+      const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
+      mocks.geometry = true
+      let tree!: GeometryTree
+      await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+      try {
+        await TestRenderer.act(() => {
+          mocks.selectedDay = date
+          tree.update(<TodayScreen />)
+        })
+        const notices = tree.root.findAll((node) => node.type === View && node.props.testID === 'capacity-notice')
+        expect(notices).toHaveLength(boundary ? 1 : 0)
+        const geometry = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+          ? 'date' : host.props.testID === 'capacity-notice' ? 'notice'
+            : host.props.testID === 'today-list-surface' ? 'list' : undefined,
+        { width, height: 915 })
+        if (boundary) {
+          expect(notices[0]!.findAll((node) => node.type === native.Text).map((node) => node.props.children)).toEqual([`habits.todayBoundary.${boundary}`])
+          expect(geometry.get('notice')!.top - geometry.get('date')!.bottom).toBe(24)
+          expect(geometry.get('list')!.top - geometry.get('notice')!.bottom).toBe(24)
+        } else {
+          expect(geometry.get('list')!.top - geometry.get('date')!.bottom).toBe(24)
+        }
+      } finally { await TestRenderer.act(() => tree.unmount()); dimensions.mockRestore() }
+    },
+  )
+
+  beforeEach(() => {
+    mocks.habitListProps = null
+    mocks.routerPush.mockReset()
+    mocks.lastCompletionDate = undefined
+    mocks.noHabits = false
+    mocks.hasData = true
+    mocks.isFetching = false
+    mocks.isError = false
+    mocks.geometry = false
+    mocks.hasProAccess = true
+    mocks.profileReady = true
+    mocks.timeZone = 'UTC'
+    mocks.today = '2026-08-29'
+    mocks.selectedDay = null
+    mocks.proactiveItem = null
+    useUIStore.setState({
+      showCreateModal: false,
+      isSelectMode: false,
+      selectedHabitIds: new Set(),
+    })
+  })
+
+  it('clears the line when current returns no item after the owning Today date rolls over', async () => {
+    mocks.timeZone = 'America/Sao_Paulo'
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in', localDate: '2026-08-29' })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button').length).toBeGreaterThan(0)
+
+    mocks.today = '2026-08-30'
+    mocks.proactiveItem = null
+    await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button')).toHaveLength(0)
+    expect(tree.root.findAll((node) => String(node.type) === 'TodayDate')[0]?.props.date).toBe('2026-08-30')
+  })
+
+  it.each([
+    ['create', (props: Record<string, unknown>) => (props.onCreatePress as () => void)()],
+    ['edit', (props: Record<string, unknown>) => (props.onEditHabit as (habit: NormalizedHabit) => void)(mocks.habit)],
+  ])('stands down while the %s surface is open', async (_surface, openSurface) => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
+    expect(isSuppressed(tree)).toBe(false)
+
+    await TestRenderer.act(async () => {
+      openSurface(mocks.habitListProps ?? {})
+      await Promise.resolve()
+    })
+
+    expect(isSuppressed(tree)).toBe(true)
+  })
+
+  it('keeps the same proactive line and header geometry throughout a habits refetch', async () => {
+    mocks.geometry = true
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as GeometryTree })
+    const findLine = () => tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in')[0]
+    const measure = () => measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+      ? 'date' : host.props.accessibilityLabel === 'Check in' ? 'line' : undefined)
+    const line = findLine()
+    expect(line).toBeDefined()
+    const resting = measure()
+    try {
+      mocks.isFetching = true
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+
+      expect(findLine()).toBe(line)
+      expect(measure()).toEqual(resting)
+
+      mocks.isFetching = false
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+
+      expect(findLine()).toBe(line)
+      expect(measure()).toEqual(resting)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('keeps the FAB available through refetch failure with retained habits', async () => {
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as GeometryTree })
+    try {
+      expect(useUIStore.getState().todayFabHidden).toBe(false)
+      mocks.isFetching = true
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(useUIStore.getState().todayFabHidden).toBe(false)
+      mocks.isFetching = false
+      mocks.isError = true
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(useUIStore.getState().todayFabHidden).toBe(false)
+      mocks.hasData = false
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(useUIStore.getState().todayFabHidden).toBe(true)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each(['first load', 'load error', 'select mode', 'list surface'])(
+    'withholds the proactive line during %s', async (state) => {
+      mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
+      mocks.hasData = state !== 'first load' && state !== 'load error'
+      mocks.isFetching = state === 'first load'
+      mocks.isError = state === 'load error'
+      useUIStore.setState({ isSelectMode: state === 'select mode' })
+      let tree!: GeometryTree
+      await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as GeometryTree })
+      try {
+        if (state === 'list surface') {
+          await TestRenderer.act(() => {
+            (mocks.habitListProps?.onSurfaceOpenChange as (open: boolean) => void)(true)
+          })
+        }
+        expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in')).toHaveLength(0)
+      } finally { await TestRenderer.act(() => tree.unmount()) }
+    },
+  )
+
+  it.each([
+    ['2026-08-26', true],
+    [null, false],
+    [undefined, false],
+  ])('shows returning guidance with zero habits only for a qualifying completion: %s', async (lastCompletionDate, visible) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
+    mocks.lastCompletionDate = lastCompletionDate
+    mocks.noHabits = true
+
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    const returning = tree.root.findAll((node) =>
+      node.props.children === 'todayAstra.returningElapsed:3',
+    )
+    expect(returning.length > 0).toBe(visible)
+    vi.useRealTimers()
+  })
+
+  it('routes detail into the habit flow instead of opening a Today surface', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    await TestRenderer.act(async () => {
+      const openDetail = (mocks.habitListProps?.onDetailHabit as (habit: NormalizedHabit) => void)
+      openDetail(mocks.habit)
+      await Promise.resolve()
+    })
+
+    expect(mocks.routerPush).toHaveBeenCalledWith({
+      pathname: '/habits/[id]',
+      params: { id: 'habit-1', date: '2026-08-29', from: 'today' },
+    })
+    expect(isSuppressed(tree)).toBe(false)
+  })
+  it('keeps 24 between the proactive line and date control and clears the absent line', async () => {
+    mocks.geometry = true
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = createTestTree(<View><TodayScreen /></View>) as GeometryTree })
+    const measure = () => measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+      ? 'date' : host.props.testID === 'habit-view-switch' ? 'views' : host.props.accessibilityLabel === 'Check in' ? 'line'
+        : host.children?.some((child) => typeof child !== 'string' && child.props.testID === 'today-date-row') ? 'header' : undefined)
+    try {
+      const visible = measure()
+      expect(visible.get('date')!.top - visible.get('line')!.bottom).toBe(24)
+      mocks.proactiveItem = null
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(measure().has('line')).toBe(false)
+      const absent = measure()
+      expect(absent.get('date')!.top - absent.get('views')!.bottom).toBe(24)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('separates the profile date placeholder from the habit placeholders by 24', async () => {
+    mocks.profileReady = false
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = createTestTree(<View><TodayScreen /></View>) as GeometryTree })
+    try {
+      let firstHabitFound = false
+      const firstLayout = measureSafeArea(tree.toJSON(), (host) => {
+        if (host.props.testID === 'skeleton-unit-settings') return 'date'
+        if (host.props.testID === 'skeleton-unit-habit-row' && !firstHabitFound) { firstHabitFound = true; return 'habit' }
+        return undefined
+      })
+      expect(firstLayout.get('habit')!.top - firstLayout.get('date')!.bottom).toBe(24)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+})

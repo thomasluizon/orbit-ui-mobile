@@ -1,359 +1,244 @@
-import { useMemo, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  ActivityIndicator,
-} from "react-native";
-import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
-import { ShieldAlert } from "lucide-react-native";
-import { useTranslation } from "react-i18next";
-import type { AgentExecuteOperationResponse, PendingAgentOperation } from "@orbit/shared/types";
-import {
-  getAgentCapabilityLabelKey,
-  getAgentPolicyReasonKey,
-} from "@orbit/shared/utils";
-import { Badge } from "@/components/ui/badge";
-import { PillButton } from "@/components/ui/pill-button";
-import { createTokensV2 } from '@/lib/theme';
-import { useAppTheme } from "@/lib/use-app-theme"
+import { toTime24 } from '@orbit/shared/utils'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { ActionRow } from '@/components/ui/action-row'
+import { TimeField } from '@/components/ui/time-field'
+import { useTimeFormat } from '@/hooks/use-time-format'
+import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
+import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
+import { useTranslation } from 'react-i18next'
+import { Pressable, Text, View, useWindowDimensions } from 'react-native'
+import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { OtpInput } from '@/components/ui/otp-input'
+import { Button } from '@/components/ui/pill-button'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { StepUp } from '@/components/ui/step-up'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
+import { XCircle, X } from '@/components/ui/icons'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { SPACING, TOUCH_TARGET_MIN, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
+import { createTokensV2 } from '@/lib/theme'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { RadioRow } from '@/components/ui/select-check'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { MAX_CHECKLIST_ITEMS, MAX_SCHEDULED_REMINDERS } from '@orbit/shared/validation'
 
-type AppTokens = ReturnType<typeof createTokensV2>;
-
-const CARD_EXIT = new Keyframe({
-  0: { opacity: 1, transform: [{ translateY: 0 }] },
-  100: { opacity: 0, transform: [{ translateY: -4 }] },
-})
-  .duration(160)
-  .reduceMotion(ReduceMotion.System);
-
-type PendingOperationExecutionResult = {
-  ok: boolean;
-  error?: string;
-  response?: AgentExecuteOperationResponse;
-};
-
-interface PendingOperationCardProps {
-  pendingOperation: PendingAgentOperation;
-  onConfirmExecute: (pendingOperationId: string) => Promise<PendingOperationExecutionResult>;
-  onPrepareStepUp: (
-    pendingOperationId: string,
-  ) => Promise<{ ok: boolean; error?: string; challengeId?: string; confirmationToken?: string }>;
-  onVerifyStepUp: (
-    pendingOperationId: string,
-    challengeId: string,
-    code: string,
-    confirmationToken: string,
-  ) => Promise<PendingOperationExecutionResult>;
+function ListRowFields({ field, row, rowLabel, labels, busy, change }: Readonly<{
+  field: string
+  row: Record<string, unknown>
+  rowLabel: string
+  labels: PendingOperationEditSheetProps['labels']
+  busy: boolean
+  change: (key: string, value: string | boolean) => void
+}>) {
+  if (field === 'checklist_items') return <>
+    <Input label={rowLabel} value={typeof row.text === 'string' ? row.text : ''} onChange={(next) => change('text', next)} disabled={busy} />
+    <Switch label={`${rowLabel}: ${labels.checked}`} checked={row.is_checked === true} onChange={(next) => change('is_checked', next)} disabled={busy} />
+  </>
+  if (field === 'scheduled_reminders') return <>
+    <RadioGroup accessibilityLabel={`${rowLabel}: ${labels.reminderWhen}`}>
+    {busy ? <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} onSelect={() => change('when', 'same_day')} />}
+    {busy ? <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} onSelect={() => change('when', 'day_before')} />}
+    </RadioGroup>
+    <TimeField label={`${rowLabel}: ${labels.reminderTime}`} value={toTime24(typeof row.time === 'string' ? row.time : '')} onChange={(next) => change('time', next)} disabled={busy} />
+  </>
+  return <Input label={rowLabel} value={typeof row.value === 'string' || typeof row.value === 'number' ? String(row.value) : ''} onChange={(next) => change('value', next)} disabled={busy} kind="number" />
 }
 
-function getRiskLabelKey(
-  riskClass: PendingAgentOperation["riskClass"],
-): "chat.pendingOp.risk.high" | "chat.pendingOp.risk.destructive" | "chat.pendingOp.risk.low" {
-  switch (riskClass) {
-    case "High":
-      return "chat.pendingOp.risk.high";
-    case "Destructive":
-      return "chat.pendingOp.risk.destructive";
-    default:
-      return "chat.pendingOp.risk.low";
+function ListFieldEditor({ field, value, labels, busy, error, onChange }: Readonly<{
+  field: string
+  value: string
+  labels: PendingOperationEditSheetProps['labels']
+  busy: boolean
+  error: string | undefined
+  onChange: (value: string) => void
+}>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const fieldLabel = labels.fieldLabels[field] ?? field
+  const rows = pendingOperationListRows(value)
+  const limit = field === 'checklist_items' ? MAX_CHECKLIST_ITEMS : field === 'scheduled_reminders' ? MAX_SCHEDULED_REMINDERS : undefined
+  const atLimit = limit !== undefined && rows.length >= limit
+  return <View style={{ gap: 12 }}>
+    <Text style={{ color: tokens.fg1 }}>{fieldLabel}</Text>
+    {error ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{labels.invalid}</Text> : null}
+    {rows.map((entry, index) => {
+      const row = typeof entry === 'object' && entry !== null ? entry as Record<string, unknown> : { value: entry }
+      const rowLabel = `${fieldLabel} ${index + 1}`
+      return <View key={`${field}-${index}`} style={{ gap: 8 }}>
+        <View style={{ alignItems: 'flex-end' }}><RemoveItemButton label={`${labels.remove} ${rowLabel}`} disabled={busy} onClick={() => onChange(removePendingOperationListRow(value, index))} /></View>
+        <ListRowFields field={field} row={row} rowLabel={rowLabel} labels={labels} busy={busy} change={(key, next) => onChange(changePendingOperationListRow(value, index, key, next))} />
+      </View>
+    })}
+    <Button size="sm" variant="ghost" disabled={busy || atLimit} onClick={() => onChange(addPendingOperationListRow(value, field))}>{labels.addListRow}</Button>
+    {atLimit ? <Text style={{ color: tokens.fg2 }}>{field === 'checklist_items' ? labels.checklistLimit : labels.scheduledLimit}</Text> : null}
+  </View>
+}
+
+function RemoveItemButton({ label, disabled, onClick }: Readonly<{ label: string; disabled: boolean; onClick: () => void }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <Pressable
+    accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }}
+    disabled={disabled} onPress={onClick}
+    style={({ pressed }) => ({ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}
+  ><X accessible={false} color={tokens.fg2} size={20} strokeWidth={1.5} /></Pressable>
+}
+
+
+function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, error, onSelectItem, onChange, onClose, onSave }: Readonly<PendingOperationEditSheetProps>) {
+  const { sheetRef, closeSheet } = useSheetHost()
+  const [query, setQuery] = useState('')
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const editableItems = items.filter((entry) => entry.fields.some(isPendingOperationEditableField))
+  const showSearch = editableItems.length > PENDING_OPERATION_ITEM_SEARCH_THRESHOLD
+  useEffect(() => { if (stale) closeSheet(onClose, onClose) }, [stale, closeSheet, onClose])
+  const save = async () => { if (await onSave()) closeSheet(onClose) }
+  return <Sheet
+    ref={sheetRef}
+    title={`${labels.editTitle}: ${item.entityName}`}
+    titleMode="typed"
+    onClose={() => { if (!busy) onClose() }}
+    actions={<ActionRow>
+      <Button size="sm" variant="ghost" disabled={busy} onClick={() => closeSheet(onClose)}>{labels.cancel}</Button>
+      <Button size="sm" disabled={busy} onClick={() => void save()}>{labels.save}</Button>
+    </ActionRow>}
+  >
+    <View style={{ gap: 16 }}>
+      {editableItems.length > 1 ? <View style={{ gap: 8 }}>{showSearch ? <Input label={labels.search} value={query} onChange={setQuery} disabled={busy} /> : null}<RadioGroup accessibilityLabel={labels.editTitle}>{editableItems.filter((entry) => !showSearch || entry.entityName.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((entry) =>
+        busy
+          ? <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} disabled reason={labels.acting} />
+          : <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></View> : null}
+      {item.fields.filter(isPendingOperationEditableField).map((field) => {
+        const label = labels.fieldLabels[field.field] ?? field.field
+        if (field.field === 'checklist_items' || field.field === 'reminder_times' || field.field === 'scheduled_reminders') return <ListFieldEditor key={field.field} field={field.field} value={draft[field.field] ?? '[]'} labels={labels} busy={busy} error={error} onChange={(value) => onChange(field.field, value)} />
+        if (field.valueType === 'boolean') return <Switch key={field.field} label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} />
+        if (field.field === 'days') {
+          const days = (draft.days ?? '').split(',').map((day) => day.trim())
+          return <View key={field.field} style={{ gap: 8 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{PENDING_OPERATION_WEEKDAYS.map((day) => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: days.includes(day), disabled: busy }} disabled={busy} onPress={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s12, justifyContent: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1.5, borderColor: days.includes(day) ? tokens.primary : tokens.hairlineStrong, backgroundColor: pressed ? tokens.bgHover : days.includes(day) ? tokens.selectionBg : 'transparent' })}><Text style={{ color: tokens.fg1 }}>{labels.dayLabels[day]}</Text></Pressable>)}</View></View>
+        }
+        if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={toTime24(draft[field.field])} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
+        return <Input
+          key={field.field}
+          label={label}
+          value={draft[field.field] ?? ''}
+          onChange={(value) => onChange(field.field, value)}
+          disabled={busy}
+          kind={field.valueType === 'number' ? 'number' : undefined}
+          error={error ? labels.invalid : undefined}
+        />
+      })}
+      {error && item.fields.every((field) => field.valueType === 'action' || field.valueType === 'boolean' || field.field === 'days') ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{labels.invalid}</Text> : null}
+    </View>
+  </Sheet>
+}
+
+function StepUpVerificationSheet({
+  open,
+  onClosed,
+  pendingOperationId,
+  prepared,
+  onClose,
+  onCompleted,
+  onVerify,
+}: Readonly<PendingOperationVerificationProps>) {
+  const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
+  const openRef = useRef(open)
+  useLayoutEffect(() => { openRef.current = open }, [open])
+  useEffect(() => {
+    if (!open) closeSheet(onClosed, onClosed)
+  }, [open, onClosed, closeSheet])
+  const completed: PendingOperationVerificationProps['onCompleted'] = (result) => {
+    if (openRef.current) closeSheet(() => onCompleted(result), () => onCompleted(result))
   }
+  const { code, error, setCode, verifying, verify } = usePendingOperationStepUpVerification({
+    genericError: t('stepUp.genericError'),
+    onCompleted: completed,
+    onVerify,
+    pendingOperationId,
+    prepared,
+  })
+
+  return (
+    <Sheet
+      ref={sheetRef}
+      title={t('stepUp.title')}
+      onClose={open ? onClose : onClosed}
+      actions={<ActionRow>
+        <Button size="sm" variant="ghost" disabled={!open} onClick={() => { if (open) closeSheet() }}>{t('common.cancel')}</Button>
+        <Button size="sm" loading={verifying} disabled={!open || code.length !== 6} onClick={() => { if (open) void verify() }}>{t('stepUp.confirm')}</Button>
+      </ActionRow>}
+    >
+      <OtpInput label={t('stepUp.codeLabel')} value={code} onChange={setCode} error={error} hint={t('stepUp.codeHint')} disabled={verifying || !open} />
+      <Text>{t('stepUp.neverShare')}</Text>
+    </Sheet>
+  )
 }
 
-function resolveExecutionError(
-  result: PendingOperationExecutionResult,
-  translate: (key: string) => string,
-  fallback: string,
-): string {
-  const reasonKey = getAgentPolicyReasonKey(
-    result.response?.operation.policyReason ?? result.response?.policyDenial?.reason,
-  );
-  if (reasonKey) return translate(reasonKey);
-  return result.error ?? fallback;
+const pendingOperationRenderers = {
+  blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PersonalTextDetails outset proposed={item.proposed}>{item.label}</PersonalTextDetails> : item.label }))} />,
+  button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
+  confirmSheet: (props) => <ConfirmSheet {...props} />,
+  stepUp: (props) => <View style={{ flexBasis: '100%', minWidth: 0 }}><StepUp {...props} /></View>,
+  verification: (props) => <StepUpVerificationSheet {...props} />,
+  editSheet: (props) => <EditPendingOperationSheet {...props} />,
+  removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
+  notice: (message) => <PreviewNotice message={message} />,
+  rejected: (message) => <RejectedPreview message={message} />,
+} satisfies PendingOperationCardRenderers
+
+function PreviewNotice({ message }: Readonly<{ message: string }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <Text accessibilityRole="text" accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }}>{message}</Text>
+}
+
+function PreviewButton({ label, variant, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
+  const { width } = useWindowDimensions()
+  return <Button size="sm" variant={variant === 'primary' && width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : variant} {...props}>{label}</Button>
+}
+
+function RejectedPreview({ message }: Readonly<{ message: string }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <View style={message ? { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: SPACING.s12, borderRadius: 12, backgroundColor: tokens.bgWell } : { position: 'absolute', height: 0, overflow: 'hidden' }}>
+    {message ? <XCircle accessible={false} color={tokens.fg3} size={20} strokeWidth={1.5} /> : null}
+    <Text testID="preview-rejection-status" accessibilityLiveRegion="polite" style={{ flex: message ? 1 : undefined, color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }}>{message}</Text>
+  </View>
 }
 
 export function PendingOperationCard({
   pendingOperation,
   onConfirmExecute,
+  onRevise,
+  onRefresh,
+  onOpenTarget,
   onPrepareStepUp,
   onVerifyStepUp,
-}: Readonly<PendingOperationCardProps>) {
-  const { t } = useTranslation();
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  );
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [verificationCode, setVerificationCode] = useState("");
-  const [challengeId, setChallengeId] = useState<string | null>(null);
-  const confirmationTokenRef = useRef<string | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  focusTitleOnMount,
+  savedState,
+  onStateChange,
+}: Readonly<PendingOperationCardAdapterProps>) {
+  const { t, i18n } = useTranslation()
+  const { displayTime } = useTimeFormat()
 
-  const needsStepUp = pendingOperation.confirmationRequirement === "StepUp";
-  const riskLabel = t(getRiskLabelKey(pendingOperation.riskClass));
-  const capabilityLabelKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId);
-  const operationName = capabilityLabelKey
-    ? t(capabilityLabelKey)
-    : pendingOperation.displayName;
-  const operationSummary = t("chat.pendingOp.summary", { name: operationName });
-
-  async function handleStart() {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      if (needsStepUp) {
-        const result = await onPrepareStepUp(pendingOperation.id);
-        if (!result.ok || !result.challengeId || !result.confirmationToken) {
-          setError(result.error ?? t("chat.sendError"));
-          return;
-        }
-
-        confirmationTokenRef.current = result.confirmationToken;
-        setChallengeId(result.challengeId);
-        return;
-      }
-
-      const result = await onConfirmExecute(pendingOperation.id);
-      if (!result.ok) {
-        setError(result.error ?? t("chat.sendError"));
-        return;
-      }
-
-      if (result.response && result.response.operation.status !== "Succeeded") {
-        setError(resolveExecutionError(result, t, t("chat.sendError")));
-        return;
-      }
-
-      setSuccessMessage(t("chat.pendingOp.confirmed"));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleVerify() {
-    const confirmationToken = confirmationTokenRef.current;
-    if (!challengeId || !confirmationToken || verificationCode.trim().length < 6) {
-      setError(t("auth.genericError"));
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await onVerifyStepUp(
-        pendingOperation.id,
-        challengeId,
-        verificationCode.trim(),
-        confirmationToken,
-      );
-
-      if (!result.ok) {
-        setError(result.error ?? t("chat.sendError"));
-        return;
-      }
-
-      if (result.response && result.response.operation.status !== "Succeeded") {
-        setError(resolveExecutionError(result, t, t("chat.sendError")));
-        return;
-      }
-
-      setSuccessMessage(t("chat.pendingOp.confirmed"));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (dismissed) {
-    return null;
-  }
-
-  return (
-    <Animated.View exiting={CARD_EXIT} style={styles.card}>
-      <View style={styles.header}>
-        <View style={styles.iconWell}>
-          <ShieldAlert size={20} color={tokens.statusOverdue} strokeWidth={1.8} />
-        </View>
-        <View style={styles.headerText}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>{operationName}</Text>
-            <Badge tone="amber">{riskLabel}</Badge>
-          </View>
-          <Text style={styles.summary}>{operationSummary}</Text>
-        </View>
-      </View>
-
-      {challengeId && !successMessage ? (
-        <View style={styles.verificationBlock}>
-          <TextInput
-            value={verificationCode}
-            onChangeText={(value) =>
-              setVerificationCode(value.replace(/\D/g, "").slice(0, 6))
-            }
-            placeholder={t("common.codePlaceholder")}
-            placeholderTextColor={tokens.fg3}
-            keyboardType="number-pad"
-            maxLength={6}
-            style={styles.codeInput}
-          />
-          <PillButton
-            style={styles.compactPill}
-            disabled={isLoading || verificationCode.trim().length < 6}
-            onPress={() => {
-              void handleVerify();
-            }}
-            leading={
-              isLoading ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
-            }
-          >
-            <Text style={styles.primaryPillLabel}>{t("auth.verify")}</Text>
-          </PillButton>
-          <Text style={styles.helper}>{t("auth.codeSent")}</Text>
-        </View>
-      ) : null}
-
-      {!challengeId && !successMessage ? (
-        <View style={styles.actions}>
-          <PillButton
-            style={styles.confirmPill}
-            disabled={isLoading}
-            onPress={() => {
-              void handleStart();
-            }}
-            leading={
-              isLoading ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
-            }
-          >
-            <Text style={styles.primaryPillLabel}>
-              {needsStepUp ? t("auth.sendCode") : t("common.confirm")}
-            </Text>
-          </PillButton>
-          <PillButton
-            variant="ghost"
-            style={styles.cancelPill}
-            disabled={isLoading}
-            accessibilityLabel={t("common.cancel")}
-            onPress={() => setDismissed(true)}
-          >
-            <Text style={styles.cancelPillLabel}>{t("common.cancel")}</Text>
-          </PillButton>
-        </View>
-      ) : null}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null}
-    </Animated.View>
-  );
-}
-
-function createStyles(tokens: AppTokens) {
-  return StyleSheet.create({
-    card: {
-      gap: 12,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgCard,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-    },
-    header: {
-      flexDirection: "row",
-      gap: 12,
-      alignItems: "center",
-    },
-    iconWell: {
-      width: 42,
-      height: 42,
-      borderRadius: 12,
-      backgroundColor: tokens.bgElev,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    headerText: {
-      flex: 1,
-      gap: 2,
-    },
-    headerRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 8,
-    },
-    title: {
-      flex: 1,
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 16,
-      color: tokens.fg1,
-    },
-    summary: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      lineHeight: 19,
-      color: tokens.fg3,
-    },
-    verificationBlock: {
-      gap: 10,
-    },
-    codeInput: {
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgField,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      color: tokens.fg1,
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 16,
-      letterSpacing: 4,
-      textAlign: "center",
-    },
-    compactPill: {
-      paddingVertical: 11,
-      alignSelf: "stretch",
-    },
-    actions: {
-      flexDirection: "row",
-      gap: 8,
-    },
-    confirmPill: {
-      flex: 1,
-      paddingVertical: 11,
-    },
-    cancelPill: {
-      paddingVertical: 11,
-      paddingHorizontal: 18,
-    },
-    cancelPillLabel: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.fg1,
-    },
-    primaryPillLabel: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.fgOnPrimary,
-    },
-    helper: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 11,
-      color: tokens.fg3,
-    },
-    error: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 12,
-      color: tokens.statusBadText,
-    },
-    success: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      color: tokens.statusDone,
-    },
-  });
+  return <SharedPendingOperationCard
+    pendingOperation={pendingOperation}
+    onConfirmExecute={onConfirmExecute}
+    onRevise={onRevise}
+    onRefresh={onRefresh}
+    onOpenTarget={onOpenTarget}
+    onPrepareStepUp={onPrepareStepUp}
+    onVerifyStepUp={onVerifyStepUp}
+    focusTitleOnMount={focusTitleOnMount}
+    savedState={savedState}
+    onStateChange={onStateChange}
+    render={pendingOperationRenderers}
+    labels={(operation) => buildPendingOperationCardLabels(operation, t, displayTime, i18n.language)}
+  />
 }

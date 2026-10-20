@@ -5,6 +5,7 @@ import type {
 } from '../types/habit'
 import { formatAPIDate } from './dates'
 import { fallbackChildOverdue } from './habit-normalization'
+import { isHabitLoggedOnDate } from './all-done'
 import {
   createHabitVisibilityHelpers,
   type HabitVisibilityOptions,
@@ -23,9 +24,10 @@ export interface NormalizedDrillDetail {
 export async function loadDrillChildren(
   habitId: string,
   fetchHabitDetail: (habitId: string) => Promise<HabitDetail>,
+  today = formatAPIDate(new Date()),
 ): Promise<NormalizedDrillDetail> {
   const detail = await fetchHabitDetail(habitId)
-  return normalizeHabitDetailForDrill(detail, formatAPIDate(new Date()))
+  return normalizeHabitDetailForDrill(detail, today)
 }
 
 /**
@@ -43,9 +45,23 @@ export function mergeDrillChildrenMap(
   return next
 }
 
-/** The detail endpoint scores a general child's completion for today; the dated list scores it for the selected date. */
-function selectedDateGeneralCompletion(listChild: NormalizedHabit): Partial<NormalizedHabit> {
-  return listChild.isGeneral ? { isCompleted: listChild.isCompleted } : {}
+function enrichDrillChild(
+  child: NormalizedHabit,
+  listChild: NormalizedHabit | undefined,
+  isSelectedDateToday: boolean,
+): NormalizedHabit {
+  return {
+    ...child,
+    ...(!listChild && !isSelectedDateToday ? { isOverdue: false } : {}),
+    ...(listChild ? {
+      scheduledDates: listChild.scheduledDates,
+      isLoggedInRange: listChild.isLoggedInRange,
+      instances: listChild.instances,
+      searchMatches: listChild.searchMatches,
+      isOverdue: listChild.isOverdue,
+      ...(listChild.isGeneral ? { isCompleted: listChild.isCompleted } : {}),
+    } : {}),
+  }
 }
 
 export function getVisibleDrillChildren(
@@ -58,29 +74,82 @@ export function getVisibleDrillChildren(
   const isSelectedDateToday = !options.selectedDate || options.selectedDate === today
   const habitsById = new Map(options.habitsById)
   const childrenByParent = new Map(options.childrenByParent)
+
   for (const [id, children] of drillChildrenMap) {
     childrenByParent.set(id, children.map((child) => child.id))
     for (const child of children) {
       const listChild = options.habitsById.get(child.id)
-      habitsById.set(child.id, {
-        ...child,
-        ...(!listChild && !isSelectedDateToday ? { isOverdue: false } : {}),
-        ...(listChild ? {
-          scheduledDates: listChild.scheduledDates,
-          isLoggedInRange: listChild.isLoggedInRange,
-          instances: listChild.instances,
-          searchMatches: listChild.searchMatches,
-          isOverdue: listChild.isOverdue,
-          ...selectedDateGeneralCompletion(listChild),
-        } : {}),
-      })
+      habitsById.set(child.id, enrichDrillChild(child, listChild, isSelectedDateToday))
     }
   }
+
   return createHabitVisibilityHelpers({
     ...options,
     habitsById,
     childrenByParent,
   }).getVisibleChildren(parentId, view)
+}
+
+export function canRevealCompletedDrillChildren(
+  parentId: string,
+  drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
+  options: HabitVisibilityOptions,
+  view: HabitVisibilityView,
+  today: string,
+): boolean {
+  if (options.showCompleted) return false
+  return getVisibleDrillChildren(parentId, drillChildrenMap, {
+    ...options,
+    showCompleted: true,
+  }, view, today).length > 0
+}
+
+export function countCompletedDrillChildren(
+  children: readonly NormalizedHabit[],
+  selectedDate: string,
+  recentlyCompletedDates?: ReadonlyMap<string, ReadonlySet<string>>,
+): number {
+  return children.filter((child) =>
+    isHabitLoggedOnDate(child, selectedDate) ||
+    (child.isGeneral && child.isCompleted) ||
+    (recentlyCompletedDates?.get(child.id)?.has(selectedDate) ?? false),
+  ).length
+}
+
+export function getRecentlyCompletedIdsForDate(
+  recentlyCompletedDates: ReadonlyMap<string, ReadonlySet<string>>,
+  selectedDate: string,
+): Set<string> {
+  const ids = new Set<string>()
+  for (const [id, dates] of recentlyCompletedDates) {
+    if (dates.has(selectedDate)) ids.add(id)
+  }
+  return ids
+}
+
+export function addRecentCompletion(
+  previous: ReadonlyMap<string, Set<string>>,
+  habitId: string,
+  date: string,
+): Map<string, Set<string>> {
+  const next = new Map(previous)
+  next.set(habitId, new Set(previous.get(habitId)).add(date))
+  return next
+}
+
+export function removeRecentCompletion(
+  previous: Map<string, Set<string>>,
+  habitId: string,
+  date: string,
+): Map<string, Set<string>> {
+  const dates = previous.get(habitId)
+  if (!dates?.has(date)) return previous
+  const next = new Map(previous)
+  const remainingDates = new Set(dates)
+  remainingDates.delete(date)
+  if (remainingDates.size > 0) next.set(habitId, remainingDates)
+  else next.delete(habitId)
+  return next
 }
 
 export function normalizeDrillDetailChild(
@@ -95,6 +164,7 @@ export function normalizeDrillDetailChild(
     emoji: child.emoji ?? null,
     frequencyUnit: child.frequencyUnit,
     frequencyQuantity: child.frequencyQuantity,
+    intervalWeeks: child.intervalWeeks,
     isBadHabit: child.isBadHabit,
     isCompleted: child.isCompleted,
     isGeneral: child.isGeneral,
@@ -106,7 +176,10 @@ export function normalizeDrillDetailChild(
     endDate: child.endDate ?? '',
     position: child.position ?? 0,
     checklistItems: child.checklistItems,
-    createdAtUtc: '',
+    startDate: child.startDate,
+    schedule: child.schedule,
+    createdAtUtc: child.createdAtUtc ?? '',
+    createdAtUtcIsInherited: child.createdAtUtc === undefined,
     parentId,
     scheduledDates: [],
     isOverdue: child.isOverdue ?? fallbackChildOverdue(child, today),

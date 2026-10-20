@@ -13,10 +13,6 @@ const VERIFY_HOST = "api.useorbit.org"
 const BOOT_TIMEOUT_SECONDS = 420
 const SHUTDOWN_TIMEOUT_SECONDS = 60
 
-/**
- * a 12 GB data partition) crashed the emulator silently right after the hypervisor
- * started, so this stays at the measured set.
- */
 const AVD_SETTINGS = {
   "PlayStore.enabled": "yes",
   "hw.keyboard": "yes",

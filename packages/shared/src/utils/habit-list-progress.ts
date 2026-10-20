@@ -1,9 +1,23 @@
 import type { NormalizedHabit } from '../types/habit'
+import { hasHabitScheduleOnDate } from './habits'
+import type { HabitVisibilityView } from './habit-visibility'
+import { formatLocaleDate } from './locale-format'
+import { formatAPIDate } from './dates'
 
 export interface HabitDateBucket {
   key: string
   isOverdue: boolean
   habits: NormalizedHabit[]
+}
+
+export function formatHabitDateBucketLabel(key: string, today: string, locale: string, t: (key: string) => string): string {
+  if (key === '__overdue__') return t('habits.overdue')
+  if (!key) return t('common.unknown')
+  if (key === today) return t('dates.today')
+  const tomorrow = new Date(`${today}T12:00:00`)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  if (key === formatAPIDate(tomorrow)) return t('dates.tomorrow')
+  return formatLocaleDate(new Date(`${key}T12:00:00`), locale, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export function buildHabitDateBuckets(
@@ -52,10 +66,38 @@ export function buildHabitDateBuckets(
   return result
 }
 
+export function computeHabitDayProgress(
+  habits: readonly NormalizedHabit[],
+  isDueOnSelectedDate: (habit: NormalizedHabit) => boolean,
+  view: HabitVisibilityView = 'today',
+): { done: number; total: number } {
+  let done = 0
+  let total = 0
+  for (const habit of habits) {
+    const countsForDay = view !== 'today' || habit.isGeneral
+      || isDueOnSelectedDate(habit)
+      || habit.isOverdue
+      || habit.isLoggedInRange
+    if (!countsForDay) continue
+    total += 1
+    if (view !== 'today' || habit.isGeneral ? habit.isCompleted : habit.isCompleted || habit.isLoggedInRange) {
+      done += 1
+    }
+  }
+  return { done, total }
+}
+
 export interface ParentPromptProgress {
   done: number
   total: number
   loggedDone: number
+}
+
+export type HabitResolutionMode = 'log' | 'skip'
+
+export interface HabitResolution {
+  habitId: string
+  mode: HabitResolutionMode
 }
 
 export interface ParentPromptProgressOptions {
@@ -63,12 +105,71 @@ export interface ParentPromptProgressOptions {
   getChildren: (parentId: string) => NormalizedHabit[]
   isRelevantToday: (habit: NormalizedHabit) => boolean
   isDueOnSelectedDate: (habit: NormalizedHabit) => boolean
-  isListView: boolean
+  isListView?: boolean
   skippedIds: ReadonlySet<string>
-  assumeCompletedId?: string
-  assumeCompletedIds?: ReadonlySet<string>
+  resolvedModes?: ReadonlyMap<string, HabitResolutionMode>
 }
 
+export type ParentSettlementDecision = 'log' | 'skip' | null
+
+export function computeParentSettlementDecision(
+  parent: NormalizedHabit | null,
+  children: ParentPromptProgress,
+  promptDate: string,
+): ParentSettlementDecision {
+  if (
+    !parent ||
+    (!parent.isGeneral &&
+      !parent.isOverdue &&
+      !hasHabitScheduleOnDate(parent, promptDate))
+  ) {
+    return null
+  }
+
+  const isSkippedInRange =
+    parent.flexibleTarget != null &&
+    parent.flexibleCompleted != null &&
+    parent.flexibleCompleted >= parent.flexibleTarget &&
+    !parent.isLoggedInRange
+
+  if (
+    parent.isCompleted ||
+    parent.isLoggedInRange ||
+    isSkippedInRange ||
+    children.total === 0 ||
+    children.done < children.total
+  ) {
+    return null
+  }
+
+  return children.loggedDone > 0 ? 'log' : 'skip'
+}
+
+export type ParentPromptDecision =
+  | { type: 'open'; mode: HabitResolutionMode }
+  | { type: 'release' }
+  | { type: 'none' }
+
+export function computeParentPromptDecision(
+  parent: NormalizedHabit | null,
+  children: ParentPromptProgress,
+  promptDate: string,
+  promptedParentIds: ReadonlySet<string>,
+): ParentPromptDecision {
+  if (children.total === 0 || children.done < children.total) {
+    return { type: 'release' }
+  }
+  const mode = computeParentSettlementDecision(parent, children, promptDate)
+  if (!parent || !mode || promptedParentIds.has(parent.id)) return { type: 'none' }
+  return { type: 'open', mode }
+}
+
+/**
+ * Aggregates a parent habit's sub-habit resolution for the auto-resolve-parent prompt. A
+ * sub-habit counts toward `total` when it is due today, overdue, already logged, or was just
+ * skipped; it counts toward `done` when logged, completed, skipped, or present in
+ * `resolvedModes`.
+ */
 export function computeParentPromptProgress(
   options: ParentPromptProgressOptions,
 ): ParentPromptProgress {
@@ -77,10 +178,9 @@ export function computeParentPromptProgress(
     getChildren,
     isRelevantToday,
     isDueOnSelectedDate,
-    isListView,
     skippedIds,
-    assumeCompletedId,
-    assumeCompletedIds,
+    isListView = false,
+    resolvedModes,
   } = options
 
   function computeChild(child: NormalizedHabit): ParentPromptProgress {
@@ -90,14 +190,16 @@ export function computeParentPromptProgress(
 
     // WHY: API dateFrom/user-today populates flexible progress; general habits cannot be skipped. https://linear.app/useorbitai/issue/ORB-86
     const isServerKnownSkip =
+      child.isFlexible &&
       child.flexibleTarget != null &&
       child.flexibleCompleted != null &&
       child.flexibleCompleted >= child.flexibleTarget &&
       !child.isLoggedInRange
-    const isAssumedCompleted =
-      (child.id === assumeCompletedId || assumeCompletedIds?.has(child.id) === true) &&
-      !skippedIds.has(child.id)
-    const isSkipped = !isAssumedCompleted && (skippedIds.has(child.id) || isServerKnownSkip)
+    const resolvedMode = resolvedModes?.get(child.id)
+    const isAssumedCompleted = resolvedMode === 'log'
+    const isSkipped =
+      resolvedMode === 'skip' ||
+      (resolvedMode == null && (skippedIds.has(child.id) || isServerKnownSkip))
     const isResolved =
       child.isCompleted ||
       child.isLoggedInRange ||

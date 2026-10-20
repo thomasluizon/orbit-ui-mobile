@@ -1,10 +1,15 @@
-import { View, Text, Pressable } from "react-native";
-import { X } from "lucide-react-native";
+import { useEffect, useRef } from 'react'
+import type { TextInput } from 'react-native'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
+import { View, Text, } from "react-native";
+import { X } from "@/components/ui/icons";
 import { MAX_TAG_NAME_LENGTH } from "@orbit/shared/validation";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { type AppTokens, createStyles } from "./styles";
 
 interface TagEditorRowProps {
+  error?: string
+  focusRequest?: number
   value: string;
   placeholder?: string;
   inputAriaLabel: string;
@@ -20,6 +25,8 @@ interface TagEditorRowProps {
 
 export function TagEditorRow({
   value,
+  error,
+  focusRequest,
   placeholder,
   inputAriaLabel,
   actionLabel,
@@ -31,9 +38,14 @@ export function TagEditorRow({
   styles,
   tokens,
 }: Readonly<TagEditorRowProps>) {
+  const inputRef = useRef<TextInput>(null)
+  useEffect(() => { if (focusRequest) inputRef.current?.focus() }, [focusRequest])
   return (
+    <View style={styles.tagEditor}>
     <View style={styles.tagFormRow}>
       <BottomSheetAppTextInput
+        ref={inputRef}
+        accessibilityHint={error}
         value={value}
         placeholder={placeholder}
         maxLength={MAX_TAG_NAME_LENGTH}
@@ -47,9 +59,9 @@ export function TagEditorRow({
         style={({ pressed }) => [
           styles.tagFormSave,
           disabled && { opacity: 0.45 },
-          pressed && { transform: [{ scale: 0.96 }] },
+          pressed && { backgroundColor: tokens.primaryPressed, transform: [{ scale: 0.96 }] },
         ]}
-        hitSlop={{ top: 3, bottom: 3 }}
+
         accessibilityRole="button"
         accessibilityLabel={actionLabel}
         disabled={disabled}
@@ -61,9 +73,9 @@ export function TagEditorRow({
         style={({ pressed }) => [
           styles.tagFormCancel,
           disabled && { opacity: 0.45 },
-          pressed && { transform: [{ scale: 0.96 }] },
+          pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
         ]}
-        hitSlop={2}
+
         accessibilityRole="button"
         accessibilityLabel={cancelAriaLabel}
         disabled={disabled}
@@ -71,6 +83,8 @@ export function TagEditorRow({
       >
         <X size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
+    </View>
+    {error ? <Text style={[styles.fieldError, styles.tagEditorError]}>{error}</Text> : null}
     </View>
   );
 }

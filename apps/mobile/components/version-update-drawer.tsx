@@ -1,9 +1,11 @@
+import { SPACING } from '@orbit/shared/theme'
+
+import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Download } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import {
   startAndroidUpdate,
@@ -16,12 +18,41 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const SNOOZE_STORAGE_KEY = 'orbit:version-update-snoozed-until'
 const SNOOZE_DURATION_MS = 1000 * 60 * 60 * 24
 
-/**
- * Version-update sheet (iOS path) per the m-version artboard: sheet title,
- * Rubik version highlight, Roboto tabular delta, fg-2 body, then a primary
- * update pill with download glyph and a ghost Later pill.
- * Android path defers to native Play Core flow.
- */
+interface VersionUpdateSheetProps {
+  open: boolean
+  title: string
+  description: string
+  actionLabel: string
+  styles: ReturnType<typeof createStyles>
+  onAction: () => void
+  onLater: () => void
+}
+
+function VersionUpdateSheet({
+  open,
+  title,
+  description,
+  actionLabel,
+  styles,
+  onAction,
+  onLater,
+}: Readonly<VersionUpdateSheetProps>) {
+  const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
+  if (!open) return null
+
+  return (
+    <Sheet ref={sheetRef} open onClose={onLater} title={title} actions={
+      <View style={styles.buttons}><ActionRow>
+        <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('versionUpdate.laterCta')}</PillButton>
+        <PillButton size="sm" onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
+      </ActionRow></View>
+    }>
+      <Text style={styles.description}>{description}</Text>
+    </Sheet>
+  )
+}
+
 export function VersionUpdateDrawer() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -32,14 +63,13 @@ export function VersionUpdateDrawer() {
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const {
     updateAvailable,
+    androidDownloaded,
     forceUpdate,
-    latestVersion,
-    currentVersion,
     iosStoreUrl,
   } = useVersionCheck()
 
   const androidImmediateStartedRef = useRef(false)
-  const androidFlexibleSnoozedRef = useRef(false)
+  const [androidRequested, setAndroidRequested] = useState(false)
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null)
   const [snoozeLoaded, setSnoozeLoaded] = useState(false)
   const [dismissedForSession, setDismissedForSession] = useState(false)
@@ -73,14 +103,13 @@ export function VersionUpdateDrawer() {
 
   const androidFlexibleActive =
     Platform.OS === 'android' &&
+    androidRequested &&
     updateAvailable &&
-    !forceUpdate &&
-    snoozeLoaded &&
-    !isSnoozed &&
-    !dismissedForSession
+    !forceUpdate
 
+  const restoreAndroidAction = useCallback(() => setAndroidRequested(false), [])
   const { downloaded: androidUpdateReady, install: installAndroidUpdate } =
-    useAndroidFlexibleUpdate(androidFlexibleActive)
+    useAndroidFlexibleUpdate(androidFlexibleActive, restoreAndroidAction)
 
   useEffect(() => {
     if (Platform.OS !== 'android' || !updateAvailable || !forceUpdate) return
@@ -88,14 +117,6 @@ export function VersionUpdateDrawer() {
     androidImmediateStartedRef.current = true
     void startAndroidUpdate({ immediate: true })
   }, [updateAvailable, forceUpdate])
-
-  useEffect(() => {
-    if (!androidFlexibleActive || androidFlexibleSnoozedRef.current) return
-    androidFlexibleSnoozedRef.current = true
-    const until = Date.now() + SNOOZE_DURATION_MS
-    void Promise.resolve().then(() => setSnoozedUntil(until))
-    AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
-  }, [androidFlexibleActive])
 
   const shouldShowIosSheet =
     Platform.OS === 'ios' &&
@@ -121,120 +142,53 @@ export function VersionUpdateDrawer() {
   const handleAndroidLater = () => setAndroidRestartDismissed(true)
 
   if (Platform.OS === 'android') {
-    return (
-      <BottomSheetModal
-        open={androidUpdateReady && !androidRestartDismissed}
-        onClose={handleAndroidLater}
-        title={t('versionUpdate.readyTitle')}
-        snapPoints={['50%']}
-      >
-        <View style={styles.container}>
-          <Text style={styles.title}>
-            {latestVersion ? `Orbit ${latestVersion}` : t('versionUpdate.readyTitle')}
-          </Text>
-          {currentVersion && latestVersion ? (
-            <Text style={styles.delta}>
-              {currentVersion} → {latestVersion}
-            </Text>
-          ) : null}
-          <Text style={styles.description}>
-            {t('versionUpdate.readyDescription')}
-          </Text>
-
-          <View style={styles.spacer} />
-
-          <View style={styles.buttons}>
-            <PillButton
-              fullWidth
-              onPress={installAndroidUpdate}
-              leading={<Download size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
-            >
-              {t('versionUpdate.restartCta')}
-            </PillButton>
-            <PillButton variant="ghost" fullWidth onPress={handleAndroidLater}>
-              {t('versionUpdate.laterCta')}
-            </PillButton>
-          </View>
-        </View>
-      </BottomSheetModal>
-    )
+    return <AndroidVersionUpdateSheet ready={androidDownloaded || androidUpdateReady} restartDismissed={androidRestartDismissed}
+      softOpen={updateAvailable && !forceUpdate && snoozeLoaded && !isSnoozed && !dismissedForSession && !androidRequested}
+      styles={styles} install={installAndroidUpdate} request={() => setAndroidRequested(true)}
+      later={handleIosLater} restartLater={handleAndroidLater} />
   }
 
   if (Platform.OS !== 'ios') return null
 
   return (
-    <BottomSheetModal
+    <VersionUpdateSheet
       open={shouldShowIosSheet}
-      onClose={handleIosLater}
       title={t('versionUpdate.title')}
-      snapPoints={['55%']}
-    >
-      <View style={styles.container}>
-        <Text style={styles.title}>
-          {latestVersion ? `Orbit ${latestVersion}` : t('versionUpdate.title')}
-        </Text>
-        {currentVersion && latestVersion ? (
-          <Text style={styles.delta}>
-            {currentVersion} → {latestVersion}
-          </Text>
-        ) : null}
-        <Text style={styles.description}>
-          {t('versionUpdate.description')}
-        </Text>
-
-        <View style={styles.spacer} />
-
-        <View style={styles.buttons}>
-          <PillButton
-            fullWidth
-            onPress={handleIosUpdate}
-            leading={<Download size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
-          >
-            {t('versionUpdate.updateCta')}
-          </PillButton>
-          <PillButton variant="ghost" fullWidth onPress={handleIosLater}>
-            {t('versionUpdate.laterCta')}
-          </PillButton>
-        </View>
-      </View>
-    </BottomSheetModal>
+      description={t('versionUpdate.description')}
+      actionLabel={t('versionUpdate.updateCta')}
+      styles={styles}
+      onAction={handleIosUpdate}
+      onLater={handleIosLater}
+    />
   )
+}
+
+function AndroidVersionUpdateSheet({ ready, softOpen, restartDismissed, styles, install, request, later, restartLater }: Readonly<{
+  ready: boolean; softOpen: boolean; restartDismissed: boolean
+  styles: ReturnType<typeof createStyles>
+  install: () => void; request: () => void; later: () => void; restartLater: () => void
+}>) {
+  const { t } = useTranslation()
+  return <VersionUpdateSheet open={ready ? !restartDismissed : softOpen}
+    title={t(ready ? 'versionUpdate.readyTitle' : 'versionUpdate.title')}
+    description={t(ready ? 'versionUpdate.readyDescription' : 'versionUpdate.description')}
+    actionLabel={t(ready ? 'versionUpdate.restartCta' : 'versionUpdate.updateCta')}
+    styles={styles} onAction={ready ? install : request} onLater={ready ? restartLater : later} />
 }
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    container: {
-      paddingHorizontal: 22,
-      paddingTop: 10,
-      paddingBottom: 22,
-      gap: 12,
-    },
-    title: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 20,
-      color: tokens.fg1,
-    },
-    delta: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 12,
-      color: tokens.fg3,
-      fontVariant: ['tabular-nums'],
-    },
     description: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24.8,
       color: tokens.fg2,
-      marginTop: 4,
-    },
-    spacer: {
-      flex: 1,
-      minHeight: 12,
     },
     buttons: {
-      flexDirection: 'column',
-      gap: 10,
-      paddingTop: 10,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      paddingTop: SPACING.s8,
     },
   })
 }

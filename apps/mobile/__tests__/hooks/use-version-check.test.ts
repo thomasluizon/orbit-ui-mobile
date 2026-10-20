@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => {
     } | null,
     platformOS: 'android' as 'android' | 'ios' | 'web',
     nativeVersion: null as string | null,
+    nativeBuild: '140',
     version: '1.0.0' as string | undefined,
     pkg: 'org.useorbit.app' as string | undefined,
     bundleId: 'org.useorbit.app' as string | undefined,
@@ -63,6 +64,8 @@ vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
 }))
 
+vi.mock('@/modules/orbit-app-update', () => ({ isAndroidUpdateDownloaded: () => Promise.resolve(false) }))
+
 vi.mock('@/lib/version-check', () => ({
   getAppStoreLookup: mocks.getAppStoreLookup,
 }))
@@ -74,6 +77,8 @@ vi.mock('sp-react-native-in-app-updates', () => {
     installUpdate = mocks.installUpdate
     addStatusUpdateListener = mocks.addStatusUpdateListener
     removeStatusUpdateListener = mocks.removeStatusUpdateListener
+    addIntentSelectionListener = vi.fn()
+    removeIntentSelectionListener = vi.fn()
   }
   return {
     default: MockInAppUpdates,
@@ -83,6 +88,7 @@ vi.mock('sp-react-native-in-app-updates', () => {
 })
 
 vi.mock('react-native', () => ({
+  AppState: { addEventListener: () => ({ remove: vi.fn() }) },
   Platform: {
     get OS() {
       return mocks.state.platformOS
@@ -91,6 +97,7 @@ vi.mock('react-native', () => ({
 }))
 
 vi.mock('expo-application', () => ({
+  get nativeBuildVersion() { return mocks.state.nativeBuild },
   get nativeApplicationVersion() {
     return mocks.state.nativeVersion
   },
@@ -107,6 +114,16 @@ vi.mock('expo-constants', () => ({
     },
   },
 }))
+
+function renderVersionCheck() {
+  let result: ReturnType<typeof useVersionCheck>
+  function Harness() {
+    result = useVersionCheck()
+    return null
+  }
+  TestRenderer.act(() => { TestRenderer.create(React.createElement(Harness)) })
+  return result!
+}
 
 describe('useVersionCheck', () => {
   beforeEach(() => {
@@ -125,7 +142,7 @@ describe('useVersionCheck', () => {
   })
 
   it('uses a platform-scoped query key and enables on android', () => {
-    useVersionCheck()
+    renderVersionCheck()
     expect(mocks.state.lastOptions?.queryKey).toEqual(
       versionCheckKeys.latest('android:org.useorbit.app'),
     )
@@ -140,7 +157,7 @@ describe('useVersionCheck', () => {
       latestIosVersion: null,
       iosStoreUrl: null,
     }
-    const result = useVersionCheck()
+    const result = renderVersionCheck()
     expect(result.currentVersion).toBe('1.3.39')
     expect(result.latestVersion).toBe('1.3.40')
   })
@@ -151,7 +168,7 @@ describe('useVersionCheck', () => {
       latestIosVersion: null,
       iosStoreUrl: null,
     }
-    const result = useVersionCheck()
+    const result = renderVersionCheck()
     expect(result.updateAvailable).toBe(true)
     expect(result.forceUpdate).toBe(false)
   })
@@ -162,7 +179,7 @@ describe('useVersionCheck', () => {
       latestIosVersion: null,
       iosStoreUrl: null,
     }
-    const result = useVersionCheck()
+    const result = renderVersionCheck()
     expect(result.updateAvailable).toBe(true)
     expect(result.forceUpdate).toBe(true)
   })
@@ -173,7 +190,7 @@ describe('useVersionCheck', () => {
       latestIosVersion: null,
       iosStoreUrl: null,
     }
-    const result = useVersionCheck()
+    const result = renderVersionCheck()
     expect(result.updateAvailable).toBe(false)
     expect(result.forceUpdate).toBe(false)
   })
@@ -185,7 +202,7 @@ describe('useVersionCheck', () => {
       latestIosVersion: '1.2.0',
       iosStoreUrl: 'https://apps.apple.com/app/id42',
     }
-    const result = useVersionCheck()
+    const result = renderVersionCheck()
     expect(result.updateAvailable).toBe(true)
     expect(result.latestVersion).toBe('1.2.0')
     expect(result.iosStoreUrl).toBe('https://apps.apple.com/app/id42')
@@ -198,7 +215,7 @@ describe('useVersionCheck', () => {
       version: '1.3.0',
       storeUrl: 'https://apps.apple.com/app/id99',
     })
-    useVersionCheck()
+    renderVersionCheck()
     const response = await mocks.state.lastOptions?.queryFn()
     expect(response?.latestIosVersion).toBe('1.3.0')
     expect(response?.iosStoreUrl).toBe('https://apps.apple.com/app/id99')
@@ -208,7 +225,7 @@ describe('useVersionCheck', () => {
   it('invokes Play Core check inside the android queryFn', async () => {
     mocks.state.platformOS = 'android'
     mocks.checkNeedsUpdate.mockResolvedValue({ shouldUpdate: true, other: { updatePriority: 3 } })
-    useVersionCheck()
+    renderVersionCheck()
     const response = await mocks.state.lastOptions?.queryFn()
     expect(response?.androidCheck?.shouldUpdate).toBe(true)
     expect(mocks.checkNeedsUpdate).toHaveBeenCalledOnce()
@@ -245,7 +262,7 @@ describe('useAndroidFlexibleUpdate', () => {
       current: { downloaded: boolean; install: () => void } | null
     } = { current: null }
     function Harness() {
-      result.current = useAndroidFlexibleUpdate(active)
+      result.current = useAndroidFlexibleUpdate(active, () => {})
       return null
     }
     TestRenderer.act(() => {

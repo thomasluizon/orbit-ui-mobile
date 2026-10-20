@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  canGoBackInAppHistory,
   createAppNavigationEntry,
   readAppNavigationHistory,
   updateAppNavigationHistory,
@@ -56,7 +55,6 @@ describe('app navigation history', () => {
       entries: ['/today', '/calendar?date=2026-04-06'],
       index: 1,
     })
-    expect(canGoBackInAppHistory()).toBe(true)
   })
 
   it('moves backward, forward, and jumps to known entries on pop', () => {
@@ -81,7 +79,6 @@ describe('app navigation history', () => {
       entries: ['/today', '/calendar', '/goals'],
       index: 0,
     })
-    expect(canGoBackInAppHistory()).toBe(false)
   })
 
   it('falls back to appending unknown pop targets and trims to the max size', () => {

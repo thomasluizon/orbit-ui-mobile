@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -10,6 +11,7 @@ export default function DeleteAccountPage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const backLabel = useBackLabel(isAuthenticated ? '/' : '/login')
 
   const sections: { label: string; body: string }[] = [
     { label: t('deleteAccount.intro.title'), body: t('deleteAccount.intro.body') },
@@ -25,10 +27,9 @@ export default function DeleteAccountPage() {
   ]
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-[var(--app-max-w)] flex-col">
+    <div className="mx-auto flex min-h-[100dvh] max-w-[var(--app-max-w)] flex-col bg-[var(--bg)]">
       <AppBar
-        back
-        backLabel={t('common.goBack')}
+        backLabel={backLabel}
         onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
         title={t('deleteAccount.title')}
       />
@@ -36,25 +37,24 @@ export default function DeleteAccountPage() {
         {sections.map(({ label, body }) => (
           <div key={label}>
             <SectionLabel>{label}</SectionLabel>
-            <div className="t-secondary px-5 pb-[18px]" style={{ textWrap: 'pretty' }}>
+            <div className="t-secondary px-4 pb-4" style={{ textWrap: 'pretty' }}>
               {body}
             </div>
           </div>
         ))}
 
         <SectionLabel>{t('deleteAccount.webFallback.title')}</SectionLabel>
-        <div className="t-secondary px-5 pb-[18px]" style={{ textWrap: 'pretty' }}>
+        <div className="t-secondary px-4 pb-4" style={{ textWrap: 'pretty' }}>
           {t('deleteAccount.webFallback.body')}
         </div>
-        <div className="px-5 pb-8">
+        <div className="px-4 pb-8" style={{ color: 'var(--primary-soft)' }}>
           <a
             href="mailto:contact@useorbit.org?subject=Account%20deletion%20request"
-            className="inline-flex items-center underline underline-offset-[3px]"
+            className="orbit-link-action inline-flex items-center"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 500,
-              color: 'var(--primary)',
             }}
           >
             {t('deleteAccount.webFallback.button')}

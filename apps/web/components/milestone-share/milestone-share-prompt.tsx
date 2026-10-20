@@ -1,20 +1,25 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { SPACING } from '@orbit/shared/theme'
+
+
+import { useEffect, useId, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
-import { Download, Share2 } from 'lucide-react'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
+import { ActionRow } from '@/components/ui/action-row'
 import { useShareCard } from '@/hooks/use-share-card'
 import { getPublicOrigin } from '@/lib/public-origin'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import {
   MilestoneShareCard,
   type MilestoneShareVariant,
@@ -43,6 +48,7 @@ function resolveVariant(
 /** Curated milestone share nudge: shows a branded card once no celebration is in flight and the shared re-prompt guard allows it, then hands off to native share/download. */
 export function MilestoneSharePrompt() {
   const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
   const queryClient = useQueryClient()
   const armedPrompt = useEngagementPromptStore((s) => s.armedPrompt)
   const markEngagementPrompted = useEngagementPromptStore((s) => s.markEngagementPrompted)
@@ -51,15 +57,36 @@ export function MilestoneSharePrompt() {
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const { captureRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
 
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
 
-  const [visibleKey, setVisibleKey] = useState<string | null>(null)
+  const [visibleKey, setVisibleKey] = useAccountScopedState<string | null>(null)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visibleKey) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visibleKey, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
+  const retiredPromptRef = useRef<typeof armedPrompt>(null)
+  /**
+   * The settle timer is the one thing the state reset above cannot reach: with no prompt on
+   * screen its effect never re-runs, so a timer armed for the previous account would open this
+   * prompt under the next one.
+   */
+  useResetOnAccountChange(() => {
+    clearTimeout(settleTimerRef.current)
+    retiredPromptRef.current = armedPrompt
+  })
 
   useEffect(() => {
-    if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen) return
+    if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen || armedPrompt === retiredPromptRef.current) return
 
     const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
     if (
@@ -75,7 +102,7 @@ export function MilestoneSharePrompt() {
     }
 
     settleTimerRef.current = setTimeout(() => {
-      if (hasOpenPromptBlockingOverlay(useUIStore.getState())) return
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(armedKey, new Date().toISOString())
       setVisibleKey(armedKey)
     }, SETTLE_DELAY_MS)
@@ -84,13 +111,16 @@ export function MilestoneSharePrompt() {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
   }, [
+    armedPrompt,
     armedKey,
     celebrationInFlight,
     anotherOverlayOpen,
+    promptId,
     visibleKey,
     queryClient,
     markEngagementPrompted,
     clearArmedMilestone,
+    setVisibleKey,
   ])
 
   const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
@@ -99,7 +129,7 @@ export function MilestoneSharePrompt() {
   const referralUrl = buildReferralUrl(cachedReferral?.code, getPublicOrigin())
 
   function dismiss() {
-    setVisibleKey(null)
+    closeSheet()
   }
 
   function handleShare() {
@@ -111,82 +141,68 @@ export function MilestoneSharePrompt() {
   }
 
   return (
-    <AppOverlay
-      open={variant !== null}
-      onOpenChange={(open) => {
-        if (!open) dismiss()
-      }}
+    variant !== null ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={() => setVisibleKey(null)}
+      title={t('milestoneShare.title')}
+      actions={(
+        <>
+          {hasError && (
+            <p
+              role="alert"
+              className="m-0 w-full"
+              style={{
+                textAlign: 'center',
+                fontSize: 14, color: 'var(--status-bad-text)',
+              }}
+            >
+              {t('milestoneShare.shareError')}
+            </p>
+          )}
+          <ActionRow>
+            <PromptQuietAction onClick={dismiss}>
+              {t('milestoneShare.later')}
+            </PromptQuietAction>
+            <PillButton
+              size="sm"
+              variant={canShareFiles ? 'ghost' : 'primary'}
+              loading={isSharing}
+              disabled={isSharing}
+              onClick={() => void download()}
+            >
+              {t('milestoneShare.download')}
+            </PillButton>
+            {canShareFiles && (
+              <PillButton
+                size="sm"
+                loading={isSharing}
+                disabled={isSharing}
+                onClick={handleShare}
+              >
+                {t('milestoneShare.share')}
+              </PillButton>
+            )}
+          </ActionRow>
+        </>
+      )}
     >
-      {variant && (
-        <div className="flex flex-col items-center" style={{ gap: 16, paddingTop: 4 }}>
+      <div className="flex flex-col items-center" style={{ gap: 16 }}>
           <MilestoneShareCard ref={captureRef} variant={variant} referralUrl={referralUrl} />
 
           <p
             style={{
-              margin: 0,
+              margin: SPACING.s0,
               textAlign: 'center',
               fontFamily: 'var(--font-sans)',
-              fontSize: 15,
+              fontSize: 16,
               lineHeight: 1.5,
               color: 'var(--fg-2)',
             }}
           >
             {t('milestoneShare.body')}
           </p>
-
-          {hasError && (
-            <p role="alert" style={{ textAlign: 'center', fontSize: 13, color: 'var(--status-bad)' }}>
-              {t('milestoneShare.shareError')}
-            </p>
-          )}
-
-          <div className="flex w-full flex-col" style={{ gap: 16, maxWidth: 360, marginInline: 'auto' }}>
-            <div className="flex w-full" style={{ gap: 10 }}>
-              {canShareFiles && (
-                <PillButton
-                  className="flex-1"
-                  busy={isSharing}
-                  disabled={isSharing}
-                  onClick={handleShare}
-                  leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
-                >
-                  {t('milestoneShare.share')}
-                </PillButton>
-              )}
-              <PillButton
-                className="flex-1"
-                variant={canShareFiles ? 'ghost' : 'primary'}
-                busy={isSharing}
-                disabled={isSharing}
-                onClick={() => void download()}
-                leading={
-                  <Download
-                    size={18}
-                    strokeWidth={1.8}
-                    color={canShareFiles ? 'var(--fg-1)' : 'var(--fg-on-primary)'}
-                  />
-                }
-              >
-                {t('milestoneShare.download')}
-              </PillButton>
-            </div>
-
-            <button
-              type="button"
-              onClick={dismiss}
-              className="w-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.98] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
-              style={{
-                padding: '12px 0',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              {t('milestoneShare.later')}
-            </button>
-          </div>
-        </div>
-      )}
-    </AppOverlay>
+      </div>
+    </Sheet>) : null
   )
 }

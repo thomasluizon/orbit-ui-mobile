@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Repeat, type LucideIcon } from 'lucide-react'
-import type { Goal } from '@orbit/shared/types/goal'
-import { FieldInput } from '@/components/ui/field-input'
-import { PillButton } from '@/components/ui/pill-button'
-import { SectionLabel } from '@/components/ui/section-label'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
+import { useId, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
+import { ListRow } from '@/components/ui/list-row'
+import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
+import { formatGoalHistoryDelta, formatGoalHistoryNumber } from '@orbit/shared/utils'
 
 interface GoalProgressHistoryEntry {
   createdAtUtc: string
@@ -17,29 +18,32 @@ interface GoalProgressHistoryEntry {
 interface GoalProgressHistorySectionProps {
   title: string
   entries: GoalProgressHistoryEntry[]
+  target: number
+  unit: string
   formatDate: (dateStr: string) => string
-  renderEntryLabel: (entry: GoalProgressHistoryEntry) => string
   showAllLabel: string
   showLessLabel: string
 }
 
 const HISTORY_PREVIEW_COUNT = 3
 
-/** Flush list of progress history entries: mono date right-aligned, change label
- *  in mono, optional note. */
 export function GoalProgressHistorySection({
   title,
   entries,
+  target,
+  unit,
   formatDate,
-  renderEntryLabel,
   showAllLabel,
   showLessLabel,
 }: Readonly<GoalProgressHistorySectionProps>) {
+  const locale = useLocale()
+  const t = useTranslations()
+  const historyId = useId()
   const [showAllHistory, setShowAllHistory] = useState(false)
 
   const visibleEntries = useMemo(
     () =>
-      showAllHistory ? entries : entries.slice(-HISTORY_PREVIEW_COUNT),
+      showAllHistory ? entries : entries.slice(0, HISTORY_PREVIEW_COUNT),
     [entries, showAllHistory],
   )
 
@@ -49,70 +53,60 @@ export function GoalProgressHistorySection({
 
   return (
     <div>
-      <SectionLabel>{title}</SectionLabel>
-      {visibleEntries.map((entry) => (
-        <div
-          key={`${entry.createdAtUtc}-${entry.value}`}
-          className="flex flex-col"
-          style={{
-            padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            gap: 3,
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                color: 'var(--fg-3)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
+      <h3 className="text-[14px] font-medium text-[var(--fg-2)]">{title}</h3>
+      <ul id={historyId} className="list-none" style={{ margin: SPACING.s0, padding: SPACING.s0 }}>
+        {visibleEntries.map((entry) => {
+          const date = formatDate(entry.createdAtUtc)
+          const delta = formatGoalHistoryDelta(entry.previousValue, entry.value, locale)
+          const current = formatGoalHistoryNumber(entry.value, locale)
+          const formattedTarget = formatGoalHistoryNumber(target, locale)
+
+          return (
+            <li
+              key={`${entry.createdAtUtc}-${entry.value}`}
+              className="flex flex-col"
+              style={{ padding: "var(--orbit-space-8) var(--orbit-space-0)", gap: 4 }}
             >
-              {formatDate(entry.createdAtUtc)}
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {renderEntryLabel(entry)}
-            </span>
-          </div>
-          {entry.note && (
-            <div
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                color: 'var(--fg-2)',
-              }}
-            >
-              {entry.note}
-            </div>
-          )}
-        </div>
-      ))}
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(32px,auto)_minmax(56px,auto)] items-center gap-3">
+                <span data-history-date style={{ minWidth: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums' }}>
+                  <span className="sr-only">{t('goals.detail.historyDate', { date })}</span>
+                  <span aria-hidden="true">{date}</span>
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums', textAlign: 'end' }}>
+                  <span className="sr-only">{t('goals.detail.historyDelta', { delta, unit })}</span>
+                  <span aria-hidden="true">{delta}</span>
+                </span>
+                <span style={{ minWidth: 56, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums', textAlign: 'end' }}>
+                  <span className="sr-only">{t('goals.detail.historyProgress', { current, target: formattedTarget, unit })}</span>
+                  <span aria-hidden="true">{current} / {formattedTarget}</span>
+                </span>
+              </div>
+              {entry.note && (
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)', overflowWrap: 'anywhere' }}>
+                  {entry.note}
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
       {entries.length > HISTORY_PREVIEW_COUNT && (
-        <div style={{ padding: '2px 20px' }}>
+        <div style={{ padding: "var(--orbit-space-4) var(--orbit-space-0)" }}>
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary)]"
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 500,
-              minHeight: 44,
-              padding: 0,
+              minHeight: TOUCH_TARGET_MIN,
+              padding: SPACING.s0,
             }}
+            aria-expanded={showAllHistory}
+            aria-controls={historyId}
             onClick={() => setShowAllHistory((prev) => !prev)}
           >
-            {showAllHistory
-              ? showLessLabel
-              : `${showAllLabel} (${entries.length})`}
+            {showAllHistory ? showLessLabel : showAllLabel}
           </button>
         </div>
       )}
@@ -120,191 +114,59 @@ export function GoalProgressHistorySection({
   )
 }
 
-interface GoalProgressFormProps {
-  progressValue: number | null
-  progressNote: string
-  isUpdating: boolean
-  progressExceedsTarget: boolean
-  onProgressValueChange: (value: number | null) => void
-  onProgressNoteChange: (note: string) => void
-  onSubmit: () => void
-  onCancel: () => void
-  labelValue: string
-  labelNote: string
-  labelSave: string
-  labelCancel: string
-  labelExceedsTarget: string
-}
-
-/** Inline progress-update form rendered in-place inside the GoalDetailDrawer.
- *  Kit field wells with a pill footer. */
-export function GoalProgressForm({
-  progressValue,
-  progressNote,
-  isUpdating,
-  progressExceedsTarget,
-  onProgressValueChange,
-  onProgressNoteChange,
-  onSubmit,
-  onCancel,
-  labelValue,
-  labelNote,
-  labelSave,
-  labelCancel,
-  labelExceedsTarget,
-}: Readonly<GoalProgressFormProps>) {
-  return (
-    <div
-      className="flex flex-col"
-      style={{
-        padding: '12px 20px 16px',
-        borderBottom: '1px solid var(--hairline)',
-        gap: 14,
-      }}
-    >
-      <FieldInput
-        label={labelValue}
-        type="number"
-        inputMode="decimal"
-        mono
-        value={progressValue === null ? '' : String(progressValue)}
-        onChange={(raw) =>
-          onProgressValueChange(raw === '' ? null : Number(raw))
-        }
-      />
-      {progressExceedsTarget && (
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--status-overdue-text)',
-          }}
-        >
-          {labelExceedsTarget}
-        </p>
-      )}
-      <FieldInput
-        label={labelNote}
-        value={progressNote}
-        onChange={onProgressNoteChange}
-        placeholder={labelNote}
-        maxLength={500}
-      />
-      <div className="flex items-center" style={{ gap: 12, marginTop: 2 }}>
-        <PillButton variant="ghost" className="flex-1" onClick={onCancel}>
-          {labelCancel}
-        </PillButton>
-        <PillButton
-          className="flex-1"
-          disabled={progressValue === null || isUpdating}
-          busy={isUpdating}
-          onClick={onSubmit}
-        >
-          {labelSave}
-        </PillButton>
-      </div>
-    </div>
-  )
-}
-
 interface GoalLinkedHabitsSectionProps {
   title: string
+  emptyLabel: string
   linkedHabits: NonNullable<Goal['linkedHabits']>
+  habitAdherence: GoalMetrics['habitAdherence']
+  formatValue: (currentStreak: number) => string
+  onLinkedHabitNavigate?: (habitId: string, event: MouseEvent<HTMLElement>) => void
+  notice?: ReactNode
 }
 
-/** Linked-habits list: ListRow language, icon well, Rubik 16 title, hairline dividers. */
 export function GoalLinkedHabitsSection({
   title,
+  emptyLabel,
   linkedHabits,
+  habitAdherence,
+  formatValue,
+  onLinkedHabitNavigate,
+  notice,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
-  if (linkedHabits.length === 0) {
-    return null
-  }
-
-  return (
-    <div data-tour="tour-goal-link">
-      <SectionLabel>{title}</SectionLabel>
-      <ul className="list-none" style={{ margin: 0, padding: 0 }}>
-        {linkedHabits.map((habit) => (
-          <li
-            key={habit.id}
-            className="flex items-center"
-            style={{
-              padding: '10px 20px',
-              borderBottom: '1px solid var(--hairline)',
-              gap: 14,
-            }}
-          >
-            <span
-              className="inline-flex shrink-0 items-center justify-center rounded-[12px] bg-[var(--bg-field)]"
-              style={{ width: 36, height: 36, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
-              aria-hidden="true"
-            >
-              <Repeat size={18} strokeWidth={1.8} color="var(--fg-2)" />
-            </span>
-            <span
-              className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                color: 'var(--fg-1)',
-              }}
-            >
-              {habit.title}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+  const t = useTranslations()
+  const locale = useLocale()
+  const adherenceByHabitId = useMemo(
+    () => new Map(habitAdherence.map((metrics) => [metrics.habitId, metrics])),
+    [habitAdherence],
   )
-}
 
-interface GoalActionRowProps {
-  label: string
-  icon: LucideIcon
-  onClick: () => void
-  disabled?: boolean
-  destructive?: boolean
-}
-
-/** Menu-item action row: leading icon + label, pressed-token hover,
- *  status-bad label + icon when destructive. No dividers, spacing groups the cluster. */
-export function GoalActionRow({
-  label,
-  icon: Icon,
-  onClick,
-  disabled = false,
-  destructive = false,
-}: Readonly<GoalActionRowProps>) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="appearance-none w-full bg-transparent cursor-pointer text-left flex items-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] active:scale-[0.99] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
-      style={{
-        padding: '12px 20px',
-        gap: 12,
-        border: 0,
-      }}
-    >
-      <Icon
-        size={18}
-        strokeWidth={1.8}
-        color={destructive ? 'var(--status-bad)' : 'var(--fg-3)'}
-        aria-hidden="true"
-        className="shrink-0"
-      />
-      <span
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          fontWeight: 400,
-          color: destructive ? 'var(--status-bad)' : 'var(--fg-1)',
-        }}
-      >
-        {label}
-      </span>
-    </button>
+    <div className="flex flex-col gap-3">
+      <h3 className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h3>
+      {notice}
+      {linkedHabits.length === 0 ? (
+        <p className="text-[14px] text-[var(--fg-3)]">{emptyLabel}</p>
+      ) : <ul className="-mx-4 list-none" style={{ marginBlock: SPACING.s0, padding: SPACING.s0 }}>
+        {linkedHabits.map((habit) => {
+          const adherence = adherenceByHabitId.get(habit.id)
+          const value = adherence ? formatValue(adherence.currentStreak) : undefined
+          const description = adherence ? t('goals.metrics.weeklyAdherence', { percent: formatGoalHistoryNumber(Math.round(adherence.weeklyCompletionRate), locale) }) : undefined
+          return (
+            <li key={habit.id}>
+              <ListRow
+                compact={false}
+                title={habit.title}
+                textMode="personal"
+                value={value}
+                description={description}
+                accessibilityLabel={[habit.title, description, value].filter(Boolean).join(', ')}
+                href={`/habits/${habit.id}`}
+                onClick={onLinkedHabitNavigate ? (event) => onLinkedHabitNavigate(habit.id, event) : undefined}
+              />
+            </li>
+          )
+        })}
+      </ul>}
+    </div>
   )
 }

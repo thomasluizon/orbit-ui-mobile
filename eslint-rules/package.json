@@ -4,7 +4,9 @@
   "private": true,
   "description": "The local/* ESLint gates that enforce DESIGN.md and the root Code Standards.",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "spacing:generate": "node _spacing-contract.cjs --write",
+    "spacing:check": "node _spacing-contract.cjs"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^8.63.0",

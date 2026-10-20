@@ -1,12 +1,12 @@
+import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { ActivityIndicator, Text, View } from 'react-native'
+import { Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
+import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
@@ -16,9 +16,10 @@ import {
 } from '@orbit/shared/utils'
 import {
   buildGoalTitle,
+  getFirstGoalDraftFieldError,
+  getGoalDraftFieldErrorKeys,
   isStreakGoal,
   parseGoalTargetValue,
-  validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -49,19 +50,16 @@ interface UpdateGoalRequest {
 
 export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalProps>) {
   const { t } = useTranslation()
+  const { sheetRef, closeSheet } = useSheetHost()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
   )
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const insets = useSafeAreaInsets()
   const updateGoal = useUpdateGoal()
   const { showError } = useAppToast()
-  const styles = useMemo(
-    () => createStyles(tokens, insets.bottom),
-    [tokens, insets.bottom],
-  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const isStreak = isStreakGoal(goal.type)
 
@@ -69,7 +67,12 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
+  const backendErrors = useBackendFieldErrors({ description, targetValue, unit }, { description: 'Title', targetValue: 'TargetValue', unit: 'Unit' })
   const [submitted, setSubmitted] = useState(false)
+  const [focusRequest, setFocusRequest] = useState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
+  const descriptionRef = useRef<TextInput>(null)
+  const targetRef = useRef<TextInput>(null)
+  const unitRef = useRef<TextInput>(null)
 
   const isSubmitting = updateGoal.isPending
   const isDirty =
@@ -79,58 +82,54 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     deadline !== (goal.deadline ?? '')
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: onClose,
+    onDismiss: () => closeSheet(onClose),
   })
 
-  const fieldErrors = useMemo(() => {
+  const localFieldErrors = useMemo(() => {
     if (!submitted) return {}
+    const keys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
     const errs: Record<string, string> = {}
-    const errorKey = validateGoalDraftInput(description, targetValue, unit)
-    if (errorKey) {
-      const translated = translateErrorKey(translate, errorKey)
-      if (translated) {
-        if (errorKey === 'goals.form.targetValueRequired')
-          errs.targetValue = translated
-        else if (
-          errorKey === 'goals.form.unitRequired' ||
-          errorKey === 'goals.form.unitTooLong'
-        )
-          errs.unit = translated
-        else if (
-          errorKey === 'goals.form.titleRequired' ||
-          errorKey === 'goals.form.titleTooLong'
-        )
-          errs.description = translated
-        else errs._form = translated
-      }
+    for (const field of ['description', 'targetValue', 'unit'] as const) {
+      const key = keys[field]
+      if (!key) continue
+      const translated = translateErrorKey(translate, key)
+      if (translated) errs[field] = translated
     }
     return errs
   }, [submitted, description, targetValue, unit, translate])
 
-  const previousResetKey = useRef<string | null>(null)
+  const fieldErrors = { ...localFieldErrors, ...backendErrors.fieldErrors }
+
+  useEffect(() => {
+    if (focusRequest?.field === 'description') descriptionRef.current?.focus()
+    else if (focusRequest?.field === 'targetValue') targetRef.current?.focus()
+    else if (focusRequest?.field === 'unit') unitRef.current?.focus()
+  }, [focusRequest])
+
+  const [prevResetKey, setPrevResetKey] = useState<string | null>(null)
   const resetKey = open
     ? `${goal.title}:${goal.targetValue}:${goal.unit}:${goal.deadline ?? ''}`
     : null
-  useEffect(() => {
-    if (resetKey === previousResetKey.current) return
-    previousResetKey.current = resetKey
-    if (open) void Promise.resolve().then(() => {
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey)
+    if (open) {
       setDescription(goal.title)
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
-    })
-  }, [goal.deadline, goal.targetValue, goal.title, goal.unit, open, resetKey])
+      backendErrors.clearBackendErrors()
+    }
+  }
 
   const onSubmit = useCallback(async () => {
     setSubmitted(true)
-    const err = translateErrorKey(
-      translate,
-      validateGoalDraftInput(description, targetValue, unit),
-    )
+    const errorKeys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
+    const firstError = getFirstGoalDraftFieldError(errorKeys)
+    const err = translateErrorKey(translate, firstError?.key ?? null)
     if (err) {
       showError(err)
+      if (firstError) setFocusRequest({ field: firstError.field })
       return
     }
 
@@ -147,13 +146,18 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
       }
 
       await updateGoal.mutateAsync({ goalId: goal.id, data: request })
-      onClose()
+      closeSheet(onClose)
     } catch (error: unknown) {
+      const { field, handled } = backendErrors.reportBackendErrors(error)
+      if (field) setFocusRequest({ field })
+      if (handled) return
       showError(
         getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'),
       )
     }
   }, [
+    backendErrors,
+    closeSheet,
     deadline,
     description,
     goal.id,
@@ -172,36 +176,41 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
 
   return (
     <>
-      <BottomSheetModal
-        open={open}
-        onClose={onClose}
-        title={t('goals.detail.edit')}
-        snapPoints={['70%', '90%']}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
-        contentManagesScroll
+        title={t('goals.detail.edit')}
+        actions={(
+          <ActionRow>
+            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton size="sm" onClick={() => void onSubmit()} disabled={isSubmitting} loading={isSubmitting}>
+              {t('common.save')}
+            </PillButton>
+          </ActionRow>
+        )}
       >
-        <KeyboardAwareBottomSheetScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.form}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
-        >
+        <View style={styles.form}>
           <Text style={styles.eyebrow}>{eyebrowLabel}</Text>
 
           <View>
-            <Text style={styles.fieldLabel}>{t('goals.form.description')}</Text>
+            <Text nativeID="edit-goal-description-label" style={styles.fieldLabel}>{t('goals.form.description')}</Text>
             <BottomSheetAppTextInput
+              ref={descriptionRef}
               value={description}
               onChangeText={setDescription}
               placeholder={t('goals.form.descriptionPlaceholder')}
               placeholderTextColor={tokens.fg3}
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
               accessibilityLabel={t('goals.form.description')}
+              accessibilityLabelledBy="edit-goal-description-label"
+              accessibilityHint={fieldErrors.description}
             />
             {fieldErrors.description ? (
-              <Text style={styles.fieldError} accessibilityRole="alert">
+              <Text nativeID="edit-goal-description-error" style={styles.fieldError}>
                 {fieldErrors.description}
               </Text>
             ) : null}
@@ -213,6 +222,8 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
             targetValue={targetValue}
             unit={unit}
             fieldErrors={fieldErrors}
+            targetRef={targetRef}
+            unitRef={unitRef}
             onChangeTarget={setTargetValue}
             onChangeUnit={setUnit}
           />
@@ -223,44 +234,12 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
             deadline={deadline}
             onChangeDeadline={setDeadline}
           />
-
-          <View style={styles.footer}>
-            <PillButton
-              variant="ghost"
-              style={styles.footerButton}
-              disabled={isSubmitting}
-              onPress={dismissGuard.requestDismiss}
-              accessibilityLabel={t('common.cancel')}
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-              style={styles.footerButton}
-              onPress={() => void onSubmit()}
-              disabled={isSubmitting}
-              accessibilityLabel={t('common.save')}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-              ) : (
-                t('common.save')
-              )}
-            </PillButton>
-          </View>
-        </KeyboardAwareBottomSheetScrollView>
-      </BottomSheetModal>
-      <ConfirmDialog
+        </View>
+      </Sheet>) : null}
+      <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
     </>
   )

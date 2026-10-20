@@ -1,4 +1,6 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -37,11 +39,15 @@ function buildCalendar(overrides: Partial<UserCalendar> = {}): UserCalendar {
     name: 'Personal',
     accessRole: 'owner',
     primary: true,
-    backgroundColor: '#7f46f7',
+    backgroundColor: '#C4530F',
     isSynced: true,
     ...overrides,
   }
 }
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
+})
 
 describe('useCalendars', () => {
   beforeEach(() => {

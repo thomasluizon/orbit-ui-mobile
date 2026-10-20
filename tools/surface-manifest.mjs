@@ -22,19 +22,13 @@ const SOURCE_EXTENSIONS = [".tsx", ".ts", ".css"]
 const OWNERSHIP_MAX_REACH = 1
 const SHARED_ALIAS = ["@orbit/shared/", "packages/shared/src/"]
 
-// A component is an overlay when it DIRECTLY pulls in one of the real overlay
-// bases, or mounts its own portal/modal. Direct imports matter: transitive
-// reachability makes every page an "overlay" (the app shell reaches a dialog),
-// which is how a first cut of this file produced 15 false overlays and lost all
-// 24 real ones. These module names were read out of the codebase, not guessed.
-const WEB_OVERLAY_BASES = [
-  "components/ui/app-overlay",
-  "components/ui/centered-overlay",
-  "components/ui/confirm-dialog",
-  "components/ui/popover",
-  "components/ui/context-menu",
+const OVERLAY_BASES = [
+  "components/ui/sheet",
+  "components/ui/menu",
+  "components/ui/confirm-sheet",
+  "components/ui/date-field",
+  "components/ui/time-field",
 ]
-const MOBILE_OVERLAY_BASES = ["components/bottom-sheet-modal", "components/ui/confirm-dialog"]
 
 // The command palette mounts its own portal and imports no overlay base, so a
 // base-import check alone misses it entirely - that miss is one of the named
@@ -48,7 +42,7 @@ const EMPTY_STATE_MARKERS = ["empty-state", "empty-view", "no-results"]
 const USAGE = `surface-manifest - derive the visual-surface inventory for web AND mobile.
 
 Usage:
-  node tools/surface-manifest.mjs [--baseline <ref>] [--json] [--help]
+  node tools/surface-manifest.mjs [--baseline <ref>] [--json | --check] [--help]
 
 Writes .claude/manifests/surfaces.json (committed). Each cell is
 { surfaceId, platform, kind, state, sourceFile, theme, locale, href }.
@@ -58,11 +52,12 @@ reaches - frozen at generation time.
 Flags:
   --baseline  the pre-redesign ref surfaces are compared against (default ${DEFAULT_BASELINE_REF})
   --json      print the manifest to stdout instead of a human summary
+  --check     write nothing; compare the committed manifest against this tree and exit 1 on drift
   --help      this text
 
 Exit codes:
-  0  manifest written
-  1  inventory could not be derived (missing tree, duplicate surface id)
+  0  manifest written, or --check found no drift
+  1  inventory could not be derived (missing tree, duplicate surface id), or --check found drift
   2  usage error
 `
 
@@ -181,13 +176,6 @@ export function mobileRouteIdentity(posixPath) {
   return { href, label: all.join("/") || "index" }
 }
 
-/** The multi-view root's view names, parsed from its TAB_VIEWS tuple. */
-export function readRootViews(source) {
-  const match = source.match(/const\s+TAB_VIEWS\s*=\s*\[([^\]]+)\]/)
-  if (!match) throw new Error("could not parse TAB_VIEWS from the web view-state module")
-  return [...match[1].matchAll(/'([^']+)'|"([^"]+)"/g)].map((entry) => entry[1] ?? entry[2])
-}
-
 export function isOverlaySource(posixPath, bases, selfMounted) {
   if (bases.some((base) => posixPath.includes(base))) return true
   const absolute = join(REPO_ROOT, posixPath)
@@ -228,20 +216,23 @@ function specialSurfaceLabel(sourceFile, filename) {
   return slug(segments.join("-")) || "root"
 }
 
-function chatBlockEntries(platform, routeSurfaceId, routeSourceFile) {
-  const routeClosure = closureOf(join(REPO_ROOT, routeSourceFile))
-  const candidateRoots =
-    platform === "web"
-      ? [join(REPO_ROOT, "apps", "web", "components", "chat"), join(REPO_ROOT, "apps", "web", "app", "(chat)", "chat")]
-      : [join(REPO_ROOT, "apps", "mobile", "components", "chat")]
-  const candidates = candidateRoots
-    .flatMap((root) => walk(root))
+function chatBlockEntries(platform, routeSurfaceId, hostSourceFile) {
+  const hostClosure = closureOf(join(REPO_ROOT, hostSourceFile))
+  const componentsRoot = join(REPO_ROOT, "apps", platform, "components")
+  // Sorted AFTER the conversion, never before it. An absolute path carries the platform separator,
+  // and `\` (0x5C) sorts after `/` (0x2F), so a Windows run and a Linux run can order two absolute
+  // paths differently. The condition is narrower than "a directory name prefixes a sibling file
+  // name": the character right after the shared prefix has to sort BETWEEN those two bytes. A
+  // sibling `chat2.tsx` flips, because `2` is 0x32; a sibling `chat-header.tsx` never flips,
+  // because `-` is 0x2D and sorts before both separators.
+  const candidates = walk(join(componentsRoot, "chat"))
+    .concat(join(componentsRoot, "shell", "composer.tsx"))
     .concat(platform === "mobile" ? [join(REPO_ROOT, "apps", "mobile", "components", "message-bubble.tsx")] : [])
-    .filter((file) => file.endsWith(".tsx") && routeClosure.has(file) && file !== join(REPO_ROOT, routeSourceFile))
+    .filter((file) => file.endsWith(".tsx") && hostClosure.has(file) && file !== join(REPO_ROOT, hostSourceFile))
+    .map(toPosix)
     .sort()
 
-  return candidates.map((absolutePath) => {
-    const sourceFile = toPosix(absolutePath)
+  return candidates.map((sourceFile) => {
     const componentsMarker = platform === "web" ? "apps/web/components/chat/" : "apps/mobile/components/chat/"
     const label = sourceFile.startsWith(componentsMarker)
       ? sourceFile.slice(componentsMarker.length).replace(/\.tsx$/, "")
@@ -260,8 +251,6 @@ function chatBlockEntries(platform, routeSurfaceId, routeSourceFile) {
 function webEntries() {
   const appDir = join(REPO_ROOT, "apps", "web", "app")
   const componentsDir = join(REPO_ROOT, "apps", "web", "components")
-  const multiViewRoot = "apps/web/app/(app)/page.tsx"
-  const viewSource = "apps/web/app/(app)/use-today-view-state.ts"
   const surfaces = []
 
   const pages = walk(appDir)
@@ -271,12 +260,6 @@ function webEntries() {
   if (pages.length === 0) throw new Error("no page.tsx found under apps/web/app")
 
   for (const sourceFile of pages) {
-    if (sourceFile === multiViewRoot) {
-      for (const view of readRootViews(readFileSync(join(REPO_ROOT, viewSource), "utf8"))) {
-        surfaces.push({ surfaceId: `view-${slug(view)}`, platform: "web", kind: "view", sourceFile, href: "/" })
-      }
-      continue
-    }
     const { href, label } = webRouteIdentity(sourceFile)
     const surface = { surfaceId: `route-${slug(label) || "root"}`, platform: "web", kind: "route", sourceFile, href }
     if (surface.surfaceId === "route-explore" || surface.surfaceId === "route-insights") {
@@ -306,7 +289,7 @@ function webEntries() {
     surfaces.push({ surfaceId: `not-found-${label}`, platform: "web", kind: "not-found", sourceFile, href: null })
   }
 
-  surfaces.push(...chatBlockEntries("web", "route-chat", "apps/web/app/(chat)/chat/page.tsx"))
+  surfaces.push(...chatBlockEntries("web", "route-chat", "apps/web/app/(app)/layout.tsx"))
 
   // Overlays and any other non-route surface, found by what a component
   // RENDERS rather than by what it is named. This is what makes the command
@@ -319,7 +302,7 @@ function webEntries() {
 
   for (const sourceFile of candidates) {
     if (routeSourceFiles.has(sourceFile)) continue
-    if (!isOverlaySource(sourceFile, WEB_OVERLAY_BASES, WEB_SELF_MOUNTED_OVERLAY)) continue
+    if (!isOverlaySource(sourceFile, OVERLAY_BASES, WEB_SELF_MOUNTED_OVERLAY)) continue
     surfaces.push({ surfaceId: `overlay-${slug(overlayName(sourceFile))}`, platform: "web", kind: "overlay", sourceFile, href: null })
   }
   return surfaces
@@ -367,7 +350,7 @@ function mobileEntries() {
     surfaces.push({ surfaceId: "m-error-root", platform: "mobile", kind: "error", sourceFile: errorSource, href: null })
   }
 
-  surfaces.push(...chatBlockEntries("mobile", "m-route-chat", "apps/mobile/app/chat.tsx"))
+  surfaces.push(...chatBlockEntries("mobile", "m-route-chat", "apps/mobile/app/_layout.tsx"))
 
   const candidates = [...walk(componentsDir), ...walk(appDir)]
     .map(toPosix)
@@ -386,13 +369,11 @@ function mobileEntries() {
   )
   for (const sourceFile of candidates) {
     if (screenSet.has(sourceFile)) continue
-    if (!globalOverlaySources.has(sourceFile) && !isOverlaySource(sourceFile, MOBILE_OVERLAY_BASES, MOBILE_SELF_MOUNTED_OVERLAY)) continue
+    if (!globalOverlaySources.has(sourceFile) && !isOverlaySource(sourceFile, OVERLAY_BASES, MOBILE_SELF_MOUNTED_OVERLAY)) continue
     surfaces.push({ surfaceId: `m-overlay-${slug(overlayName(sourceFile))}`, platform: "mobile", kind: "overlay", sourceFile, href: null })
   }
 
-  const widgetRoot = join(REPO_ROOT, "apps", "mobile", "modules", "orbit-widget")
-  const widgetFiles = walk(widgetRoot)
-    .map(toPosix)
+  const widgetFiles = trackedFiles("apps/mobile/modules/orbit-widget")
     .filter(
       (path) =>
         !path.includes("/ios/") &&
@@ -440,10 +421,20 @@ function attachOwnershipAndStates(surfaces) {
     // A surface that owns nothing under that bound (a thin re-export) still
     // owns its own entry file for the purposes of "was this worked on".
     surface.ownedFiles = owned.length > 0 ? owned : [surface.sourceFile]
-    surface.closureSize = closure.size
     surface.states = hasEmptyState(closure) ? ["default", "empty"] : ["default"]
   }
   return surfaces
+}
+
+function trackedFiles(pathspec) {
+  const listed = execFileSync("git", ["ls-files", "-z", "--", pathspec], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  })
+    .split("\0")
+    .filter(Boolean)
+  return [...new Set(listed)]
 }
 
 function gitSha(ref) {
@@ -477,16 +468,70 @@ function buildManifest(baselineRef) {
   if (!resolvedBaseline) throw new Error(`baseline ref "${baselineRef}" does not resolve - pass --baseline <ref>`)
 
   return {
-    generatedFrom: gitSha("HEAD") ?? "unknown",
     baselineRef,
     baselineSha: resolvedBaseline,
     themes: THEMES,
     locales: LOCALES,
     platforms: ["web", "mobile"],
-    surfaceCount: surfaces.length,
-    cellCount: cells.length,
     cells,
   }
+}
+
+function cellsBySurfaceId(manifest) {
+  const bySurfaceId = new Map()
+  for (const cell of Array.isArray(manifest.cells) ? manifest.cells : []) {
+    const records = bySurfaceId.get(cell?.surfaceId) ?? []
+    records.push(cell)
+    bySurfaceId.set(cell?.surfaceId, records)
+  }
+  return bySurfaceId
+}
+
+/** Every way the committed inventory disagrees with one derived from the tree, named precisely. */
+export function inventoryDifferences(committed, current) {
+  const differences = []
+  for (const field of [...new Set([...Object.keys(committed), ...Object.keys(current)])].sort()) {
+    if (field === "cells") continue
+    const before = JSON.stringify(committed[field])
+    const after = JSON.stringify(current[field])
+    if (before !== after) differences.push(`${field}: committed ${before}, derived from this tree ${after}`)
+  }
+  const committedCells = cellsBySurfaceId(committed)
+  const currentCells = cellsBySurfaceId(current)
+  for (const surfaceId of [...currentCells.keys()].sort()) {
+    if (!committedCells.has(surfaceId)) differences.push(`surface missing from the committed manifest: ${surfaceId}`)
+  }
+  for (const surfaceId of [...committedCells.keys()].sort()) {
+    if (!currentCells.has(surfaceId)) differences.push(`committed surface no longer exists in the tree: ${surfaceId}`)
+  }
+  for (const surfaceId of [...currentCells.keys()].sort()) {
+    if (!committedCells.has(surfaceId)) continue
+    if (JSON.stringify(committedCells.get(surfaceId)) !== JSON.stringify(currentCells.get(surfaceId))) {
+      differences.push(`committed surface record no longer matches the tree: ${surfaceId}`)
+    }
+  }
+  return differences
+}
+
+function checkCommittedManifest(manifest) {
+  let committed
+  try {
+    committed = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"))
+  } catch (error) {
+    process.stderr.write(`surface-manifest: the committed manifest could not be read: ${error.message}\n`)
+    return 1
+  }
+  const differences = inventoryDifferences(committed, manifest)
+  if (differences.length > 0) {
+    process.stderr.write(`surface-manifest: the committed inventory does not describe this tree\n`)
+    for (const difference of differences) process.stderr.write(`  - ${difference}\n`)
+    process.stderr.write(`Regenerate it with: node tools/surface-manifest.mjs\n`)
+    return 1
+  }
+  process.stdout.write(
+    `surface-manifest: the committed inventory matches this tree (${cellsBySurfaceId(manifest).size} surfaces, ${manifest.cells.length} cells).\n`,
+  )
+  return 0
 }
 
 function main() {
@@ -498,11 +543,15 @@ function main() {
   const baselineIndex = args.indexOf("--baseline")
   const baselineRef = baselineIndex !== -1 ? args[baselineIndex + 1] : DEFAULT_BASELINE_REF
 
-  const known = new Set(["--baseline", "--json"])
+  const known = new Set(["--baseline", "--json", "--check"])
   const baselineValueIndex = baselineIndex === -1 ? -1 : baselineIndex + 1
   const unknown = args.find((argument, index) => index !== baselineValueIndex && !known.has(argument))
   if (unknown) {
     process.stderr.write(`surface-manifest: unknown argument: ${unknown}\n\n${USAGE}`)
+    return 2
+  }
+  if (args.includes("--check") && args.includes("--json")) {
+    process.stderr.write(`surface-manifest: --check and --json cannot be combined\n\n${USAGE}`)
     return 2
   }
 
@@ -514,6 +563,9 @@ function main() {
     return 1
   }
 
+  // Before the first write, so a check can never repair the drift it exists to report.
+  if (args.includes("--check")) return checkCommittedManifest(manifest)
+
   mkdirSync(dirname(MANIFEST_PATH), { recursive: true })
   writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + "\n", "utf8")
 
@@ -524,10 +576,10 @@ function main() {
 
   const tally = (predicate) => manifest.cells.filter(predicate).length
   process.stdout.write(`wrote ${toPosix(MANIFEST_PATH)}\n`)
-  process.stdout.write(`  HEAD         ${manifest.generatedFrom}\n`)
+  process.stdout.write(`  HEAD         ${gitSha("HEAD") ?? "unknown"}\n`)
   process.stdout.write(`  baseline     ${manifest.baselineRef} (${manifest.baselineSha.slice(0, 8)})\n`)
-  process.stdout.write(`  surfaces     ${manifest.surfaceCount}\n`)
-  process.stdout.write(`  cells        ${manifest.cellCount} (state x ${THEMES.length} themes x ${LOCALES.length} locales)\n`)
+  process.stdout.write(`  surfaces     ${cellsBySurfaceId(manifest).size}\n`)
+  process.stdout.write(`  cells        ${manifest.cells.length} (state x ${THEMES.length} themes x ${LOCALES.length} locales)\n`)
   for (const platform of manifest.platforms) {
     const surfaces = new Set(manifest.cells.filter((cell) => cell.platform === platform).map((cell) => cell.surfaceId))
     process.stdout.write(`    ${platform.padEnd(7)} ${String(surfaces.size).padStart(3)} surfaces / ${String(tally((cell) => cell.platform === platform)).padStart(4)} cells\n`)

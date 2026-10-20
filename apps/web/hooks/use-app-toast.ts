@@ -1,59 +1,24 @@
 'use client'
 
-import { createElement, useCallback } from 'react'
-import { Clock } from 'lucide-react'
-import { toast } from 'sonner'
+import { useCallback } from 'react'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 export function useAppToast() {
-  const showToast = useCallback((message: string) => {
-    toast(message)
-  }, [])
+  const showToast = useAppToastStore((state) => state.showInfo)
+  const showError = useAppToastStore((state) => state.showError)
+  const showSuccess = useAppToastStore((state) => state.showSuccess)
+  const showInfo = useAppToastStore((state) => state.showInfo)
+  const showQueued = useAppToastStore((state) => state.showQueued)
+  const dismissToast = useAppToastStore((state) => state.dismissToast)
 
-  const showError = useCallback((message: string) => {
-    toast.error(message, {
-      duration: 5000,
+  const showPersistentError = useCallback((message: string, reloadLabel: string) => {
+    return useAppToastStore.getState().showToast({
+      kind: 'neutral',
+      message,
+      actionLabel: reloadLabel,
+      onAction: () => globalThis.location.reload(),
     })
   }, [])
 
-  const showSuccess = useCallback((message: string) => {
-    toast.success(message, {
-      duration: 4000,
-    })
-  }, [])
-
-  const showInfo = useCallback((message: string) => {
-    toast.info(message, {
-      duration: 4000,
-    })
-  }, [])
-
-  const showQueued = useCallback(
-    (
-      message: string,
-      actionLabel?: string,
-      onAction?: () => void,
-      onClose?: () => void,
-    ): string | number => {
-      return toast(message, {
-        duration: 6000,
-        className: 'toast-queued',
-        icon: createElement(Clock, { size: 17, strokeWidth: 2.4 }),
-        onDismiss: onClose,
-        onAutoClose: onClose,
-        action: actionLabel && onAction
-          ? {
-              label: actionLabel,
-              onClick: onAction,
-            }
-          : undefined,
-      })
-    },
-    [],
-  )
-
-  const dismissToast = useCallback((toastId: string | number) => {
-    toast.dismiss(toastId)
-  }, [])
-
-  return { showToast, showError, showSuccess, showInfo, showQueued, dismissToast }
+  return { showToast, showError, showPersistentError, showSuccess, showInfo, showQueued, dismissToast }
 }

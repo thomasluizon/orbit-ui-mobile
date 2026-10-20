@@ -1,0 +1,382 @@
+import { createRef, type ReactElement } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import type { StyleProp, ViewStyle } from 'react-native'
+import { act, create } from 'react-test-renderer'
+import { describe, expect, it, vi } from 'vitest'
+import { ListRow } from '@/components/ui/list-row'
+import { User, UserX } from '@/components/ui/icons'
+import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
+import { RadioRow } from '@/components/ui/select-check'
+import { RowList } from '@/components/ui/row-list'
+import { SettingsGroup } from '@/components/ui/settings-group'
+import { createTokensV2 } from '@/lib/theme'
+
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+}))
+
+interface TestNode {
+  readonly props: Readonly<Record<string, unknown>>
+  find(predicate: (node: TestNode) => boolean): TestNode
+  findAll(predicate: (node: TestNode) => boolean): TestNode[]
+  findByType(type: unknown): TestNode
+  findAllByType(type: unknown): TestNode[]
+}
+
+interface TestTree {
+  readonly root: TestNode
+  update(element: ReactElement): void
+}
+
+function render(element: ReactElement): TestTree {
+  let tree!: TestTree
+  void act(() => {
+    tree = create(element) as unknown as TestTree
+  })
+  return tree
+}
+
+function press(node: TestNode) {
+  void act(() => {
+    ;(node.props.onPress as () => void)()
+  })
+}
+
+function resolvePressedStyle(node: TestNode) {
+  const style = node.props.style
+  if (typeof style !== 'function') return style
+  style({ pressed: false })
+  return style({ pressed: true })
+}
+
+function actionContent(node: TestNode, pressed: boolean) {
+  const children = node.props.children as (state: { pressed: boolean }) => ReactElement
+  return render(children({ pressed })).root.findByType(View)
+}
+
+function rowContent(node: TestNode) {
+  return node.findAllByType(View).find((view) => view.props['data-slot'] === 'list-row-content')!
+}
+
+function rowFill(node: TestNode) {
+  return node.findAllByType(View).find((view) => view.props['data-slot'] === 'list-row-fill')!
+}
+
+describe('list primitives on mobile', () => {
+  it('keeps ordinary row title, value and description available to the child-derived announcement', () => {
+    const tree = render(<ListRow title="Week starts on" value="Monday" description="First day in the calendar" onClick={vi.fn()} />)
+    const control = tree.root.findByType(Pressable)
+    expect(control.props.accessibilityLabel).toBeUndefined()
+    const spokenText = control.findAllByType(Text).filter((node) => node.props.accessible !== false && node.props.importantForAccessibility !== 'no-hide-descendants').map((node) => node.props.children)
+    expect(spokenText).toEqual(['Week starts on', 'First day in the calendar', 'Monday'])
+  })
+
+  it('lets an explicit caller label name an ordinary row', () => {
+    const tree = render(<ListRow title="Week starts on" value="Monday" description="First day in the calendar" accessibilityLabel="Choose the first day" onClick={vi.fn()} />)
+    expect(tree.root.findByType(Pressable).props.accessibilityLabel).toBe('Choose the first day')
+  })
+
+  it('keeps the switch name and checked state', () => {
+    const tree = render(<ListRow title="Sync automatically" toggle={{ checked: true, onChange: vi.fn() }} />)
+    const control = tree.root.findByType(Pressable)
+    expect(control.props.accessibilityLabel).toBe('Sync automatically')
+    expect(control.props.accessibilityRole).toBe('switch')
+    expect(control.props.accessibilityState).toEqual({ checked: true })
+  })
+
+  it.each([
+    'Pessoa com um nome completo escrito no próprio perfil',
+    'A person with a full name written in their own profile',
+    `${'longaddress'.repeat(12)}@example.com`,
+  ])('limits a personal title to two lines with a trailing ellipsis: %s', (title) => {
+    const onOpen = vi.fn()
+    const tree = render(<ListRow title={title} textMode="personal" onClick={onOpen} />)
+    const text = tree.root.findAllByType(Text).find((node) => node.props.children === title && node.props.importantForAccessibility !== 'no-hide-descendants')!
+    expect(text.props.children).toBe(title)
+    expect(text.props.numberOfLines).toBe(1)
+    expect(text.props.ellipsizeMode).toBe('tail')
+    press(tree.root.findByType(Pressable))
+    expect(onOpen).toHaveBeenCalledOnce()
+  })
+
+  it('renders the templates glyph in a compact pressed row', () => {
+    const tree = render(<ListRow icon="template" title="Templates" compact onClick={vi.fn()} />)
+    const icon = tree.root.find((node) => node.props.testID === 'icon-template')
+    expect(icon.props.children).toBeTruthy()
+    const row = tree.root.findByType(View)
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 52 })
+    const body = tree.root.findByType(Pressable)
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 52, paddingHorizontal: 16, borderRadius: 12, overflow: 'hidden' })
+    void act(() => { (body.props.onPressIn as () => void)() })
+    expect(StyleSheet.flatten(rowFill(body).props.style)).toMatchObject({ borderRadius: 12, backgroundColor: createTokensV2('purple', 'dark').bgHover })
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+  })
+
+  it('sets the rendered leading glyph from the row danger state', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const ordinary = render(<ListRow title="Sign out" icon={<User size={24} />} />)
+    const danger = render(<ListRow title="Delete account" icon={<UserX size={24} />} danger />)
+    expect(ordinary.root.findByType(User).props.color).toBe(tokens.fg1)
+    expect(danger.root.findByType(UserX).props.color).toBe(tokens.statusBad)
+  })
+
+  it('preserves an intentionally muted leading glyph', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const tree = render(<ListRow title="Invite" icon={<User size={24} color={tokens.fg2} />} />)
+    expect(tree.root.findByType(User).props.color).toBe(tokens.fg2)
+  })
+
+  it('passes an ordinary row color through ProfileNavIcon to its glyph', () => {
+    const tree = render(<ListRow title="Wrapped" icon={<ProfileNavIcon iconKey="wrapped" />} />)
+    expect(tree.root.findByType(ProfileNavIcon).props.color).toBe(createTokensV2('purple', 'dark').fg1)
+  })
+
+  it('exposes the Support action as an accessibility focus target', () => {
+    const supportRef = createRef<View>()
+    const tree = render(<ListRow title="Support" onClick={() => {}} ref={supportRef} />)
+    expect(tree.root.findByType(Pressable).props.accessibilityRole).toBe('button')
+    expect(supportRef.current).toMatchObject({ __nativeTag: expect.any(Number) })
+  })
+
+  it('insets invoice actions and navigation controls without shrinking their touch targets', () => {
+    const onDownload = vi.fn()
+    const tree = render(
+      <ListRow title="Invoice" description="September subscription" chevron={false}
+        action={{ icon: 'download', label: 'Download invoice', onPress: onDownload }} />,
+    )
+    const row = tree.root.findByType(View)
+    const action = tree.root.findByType(Pressable)
+    expect(action.props.accessibilityLabel).toBe('Download invoice')
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ alignItems: 'stretch' })
+    expect(StyleSheet.flatten(row.props.style)).not.toHaveProperty('padding')
+    for (const pressed of [false, true]) {
+      expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 48, height: 48, marginVertical: 8, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden', flexShrink: 0 })
+      expect(StyleSheet.flatten(actionContent(action, pressed).props.style)).toMatchObject({ width: 48, height: 48, flexShrink: 0 })
+    }
+    press(action)
+    expect(onDownload).toHaveBeenCalledOnce()
+
+    void act(() => { tree.update(<ListRow title="Account" onClick={vi.fn()} />) })
+    const navigation = tree.root.findByType(Pressable)
+    expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).not.toHaveProperty('padding')
+    expect(StyleSheet.flatten(resolvePressedStyle(navigation))).toMatchObject({ minHeight: 52, paddingVertical: 12, paddingHorizontal: 16 })
+    const chevron = navigation.findAllByType(View).find((node) =>
+      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 24,
+    )
+    expect(StyleSheet.flatten(chevron?.props.style)).toMatchObject({ width: 24, minHeight: 24, flexShrink: 0 })
+
+    void act(() => { tree.update(<ListRow title="Read only" readOnly />) })
+    expect(tree.root.findAllByType(View).some((node) =>
+      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).paddingHorizontal === 16,
+    )).toBe(true)
+    expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
+  })
+
+  it('renders bare compact and regular rows with their drawn inline padding', () => {
+    const tree = render(<ListRow title="Tags" placement="column" onClick={vi.fn()} />)
+    const bodyStyle = StyleSheet.flatten(resolvePressedStyle(tree.root.findByType(Pressable)))
+    expect(bodyStyle).toMatchObject({ minHeight: 52, paddingVertical: 12, position: 'relative' })
+    const ordinary = render(<ListRow title="Tags" onClick={vi.fn()} />)
+    expect(StyleSheet.flatten(resolvePressedStyle(ordinary.root.findByType(Pressable)))).toMatchObject({ minHeight: 52, paddingVertical: 12, paddingHorizontal: 16 })
+  })
+
+  it('owns the entire padded perimeter in adjacent body and action targets', () => {
+    const onOpen = vi.fn()
+    const onRemove = vi.fn()
+    const tree = render(
+      <ListRow title="Template" onClick={onOpen} chevron={false}
+        action={{ icon: 'trash', label: 'Remove template', onPress: onRemove }} />,
+    )
+    const rowStyle = StyleSheet.flatten(tree.root.findByType(View).props.style)
+    expect(rowStyle).toMatchObject({ minHeight: 52, alignItems: 'stretch' })
+    expect(rowStyle).not.toHaveProperty('padding')
+    const [body, action] = tree.root.findAllByType(Pressable)
+    if (!body || !action) throw new Error('ListRow controls did not render')
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 52, paddingVertical: 12, paddingHorizontal: 16 })
+    expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 48, height: 48, marginVertical: 4, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden' })
+    void act(() => { (body.props.onPressIn as () => void)() })
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).not.toHaveProperty('transform')
+    expect(StyleSheet.flatten(rowContent(body).props.style)).toMatchObject({ transform: [{ scale: 0.96 }] })
+    press(body)
+    void act(() => { (body.props.onPressOut as () => void)() })
+    expect(StyleSheet.flatten(rowContent(body).props.style)).not.toHaveProperty('transform')
+    expect(onOpen).toHaveBeenCalledOnce()
+    expect(onRemove).not.toHaveBeenCalled()
+    press(action)
+    expect(onOpen).toHaveBeenCalledOnce()
+    expect(onRemove).toHaveBeenCalledOnce()
+  })
+
+  it('keeps ListRow body and trailing actions independent', () => {
+    const onClick = vi.fn()
+    const onAction = vi.fn()
+    const tree = render(
+      <ListRow
+        icon="home"
+        title="Account"
+        description="Profile and security"
+        value="Ready for a deliberately long reminder summary"
+        trailing={<Text>Synced</Text>}
+        onClick={onClick}
+        action={{ icon: 'trash', label: 'Remove account', onPress: onAction, danger: true }}
+      />,
+    )
+    const controls = tree.root.findAllByType(Pressable)
+    expect(controls).toHaveLength(2)
+    const [bodyControl, actionControl] = controls
+    if (!bodyControl || !actionControl) throw new Error('ListRow controls did not render')
+    const bodyTexts = bodyControl.findAllByType(Text)
+    expect(bodyTexts.map((node) => node.props.children)).toContain('Synced')
+    const leadingIcon = bodyControl
+      .findAll((node) => typeof node.props.strokeWidth === 'number')
+      .find((node) => node.props.strokeWidth === 1.5)
+    expect(leadingIcon?.props.strokeWidth).toBe(1.5)
+    const valueText = bodyTexts.find((node) => node.props.children === 'Ready for a deliberately long reminder summary')
+    expect(valueText?.props.numberOfLines).toBe(1)
+    expect(StyleSheet.flatten(valueText?.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '50%' })
+    press(bodyControl)
+    press(actionControl)
+    void act(() => { (bodyControl.props.onPressIn as () => void)() })
+    const bodyPressedStyle = StyleSheet.flatten(rowContent(bodyControl).props.style)
+    const actionPressedStyle = StyleSheet.flatten(actionContent(actionControl, true).props.style)
+    expect(bodyPressedStyle).toMatchObject({
+      transform: [{ scale: 0.96 }],
+    })
+    expect(actionPressedStyle).toMatchObject({
+      transform: [{ scale: 0.96 }],
+    })
+    expect(StyleSheet.flatten(rowFill(bodyControl).props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12 })
+    expect(StyleSheet.flatten(resolvePressedStyle(bodyControl))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+    expect(StyleSheet.flatten(resolvePressedStyle(actionControl))).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 999, overflow: 'hidden' })
+    expect(onClick).toHaveBeenCalledOnce()
+    expect(onAction).toHaveBeenCalledOnce()
+
+    void act(() => {
+      tree.update(
+        <ListRow
+          title="Danger zone"
+          danger
+          chevron={false}
+          action={{ icon: 'trash', label: 'Archive', onPress: vi.fn() }}
+        />,
+      )
+    })
+    actionContent(tree.root.findByType(Pressable), true)
+    const dangerTitle = tree.root.findAllByType(Text).find((node) => node.props.children === 'Danger zone')
+    expect(StyleSheet.flatten(dangerTitle?.props.style)).toMatchObject({
+      color: createTokensV2('purple', 'dark').statusBadText,
+    })
+
+    void act(() => {
+      tree.update(<ListRow title="A complete read only title" readOnly wrapTitle />)
+    })
+    expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
+    const wrappedTitle = tree.root.findAllByType(Text).find((node) =>
+      node.props.children === 'A complete read only title')
+    expect(wrappedTitle?.props.numberOfLines).toBeUndefined()
+  })
+
+  it('renders RadioRow selection details and disables unavailable choices', () => {
+    const onSelect = vi.fn()
+    const tree = render(<RadioRow label="Daily" onSelect={onSelect} />)
+    const choice = tree.root.findByType(Pressable)
+    expect(choice.props.accessibilityState).toEqual({ checked: false })
+    expect(StyleSheet.flatten(resolvePressedStyle(choice))).toMatchObject({ paddingLeft: 16, paddingRight: 16 })
+    press(choice)
+    resolvePressedStyle(choice)
+    expect(onSelect).toHaveBeenCalledOnce()
+
+    void act(() => {
+      tree.update(
+        <RadioRow
+          label="Weekly"
+          description="Every Monday"
+          selected
+          onSelect={onSelect}
+          leading={<Text>W</Text>}
+          depth={2}
+          meta="3/4"
+          tag="Pro"
+        />,
+      )
+    })
+    expect(tree.root.findByType(Pressable).props.accessibilityState).toEqual({ checked: true })
+    expect(StyleSheet.flatten(resolvePressedStyle(tree.root.findByType(Pressable)))).toMatchObject({ paddingLeft: 32 })
+
+    void act(() => {
+      tree.update(
+        <RadioRow label="Locked" selected disabled reason="Upgrade required" depth={-2} />,
+      )
+    })
+    expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
+    const disabled = tree.root.find(
+      (node) => node.props.accessibilityRole === 'radio',
+    )
+    expect(disabled.props.accessibilityState).toEqual({ checked: true, disabled: true })
+    expect(StyleSheet.flatten(disabled.props.style)).toMatchObject({ paddingLeft: 16 })
+    for (const [depth, padding] of [[1, 24], [3, 48], [4, 64], [5, 96]] as const) {
+      void act(() => {
+        tree.update(<RadioRow label="Nested" depth={depth} />)
+      })
+      expect(StyleSheet.flatten(resolvePressedStyle(tree.root.findByType(Pressable)))).toMatchObject({ paddingLeft: padding })
+    }
+  })
+
+  it('filters non-row children and divides valid RowList entries', () => {
+    const tree = render(
+      <RowList style={{ borderRadius: 8 }}>
+        ignored
+        <Text>First</Text>
+        {null}
+        <Text>Second</Text>
+      </RowList>,
+    )
+    const [panel, firstRow, secondRow] = tree.root.findAllByType(View)
+    if (!panel || !firstRow || !secondRow) throw new Error('RowList structure did not render')
+    expect(tree.root.findAllByType(View)).toHaveLength(3)
+    expect(panel.props.children).toHaveLength(2)
+    expect(panel.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ borderRadius: 8 })]),
+    )
+    expect(firstRow.props.style).toBeUndefined()
+    expect(secondRow.props.style).toEqual({
+      borderTopColor: createTokensV2('purple', 'dark').hairline,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    })
+    expect(tree.root.findAllByType(Text).map((node) => node.props.children)).toEqual([
+      'First',
+      'Second',
+    ])
+  })
+
+  it('renders static and actionable SettingsGroup entries with optional content', () => {
+    const openProfile = vi.fn()
+    const openPrivacy = vi.fn()
+    const tree = render(
+      <SettingsGroup>{[
+          { label: 'Version' },
+          { label: 'Profile', value: 'Alex', trailing: <Text>Verified</Text>, onClick: openProfile },
+          { label: 'Plan', value: 'Pro' },
+          { label: 'Privacy', onClick: openPrivacy },
+        ].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup>,
+    )
+    const controls = tree.root.findAllByType(Pressable)
+    expect(controls).toHaveLength(2)
+    expect(tree.root.findByType(View).props.children).toHaveLength(4)
+    expect(tree.root.findAllByType(Text).map((node) => node.props.children)).toEqual([
+      'Version',
+      'Profile',
+      'Alex',
+      'Verified',
+      'Plan',
+      'Pro',
+      'Privacy',
+    ])
+    for (const control of controls) {
+      resolvePressedStyle(control)
+      press(control)
+    }
+    expect(openProfile).toHaveBeenCalledOnce()
+    expect(openPrivacy).toHaveBeenCalledOnce()
+  })
+})

@@ -1,233 +1,138 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import type { CalendarHeaderNavigationProps } from '@orbit/shared/utils/calendar-navigation'
+
+import { useId, useRef, useState, type ReactNode } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
+import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { YearPicker } from '@/components/ui/year-picker'
-import { CenteredOverlay } from '@/components/ui/centered-overlay'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/utils'
 
-interface CalendarHeaderProps {
-  monthLabel: string
-  year: number
-  previousMonthLabel: string
-  nextMonthLabel: string
-  currentMonthLabel: string
-  selectYearLabel: string
-  onPreviousMonth: () => void
-  onNextMonth: () => void
-  onCurrentMonth: () => void
-  onSelectYear: (year: number) => void
+interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
+  viewSelector?: ReactNode
 }
 
-/** Agenda header mirroring the Today date-nav: single month chevrons flanking a
- *  tappable month label (tap returns to the current month) and a tappable year
- *  that opens a year picker for direct jumps. */
-export function CalendarHeader({
-  monthLabel,
-  year,
-  previousMonthLabel,
-  nextMonthLabel,
-  currentMonthLabel,
-  selectYearLabel,
-  onPreviousMonth,
-  onNextMonth,
-  onCurrentMonth,
-  onSelectYear,
-}: Readonly<CalendarHeaderProps>) {
-  const [isYearOpen, setIsYearOpen] = useState(false)
+const controlButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center border-0 text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]'
+const titleButton = `${controlButton} rounded-[12px] bg-transparent`
+const headerButton = `${controlButton} orbit-calendar-nav-control relative rounded-full bg-transparent`
+const pickerButton = `${controlButton} rounded-[12px] bg-[var(--bg-field)]`
 
-  function handleSelectYear(nextYear: number) {
-    onSelectYear(nextYear)
-    setIsYearOpen(false)
-  }
+function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, year, onSelectYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'onSelectMonth'> & { choosingYear: boolean; year: number; onSelectYear: (year: number) => void }>) {
+  const locale = useLocale()
+  return <div className="flex min-h-0 flex-col gap-4">
+    {choosingYear ? <div className="flex min-h-0 flex-col"><YearPicker selectedYear={year} onSelectYear={onSelectYear} /></div> :
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 6em), 1fr))' }}>
+        {Array.from({ length: 12 }, (_, month) => <button key={month} type="button"
+          className={`${pickerButton} px-2`} aria-pressed={month === currentMonth.getMonth() && year === currentMonth.getFullYear()}
+          style={{ boxShadow: month === currentMonth.getMonth() && year === currentMonth.getFullYear() ? 'inset 0 0 0 2px var(--fg-1)' : undefined }}
+          onClick={() => onSelectMonth(month, year)}>{formatLocaleDate(new Date(year, month, 1), locale, { month: 'short' })}</button>)}
+      </div>}
+  </div>
+}
 
-  return (
-    <div className="shrink-0" style={{ padding: '12px 20px 16px' }}>
-      <div
-        data-tour="tour-calendar-month-nav"
-        className="flex items-center justify-between w-full"
-        style={{ padding: '0 4px' }}
-      >
-        <button
-          type="button"
-          aria-label={previousMonthLabel}
-          onClick={onPreviousMonth}
-          className="icon-btn touch-target shrink-0"
-        >
-          <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+const monthTitleStyle = { padding: 'var(--orbit-space-8)', flexShrink: 0, maxWidth: '100%', fontFamily: 'var(--font-display)', fontSize: '1.375rem', lineHeight: 1.2, fontWeight: 500, color: 'var(--fg-1)', fontVariantNumeric: 'tabular-nums' } as const
+const periodTitleStyle = { padding: 'var(--orbit-space-8) var(--orbit-space-16)', flexShrink: 1, maxWidth: '100%', fontFamily: 'var(--font-mono)', fontSize: '0.875rem', lineHeight: 1.4, fontWeight: 400, color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums' } as const
+
+function CalendarNavigationTitle({ currentMonth, todayKey, isTodaySelected, period, pickerId, pickerOpen, onReturn, onOpenPicker }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'todayKey' | 'isTodaySelected' | 'period'> & { pickerId: string; pickerOpen: boolean; onReturn: () => void; onOpenPicker: () => void }>) {
+  const t = useTranslations()
+  const locale = useLocale()
+  const heading = formatCalendarMonthHeading(currentMonth, todayKey, locale)
+  const monthName = [heading.month, heading.year].filter(Boolean).join(' ')
+  return <div className="flex max-w-full min-w-0 flex-wrap items-center justify-center">
+        <button type="button" data-calendar-period-title={period ? '' : undefined} data-calendar-month-title={period ? undefined : ''}
+          className={`${titleButton} transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] aria-disabled:cursor-default aria-disabled:hover:bg-transparent aria-disabled:active:bg-transparent aria-disabled:focus-visible:bg-transparent ${period ? 'orbit-calendar-span-title' : ''}`}
+          style={period ? periodTitleStyle : monthTitleStyle}
+          aria-label={period ? t('calendar.period.goToCurrent', { period: period.label }) : `${monthName}, ${t('dates.goToToday')}`}
+          aria-disabled={isTodaySelected} onClick={onReturn}>
+          {period ? <span>{period.label}</span> : <span className="min-w-0 whitespace-normal break-words">{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-2)' }}>{heading.year}</span></> : null}</span>}
         </button>
-        <div className="flex items-center" style={{ gap: 2 }}>
-          <button
-            type="button"
-            aria-label={currentMonthLabel}
-            onClick={onCurrentMonth}
-            className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
-            style={{
-              height: 36,
-              padding: '0 10px',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 17,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              color: 'var(--fg-1)',
-            }}
-          >
-            {monthLabel}
-          </button>
-          <button
-            type="button"
-            aria-label={selectYearLabel}
-            aria-expanded={isYearOpen}
-            aria-haspopup="dialog"
-            onClick={() => setIsYearOpen(true)}
-            className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
-            style={{
-              height: 36,
-              padding: '0 10px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 17,
-              fontWeight: 500,
-              fontVariantNumeric: 'tabular-nums',
-              color: isYearOpen ? 'var(--primary)' : 'var(--fg-1)',
-            }}
-          >
-            {year}
-          </button>
-        </div>
-        <button
-          type="button"
-          aria-label={nextMonthLabel}
-          onClick={onNextMonth}
-          className="icon-btn touch-target shrink-0"
-        >
-          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-        </button>
+        {!period ? <button type="button" className={`${titleButton} orbit-calendar-picker-control relative`} style={{ minWidth: 48, minHeight: 48 }}
+          aria-label={`${monthName}, ${t('calendar.monthPicker')}`} aria-haspopup="dialog" aria-expanded={pickerOpen} aria-controls={pickerId}
+          onClick={onOpenPicker}>
+          <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
+        </button> : null}
       </div>
-
-      <CenteredOverlay
-        open={isYearOpen}
-        onDismiss={() => setIsYearOpen(false)}
-        ariaLabel={selectYearLabel}
-        panelClassName="w-[min(90vw,320px)] rounded-[16px] bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
-      >
-        <YearPicker selectedYear={year} onSelectYear={handleSelectYear} />
-      </CenteredOverlay>
-    </div>
-  )
 }
 
-interface CalendarWeekNavProps {
-  weekLabel: string
-  previousWeekLabel: string
-  nextWeekLabel: string
-  currentWeekLabel: string
-  onPreviousWeek: () => void
-  onNextWeek: () => void
-  onCurrentWeek: () => void
-}
-
-/** Week-granularity nav for the week time-grid: a centered, tappable week-range
- *  label (tap returns to the current week) flanked by prev/next week chevrons. */
-export function CalendarWeekNav({
-  weekLabel,
-  previousWeekLabel,
-  nextWeekLabel,
-  currentWeekLabel,
-  onPreviousWeek,
-  onNextWeek,
-  onCurrentWeek,
-}: Readonly<CalendarWeekNavProps>) {
-  return (
-    <div className="shrink-0" style={{ padding: '12px 20px 16px' }}>
-      <div className="flex items-center justify-between w-full" style={{ padding: '0 4px' }}>
-        <button
-          type="button"
-          aria-label={previousWeekLabel}
-          onClick={onPreviousWeek}
-          className="icon-btn touch-target shrink-0"
-        >
-          <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label={currentWeekLabel}
-          onClick={onCurrentWeek}
-          className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
-          style={{
-            height: 36,
-            padding: '0 16px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 17,
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
-            color: 'var(--fg-1)',
-          }}
-        >
-          {weekLabel}
-        </button>
-        <button
-          type="button"
-          aria-label={nextWeekLabel}
-          onClick={onNextWeek}
-          className="icon-btn touch-target shrink-0"
-        >
-          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-        </button>
-      </div>
+export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector }: Readonly<CalendarHeaderProps>) {
+  const pickerId = useId()
+  const yearButtonRef = useRef<HTMLButtonElement>(null)
+  const t = useTranslations()
+  const [year, setYear] = useState(currentMonth.getFullYear())
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [choosingYear, setChoosingYear] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const returnToToday = () => { if (!isTodaySelected) (period?.onCurrent ?? onCurrentMonth)() }
+  const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
+  return <div data-testid="calendar-header-group" className="flex flex-col gap-4 px-4 pt-3 pb-6">
+    <div data-testid={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} className={`flex min-h-12 flex-wrap items-center justify-center ${period ? 'gap-2' : 'gap-0'}`}>
+      <button type="button" className={headerButton} aria-label={period?.previousLabel ?? previousMonthLabel} onClick={period?.onPrevious ?? onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
+      <CalendarNavigationTitle currentMonth={currentMonth} todayKey={todayKey} isTodaySelected={isTodaySelected} period={period}
+        pickerId={pickerId} pickerOpen={pickerOpen} onReturn={returnToToday}
+        onOpenPicker={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }} />
+      <button type="button" className={`${headerButton} disabled:opacity-40`} aria-label={period?.nextLabel ?? nextMonthLabel} onClick={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
     </div>
-  )
+    {viewSelector}
+    {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
+      headerAccessory={<button ref={yearButtonRef} type="button" className={`${titleButton} px-3`} aria-label={`${year}, ${t('common.selectYear')}`} aria-expanded={choosingYear} aria-controls={pickerId} onClick={() => setChoosingYear(!choosingYear)}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>}>
+      <div id={pickerId} className="flex min-h-0 flex-col"><CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false); yearButtonRef.current?.focus() }} /></div>
+    </Sheet> : null}
+  </div>
 }
 
 interface CalendarLegendProps {
-  todayLabel: string
-  doneLabel: string
+  loggableLabel: string
+  fullLabel: string
   partialLabel: string
-  missedLabel: string
+  noneLabel: string
 }
 
-/** v8 calendar legend — inline row of colored dots + labels, no section header.
- *  Items mirror the grid's day-dot vocabulary exactly. */
 export function CalendarLegend({
-  todayLabel,
-  doneLabel,
+  loggableLabel,
+  fullLabel,
   partialLabel,
-  missedLabel,
+  noneLabel,
 }: Readonly<CalendarLegendProps>) {
   return (
     <div
-      data-tour="tour-calendar-legend"
-      className="flex flex-wrap items-center justify-center"
-      style={{ padding: '14px 20px', gap: 16 }}
+      className="flex flex-col"
+      style={{ gap: 16 }}
     >
-      <LegendItem dotColor="var(--primary)" hollow label={todayLabel} />
-      <LegendItem dotColor="var(--primary)" label={doneLabel} />
-      <LegendItem dotColor="var(--fg-4)" hollow label={partialLabel} />
-      <LegendItem dotColor="var(--status-overdue)" label={missedLabel} />
+      <LegendItem outcome="full" label={fullLabel} />
+      <LegendItem outcome="partial" label={partialLabel} />
+      <LegendItem outcome="none" label={noneLabel} />
+      <LegendItem outcome="loggable" label={loggableLabel} />
     </div>
   )
 }
 
 interface LegendItemProps {
-  dotColor: string
+  outcome: 'full' | 'partial' | 'none' | 'loggable'
   label: string
-  hollow?: boolean
 }
 
-function LegendItem({ dotColor, label, hollow = false }: Readonly<LegendItemProps>) {
+function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
+  if (outcome === 'partial') {
+    return <span aria-hidden="true" data-legend-outcome="partial" className="shrink-0 rounded-full" style={{ width: 14, height: 14, borderWidth: 1.5, borderStyle: 'solid', borderTopColor: 'var(--primary)', borderRightColor: 'var(--primary)', borderBottomColor: 'var(--status-empty)', borderLeftColor: 'var(--status-empty)' }} />
+  }
+
+  const style = outcome === 'full'
+    ? { background: 'var(--fg-1)' }
+    : outcome === 'loggable'
+      ? { background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }
+      : { boxShadow: 'inset 0 0 0 1.5px var(--status-empty)' }
+  return <span aria-hidden="true" data-legend-outcome={outcome} className="rounded-full shrink-0" style={{ width: 14, height: 14, ...style }} />
+}
+
+function LegendItem({ outcome, label }: Readonly<LegendItemProps>) {
   return (
-    <span className="inline-flex items-center" style={{ gap: 6 }}>
-      <span
-        aria-hidden="true"
-        className="rounded-full shrink-0"
-        style={
-          hollow
-            ? { width: 6, height: 6, boxShadow: `inset 0 0 0 1.5px ${dotColor}`, opacity: 0.6 }
-            : { width: 6, height: 6, background: dotColor, opacity: 0.6 }
-        }
-      />
+    <span className="inline-flex items-center" style={{ gap: 8 }}>
+      <LegendSwatch outcome={outcome} />
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 13,
+          fontSize: '1rem',
           color: 'var(--fg-3)',
         }}
       >

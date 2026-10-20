@@ -4,12 +4,16 @@ import type { ReactNode } from 'react'
 import { createMockHabit, createMockRescheduleSuggestion } from '@orbit/shared/__tests__/factories'
 import type { RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const h = vi.hoisted(() => ({
   push: vi.fn(),
   mutateAsync: vi.fn(),
   showError: vi.fn(),
+  wide: false,
+  pending: false,
   profile: { hasProAccess: true, language: 'en' },
+  today: '2026-08-17',
   reschedule: {
     suggestion: null as RescheduleSuggestion | null,
     isLoading: false,
@@ -24,29 +28,49 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: h.profile }) }))
+vi.mock('@/app/(app)/today-provider', () => ({ useToday: () => h.today }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: h.showError }) }))
-vi.mock('@/hooks/use-habits', () => ({ useUpdateHabit: () => ({ mutateAsync: h.mutateAsync, isPending: false }) }))
+vi.mock('@/hooks/use-habits', () => ({ useUpdateHabit: () => ({ mutateAsync: h.mutateAsync, isPending: h.pending }) }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => h.wide }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({ useRescheduleSuggestion: () => h.reschedule }))
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children, footer }: { open: boolean; children?: ReactNode; footer?: ReactNode }) =>
-    open ? (
-      <div>
-        {children}
-        {footer}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 const overdueHabit = createMockHabit({ id: 'habit-1', title: 'Run', isOverdue: true, dueDate: '2025-01-01' })
 
 describe('RescheduleSheet', () => {
+  it.each(['free', 'error', 'accept'] as const)('renders trailing small actions in the %s footer', (state) => {
+    if (state === 'free') h.profile = { hasProAccess: false, language: 'en' }
+    if (state === 'error') h.reschedule.error = new Error('unavailable')
+    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const primary = state === 'free' ? 'habits.reschedule.upgrade' : state === 'error' ? 'habits.reschedule.retry' : 'habits.reschedule.accept'
+    const footer = screen.getByTestId('sheet').querySelector('[data-slot="sheet-actions"]')!
+    expect(footer.querySelectorAll('[data-slot="action-row"]')).toHaveLength(1)
+    const actions = footer.querySelector('[data-slot="action-row"]')!
+    expect(Array.from(actions.children).map((button) => button.textContent)).toEqual(['habits.reschedule.dismiss', primary])
+    expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-size'))).toEqual(['sm', 'sm'])
+    expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-variant'))).toEqual(['ghost', 'primary'])
+  })
+  it.each(['free', 'error', 'accept'] as const)('dismisses the %s footer without applying or navigating', (state) => {
+    if (state === 'free') h.profile = { hasProAccess: false, language: 'en' }
+    if (state === 'error') h.reschedule.error = new Error('unavailable')
+    const onOpenChange = vi.fn()
+    render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(h.mutateAsync).not.toHaveBeenCalled()
+    expect(h.push).not.toHaveBeenCalled()
+  })
   beforeEach(() => {
     h.push.mockReset()
     h.mutateAsync.mockReset().mockResolvedValue(undefined)
     h.showError.mockReset()
+    h.wide = false
+    h.pending = false
+    sheetTestControls.defer(false)
     h.reschedule.refetch.mockReset()
     h.profile = { hasProAccess: true, language: 'en' }
+    h.today = '2026-08-17'
     h.reschedule.suggestion = null
     h.reschedule.isLoading = false
     h.reschedule.error = null
@@ -62,7 +86,7 @@ describe('RescheduleSheet', () => {
 
     render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
 
-    fireEvent.click(screen.getByTestId('reschedule-accept'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.accept' }))
 
     await waitFor(() => expect(h.mutateAsync).toHaveBeenCalledTimes(1))
     expect(h.mutateAsync).toHaveBeenCalledWith({
@@ -75,6 +99,15 @@ describe('RescheduleSheet', () => {
         frequencyQuantity: 2,
       }),
     })
+  })
+
+  it('shows only the date line for a plan without a frequency', () => {
+    h.reschedule.suggestion = createMockRescheduleSuggestion({ frequencyUnit: null, frequencyQuantity: null, days: [] })
+    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const schedule = screen.getByTestId('reschedule-proposed-schedule')
+    expect(schedule).toHaveTextContent(/\d/)
+    expect(schedule.parentElement?.children).toHaveLength(1)
+    expect(screen.queryByText('habits.oneTimeTask')).not.toBeInTheDocument()
   })
 
   it('shows the upgrade prompt for free users and routes to /upgrade', () => {
@@ -104,5 +137,68 @@ describe('RescheduleSheet', () => {
 
     expect(screen.getByText('habits.reschedule.loading')).toBeInTheDocument()
     expect(screen.getByTestId('reschedule-loading-skeleton')).toBeInTheDocument()
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+    expect(screen.getByTestId('reschedule-loading-skeleton').querySelectorAll('[data-variant="habit-row"]')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'habits.reschedule.accept' })).not.toBeInTheDocument()
+  })
+
+  it('uses an accessible dialog title and the proposed Astra label', () => {
+    h.profile = { hasProAccess: true, language: 'pt-BR' }
+    h.reschedule.suggestion = createMockRescheduleSuggestion({ dueDate: '2026-08-20', dueTime: '07:30:00' })
+    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    expect(screen.getByRole('dialog', { name: 'habits.reschedule.title' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'habits.reschedule.title' })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
+    expect(screen.queryByText('habits.reschedule.proposedScheduleLabel')).not.toBeInTheDocument()
+    expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/^qui\., 20 de ago\. · 07:30:00$/)
+    expect(screen.getByText('Astra')).toHaveAttribute('translate', 'no')
+    expect(screen.getByText('Astra')).not.toHaveStyle({ textTransform: 'uppercase' })
+    expect(screen.getByTestId('sheet').querySelector('[data-asset="astra-mark"]')).not.toBeInTheDocument()
+  })
+
+  it('adds the year to a proposed date outside the account year', () => {
+    h.today = '2026-12-30'
+    h.reschedule.suggestion = createMockRescheduleSuggestion({ dueDate: '2027-01-05', dueTime: null })
+    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/^Tue, Jan 5, 2027$/)
+  })
+
+  it('uses the neutral filled action at wide width and shows a busy accept while saving', () => {
+    h.wide = true
+    h.reschedule.suggestion = createMockRescheduleSuggestion({})
+    h.mutateAsync.mockImplementation(() => new Promise(() => {}))
+    const onOpenChange = vi.fn()
+    const { rerender } = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    expect(screen.getByRole('button', { name: 'habits.reschedule.accept' })).toHaveAttribute('data-variant', 'secondary')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.accept' }))
+    h.pending = true
+    rerender(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    expect(screen.getByRole('button', { name: 'habits.reschedule.accept' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'habits.reschedule.accept' })).toBeDisabled()
+  })
+
+  it('waits for dismissal before navigating to Pro', () => {
+    h.profile = { hasProAccess: false, language: 'en' }
+    sheetTestControls.defer(true)
+    const onOpenChange = vi.fn()
+    render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.upgrade' }))
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(h.push).not.toHaveBeenCalled()
+    sheetTestControls.completeDismissal()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(h.push).toHaveBeenCalledWith('/upgrade')
+  })
+
+  it('waits for dismissal before closing a proposed plan', () => {
+    h.reschedule.suggestion = createMockRescheduleSuggestion({})
+    sheetTestControls.defer(true)
+    const onOpenChange = vi.fn()
+    render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    sheetTestControls.completeDismissal()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 })

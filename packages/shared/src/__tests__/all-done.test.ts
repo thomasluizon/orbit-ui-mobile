@@ -67,7 +67,7 @@ describe('getAllDoneOnDate', () => {
     expect(getAllDoneOnDate(new Map([[habit.id, habit]]), new Map(), date)).toEqual({ allDone: true, count: 1 })
   })
 
-  it('counts a due habit marked completed', () => {
+  it('counts a due habit marked completed when its range flag is absent', () => {
     const habit = createMockHabit({ id: 'completed', isCompleted: true, isLoggedInRange: false, scheduledDates: [date] })
     expect(getAllDoneOnDate(new Map([[habit.id, habit]]), new Map(), date)).toEqual({ allDone: true, count: 1 })
   })

@@ -6,12 +6,17 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, requiredChecksOf, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { headActivityArgv, headActivityBoundary, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, resolveReviewVerdict, reviewChecksFor, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --ticket <file>
 
 Reads harness-produced artifacts, persists one SHA-bound receipt under the repository git state,
 and prints READY or every stale/blocking verdict. It never trusts a caller-authored status flag.
+
+An unprotected base has no required checks. READY still needs current-head delivery evidence,
+a nonempty passing live rollup matching delivery's registration fingerprint,
+and pullfrog-approval from the Pullfrog app, or, when that check is absent from the rollup, an
+APPROVED Pullfrog review at the exact head. Changed or missing fingerprints are CI_STALE.
 
 exit codes: 0 READY, 1 not ready, 2 usage or artifact error`
 
@@ -77,6 +82,9 @@ let live
 let liveComparison
 let liveTicket
 let liveCiGreen = false
+let reviewVerdict = null
+let reviewComplete = true
+let reviewReason = null
 try {
   const repository = repositorySlug(repoRoot)
   const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
@@ -94,19 +102,53 @@ try {
   if (live === null || live.number !== prNumber) {
     fail(`the pull request read for ${prNumber} did not return the confirmed number/base/head/draft/rollup shape`)
   }
+  const activityRead = live.headRepository === live.repositoryName ? await runBounded(
+    process.env.GH_BIN || "gh",
+    headActivityArgv(live.repositoryName, live.headRefName),
+    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+  ) : null
+  let activities = null
+  if (activityRead?.status === 0 && !activityRead.error && !activityRead.timedOut) {
+    try { activities = JSON.parse(activityRead.stdout) } catch { /* An invalid page cannot prove a review current. */ }
+  }
+  live.headActivityBoundary = headActivityBoundary(activities, live.headRefOid, live.headRefName, live.repositoryName, live.headRepository)
   const requiredRead = await runBounded(
     process.env.GH_BIN || "gh",
     ["api", `repos/${repository}/branches/${encodeURIComponent(live.baseRefName)}/protection/required_status_checks`],
     { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
   )
   if (requiredRead.timedOut) fail(`required checks for PR ${prNumber} timed out after 45s; the complete child process tree was terminated`)
-  if (requiredRead.error || requiredRead.status !== 0) {
+  if (requiredRead.error || requiredRead.overflowed) {
     const detail = requiredRead.stderr || requiredRead.stdout || requiredRead.error?.message || `exit ${requiredRead.status}`
     fail(`required checks for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
   }
-  const requiredChecks = requiredChecksOf(JSON.parse(requiredRead.stdout))
+  const requiredChecks = requiredChecksFromResponse(JSON.parse(requiredRead.stdout), requiredRead.status === 0)
+  if (requiredChecks === null && requiredRead.status !== 0) {
+    const detail = requiredRead.stderr || requiredRead.stdout || `exit ${requiredRead.status}`
+    fail(`required checks for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
   if (requiredChecks === null) fail(`required checks for PR ${prNumber} returned no { context, app_id } checks array`)
-  liveCiGreen = readinessCiIsGreen(live.statusCheckRollup, requiredChecks)
+  const reviewChecks = reviewChecksFor(requiredChecks)
+  const matchesDelivery = ci.registrationFingerprint === registrationFingerprint(live, newestChecks(live.statusCheckRollup))
+  const resolved = await resolveReviewVerdict(live, async (cursor) => {
+    const page = await runBounded(
+      process.env.GH_BIN || "gh",
+      reviewPageArgv(repository, prNumber, cursor),
+      { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+    )
+    if (page.timedOut || page.error || page.status !== 0) return null
+    try {
+      return reviewPageFromGraphQl(JSON.parse(page.stdout))
+    } catch {
+      return null
+    }
+  })
+  reviewVerdict = resolved.verdict
+  reviewComplete = resolved.complete
+  reviewReason = resolved.reason ?? null
+  // verify-delivery.mjs builds this set from the same function against the same verdict, so the
+  // cached `ci.pass` this tool honours below can never disagree with the live reading here.
+  liveCiGreen = matchesDelivery && live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks, reviewSatisfiedOutOfBand(reviewVerdict))
 
   const comparison = await runBounded(
     process.env.GH_BIN || "gh",
@@ -137,7 +179,19 @@ const receipt = {
   baseBranch: live.baseRefName,
   currentBaseSha: live.baseRefOid,
   currentHeadSha: live.headRefOid,
-  ci: { settled: ci.pending.length === 0 && liveCiGreen, green: ci.pass === true && liveCiGreen, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
+  ci: {
+    settled: ci.pending.length === 0 && liveCiGreen,
+    green: ci.pass === true && liveCiGreen,
+    checks: ci,
+    headSha: state.headSha,
+    baseSha: state.baseSha,
+    // `complete` says whether the review walk PROVED its answer. False means older records remained
+    // unread, so an absent verdict is a read that did not finish rather than an approval that is not
+    // there, and the receipt says which.
+    // Which evidence carried the review axis, so a receipt that leaned on the fallback says so
+    // rather than reading like an ordinary green (#440).
+    review: { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null, complete: reviewComplete, reason: reviewReason },
+  },
   behindBy: liveComparison.behind_by,
   draft: live.isDraft,
   ticket: {

@@ -1,114 +1,144 @@
+import { useRef, useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
-import { GoalsView } from '@/components/goals/goals-view'
-import { NotificationBell } from '@/components/navigation/notification-bell'
-import { TodayUtilityRow } from '@/app/(app)/today-shell'
-import { Popover } from '@/components/ui/popover'
+import { TodayDateControl } from '@/app/(app)/today-shell'
+import { Menu } from '@/components/ui/menu'
 
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-vi.mock('@/hooks/use-is-client', () => ({ useIsClient: () => true }))
-vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ data: { allGoals: [] }, isFetched: true }) }))
-vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: [], unreadCount: 0, isLoading: false, isError: false, refetch: vi.fn() }),
-  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
-  useMarkAllNotificationsRead: () => ({ mutate: vi.fn() }),
-  useDeleteNotification: () => ({ mutate: vi.fn() }),
-  useDeleteAllNotifications: () => ({ mutate: vi.fn() }),
-}))
-vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showQueued: vi.fn() }) }))
-vi.mock('@/components/navigation/notification-detail-modal', () => ({ NotificationDetailModal: () => null }))
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-afterEach(cleanup)
+function TodayControls() {
+  return <TodayDateControl dayName="Monday" numericDate="01/01" isTodaySelected nextDisabled={false}
+    previousLabel="Previous" goToTodayLabel="Go to today" nextLabel="Next"
+    moreLabel="List options" selectLabel="Select" collapseLabel="Collapse" allCollapsed={false}
+    refreshLabel="Refresh" completedLabel="Completed" showCompleted={false} isFetching={false}
+    searchLabel="Search" onSearch={vi.fn()} onToggleSelect={vi.fn()} onToggleCollapse={vi.fn()}
+    onRefresh={vi.fn()} onToggleCompleted={vi.fn()} onGoToPreviousDay={vi.fn()}
+    onGoToToday={vi.fn()} onGoToNextDay={vi.fn()} />
+}
 
-const surfaces = [
-  { name: 'Today controls', trigger: 'habits.actions.more', content: 'common.select' },
-  { name: 'Today frequency', trigger: 'habits.frequencyFilter', content: 'common.all' },
-  { name: 'goal filters', trigger: 'goals.filters.statusFilter', content: 'goals.filters.all' },
-  { name: 'notifications', trigger: 'notifications.bell', content: 'notifications.title' },
-]
+const cases = (['sheet', 'anchored'] as const).flatMap((presentation) =>
+  (['open', 'dismissed', 'reopened'] as const).flatMap((phase) =>
+    (['pointer', 'click-only'] as const).map((activation) => ({ presentation, phase, activation }))))
 
-function MenuSurfaces() {
+describe('Today controls and habit menu ownership', () => {
+  it.each(cases)('replaces the $phase $presentation menu and back via $activation', async ({ presentation, phase, activation }) => {
+    vi.stubGlobal('matchMedia', () => ({ matches: presentation === 'anchored', addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    render(<><TodayControls /><HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} /></>)
+    const controlsTrigger = screen.getByRole('button', { name: 'List options' })
+    const rowTrigger = screen.getByRole('button', { name: 'habits.actions.more' })
+    const press = (trigger: HTMLElement) => {
+      if (activation === 'pointer') fireEvent.pointerDown(trigger)
+      fireEvent.click(trigger)
+    }
+    const prepare = async (trigger: HTMLElement, label: string) => {
+      press(trigger)
+      await screen.findByRole('menuitem', { name: label })
+      if (phase === 'open') return
+      fireEvent.keyDown(document, { key: 'Escape' })
+      if (phase !== 'reopened') return
+      press(trigger)
+      await screen.findByRole('menuitem', { name: label })
+    }
+    await prepare(controlsTrigger, 'Select')
+    await prepare(rowTrigger, 'common.edit')
+    if (phase !== 'dismissed') {
+      expect(screen.getAllByRole('menu')).toHaveLength(1)
+      expect(screen.queryByRole('menuitem', { name: 'Select' })).toBeNull()
+      expect(controlsTrigger).toHaveAttribute('aria-expanded', 'false')
+    }
+    press(controlsTrigger)
+    await screen.findByRole('menuitem', { name: 'Select' })
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
+    expect(screen.queryByRole('menuitem', { name: 'common.edit' })).toBeNull()
+    expect(rowTrigger).toHaveAttribute('aria-expanded', 'false')
+    if (presentation === 'anchored') {
+      await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Select' })).toHaveFocus())
+    }
+  })
+
+  it.each(['pointer', 'click-only'] as const)('replaces a sheet while its exit is pending via %s', async (activation) => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    render(<><TodayControls /><HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} /></>)
+    const controlsTrigger = screen.getByRole('button', { name: 'List options' })
+    const rowTrigger = screen.getByRole('button', { name: 'habits.actions.more' })
+    const press = (trigger: HTMLElement) => {
+      if (activation === 'pointer') fireEvent.pointerDown(trigger)
+      fireEvent.click(trigger)
+    }
+    controlsTrigger.focus()
+    press(controlsTrigger)
+    await screen.findByRole('menuitem', { name: 'Select' })
+    const exitingPanel = screen.getByRole('dialog')
+    await waitFor(() => expect(exitingPanel).toContainElement(document.activeElement as HTMLElement))
+    let finishExit!: () => void
+    const finished = new Promise<void>((resolve) => { finishExit = resolve })
+    const getAnimations = vi.fn(() => [{ finished }])
+    Object.defineProperty(exitingPanel, 'getAnimations', { value: getAnimations })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(getAnimations).toHaveBeenCalled())
+    expect(exitingPanel).toHaveAttribute('data-ending-style')
+    expect(exitingPanel).toBeInTheDocument()
+    expect(controlsTrigger).toHaveAttribute('aria-expanded', 'true')
+
+    const previousTriggerFocus = vi.fn()
+    controlsTrigger.addEventListener('focus', previousTriggerFocus)
+    press(rowTrigger)
+    await screen.findByRole('menuitem', { name: 'common.edit' })
+    await waitFor(() => expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement))
+    expect(previousTriggerFocus).not.toHaveBeenCalled()
+    expect(exitingPanel).not.toBeInTheDocument()
+    expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1)
+    expect(screen.queryByRole('menuitem', { name: 'Select', hidden: true })).toBeNull()
+    press(controlsTrigger)
+    await screen.findByRole('menuitem', { name: 'Select' })
+    await act(async () => { finishExit(); await finished })
+    expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1)
+    expect(screen.getByRole('menuitem', { name: 'Select' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'common.edit', hidden: true })).toBeNull()
+    expect(controlsTrigger).toHaveAttribute('aria-expanded', 'true')
+    expect(rowTrigger).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(controlsTrigger).toHaveFocus())
+  })
+
+})
+
+function ControlledMenus({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const firstAnchor = useRef<HTMLButtonElement>(null)
+  const secondAnchor = useRef<HTMLButtonElement>(null)
+  const [secondOpen, setSecondOpen] = useState(false)
   return <>
-    <TodayUtilityRow
-      activeView="today" searchOpen={false} searchValue="" selectedFrequency={null}
-      selectedTagIds={[]} tags={[]} frequencyOptions={[{ key: 'Day', label: 'Daily' }]}
-      isSelectMode={false} showCompleted={false} isFetching={false} allCollapsed={false}
-      onSearchToggle={vi.fn()} onSearchChange={vi.fn()} onFrequencyChange={vi.fn()}
-      onTagToggle={vi.fn()} onToggleSelect={vi.fn()} onToggleCollapse={vi.fn()}
-      onRefresh={vi.fn()} onToggleCompleted={vi.fn()}
-    />
-    <GoalsView />
-    <NotificationBell />
+    <button ref={firstAnchor} type="button">Controlled menu</button>
+    <Menu open={open} presentation="anchored" anchorRef={firstAnchor} title="Controlled" onClose={onClose}
+      items={[{ id: 'first', label: 'First action' }]} />
+    <button ref={secondAnchor} type="button" onClick={() => setSecondOpen(true)}>Second menu</button>
+    <Menu open={secondOpen} presentation="anchored" anchorRef={secondAnchor} title="Second" onClose={() => setSecondOpen(false)}
+      items={[{ id: 'second', label: 'Second action' }]} />
   </>
 }
 
-function press(trigger: HTMLElement, activation: string) {
-  if (activation === 'pointer') fireEvent.pointerDown(trigger)
-  fireEvent.click(trigger)
-}
-
-describe.each(surfaces)('$name menu ownership', ({ trigger, content }) => {
-  it.each([
-    ['open', 'pointer'], ['exiting', 'pointer'],
-    ['open', 'click-only'], ['exiting', 'click-only'],
-  ])('replaces the %s surface menu with a habit menu and back via %s activation', (phase, activation) => {
-    render(<>
-      <div data-testid="surfaces"><MenuSurfaces /></div>
-      <div data-testid="row">
-        <HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />
-      </div>
-    </>)
-    const surfaceTrigger = within(screen.getByTestId('surfaces')).getByRole('button', { name: trigger })
-    const rowTrigger = within(screen.getByTestId('row')).getByRole('button', { name: 'habits.actions.more' })
-    press(surfaceTrigger, activation)
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    expect(screen.getByText(content)).toBeInTheDocument()
-    if (phase === 'exiting') {
-      fireEvent.keyDown(document, { key: 'Escape' })
-      expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    }
-    press(rowTrigger, activation)
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    expect(screen.getByRole('menuitem', { name: 'common.edit' })).toBeInTheDocument()
-    expect(screen.queryByText(content)).toBeNull()
-    if (phase === 'exiting') {
-      fireEvent.keyDown(document, { key: 'Escape' })
-      expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    }
-    press(surfaceTrigger, activation)
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    expect(screen.getByText(content)).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'common.edit' })).toBeNull()
-  })
-})
-
-describe('controlled popover ownership', () => {
-  it('suppresses replacement while the parent is still open and permits a later reopen', () => {
-    const onOpenChange = vi.fn()
-    function ControlledSurfaces({ open }: { open: boolean }) {
-      return <>
-        <Popover trigger={<button type="button">Controlled menu</button>} open={open} onOpenChange={onOpenChange}>
-          <button type="button">Controlled action</button>
-        </Popover>
-        <HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />
-      </>
-    }
-    const { rerender } = render(<ControlledSurfaces open />)
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: 'Controlled action' })).toBeNull()
-    expect(screen.getByRole('menuitem', { name: 'common.edit' })).toBeInTheDocument()
-    expect(onOpenChange).toHaveBeenCalledWith(false)
-    rerender(<ControlledSurfaces open />)
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: 'Controlled action' })).toBeNull()
-    rerender(<ControlledSurfaces open={false} />)
-    rerender(<ControlledSurfaces open />)
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'Controlled action' })).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'common.edit' })).toBeNull()
+describe('controlled menu ownership', () => {
+  it('suppresses a replaced menu until a fresh open transition', async () => {
+    const onClose = vi.fn()
+    const { rerender } = render(<ControlledMenus open onClose={onClose} />)
+    await screen.findByRole('menuitem', { name: 'First action' })
+    fireEvent.click(screen.getByRole('button', { name: 'Second menu' }))
+    await screen.findByRole('menuitem', { name: 'Second action' })
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
+    expect(screen.queryByRole('menuitem', { name: 'First action' })).toBeNull()
+    expect(onClose).toHaveBeenCalledWith()
+    rerender(<ControlledMenus open onClose={onClose} />)
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
+    rerender(<ControlledMenus open={false} onClose={onClose} />)
+    rerender(<ControlledMenus open onClose={onClose} />)
+    await screen.findByRole('menuitem', { name: 'First action' })
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
+    expect(screen.queryByRole('menuitem', { name: 'Second action' })).toBeNull()
   })
 })

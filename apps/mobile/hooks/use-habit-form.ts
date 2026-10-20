@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState, useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import type { UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -13,12 +13,13 @@ import {
   buildHabitFrequencyUnits,
   formatHabitTimeInput,
   getHabitFormFlags,
+  toggleHabitDaySelection,
   normalizeHabitFormData,
   translateErrorKey,
   validateHabitFormInput,
-  toggleSelectedId,
 } from '@orbit/shared/utils'
-import type { HabitFormValidationContext } from '@orbit/shared/utils'
+import type { HabitDayOption, HabitFormValidationContext } from '@orbit/shared/utils'
+import { useBackendFieldErrors } from './use-backend-field-errors'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 
 export interface HabitFormOptions {
@@ -34,8 +35,8 @@ export interface HabitFormHelpers {
   isRecurring: boolean
   showDayPicker: boolean
   showEndDate: boolean
-  daysList: { value: string; label: string }[]
-  toggleDay: (day: string) => void
+  daysList: HabitDayOption[]
+  toggleDay: (day: string, daily?: boolean) => void
   frequencyUnits: { value: FrequencyUnit; label: string }[]
   setOneTime: () => void
   setRecurring: () => void
@@ -43,6 +44,11 @@ export interface HabitFormHelpers {
   setGeneral: () => void
   formatTimeInput: (value: string) => string
   formatEndTimeInput: (value: string) => string
+  backendFieldErrors: Partial<Record<'title' | 'description', string>>
+  backendFocusRequest: number
+  backendFocusField: 'title' | 'description' | undefined
+  clearBackendErrors: () => void
+  reportBackendErrors: (error: unknown) => boolean
   validateAll: (context?: HabitFormValidationContext) => string | null
 }
 
@@ -60,6 +66,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
       emoji: '',
       frequencyUnit: null,
       frequencyQuantity: null,
+      intervalWeeks: 1,
       days: [],
       isBadHabit: false,
       isGeneral: false,
@@ -79,6 +86,25 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   const watchedValues = normalizeHabitFormData(
     useWatch({ control: form.control }) as HabitFormInput,
   )
+  const backendErrors = useBackendFieldErrors({ title: watchedValues.title, description: watchedValues.description }, { title: 'Title', description: 'Description' })
+  const [backendFocusRequest, setBackendFocusRequest] = useState(0)
+  const [backendFocusField, setBackendFocusField] = useState<'title' | 'description' | undefined>()
+  useEffect(() => {
+    if (backendFocusRequest && backendFocusField === 'title') form.setFocus('title')
+  }, [backendFocusRequest, backendFocusField, form])
+  function clearBackendErrors() {
+    backendErrors.clearBackendErrors()
+    setBackendFocusField(undefined)
+    setBackendFocusRequest(0)
+  }
+  function reportBackendErrors(error: unknown): boolean {
+    const { field, handled } = backendErrors.reportBackendErrors(error)
+    if (field) {
+      setBackendFocusField(field)
+      setBackendFocusRequest((request) => request + 1)
+    }
+    return handled
+  }
   const { isOneTime, isGeneral, isFlexible, isRecurring, showDayPicker, showEndDate } =
     getHabitFormFlags(watchedValues)
 
@@ -93,6 +119,13 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
           friday: t('dates.daysShort.friday'),
           saturday: t('dates.daysShort.saturday'),
           sunday: t('dates.daysShort.sunday'),
+          mondayLong: t('dates.daysLong.monday'),
+          tuesdayLong: t('dates.daysLong.tuesday'),
+          wednesdayLong: t('dates.daysLong.wednesday'),
+          thursdayLong: t('dates.daysLong.thursday'),
+          fridayLong: t('dates.daysLong.friday'),
+          saturdayLong: t('dates.daysLong.saturday'),
+          sundayLong: t('dates.daysLong.sunday'),
           unitDay: t('habits.form.unitDay'),
           unitWeek: t('habits.form.unitWeek'),
           unitMonth: t('habits.form.unitMonth'),
@@ -115,11 +148,11 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   )
 
   const toggleDay = useCallback(
-    (day: string) => {
+    (day: string, daily = false) => {
       const current = form.getValues('days') ?? []
-      form.setValue('days', toggleSelectedId(current, day), { shouldDirty: true })
+      form.setValue('days', toggleHabitDaySelection(current, day, daysList.map((option) => option.value), daily), { shouldDirty: true })
     },
-    [form],
+    [daysList, form],
   )
 
   const setOneTime = useCallback(() => {
@@ -180,6 +213,11 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   )
 
   return {
+    backendFieldErrors: backendErrors.fieldErrors,
+    backendFocusField,
+    backendFocusRequest,
+    reportBackendErrors,
+    clearBackendErrors,
     form,
     isOneTime,
     isGeneral,

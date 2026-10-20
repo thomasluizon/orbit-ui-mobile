@@ -1,6 +1,8 @@
+vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/auth-api', () => ({
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-api')>()),
   getAuthHeaders: vi.fn().mockResolvedValue({
     Authorization: 'Bearer test-token',
   }),
@@ -29,11 +31,7 @@ describe('notification server actions', () => {
   })
 
   function mockApiResponse(body: unknown, status = 200) {
-    mockFetch.mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      json: () => Promise.resolve(body),
-    })
+    mockFetch.mockImplementation(async () => Response.json(body, { status }))
   }
 
   function mock204() {
@@ -49,7 +47,7 @@ describe('notification server actions', () => {
     it('sends PUT to /api/notifications/:id/read', async () => {
       mock204()
 
-      await markNotificationRead('notif-1')
+      await markNotificationRead('notif-1', 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/notifications/notif-1/read')
@@ -59,7 +57,7 @@ describe('notification server actions', () => {
     it('includes auth headers', async () => {
       mock204()
 
-      await markNotificationRead('notif-1')
+      await markNotificationRead('notif-1', 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
@@ -68,7 +66,7 @@ describe('notification server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Notification not found' }, 404)
 
-      await expect(markNotificationRead('nonexistent')).rejects.toThrow(
+      await expect(markNotificationRead('nonexistent', 'account-a')).rejects.toThrow(
         'Notification not found',
       )
     })
@@ -79,7 +77,7 @@ describe('notification server actions', () => {
     it('sends PUT to /api/notifications/read-all', async () => {
       mock204()
 
-      await markAllNotificationsRead()
+      await markAllNotificationsRead('account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/notifications/read-all')
@@ -89,7 +87,7 @@ describe('notification server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Not authenticated' }, 401)
 
-      await expect(markAllNotificationsRead()).rejects.toThrow(
+      await expect(markAllNotificationsRead('account-a')).rejects.toThrow(
         'Not authenticated',
       )
     })
@@ -100,7 +98,7 @@ describe('notification server actions', () => {
     it('sends DELETE to /api/notifications/:id', async () => {
       mock204()
 
-      await deleteNotification('notif-1')
+      await deleteNotification('notif-1', 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/notifications/notif-1')
@@ -110,7 +108,7 @@ describe('notification server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Not found' }, 404)
 
-      await expect(deleteNotification('nonexistent')).rejects.toThrow(
+      await expect(deleteNotification('nonexistent', 'account-a')).rejects.toThrow(
         'Not found',
       )
     })
@@ -121,7 +119,7 @@ describe('notification server actions', () => {
     it('sends DELETE to /api/notifications/all', async () => {
       mock204()
 
-      await deleteAllNotifications()
+      await deleteAllNotifications('account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/notifications/all')
@@ -131,7 +129,7 @@ describe('notification server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Server error' }, 500)
 
-      await expect(deleteAllNotifications()).rejects.toThrow('Server error')
+      await expect(deleteAllNotifications('account-a')).rejects.toThrow('Server error')
     })
   })
 
@@ -148,7 +146,7 @@ describe('notification server actions', () => {
         },
       }
 
-      await subscribePush(subscription)
+      await subscribePush(subscription, 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/notifications/subscribe')
@@ -167,7 +165,7 @@ describe('notification server actions', () => {
         endpoint: 'https://push.example.com/abc',
       }
 
-      await subscribePush(subscription)
+      await subscribePush(subscription, 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({
@@ -181,7 +179,7 @@ describe('notification server actions', () => {
       mockApiResponse({ error: 'Invalid subscription' }, 400)
 
       await expect(
-        subscribePush({ endpoint: '' }),
+        subscribePush({ endpoint: '' }, 'account-a'),
       ).rejects.toThrow('Invalid subscription')
     })
   })
@@ -194,7 +192,7 @@ describe('notification server actions', () => {
         endpoint: 'https://push.example.com/abc',
         keys: { p256dh: 'p256dh-key', auth: 'auth-key' },
         releaseOtherAccount: true,
-      })
+      }, 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({
@@ -213,7 +211,7 @@ describe('notification server actions', () => {
         },
       }
 
-      await unsubscribePush(subscription)
+      await unsubscribePush(subscription, 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/notifications/unsubscribe')
@@ -232,7 +230,7 @@ describe('notification server actions', () => {
         endpoint: 'https://push.example.com/abc',
       }
 
-      await unsubscribePush(subscription)
+      await unsubscribePush(subscription, 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({
@@ -246,7 +244,7 @@ describe('notification server actions', () => {
       mockApiResponse({ error: 'Subscription not found' }, 404)
 
       await expect(
-        unsubscribePush({ endpoint: 'https://push.example.com/abc' }),
+        unsubscribePush({ endpoint: 'https://push.example.com/abc' }, 'account-a'),
       ).rejects.toThrow('Subscription not found')
     })
   })
@@ -256,25 +254,21 @@ describe('notification server actions', () => {
     it('throws with error message from response body', async () => {
       mockApiResponse({ error: 'Not found' }, 404)
 
-      await expect(deleteNotification('x')).rejects.toThrow('Not found')
+      await expect(deleteNotification('x', 'account-a')).rejects.toThrow('Not found')
     })
 
     it('throws with message field from response body', async () => {
       mockApiResponse({ message: 'Validation failed' }, 400)
 
-      await expect(markNotificationRead('')).rejects.toThrow(
+      await expect(markNotificationRead('', 'account-a')).rejects.toThrow(
         'Validation failed',
       )
     })
 
     it('throws with status code when no error body', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-        json: () => Promise.reject(new Error('No JSON')),
-      })
+      mockFetch.mockResolvedValue(new Response(null, { status: 500 }))
 
-      await expect(deleteAllNotifications()).rejects.toThrow('500')
+      await expect(deleteAllNotifications('account-a')).rejects.toThrow('500')
     })
   })
 })

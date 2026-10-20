@@ -121,10 +121,6 @@ export const cases = () => {
     `${renamedRun.status} ${renamedRun.stdout}${renamedRun.stderr}`,
   )
   T(`${TOOL}: replacing the title edits the issue`, !existsSync(renamed.titleMarker))
-  /**
-   * Every argument is compared, not searched. The stub matches by substring, so pinning the title
-   * `title + " WRONG"`, which left the whole gate green.
-   */
   T(
     `${TOOL}: the title edit forwarded the exact new title`,
     forwarded(renamed.titleCapture).subcommand.endsWith("issue") && forwarded(renamed.titleCapture).rest === titleArgv(NEW_TITLE),

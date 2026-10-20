@@ -1,11 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { useProfile, useHasProAccess, useTrialDaysLeft, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
+import { renderToString } from 'react-dom/server'
+import { hydrateRoot } from 'react-dom/client'
+import { profileKeys } from '@orbit/shared/query'
+import { useProfile, useHasProAccess, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
 import { ApiError } from '@/lib/api-fetch'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const boundaryMocks = vi.hoisted(() => ({
   toastError: vi.fn(),
@@ -17,22 +26,16 @@ const boundaryMocks = vi.hoisted(() => ({
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-vi.mock('sonner', () => ({
-  toast: Object.assign(vi.fn(), {
-    error: boundaryMocks.toastError,
-    success: vi.fn(),
-    dismiss: vi.fn(),
-  }),
-}))
 
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: {
+  useHeldAccountId: () => 'account-a',
+  useAuthStore: Object.assign((selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }), {
     getState: () => ({
       logout: boundaryMocks.logout,
       confirmSessionRefreshFailure: boundaryMocks.confirmSessionRefreshFailure,
       recoverSessionRefreshFailure: boundaryMocks.recoverSessionRefreshFailure,
     }),
-  },
+  }),
 }))
 
 vi.mock('next-intl', () => ({
@@ -58,8 +61,10 @@ vi.mock('@/hooks/use-color-scheme', () => ({
   }),
 }))
 
+let queryClient: QueryClient
+
 function createWrapper() {
-  const queryClient = new QueryClient({
+  queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
     },
@@ -85,12 +90,7 @@ function mockErrorResponse(
   body: unknown = {},
   headers?: HeadersInit,
 ) {
-  mockFetch.mockResolvedValue({
-    ok: false,
-    status,
-    headers: new Headers(headers),
-    json: () => Promise.resolve(body),
-  })
+  mockFetch.mockResolvedValue(Response.json(body, { status, headers }))
 }
 
 function apiErrorFrom(error: unknown): ApiError {
@@ -101,9 +101,38 @@ function apiErrorFrom(error: unknown): ApiError {
 }
 
 describe('useProfile', () => {
+  it('keeps the first client profile and loading state equal to the server render', async () => {
+    function ProfileStatus() {
+      const { profile, isLoading } = useProfile({ enabled: false })
+      return React.createElement('span', null, isLoading ? 'loading' : profile?.name)
+    }
+    const serverClient = new QueryClient()
+    const html = renderToString(React.createElement(QueryClientProvider, { client: serverClient }, React.createElement(ProfileStatus)))
+    expect(html).toContain('loading')
+    const container = document.createElement('div')
+    container.innerHTML = html
+    document.body.append(container)
+
+    const client = new QueryClient()
+    client.setQueryData(profileKeys.detail(), createMockProfile({ name: 'Alex' }))
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    await act(async () => {
+      root = hydrateRoot(container, React.createElement(QueryClientProvider, { client }, React.createElement(ProfileStatus)), {
+        onRecoverableError: recoverableError,
+      })
+    })
+    expect(recoverableError).not.toHaveBeenCalled()
+    expect(container).toHaveTextContent('Alex')
+    await act(async () => root?.unmount())
+    container.remove()
+    client.clear()
+    serverClient.clear()
+  })
   beforeEach(() => {
     mockFetch.mockReset()
     boundaryMocks.toastError.mockClear()
+    useAppToastStore.setState({ showError: boundaryMocks.toastError, currentToast: null, queue: [] })
     boundaryMocks.logout.mockClear()
     boundaryMocks.confirmSessionRefreshFailure.mockClear()
     boundaryMocks.recoverSessionRefreshFailure.mockClear()
@@ -117,11 +146,13 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.profile).toBeDefined()
     expect(result.current.profile!.name).toBe('Alex')
-    expect(result.current.profile!.email).toBe('thomas@example.com')
+    expect(result.current.profile!.email).toBe('alex@example.com')
   })
 
   it('returns undefined profile while loading', () => {
@@ -135,6 +166,21 @@ describe('useProfile', () => {
     expect(result.current.isLoading).toBe(true)
   })
 
+  it('seeds a profile query already opened by the app shell', () => {
+    const profile = createMockProfile()
+
+    const { result } = renderHook(() => {
+      const shell = useProfile({ enabled: false })
+      const today = useProfile({ enabled: false, initialData: profile })
+      const habitList = useProfile({ enabled: false })
+      return { shell, today, habitList }
+    }, { wrapper: createWrapper() })
+
+    expect(result.current.today.profile).toEqual(profile)
+    expect(result.current.habitList.profile).toEqual(profile)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('surfaces a 401 and exposes the failed-refresh sign-in state', async () => {
     mockErrorResponse(
       401,
@@ -146,6 +192,8 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     expect(result.current.isSuccess).toBe(false)
@@ -163,14 +211,15 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     expect(result.current.isSuccess).toBe(false)
     expect(result.current.profile).toBeUndefined()
     expect(apiErrorFrom(result.current.error).status).toBe(404)
     expect(boundaryMocks.toastError).toHaveBeenCalledWith(
-      'Not found',
-      expect.objectContaining({ description: 'Profile not found' }),
+      'Not found: Profile not found',
     )
     expect(boundaryMocks.logout).not.toHaveBeenCalled()
   })
@@ -182,14 +231,15 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     expect(result.current.isSuccess).toBe(false)
     expect(result.current.profile).toBeUndefined()
     expect(apiErrorFrom(result.current.error).status).toBe(500)
     expect(boundaryMocks.toastError).toHaveBeenCalledWith(
-      'Server error',
-      expect.anything(),
+      'Server error: Internal error',
     )
   })
 
@@ -200,10 +250,12 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     expect(apiErrorFrom(result.current.error).status).toBe(503)
-    expect(boundaryMocks.toastError).toHaveBeenCalledWith('Server error', expect.anything())
+    expect(boundaryMocks.toastError).toHaveBeenCalledWith('Server error')
   })
 
   it('exposes invalidate helper', async () => {
@@ -214,6 +266,8 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(typeof result.current.invalidate).toBe('function')
@@ -227,6 +281,8 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(typeof result.current.patchProfile).toBe('function')
@@ -250,6 +306,8 @@ describe('useProfile', () => {
 
     const { result } = renderHook(() => useProfile(), { wrapper: Wrapper })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     const { profileKeys } = await import('@orbit/shared/query')
@@ -275,6 +333,10 @@ describe('useHasProAccess', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(false))
   })
 
@@ -285,55 +347,11 @@ describe('useHasProAccess', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(true))
-  })
-})
-
-describe('useTrialDaysLeft', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
-  it('returns null when not in trial', async () => {
-    mockProfileResponse(createMockProfile({ trialEndsAt: null }))
-
-    const { result } = renderHook(() => useTrialDaysLeft(), {
-      wrapper: createWrapper(),
-    })
-
-    await waitFor(() => expect(result.current).toBeNull())
-  })
-
-  it('returns positive days when trial is active', async () => {
-    const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + 5)
-    mockProfileResponse(
-      createMockProfile({ trialEndsAt: futureDate.toISOString(), isTrialActive: true }),
-    )
-
-    const { result } = renderHook(() => useTrialDaysLeft(), {
-      wrapper: createWrapper(),
-    })
-
-    await waitFor(() => {
-      expect(result.current).not.toBeNull()
-      expect(result.current).toBeGreaterThanOrEqual(4)
-      expect(result.current).toBeLessThanOrEqual(5)
-    })
-  })
-
-  it('returns 0 when trial has expired', async () => {
-    const pastDate = new Date()
-    pastDate.setDate(pastDate.getDate() - 5)
-    mockProfileResponse(
-      createMockProfile({ trialEndsAt: pastDate.toISOString(), isTrialActive: false }),
-    )
-
-    const { result } = renderHook(() => useTrialDaysLeft(), {
-      wrapper: createWrapper(),
-    })
-
-    await waitFor(() => expect(result.current).toBe(0))
   })
 })
 
@@ -349,6 +367,10 @@ describe('useCurrentPlan', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe('Free'))
   })
 
@@ -359,6 +381,10 @@ describe('useCurrentPlan', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe('Trial'))
   })
 
@@ -369,6 +395,10 @@ describe('useCurrentPlan', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe('Pro'))
   })
 })
@@ -385,6 +415,10 @@ describe('useTrialExpired', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(false))
   })
 
@@ -401,6 +435,10 @@ describe('useTrialExpired', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(true))
   })
 
@@ -417,6 +455,10 @@ describe('useTrialExpired', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(false))
   })
 })
@@ -440,6 +482,10 @@ describe('useTrialUrgent', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(true))
   })
 
@@ -457,6 +503,10 @@ describe('useTrialUrgent', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(false))
   })
 
@@ -467,6 +517,10 @@ describe('useTrialUrgent', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(false))
   })
 })
@@ -490,6 +544,10 @@ describe('useIsYearlyPro', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(true))
   })
 
@@ -507,6 +565,10 @@ describe('useIsYearlyPro', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(true))
   })
 
@@ -524,6 +586,10 @@ describe('useIsYearlyPro', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(false))
   })
 
@@ -534,6 +600,10 @@ describe('useIsYearlyPro', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(false))
   })
 

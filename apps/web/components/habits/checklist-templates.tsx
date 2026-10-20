@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { useCallback } from 'react'
+import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
@@ -11,6 +11,12 @@ import {
   useDeleteChecklistTemplate,
 } from '@/hooks/use-checklist-templates'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { Icon } from '@/components/ui/icon'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { ListRow } from '@/components/ui/list-row'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
@@ -23,8 +29,10 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
-  const [showSave, setShowSave] = useState(false)
-  const [templateName, setTemplateName] = useState('')
+  const [open, setOpen] = useAccountScopedState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const [showSave, setShowSave] = useAccountScopedState(false)
+  const [templateName, setTemplateName] = useAccountScopedState('')
 
   const handleSave = useCallback(() => {
     const name = templateName.trim()
@@ -42,14 +50,19 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         },
       },
     )
-  }, [createTemplate, items, showError, t, templateName])
+  }, [createTemplate, items, setShowSave, setTemplateName, showError, t, templateName])
 
   const handleLoad = useCallback(
     (id: string) => {
       const tmpl = templates.find((entry) => entry.id === id)
-      if (tmpl) onLoad(applyChecklistTemplate(tmpl))
+      if (tmpl) {
+        closeSheet(() => {
+          setOpen(false)
+          onLoad(applyChecklistTemplate(tmpl))
+        })
+      }
     },
-    [onLoad, templates],
+    [closeSheet, onLoad, setOpen, templates],
   )
 
   const handleDelete = useCallback(
@@ -64,72 +77,34 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   )
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3 flex-wrap">
-        {items.length > 0 && !showSave && (
-          <button
-            type="button"
-            className="chip"
-            onClick={() => setShowSave(true)}
-          >
-            <Plus size={14} strokeWidth={2} aria-hidden="true" />
-            {t('habits.form.saveAsTemplate')}
-          </button>
-        )}
-        {templates.length > 0 && (
-          <>
-            {items.length > 0 && !showSave && (
-              <span aria-hidden="true" className="self-stretch w-px bg-[var(--hairline)]" />
-            )}
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span
-                className="uppercase text-[var(--fg-3)]"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  letterSpacing: '0.08em',
-                }}
-              >
-                {t('habits.form.templates')}:
-              </span>
-              {templates.map((tmpl) => (
-                <span
-                  key={tmpl.id}
-                  className="inline-flex items-center rounded-full bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-fast)] hover:bg-[var(--bg-elev-2)]"
-                  style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
-                >
-                  <button
-                    type="button"
-                    className="pl-3.5 pr-1.5 py-2 text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
-                    onClick={() => handleLoad(tmpl.id)}
-                    aria-label={`${t('habits.form.templates')}: ${tmpl.name}`}
-                  >
-                    {tmpl.name}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`${t('common.delete')}: ${tmpl.name}`}
-                    className="pl-0.5 pr-3 py-2 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
-                    onClick={() => handleDelete(tmpl.id)}
-                    disabled={deleteTemplate.isPending && deleteTemplate.variables === tmpl.id}
-                  >
-                    <X size={13} strokeWidth={1.8} aria-hidden="true" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </>
-        )}
+    <>
+      <div className="pt-2">
+        <ListRow
+          icon="template"
+          title={t('habits.form.useTemplate')}
+          compact
+          placement="column"
+          onClick={() => setOpen(true)}
+        />
       </div>
-
-      {showSave && (
-        <div className="flex items-center gap-2">
+      {open ? (
+        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
+          <div className="flex flex-col" style={{ gap: 4 }}>
+            {templates.length > 0 && items.length > 0 && !showSave ? (
+              <ListRow
+                icon="device-floppy"
+                title={t('habits.form.saveAsTemplate')}
+                chevron={false}
+                onClick={() => setShowSave(true)}
+              />
+            ) : null}
+            {showSave ? (
+              <div className="flex items-center px-4 py-2" style={{ gap: 8 }}>
           <input
             value={templateName}
             type="text"
             placeholder={t('habits.form.templateNamePlaceholder')}
-            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2.5 px-3.5 text-[13px] border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-[14px] border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
             onChange={(e) => setTemplateName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -140,11 +115,11 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           />
           <button
             type="button"
-            className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
+            className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] active:scale-[0.96]"
             style={{
-              padding: '9px 14px',
+              padding: "var(--orbit-space-8) var(--orbit-space-12)",
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 500,
             }}
             disabled={!templateName.trim() || createTemplate.isPending}
@@ -155,14 +130,40 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           </button>
           <button
             type="button"
-            className="shrink-0 grid size-10 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-150"
+            className="habit-control-motion shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
             onClick={() => setShowSave(false)}
             aria-label={t('common.close')}
           >
             <X size={16} strokeWidth={1.8} aria-hidden="true" />
           </button>
-        </div>
-      )}
-    </div>
+              </div>
+            ) : null}
+            {templates.map((template) => (
+              <div key={template.id} className="flex min-w-0 flex-col gap-1 px-4 py-2">
+                <button type="button" aria-label={template.name} className="orbit-list-row-body min-h-[var(--touch-min)] w-full min-w-0 rounded-[12px] px-2 py-1 text-left text-[17px] font-normal leading-[1.4] text-[var(--fg-1)]" onClick={() => handleLoad(template.id)}>
+                  <PersonalText>{template.name}</PersonalText>
+                </button>
+                <div className="flex min-w-0 items-center gap-2 px-2 text-sm text-[var(--fg-3)]">
+                  <Icon name="template" size={20} />
+                  <span className="min-w-0 flex-1">{t('habits.form.templateItemCount', { count: template.items.length })}</span>
+                  <PersonalTextDetails iconOnly>{template.name}</PersonalTextDetails>
+                  <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-body grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full" onClick={() => handleDelete(template.id)}>
+                    <Icon name="trash" size={20} color="var(--status-bad)" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {templates.length === 0 && !showSave ? (
+              <div className="flex flex-col items-center py-8 text-center" style={{ gap: 12 }}>
+                <p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTemplates')}</p>
+                <p className="text-sm text-[var(--fg-3)]">{t('habits.form.noTemplatesDescription')}</p>
+                <button type="button" className="chip mt-2" disabled={items.length === 0} onClick={() => setShowSave(true)}>{t('habits.form.saveCurrentList')}</button>
+                {items.length === 0 ? <p className="text-xs text-[var(--fg-3)]">{t('habits.form.saveCurrentListDisabled')}</p> : null}
+              </div>
+            ) : null}
+          </div>
+        </Sheet>
+      ) : null}
+    </>
   )
 }

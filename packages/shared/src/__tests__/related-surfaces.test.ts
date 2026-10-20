@@ -16,7 +16,8 @@ describe('getRelatedSurfaces', () => {
   it('resolves known surface IDs to their mapped entries in order', () => {
     const result = getRelatedSurfaces(['gamification', 'today'])
     expect(result.map((surface) => surface.id)).toEqual(['gamification', 'today'])
-    expect(result[0]?.webRoute).toBe('/achievements')
+    expect(result[0]?.webRoute).toBe('/progress/achievements')
+    expect(result[0]?.mobileRoute).toBe('/progress/achievements')
     expect(result[1]?.mobileRoute).toBe('/')
   })
 
@@ -39,7 +40,27 @@ describe('getRelatedSurfaces', () => {
   it('maps every surface ID the feature bundle can emit', () => {
     for (const id of FEATURE_FILE_SURFACE_IDS) {
       expect(RELATED_SURFACE_ROUTES[id]).toBeDefined()
-      expect(RELATED_SURFACE_ROUTES[id]?.labelKey).toMatch(/^chat\.related\.surface\./)
+      expect(RELATED_SURFACE_ROUTES[id]?.labelKey).toBe(
+        id === 'ai-settings' ? 'nav.profile' : `chat.related.surface.${id}`,
+      )
     }
+  })
+
+  it('keeps subscription help on Profile without opening an upgrade pitch', () => {
+    expect(RELATED_SURFACE_ROUTES.subscriptions).toMatchObject({
+      webRoute: '/profile',
+      mobileRoute: '/profile',
+    })
+    expect(Object.values(RELATED_SURFACE_ROUTES).some((surface) =>
+      surface.webRoute === '/upgrade' || surface.mobileRoute === '/upgrade'
+    )).toBe(false)
+  })
+
+  it('opens Astra settings guidance on Profile where both controls live', () => {
+    expect(RELATED_SURFACE_ROUTES['ai-settings']).toMatchObject({
+      labelKey: 'nav.profile',
+      webRoute: '/profile',
+      mobileRoute: '/profile',
+    })
   })
 })

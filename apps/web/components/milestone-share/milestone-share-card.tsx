@@ -1,21 +1,25 @@
 'use client'
 
-import { forwardRef, type CSSProperties } from 'react'
+import { SPACING } from '@orbit/shared/theme'
+
+
+import type { CSSProperties, Ref } from 'react'
 import { useTranslations } from 'next-intl'
 import { achievementEmoji } from '@orbit/shared/utils'
 import { ShareCardQr } from '@/components/share/share-card-qr'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 
 const rarityBadgeStyle: CSSProperties = {
   display: 'inline-block',
-  marginTop: 8,
-  padding: '3px 10px',
-  borderRadius: 999,
+  marginTop: SPACING.s8,
+  padding: "var(--orbit-space-4) var(--orbit-space-8)",
+  borderRadius: 8,
   fontSize: 12,
   fontWeight: 600,
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
-  color: 'var(--primary-soft)',
-  background: 'rgba(var(--primary-rgb), 0.16)',
+  color: 'var(--fg-1)',
+  background: 'var(--bg-field)',
 }
 
 export type MilestoneShareVariant =
@@ -25,11 +29,15 @@ export type MilestoneShareVariant =
 interface MilestoneShareCardProps {
   variant: MilestoneShareVariant
   referralUrl: string
+  ref?: Ref<HTMLDivElement>
 }
 
-/** Branded navy-violet milestone card and the html-to-image capture target. Streak variant shows the day count; achievement variant shows emoji, name, and rarity. */
-export const MilestoneShareCard = forwardRef<HTMLDivElement, MilestoneShareCardProps>(
-  function MilestoneShareCard({ variant, referralUrl }, ref) {
+/** Flat token-native milestone card and the html-to-image capture target. */
+export function MilestoneShareCard({
+  variant,
+  referralUrl,
+  ref,
+}: Readonly<MilestoneShareCardProps>) {
     const t = useTranslations()
     const shortLink = referralUrl.replace(/^https?:\/\//, '')
 
@@ -52,42 +60,32 @@ export const MilestoneShareCard = forwardRef<HTMLDivElement, MilestoneShareCardP
           color: 'var(--fg-1)',
         }}
       >
-        <div style={{ position: 'relative', padding: '20px 22px 24px', background: 'var(--bg-card)' }}>
+        <div style={{ position: 'relative', padding: SPACING.s24, background: 'var(--bg-card)' }}>
           <div className="flex items-center" style={{ gap: 8 }}>
-            <div
-              aria-hidden="true"
-              style={{
-                width: 26,
-                height: 26,
-                backgroundImage: 'url(/logo-no-bg.png)',
-                backgroundSize: 'contain',
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center',
-              }}
-            />
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>
+            <OrbitMark size={24} accent />
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em' }}>
               Orbit
             </span>
           </div>
 
-          <p style={{ marginTop: 18, fontSize: 12, fontWeight: 500, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <p style={{ marginTop: SPACING.s16, fontSize: 12, fontWeight: 500, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             {eyebrow}
           </p>
 
           {variant.kind === 'streak' ? (
             <>
               <p
-                style={{ marginTop: 6, fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}
+                style={{ marginTop: SPACING.s8, fontFamily: 'var(--font-display)', fontSize: 60, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}
               >
                 {variant.streak} 🔥
               </p>
-              <p style={{ marginTop: 8, fontSize: 16, fontWeight: 500, color: 'var(--fg-2)' }}>
+              <p style={{ marginTop: SPACING.s8, fontSize: 16, fontWeight: 500, color: 'var(--fg-2)' }}>
                 {t('milestoneShare.streakTitle', { count: variant.streak })}
               </p>
             </>
           ) : (
-            <div className="flex items-center" style={{ gap: 14, marginTop: 10 }}>
-              <span aria-hidden="true" style={{ fontSize: 52, lineHeight: 1 }}>
+            <div className="flex items-center" style={{ gap: 16, marginTop: SPACING.s12 }}>
+              <span aria-hidden="true" style={{ fontSize: 44, lineHeight: 1 }}>
                 {achievementEmoji(variant.iconKey)}
               </span>
               <div style={{ minWidth: 0 }}>
@@ -105,13 +103,13 @@ export const MilestoneShareCard = forwardRef<HTMLDivElement, MilestoneShareCardP
         {referralUrl && (
           <div
             className="flex items-center"
-            style={{ gap: 12, padding: '14px 18px 18px', borderTop: '1px solid var(--hairline)' }}
+            style={{ gap: 12, padding: SPACING.s16, borderTop: '1px solid var(--hairline)' }}
           >
-            <div style={{ padding: 6, borderRadius: 12, background: '#ffffff', lineHeight: 0 }}>
+            <div style={{ padding: SPACING.s4, borderRadius: 12, background: '#ffffff', lineHeight: 0 }}>
               <ShareCardQr value={referralUrl} size={56} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-1)' }}>{t('shareCard.scanToJoin')}</p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}>{t('shareCard.scanToJoin')}</p>
               <p
                 className="truncate"
                 style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.02em', color: 'var(--fg-3)' }}
@@ -123,5 +121,4 @@ export const MilestoneShareCard = forwardRef<HTMLDivElement, MilestoneShareCardP
         )}
       </div>
     )
-  },
-)
+}

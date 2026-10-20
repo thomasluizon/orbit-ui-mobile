@@ -8,15 +8,19 @@ import type {
   SetProactiveAstraRequest,
   SetMarketingEmailConsentRequest,
   SetWeekStartDayRequest,
+  SetClockFormatRequest,
   SetThemePreferenceRequest,
-  SetColorSchemeRequest,
   UserDataExport,
 } from '@orbit/shared'
+import { notionAuthorizeRequestSchema, notionAuthorizationSchema, notionCallbackRequestSchema, type NotionAuthorizeRequest, type NotionCallbackRequest } from '@orbit/shared/types/notion-connection'
 import { API } from '@orbit/shared/api'
 import { serverAuthFetch, serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
-export async function updateName(data: SetNameRequest, intendedAccountId: string | null): Promise<ServerActionResult<void>> {
+export async function updateName(
+  data: SetNameRequest,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.name, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -24,7 +28,8 @@ export async function updateName(data: SetNameRequest, intendedAccountId: string
 }
 
 export async function updateTimezone(
-  data: UpdateTimezoneRequest, intendedAccountId: string | null
+  data: UpdateTimezoneRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.timezone, {
     method: 'PUT',
@@ -33,7 +38,8 @@ export async function updateTimezone(
 }
 
 export async function updateLanguage(
-  data: SetLanguageRequest, intendedAccountId: string | null
+  data: SetLanguageRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.language, {
     method: 'PUT',
@@ -42,7 +48,8 @@ export async function updateLanguage(
 }
 
 export async function updateAiSummary(
-  data: SetAiSummaryRequest, intendedAccountId: string | null
+  data: SetAiSummaryRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.aiSummary, {
     method: 'PUT',
@@ -51,7 +58,8 @@ export async function updateAiSummary(
 }
 
 export async function updateProactiveAstra(
-  data: SetProactiveAstraRequest, intendedAccountId: string | null
+  data: SetProactiveAstraRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.proactiveAstra, {
     method: 'PUT',
@@ -60,7 +68,8 @@ export async function updateProactiveAstra(
 }
 
 export async function updateMarketingConsent(
-  data: SetMarketingEmailConsentRequest, intendedAccountId: string | null
+  data: SetMarketingEmailConsentRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.marketingConsent, {
     method: 'PUT',
@@ -69,7 +78,8 @@ export async function updateMarketingConsent(
 }
 
 export async function updateWeekStartDay(
-  data: SetWeekStartDayRequest, intendedAccountId: string | null
+  data: SetWeekStartDayRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.weekStartDay, {
     method: 'PUT',
@@ -77,8 +87,19 @@ export async function updateWeekStartDay(
   }, intendedAccountId))
 }
 
+export async function updateClockFormat(
+  data: SetClockFormatRequest,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.profile.clockFormat, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }, intendedAccountId))
+}
+
 export async function updateThemePreference(
-  data: SetThemePreferenceRequest, intendedAccountId: string | null
+  data: SetThemePreferenceRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.themePreference, {
     method: 'PUT',
@@ -86,34 +107,17 @@ export async function updateThemePreference(
   }, intendedAccountId))
 }
 
-export async function updateColorScheme(
-  data: SetColorSchemeRequest, intendedAccountId: string | null
+export async function completeOnboarding(
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.profile.colorScheme, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }, intendedAccountId))
-}
-
-export async function completeOnboarding(intendedAccountId: string | null): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.onboarding, {
     method: 'PUT',
   }, intendedAccountId))
 }
 
-export async function completeTour(intendedAccountId: string | null): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.profile.tour, {
-    method: 'PUT',
-  }, intendedAccountId))
-}
-
-export async function resetTour(intendedAccountId: string | null): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.profile.tour, {
-    method: 'DELETE',
-  }, intendedAccountId))
-}
-
-export async function resetAccount(intendedAccountId: string | null): Promise<ServerActionResult<void>> {
+export async function resetAccount(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.reset, {
     method: 'POST',
   }, intendedAccountId))
@@ -123,4 +127,22 @@ export async function exportUserData(): Promise<ServerActionResult<UserDataExpor
   return wrapServerAction(() => serverAuthFetch<UserDataExport>(API.profile.export, {
     method: 'GET',
   }))
+}
+
+export async function authorizeNotion(input: NotionAuthorizeRequest, intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate(API.connections.notionAuthorize, {
+    method: 'POST', body: JSON.stringify(notionAuthorizeRequestSchema.parse(input)),
+  }, intendedAccountId, notionAuthorizationSchema))
+}
+
+export async function completeNotion(input: NotionCallbackRequest, intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate<void>(API.connections.notionCallback, {
+    method: 'POST', body: JSON.stringify(notionCallbackRequestSchema.parse(input)),
+  }, intendedAccountId))
+}
+
+export async function disconnectNotion(intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate<void>(API.connections.notion, {
+    method: 'DELETE',
+  }, intendedAccountId))
 }

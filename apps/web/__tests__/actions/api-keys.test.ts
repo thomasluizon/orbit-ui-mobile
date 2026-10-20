@@ -1,0 +1,74 @@
+vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const resolveServerSession = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-api')>()),
+  resolveServerSession,
+}))
+
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
+
+const { confirmApiKeyCreationChallenge, createApiKey } = await import('@/app/actions/api-keys')
+
+describe('API key server actions', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    resolveServerSession.mockReset()
+    resolveServerSession.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+  })
+
+  it('preserves upgrade-required status during confirmation', async () => {
+    mockFetch.mockResolvedValue(new Response(null, { status: 426 }))
+    await expect(confirmApiKeyCreationChallenge('123456', 'account-a')).resolves.toMatchObject({ ok: false, status: 426 })
+  })
+
+  it('returns a serializable challenge result for the confirmed 428 error', async () => {
+    mockFetch.mockResolvedValue(Response.json({
+        error: 'Confirm the emailed code before creating an API key.',
+        errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED',
+    }, { status: 428 }))
+
+    await expect(createApiKey({ name: 'CI key' }, 'account-a')).resolves.toEqual({
+      ok: true,
+      data: {
+        success: false,
+        challengeRequired: true,
+      },
+    })
+  })
+
+  it('keeps unrelated create failures on the error path', async () => {
+    mockFetch.mockResolvedValue(Response.json({ error: 'Internal error' }, { status: 500 }))
+
+    await expect(createApiKey({ name: 'CI key' }, 'account-a')).resolves.toEqual({
+      ok: false,
+      error: 'Internal error',
+      status: 500,
+      sessionRefreshFailed: false,
+    })
+  })
+
+  it('preserves a definitive refresh rejection during challenge confirmation', async () => {
+    resolveServerSession.mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: true,
+    })
+
+    await expect(confirmApiKeyCreationChallenge('123456', 'account-a')).resolves.toEqual({
+      ok: false,
+      error: 'Unauthorized',
+      status: 401,
+      sessionRefreshFailed: true,
+    })
+  })
+})

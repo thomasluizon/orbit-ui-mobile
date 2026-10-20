@@ -1,10 +1,39 @@
 import { z } from 'zod'
+import { proactiveItemSchema } from './proactive'
+import type { ChatBlockKind } from '../chat/block-kinds'
 import { frequencyUnitSchema } from './habit'
+import { completionSeriesSchema, retrospectiveHabitStatSchema } from './gamification'
 import {
   agentOperationResultSchema,
   pendingAgentOperationSchema,
   agentPolicyDenialSchema,
 } from './ai'
+
+export const chatClientContextSchema = z.object({
+  platform: z.enum(['web', 'mobile']),
+  locale: z.string(),
+  timeFormat: z.string(),
+  currentAppArea: z.string(),
+  supportsHabitListCard: z.boolean(),
+  supportsHabitListDoneStatus: z.boolean().optional(),
+  supportsGoalListCard: z.boolean(),
+  supportsMetricsCard: z.boolean().optional(),
+  supportsPeriodInsightCard: z.boolean().optional(),
+  supportsDaySummaryCard: z.boolean().optional(),
+  supportsStreakCard: z.boolean().optional(),
+  supportsCalendarCard: z.boolean().optional(),
+  supportsRecordListCard: z.boolean().optional(),
+  supportsAccountRowsCard: z.boolean().optional(),
+  supportsPendingOperationChanges: z.boolean().optional(),
+  supportsToolSteps: z.boolean().optional(),
+  supportsFollowUps: z.boolean().optional(),
+  supportsParts: z.boolean().optional(),
+  partKinds: z.array(z.string()).optional(),
+  messageOrigin: z.literal('followUp').optional(),
+  entryPointIntent: z.literal('support').optional(),
+})
+
+export type ChatClientContext = z.infer<typeof chatClientContextSchema>
 
 export const aiActionTypeSchema = z.enum([
   'CreateHabit',
@@ -25,6 +54,12 @@ export const aiActionTypeSchema = z.enum([
   'UpdateGoalProgress',
   'UpdateGoalStatus',
   'LinkHabitsToGoal',
+  'CreateTag',
+  'UpdateTag',
+  'DeleteTag',
+  'ReorderGoals',
+  'ReorderHabits',
+  'UnlogHabit',
 ])
 
 export type AiActionType = z.infer<typeof aiActionTypeSchema>
@@ -92,6 +127,25 @@ export const suggestedSubHabitSchema = z.object({
 
 export type SuggestedSubHabit = z.infer<typeof suggestedSubHabitSchema>
 
+export const toolResultMessageParamsSchema = z.object({
+  entityName: z.string().optional().catch(undefined),
+  count: z.number().int().nonnegative().optional().catch(undefined),
+  totalCount: z.number().int().nonnegative().optional().catch(undefined),
+  skippedCount: z.number().int().nonnegative().optional().catch(undefined),
+  partial: z.boolean().optional().catch(undefined),
+  weekStartDay: z.number().int().optional().catch(undefined),
+  hours: z.number().int().optional().catch(undefined),
+  toolName: z.string().optional().catch(undefined),
+  bulkTool: z.string().optional().catch(undefined),
+  policyReason: z.string().optional().catch(undefined),
+  timeZone: z.string().optional().catch(undefined),
+  language: z.string().optional().catch(undefined),
+  referralCode: z.string().optional().catch(undefined),
+  fieldName: z.string().optional().catch(undefined),
+  actionName: z.string().optional().catch(undefined),
+  entityId: z.string().optional().catch(undefined),
+})
+
 export const actionResultSchema = z
   .object({
     type: z.string(),
@@ -103,6 +157,8 @@ export const actionResultSchema = z
     suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable().optional(),
     conflictWarning: conflictWarningSchema.nullable().optional(),
     clarificationRequest: clarificationRequestSchema.nullable().optional(),
+    messageKey: z.string().optional(),
+    params: toolResultMessageParamsSchema.optional().catch(undefined),
   })
   .superRefine((value, ctx) => {
     if (value.status === 'NeedsClarification' && !value.clarificationRequest) {
@@ -116,7 +172,7 @@ export const actionResultSchema = z
 
 export type ActionResult = z.infer<typeof actionResultSchema>
 
-export const habitListCardStatusSchema = z.enum(['today', 'overdue', 'general', 'none'])
+export const habitListCardStatusSchema = z.enum(['today', 'overdue', 'general', 'none', 'done'])
 
 export type HabitListCardStatus = z.infer<typeof habitListCardStatusSchema>
 
@@ -145,6 +201,10 @@ export const goalListCardItemSchema = z.object({
   target: z.number(),
   unit: z.string(),
   deadline: z.string().nullable().optional(),
+  trackingStatus: z.enum(['on_track', 'at_risk', 'behind', 'no_deadline']).nullable().optional(),
+  progressPercentage: z.number().nullable().optional(),
+  projectedCompletionDate: z.iso.date().nullable().optional(),
+  daysToDeadline: z.number().nullable().optional(),
 })
 
 export type GoalListCardItem = z.infer<typeof goalListCardItemSchema>
@@ -155,19 +215,259 @@ export const goalListCardSchema = z.object({
 
 export type GoalListCard = z.infer<typeof goalListCardSchema>
 
-export const chatMessageSchema = z.object({
+export const metricsCardSchema = z.object({
+  period: z.string(),
+  completionRate: z.number(),
+  totalCompletions: z.number(),
+  totalScheduled: z.number(),
+  activeDays: z.number(),
+  currentStreak: z.number(),
+  bestStreak: z.number(),
+  hasData: z.boolean(),
+  surfaceId: z.string(),
+  series: completionSeriesSchema.nullable().optional(),
+  topHabitName: z.string().nullable().optional(),
+  topHabitEmoji: z.string().nullable().optional(),
+  habitId: z.uuid().nullable().optional(),
+  habitTitle: z.string().nullable().optional(),
+  weeklyCompletionRate: z.number().nullable().optional(),
+  monthlyCompletionRate: z.number().nullable().optional(),
+  lastCompletedDate: z.iso.date().nullable().optional(),
+})
+
+export type MetricsCard = z.infer<typeof metricsCardSchema>
+
+export const periodInsightCardSchema = z.object({
+  period: z.string(),
+  dateFrom: z.iso.date(),
+  dateTo: z.iso.date(),
+  completionRate: z.number(),
+  activeDays: z.number(),
+  periodDays: z.number(),
+  totalCompletions: z.number(),
+  totalScheduled: z.number(),
+  currentStreak: z.number(),
+  bestStreak: z.number(),
+  topHabits: z.array(retrospectiveHabitStatSchema),
+  needsAttention: z.array(retrospectiveHabitStatSchema),
+  narrative: z.object({
+    highlights: z.string(),
+    missed: z.string(),
+    trends: z.string(),
+    suggestion: z.string(),
+  }),
+  series: completionSeriesSchema.nullable().optional(),
+  surfaceId: z.string().optional(),
+})
+
+export type PeriodInsightCard = z.infer<typeof periodInsightCardSchema>
+
+export const daySummaryCardSchema = z.object({
+  date: z.iso.date(),
+  due: z.number(),
+  done: z.number(),
+  completionRate: z.number().nullable(),
+  overdueCount: z.number(),
+  currentStreak: z.number(),
+  surfaceId: z.string(),
+  rows: z.array(habitListCardItemSchema).nullish(),
+  totalRows: z.number().nullish(),
+})
+
+export type DaySummaryCard = z.infer<typeof daySummaryCardSchema>
+
+const streakAchievementSchema = z.object({
   id: z.string(),
-  role: z.enum(['user', 'ai']),
-  content: z.string(),
-  actions: z.array(actionResultSchema).optional(),
-  operations: z.array(agentOperationResultSchema).nullable().optional(),
-  pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
-  policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
-  imageUrl: z.string().nullable().optional(),
+  iconKey: z.string(),
+  earnedAt: z.string().nullable(),
+})
+
+export const streakCardSchema = z.object({
+  currentStreak: z.number(),
+  longestStreak: z.number(),
+  level: z.number(),
+  totalXp: z.number(),
+  xpForNextLevel: z.number(),
+  lastActiveDate: z.iso.date().nullable(),
+  isFrozenToday: z.boolean(),
+  recentFreezeDates: z.array(z.iso.date()),
+  recentAchievements: z.array(streakAchievementSchema),
+  surfaceId: z.string(),
+  achievementDiscs: z.array(streakAchievementSchema).nullable().optional(),
+})
+
+export type StreakCard = z.infer<typeof streakCardSchema>
+
+export const calendarCardSchema = z.object({
+  events: z.array(z.object({
+    title: z.string(),
+    start: z.string(),
+    end: z.string().nullable(),
+    isAllDay: z.boolean(),
+    id: z.string().nullish(),
+    calendarName: z.string().nullish(),
+  })),
+  sync: z.object({
+    enabled: z.boolean(),
+    status: z.enum(['Idle', 'ReconnectRequired', 'TransientError']),
+    lastSyncedAt: z.string().nullable(),
+  }).nullable().optional(),
+  surfaceId: z.string(),
+})
+
+export type CalendarCard = z.infer<typeof calendarCardSchema>
+
+export const recordListCardSchema = z.object({
+  kind: z.enum(['notifications', 'tags', 'templates', 'keys']),
+  totalCount: z.number(),
+  items: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    detail: z.string().nullable().optional(),
+    date: z.string().nullable().optional(),
+    isRead: z.boolean().nullable().optional(),
+    count: z.number().nullable().optional(),
+    state: z.enum(['active', 'expired', 'revoked']).nullable().optional(),
+  })),
+  surfaceId: z.string().nullable().optional(),
+  nextCursor: z.string().nullable().optional(),
+})
+
+export type RecordListCard = z.infer<typeof recordListCardSchema>
+
+export const accountRowsCardSchema = z.object({
+  kind: z.enum(['profile', 'plan', 'referral']),
+  rows: z.array(z.object({
+    key: z.string(),
+    value: z.string().nullable(),
+    valueType: z.enum(['text', 'date', 'enum', 'boolean', 'count']),
+  })),
+  referralCode: z.string().nullable().optional(),
+  referralLink: z.string().nullable().optional(),
+  surfaceId: z.string(),
+})
+
+export type AccountRowsCard = z.infer<typeof accountRowsCardSchema>
+
+const astraBlockOptionSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1).max(20),
+  description: z.string().max(24).nullable().optional(),
+})
+
+export const choiceBlockSchema = z.object({
+  blockId: z.uuid(),
+  question: z.string().min(1).max(120),
+  options: z.array(astraBlockOptionSchema).min(2).max(4),
+  multiSelect: z.boolean(),
+  allowFreeText: z.boolean(),
+  expiresAtUtc: z.iso.datetime(),
+})
+
+export const pickListBlockSchema = z.object({
+  blockId: z.uuid(),
+  title: z.string().min(1),
+  items: z.array(z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    detail: z.string().nullable(),
+  })).min(1).max(10),
+  action: z.enum(['create_habits', 'log_habits', 'skip_habits']),
+  expiresAtUtc: z.iso.datetime(),
+})
+
+export const blockAnswerSchema = z.object({
+  blockId: z.uuid(),
+  selectedIds: z.array(z.string().min(1)),
+  freeText: z.string().max(500).optional(),
+})
+
+export type ChoiceBlock = z.infer<typeof choiceBlockSchema>
+export type PickListBlock = z.infer<typeof pickListBlockSchema>
+export type BlockAnswer = z.infer<typeof blockAnswerSchema>
+
+const chatBlockSchemas = {
+  habitList: habitListCardSchema,
+  goalList: goalListCardSchema,
+  metrics: metricsCardSchema,
+  periodInsight: periodInsightCardSchema,
+  daySummary: daySummaryCardSchema,
+  streak: streakCardSchema,
+  calendar: calendarCardSchema,
+  recordList: recordListCardSchema,
+  accountRows: accountRowsCardSchema,
+  choice: choiceBlockSchema,
+  pickList: pickListBlockSchema,
+} satisfies Record<ChatBlockKind, z.ZodType>
+
+function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
+  return z.object({ type: z.literal('block'), kind: z.literal(kind), block: chatBlockSchemas[kind] })
+}
+
+export const chatPartSchema = z.union([
+  z.object({ type: z.literal('text'), text: z.string() }),
+  z.discriminatedUnion('kind', [
+    blockPartSchema('habitList'),
+    blockPartSchema('goalList'),
+    blockPartSchema('metrics'),
+    blockPartSchema('periodInsight'),
+    blockPartSchema('daySummary'),
+    blockPartSchema('streak'),
+    blockPartSchema('calendar'),
+    blockPartSchema('recordList'),
+    blockPartSchema('accountRows'),
+    blockPartSchema('choice'),
+    blockPartSchema('pickList'),
+  ]),
+]).nullable().catch(null)
+
+export type ChatPart = z.infer<typeof chatPartSchema>
+export type ChatBlockPart = Extract<ChatPart, { type: 'block' }>
+
+const replyCardFieldsShape = {
   correlationId: z.string().nullable().optional(),
   relatedSurfaces: z.array(z.string()).nullable().optional(),
   habitList: habitListCardSchema.nullable().optional(),
   goalList: goalListCardSchema.nullable().optional(),
+  metricsCard: metricsCardSchema.nullable().optional(),
+  periodInsight: periodInsightCardSchema.nullable().optional(),
+  daySummary: daySummaryCardSchema.nullable().optional(),
+  streak: streakCardSchema.nullable().optional(),
+  calendar: calendarCardSchema.nullable().optional(),
+  recordLists: z.array(recordListCardSchema).nullable().optional(),
+  accountRows: accountRowsCardSchema.nullable().optional(),
+  followUps: z.array(z.string()).nullable().optional(),
+}
+
+export const chatMessageSchema = z.object({
+  proactiveItem: proactiveItemSchema.optional(),
+  proactiveActed: z.boolean().optional(),
+  proactiveContextAfterMessageId: z.string().nullable().optional(),
+  id: z.string(),
+  role: z.enum(['user', 'ai']),
+  content: z.string(),
+  parts: z.array(chatPartSchema).nullable().optional(),
+  actions: z.array(actionResultSchema).optional(),
+  operations: z.array(agentOperationResultSchema).nullable().optional(),
+  pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
+  pendingOperationStates: z.record(z.string(), z.object({
+    status: z.enum(['done', 'failed']).optional(),
+    completedOperation: agentOperationResultSchema.optional(),
+    canRetry: z.boolean().optional(),
+    dismissed: z.boolean().optional(),
+    rejected: z.boolean().optional(),
+    stale: z.boolean().optional(),
+    refreshUnavailable: z.boolean().optional(),
+    editedItemIds: z.array(z.string()).optional(),
+    operation: pendingAgentOperationSchema.optional(),
+  })).optional(),
+  answerToBlockId: z.string().optional(),
+  blockAnswers: z.record(z.string(), z.object({ text: z.string(), answered: z.boolean() })).optional(),
+  clarificationPreviews: z.record(z.string(), pendingAgentOperationSchema).optional(),
+  policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+  ...replyCardFieldsShape,
+  toolSteps: z.array(z.object({ domain: z.string(), access: z.string() })).optional(),
   timestamp: z.date(),
 })
 
@@ -175,23 +475,28 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>
 
 export const chatResponseSchema = z.object({
   aiMessage: z.string().nullable().optional(),
+  parts: z.array(chatPartSchema).nullable().optional(),
   actions: z.array(actionResultSchema),
   operations: z.array(agentOperationResultSchema).nullable().optional(),
   pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
-  correlationId: z.string().nullable().optional(),
-  relatedSurfaces: z.array(z.string()).nullable().optional(),
-  habitList: habitListCardSchema.nullable().optional(),
-  goalList: goalListCardSchema.nullable().optional(),
+  ...replyCardFieldsShape,
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>
 
+/**
+ * One server-sent event on the chat stream, mirroring the backend's ChatStreamEvent record:
+ * started/round keep the connection alive during tool work, delta/reset drive incremental
+ * rendering, final carries the complete ChatResponse (always authoritative over streamed
+ * text), and error carries an HTTP-equivalent status.
+ */
 export const chatStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('started') }),
   z.object({ type: z.literal('round'), iteration: z.number() }),
   z.object({ type: z.literal('delta'), text: z.string() }),
   z.object({ type: z.literal('reset') }),
+  z.object({ type: z.literal('step'), domain: z.string(), access: z.string() }),
   z.object({ type: z.literal('final'), response: chatResponseSchema }),
   z.object({
     type: z.literal('error'),

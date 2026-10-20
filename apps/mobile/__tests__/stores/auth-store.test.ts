@@ -1,12 +1,17 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
+import * as SecureStore from 'expo-secure-store'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { AUTH_CALLBACK_URL, getPendingGoogleAuthVerifier, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { API } from '@orbit/shared/api'
-import { profileKeys } from '@orbit/shared/query'
+import { notificationKeys, profileKeys } from '@orbit/shared/query'
+import { AUTH_CALLBACK_URL, getPendingGoogleAuthVerifier, hasPendingGoogleAuthSession, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { i18n } from '@/lib/i18n'
 import { getRuntimeTheme } from '@/lib/theme'
 import { useLogout } from '@/hooks/use-logout'
+import { useThrottleStore } from '@/stores/throttle-store'
+import { getErrorSurface, getStepUpStorageKey } from '@orbit/shared/utils'
+import StepUpScreen from '@/app/step-up'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { openAccountEventStream } from '@/lib/account-event-stream'
 import { openChatStream } from '@/lib/chat-stream'
@@ -22,17 +27,23 @@ import {
   useAuthStore,
   whenProfileHydrated,
 } from '@/stores/auth-store'
+import { beginStepUpChallenge, clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
+import { shouldExposeOnboardingRoute } from '@/lib/capture-mode'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { canPromptEngagement, MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
-import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { useDeleteNotification } from '@/hooks/use-notifications'
+import type { NotificationsResponse } from '@orbit/shared/types/notification'
+import {
+  getFailedNotificationDeleteIdsSnapshot,
+  getPendingNotificationDeleteIdsSnapshot,
+  queuePendingNotificationDelete,
+  resetPendingNotificationDeletesForTests,
+  retryFailedNotificationDelete,
+} from '@/lib/pending-notification-deletes'
 import { useUIStore } from '@/stores/ui-store'
-import { useTourStore } from '@/stores/tour-store'
-import { useAppToastStore } from '@/stores/app-toast-store'
-import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
-import { accountStorageKey } from '@/lib/account-storage-key'
 import { getAccountId, setAccountId } from '@/lib/account-scope'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 const posthogMocks = vi.hoisted(() => ({
   identifyPostHogUser: vi.fn(),
   resetPostHogUser: vi.fn(),
@@ -45,13 +56,6 @@ const streamFetch = vi.hoisted(() => vi.fn())
 const navigation = vi.hoisted(() => ({ destinations: [] as string[] }))
 vi.mock('expo/fetch', () => ({ fetch: streamFetch }))
 vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
-vi.mock('@tanstack/react-query', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@tanstack/react-query')>(),
-  useQueryClient: () => ({
-    invalidateQueries: vi.fn(),
-    getQueryCache: () => ({ findAll: () => [] }),
-  }),
-}))
 const asyncStorageEntries = vi.hoisted(() => new Map<string, string>())
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -68,6 +72,9 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }))
 
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const {
   replaceMock,
@@ -84,8 +91,11 @@ const {
   resetAccountQueriesMock,
   setQueryDataMock,
   clearStoredAuthReturnUrlMock,
-  clearMessagesMock,
+  getAuthReturnUrlAttemptMock,
+  resetAccountScopedChatMock,
+  forgetStoredSupportDraftMock,
   offlineQueueClearMock,
+  retainAccountMock,
   clearOfflineStateMock,
   unsubscribePushTokenMock,
   fetchMock,
@@ -93,7 +103,10 @@ const {
   cancelScheduledFlushMock,
   clearCompactedCreatesForUndoMock,
   resumeOfflineReplayMock,
-  cancelPersistentReminderMock,
+  cancelQueriesMock,
+  getQueryDataMock,
+  invalidateQueriesMock,
+  queryCache,
 } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
   getTokenMock: vi.fn(),
@@ -109,8 +122,11 @@ const {
   resetAccountQueriesMock: vi.fn(),
   setQueryDataMock: vi.fn(),
   clearStoredAuthReturnUrlMock: vi.fn(),
-  clearMessagesMock: vi.fn(),
+  getAuthReturnUrlAttemptMock: vi.fn(() => 0),
+  resetAccountScopedChatMock: vi.fn(async () => {}),
+  forgetStoredSupportDraftMock: vi.fn(async () => {}),
   offlineQueueClearMock: vi.fn(),
+  retainAccountMock: vi.fn(),
   clearOfflineStateMock: vi.fn(),
   unsubscribePushTokenMock: vi.fn(),
   fetchMock: vi.fn(),
@@ -118,7 +134,10 @@ const {
   cancelScheduledFlushMock: vi.fn(),
   clearCompactedCreatesForUndoMock: vi.fn(),
   resumeOfflineReplayMock: vi.fn(),
-  cancelPersistentReminderMock: vi.fn(),
+  cancelQueriesMock: vi.fn(async () => {}),
+  getQueryDataMock: vi.fn((queryKey: readonly unknown[]) => queryCache.get(JSON.stringify(queryKey))),
+  invalidateQueriesMock: vi.fn(async () => {}),
+  queryCache: new Map<string, unknown>(),
 }))
 
 vi.mock('expo-router', async () => {
@@ -147,14 +166,30 @@ vi.mock('expo-router', async () => {
   }
   Stack.Protected = Protected
   Stack.Screen = Screen
+  const router = { replace: replaceMock }
   return {
     Stack,
-    router: {
-      replace: replaceMock,
-    },
-    useRouter: () => ({ replace: replaceMock }),
+    router,
+    useRouter: () => router,
+    useLocalSearchParams: () => ({ operation: 'delete' }),
   }
 })
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { email: 'user@example.com', hasProAccess: false } }),
+}))
+
+vi.mock('@/hooks/use-date-format', () => ({
+  useDateFormat: () => ({ displayDate: (value: string) => value }),
+}))
+
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+}))
+
+vi.mock('@/components/shell/flow-shell', () => ({
+  FlowShell: ({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) =>
+    React.createElement('View', null, children, action),
+}))
 
 vi.mock('@/lib/secure-store', () => ({
   getToken: getTokenMock,
@@ -170,19 +205,22 @@ vi.mock('@/lib/orbit-widget', () => ({
   saveWidgetToken: saveWidgetTokenMock,
 }))
 
-vi.mock('@/lib/persistent-reminder', () => ({
-  cancelPersistentReminder: cancelPersistentReminderMock,
-}))
-
 vi.mock('@/lib/api-client', () => ({
   apiClient: apiClientMock,
 }))
 
 vi.mock('@/lib/offline-queue', () => ({
   clear: offlineQueueClearMock,
+  retainAccount: retainAccountMock,
+  claimLegacyAccount: vi.fn(),
+  discardLegacy: vi.fn(),
 }))
 
 vi.mock('@/lib/offline-mutations', () => ({
+  buildQueuedMutation: vi.fn((options) => ({ id: 'mutation-1', ...options })),
+  createQueuedAck: vi.fn((mutationId: string) => ({ queued: true, queuedMutationId: mutationId })),
+  isQueuedResult: vi.fn(() => false),
+  queueOrExecute: vi.fn(({ execute }) => execute()),
   cancelScheduledFlush: cancelScheduledFlushMock,
   clearCompactedCreatesForUndo: clearCompactedCreatesForUndoMock,
   resumeOfflineReplay: resumeOfflineReplayMock,
@@ -203,20 +241,49 @@ vi.mock('@orbit/shared/query', async (importOriginal) => ({
 
 vi.mock('@/lib/query-client', () => ({
   queryClient: {
+    cancelQueries: cancelQueriesMock,
+    getQueryData: getQueryDataMock,
+    invalidateQueries: invalidateQueriesMock,
     setQueryData: setQueryDataMock,
   },
   clearPersistedQueryCache: clearPersistedQueryCacheMock,
   setQueryCacheScope: setQueryCacheScopeMock,
 }))
 
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({
+    cancelQueries: cancelQueriesMock,
+    getQueryData: getQueryDataMock,
+    invalidateQueries: invalidateQueriesMock,
+    setQueryData: setQueryDataMock,
+    getQueryCache: () => ({ findAll: () => [] }),
+  }),
+  useMutation: (config: unknown) => config,
+  useQuery: vi.fn(),
+}))
+
+vi.mock('react-i18next', async () => {
+  const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next')
+  return { ...actual, useTranslation: () => ({ t: (key: string) => key }) }
+})
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: vi.fn() }),
+}))
+
 vi.mock('@/lib/auth-flow', () => ({
   clearStoredAuthReturnUrl: clearStoredAuthReturnUrlMock,
+  getAuthReturnUrlAttempt: getAuthReturnUrlAttemptMock,
+}))
+
+vi.mock('@/lib/support-draft-storage', () => ({
+  forgetStoredSupportDraft: forgetStoredSupportDraftMock,
 }))
 
 vi.mock('@/stores/chat-store', () => ({
   useChatStore: {
     getState: () => ({
-      clearMessages: clearMessagesMock,
+      resetAccountScopedChat: resetAccountScopedChatMock,
     }),
   },
 }))
@@ -248,9 +315,7 @@ function renderHookValue<T>(hook: () => T): T {
     value = hook()
     return null
   }
-  TestRenderer.act(() => {
-    TestRenderer.create(React.createElement(Probe))
-  })
+  TestRenderer.act(() => TestRenderer.create(React.createElement(Probe)))
   return value
 }
 
@@ -270,119 +335,24 @@ describe('mobile auth store security paths', () => {
     expect(useAuthStore.getState().user?.userId).toBe(replacement.userId)
   })
 
-  it('asks the replacement account for marketing consent', async () => {
-    await useAuthStore.getState().login('first-token', null, {
-      userId: 'account-a', email: 'a@example.com', name: 'A',
-    })
-    useEngagementPromptStore.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, '2026-09-01T00:00:00Z')
-    await useAuthStore.getState().login('second-token', null, {
-      userId: 'account-b', email: 'b@example.com', name: 'B',
-    })
-
-    expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(true)
-  })
-
-  it('keeps B scoped stores after A login hydration finishes last', async () => {
-    let releaseA!: (value: string | null) => void
-    const originalGetItem = vi.mocked(AsyncStorage.getItem).getMockImplementation()!
-    vi.mocked(AsyncStorage.getItem).mockImplementation((key: string) => key === 'orbit-referral-prompt-store:account-a'
-      ? new Promise<string | null>((resolve) => { releaseA = resolve })
-      : originalGetItem(key))
-    const accountA = { userId: 'account-a', email: 'a@example.com', name: 'A' }
-    const accountB = { userId: 'account-b', email: 'b@example.com', name: 'B' }
-
-    try {
-      const firstLogin = useAuthStore.getState().login('first-token', null, accountA)
-      await vi.waitFor(() => expect(releaseA).toBeTypeOf('function'))
-      await useAuthStore.getState().login('second-token', null, accountB)
-      useUIStore.getState().setSearchQuery('B filter')
-      useOnboardingDraftStore.getState().bufferColorScheme('blue')
-
-      releaseA(null)
-      await firstLogin
-
-      expect(useAuthStore.getState().user?.userId).toBe('account-b')
-      expect(useUIStore.persist.getOptions().name).toBe('orbit-ui-store:account-b')
-      expect(useEngagementPromptStore.persist.getOptions().name).toBe('orbit-referral-prompt-store:account-b')
-      expect(useUIStore.getState().searchQuery).toBe('B filter')
-      expect(useOnboardingDraftStore.getState().colorScheme).toBe('blue')
-    } finally {
-      vi.mocked(AsyncStorage.getItem).mockImplementation(originalGetItem)
-    }
-  })
-
-  it('drops a persisted draft from another account on a cold session', async () => {
-    useOnboardingDraftStore.setState({ accountKey: 'account-a', colorScheme: 'purple' })
-    getTokenMock.mockResolvedValue(makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'account-b'))
-
-    await useAuthStore.getState().checkAuth()
-    expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
-  })
-
-  it('resets account state and restores each account prompt record', async () => {
-    const accountA = { userId: 'account-a', email: 'a@example.com', name: 'A' }
-    const accountB = { userId: 'account-b', email: 'b@example.com', name: 'B' }
-    await useAuthStore.getState().login('first-token', null, accountA)
-    useEngagementPromptStore.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, '2026-09-01T00:00:00Z')
-    useUIStore.getState().setSearchQuery('previous')
-    useUIStore.getState().selectAllHabits(['habit-a'])
-    useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
-    useOnboardingDraftStore.getState().bufferColorScheme('purple')
-    useTourStore.getState().startFullTour()
-    useAppToastStore.getState().showInfo('Account A')
-    await writeShowGeneralOnToday(true)
-
-    await useAuthStore.getState().login('second-token', null, accountB)
-
-    expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
-    expect(useUIStore.getState().searchQuery).toBe('')
-    expect(useUIStore.getState().activeCelebration).toBeNull()
-    expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
-    expect(useTourStore.getState().isActive).toBe(false)
-    expect(useAppToastStore.getState().currentToast).toBeNull()
-    expect(await readShowGeneralOnToday()).toBe(false)
-    expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(true)
-
-    await useAuthStore.getState().login('third-token', null, accountA)
-    expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(false)
-    expect(await readShowGeneralOnToday()).toBe(true)
-  })
-
-  it.each(['orbit_trial_expired_seen', 'orbit_wrapped_year_seen', 'orbit_tour_sections', 'orbit_last_visit'])(
-    'isolates %s when the account changes', async (baseKey) => {
-      await useAuthStore.getState().login('first-token', null, {
-        userId: 'account-a', email: 'a@example.com', name: 'A',
-      })
-      asyncStorageEntries.set(accountStorageKey(baseKey), '1')
-      await useAuthStore.getState().login('second-token', null, {
-        userId: 'account-b', email: 'b@example.com', name: 'B',
-      })
-      expect(asyncStorageEntries.get(accountStorageKey(baseKey))).toBeUndefined()
-    },
-  )
-  it('deletes a pending OAuth attempt when another account signs in', async () => {
-    markPendingGoogleAuthSession(10, 'verifier', 'state')
-
-    await useAuthStore.getState().login('replacement-token', null, {
-      userId: 'replacement-user', email: 'replacement@example.com', name: 'Replacement',
-    })
-    expect(getPendingGoogleAuthVerifier('state')).toBeNull()
-
-  })
-
-  it('deletes a pending OAuth attempt on logout', async () => {
-    markPendingGoogleAuthSession(10, 'verifier', 'state')
-
-    await useAuthStore.getState().logout()
-    expect(getPendingGoogleAuthVerifier('state')).toBeNull()
-
-  })
-
   beforeEach(() => {
+    resetPendingNotificationDeletesForTests()
+    clearStepUpState()
     posthogMocks.identifyPostHogUser.mockClear()
     posthogMocks.resetPostHogUser.mockClear()
     setAccountId(null)
     asyncStorageEntries.clear()
+    vi.mocked(AsyncStorage.getItem).mockImplementation((key: string) =>
+      Promise.resolve(asyncStorageEntries.get(key) ?? null),
+    )
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key: string, value: string) => {
+      asyncStorageEntries.set(key, value)
+      return Promise.resolve()
+    })
+    vi.mocked(AsyncStorage.removeItem).mockImplementation((key: string) => {
+      asyncStorageEntries.delete(key)
+      return Promise.resolve()
+    })
     replaceMock.mockReset()
     getTokenMock.mockReset()
     setTokenMock.mockReset()
@@ -397,8 +367,12 @@ describe('mobile auth store security paths', () => {
     resetAccountQueriesMock.mockReset()
     setQueryDataMock.mockReset()
     clearStoredAuthReturnUrlMock.mockReset()
-    clearMessagesMock.mockReset()
+    resetAccountScopedChatMock.mockReset()
+    resetAccountScopedChatMock.mockResolvedValue(undefined)
+    forgetStoredSupportDraftMock.mockReset()
+    forgetStoredSupportDraftMock.mockResolvedValue(undefined)
     offlineQueueClearMock.mockReset()
+    retainAccountMock.mockReset()
     clearOfflineStateMock.mockReset()
     unsubscribePushTokenMock.mockReset()
     fetchMock.mockReset()
@@ -407,8 +381,19 @@ describe('mobile auth store security paths', () => {
     setQueryCacheScopeMock.mockReset()
     cancelScheduledFlushMock.mockReset()
     resumeOfflineReplayMock.mockReset()
-    cancelPersistentReminderMock.mockReset()
-    cancelPersistentReminderMock.mockResolvedValue(undefined)
+    cancelQueriesMock.mockClear()
+    getQueryDataMock.mockClear()
+    invalidateQueriesMock.mockClear()
+    queryCache.clear()
+    resetAccountQueriesMock.mockImplementation(() => queryCache.clear())
+    setQueryDataMock.mockImplementation((
+      queryKey: readonly unknown[],
+      updater: unknown,
+    ) => {
+      const cacheKey = JSON.stringify(queryKey)
+      const current = queryCache.get(cacheKey)
+      queryCache.set(cacheKey, typeof updater === 'function' ? updater(current) : updater)
+    })
     setQueryCacheScopeMock.mockResolvedValue(undefined)
 
     clearWidgetTokenMock.mockResolvedValue(undefined)
@@ -444,7 +429,89 @@ describe('mobile auth store security paths', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
 
-  it('revokes the first login ownership check when a replacement login publishes', async () => {
+  it('clears a mounted step up code when another account logs in', async () => {
+    const userOne = { userId: 'user-1', email: 'user@example.com', name: 'User' }
+    const userTwo = { userId: 'user-2', email: 'next@example.com', name: 'Next' }
+    const stored = new Map<string, string>()
+    vi.spyOn(AsyncStorage, 'getItem').mockImplementation((key: string) =>
+      Promise.resolve(stored.get(key) ?? null),
+    )
+    vi.spyOn(AsyncStorage, 'setItem').mockImplementation((key: string, value: string) => {
+      stored.set(key, value)
+      return Promise.resolve()
+    })
+    await useAuthStore.getState().login('first-token', null, userOne)
+    await beginStepUpChallenge('delete', userOne.userId)
+    await beginStepUpChallenge('delete', userTwo.userId)
+    expect(useAuthStore.getState().user?.userId).toBe('user-1')
+    expect(await AsyncStorage.getItem(getStepUpStorageKey('delete', userOne.userId))).not.toBeNull()
+
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(React.createElement(StepUpScreen))
+      await Promise.resolve()
+    })
+    const codeInput = () => tree.root.findAll((node: { props: Record<string, unknown> }) =>
+      node.props.accessibilityLabel === 'stepUp.codeLabel' && typeof node.props.onChangeText === 'function',
+    )[0]
+    const confirmButton = () => tree.root.findAll((node: { props: Record<string, unknown> }) =>
+      node.props.testID === 'button-primary-sm',
+    )[0]
+    expect(codeInput()).toBeDefined()
+    TestRenderer.act(() => {
+      codeInput().props.onChangeText('123456')
+    })
+    expect(codeInput().props.value).toBe('123456')
+    expect(confirmButton().props.disabled).toBe(false)
+
+    let releaseTokenWrite!: () => void
+    const pendingTokenWrite = new Promise<void>((resolve) => {
+      releaseTokenWrite = resolve
+    })
+    setTokenMock.mockReturnValueOnce(pendingTokenWrite)
+    let releaseCacheClear!: () => void
+    const pendingCacheClear = new Promise<void>((resolve) => {
+      releaseCacheClear = resolve
+    })
+    clearPersistedQueryCacheMock.mockReturnValueOnce(pendingCacheClear)
+    const accountGeneration = getAccountGeneration()
+    let replacementLogin!: Promise<(() => boolean) | null>
+    await TestRenderer.act(async () => {
+      replacementLogin = useAuthStore.getState().login('second-token', null, userTwo)
+      await vi.waitFor(() => expect(useAuthStore.getState().sessionPhase).toBe('establishing'))
+    })
+    expect(tree.toJSON()).toBeNull()
+    expect(getAccountGeneration()).toBe(accountGeneration)
+
+    await TestRenderer.act(async () => {
+      releaseTokenWrite()
+      await vi.waitFor(() => expect(useAuthStore.getState().user?.userId).toBe('user-2'))
+    })
+
+    expect(getAccountGeneration()).toBe(accountGeneration)
+    expect(tree.toJSON()).toBeNull()
+    await TestRenderer.act(async () => {
+      releaseCacheClear()
+      await replacementLogin
+    })
+    expect(codeInput().props.value).toBe('')
+    expect(confirmButton().props.disabled).toBe(true)
+    TestRenderer.act(() => tree.unmount())
+    vi.restoreAllMocks()
+  })
+
+  it('deletes the pending OAuth attempt when another account signs in', async () => {
+    await markPendingGoogleAuthSession('attempt-1', 'verifier', 'state')
+    expect(hasPendingGoogleAuthSession()).toBe(true)
+
+    await useAuthStore.getState().login('replacement-token', null, {
+      userId: 'replacement-user', email: 'replacement@example.com', name: 'Replacement',
+    })
+
+    expect(hasPendingGoogleAuthSession()).toBe(false)
+  })
+
+  it('revokes a completed login owner when a replacement login publishes', async () => {
     const firstOwner = await useAuthStore.getState().login('first-token', 'first-refresh', {
       userId: 'first-user', email: 'first@example.com', name: 'First',
     })
@@ -482,6 +549,16 @@ describe('mobile auth store security paths', () => {
     expect(callOrder.indexOf('setToken')).toBeGreaterThanOrEqual(0)
     expect(callOrder.indexOf('setToken')).toBeLessThan(callOrder.indexOf('resetAccountQueries'))
     expect(callOrder.indexOf('setRefreshToken')).toBeLessThan(callOrder.indexOf('resetAccountQueries'))
+  })
+
+  it('does not carry the support draft into a replacement account', async () => {
+    await useAuthStore.getState().login('access-token', 'refresh-token', {
+      userId: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+    })
+
+    expect(forgetStoredSupportDraftMock).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the protected tree unavailable until account cleanup completes', async () => {
@@ -716,34 +793,6 @@ describe('mobile auth store security paths', () => {
     })
   })
 
-  it('does not publish an old profile after a replacement login scopes the cache', async () => {
-    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
-    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
-    const oldProfile = { name: 'Old', email: oldUser.email, language: 'pt-BR', colorScheme: 'rose', themePreference: 'light' }
-    const newProfile = { name: 'New', email: newUser.email, language: 'en', colorScheme: 'blue', themePreference: 'dark' }
-    let releaseOldProfile!: (profile: typeof oldProfile) => void
-    apiClientMock
-      .mockImplementationOnce(() => new Promise<typeof oldProfile>((resolve) => { releaseOldProfile = resolve }))
-      .mockResolvedValueOnce(newProfile)
-
-    const oldLogin = useAuthStore.getState().login('old-token', 'old-refresh', oldUser)
-    await vi.waitFor(() => expect(releaseOldProfile).toBeTypeOf('function'))
-    const replacementLogin = await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
-    releaseOldProfile(oldProfile)
-    const supersededLogin = await oldLogin
-
-    expect(replacementLogin?.()).toBe(true)
-    expect(supersededLogin).toBeNull()
-    expect(setQueryDataMock).toHaveBeenCalledTimes(1)
-    expect(setQueryDataMock).toHaveBeenCalledWith(profileKeys.detail(), newProfile)
-    expect(i18n.language).toBe('en')
-    expect(getRuntimeTheme()).toMatchObject({ scheme: 'blue', themeMode: 'dark' })
-    expect(useAuthStore.getState()).toMatchObject({
-      isAuthenticated: true,
-      user: newUser,
-    })
-  })
-
   /**
    * The consumers of `superseded` are covered where they live, but nothing proved the STORE ever
    * produces it. Collapsing this one return back to `unauthorized` left every one of those consumer
@@ -971,7 +1020,8 @@ describe('mobile auth store security paths', () => {
     expect(clearWidgetTokenMock).toHaveBeenCalledTimes(1)
     expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1)
     expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
-    expect(clearMessagesMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountScopedChatMock).toHaveBeenCalledTimes(1)
+    expect(forgetStoredSupportDraftMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,
@@ -980,7 +1030,8 @@ describe('mobile auth store security paths', () => {
     })
   })
 
-  it('keeps the session after a 429 refresh response', async () => {
+  it('keeps the session after a 429 refresh response and publishes the throttle', async () => {
+    useThrottleStore.getState().clear()
     getRefreshTokenMock.mockResolvedValue('refresh-token')
     const retryAfterUtc = new Date(Date.now() + 60_000).toISOString()
     fetchMock.mockResolvedValue(Response.json({
@@ -996,9 +1047,13 @@ describe('mobile auth store security paths', () => {
     const outcome = await refreshSession()
 
     expect(outcome).toEqual({ status: 'network-error' })
+    expect(getErrorSurface(useThrottleStore.getState().error)).toEqual({
+      retryAt: Date.parse(retryAfterUtc), requestId: 'refresh-request',
+    })
     expect(clearAllTokensMock).not.toHaveBeenCalled()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    useThrottleStore.getState().clear()
   })
 
   it('clears auth state when refreshSessionToken receives an invalid refresh response', async () => {
@@ -1022,7 +1077,8 @@ describe('mobile auth store security paths', () => {
     expect(clearWidgetTokenMock).toHaveBeenCalledTimes(1)
     expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1)
     expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
-    expect(clearMessagesMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountScopedChatMock).toHaveBeenCalledTimes(1)
+    expect(forgetStoredSupportDraftMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,
@@ -1045,6 +1101,8 @@ describe('mobile auth store security paths', () => {
     expect(outcome).toEqual({ status: 'network-error' })
     expect(clearAllTokensMock).not.toHaveBeenCalled()
     expect(resetAccountQueriesMock).not.toHaveBeenCalled()
+    expect(resetAccountScopedChatMock).not.toHaveBeenCalled()
+    expect(forgetStoredSupportDraftMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
       user: { userId: 'user-1' },
@@ -1065,6 +1123,9 @@ describe('mobile auth store security paths', () => {
 
     expect(outcome).toEqual({ status: 'network-error' })
     expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(resetAccountQueriesMock).not.toHaveBeenCalled()
+    expect(resetAccountScopedChatMock).not.toHaveBeenCalled()
+    expect(forgetStoredSupportDraftMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
       user: { userId: 'user-1' },
@@ -1108,7 +1169,7 @@ describe('mobile auth store security paths', () => {
       }
     })
     resetAccountQueriesMock.mockImplementation(() => {
-      order.push('clearCache')
+      order.push('resetAccountQueries')
     })
 
     await useAuthStore.getState().logout()
@@ -1123,7 +1184,7 @@ describe('mobile auth store security paths', () => {
     expect(clearOfflineStateMock).toHaveBeenCalledTimes(1)
     expect(order.indexOf('unauthenticated')).toBeGreaterThanOrEqual(0)
     expect(order.indexOf('unauthenticated')).toBeLessThan(
-      order.indexOf('clearCache'),
+      order.indexOf('resetAccountQueries'),
     )
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
@@ -1131,6 +1192,16 @@ describe('mobile auth store security paths', () => {
       isLoading: false,
       expiresAt: null,
     })
+  })
+
+  it('deletes the pending OAuth attempt on logout', async () => {
+    await markPendingGoogleAuthSession('attempt-1', 'verifier', 'state')
+    expect(hasPendingGoogleAuthSession()).toBe(true)
+    getRefreshTokenMock.mockResolvedValue(null)
+
+    await useAuthStore.getState().logout()
+
+    expect(hasPendingGoogleAuthSession()).toBe(false)
   })
 
   it.each([false, true])('reaches login after sign-out with onboarding marker %s', async (onboardingLocallyDone) => {
@@ -1151,6 +1222,7 @@ describe('mobile auth store security paths', () => {
 
     const { isAuthenticated } = useAuthStore.getState()
     expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(true)
+    expect(shouldExposeOnboardingRoute(false, isAuthenticated, useOnboardingDraftStore.getState().onboardingLocallyDone)).toBe(false)
     expect(isAuthenticated).toBe(false)
     expect(navigation.destinations.at(-1)).toBe('login')
     expect(navigation.destinations).not.toContain('(onboarding)')
@@ -1209,78 +1281,6 @@ describe('mobile auth store security paths', () => {
     expect(offlineQueueClearMock).toHaveBeenCalledTimes(1)
     expect(clearOfflineStateMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
-  })
-
-  it('does not navigate an old logout after a replacement login during revocation', async () => {
-    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
-    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
-    let releaseRevocation!: () => void
-    const revocation = new Promise<void>((resolve) => {
-      releaseRevocation = resolve
-    })
-    getRefreshTokenMock.mockResolvedValue('old-refresh-token')
-    await useAuthStore.getState().login('old-access-token', 'old-refresh-token', oldUser)
-    apiClientMock.mockImplementation((endpoint: string) =>
-      endpoint === API.auth.logout ? revocation : Promise.resolve(undefined))
-
-    const logoutAndRedirect = renderHookValue(() => useLogout())
-    const oldLogout = logoutAndRedirect()
-    await vi.waitFor(() => expect(apiClientMock).toHaveBeenCalledWith(
-      API.auth.logout,
-      expect.objectContaining({ method: 'POST' }),
-    ))
-    expect(useAuthStore.getState().isAuthenticated).toBe(false)
-
-    await useAuthStore.getState().login('new-access-token', 'new-refresh-token', newUser)
-    releaseRevocation()
-    await oldLogout
-
-    expect(useAuthStore.getState()).toMatchObject({
-      isAuthenticated: true,
-      user: newUser,
-    })
-    expect(replaceMock).not.toHaveBeenCalled()
-  })
-
-  it('does not navigate an old logout after a replacement login during return URL cleanup', async () => {
-    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
-    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
-    let releaseReturnUrlCleanup!: () => void
-    const returnUrlCleanup = new Promise<void>((resolve) => {
-      releaseReturnUrlCleanup = resolve
-    })
-    getRefreshTokenMock.mockResolvedValue(null)
-    await useAuthStore.getState().login('old-access-token', null, oldUser)
-    clearStoredAuthReturnUrlMock.mockReturnValue(returnUrlCleanup)
-
-    const logoutAndRedirect = renderHookValue(() => useLogout())
-    const oldLogout = logoutAndRedirect()
-    await vi.waitFor(() => expect(clearStoredAuthReturnUrlMock).toHaveBeenCalledTimes(1))
-    expect(useAuthStore.getState().isAuthenticated).toBe(false)
-
-    await useAuthStore.getState().login('new-access-token', 'new-refresh-token', newUser)
-    releaseReturnUrlCleanup()
-    await oldLogout
-
-    expect(useAuthStore.getState()).toMatchObject({
-      isAuthenticated: true,
-      user: newUser,
-    })
-    expect(replaceMock).not.toHaveBeenCalled()
-  })
-
-  it('dismisses the persistent reminder on logout so a signed-out tray shows no streak data', async () => {
-    getRefreshTokenMock.mockResolvedValue(null)
-    useAuthStore.setState({
-      isAuthenticated: true,
-      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
-      isLoading: false,
-      expiresAt: Date.now() + 3600_000,
-    })
-
-    await useAuthStore.getState().logout()
-
-    expect(cancelPersistentReminderMock).toHaveBeenCalledTimes(1)
   })
 
   it('does not let an in-flight refresh restore credentials after logout completes', async () => {
@@ -1456,7 +1456,7 @@ describe('mobile auth store security paths', () => {
       expiresAt: Date.now() + 3600_000,
     })
 
-    const logout = useAuthStore.getState().logout()
+    const logout = renderHookValue(() => useLogout())()
     await vi.waitFor(() => expect(releaseRevoke).toBeTypeOf('function'))
 
     await useAuthStore.getState().login(
@@ -1483,6 +1483,57 @@ describe('mobile auth store security paths', () => {
       isAuthenticated: true,
       user: { userId: 'replacement-user' },
     })
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('does not navigate an old logout after replacement login during return URL cleanup', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    let releaseReturnUrlCleanup!: () => void
+    const returnUrlCleanup = new Promise<void>((resolve) => {
+      releaseReturnUrlCleanup = resolve
+    })
+    getRefreshTokenMock.mockResolvedValue(null)
+    await useAuthStore.getState().login('old-access-token', null, oldUser)
+    clearStoredAuthReturnUrlMock.mockReturnValue(returnUrlCleanup)
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    const oldLogout = logoutAndRedirect()
+    await vi.waitFor(() => expect(clearStoredAuthReturnUrlMock).toHaveBeenCalledTimes(1))
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+
+    await useAuthStore.getState().login('new-access-token', 'new-refresh-token', newUser)
+    releaseReturnUrlCleanup()
+    await oldLogout
+
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('limits delayed logout return URL cleanup to the attempt visible before sign-out', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    let currentAttempt = 41
+    let storedReturnUrl: string | null = '/old'
+    let releaseRevoke!: () => void
+    getAuthReturnUrlAttemptMock.mockImplementation(() => currentAttempt)
+    getRefreshTokenMock.mockResolvedValue('old-refresh')
+    clearStoredAuthReturnUrlMock.mockImplementation((attemptId: number) => {
+      if (attemptId === currentAttempt) storedReturnUrl = null
+      return Promise.resolve()
+    })
+    await useAuthStore.getState().login('old-access', 'old-refresh', oldUser)
+    apiClientMock.mockImplementationOnce(() => new Promise<void>((resolve) => { releaseRevoke = resolve }))
+
+    const logout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(releaseRevoke).toBeTypeOf('function'))
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    currentAttempt = 42
+    storedReturnUrl = '/replacement'
+    releaseRevoke()
+    await logout
+
+    expect(clearStoredAuthReturnUrlMock).toHaveBeenCalledWith(41, expect.any(Function))
+    expect(storedReturnUrl).toBe('/replacement')
   })
 
   it('does not let a second logout waiting on push unsubscribe adopt a replacement session', async () => {
@@ -1570,20 +1621,19 @@ describe('mobile auth store security paths', () => {
     getTokenMock.mockResolvedValue(null)
     const generation = getSessionGeneration()
     const callbackUrl = `${AUTH_CALLBACK_URL}?code=one-use&state=state`
-    markPendingGoogleAuthSession(1010, 'verifier', 'state')
-    expect(setPendingGoogleAuthCallbackUrl(callbackUrl, 1010)).toBe(true)
+    await markPendingGoogleAuthSession('attempt-1010', 'verifier', 'state')
+    expect(setPendingGoogleAuthCallbackUrl(callbackUrl, 'attempt-1010')).toBe(true)
 
     await expect(useAuthStore.getState().checkAuth()).resolves.toBe(false)
 
     expect(getSessionGeneration()).toEqual(generation)
     expect(getPendingGoogleAuthVerifier('state')).toBe('verifier')
-    expect(renderHookValue(usePendingGoogleAuthSession)).toMatchObject({ callbackUrl, returnUrlAttemptId: 1010 })
+    expect(renderHookValue(usePendingGoogleAuthSession)).toMatchObject({ callbackUrl, returnUrlAttemptId: 'attempt-1010' })
     expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-out', isLoading: false })
     expect(clearAllTokensMock).not.toHaveBeenCalled()
     expect(clearPersistedQueryCacheMock).not.toHaveBeenCalled()
     expect(setQueryCacheScopeMock).not.toHaveBeenCalled()
     expect(offlineQueueClearMock).not.toHaveBeenCalled()
-    expect(cancelPersistentReminderMock).not.toHaveBeenCalled()
   })
 
   it('tears down a signed-in session when checkAuth finds no token', async () => {
@@ -1594,16 +1644,15 @@ describe('mobile auth store security paths', () => {
     const isValid = await useAuthStore.getState().checkAuth()
 
     expect(isValid).toBe(false)
-    expect(cancelPersistentReminderMock).toHaveBeenCalledTimes(1)
     expect(getSessionGeneration().epoch).toBe(generation.epoch + 1)
     expect(clearAllTokensMock).toHaveBeenCalledOnce()
     expect(useAuthStore.getState().sessionPhase).toBe('signed-out')
   })
 
-  it('clears queued work and offline state before establishing a new session on login', async () => {
+  it('filters queue ownership and clears offline state before establishing a new session on login', async () => {
     const order: string[] = []
-    offlineQueueClearMock.mockImplementation(() => {
-      order.push('offlineQueue.clear')
+    retainAccountMock.mockImplementation(() => {
+      order.push('offlineQueue.retainAccount')
     })
     clearOfflineStateMock.mockImplementation(() => {
       order.push('clearOfflineState')
@@ -1616,9 +1665,10 @@ describe('mobile auth store security paths', () => {
       name: 'User',
     })
 
-    expect(offlineQueueClearMock).toHaveBeenCalledTimes(1)
+    expect(retainAccountMock).toHaveBeenCalledWith('user-1')
+    expect(offlineQueueClearMock).not.toHaveBeenCalled()
     expect(clearOfflineStateMock).toHaveBeenCalledTimes(1)
-    expect(order).toContain('offlineQueue.clear')
+    expect(order).toContain('offlineQueue.retainAccount')
     expect(order).toContain('clearOfflineState')
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
@@ -2229,20 +2279,22 @@ describe('mobile auth store security paths', () => {
   it('returns false from checkAuth when an expired token cannot be refreshed', async () => {
     getTokenMock.mockResolvedValue(makeJwt(Math.floor(Date.now() / 1000) - 10))
     getRefreshTokenMock.mockResolvedValue(null)
+    markStepUpVerified('keys')
 
     const isValid = await useAuthStore.getState().checkAuth()
 
     expect(isValid).toBe(false)
+    expect(isStepUpVerified('keys')).toBe(false)
   })
 
   it('refreshes an expired token in checkAuth and authenticates with the rotated token', async () => {
     const rotatedToken = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'refreshed-user', 'refreshed@example.com')
     await startAccountScopedSession('refreshed-user')
-    useUIStore.getState().setShowCompleted(true)
+    useUIStore.getState().setActiveView('all')
     await vi.waitFor(() => expect(asyncStorageEntries.has('orbit-ui-store:refreshed-user')).toBe(true))
     await startAccountScopedSession(null)
     expect(getAccountId()).toBeNull()
-    expect(useUIStore.getState().showCompleted).toBe(false)
+    expect(useUIStore.getState().activeView).toBe('today')
     getTokenMock.mockResolvedValue(makeJwt(Math.floor(Date.now() / 1000) - 10))
     getRefreshTokenMock.mockResolvedValue('refresh-token')
     fetchMock.mockResolvedValue({
@@ -2256,7 +2308,7 @@ describe('mobile auth store security paths', () => {
     expect(setQueryCacheScopeMock).toHaveBeenCalledWith('refreshed-user')
     expect(useAuthStore.getState().user).toMatchObject({ userId: 'refreshed-user' })
     expect(getAccountId()).toBe('refreshed-user')
-    expect(useUIStore.getState().showCompleted).toBe(true)
+    expect(useUIStore.getState().activeView).toBe('all')
   })
 
   it('treats a token with an unparseable payload as expired', async () => {
@@ -2269,7 +2321,9 @@ describe('mobile auth store security paths', () => {
   })
 
   it('marks the session unauthenticated when initialize finds no token', async () => {
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true })
     getTokenMock.mockResolvedValue(null)
+    markStepUpVerified('keys')
 
     await useAuthStore.getState().initialize()
 
@@ -2278,6 +2332,7 @@ describe('mobile auth store security paths', () => {
       user: null,
       isLoading: false,
     })
+    expect(isStepUpVerified('keys')).toBe(false)
   })
 
   it('recovers to a signed-out state when initialize throws while reading the token', async () => {
@@ -2331,6 +2386,148 @@ describe('mobile auth store security paths', () => {
     )
   })
 
+  it('does not carry API key visibility into a replacement account', async () => {
+    await useAuthStore.getState().login('account-a-token', null, {
+      userId: 'account-a',
+      email: 'account-a@example.com',
+      name: 'Account A',
+    })
+    markStepUpVerified('keys')
+
+    await useAuthStore.getState().logout()
+    await useAuthStore.getState().login('account-b-token', null, {
+      userId: 'account-b',
+      email: 'account-b@example.com',
+      name: 'Account B',
+    })
+
+    expect(isStepUpVerified('keys')).toBe(false)
+  })
+
+  it('does not carry delayed notification deletes into a replacement account', async () => {
+    vi.useFakeTimers()
+    const failedDelete = vi.fn(() => { throw new Error('Server error') })
+    let rejectActiveDelete!: (error: Error) => void
+    const activeDeleteRequest = new Promise<never>((_resolve, reject) => {
+      rejectActiveDelete = reject
+    })
+    const deleteMutation = useDeleteNotification() as unknown as {
+      mutationFn: (notificationId: string) => Promise<unknown>
+      onMutate: (notificationId: string) => Promise<{
+        previous: NotificationsResponse | undefined
+        sessionEpoch: number
+      }>
+      onError: (error: Error, notificationId: string, context: {
+        previous: NotificationsResponse | undefined
+        sessionEpoch: number
+      }) => void
+      onSettled: (
+        data: unknown,
+        error: Error | null,
+        notificationId: string,
+        context: { previous: NotificationsResponse | undefined; sessionEpoch: number },
+      ) => void
+    }
+    const executeActiveDelete = async () => {
+      const context = await deleteMutation.onMutate('active-notification')
+      try {
+        const result = await activeDeleteRequest
+        deleteMutation.onSettled(result, null, 'active-notification', context)
+      } catch (error: unknown) {
+        deleteMutation.onError(error as Error, 'active-notification', context)
+        deleteMutation.onSettled(undefined, error as Error, 'active-notification', context)
+        throw error
+      }
+    }
+    const pendingDelete = vi.fn()
+    const accountANotifications: NotificationsResponse = {
+      items: [{
+        id: 'active-notification',
+        title: 'Account A',
+        body: 'Account A body',
+        url: null,
+        habitId: null,
+        isRead: false,
+        createdAtUtc: '2025-01-01T00:00:00Z',
+      }],
+      unreadCount: 1,
+    }
+    const accountBNotifications: NotificationsResponse = {
+      items: [{
+        id: 'account-b-notification',
+        title: 'Account B',
+        body: 'Account B body',
+        url: null,
+        habitId: null,
+        isRead: false,
+        createdAtUtc: '2025-01-02T00:00:00Z',
+      }],
+      unreadCount: 1,
+    }
+    try {
+      await useAuthStore.getState().login('account-a-token', null, {
+        userId: 'account-a',
+        email: 'account-a@example.com',
+        name: 'Account A',
+      })
+      setQueryDataMock(notificationKeys.lists(), accountANotifications)
+      queuePendingNotificationDelete('failed-notification', failedDelete)
+      queuePendingNotificationDelete('active-notification', executeActiveDelete)
+      await vi.advanceTimersByTimeAsync(5000)
+      queuePendingNotificationDelete('pending-notification', pendingDelete)
+      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['failed-notification'])
+
+      await useAuthStore.getState().logout()
+      await useAuthStore.getState().login('account-b-token', null, {
+        userId: 'account-b',
+        email: 'account-b@example.com',
+        name: 'Account B',
+      })
+      setQueryDataMock(notificationKeys.lists(), accountBNotifications)
+      setQueryDataMock.mockClear()
+      invalidateQueriesMock.mockClear()
+      rejectActiveDelete(new Error('Late server error'))
+      await Promise.resolve()
+      await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(retryFailedNotificationDelete('failed-notification')).toBe(false)
+      expect(retryFailedNotificationDelete('active-notification')).toBe(false)
+      expect(failedDelete).toHaveBeenCalledTimes(1)
+      expect(pendingDelete).not.toHaveBeenCalled()
+      expect(getQueryDataMock(notificationKeys.lists())).toEqual(accountBNotifications)
+      expect(setQueryDataMock).not.toHaveBeenCalled()
+      expect(invalidateQueriesMock).not.toHaveBeenCalled()
+    } finally {
+      resetPendingNotificationDeletesForTests()
+      vi.useRealTimers()
+    }
+  })
+
+  it('drops a previous account pending delete when a login follows no teardown', async () => {
+    vi.useFakeTimers()
+    const staleDelete = vi.fn(() => Promise.resolve())
+    try {
+      queuePendingNotificationDelete('account-a-notification', staleDelete)
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+
+      await useAuthStore.getState().login('account-b-token', null, {
+        userId: 'account-b',
+        email: 'account-b@example.com',
+        name: 'Account B',
+      })
+
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(staleDelete).not.toHaveBeenCalled()
+    } finally {
+      resetPendingNotificationDeletesForTests()
+      vi.useRealTimers()
+    }
+  })
+
   it('applies the profile language and theme during login hydration', async () => {
     apiClientMock.mockResolvedValue({
       name: 'Login Name',
@@ -2350,5 +2547,44 @@ describe('mobile auth store security paths', () => {
       name: 'Login Name',
       email: 'login@example.com',
     })
+  })
+
+  it('does not publish an old profile after a replacement login scopes the cache', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    const oldProfile = { name: 'Old', email: oldUser.email, language: 'pt-BR', colorScheme: 'rose', themePreference: 'light' }
+    const newProfile = { name: 'New', email: newUser.email, language: 'en', colorScheme: 'blue', themePreference: 'dark' }
+    let releaseOldProfile!: (profile: typeof oldProfile) => void
+    apiClientMock
+      .mockImplementationOnce(() => new Promise<typeof oldProfile>((resolve) => { releaseOldProfile = resolve }))
+      .mockResolvedValueOnce(newProfile)
+
+    const oldLogin = useAuthStore.getState().login('old-token', 'old-refresh', oldUser)
+    await vi.waitFor(() => expect(releaseOldProfile).toBeTypeOf('function'))
+    await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
+    releaseOldProfile(oldProfile)
+    await oldLogin
+
+    expect(setQueryDataMock).toHaveBeenCalledTimes(1)
+    expect(setQueryDataMock).toHaveBeenCalledWith(profileKeys.detail(), newProfile)
+    expect(i18n.language).toBe('en')
+    expect(getRuntimeTheme()).toMatchObject({ scheme: 'orange', themeMode: 'dark' })
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
+  })
+
+  it('refuses a rejected refresh logout after a replacement login', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    await useAuthStore.getState().login('old-token', 'old-refresh', oldUser)
+    const oldOwnership = getSessionGeneration()
+    await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    await logoutAndRedirect(oldOwnership)
+
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
+    expect(replaceMock).not.toHaveBeenCalled()
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(apiClientMock).not.toHaveBeenCalledWith(API.auth.logout, expect.anything())
   })
 })

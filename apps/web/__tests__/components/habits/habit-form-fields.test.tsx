@@ -1,1857 +1,1245 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { appConfigSchema } from '@orbit/shared/types/config'
+import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import React from 'react'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import type { HabitTag } from '@orbit/shared/types/habit'
+import userEvent from '@testing-library/user-event'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
-import type { HabitFormHelpers } from '@/hooks/use-habit-form'
-import type { TagSelectionState } from '@/hooks/use-tag-selection'
+import { habitFormSchema } from '@orbit/shared/validation'
+import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
+import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
+import type { HabitFormProposal } from '@orbit/shared/utils'
+import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
+import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 
+const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
+const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
+const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false }))
+const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
+const mockRouterPush = vi.hoisted(() => vi.fn())
+const setupPatch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Week', frequencyQuantity: 3, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
+const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
+const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 }
+const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true, checklistItems: 1, subHabitItems: 1 }
+
+const testTranslations: Record<string, string> = {
+  'dates.weekdaySchedule.single.monday': en.dates.weekdaySchedule.single.monday,
+  'habits.form.understoodDaily': 'every day',
+  'habits.form.understoodDailyAt': 'every day at {time}',
+  'habits.form.understoodDayAt': 'every {days} at {time}',
+  'habits.form.understoodCountAt': '{count} times a week, any day, at {time}',
+  'habits.form.understoodTime': 'At {time}',
+}
+
+function translateTestValue(key: string, values?: Record<string, unknown>): string {
+  const messages = formLocale.language === 'en' ? en : ptBR
+  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue
+    : key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key]
+  if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
+  return Object.entries(values ?? {}).reduce(
+    (message, [name, value]) => message.replace(`{${name}}`, String(value)),
+    template,
+  )
+}
+
+vi.mock('react-hook-form', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-hook-form')>(),
+  useController: () => ({ field: { ref: vi.fn() } }),
+}))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => {
-    const t = (key: string, params?: Record<string, unknown>) => {
-      if (params && Object.keys(params).length > 0) {
-        return `${key}(${JSON.stringify(params)})`
-      }
-      return key
-    }
-    return t
-  },
-  useLocale: () => 'en',
+  useTranslations: () => translateTestValue,
+  useLocale: () => formLocale.language,
 }))
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    back: vi.fn(),
-    refresh: vi.fn(),
-  }),
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
-
-let mockHasProAccess = false
 
 vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => mockHasProAccess,
-  useProfile: () => ({
-    profile: {
-      uses24HourClock: true,
-      timeZone: 'America/Sao_Paulo',
-    },
-  }),
+  useHasProAccess: () => mockProfileState.hasProAccess,
+  useProfile: () => ({ profile: { uses24HourClock: true, timeZone: 'UTC', hasProAccess: mockProfileState.hasProAccess, aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
+vi.mock('@/hooks/use-tags', () => ({
+  useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
+  useTags: () => ({ tags: tagCollection.tags }),
+  useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
+  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useDeleteTag: () => ({ isPending: false, mutateAsync: tagMutations.delete }),
 }))
 
 vi.mock('@/components/habits/habit-checklist', () => ({
-  HabitChecklist: () => <div data-testid="habit-checklist" />,
-}))
-
-vi.mock('@/components/habits/checklist-templates', () => ({
-  ChecklistTemplates: () => <div data-testid="checklist-templates" />,
-}))
-
-vi.mock('@/components/habits/goal-linking-field', () => ({
-  GoalLinkingField: () => <div data-testid="goal-linking-field" />,
-}))
-
-vi.mock('@/components/ui/app-date-picker', () => ({
-  AppDatePicker: () => <div data-testid="app-date-picker" />,
-}))
-
-vi.mock('@/components/ui/app-select', () => ({
-  AppSelect: ({ label }: { label?: string }) => (
-    <div data-testid="app-select">{label}</div>
+  HabitChecklist: ({ onItemsChange, proposedItemCount }: { onItemsChange?: (items: Array<{ text: string; isChecked: boolean }>) => void; proposedItemCount?: number }) => (
+    <button data-proposed-item-count={proposedItemCount} type="button" onClick={() => onItemsChange?.([{ text: 'Edited', isChecked: false }])}>checklist-editor</button>
   ),
 }))
+vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => <div>checklist-templates</div> }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => <div>goal-linking</div> }))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/reminder-section')>()
+  return { ReminderSection: (props: React.ComponentProps<typeof actual.ReminderSection>) => formLocale.realReminders ? <actual.ReminderSection {...props} /> : <div>offset-reminders{props.children}</div> }
+})
+vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false }) }))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: (props: { onSetScheduledReminders: (items: { when: string; time: string }[]) => void; nested?: boolean; offsetReminderCount?: number }) => <button type="button" data-nested={String(props.nested)} data-offset-count={props.offsetReminderCount} onClick={() => props.onSetScheduledReminders([{ when: 'day_before', time: '18:00' }])}>scheduled-reminders</button> }))
+vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => <div>slip-alert</div> }))
+vi.mock('@/components/ui/date-field', () => ({ DateField: () => <div>date-field</div> }))
 
-vi.mock('@/components/ui/astra-avatar', () => ({
-  AstraMark: () => <span data-testid="astra-mark" />,
-}))
+type TestHabitFormHelpers = HabitFormHelpers & { testValues: Record<string, unknown> }
 
-vi.mock('@/lib/actions/tags', () => ({
-  getTags: vi.fn().mockResolvedValue([]),
-  createTag: vi.fn(),
-  updateTag: vi.fn(),
-  deleteTag: vi.fn(),
-  assignTags: vi.fn(),
-  suggestTags: vi.fn(),
-}))
-
-
-function createMockFormHelpers(overrides?: Partial<HabitFormHelpers>): HabitFormHelpers {
+function createFormHelpers(overrides: Record<string, unknown> = {}): TestHabitFormHelpers {
+  const values: Record<string, unknown> = {
+    title: '', emoji: '', frequencyUnit: null, frequencyQuantity: null, days: [],
+    isFlexible: false, dueDate: '2026-09-02', dueTime: '', dueEndTime: '', endDate: '',
+    description: '', reminderEnabled: false, scheduledReminders: [], checklistItems: [],
+    isBadHabit: false, slipAlertEnabled: false, ...overrides,
+  }
   return {
     form: {
-      register: vi.fn(() => ({ name: 'test', onChange: vi.fn(), onBlur: vi.fn(), ref: vi.fn() })),
-      watch: vi.fn((field: string) => {
-        const defaults: Record<string, unknown> = {
-          frequencyUnit: 'Day',
-          frequencyQuantity: 1,
-          days: [],
-          dueDate: '2025-01-01',
-          dueTime: '',
-          dueEndTime: '',
-          endDate: '',
-          isBadHabit: false,
-          reminderEnabled: false,
-          slipAlertEnabled: false,
-          checklistItems: [],
-          scheduledReminders: [],
-        }
-        return defaults[field] ?? ''
-      }),
-      setValue: vi.fn(),
-      getValues: vi.fn(),
+      watch: vi.fn((field: string) => values[field]),
+      getValues: vi.fn((field: string) => values[field]),
+      setValue: vi.fn((field: string, value: unknown) => { values[field] = value }),
       formState: { errors: {} },
     } as unknown as HabitFormHelpers['form'],
-    isOneTime: false,
-    isGeneral: false,
-    isFlexible: false,
-    isRecurring: true,
-    showDayPicker: false,
-    showEndDate: true,
-    daysList: [
-      { value: 'Monday', label: 'Mon' },
-      { value: 'Tuesday', label: 'Tue' },
-      { value: 'Wednesday', label: 'Wed' },
-      { value: 'Thursday', label: 'Thu' },
-      { value: 'Friday', label: 'Fri' },
-      { value: 'Saturday', label: 'Sat' },
-      { value: 'Sunday', label: 'Sun' },
-    ],
-    frequencyUnits: [
-      { value: 'Day', label: 'Day' },
-      { value: 'Week', label: 'Week' },
-      { value: 'Month', label: 'Month' },
-    ],
-    setOneTime: vi.fn(),
-    setRecurring: vi.fn(),
-    setFlexible: vi.fn(),
-    setGeneral: vi.fn(),
-    toggleDay: vi.fn(),
-    formatTimeInput: vi.fn((v: string) => v),
-    formatEndTimeInput: vi.fn((v: string) => v),
-    validateAll: vi.fn(() => null),
-    ...overrides,
+    isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false,
+    showDayPicker: false, showEndDate: true,
+    daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value })),
+    backendFieldErrors: {}, backendFocusRequest: 0, backendFocusField: undefined, reportBackendErrors: vi.fn(() => false), clearBackendErrors: vi.fn(),
+    frequencyUnits: [], setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(),
+    setGeneral: vi.fn(), toggleDay: vi.fn(), formatTimeInput: vi.fn(),
+    formatEndTimeInput: vi.fn(), validateAll: vi.fn(() => null),
+    testValues: values,
   }
 }
 
-function createMockTags(overrides?: Partial<TagSelectionState>): TagSelectionState {
+function createTags(): TagSelectionState {
   return {
-    selectedTagIds: [],
-    atTagLimit: false,
-    tagValidationErrorKey: null,
-    toggleTag: vi.fn(),
-    resetTags: vi.fn(),
-    showNewTag: false,
-    setShowNewTag: vi.fn(),
-    newTagName: '',
-    setNewTagName: vi.fn(),
-    newTagColor: '#7f46f7',
-    setNewTagColor: vi.fn(),
-    tagColors: ['#7f46f7', '#dc2626', '#047857'] as readonly string[],
-    createAndSelectTag: vi.fn(),
-    acceptSuggestedTag: vi.fn(),
-    editingTagId: null,
-    editTagName: '',
-    setEditTagName: vi.fn(),
-    editTagColor: '#7f46f7',
-    setEditTagColor: vi.fn(),
-    startEditTag: vi.fn(),
-    saveEditTag: vi.fn(),
-    cancelEditTag: vi.fn(),
-    deleteTag: vi.fn(),
-    ...overrides,
+    selectedTagIds: [], atTagLimit: false, tagValidationErrorKey: null, toggleTag: vi.fn(),
+    resetTags: vi.fn(), showNewTag: false, setShowNewTag: vi.fn(), newTagName: '',
+    setNewTagName: vi.fn(), newTagColor: '#C4530F', setNewTagColor: vi.fn(), tagColors: [],
+    createAndSelectTag: vi.fn(), acceptSuggestedTag: vi.fn(), editingTagId: null,
+    editTagName: '', setEditTagName: vi.fn(), editTagColor: '#C4530F',
+    setEditTagColor: vi.fn(), startEditTag: vi.fn(), saveEditTag: vi.fn(),
+    cancelEditTag: vi.fn(), deleteTag: vi.fn(),
   }
 }
 
-function renderWithProviders(ui: React.ReactElement) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
-  return render(ui, {
-    wrapper: ({ children }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    ),
-  })
+function renderForm(
+  formHelpers = createFormHelpers(),
+  onSuggestSetup?: () => HabitFormProposal | Promise<HabitFormProposal>,
+  defaultExpanded = false,
+  readPhraseLocally = false,
+  lockedGeneral: boolean | null = null,
+  onResolveSubHabitProposalReady?: (resolve: () => void) => void,
+  emojiOptions: Pick<React.ComponentProps<typeof HabitFormFields>, 'onSuggestEmoji' | 'isEmojiSuggesting' | 'emojiSuggestionError'> = {},
+) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const buildForm = (isSuggesting = false) => (
+    <QueryClientProvider client={queryClient}>
+      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} isSuggesting={isSuggesting} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral} onResolveSubHabitProposalReady={onResolveSubHabitProposalReady} {...emojiOptions}>
+        <div>sub-habit-editor</div>
+      </HabitFormFields>
+    </QueryClientProvider>
+  )
+  const view = render(buildForm())
+  return { ...view, rerenderForm: (isSuggesting = false) => view.rerender(buildForm(isSuggesting)) }
 }
-
-function pad(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-function selectTimeInPicker(triggerLabel: string, hour24: number, minute: number) {
-  fireEvent.click(screen.getByLabelText(triggerLabel))
-  const hours = screen.getByRole('listbox', { name: 'common.hours' })
-  fireEvent.click(within(hours).getByRole('option', { name: pad(hour24) }))
-  const minutes = screen.getByRole('listbox', { name: 'common.minutes' })
-  fireEvent.click(within(minutes).getByRole('option', { name: pad(minute) }))
-  fireEvent.click(screen.getByText('common.done'))
-}
-
 
 describe('HabitFormFields', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockHasProAccess = false
+  it.each([false, true])('uses the API sub-habit flag for Pro access %s', (hasProAccess) => {
+    mockProfileState.hasProAccess = hasProAccess
+    renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
+    expect(screen.queryByText('sub-habit-editor') !== null).toBe(hasProAccess)
+    expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(!hasProAccess)
+  })
+
+  it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
+    const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
+    renderForm(createFormHelpers({ title }), undefined, false, false, null, undefined, { onSuggestEmoji })
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    expect(button.hasAttribute('disabled')).toBe(!title.trim())
+    if (title.trim()) {
+      const user = userEvent.setup()
+      await user.tab()
+      await user.tab()
+      await user.tab()
+      expect(button).toHaveFocus()
+      await user.keyboard('{Enter}')
+    } else fireEvent.click(button)
+    await waitFor(() => expect(onSuggestEmoji).toHaveBeenCalledTimes(title.trim() ? 1 : 0))
+    if (!title.trim()) expect(button).toHaveAccessibleDescription('habits.form.titleRequired')
+  })
+
+  it.each([false, true])('preserves the emoji action through pending and success after moving focus: %j', async (moveFocus) => {
+    let complete!: (proposal: HabitFormProposal) => void
+    const pending = new Promise<HabitFormProposal>((resolve) => { complete = resolve })
+    const onSuggestEmoji = vi.fn(() => pending)
+    const emojiOptions = { onSuggestEmoji, isEmojiSuggesting: false }
+    const view = renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, emojiOptions)
+    const user = userEvent.setup()
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    button.focus()
+    await user.keyboard('{Enter}')
+    emojiOptions.isEmojiSuggesting = true
+    view.rerenderForm(true)
+    const busy = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    expect(busy).toBe(button)
+    expect(busy).toHaveAttribute('aria-busy', 'true')
+    expect(busy).not.toBeDisabled()
+    expect(busy).toHaveAttribute('aria-disabled', 'true')
+    await user.keyboard('{Enter} ')
+    fireEvent.click(busy)
+    expect(onSuggestEmoji).toHaveBeenCalledOnce()
+    const phrase = screen.getByRole('textbox', { name: 'habits.form.describe' })
+    if (moveFocus) await user.click(phrase)
+    await act(async () => { complete(SETUP_PROPOSAL); await pending })
+    emojiOptions.isEmojiSuggesting = false
+    view.rerenderForm()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiSuggest' })).toBe(button)
+    expect(button.closest('[data-proposed]')).toBeInTheDocument()
+    expect(moveFocus ? phrase : button).toHaveFocus()
+  })
+
+  it('keeps the emoji request visible and busy while blocking competing emoji edits', () => {
+    const onSuggestEmoji = vi.fn()
+    renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, { onSuggestEmoji, isEmojiSuggesting: true })
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    expect(button).not.toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeDisabled()
+    fireEvent.click(button)
+    expect(onSuggestEmoji).not.toHaveBeenCalled()
+  })
+
+  it('explains the emoji allowance boundary and keeps request failures inline', () => {
+    mockProfileState.aiMessagesUsed = 5
+    const emojiOptions = { onSuggestEmoji: vi.fn(), emojiSuggestionError: undefined as string | undefined }
+    const view = renderForm(createFormHelpers({ title: 'Swim' }), undefined, false, false, null, undefined, emojiOptions)
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeEmptyDOMElement()
+    emojiOptions.emojiSuggestionError = 'Try again'
+    view.rerenderForm()
+    expect(screen.getByRole('alert')).toBe(alert)
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    expect(button).toBeDisabled()
+    expect(button.getAttribute('aria-describedby')).toBeTruthy()
+    expect(screen.getByRole('alert')).toHaveTextContent('Try again')
+    expect(button).toHaveAccessibleDescription(expect.stringContaining('Try again'))
+  })
+
+  it('announces the details state and identifies the reminders region across toggles', () => {
+    renderForm()
+    const disclosure = screen.getByRole('button', { name: 'habits.form.moreDetails' })
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+    expect(disclosure).not.toHaveAttribute('aria-controls')
+
+    fireEvent.click(disclosure)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    const regionId = disclosure.getAttribute('aria-controls')
+    expect(regionId).toBeTruthy()
+    const region = document.getElementById(regionId!)!
+    expect(region).toBeInTheDocument()
+    expect(within(region).getByRole('heading', { name: 'habits.form.reminders' })).toBeInTheDocument()
+
+    fireEvent.click(disclosure)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+    expect(disclosure).toHaveAttribute('aria-controls', regionId)
+    expect(region).toHaveAttribute('inert')
+
+    const transitionEnd = new Event('transitionend', { bubbles: true })
+    Object.defineProperty(transitionEnd, 'propertyName', { value: 'opacity' })
+    fireEvent(region, transitionEnd)
+    expect(region).not.toBeInTheDocument()
+    expect(disclosure).not.toHaveAttribute('aria-controls')
+
+    fireEvent.click(disclosure)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    expect(disclosure).toHaveAttribute('aria-controls', regionId)
+    expect(document.getElementById(regionId!)).toBeInTheDocument()
+  })
+
+  it('keeps the timed reminder toggle label distinct from its section heading', () => {
+    formLocale.realReminders = true
+    renderForm(createFormHelpers({ dueTime: '08:00' }), undefined, true)
+    expect(screen.getAllByText('habits.form.reminders')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'habits.form.reminders' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'habits.form.reminder' })).toBeInTheDocument()
+  })
+
+  it('shows one unresolved reading before corrections and the Astra ask, without an understood card', () => {
+    renderForm(createFormHelpers({ title: 'Beber mais água quando der' }), vi.fn(), false, true)
+    expect(screen.getAllByText('habits.form.unresolved')).toHaveLength(1)
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Monday' })).toBeEnabled()
+    const unresolved = screen.getByText('habits.form.unresolved')
+    const corrections = screen.getByRole('button', { name: 'Monday' })
+    const ask = screen.getByRole('button', { name: 'habits.form.askAstra' })
+    expect(unresolved.compareDocumentPosition(corrections) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(corrections.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it.each([false, true])('selects and clears an emoji inside the preview, schedule locked: %s', async (lockedGeneral) => {
+    const formHelpers = createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    const view = renderForm(formHelpers, undefined, false, false, lockedGeneral)
+    expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+    fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
+    await waitFor(() => expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '🏃', { shouldDirty: true }))
+    view.rerenderForm()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🏃')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
+  })
+
+  it.each(['', '   '])('hides the preview and emoji well for an empty phrase %j even with a saved schedule', (title) => {
+    renderForm(createFormHelpers({ title, emoji: '🏃', frequencyUnit: 'Day', frequencyQuantity: 1 }))
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+  })
+
+  it('hides the preview and emoji well while Astra reads a phrase with an existing schedule', () => {
+    const view = renderForm(createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 }))
+    view.rerenderForm(true)
+    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+  })
+
+  it('shows no emoji well in a fresh empty form', () => {
+    renderForm()
+    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+  })
+
+  it('keeps a chosen emoji through clearing, parsing and losing the understood schedule', async () => {
+    let formHelpers!: HabitFormHelpers
+    function CreateFormHarness({ isSuggesting = false }: { isSuggesting?: boolean }) {
+      formHelpers = useHabitForm()
+      return <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} isSuggesting={isSuggesting} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const buildForm = (isSuggesting = false) => <QueryClientProvider client={queryClient}><CreateFormHarness isSuggesting={isSuggesting} /></QueryClientProvider>
+    const view = render(buildForm())
+    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Run every day' } })
+    await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+    fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🌱' }))
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🌱')
+
+    const expectHidden = () => {
+      expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+      expect(formHelpers.form.getValues('emoji')).toBe('🌱')
+    }
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } })
+    expectHidden()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Run every day' } })
+    view.rerender(buildForm(true))
+    expectHidden()
+    view.rerender(buildForm())
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🌱')
+
+    act(() => formHelpers.form.setValue('frequencyUnit', null))
+    expectHidden()
+    act(() => formHelpers.form.setValue('frequencyUnit', 'Day'))
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🌱')
+  })
+
+  it('places the details row on the padded column edge', () => {
+    renderForm()
+    expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', position: 'relative', paddingBlock: '12px' })
   })
 
   it.each([
-    { name: 'renders without crashing', text: 'habits.form.title' },
-    { name: 'renders the title input label', text: 'habits.form.title' },
-    { name: 'renders the description input label', text: 'habits.form.description' },
-    { name: 'shows tags section label', text: 'habits.form.tags' },
-    { name: 'shows checklist section', text: 'habits.form.checklist' },
-  ])('$name', ({ text }) => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText(text)).toBeDefined()
+    ['en', 'Starts on September 2'],
+    ['pt-BR', 'Começa em 2 de setembro'],
+  ])('renders a word start date in %s', (locale, expected) => {
+    formLocale.language = locale
+    renderForm()
+    expect(screen.getByText(expected)).toBeDefined()
   })
 
-  it('opens a searchable emoji picker from the whole emoji field', async () => {
-    const setValue = vi.fn()
-    const formHelpers = createMockFormHelpers()
-    formHelpers.form.setValue = setValue
-    const tags = createMockTags()
+  it.each([
+    ['en', 'A habit you want to avoid. Log each slip.'],
+    ['pt-BR', 'Um hábito que você quer evitar. Registre cada deslize.'],
+  ])('defines avoidance and explains slip logging in %s', (locale, expected) => {
+    formLocale.language = locale
+    renderForm(createFormHelpers({ isBadHabit: true }), undefined, true)
+    expect(screen.getByText(expected)).toBeInTheDocument()
+  })
 
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
+  beforeEach(() => {
+    vi.clearAllMocks()
+    formLocale.language = 'en'
+    formLocale.realReminders = false
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.hasProAccess = false
+  })
 
-    fireEvent.click(screen.getByLabelText('habits.form.emojiOpenPicker'))
-    expect(screen.getByText('habits.form.emojiPickerTitle')).toBeDefined()
+  it('starts with one phrase field, closed details, and an immutable start date', () => {
+    renderForm()
+    expect(screen.getByLabelText('habits.form.describe')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toBeDefined()
+    expect(screen.queryByText('habits.form.oneTimeTask')).toBeNull()
+    expect(screen.queryByText('habits.form.recurring')).toBeNull()
+    expect(screen.queryByText('habits.form.flexible')).toBeNull()
+    expect(screen.queryByText('habits.form.general')).toBeNull()
+    expect(screen.getByText('habits.form.startDate')).toBeDefined()
+    expect(screen.queryByText('checklist-editor')).toBeNull()
+  })
 
-    fireEvent.change(screen.getByPlaceholderText('habits.form.emojiSearchPlaceholder'), {
-      target: { value: 'run' },
+  it('shows the understanding preview and applies correction controls', () => {
+    const formHelpers = createFormHelpers({ title: 'Run', frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true })
+    const view = renderForm(formHelpers)
+    expect(screen.getByLabelText('habits.form.understood')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.setRecurring).toHaveBeenCalledOnce()
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+    expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
+    view.unmount()
+
+    const flexibleHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3, isFlexible: true })
+    renderForm(flexibleHelpers)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+    expect(flexibleHelpers.setFlexible).toHaveBeenCalledOnce()
+    expect(flexibleHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
+  })
+
+  it('uses the localized full weekday name for the correction control', () => {
+    const formHelpers = createFormHelpers({ title: 'Correr' })
+    formHelpers.daysList[0] = {
+      value: 'Monday',
+      label: 'Seg',
+      accessibleLabel: 'Segunda-feira',
+    }
+
+    renderForm(formHelpers)
+
+    expect(screen.getByRole('button', { name: 'Segunda-feira' })).toBeDefined()
+  })
+
+  it('states daily, timed daily, timed fixed-day, and timed flexible schedules exactly', () => {
+    const formHelpers = createFormHelpers({
+      title: 'Run',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
     })
-    fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
+    const view = renderForm(formHelpers)
 
-    expect(setValue).toHaveBeenCalledWith('emoji', '🏃', { shouldDirty: true })
-    await waitFor(() =>
-      expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull(),
-    )
+    expect(screen.getByText('every day')).toBeDefined()
+    expect(formHelpers.daysList.every((day) => screen.getByRole('button', { name: day.accessibleLabel }).getAttribute('aria-pressed') === 'true')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', true)
+
+    formHelpers.testValues.days = formHelpers.daysList.map((day) => day.value).filter((day) => day !== 'Monday')
+    view.rerenderForm()
+    expect(screen.getByRole('button', { name: 'Monday' })).toHaveAttribute('aria-pressed', 'false')
+    expect(formHelpers.daysList.slice(1).every((day) => screen.getByRole('button', { name: day.accessibleLabel }).getAttribute('aria-pressed') === 'true')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
+
+    formHelpers.testValues.days = []
+    view.rerenderForm()
+    expect(formHelpers.daysList.every((day) => screen.getByRole('button', { name: day.accessibleLabel }).getAttribute('aria-pressed') === 'true')).toBe(true)
+
+    formHelpers.testValues.dueTime = '07:00'
+    view.rerenderForm()
+
+    expect(screen.getByText('every day at 07:00')).toBeDefined()
+
+    formHelpers.testValues.days = ['Monday']
+    formHelpers.testValues.dueTime = '08:00'
+    view.rerenderForm()
+
+    expect(screen.getByText('every Monday at 08:00')).toBeDefined()
+
+    formHelpers.testValues.days = []
+    formHelpers.testValues.isFlexible = true
+    formHelpers.testValues.frequencyUnit = 'Week'
+    formHelpers.testValues.frequencyQuantity = 3
+    formHelpers.testValues.dueTime = '09:00'
+    view.rerenderForm()
+
+    expect(screen.getByText('3 times a week, any day, at 09:00')).toBeDefined()
+
+    formHelpers.testValues.isFlexible = false
+    formHelpers.testValues.frequencyUnit = null
+    formHelpers.testValues.dueTime = '15:00'
+    view.rerenderForm()
+
+    expect(screen.getByText('At 15:00')).toBeDefined()
   })
 
-  it('keeps the empty-title emoji suggestion reason keyboard-accessible', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    const onSuggestEmoji = vi.fn()
+  it('applies a time-only local phrase without inventing a cadence', async () => {
+    const formHelpers = createFormHelpers({ title: 'Dentist at 15:00' })
+    renderForm(formHelpers, undefined, false, true)
 
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-        onSuggestEmoji={onSuggestEmoji}
-      />,
-    )
-
-    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
-    button.focus()
-    expect(button).toHaveFocus()
-    expect(button).not.toBeDisabled()
-    expect(button).toHaveAttribute('aria-disabled', 'true')
-    expect(button).toHaveAttribute('title', 'habits.form.titleRequired')
-    expect(button).toHaveAccessibleDescription('habits.form.titleRequired')
-    fireEvent.click(button)
-    expect(onSuggestEmoji).not.toHaveBeenCalled()
-  })
-
-  it('disables the emoji suggestion control and names its pending state', () => {
-    const formHelpers = createMockFormHelpers()
-    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
-    formHelpers.form.watch = ((field: string) =>
-      field === 'title' ? 'Read' : baseWatch(field)) as typeof formHelpers.form.watch
-    const onSuggestEmoji = vi.fn()
-
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={createMockTags()}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-        onSuggestEmoji={onSuggestEmoji}
-        isSuggestingEmoji
-      />,
-    )
-
-    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
-    expect(button).toBeDisabled()
-    expect(button).toHaveAttribute('aria-busy', 'true')
-    fireEvent.click(button)
-    expect(onSuggestEmoji).not.toHaveBeenCalled()
-  })
-
-  it('disables both suggestion controls while either request is pending', () => {
-    const formHelpers = createMockFormHelpers()
-    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
-    formHelpers.form.watch = ((field: string) =>
-      field === 'title' ? 'Read' : baseWatch(field)) as typeof formHelpers.form.watch
-
-    const { rerender } = renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={createMockTags()}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-        onSuggestSetup={vi.fn()}
-        onSuggestEmoji={vi.fn()}
-        isSuggesting
-      />,
-    )
-
-    expect(screen.getByTestId('habit-suggest-setup')).toBeDisabled()
-    expect(screen.getByTestId('habit-suggest-emoji')).toBeDisabled()
-
-    rerender(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={createMockTags()}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-        onSuggestSetup={vi.fn()}
-        onSuggestEmoji={vi.fn()}
-        isSuggestingEmoji
-      />,
-    )
-
-    expect(screen.getByTestId('habit-suggest-setup')).toBeDisabled()
-    expect(screen.getByTestId('habit-suggest-emoji')).toBeDisabled()
-  })
-
-  it('uses the Astra marker for both habit suggestion controls', () => {
-    const formHelpers = createMockFormHelpers()
-    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
-    formHelpers.form.watch = ((field: string) =>
-      field === 'title' ? 'Read' : baseWatch(field)) as typeof formHelpers.form.watch
-
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={createMockTags()}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-        onSuggestSetup={vi.fn()}
-        onSuggestEmoji={vi.fn()}
-      />,
-    )
-
-    expect(screen.getAllByTestId('astra-mark')).toHaveLength(2)
-  })
-
-  it('filters emojis by category when clicking a category chip', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-
-    fireEvent.click(screen.getByLabelText('habits.form.emojiOpenPicker'))
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiCategoryNature' }))
-
-    expect(screen.getByRole('option', { name: 'habits.form.emoji: 🌱' })).toBeDefined()
-    expect(screen.queryByRole('option', { name: 'habits.form.emoji: 🏃' })).toBeNull()
-  })
-
-  it('clears the selected emoji from the picker remove button', async () => {
-    const setValue = vi.fn()
-    const formHelpers = createMockFormHelpers()
-    formHelpers.form.setValue = setValue
-    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
-    formHelpers.form.watch = ((field: string) =>
-      field === 'emoji' ? '🏃' : baseWatch(field)) as typeof formHelpers.form.watch
-    const tags = createMockTags()
-
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-
-    fireEvent.click(screen.getByLabelText('habits.form.emojiOpenPicker'))
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
-
-    expect(setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
-    await waitFor(() =>
-      expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull(),
-    )
-  })
-
-  it('shows schedule type buttons', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.oneTimeTask')).toBeDefined()
-    expect(screen.getByText('habits.form.recurring')).toBeDefined()
-    expect(screen.getByText('habits.form.flexible')).toBeDefined()
-    expect(screen.getByText('habits.form.general')).toBeDefined()
-  })
-
-  it('exposes the frequency chooser as a radiogroup with the active card checked', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    const radiogroup = screen.getByRole('radiogroup', { name: 'habits.form.frequency' })
-    const radios = within(radiogroup).getAllByRole('radio')
-    expect(radios).toHaveLength(4)
-    expect(within(radiogroup).getByRole('radio', { name: /recurring/, checked: true })).toBeDefined()
-    expect(within(radiogroup).getByRole('radio', { name: /oneTimeTask/, checked: false })).toBeDefined()
-  })
-
-  it('shows the habit type toggle', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.habitTypeBuild')).toBeDefined()
-    expect(screen.getByText('habits.form.habitTypeAvoid')).toBeDefined()
-  })
-
-  it('shows day picker when showDayPicker is true', () => {
-    const formHelpers = createMockFormHelpers({ showDayPicker: true, isGeneral: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.activeDays')).toBeDefined()
-  })
-
-  it('renders children prop', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      >
-        <div data-testid="custom-children">Custom Content</div>
-      </HabitFormFields>,
-    )
-    expect(screen.getByTestId('custom-children')).toBeDefined()
-    expect(screen.getByText('Custom Content')).toBeDefined()
-  })
-
-  it('shows goal linking field', () => {
-    mockHasProAccess = true
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByTestId('goal-linking-field')).toBeDefined()
-  })
-
-  it('shows time fields when not general and not one-time', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false, isOneTime: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.dueTime')).toBeDefined()
-  })
-
-  it('writes dueTime directly from the time picker on change', () => {
-    const setValue = vi.fn()
-    const formHelpers = createMockFormHelpers({
-      isGeneral: false,
-      isOneTime: false,
+    await waitFor(() => {
+      expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
     })
-    formHelpers.form.setValue = setValue
-    const tags = createMockTags()
-
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-
-    selectTimeInPicker('habits.form.dueTime', 15, 58)
-
-    expect(setValue).toHaveBeenCalledWith('dueTime', '15:58', { shouldDirty: true })
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
   })
 
-  it('writes dueEndTime directly from the time picker on change', () => {
-    const setValue = vi.fn()
-    const formHelpers = createMockFormHelpers({
-      isGeneral: false,
+  it('reconciles parser-owned fields across phrase changes without clearing a manual cadence', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
+    const view = renderForm(formHelpers, undefined, false, true)
+
+    await waitFor(() => expect(formHelpers.setRecurring).toHaveBeenCalledOnce())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '08:00', { shouldDirty: true })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thursday' }))
+    formHelpers.testValues.title = 'Run'
+    view.rerenderForm()
+
+    await waitFor(() => expect(formHelpers.setOneTime).not.toHaveBeenCalled())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '', { shouldDirty: true })
+
+    formHelpers.testValues.title = 'Dentist at 15:00'
+    view.rerenderForm()
+    await waitFor(() => {
+      expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:00', { shouldDirty: true })
     })
-    formHelpers.form.setValue = setValue
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '09:00',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-
-    selectTimeInPicker('habits.form.dueEndTime', 22, 15)
-
-    expect(setValue).toHaveBeenCalledWith('dueEndTime', '22:15', { shouldDirty: true })
   })
 
-  it('shows slip alert toggle for bad habits', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: true,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.slipAlert')).toBeDefined()
+  it('preserves a locked General schedule through local reads and both corrections', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday', isGeneral: true })
+    renderForm(formHelpers, undefined, false, true, true)
+
+    await waitFor(() => expect(formHelpers.setGeneral).toHaveBeenCalledOnce())
+    expect(screen.getByRole('button', { name: 'Monday' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.form.moreOften' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
+
+    expect(formHelpers.setGeneral).toHaveBeenCalledOnce()
+    expect(formHelpers.setRecurring).not.toHaveBeenCalled()
+    expect(formHelpers.setFlexible).not.toHaveBeenCalled()
+    expect(formHelpers.toggleDay).not.toHaveBeenCalled()
   })
 
+  it('preserves an Astra schedule across the next title edit', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
+    const onSuggestSetup = vi.fn(() => {
+      formHelpers.testValues.frequencyUnit = 'Week'
+      formHelpers.testValues.frequencyQuantity = 3
+      formHelpers.testValues.dueTime = '07:00'
+      return SETUP_PROPOSAL
+    })
+    const view = renderForm(formHelpers, onSuggestSetup, false, true)
+    await waitFor(() => expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '08:00', { shouldDirty: true }))
 
-  it('calls setOneTime when one-time button is clicked', () => {
-    const setOneTime = vi.fn()
-    const formHelpers = createMockFormHelpers({ setOneTime })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    const btn = screen.getByText('habits.form.oneTimeTask')
-    fireEvent.click(btn)
-    expect(setOneTime).toHaveBeenCalled()
+    formHelpers.testValues.title = 'Build a stronger routine'
+    view.rerenderForm()
+    await waitFor(() => expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '', { shouldDirty: true }))
+    formHelpers.testValues.days = []
+    formHelpers.testValues.frequencyUnit = null
+    view.rerenderForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledOnce())
+
+    vi.mocked(formHelpers.form.setValue).mockClear()
+    vi.mocked(formHelpers.setOneTime).mockClear()
+    formHelpers.testValues.title = 'Build a calmer routine'
+    view.rerenderForm()
+    await waitFor(() => expect(formHelpers.form.setValue).not.toHaveBeenCalledWith('dueTime', '', { shouldDirty: true }))
+    expect(formHelpers.setOneTime).not.toHaveBeenCalled()
   })
 
-  it('calls setRecurring when recurring button is clicked', () => {
-    const setRecurring = vi.fn()
-    const formHelpers = createMockFormHelpers({ setRecurring })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    const btn = screen.getByText('habits.form.recurring')
-    fireEvent.click(btn)
-    expect(setRecurring).toHaveBeenCalled()
+  it('reveals the detail sections from the single disclosure', () => {
+    mockProfileState.hasProAccess = true
+    renderForm(createFormHelpers({ title: 'Run', isBadHabit: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    expect(screen.getByText('checklist-editor')).toBeDefined()
+    expect(screen.getByText('sub-habit-editor')).toBeDefined()
+    expect(screen.getByText('goal-linking')).toBeDefined()
+    expect(screen.getByText('date-field')).toBeDefined()
+    expect(screen.getByText('slip-alert')).toBeDefined()
   })
 
-  it('calls setFlexible when flexible button is clicked', () => {
-    const setFlexible = vi.fn()
-    const formHelpers = createMockFormHelpers({ setFlexible })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    const btn = screen.getByText('habits.form.flexible')
-    fireEvent.click(btn)
-    expect(setFlexible).toHaveBeenCalled()
+  it('names the description field once in the owning form', () => {
+    renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
+    expect(screen.getAllByText('habits.form.description')).toHaveLength(1)
+    expect(screen.getByRole('textbox', { name: 'habits.form.description' })).toBeInTheDocument()
   })
 
-  it('calls setGeneral when general button is clicked', () => {
-    const setGeneral = vi.fn()
-    const formHelpers = createMockFormHelpers({ setGeneral })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    const btn = screen.getByText('habits.form.general')
-    fireEvent.click(btn)
-    expect(setGeneral).toHaveBeenCalled()
+  it('hides slip alerts for a positive habit', () => {
+    mockProfileState.hasProAccess = true
+    renderForm(createFormHelpers({ title: 'Run', isBadHabit: false }), undefined, true)
+
+    expect(screen.queryByText('slip-alert')).toBeNull()
   })
 
-  it('advances to the next frequency card when the next arrow is clicked', () => {
-    const setFlexible = vi.fn()
-    const formHelpers = createMockFormHelpers({ setFlexible })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    fireEvent.click(screen.getByLabelText('common.next'))
-    expect(setFlexible).toHaveBeenCalled()
+  it('hides slip alerts after switching a bad habit back to positive', () => {
+    mockProfileState.hasProAccess = true
+    const formHelpers = createFormHelpers({ title: 'Run', isBadHabit: true })
+    const view = renderForm(formHelpers, undefined, true)
+    expect(screen.getByText('slip-alert')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'habits.form.habitTypeAvoid' }))
+    view.rerenderForm()
+
+    expect(screen.queryByText('slip-alert')).toBeNull()
   })
 
-  it('moves to the previous frequency card when the previous arrow is clicked', () => {
-    const setOneTime = vi.fn()
-    const formHelpers = createMockFormHelpers({ setOneTime })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    fireEvent.click(screen.getByLabelText('common.previous'))
-    expect(setOneTime).toHaveBeenCalled()
+  it.each([
+    { mode: 'one-time', isOneTime: true, isGeneral: false },
+    { mode: 'General', isOneTime: false, isGeneral: true },
+  ])('hides the end date for $mode habits', ({ isOneTime, isGeneral }) => {
+    const formHelpers = createFormHelpers({ title: 'Run' })
+    Object.assign(formHelpers, { isOneTime, isGeneral, showEndDate: false })
+
+    renderForm(formHelpers, undefined, true)
+
+    expect(screen.queryByText('date-field')).toBeNull()
   })
 
-  it('disables the previous arrow on the first frequency card', () => {
-    const formHelpers = createMockFormHelpers({ isOneTime: true, isRecurring: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByLabelText('common.previous')).toBeDisabled()
-    expect(screen.getByLabelText('common.next')).not.toBeDisabled()
+  it('routes the free sub-habit row to upgrade while keeping goals available', () => {
+    renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
+
+    fireEvent.click(screen.getByRole('button', { name: /common\.upgrade/ }))
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+    expect(screen.getByText('goal-linking')).toBeDefined()
   })
 
-  it('disables the next arrow on the last frequency card', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: true, isRecurring: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByLabelText('common.next')).toBeDisabled()
-    expect(screen.getByLabelText('common.previous')).not.toBeDisabled()
+  it('nests fixed clock reminders under the offset reminder switch for a timed habit', () => {
+    const formHelpers = createFormHelpers({ title: 'Run', dueTime: '08:00' })
+    renderForm(formHelpers, undefined, true)
+
+    expect(screen.getByText('offset-reminders')).toBeDefined()
+    expect(screen.getByText('scheduled-reminders')).toBeDefined()
+    const scheduled = screen.getByText('scheduled-reminders')
+    expect(scheduled).toHaveAttribute('data-nested', 'true')
+    expect(scheduled).toHaveAttribute('data-offset-count', '0')
+    fireEvent.click(scheduled)
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('scheduledReminders', [{ when: 'day_before', time: '18:00' }], { shouldDirty: true })
   })
 
-  it('debounces carousel scroll so a programmatic scroll cannot instantly revert the frequency type', () => {
-    vi.useFakeTimers()
-    try {
-      const setOneTime = vi.fn()
-      const formHelpers = createMockFormHelpers({ isRecurring: true, setOneTime })
-      const tags = createMockTags()
-      const { container } = renderWithProviders(
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={[]}
-          atGoalLimit={false}
-          onToggleGoal={vi.fn()}
-          reminderTimes={[]}
-          onReminderTimesChange={vi.fn()}
-        />,
-      )
-      const track = container.querySelector(
-        '[data-testid="frequency-carousel-track"]',
-      ) as HTMLElement
-      Object.defineProperty(track, 'clientWidth', { value: 300, configurable: true })
-      Object.defineProperty(track, 'scrollLeft', { value: 0, writable: true, configurable: true })
-      Object.defineProperty(track, 'scrollTo', { value: vi.fn(), configurable: true })
+  it('preserves a prefilled end time when the exact time changes', () => {
+    const formHelpers = createFormHelpers({ title: 'Run', dueTime: '08:00', dueEndTime: '09:00' })
+    renderForm(formHelpers, undefined, true)
 
-      fireEvent.scroll(track)
-      expect(setOneTime).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText('habits.form.exactTime'), { target: { value: '10:00' } })
 
-      vi.advanceTimersByTime(200)
-      expect(setOneTime).toHaveBeenCalledTimes(1)
-    } finally {
-      vi.useRealTimers()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '10:00', { shouldDirty: true })
+    expect(formHelpers.form.getValues('dueEndTime')).toBe('09:00')
+  })
+
+  it('keeps every local control live when the Astra allowance is exhausted', () => {
+    mockProfileState.aiMessagesUsed = 5
+    const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
+    const formHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })
+    renderForm(formHelpers, onSuggestSetup)
+
+    const ask = screen.getByRole('button', { name: 'habits.form.askAstra' })
+    expect(ask).toBeDisabled()
+    fireEvent.click(ask)
+    expect(onSuggestSetup).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    expect(screen.getByText('checklist-editor')).toBeDefined()
+  })
+
+  it('disables Astra at the Pro allowance too', () => {
+    mockProfileState.hasProAccess = true
+    mockProfileState.aiMessagesUsed = 5
+    renderForm(createFormHelpers({ title: 'Run' }), vi.fn(() => SETUP_PROPOSAL))
+
+    expect(screen.getByRole('button', { name: 'habits.form.askAstra' })).toBeDisabled()
+  })
+
+  it.each([
+    ['day', () => fireEvent.click(screen.getByRole('button', { name: 'Monday' }))],
+    ['emoji', async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+      fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    }],
+  ])('resolves a proposed setup on the first %s correction', async (_kind, correct) => {
+    const helpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })
+    renderForm(helpers, async () => {
+      applySuggestionSchedule(setupPatch, helpers)
+      return SETUP_PROPOSAL
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
+
+    await correct()
+
+    expect(screen.getByText('habits.form.understood')).toBeDefined()
+  })
+
+  it('allows Astra again after the proposed phrase changes', async () => {
+    const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
+    renderForm(createFormHelpers({ title: 'Build a stronger routine' }), onSuggestSetup)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('button', { name: 'habits.form.askAstra' })).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('habits.form.describe'), {
+      target: { value: 'Build a calmer routine' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+
+    await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledTimes(2))
+  })
+
+  it('preserves breakdown proposals when correcting proposed setup', async () => {
+    mockProfileState.hasProAccess = true
+    const formHelpers = createFormHelpers({ title: 'Build a stronger routine' })
+    renderForm(formHelpers, () => {
+      applySuggestionSchedule(setupPatch, formHelpers)
+      formHelpers.testValues.checklistItems = [{ text: 'Prepare', isChecked: false }]
+      return COMBINED_PROPOSAL
+    }, true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull())
+    expect(screen.getByRole('spinbutton').closest('[data-proposed]')).not.toBeNull()
+    expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+
+    expect(document.querySelectorAll('[data-proposed]')).toHaveLength(1)
+    expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1')
+    expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull()
+  })
+
+  it('keeps a pre-existing checklist normal when Astra proposes only setup', async () => {
+    const helpers = createFormHelpers({ title: 'Run', checklistItems: [{ text: 'Shoes', isChecked: false }] })
+    renderForm(helpers, () => {
+      applySuggestionSchedule(setupPatch, helpers)
+      return SETUP_PROPOSAL
+    }, true)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
+    expect(screen.getByText('checklist-editor').closest('[data-proposed]')).toBeNull()
+  })
+
+  it('marks only an Astra checklist proposal and resolves it when edited', async () => {
+    renderForm(
+      createFormHelpers({
+        title: 'Run',
+        frequencyQuantity: 3,
+        checklistItems: [{ text: 'Shoes', isChecked: false }],
+      }),
+      () => CHECKLIST_PROPOSAL,
+      true,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1'))
+    expect(screen.queryByRole('button', { name: 'habits.form.askAstra' })).toBeNull()
+
+    fireEvent.click(screen.getByText('checklist-editor'))
+    expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '0')
+  })
+
+  it('resolves a proposed sub-habit section when its parent editor changes it', async () => {
+    mockProfileState.hasProAccess = true
+    let resolveProposal = () => {}
+    renderForm(
+      createFormHelpers({ title: 'Run' }),
+      () => SUB_HABIT_PROPOSAL,
+      true,
+      false,
+      null,
+      (resolve) => { resolveProposal = resolve },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull())
+
+    act(() => resolveProposal())
+    expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).toBeNull()
+  })
+})
+
+
+describe('cadence corrections without a type picker', () => {
+  it('shows only days for a parsed fixed schedule', () => {
+    renderForm(createFormHelpers({ title: 'Read every Monday', days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 }))
+    expect(screen.queryByRole('radiogroup')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Monday' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'habits.form.moreOften' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
+  })
+
+  it.each([
+    { title: 'Run 3 times a week', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3 },
+    { title: 'Run', isFlexible: false, frequencyUnit: null, frequencyQuantity: null },
+  ])('offers day and count corrections for $title', (values) => {
+    const formHelpers = createFormHelpers(values)
+    renderForm(formHelpers)
+    expect(screen.queryByRole('radiogroup')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.setRecurring).toHaveBeenCalled()
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+    expect(formHelpers.setFlexible).toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
+  })
+})
+
+
+describe('cadence correction transitions', () => {
+  it('returns to a weekly target when the last selected day is cleared', () => {
+    const formHelpers = createFormHelpers({ title: 'Read every Monday', days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 })
+    renderForm(formHelpers)
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 3, { shouldDirty: true })
+  })
+
+  it('keeps repeat intervals inside more details', () => {
+    const formHelpers = createFormHelpers({ title: 'Read every Monday', days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 })
+    renderForm(formHelpers)
+    expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
+    fireEvent.click(screen.getByText('habits.form.moreDetails'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('intervalWeeks', 2, { shouldDirty: true })
+  })
+})
+
+
+it('reveals the same description failure again after details were collapsed', () => {
+  const helpers = createFormHelpers()
+  helpers.backendFieldErrors = { description: 'Server description failure' }
+  helpers.backendFocusField = 'description'
+  helpers.backendFocusRequest = 1
+  const view = renderForm(helpers)
+  expect(screen.getByLabelText('habits.form.description').closest('[data-open]')).toHaveAttribute('data-open', 'true')
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+  helpers.backendFocusRequest = 2
+  view.rerenderForm()
+  expect(screen.getByLabelText('habits.form.description').closest('[data-open]')).toHaveAttribute('data-open', 'true')
+})
+
+
+it('keeps rejected tag Name validation beside its input in the owning habit editor', async () => {
+  tagMutations.create.mockRejectedValue({ errors: { Name: ['Tag must have at most 50 characters'] } })
+  const helpers = createFormHelpers()
+  function OwningForm() {
+    const tags = useTagSelection()
+    return <HabitFormFields formHelpers={helpers} tags={tags} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+  }
+  render(<OwningForm />)
+  fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
+  const input = screen.getByRole('textbox', { name: 'habits.form.tagName' })
+  fireEvent.change(input, { target: { value: 'Health' } })
+  fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
+  await waitFor(() => {
+    expect(input).toHaveAccessibleDescription('Tag must have at most 50 characters')
+    expect(input).toHaveFocus()
+  })
+  await act(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  })
+  expect(input).toHaveAttribute('aria-invalid', 'true')
+  expect(input).toHaveFocus()
+  expect(input).toHaveValue('Health')
+  expect(screen.getByRole('dialog', { name: 'habits.form.tags' })).toBeInTheDocument()
+  expect(screen.getByText('Tag must have at most 50 characters')).not.toHaveAttribute('role', 'alert')
+  const commit = screen.getByRole('button', { name: 'common.add' })
+  commit.focus()
+  fireEvent.click(commit)
+  await waitFor(() => {
+    expect(input).toHaveFocus()
+    expect(tagMutations.create).toHaveBeenCalledTimes(2)
+  })
+  expect(input).toHaveValue('Health')
+  fireEvent.change(input, { target: { value: 'Updated' } })
+  expect(input).not.toHaveAttribute('aria-invalid')
+  expect(input).not.toHaveAccessibleDescription()
+  tagMutations.create.mockResolvedValueOnce({ id: 'tag-created' })
+  fireEvent.click(commit)
+  await waitFor(() => expect(screen.queryByRole('textbox', { name: 'habits.form.tagName' })).toBeNull())
+  expect(tagMutations.create).toHaveBeenLastCalledWith({ name: 'Updated', color: expect.any(String) })
+  expect(screen.getByText('habits.form.selectedCount:{"count":1}')).toBeInTheDocument()
+})
+
+it('exposes tag suggestions from the owning habit form', () => {
+  renderForm(createFormHelpers({ title: 'Run', description: 'Outside' }), undefined, true)
+  fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+  expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeEnabled()
+})
+
+describe('habit tag suggestions', () => {
+  function renderTagForm(title = ' Run ', description = ' Outside ', initialIds: string[] = []) {
+    const helpers = createFormHelpers({ title, description })
+    function OwningForm() {
+      const tags = useTagSelection(initialIds)
+      return <><output aria-label="Selected tags">{tags.selectedTagIds.join(',')}</output><HabitFormFields formHelpers={helpers} tags={tags} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></>
+    }
+    const view = render(<OwningForm />)
+    fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+    return { ...view, helpers, refresh: () => view.rerender(<OwningForm />) }
+  }
+
+  beforeEach(() => {
+    tagCollection.tags = []
+    tagMutations.suggest.mockReset()
+    tagMutations.create.mockReset()
+    tagMutations.delete.mockReset()
+    formLocale.language = 'en'
+  })
+
+  it.each(['settled', 'pending'])('rejects a deleted existing proposal from a %s request while keeping other proposals', async (phase) => {
+    tagCollection.tags = [
+      { id: 'existing', name: 'Health', color: '#7c3aed' },
+      { id: 'outdoors', name: 'Outdoors', color: '#7c3aed' },
+    ]
+    let complete!: (response: { tags: { name: string; color: string; isExisting: boolean; id: string | null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
+    const proposals = { tags: [
+      { ...tagCollection.tags[0]!, isExisting: true },
+      { ...tagCollection.tags[1]!, isExisting: true },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] }
+    const view = renderTagForm()
+    tagMutations.delete.mockImplementation((id: string) => {
+      tagCollection.tags = tagCollection.tags.filter((tag) => tag.id !== id)
+      view.refresh()
+      return Promise.resolve()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    if (phase === 'settled') await act(async () => complete(proposals))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.form.deleteTag: Health' })) })
+    expect(tagMutations.delete).toHaveBeenCalledWith('existing')
+    if (phase === 'pending') await act(async () => complete(proposals))
+    const staleProposal = screen.queryByRole('button', { name: 'Health', pressed: false })
+    if (staleProposal) await act(async () => { fireEvent.click(staleProposal) })
+    expect(screen.getByLabelText('Selected tags')).toBeEmptyDOMElement()
+    expect(screen.queryByRole('button', { name: 'Health', pressed: false })).toBeNull()
+    fireEvent.click(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Outdoors', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors'))
+    tagMutations.create.mockResolvedValue({ id: 'created' })
+    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors,created'))
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+    expect(tagMutations.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
+  })
+
+  it.each(['settled', 'pending', 'error'])('preserves %s suggestion state across tag search changes', async (phase) => {
+    tagCollection.tags = Array.from({ length: 25 }, (_, index) => ({ id: `tag-${index}`, name: `Tag ${index}`, color: '#000000' }))
+    let complete!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
+    if (phase === 'error') tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable'))
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    const proposals = { tags: [{ name: 'Reading', color: '#000000', isExisting: false, id: null }] }
+    if (phase === 'settled') await act(async () => complete(proposals))
+    if (phase === 'error') expect(await screen.findByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.searchTags' }), { target: { value: 'Tag 24' } })
+    if (phase === 'pending') {
+      expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+      expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
+      await act(async () => complete(proposals))
+    }
+    if (phase === 'error') expect(screen.getByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
+    else expect(await screen.findByRole('button', { name: 'Reading', pressed: false })).toBeEnabled()
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['success', 'failure'])('preserves proposals and acceptance status across optimistic virtualization: %s', async (outcome) => {
+    tagCollection.tags = Array.from({ length: 20 }, (_, index) => ({ id: `tag-${index}`, name: `Tag ${index}`, color: '#000000' }))
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Reading', color: '#000000', isExisting: false, id: null },
+      { name: 'Outdoors', color: '#000000', isExisting: false, id: null },
+    ] })
+    const view = renderTagForm()
+    let complete!: (response: { id: string }) => void
+    let fail!: (error: Error) => void
+    tagMutations.create.mockImplementation(() => {
+      tagCollection.tags = [...tagCollection.tags, { id: 'optimistic', name: 'Reading', color: '#000000' }]
+      view.refresh()
+      return new Promise((resolve, reject) => { complete = resolve; fail = reject })
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
+    expect(screen.getByRole('textbox', { name: 'habits.form.searchTags' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Outdoors', pressed: false })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+    if (outcome === 'success') {
+      await act(async () => complete({ id: 'created' }))
+      expect(screen.getByLabelText('Selected tags')).toHaveTextContent('created')
+      expect(screen.queryByRole('button', { name: 'Reading', pressed: false })).toBeNull()
+    } else {
+      await act(async () => {
+        tagCollection.tags = tagCollection.tags.slice(0, 20)
+        view.refresh()
+        fail(new Error('Unavailable'))
+      })
+      expect(screen.getByLabelText('Selected tags')).toHaveTextContent('')
+      expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeEnabled()
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    }
+    expect(screen.getByRole('button', { name: 'Outdoors', pressed: false })).toBeEnabled()
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+  })
+
+  it('requests proposals with trimmed context and accepts existing and new tags only on selection', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] })
+    tagMutations.create.mockResolvedValue({ id: 'created' })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    expect(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).toHaveAttribute('data-proposed')
+    expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: 'Outside', language: 'en' })
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('')
+    expect(tagMutations.create).not.toHaveBeenCalled()
+    fireEvent.click(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Health', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('existing'))
+    expect(tagMutations.create).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('existing,created'))
+    expect(tagMutations.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
+    expect(screen.queryByRole('group', { name: 'habits.form.suggestedTagsLabel' })).toBeNull()
+  })
+
+  it('preserves the action label while loading and announces an empty result', async () => {
+    let resolve!: (response: { tags: [] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
+    formLocale.language = 'pt-BR'
+    renderTagForm('Run', '   ')
+    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    fireEvent.click(action)
+    expect(action).toBeDisabled()
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
+    fireEvent.click(action)
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+    expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: null, language: 'pt-BR' })
+    await act(async () => resolve({ tags: [] }))
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions')
+    expect(action).toBeEnabled()
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toBeNull()
+  })
+
+  it('shows request failure inline and permits a successful retry', async () => {
+    tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ tags: [] })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    await waitFor(() => expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions'))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('retains a failed new proposal for retry and disables other actions during acceptance', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [{ name: 'Reading', color: '#7c3aed', isExisting: false, id: null }] })
+    let reject!: (error: Error) => void
+    tagMutations.create.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail })).mockResolvedValueOnce({ id: 'created' })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
+    expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+    await act(async () => reject(new Error('Unavailable')))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByLabelText('Selected tags')).toBeEmptyDOMElement()
+    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('created'))
+  })
+
+  it.each([['   ', []], ['Run', ['1', '2', '3', '4', '5']]])('disables suggestions with an empty title or full selection: %s', (title, ids) => {
+    const view = renderTagForm(title, '', ids)
+    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+    expect(action).toBeDisabled()
+    fireEvent.click(action)
+    expect(tagMutations.suggest).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'habits.form.newTag' })).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    if (!title.trim()) {
+      view.helpers.testValues.title = 'Run'
+      view.refresh()
+      expect(action).toBeEnabled()
+      expect(screen.queryByText('habits.form.titleRequired')).toBeNull()
     }
   })
 
-
-  it('hides frequency picker and day picker for one-time habits', () => {
-    const formHelpers = createMockFormHelpers({ isOneTime: true, isRecurring: false, showDayPicker: false, showEndDate: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.queryByText('habits.form.every')).toBeNull()
-    expect(screen.queryByText('habits.form.activeDays')).toBeNull()
+  it('disables remaining proposals at capacity', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] })
+    renderTagForm('Run', '', ['1', '2', '3', '4'])
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(within(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Health', pressed: false }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled())
+    expect(tagMutations.create).not.toHaveBeenCalled()
   })
 
-
-  it('hides due date, due time, and bad habit toggle for general habits', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: true, isOneTime: false, isRecurring: false, isFlexible: false, showDayPicker: false, showEndDate: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.queryByText('habits.form.dueDate')).toBeNull()
-    expect(screen.queryByText('habits.form.dueTime')).toBeNull()
-    expect(screen.queryByText('habits.form.habitTypeAvoid')).toBeNull()
-  })
-
-
-  it('shows flexible description when isFlexible is true', () => {
-    const formHelpers = createMockFormHelpers({ isFlexible: true, isOneTime: false, isGeneral: false, isRecurring: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.timesPerUnit')).toBeDefined()
-  })
-
-
-  it('shows frequency picker for recurring habits', () => {
-    const formHelpers = createMockFormHelpers({ isOneTime: false, isGeneral: false, isRecurring: true })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.every')).toBeDefined()
-    expect(screen.getAllByText('habits.form.unit').length).toBeGreaterThan(0)
-  })
-
-
-  it('calls toggleDay when a day button is clicked', () => {
-    const toggleDay = vi.fn()
-    const formHelpers = createMockFormHelpers({ showDayPicker: true, isGeneral: false, toggleDay })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    const monBtn = screen.getByText('Mon')
-    fireEvent.click(monBtn)
-    expect(toggleDay).toHaveBeenCalledWith('Monday')
-  })
-
-  it('highlights selected days', () => {
-    const formHelpers = createMockFormHelpers({ showDayPicker: true, isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Week',
-        frequencyQuantity: 1,
-        days: ['Monday', 'Wednesday'],
-        dueDate: '2025-01-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    const monBtn = screen.getByText('Mon')
-    expect(monBtn).toHaveAttribute('aria-pressed', 'true')
-    const wedBtn = screen.getByText('Wed')
-    expect(wedBtn).toHaveAttribute('aria-pressed', 'true')
-    const tueBtn = screen.getByText('Tue')
-    expect(tueBtn).toHaveAttribute('aria-pressed', 'false')
-  })
-
-
-  it('calls setValue on due time change', () => {
-    const setValue = vi.fn()
-    const formHelpers = createMockFormHelpers({ isGeneral: false, isOneTime: false })
-    formHelpers.form.setValue = setValue
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    selectTimeInPicker('habits.form.dueTime', 14, 30)
-    expect(setValue).toHaveBeenCalledWith('dueTime', '14:30', { shouldDirty: true })
-  })
-
-
-  it('shows end time field when dueTime is set', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false, isOneTime: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '14:00',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.dueEndTime')).toBeDefined()
-  })
-
-
-  it('does not show inline invalid time error for malformed dueTime', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '25:00',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.queryByText('habits.form.invalidTime')).toBeNull()
-  })
-
-  it('does not show inline end time ordering error when end time is before start time', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '14:00',
-        dueEndTime: '13:00',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.queryByText('habits.form.endTimeBeforeStartTime')).toBeNull()
-  })
-
-
-  it('shows add end date button when endDate is empty and showEndDate is true', () => {
-    const formHelpers = createMockFormHelpers({ showEndDate: true })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.addEndDate')).toBeDefined()
-  })
-
-  it('shows end date picker when endDate is set', () => {
-    const formHelpers = createMockFormHelpers({ showEndDate: true })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '2025-02-01',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.endDate')).toBeDefined()
-    expect(screen.getByText('habits.form.endDateHint')).toBeDefined()
-  })
-
-  it('keeps end date messaging neutral when endDate is before dueDate', () => {
-    const formHelpers = createMockFormHelpers({ showEndDate: true })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-03-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '2025-01-01',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.queryByText('habits.form.endDateBeforeDueDate')).toBeNull()
-    expect(screen.getByText('habits.form.endDateHint')).toBeDefined()
-  })
-
-  it('clears endDate when remove button is clicked', () => {
-    const setValue = vi.fn()
-    const formHelpers = createMockFormHelpers({ showEndDate: true })
-    formHelpers.form.setValue = setValue
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '2025-02-01',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    const removeBtn = screen.getByLabelText('habits.form.removeEndDate')
-    fireEvent.click(removeBtn)
-    expect(setValue).toHaveBeenCalledWith('endDate', '', { shouldDirty: true })
-  })
-
-
-  it('shows reminder section when dueTime is set and not general', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '09:00',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.reminder')).toBeDefined()
-  })
-
-  it('shows reminder chips and add button when reminder is enabled', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '09:00',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: true,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[15, 30]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.reminderAdd')).toBeDefined()
-    expect(screen.getByText('habits.form.reminder15min')).toBeDefined()
-    expect(screen.getByText('habits.form.reminder30min')).toBeDefined()
-  })
-
-  it('toggles reminderEnabled when switch is clicked', () => {
-    const setValue = vi.fn()
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.setValue = setValue
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '09:00',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    const toggle = screen.getByRole('switch', { checked: false })
-    fireEvent.click(toggle)
-    expect(setValue).toHaveBeenCalledWith('reminderEnabled', true, { shouldDirty: true })
-  })
-
-  it('removes a reminder chip when remove button is clicked', () => {
-    const onReminderTimesChange = vi.fn()
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '09:00',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: true,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[15, 30]}
-        onReminderTimesChange={onReminderTimesChange}
-      />,
-    )
-    const removeBtns = screen.getAllByLabelText('habits.form.removeReminder')
-    fireEvent.click(removeBtns[0]!)
-    expect(onReminderTimesChange).toHaveBeenCalledWith([30])
-  })
-
-
-  it('shows scheduled reminder section when dueTime is empty and not general', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.scheduledReminder')).toBeDefined()
-  })
-
-  it('shows scheduled reminder add button when enabled', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: true,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.scheduledReminderAdd')).toBeDefined()
-  })
-
-  it('renders existing scheduled reminder chips', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: true,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [
-          { when: 'same_day', time: '08:00' },
-          { when: 'day_before', time: '20:00' },
-        ],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText(/scheduledReminderSameDayAt/)).toBeDefined()
-    expect(screen.getByText(/scheduledReminderDayBeforeAt/)).toBeDefined()
-  })
-
-
-  it('shows legacy clock reminders inside the timed reminder editor', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '09:00',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: true,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [{ when: 'same_day', time: '08:00' }],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[-31, -120]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.reminder')).toBeDefined()
-    expect(screen.getByText('habits.form.reminderAddTime')).toBeDefined()
-    expect(screen.getByText(/scheduledReminderSameDayAt/)).toBeDefined()
-    expect(screen.getByText('31 habits.form.reminderMinutesAfter')).toBeDefined()
-    expect(screen.getByText('2 habits.form.reminderHoursAfter')).toBeDefined()
-    expect(screen.getAllByRole('switch')).toHaveLength(1)
-  })
-
-  it('offers clock reminders for a plain due-timed habit', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '09:00',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: true,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[15]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.reminder')).toBeDefined()
-    expect(screen.getByText('habits.form.reminderAddTime')).toBeDefined()
-    fireEvent.click(screen.getByText('habits.form.reminderAddTime'))
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.scheduledReminderDayBefore' }))
-    selectTimeInPicker('habits.form.scheduledReminderTimePlaceholder', 18, 0)
-    fireEvent.click(screen.getByText('common.add'))
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith(
-      'scheduledReminders',
-      [{ when: 'day_before', time: '18:00' }],
-      { shouldDirty: true },
-    )
-  })
-
-  it('sets isBadHabit from the habit type segmented toggle', () => {
-    const setValue = vi.fn()
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.setValue = setValue
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    fireEvent.click(screen.getByText('habits.form.habitTypeAvoid'))
-    expect(setValue).toHaveBeenCalledWith('isBadHabit', true, { shouldDirty: true })
-    fireEvent.click(screen.getByText('habits.form.habitTypeBuild'))
-    expect(setValue).toHaveBeenCalledWith('isBadHabit', false, { shouldDirty: true })
-  })
-
-
-  it('shows slip alert toggle switch when bad habit and pro access', () => {
-    mockHasProAccess = true
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: true,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.queryByText('common.proBadge')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.form.slipAlertDescription')).toBeDefined()
-    expect(screen.getByRole('switch', { name: 'habits.form.slipAlert' })).toBeDefined()
-  })
-
-
-  it('shows new tag button when showNewTag is false and not at limit', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags({ showNewTag: false, atTagLimit: false })
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText(/habits.form.newTag/)).toBeDefined()
-  })
-
-  it('hides new tag button when at tag limit', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags({ atTagLimit: true })
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.queryByText(/habits.form.newTag/)).toBeNull()
-  })
-
-  it('shows new tag form when showNewTag is true', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags({ showNewTag: true })
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByPlaceholderText('habits.form.tagName')).toBeDefined()
-    expect(screen.getByText('common.add')).toBeDefined()
-  })
-
-  it('shows tag edit form when editingTagId is set', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags({ editingTagId: 'tag-1', editTagName: 'Work' })
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('common.save')).toBeDefined()
-  })
-
-
-  it('shows due date for non-general habits', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.dueDate')).toBeDefined()
-  })
-
-
-  it('renders checklist and checklist templates', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByTestId('habit-checklist')).toBeDefined()
-    expect(screen.getByTestId('checklist-templates')).toBeDefined()
-  })
-
-  it('disables the suggest tags button when the title is empty', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
-  })
-
-  it('suggests tags and accepts an existing suggestion as the real tag', async () => {
-    const { suggestTags } = await import('@/lib/actions/tags')
-    vi.mocked(suggestTags).mockResolvedValue({
-      tags: [
-        { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-1' },
-        { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
-      ],
+  it.each(['title', 'description', 'locale', 'returning title', 'account'])('drops an in-flight result when the habit context changes: %s', async (context) => {
+    let resolve!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
+    const view = renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    await act(async () => {
+      if (context === 'locale') formLocale.language = 'pt-BR'
+      else if (context === 'account') advanceAccountGeneration()
+      else view.helpers.testValues[context === 'description' ? 'description' : 'title'] = 'Read'
+      view.refresh()
     })
+    if (context === 'returning title') await act(async () => { view.helpers.testValues.title = ' Run '; view.refresh() })
+    await act(async () => resolve({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] }))
+    expect(screen.queryByRole('button', { name: 'Outdoors', pressed: false })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeEnabled()
 
-    const formHelpers = createMockFormHelpers()
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        title: 'Morning run',
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const acceptSuggestedTag = vi.fn()
-    const tags = createMockTags({ acceptSuggestedTag })
+  })
+})
 
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
-
-    const healthChip = await screen.findByText('Health')
-    fireEvent.click(healthChip)
-
-    expect(acceptSuggestedTag).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Health', isExisting: true, id: 'tag-1' }),
-      expect.any(Function),
-    )
+describe('manual schedule creation', () => {
+  beforeEach(() => {
+    formLocale.language = 'en'
+    mockProfileState.aiMessagesUsed = 0
+  })
+  it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Astra', async (unit) => {
+    mockProfileState.aiMessagesUsed = 5
+    const ask = vi.fn()
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2026-09-02' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={ask} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
+    fireEvent.click(screen.getByRole('radio', { name: `habits.form.unit${unit}` }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '12' } })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: false, days: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, intervalWeeks: 2 })
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: true, days: [] })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '0' } })
+    expect(screen.getByRole('spinbutton')).toHaveAccessibleDescription('habits.form.frequencyRequired')
+    expect(helpers.validateAll()).toBe('habits.form.frequencyRequired')
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '' } })
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } })
+    expect(helpers.validateAll()).toBeNull()
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    fireEvent.change(screen.getByLabelText('habits.form.describe'), { target: { value: 'Read books' } })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    expect(ask).not.toHaveBeenCalled()
   })
 
-  it('shows the empty state when no tag suggestions are returned', async () => {
-    const { suggestTags } = await import('@/lib/actions/tags')
-    vi.mocked(suggestTags).mockResolvedValue({ tags: [] })
-
-    const formHelpers = createMockFormHelpers()
-    formHelpers.form.watch = vi.fn((field: string) => {
-      const defaults: Record<string, unknown> = {
-        title: 'Morning run',
-        frequencyUnit: 'Day',
-        frequencyQuantity: 1,
-        days: [],
-        dueDate: '2025-01-01',
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '',
-        isBadHabit: false,
-        reminderEnabled: false,
-        slipAlertEnabled: false,
-        checklistItems: [],
-        scheduledReminders: [],
-      }
-      return defaults[field] ?? ''
-    }) as unknown as typeof formHelpers.form.watch
-    const tags = createMockTags()
-
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
-
-    expect(await screen.findByText('habits.form.noTagSuggestions')).toBeDefined()
+  it.each(['quantity', 'unit', 'mode', 'day', 'interval'] as const)('marks an Astra schedule as proposed until a %s edit', async (edit) => {
+    const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2099-01-01' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => ({ ...SETUP_PROPOSAL, setup: applySuggestionSchedule(patch, helpers) })} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const view = render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    expect(view.container.querySelector('[data-proposed]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(helpers.form.getValues('days')).toEqual(['Monday']))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    const quantity = screen.getByRole('spinbutton', { name: 'habits.form.frequency' })
+    for (const control of [quantity, screen.getByRole('radio', { name: 'habits.form.every' }), screen.getByRole('radio', { name: 'habits.form.unitDay' }), screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })]) {
+      expect(control.closest('[data-proposed]')).not.toBeNull()
+    }
+    expect(quantity).toHaveValue(1)
+    expect((quantity as HTMLInputElement).style.color).toBe('var(--fg-3)')
+    expect(screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('textbox', { name: 'habits.form.describe' }).closest('[data-proposed]')).toBeNull()
+    quantity.focus()
+    if (edit === 'quantity') fireEvent.change(quantity, { target: { value: '2' } })
+    else if (edit === 'unit') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitMonth' }))
+    else if (edit === 'mode') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    else fireEvent.click(screen.getByRole('button', { name: edit === 'day' ? helpers.daysList.find((day) => day.value === 'Tuesday')!.accessibleLabel : 'habits.form.repeatMore' }))
+    expect(view.container.querySelector('[data-proposed]')).toBeNull()
+    if (edit === 'quantity') {
+      expect(screen.getByRole('spinbutton')).toBe(quantity)
+      expect(quantity).toHaveFocus()
+      expect(quantity).toHaveValue(2)
+      expect((quantity as HTMLInputElement).style.color).toBe('var(--fg-1)')
+    }
+    expect(helpers.form.getValues('title')).toBe('Read')
   })
 
-  it('gates the due-end-time and per-time reminder on a truthy dueTime without leaking a falsy value', () => {
-    const formHelpers = createMockFormHelpers({ isGeneral: false })
-    const tags = createMockTags()
-    const { container } = renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
+  it('disables manual scheduling for a locked parent', () => {
+    renderForm(createFormHelpers({ title: 'Read', isGeneral: true }), undefined, true, false, true)
+    expect(screen.getByRole('radio', { name: /habits.form.every/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio', { name: /habits.form.unitMonth/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('spinbutton', { name: 'habits.form.frequency' })).toBeDisabled()
+  })
+})
 
-    expect(screen.queryByText('habits.form.dueEndTime')).toBeNull()
-    expect(screen.queryByText('habits.form.reminder')).toBeNull()
-    expect(screen.getByText('habits.form.scheduledReminder')).toBeDefined()
-    expect(container.textContent).not.toContain('false')
+describe('habit end time', () => {
+  function EditingForm({ onSave }: { onSave: (requests: unknown[]) => void }) {
+    const helpers = useHabitForm({ initialData: { title: 'Run', dueDate: '2099-01-01' } })
+    const save = () => {
+      if (helpers.validateAll()) return
+      const values = habitFormSchema.parse(helpers.form.getValues())
+      onSave([buildCreateHabitRequest(values, [], [], [], []), buildUpdateHabitRequest(values, true, '', [], [])])
+    }
+    return <><HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} /><button onClick={() => helpers.form.reset({ ...helpers.form.getValues(), dueTime: '08:00', dueEndTime: '09:00' })}>load existing times</button><button onClick={() => helpers.form.reset({ ...helpers.form.getValues(), dueTime: '' })}>remove start elsewhere</button><button onClick={save}>save times</button></>
+  }
+
+  it('edits and clears end times, rejects ordering errors, and disables the field without a start', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const onSave = vi.fn()
+    render(<QueryClientProvider client={client}><EditingForm onSave={onSave} /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    const end = screen.getByLabelText('habits.form.dueEndTime')
+    expect(end).toBeDisabled()
+    expect(end).toHaveAccessibleDescription('habits.form.endTimeRequiresStart')
+    const start = screen.getByLabelText('habits.form.exactTime')
+    fireEvent.change(start, { target: { value: '08:00' } })
+    expect(end).toBeEnabled()
+    fireEvent.change(end, { target: { value: '09:00' } })
+    fireEvent.blur(end)
+    expect(end).toHaveValue('09:00')
+    fireEvent.click(screen.getByRole('button', { name: 'save times' }))
+    expect(onSave).toHaveBeenLastCalledWith([expect.objectContaining({ dueTime: '08:00', dueEndTime: '09:00' }), expect.objectContaining({ dueTime: '08:00', dueEndTime: '09:00' })])
+    onSave.mockClear()
+    fireEvent.change(end, { target: { value: '08:00' } })
+    fireEvent.blur(end)
+    expect(end).toHaveAttribute('aria-invalid', 'true')
+    expect(end).toHaveAccessibleDescription('habits.form.endTimeBeforeStartTime')
+    fireEvent.click(screen.getByRole('button', { name: 'save times' }))
+    expect(onSave).not.toHaveBeenCalled()
+    fireEvent.change(end, { target: { value: '07:00' } })
+    fireEvent.blur(end)
+    expect(end).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(end, { target: { value: '10:00' } })
+    fireEvent.blur(end)
+    expect(end).not.toHaveAttribute('aria-invalid')
+    fireEvent.click(within(end.parentElement!).getByRole('button', { name: 'common.clear' }))
+    expect(end).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: 'load existing times' }))
+    expect(end).toHaveValue('09:00')
+    fireEvent.click(within(start.parentElement!).getByRole('button', { name: 'common.clear' }))
+    expect(end).toHaveValue('')
+    expect(end).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'load existing times' }))
+    fireEvent.click(screen.getByRole('button', { name: 'remove start elsewhere' }))
+    await waitFor(() => expect(end).toHaveValue(''))
+    expect(end).toBeDisabled()
   })
 })

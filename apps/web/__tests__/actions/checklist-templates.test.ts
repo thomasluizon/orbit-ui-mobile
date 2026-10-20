@@ -1,6 +1,8 @@
+vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/auth-api', () => ({
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-api')>()),
   getAuthHeaders: vi.fn().mockResolvedValue({
     Authorization: 'Bearer test-token',
   }),
@@ -71,7 +73,7 @@ describe('checklist template server actions', () => {
       const result = await createChecklistTemplateAction({
         name: 'Workout',
         items: ['Warmup', 'Main'],
-      })
+      }, 'account-a')
 
       expect(result).toEqual({ id: 'new-template' })
       const [url, init] = mockFetch.mock.calls[0]!
@@ -88,7 +90,7 @@ describe('checklist template server actions', () => {
     it('DELETEs /api/checklist-templates/:id', async () => {
       mock204()
 
-      await deleteChecklistTemplateAction('tmpl-1')
+      await deleteChecklistTemplateAction('tmpl-1', 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/checklist-templates/tmpl-1')
@@ -97,31 +99,31 @@ describe('checklist template server actions', () => {
 
     it('resolves without throwing on 204 No Content', async () => {
       mock204()
-      await expect(deleteChecklistTemplateAction('tmpl-1')).resolves.toBeUndefined()
+      await expect(deleteChecklistTemplateAction('tmpl-1', 'account-a')).resolves.toBeUndefined()
     })
 
     it('accepts GUID-shaped ids', async () => {
       mock204()
-      await deleteChecklistTemplateAction('abc12345-1234-4567-89ab-123456789abc')
+      await deleteChecklistTemplateAction('abc12345-1234-4567-89ab-123456789abc', 'account-a')
       const [url] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/checklist-templates/abc12345-1234-4567-89ab-123456789abc')
     })
 
     it('rejects ids that try to traverse the URL path', async () => {
       await expect(
-        deleteChecklistTemplateAction('abc/../../other-endpoint'),
+        deleteChecklistTemplateAction('abc/../../other-endpoint', 'account-a'),
       ).rejects.toThrow('Invalid template id')
       expect(mockFetch).not.toHaveBeenCalled()
     })
 
     it('rejects empty ids', async () => {
-      await expect(deleteChecklistTemplateAction('')).rejects.toThrow('Invalid template id')
+      await expect(deleteChecklistTemplateAction('', 'account-a')).rejects.toThrow('Invalid template id')
       expect(mockFetch).not.toHaveBeenCalled()
     })
 
     it('rejects overly long ids', async () => {
       await expect(
-        deleteChecklistTemplateAction('a'.repeat(129)),
+        deleteChecklistTemplateAction('a'.repeat(129), 'account-a'),
       ).rejects.toThrow('Invalid template id')
       expect(mockFetch).not.toHaveBeenCalled()
     })

@@ -1,12 +1,17 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useMemo, useState } from 'react'
-import { Home, Search } from 'lucide-react'
+import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGlyph } from '@/components/ui/select-check'
+import { ActionRow } from '@/components/ui/action-row'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioRow } from '@/components/ui/select-check'
 
 export interface MoveParentOption {
   id: string | null
@@ -35,8 +40,8 @@ interface MoveParentOverlayProps {
 const SEARCH_THRESHOLD = 8
 
 const eyebrowStyle = {
-  margin: '2px 0 0',
-  fontFamily: 'var(--font-sans)',
+  margin: SPACING.s0,
+  fontFamily: 'var(--font-mono)',
   fontSize: 12,
   fontWeight: 500,
   letterSpacing: '0.08em',
@@ -57,120 +62,25 @@ function MoveTargetRow({
   currentLabel: string
   onSelect: (optionId: string | null) => void
 }>) {
-  const isRoot = option.id === null
-
-  let ringClass: string
-  if (selected) {
-    ringClass = 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)]'
-  } else if (isRoot) {
-    ringClass = 'bg-transparent'
-  } else {
-    ringClass = 'bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)]'
-  }
-
-  const hoverClass = selected ? '' : ' hover:bg-[color-mix(in_srgb,var(--fg-1)_8%,transparent)]'
-  const stateClass = option.disabled
-    ? 'opacity-50 cursor-not-allowed'
-    : `cursor-pointer active:scale-[0.98]${hoverClass}`
+  const availability = option.disabled
+    ? { disabled: true as const, reason: option.reason ?? currentLabel }
+    : { disabled: false as const }
 
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      disabled={option.disabled}
-      onClick={() => onSelect(option.id)}
-      className={`w-full appearance-none text-left transition-[transform,box-shadow,background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ${ringClass} ${stateClass}`}
-      style={{
-        border: '1px solid transparent',
-        borderStyle: !selected && isRoot ? 'dashed' : 'solid',
-        borderColor: !selected && isRoot ? 'var(--hairline-strong)' : 'transparent',
-        borderRadius: 14,
-        padding: '9px 12px',
-      }}
-    >
-      <div className="flex items-center" style={{ gap: 10 }}>
-        {Array.from({ length: option.depth }, (_, index) => (
-          <span
-            key={index}
-            aria-hidden="true"
-            className="self-stretch shrink-0"
-            style={{ width: 20 }}
-          />
-        ))}
-        <span
-          className="grid shrink-0 place-items-center"
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 10,
-            background: isRoot ? 'transparent' : 'var(--bg-well)',
-            boxShadow: isRoot ? 'inset 0 0 0 1px var(--hairline)' : undefined,
-          }}
-        >
-          {isRoot ? (
-            <Home size={18} strokeWidth={1.8} color="var(--fg-2)" />
-          ) : (
-            <span style={{ fontSize: 16, lineHeight: 1 }}>{option.emoji ?? '·'}</span>
-          )}
-        </span>
-        <span
-          className="flex-1 truncate"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {option.label}
-        </span>
-        {option.childCount > 0 && (
-          <span
-            className="shrink-0"
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              fontVariantNumeric: 'tabular-nums',
-              color: 'var(--fg-3)',
-            }}
-          >
-            {option.childCount}
-          </span>
-        )}
-        {isCurrentParent && (
-          <span
-            className="shrink-0 uppercase"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              // react-doctor-disable-next-line no-tiny-text -- intentional uppercase "current parent" tag pill (badge meta scale per DESIGN.md), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-              fontSize: 10.5,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              color: 'var(--fg-3)',
-            }}
-          >
-            {currentLabel}
-          </span>
-        )}
-        {selected && <RadioGlyph selected size={22} />}
-      </div>
-      {option.reason && (
-        <p
-          style={{
-            margin: '5px 0 0',
-            paddingLeft: option.depth * 20,
-            fontFamily: 'var(--font-sans)',
-            // react-doctor-disable-next-line no-tiny-text -- intentional secondary suggestion-reason caption (meta scale per DESIGN.md), de-emphasized below the option label https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-            fontSize: 11,
-            lineHeight: 1.4,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {option.reason}
-        </p>
-      )}
-    </button>
+    <RadioRow
+      label={option.label}
+      textMode={option.id === null ? undefined : 'personal'}
+      description={undefined}
+      selected={selected}
+      {...availability}
+      depth={option.depth}
+      meta={option.childCount > 0 ? String(option.childCount) : undefined}
+      tag={isCurrentParent ? currentLabel : undefined}
+      leading={option.id === null
+        ? <Home size={20} strokeWidth={1.8} color="var(--fg-2)" />
+        : <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>{option.emoji ?? '·'}</span>}
+      onSelect={() => onSelect(option.id)}
+    />
   )
 }
 
@@ -190,6 +100,7 @@ export function MoveParentOverlay({
   onSelectOption,
 }: Readonly<MoveParentOverlayProps>) {
   const [searchQuery, setSearchQuery] = useState('')
+  const { sheetRef, closeSheet } = useSheetHost()
 
   const rootOption = useMemo(
     () => options.find((option) => option.id === null) ?? null,
@@ -209,58 +120,38 @@ export function MoveParentOverlay({
   const isSearchEmpty = showSearch && searchQuery.trim().length > 0 && treeRows.length === 0
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          setSearchQuery('')
-          onClose()
-        }
+    open ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={isMoving ? undefined : () => {
+        setSearchQuery('')
+        onClose()
       }}
-      dismissible={!isMoving}
       title={t('habits.moveParent.title')}
-      description={movingHabitTitle ? t('habits.moveParent.description', { name: movingHabitTitle }) : undefined}
-      footer={
-        <div className="flex" style={{ gap: 12 }}>
-          <PillButton
-            variant="ghost"
-            fullWidth
-            disabled={isMoving}
-            onClick={onClose}
-            className="flex-1"
-          >
+      actions={
+        <ActionRow>
+          <PillButton size="sm" variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
-          <PillButton
-            fullWidth
-            disabled={!canSubmit}
-            busy={isMoving}
-            onClick={onConfirm}
-            className="flex-1"
-          >
-            {isMoving ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
+          <PillButton size="sm" disabled={!canSubmit} loading={isMoving} onClick={onConfirm}>
+            {t('habits.moveParent.confirm')}
           </PillButton>
-        </div>
+        </ActionRow>
       }
     >
-      <div className="flex flex-col" style={{ gap: 10 }}>
+      <div className="flex flex-col" style={{ gap: 8 }}>
+        {movingHabitTitle ? (
+          <p className="text-sm text-[var(--fg-3)]">
+            {t('habits.moveParent.description', { name: movingHabitTitle })}
+          </p>
+        ) : null}
         {showSearch && (
-          <FieldInput
+          <Input
+            label={t('habits.moveParent.searchPlaceholder')}
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder={t('habits.moveParent.searchPlaceholder')}
-            ariaLabel={t('habits.moveParent.searchPlaceholder')}
-            trailing={<Search size={18} strokeWidth={1.8} color="var(--fg-3)" />}
-          />
-        )}
-
-        {rootOption && (
-          <MoveTargetRow
-            option={rootOption}
-            selected={rootOption.id === selectedMoveParentId}
-            isCurrentParent={rootOption.id === movingHabitParentId}
-            currentLabel={t('habits.moveParent.currentParent')}
-            onSelect={onSelectOption}
+            trailing={<Search size={20} strokeWidth={1.8} color="var(--fg-3)" />}
           />
         )}
 
@@ -268,7 +159,21 @@ export function MoveParentOverlay({
           <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
         )}
 
-        <div className="flex flex-col" role="radiogroup" style={{ gap: 6 }}>
+        <RadioGroup
+          aria-label={t('habits.moveParent.destinations')}
+          className="flex flex-col"
+          style={{ gap: 4 }}
+        >
+          {rootOption && (
+            <MoveTargetRow
+              option={rootOption}
+              selected={rootOption.id === selectedMoveParentId}
+              isCurrentParent={rootOption.id === movingHabitParentId}
+              currentLabel={t('habits.moveParent.currentParent')}
+              onSelect={onSelectOption}
+            />
+          )}
+
           {treeRows.map((option) => (
             <MoveTargetRow
               key={option.id}
@@ -279,14 +184,14 @@ export function MoveParentOverlay({
               onSelect={onSelectOption}
             />
           ))}
-        </div>
+        </RadioGroup>
 
         {isSearchEmpty && (
           <p
             className="text-center"
             style={{
-              margin: 0,
-              padding: '16px 0',
+              margin: SPACING.s0,
+              padding: "var(--orbit-space-16) var(--orbit-space-0)",
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               color: 'var(--fg-3)',
@@ -296,6 +201,6 @@ export function MoveParentOverlay({
           </p>
         )}
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

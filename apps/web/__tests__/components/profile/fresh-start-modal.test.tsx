@@ -1,5 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+
 
 
 vi.mock('next-intl', () => ({
@@ -9,68 +12,48 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-const mockQueryClientClear = vi.fn()
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({
-    clear: mockQueryClientClear,
+const mockRouterPush = vi.fn()
+const mockRouterRefresh = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockRouterPush,
+    refresh: mockRouterRefresh,
   }),
 }))
 
-const mockResetAccount = vi.fn()
-const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
-vi.mock('@/stores/auth-store', () => ({
-  getHeldAccountId: () => account.id,
-  getAccountGeneration: () => account.generation,
+const mockResetAccountQueries = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: mockResetAccountQueries,
 }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueryClient: () => ({}),
+}))
+
+const mockResetAccount = vi.fn()
 vi.mock('@/lib/actions/profile', () => ({
   resetAccount: (...args: unknown[]) => mockResetAccount(...args),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    onOpenChange,
-    title,
-    children,
-  }: {
-    open: boolean
-    onOpenChange: (v: boolean) => void
-    title?: string
-    children: React.ReactNode
-  }) =>
-    open ? (
-      <div data-testid="overlay">
-        {title && <h2>{title}</h2>}
-        <button data-testid="overlay-close" onClick={() => onOpenChange(false)}>
-          Close
-        </button>
-        <button data-testid="overlay-reopen" onClick={() => onOpenChange(true)}>
-          Reopen
-        </button>
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-vi.mock('@/components/ui/fresh-start-animation', () => ({
-  FreshStartAnimation: ({ onComplete }: { onComplete: () => void }) => (
-    <div data-testid="fresh-start-animation">
-      <button data-testid="animation-complete" onClick={onComplete}>
-        Complete
-      </button>
-    </div>
-  ),
-}))
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 
+
+import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { FreshStartModal } from '@/app/(app)/profile/_components/fresh-start-modal'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 
 describe('FreshStartModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    account.id = 'account-a'
-    account.generation = 1
     mockResetAccount.mockResolvedValue(undefined)
   })
 
@@ -83,8 +66,20 @@ describe('FreshStartModal', () => {
 
   it('renders overlay with the reset heading when open', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.heading')).toBeInTheDocument()
+  })
+
+  it('pins both steps\' actions in the sheet footer, never in the scrolling body', () => {
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'profile.freshStart.reviewDeletion'])
+    expectSmallSheetActions()
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+
+    fireEvent.click(screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' }))
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'profile.freshStart.deleteData'])
+    expectSmallSheetActions()
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
   it('shows info step by default with description', () => {
@@ -114,60 +109,85 @@ describe('FreshStartModal', () => {
 
   it('has a continue button in info step', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByText('common.continue')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })).toHaveAttribute('data-variant', 'caution')
+  })
+
+  it('names the deletion review and lets both actions hug their labels in each step', () => {
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    const review = screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })
+    const cancel = screen.getByRole('button', { name: 'common.cancel' })
+    expect(review.style.width).toBe('auto')
+    expect(cancel.style.width).toBe('auto')
+
+    fireEvent.click(review)
+    const deleteData = screen.getByRole('button', { name: 'profile.freshStart.deleteData' })
+    expect(deleteData.style.width).toBe('auto')
+    expect(screen.getByRole('button', { name: 'common.cancel' }).style.width).toBe('auto')
   })
 
   it('transitions to confirm step on continue click', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
     expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')).toBeInTheDocument()
+  })
+
+  it('moves focus to the confirm field, never leaving it on the disabled Delete data', () => {
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+
+    const review = screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })
+    review.focus()
+    fireEvent.click(review)
+
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toHaveFocus()
   })
 
   it('confirm button is disabled when text is not ORBIT', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.deleteData' })
+    expect(confirmBtn).toHaveAttribute('data-variant', 'caution')
     expect(confirmBtn).toBeDisabled()
   })
 
   it('confirm button is disabled when input is partial', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORB' } })
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.deleteData' })
     expect(confirmBtn).toBeDisabled()
   })
 
   it('confirm button becomes enabled when user types ORBIT', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.deleteData' })
     expect(confirmBtn).not.toBeDisabled()
   })
 
   it('accepts case-insensitive ORBIT input', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'orbit' } })
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.deleteData' })
     expect(confirmBtn).not.toBeDisabled()
   })
 
@@ -175,55 +195,70 @@ describe('FreshStartModal', () => {
     const onOpenChange = vi.fn()
     render(<FreshStartModal open={true} onOpenChange={onOpenChange} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
 
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
 
     await waitFor(() => {
       expect(mockResetAccount).toHaveBeenCalledTimes(1)
     })
   })
 
-  it('closes modal and shows animation after successful reset', async () => {
+  it('closes the sheet, clears queries and navigates after successful reset', async () => {
     const onOpenChange = vi.fn()
     render(<FreshStartModal open={true} onOpenChange={onOpenChange} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
 
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
 
     await waitFor(() => {
       expect(onOpenChange).toHaveBeenCalledWith(false)
     })
 
     await waitFor(() => {
-      expect(screen.getByTestId('fresh-start-animation')).toBeInTheDocument()
+      expect(mockResetAccountQueries).toHaveBeenCalledTimes(1)
+      expect(mockRouterPush).toHaveBeenCalledWith('/')
+      expect(mockRouterRefresh).toHaveBeenCalledTimes(1)
     })
   })
 
-  it('does not show the old account reset as a success after an account switch', async () => {
-    let finishReset: () => void = () => {}
-    mockResetAccount.mockReturnValue(new Promise<void>((resolve) => { finishReset = resolve }))
+  it('keeps the next account intact when reset finishes after an account switch', async () => {
+    let finishReset!: () => void
+    mockResetAccount.mockReturnValueOnce(new Promise<void>((resolve) => { finishReset = resolve }))
     const onOpenChange = vi.fn()
     render(<FreshStartModal open={true} onOpenChange={onOpenChange} />)
-    fireEvent.click(screen.getByText('common.continue'))
-    fireEvent.change(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder'), {
-      target: { value: 'ORBIT' },
-    })
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
-    expect(mockResetAccount).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    fireEvent.change(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder'), { target: { value: 'ORBIT' } })
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
+    await waitFor(() => expect(mockResetAccount).toHaveBeenCalledOnce())
 
-    account.id = 'account-b'
-    account.generation++
-    await act(async () => { finishReset(); await Promise.resolve() })
+    await act(async () => {
+      advanceAccountGeneration()
+      finishReset()
+    })
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(onOpenChange).not.toHaveBeenCalled()
-    expect(screen.queryByTestId('fresh-start-animation')).not.toBeInTheDocument()
+    expect(mockResetAccountQueries).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
+  })
+
+  it('shows a failed reset in the pinned footer, beside Delete data', async () => {
+    mockResetAccount.mockRejectedValueOnce(new Error('Server error'))
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    fireEvent.change(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder'), { target: { value: 'ORBIT' } })
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
+
+    expect((await screen.findByRole('alert')).closest('[data-slot="sheet-actions"]')).not.toBeNull()
   })
 
   it('shows error when resetAccount fails', async () => {
@@ -231,23 +266,25 @@ describe('FreshStartModal', () => {
 
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
 
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
 
     await waitFor(() => {
       expect(screen.getByText('profile.freshStart.errorGeneric')).toBeInTheDocument()
     })
     expect(screen.queryByText('Server error')).not.toBeInTheDocument()
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockResetAccountQueries).not.toHaveBeenCalled()
   })
 
   it('submits the reset on Enter once ORBIT is typed', async () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
@@ -261,7 +298,7 @@ describe('FreshStartModal', () => {
   it('ignores Enter while the confirmation text is invalid', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORB' } })
@@ -270,18 +307,130 @@ describe('FreshStartModal', () => {
     expect(mockResetAccount).not.toHaveBeenCalled()
   })
 
-  it('resets state when overlay triggers onOpenChange(true)', () => {
+  it('cancels through the exit transition rather than dropping the sheet', () => {
+    sheetTestControls.defer(true)
+    const onOpenChange = vi.fn()
+    render(<FreshStartModal open onOpenChange={onOpenChange} />)
+
+    fireEvent.click(screen.getByText('common.cancel'))
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    sheetTestControls.completeDismissal()
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    sheetTestControls.defer(false)
+  })
+
+  it('resets state when the sheet closes', () => {
     const onOpenChange = vi.fn()
 
     render(
       <FreshStartModal open={true} onOpenChange={onOpenChange} />,
     )
 
-    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
     expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId('overlay-reopen'))
+    fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
 
     expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
+  })
+})
+
+describe('FreshStartModal across an account change', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    mockResetAccount.mockResolvedValue(undefined)
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function armTheErasure() {
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    const field = screen.getByLabelText('profile.freshStart.confirmLabel')
+    fireEvent.change(field, { target: { value: 'ORBIT' } })
+    expect(field).toHaveValue('ORBIT')
+  }
+
+  it('disarms the typed confirmation when another account replaces the tab', async () => {
+    armTheErasure()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
+    expect(screen.queryByLabelText('profile.freshStart.confirmLabel')).not.toBeInTheDocument()
+  })
+
+  it('keeps the typed confirmation when the same account recovers from a rejected refresh', async () => {
+    armTheErasure()
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toHaveValue('ORBIT')
+  })
+
+  it('does not clear the next account after a delayed reset completes', async () => {
+    let releaseReset!: () => void
+    mockResetAccount.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      releaseReset = resolve
+    }))
+    const nextNoticeKey = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-2')
+    localStorage.setItem(nextNoticeKey, '1')
+    armTheErasure()
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
+
+    await replaceAccountWith('user-2')
+    const resetsAfterAccountChange = mockResetAccountQueries.mock.calls.length
+    await act(async () => { releaseReset(); await Promise.resolve() })
+
+    expect(localStorage.getItem(nextNoticeKey)).toBe('1')
+    expect(mockResetAccountQueries).toHaveBeenCalledTimes(resetsAfterAccountChange)
+    expect(mockRouterPush).not.toHaveBeenCalled()
+  })
+})
+
+describe('FreshStartModal and the trial notice', () => {
+  const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    localStorage.clear()
+    mockResetAccount.mockResolvedValue(undefined)
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    vi.unstubAllGlobals()
+  })
+
+  it('lets the trial notice appear again, whichever key suppressed it', async () => {
+    const scopedKey = buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, 'user-1')
+    localStorage.setItem(TRIAL_EXPIRED_SEEN_STORAGE_KEY, '1')
+    localStorage.setItem(scopedKey, '1')
+
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    fireEvent.change(screen.getByLabelText('profile.freshStart.confirmLabel'), {
+      target: { value: 'ORBIT' },
+    })
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
+
+    await waitFor(() => {
+      expect(mockResetAccount).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(localStorage.getItem(scopedKey)).toBeNull()
+    })
+    expect(localStorage.getItem(TRIAL_EXPIRED_SEEN_STORAGE_KEY)).toBeNull()
   })
 })

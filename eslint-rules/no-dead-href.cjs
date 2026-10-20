@@ -1,4 +1,3 @@
-
 const { getAttribute, getElementName } = require('./_jsx-strings.cjs')
 
 const LINK_ELEMENTS = new Set(['a', 'Link', 'NextLink'])

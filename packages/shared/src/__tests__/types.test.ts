@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest'
+import * as typesBarrel from '../types/index'
+import * as utilsBarrel from '../utils/index'
+import * as apiBarrel from '../api/index'
+import * as queryBarrel from '../query/index'
+import * as validationBarrel from '../validation/index'
 import {
   normalizedHabitSchema,
   createPaginatedSchema,
+  createHabitRequestSchema,
+  habitDetailSchema,
+  habitDetailChildSchema,
+  habitFullDetailSchema,
+  habitScheduleChildSchema,
   habitScheduleItemSchema,
 } from '../types/habit'
 import { goalSchema, paginatedGoalResponseSchema } from '../types/goal'
@@ -78,6 +88,8 @@ import { apiErrorSchema } from '../types/api'
 
 import {
   createMockHabit,
+  createMockHabitScheduleChild,
+  createMockHabitScheduleItem,
   createMockGoal,
   createMockProfile,
   createMockNotification,
@@ -87,8 +99,75 @@ import {
   createMockSyncChangesV2Response,
 } from './factories'
 
+const compareStrings = (left: string, right: string) => left.localeCompare(right)
 
 describe('habit schemas', () => {
+  describe.each([
+    ['detail', habitDetailSchema],
+    ['detail child', habitDetailChildSchema],
+    ['schedule item', habitScheduleItemSchema],
+    ['schedule child', habitScheduleChildSchema],
+    ['normalized habit', normalizedHabitSchema],
+  ] as const)('%s creation fields', (_name, schema) => {
+    const response = {
+      ...createMockHabit(),
+      ...createMockHabitScheduleItem(),
+      children: [createMockHabitScheduleChild()],
+    }
+
+    it.each(['OneTime', 'Recurring', 'Flexible', 'General'])('preserves the API date and %s schedule', (schedule) => {
+      const fields = { startDate: '2026-08-28', schedule }
+      const parsed = schema.parse({ ...response, ...fields })
+
+      expect(parsed).toMatchObject(fields)
+    })
+
+    it('accepts older responses without creation fields', () => {
+      const parsed = schema.parse(response)
+
+      expect(parsed).not.toHaveProperty('startDate')
+      expect(parsed).not.toHaveProperty('schedule')
+    })
+
+    it.each([
+      ['schedule', 'Daily'],
+      ['schedule', 1],
+      ['startDate', '2026-08-29T00:30:00Z'],
+      ['startDate', '2026-02-30'],
+    ])('rejects invalid %s %j', (field, value) => {
+      const result = schema.safeParse({ ...response, [field]: value })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error.issues.map((issue) => issue.path)).toContainEqual([field])
+    })
+  })
+
+  it.each([
+    { startDate: '2026-08-28', schedule: 'Recurring' },
+    {},
+  ])('preserves creation fields in full detail and its nested children: %j', (fields) => {
+    const child = { ...createMockHabitScheduleChild(), ...fields }
+    const parsed = habitFullDetailSchema.parse({
+      habit: { ...createMockHabit(), ...fields, children: [{ ...child, children: [child] }] },
+      metrics: {
+        currentStreak: 0,
+        longestStreak: 0,
+        weeklyCompletionRate: 0,
+        monthlyCompletionRate: 0,
+        totalCompletions: 0,
+        lastCompletedDate: null,
+      },
+      logs: [],
+    })
+
+    for (const habit of [parsed.habit, parsed.habit.children[0], parsed.habit.children[0]?.children[0]]) {
+      expect(habit).toBeDefined()
+      expect(habit?.startDate).toBe('startDate' in fields ? fields.startDate : undefined)
+      expect(habit?.schedule).toBe('schedule' in fields ? fields.schedule : undefined)
+    }
+  })
+
   describe('normalizedHabitSchema', () => {
     it('parses a valid NormalizedHabit', () => {
       const habit = createMockHabit()
@@ -165,6 +244,18 @@ describe('habit schemas', () => {
       const result = normalizedHabitSchema.safeParse(habit)
       expect(result.success).toBe(false)
     })
+  })
+
+  it('accepts nullable response intervals while requests remain non-null and bounded', () => {
+    const detail = habitDetailSchema.safeParse({
+      ...createMockHabit({ intervalWeeks: null }),
+      children: [],
+    })
+
+    expect(detail.success).toBe(true)
+    expect(createHabitRequestSchema.safeParse({ title: 'Run', intervalWeeks: null }).success).toBe(false)
+    expect(createHabitRequestSchema.safeParse({ title: 'Run', intervalWeeks: 53 }).success).toBe(false)
+    expect(createHabitRequestSchema.safeParse({ title: 'Run', intervalWeeks: 2 }).success).toBe(true)
   })
 
   describe('createPaginatedSchema', () => {
@@ -296,6 +387,11 @@ describe('goal schemas', () => {
 
 
 describe('profile schema', () => {
+  it.each([0, 1, 3])('preserves an active API key count of %i', (count) => {
+    const profile = profileSchema.parse(createMockProfile({ activeApiKeyCount: count }))
+    expect(profile.activeApiKeyCount).toBe(count)
+  })
+
   it('parses a valid Profile', () => {
     const profile = createMockProfile()
     const result = profileSchema.safeParse(profile)
@@ -561,7 +657,7 @@ describe('auth schemas', () => {
       const result = userSchema.safeParse({
         userId: 'u-1',
         name: 'Alex',
-        email: 'thomas@example.com',
+        email: 'alex@example.com',
       })
       expect(result.success).toBe(true)
     })
@@ -582,7 +678,7 @@ describe('auth schemas', () => {
       const result = loginResponseSchema.safeParse({
         userId: 'u-1',
         name: 'Alex',
-        email: 'thomas@example.com',
+        email: 'alex@example.com',
       })
       expect(result.success).toBe(true)
     })
@@ -591,7 +687,7 @@ describe('auth schemas', () => {
       const result = loginResponseSchema.safeParse({
         userId: 'u-1',
         name: 'Alex',
-        email: 'thomas@example.com',
+        email: 'alex@example.com',
         wasReactivated: true,
       })
       expect(result.success).toBe(true)
@@ -604,7 +700,7 @@ describe('auth schemas', () => {
       const result = loginResponseSchema.safeParse({
         userId: 'u-1',
         name: 'Alex',
-        email: 'thomas@example.com',
+        email: 'alex@example.com',
       })
       expect(result.success).toBe(true)
       if (result.success) {
@@ -618,7 +714,7 @@ describe('auth schemas', () => {
       const result = backendLoginResponseSchema.safeParse({
         userId: 'u-1',
         name: 'Alex',
-        email: 'thomas@example.com',
+        email: 'alex@example.com',
         token: 'jwt-token',
         refreshToken: 'refresh-token',
       })
@@ -629,7 +725,7 @@ describe('auth schemas', () => {
       const result = backendLoginResponseSchema.safeParse({
         userId: 'u-1',
         name: 'Alex',
-        email: 'thomas@example.com',
+        email: 'alex@example.com',
         token: 'jwt-token',
         refreshToken: null,
       })
@@ -640,7 +736,7 @@ describe('auth schemas', () => {
       const result = backendLoginResponseSchema.safeParse({
         userId: 'u-1',
         name: 'Alex',
-        email: 'thomas@example.com',
+        email: 'alex@example.com',
         refreshToken: 'r-token',
       })
       expect(result.success).toBe(false)
@@ -769,6 +865,7 @@ describe('chat schemas', () => {
         'BulkLogHabits', 'BulkSkipHabits', 'CreateSubHabit', 'SuggestBreakdown',
         'AssignTags', 'DuplicateHabit', 'MoveHabit', 'CreateGoal', 'UpdateGoal',
         'DeleteGoal', 'UpdateGoalProgress', 'UpdateGoalStatus', 'LinkHabitsToGoal',
+        'CreateTag', 'UpdateTag', 'DeleteTag', 'ReorderGoals', 'ReorderHabits', 'UnlogHabit',
       ]
       for (const t of types) {
         expect(aiActionTypeSchema.safeParse(t).success).toBe(true)
@@ -790,7 +887,9 @@ describe('chat schemas', () => {
     })
 
     it('exposes exactly the expected options so a new status cannot be added without a handler branch', () => {
-      expect([...actionStatusSchema.options].sort()).toEqual([...expectedStatuses].sort())
+      expect([...actionStatusSchema.options].sort(compareStrings)).toEqual(
+        [...expectedStatuses].sort(compareStrings),
+      )
     })
 
     it('rejects a status outside the enum', () => {
@@ -944,7 +1043,7 @@ describe('chat schemas', () => {
 
     it('accepts action types beyond the canonical enum', () => {
       const result = actionResultSchema.safeParse({
-        type: 'ReorderHabits',
+        type: 'UnknownAction',
         status: 'Success',
         entityId: null,
         entityName: null,
@@ -1256,6 +1355,20 @@ describe('ai schemas', () => {
     expect(confirmationResult.success).toBe(true)
     expect(executionResult.success).toBe(true)
   })
+
+  it('preserves the API proposed value and editability through the pending preview schema', () => {
+    const proposedValue = [{ text: 'Pack shoes', is_checked: false }, { text: 'Pack water', is_checked: true }]
+    const field = { entityId: 'habit-1', entityName: 'Run', field: 'checklist_items',
+      oldValue: null, newValue: 'Pack shoes and more', valueType: 'text', proposedValue, isEditable: true }
+    const parsed = pendingAgentOperationSchema.parse({
+      id: 'pending-1', capabilityId: 'habits.bulk.write', displayName: 'Bulk update', summary: 'Update habits',
+      riskClass: 'Low', confirmationRequirement: 'None', expiresAtUtc: '2025-01-15T10:00:00Z',
+      changes: [field], changeTargetCount: 1,
+      items: [{ itemId: 'habit-1', entityId: 'habit-1', entityName: 'Run', fields: [field], stateFingerprint: 'state-1' }],
+      previewFingerprint: 'preview-1',
+    })
+    expect(parsed.items?.[0]?.fields[0]).toMatchObject({ proposedValue, isEditable: true })
+  })
 })
 
 
@@ -1265,6 +1378,7 @@ describe('sync schemas', () => {
       const types = [
         'createHabit', 'updateHabit', 'deleteHabit', 'logHabit', 'skipHabit',
         'reorderHabits', 'updateChecklist', 'duplicateHabit', 'moveHabitParent',
+        'bulkCascadeDeleteHabits',
         'createGoal', 'updateGoal', 'deleteGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals',
         'createTag', 'updateTag', 'deleteTag', 'assignTags',
         'markNotificationRead', 'markAllNotificationsRead', 'deleteNotification',
@@ -1436,8 +1550,8 @@ describe('sync schemas', () => {
 
   describe('mutationEntityTypeSchema', () => {
     it('lists exactly the supported sync entity types', () => {
-      expect([...mutationEntityTypeSchema.options].sort()).toEqual(
-        ['apiKey', 'goal', 'habit', 'notification', 'profile', 'tag'].sort(),
+      expect([...mutationEntityTypeSchema.options].sort(compareStrings)).toEqual(
+        ['apiKey', 'goal', 'habit', 'notification', 'profile', 'tag'].sort(compareStrings),
       )
     })
 
@@ -1450,7 +1564,7 @@ describe('sync schemas', () => {
 
   describe('syncChangesV2ResponseSchema', () => {
     it('covers every entity collection so a new one cannot be added without a handler branch', () => {
-      expect(Object.keys(syncChangesV2ResponseSchema.shape).sort()).toEqual(
+      expect(Object.keys(syncChangesV2ResponseSchema.shape).sort(compareStrings)).toEqual(
         [
           'habits',
           'habitLogs',
@@ -1461,7 +1575,7 @@ describe('sync schemas', () => {
           'checklistTemplates',
           'serverTimestamp',
           'version',
-        ].sort(),
+        ].sort(compareStrings),
       )
     })
 
@@ -1517,6 +1631,41 @@ describe('sync schemas', () => {
         notifications: { updated: [{ isRead: false }] },
         checklistTemplates: { updated: [{ items: ['Shoes', 'Towel', 'Water'] }] },
       })
+    })
+
+    it.each(['OneTime', 'Recurring', 'Flexible', 'General'])('preserves the API date and %s schedule in sync responses', (schedule) => {
+      const response = createMockSyncChangesV2Response()
+      const fields = { startDate: '2026-08-28', schedule }
+      const parsed = syncChangesV2ResponseSchema.parse({ ...response, habits: { ...response.habits, updated: response.habits.updated.map((habit) => ({ ...habit, ...fields })) } })
+      expect(parsed.habits.updated[0]).toMatchObject(fields)
+    })
+
+    it('accepts older sync habits without creation fields', () => {
+      const parsed = syncChangesV2ResponseSchema.parse(createMockSyncChangesV2Response())
+
+      expect(parsed.habits.updated).toHaveLength(1)
+      expect(parsed.habits.updated[0]).not.toHaveProperty('startDate')
+      expect(parsed.habits.updated[0]).not.toHaveProperty('schedule')
+    })
+
+    it.each([
+      ['schedule', 'Daily'],
+      ['schedule', 1],
+      ['startDate', '2026-08-29T00:30:00Z'],
+      ['startDate', '2026-02-30'],
+    ])('rejects invalid sync habit %s %j', (field, value) => {
+      const response = createMockSyncChangesV2Response()
+      const result = syncChangesV2ResponseSchema.safeParse({
+        ...response,
+        habits: {
+          ...response.habits,
+          updated: response.habits.updated.map((habit) => ({ ...habit, [field]: value })),
+        },
+      })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error.issues.map((issue) => issue.path)).toContainEqual(['habits', 'updated', 0, field])
     })
 
     it('rejects a response whose nested habit drops a required field', () => {
@@ -1988,8 +2137,8 @@ describe('api error schema', () => {
 
 
 describe('barrel re-exports', () => {
-  it('types/index re-exports all type modules', async () => {
-    const barrel = await import('../types/index')
+  it('types/index re-exports all type modules', () => {
+    const barrel = typesBarrel
     expect(barrel.userSchema).toBeDefined()
     expect(barrel.loginResponseSchema).toBeDefined()
     expect(barrel.chatMessageSchema).toBeDefined()
@@ -2013,8 +2162,8 @@ describe('barrel re-exports', () => {
     expect(barrel.profileSchema).toBeDefined()
   })
 
-  it('utils/index re-exports utility functions', async () => {
-    const barrel = await import('../utils/index')
+  it('utils/index re-exports utility functions', () => {
+    const barrel = utilsBarrel
     expect(barrel.parseAPIDate).toBeDefined()
     expect(barrel.formatAPIDate).toBeDefined()
     expect(barrel.getTimezoneList).toBeDefined()
@@ -2023,15 +2172,15 @@ describe('barrel re-exports', () => {
     expect(barrel.extractBackendError).toBeDefined()
   })
 
-  it('api/index re-exports API helpers', async () => {
-    const barrel = await import('../api/index')
+  it('api/index re-exports API helpers', () => {
+    const barrel = apiBarrel
     expect(barrel.API).toBeDefined()
     expect(barrel.getErrorMessage).toBeDefined()
     expect(barrel.extractBackendError).toBeDefined()
   })
 
-  it('query/index re-exports query key factories', async () => {
-    const barrel = await import('../query/index')
+  it('query/index re-exports query key factories', () => {
+    const barrel = queryBarrel
     expect(barrel.habitKeys).toBeDefined()
     expect(barrel.goalKeys).toBeDefined()
     expect(barrel.profileKeys).toBeDefined()
@@ -2046,8 +2195,8 @@ describe('barrel re-exports', () => {
     expect(barrel.QUERY_STALE_TIMES).toBeDefined()
   })
 
-  it('validation/index re-exports form schemas', async () => {
-    const barrel = await import('../validation/index')
+  it('validation/index re-exports form schemas', () => {
+    const barrel = validationBarrel
     expect(barrel.habitFormSchema).toBeDefined()
     expect(barrel.goalFormSchema).toBeDefined()
     expect(barrel.validateEndDate).toBeDefined()

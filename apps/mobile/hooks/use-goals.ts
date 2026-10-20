@@ -72,9 +72,9 @@ export function useCreateGoal() {
 
       return queueOrExecute({
         mutation,
-        execute: async () => apiClient<{ id: string }>(API.goals.create, {
+        execute: async (resolvedMutation) => apiClient<{ id: string }>(API.goals.create, {
           method: 'POST',
-          body: JSON.stringify(data),
+          body: JSON.stringify(resolvedMutation.payload),
         }),
         queuedResult: withQueuedMarker({ id: tempId }, mutation.id),
       })
@@ -86,7 +86,7 @@ export function useCreateGoal() {
       const previousLists = queryClient.getQueriesData<Goal[]>({ queryKey: goalKeys.lists() })
       const tempId = createTempEntityId('goal')
       pendingCreateGoalIds.set(data, tempId)
-      const nextGoal = buildTempGoal(data, tempId, 999999)
+      const nextGoal = { ...buildTempGoal(data, tempId, 999999), linkedHabits: findLinkedHabits(queryClient, data.habitIds ?? []) }
 
       queryClient.setQueriesData<Goal[]>(
         { queryKey: goalKeys.lists() },
@@ -122,6 +122,7 @@ export function useCreateGoal() {
             goal.id === context.tempId
               ? {
                   ...buildTempGoal(context.request, result.id, goal.position),
+                  linkedHabits: goal.linkedHabits,
                   createdAtUtc: goal.createdAtUtc,
                   position: goal.position,
                 }
@@ -131,9 +132,9 @@ export function useCreateGoal() {
       )
     },
 
-    onSettled: (data) => {
+    onSettled: async (data) => {
       if (isQueuedResult(data)) return
-      void invalidateGoalQueries(queryClient)
+      await invalidateGoalQueries(queryClient, { includeHabits: true })
     },
   })
 }
@@ -318,6 +319,7 @@ export function useDeleteGoal() {
 
 export function useUpdateGoalProgress() {
   const queryClient = useQueryClient()
+  const { setGoalCompletedCelebration } = useUIStore.getState()
 
   return useMutation({
     mutationFn: async ({
@@ -326,6 +328,9 @@ export function useUpdateGoalProgress() {
     }: {
       goalId: string
       data: UpdateGoalProgressRequest
+      goalName?: string
+      goalCount?: number
+      goalUnit?: string
     }) => {
       const mutation = buildQueuedMutation({
         type: 'updateGoalProgress',
@@ -345,6 +350,17 @@ export function useUpdateGoalProgress() {
         }),
         queuedResult: createQueuedAck(mutation.id),
       })
+    },
+
+    onSuccess: (result, { data, goalName, goalCount, goalUnit }) => {
+      if (
+        !isQueuedResult(result) &&
+        data.currentValue === goalCount &&
+        goalName &&
+        goalUnit !== undefined
+      ) {
+        setGoalCompletedCelebration({ name: goalName, count: goalCount, unit: goalUnit })
+      }
     },
 
     onMutate: async ({ goalId, data }) => {
@@ -394,11 +410,13 @@ export function useUpdateGoalStatus() {
     mutationFn: async ({
       goalId,
       data,
-      goalName,
+      goalName: _goalName,
     }: {
       goalId: string
       data: UpdateGoalStatusRequest
       goalName?: string
+      goalCount?: number
+      goalUnit?: string
     }) => {
       const mutation = buildQueuedMutation({
         type: 'updateGoalStatus',
@@ -420,9 +438,15 @@ export function useUpdateGoalStatus() {
       })
     },
 
-    onSuccess: (result, { data, goalName }) => {
-      if (!isQueuedResult(result) && data.status === 'Completed' && goalName) {
-        setGoalCompletedCelebration({ name: goalName })
+    onSuccess: (result, { data, goalName, goalCount, goalUnit }) => {
+      if (
+        !isQueuedResult(result) &&
+        data.status === 'Completed' &&
+        goalName &&
+        goalCount !== undefined &&
+        goalUnit !== undefined
+      ) {
+        setGoalCompletedCelebration({ name: goalName, count: goalCount, unit: goalUnit })
       }
     },
 

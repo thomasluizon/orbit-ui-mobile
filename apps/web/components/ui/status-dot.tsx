@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, type CSSProperties, type MouseEvent } from 'react'
+import type { CSSProperties, MouseEvent } from 'react'
+import { TOUCH_TARGET_MIN, orbitalMotion } from '@orbit/shared/theme'
 import { resolveStatusDotFill } from '@/components/ui/status-dot-fill'
 
 /** Single desaturated status dot. Hollow when state === 'empty'. */
@@ -22,27 +23,16 @@ interface StatusDotProps {
 
 const FILLED_STATES: ReadonlySet<StatusDotState> = new Set(['done', 'skip', 'frozen'])
 
-const COLOR_VAR: Record<StatusDotState, string> = {
-  done: 'var(--status-done)',
-  empty: 'var(--status-empty)',
-  skip: 'var(--status-skip)',
-  overdue: 'var(--status-overdue)',
-  bad: 'var(--status-bad)',
-  frozen: 'var(--status-frozen)',
+const COLOR_VAR: Record<StatusDotState, { graphic: string }> = {
+  done: { graphic: 'var(--status-done)' },
+  empty: { graphic: 'var(--status-empty)' },
+  skip: { graphic: 'var(--fg-3)' },
+  overdue: { graphic: 'var(--status-overdue)' },
+  bad: { graphic: 'var(--status-bad)' },
+  frozen: { graphic: 'var(--fg-2)' },
 }
 
-const SWEEP_MS = 420
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    !!window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
-}
-
-/** Tappable status dot. On an interactive transition into `done`, a `--primary`
- *  arc sweeps once around the dot and the fill settles in (the Today completion
- *  signature). Read-only dots and already-done mounts render statically. */
+/** Tappable status dot. Completion remains a neutral, static status cue. */
 export function StatusDot({
   state,
   size = 8,
@@ -51,25 +41,8 @@ export function StatusDot({
   disabled = false,
 }: Readonly<StatusDotProps>) {
   const isFilled = FILLED_STATES.has(state)
-  const color = COLOR_VAR[state]
+  const color = COLOR_VAR[state].graphic
   const fill = resolveStatusDotFill(isFilled, color)
-  const interactive = !disabled && !!onToggle
-
-  const [sweepState, setSweepState] = useState({ state, playing: false })
-  const playing = state === sweepState.state
-    ? sweepState.playing
-    : sweepState.state !== 'done' && state === 'done' && interactive && !prefersReducedMotion()
-  useEffect(() => {
-    if (state === sweepState.state) return
-    void Promise.resolve().then(() => setSweepState({ state, playing }))
-  }, [playing, state, sweepState.state])
-
-  useEffect(() => {
-    if (!playing) return
-    const id = setTimeout(() => setSweepState((current) => ({ ...current, playing: false })), SWEEP_MS + 40)
-    return () => clearTimeout(id)
-  }, [playing])
-
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation()
     if (disabled) return
@@ -92,7 +65,7 @@ export function StatusDot({
     )
   }
 
-  const hitPadding = Math.max(0, (44 - size) / 2)
+  const hitPadding = Math.max(0, (TOUCH_TARGET_MIN - size) / 2)
 
   return (
     <button
@@ -101,65 +74,24 @@ export function StatusDot({
       disabled={disabled}
       aria-disabled={disabled}
       aria-label={ariaLabel ?? state}
-      className={`group appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ padding: hitPadding, margin: -hitPadding, opacity: disabled ? 0.4 : 1 }}
+      className={`group appearance-none border-0 bg-transparent rounded-full overflow-hidden enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center transition-[background-color,scale] duration-[var(--status-dot-press-duration)] motion-safe:enabled:active:scale-[var(--status-dot-press-scale)] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      style={{
+        padding: hitPadding,
+        transitionDuration: 'var(--dur-hover-control), var(--status-dot-press-duration)',
+        transitionTimingFunction: 'var(--ease-standard), var(--ease-out)',
+        opacity: disabled ? 0.4 : 1,
+        '--status-dot-press-duration': `${orbitalMotion.press.duration}ms`,
+        '--status-dot-press-scale': orbitalMotion.press.scale,
+      } as CSSProperties}
     >
-      {playing ? (
-        <CompletionSweep size={size} />
-      ) : (
-        <span
-          className={`block rounded-full transition-transform duration-150 ease-[cubic-bezier(0.25,1,0.5,1)] ${disabled ? '' : 'group-hover:scale-125 group-active:scale-[0.96]'}`}
-          style={{
-            width: size,
-            height: size,
-            ...fill,
-          }}
-        />
-      )}
+      <span
+        className="block rounded-full"
+        style={{
+          width: size,
+          height: size,
+          ...fill,
+        }}
+      />
     </button>
-  )
-}
-
-function CompletionSweep({ size }: Readonly<{ size: number }>) {
-  const trackStroke = 1.5
-  const trackR = (size - trackStroke) / 2
-  const pieR = size / 4
-  const pieStroke = size / 2
-  const c = 2 * Math.PI * pieR
-
-  const pieStyle = {
-    strokeDashoffset: c,
-    animation: `status-sweep ${SWEEP_MS}ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
-    ['--sweep-c']: `${c}`,
-  } as CSSProperties
-
-  return (
-    <span className="relative block" style={{ width: size, height: size }}>
-      <svg
-        width={size}
-        height={size}
-        aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}
-      >
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={trackR}
-          fill="none"
-          stroke="var(--status-empty)"
-          strokeWidth={trackStroke}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={pieR}
-          fill="none"
-          stroke="var(--primary)"
-          strokeWidth={pieStroke}
-          strokeDasharray={c}
-          style={pieStyle}
-        />
-      </svg>
-    </span>
   )
 }

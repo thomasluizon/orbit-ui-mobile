@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from '@/components/ui/icons'
 
 interface AppSelectOption {
   value: string
@@ -26,7 +26,7 @@ export function AppSelect({
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
-        className="w-full appearance-none min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 pr-10 pl-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
+        className="w-full appearance-none min-h-[54px] bg-[var(--bg-field)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] text-[var(--fg-1)] rounded-[14px] py-3 pr-12 pl-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
       >
         {options.map((option) => (
           <option
@@ -41,7 +41,7 @@ export function AppSelect({
       <ChevronDown
         size={20}
         strokeWidth={1.8}
-        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[var(--fg-4)]"
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[var(--fg-3)]"
       />
     </div>
   )

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
@@ -16,6 +16,11 @@ import {
   useUpdateTag,
 } from '@/hooks/use-tags'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 const mocks = vi.hoisted(() => {
   const state = {
     tags: [] as {
@@ -27,6 +32,8 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     cancelQueries: vi.fn(async () => {}),
+    getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async () => {}),
     getQueriesData: vi.fn((filters: { queryKey: readonly unknown[] }) => {
       if (JSON.stringify(filters.queryKey) === JSON.stringify(tagKeys.lists())) {
@@ -55,6 +62,8 @@ const mocks = vi.hoisted(() => {
 
       state.habits = apply(state.habits)
     }),
+    getQueryData: vi.fn((queryKey: readonly unknown[]) =>
+      [...state.tags, ...state.habits].find((entry) => JSON.stringify(entry.key) === JSON.stringify(queryKey))?.value),
     setQueryData: vi.fn((queryKey: readonly unknown[], value: unknown) => {
       if (JSON.stringify(queryKey) === JSON.stringify(tagKeys.lists())) {
         const existing = state.tags.find((entry) => JSON.stringify(entry.key) === JSON.stringify(queryKey))
@@ -495,5 +504,26 @@ describe('mobile tag hooks', () => {
       { id: 'tag-2', name: 'Focus', color: '#0000ff' },
     ])
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled()
+    await vi.waitFor(() => expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['habits', 'search'] }))
   })
+})
+
+ it('drops cached search matches after queued tag assignment before reconnect', async () => {
+  const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+  const client = new QueryClient()
+  mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+  const habit = makeHabit()
+  const key = habitKeys.search({ search: 'Health', page: 1 })
+  client.setQueryData(key, { items: [habit], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 })
+  client.setQueryData(habitKeys.list({}), [habit])
+  const mutation = useAssignTags() as unknown as MutationConfig<{ queued: true; queuedMutationId: string }, { habitId: string; tagIds: string[] }, { previousHabitLists: unknown }>
+  const variables = { habitId: habit.id, tagIds: [] }
+  mocks.queueOrExecute.mockResolvedValue({ queued: true, queuedMutationId: 'mutation-1' })
+  const context = await mutation.onMutate?.(variables)
+  const response = await mutation.mutationFn(variables)
+  mutation.onSettled?.(response, null, variables, context)
+  expect(client.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.tags).toEqual([])
+  expect(client.getQueryData(key)).toBeUndefined()
+  expect(client.isFetching()).toBe(0)
+  client.clear()
 })

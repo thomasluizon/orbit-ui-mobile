@@ -4,11 +4,11 @@ import { getAllDoneOnDate, isHabitSkippedOnDate } from '../utils/all-done'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import {
   buildOptimisticSkipPatch,
-  clearOptimisticSkipMarker,
   findHabitInList,
   findHabitInTree,
   getTomorrowDateString,
 } from '../utils/habit-optimistic'
+import { hasHabitScheduleOnDate } from '../utils/habits'
 
 function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
   return {
@@ -113,48 +113,67 @@ describe('buildOptimisticSkipPatch', () => {
     vi.useRealTimers()
   })
 
-  it('marks recurring habits completed with a skipped instance for today', () => {
-    const patch = buildOptimisticSkipPatch(makeItem({ frequencyUnit: 'Day' }))
-    expect(patch).toMatchObject({
-      isCompleted: true,
-      instances: [{ date: '2026-04-06', status: 'Completed', logId: null }],
+  it('removes recurring habits from today without marking them completed', () => {
+    const patch = buildOptimisticSkipPatch(makeItem({
+      frequencyUnit: 'Day',
+      dueDate: '2026-04-06',
+      scheduledDates: ['2026-04-06', '2026-04-08'],
+      instances: [
+        { date: '2026-04-06', status: 'Pending', logId: null },
+        { date: '2026-04-08', status: 'Pending', logId: null },
+      ],
+    }))
+    expect(patch).toEqual({
+      dueDate: '2026-04-08',
+      scheduledDates: ['2026-04-08'],
+      instances: [{ date: '2026-04-08', status: 'Pending', logId: null }],
+      isOverdue: false,
       __optimisticSkip: '2026-04-06',
     })
   })
 
-  it('does not count a pending recurring skip when the other due habit is logged', () => {
+  it('keeps a pending recurring skip out of all-done when the other due habit is logged', () => {
     const date = '2026-04-06'
     const skipped = makeItem({ id: 'skipped', dueDate: date, scheduledDates: [date] })
     const logged = makeItem({ id: 'logged', dueDate: date, scheduledDates: [date], isLoggedInRange: true })
-    const normalized = normalizeHabits([{ ...skipped, ...buildOptimisticSkipPatch(skipped) }, logged])
+    const normalized = normalizeHabits([{ ...skipped, ...buildOptimisticSkipPatch(skipped, date) }, logged])
 
-    expect(isHabitSkippedOnDate(normalized.get('skipped')!, date)).toBe(true)
     expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), date))
       .toEqual({ allDone: false, count: 1 })
-  })
-
-  it('counts the day done once the recurring skip settles and its marker clears', () => {
-    const date = '2026-04-06'
-    const skipped = makeItem({ id: 'skipped', dueDate: date, scheduledDates: [date] })
-    const logged = makeItem({ id: 'logged', dueDate: date, scheduledDates: [date], isLoggedInRange: true })
-    const settled = clearOptimisticSkipMarker([{ ...skipped, ...buildOptimisticSkipPatch(skipped, date) }, logged], 'skipped', date)
-    const normalized = normalizeHabits(settled)
-
-    expect(settled[0]).not.toHaveProperty('__optimisticSkip')
     expect(isHabitSkippedOnDate(normalized.get('skipped')!, date)).toBe(true)
+    normalized.set('skipped', { ...normalized.get('skipped')!, isCompleted: true })
     expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), date))
-      .toEqual({ allDone: true, count: 1 })
+      .toEqual({ allDone: false, count: 1 })
   })
 
   it('postpones one-time habits to tomorrow', () => {
     const patch = buildOptimisticSkipPatch(makeItem({ frequencyUnit: null }))
 
     expect(patch).toEqual({
-      isCompleted: false,
       dueDate: '2026-04-07',
       scheduledDates: ['2026-04-07'],
       isOverdue: false,
       instances: [{ date: '2026-04-07', status: 'Pending', logId: null }],
+      __optimisticSkip: '2026-04-06',
     })
+  })
+
+  it('moves the occurrence beyond an account day ahead of the device day', () => {
+    const recurringHabit = makeItem({
+      frequencyUnit: 'Day', dueDate: '2026-04-07',
+      scheduledDates: ['2026-04-07'],
+    })
+    const oneTimeHabit = makeItem({
+      frequencyUnit: null, dueDate: '2026-04-07', scheduledDates: ['2026-04-07'],
+    })
+    const recurring = buildOptimisticSkipPatch(recurringHabit, '2026-04-07')
+    const oneTime = buildOptimisticSkipPatch(oneTimeHabit, '2026-04-07')
+
+    expect(recurring.dueDate).toBe('2026-04-08')
+    expect(recurring.scheduledDates).toEqual([])
+    expect(oneTime.dueDate).toBe('2026-04-08')
+    expect(oneTime.isCompleted).toBeUndefined()
+    expect(hasHabitScheduleOnDate({ ...recurringHabit, ...recurring }, '2026-04-07')).toBe(false)
+    expect(hasHabitScheduleOnDate({ ...oneTimeHabit, ...oneTime }, '2026-04-07')).toBe(false)
   })
 })

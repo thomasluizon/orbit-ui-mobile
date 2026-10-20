@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/auth/send-code/route'
 
@@ -13,7 +14,7 @@ function makeRequest(body: unknown) {
   })
 }
 
-const validBody = { email: 'thomas@example.com', language: 'en' }
+const validBody = { email: 'alex@example.com', language: 'en' }
 
 describe('send-code BFF route', () => {
   beforeEach(() => {
@@ -39,6 +40,14 @@ describe('send-code BFF route', () => {
         body: JSON.stringify(protectedBody),
       }),
     )
+  })
+
+  it('forwards the widget token unchanged', async () => {
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 }))
+    const protectedBody = { ...validBody, turnstileToken: 'fresh-token' }
+    await POST(makeRequest(protectedBody))
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:5000/api/auth/send-code',
+      expect.objectContaining({ body: JSON.stringify(protectedBody) }))
   })
 
   it('rejects a malformed body with 400 before forwarding', async () => {
@@ -74,3 +83,5 @@ describe('send-code BFF route', () => {
     expect(JSON.stringify(json)).not.toContain('dns failure detail')
   })
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

@@ -18,20 +18,23 @@ describe('onboarding server actions', () => {
     const payload: ApplyOnboardingRequest = { habits: [] }
     mockServerAuthMutate.mockResolvedValue({ appliedHabitCount: 0 })
 
-    const result = await applyOnboarding(payload)
+    const result = await applyOnboarding(payload, null)
 
     expect(result).toEqual({ appliedHabitCount: 0 })
-    expect(mockServerAuthMutate).toHaveBeenCalledWith(API.profile.onboardingApply, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }, null)
+    expect(mockServerAuthMutate).toHaveBeenCalledWith(
+      API.profile.onboardingApply,
+      { method: 'POST', body: JSON.stringify(payload) },
+      null,
+    )
   })
 
   it('dismisses the import prompt with a PUT', async () => {
     mockServerAuthMutate.mockResolvedValue(undefined)
-    await dismissImportPrompt()
-    expect(mockServerAuthMutate).toHaveBeenCalledWith(API.profile.importPromptDismiss, {
-      method: 'PUT',
-    }, null)
+    await dismissImportPrompt(null)
+    expect(mockServerAuthMutate).toHaveBeenCalledWith(
+      API.profile.importPromptDismiss,
+      { method: 'PUT' },
+      null,
+    )
   })
 })

@@ -8,10 +8,9 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLo
 afterEach(() => {
   delete (window as Window & { turnstile?: unknown }).turnstile
   appLocale.value = 'en'
-  vi.restoreAllMocks()
 })
 
-it('renders the challenge in the app language even when the browser uses English', async () => {
+it('renders the challenge in the language Orbit shows, not the browser language', async () => {
   const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
   vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US')
@@ -32,7 +31,7 @@ it('clears failed and expired tokens and offers retry', async () => {
   const remove = vi.fn()
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove }
   const onToken = vi.fn()
-  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} />)
+  const { rerender } = render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} />)
   await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(1))
 
   const callbacks = renderWidget.mock.calls[0]![1] as {
@@ -42,6 +41,10 @@ it('clears failed and expired tokens and offers retry', async () => {
   }
   act(() => callbacks.callback('fresh-token'))
   expect(onToken).toHaveBeenLastCalledWith('fresh-token')
+
+  rerender(<TurnstileWidget siteKey="site-key" resetKey={1} onToken={onToken} />)
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading'))
+  expect(reset).toHaveBeenCalledWith('widget-1')
 
   act(() => callbacks['expired-callback']())
   expect(onToken).toHaveBeenLastCalledWith(null)
@@ -56,8 +59,7 @@ it('clears failed and expired tokens and offers retry', async () => {
 it('keeps the active challenge when callbacks change and delivers to the latest callback', async () => {
   const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
   const remove = vi.fn()
-  const reset = vi.fn()
-  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove }
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove }
   const firstToken = vi.fn()
   const nextToken = vi.fn()
   const firstState = vi.fn()
@@ -79,17 +81,4 @@ it('keeps the active challenge when callbacks change and delivers to the latest 
   expect(nextState).toHaveBeenCalledWith('solved')
   expect(firstToken).not.toHaveBeenCalled()
   expect(firstState).not.toHaveBeenCalled()
-
-  rerender(
-    <TurnstileWidget siteKey="site-key" resetKey={1} onToken={nextToken} onStateChange={nextState} />,
-  )
-  expect(reset).toHaveBeenCalledWith('widget-1')
-  expect(remove).not.toHaveBeenCalled()
-
-  rerender(
-    <TurnstileWidget siteKey="new-site-key" resetKey={1} onToken={nextToken} onStateChange={nextState} />,
-  )
-  expect(remove).toHaveBeenCalledWith('widget-1')
-  await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(2))
-  expect((renderWidget.mock.calls[1]![1] as { sitekey: string }).sitekey).toBe('new-site-key')
 })

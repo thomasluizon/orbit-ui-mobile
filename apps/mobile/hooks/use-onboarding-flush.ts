@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { setOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, goalKeys, profileKeys, gamificationKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -9,8 +10,16 @@ import {
 } from '@/stores/onboarding-draft-store'
 import { useApplyOnboarding } from '@/hooks/use-apply-onboarding'
 import { useProfile } from '@/hooks/use-profile'
+import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { captureError } from '@/lib/sentry'
+import { getAccountId } from '@/lib/account-scope'
+import { getAccountGeneration, getSessionEpoch } from '@/lib/session-epoch'
 
+/**
+ * After a successful auth whose account has not yet onboarded, flushes buffered onboarding
+ * answers to the idempotent apply endpoint. Concurrent runs are guarded so a single flush is
+ * in flight at a time.
+ */
 export function useOnboardingFlush(): void {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const hasHydrated = useOnboardingDraftHydrated()
@@ -18,39 +27,65 @@ export function useOnboardingFlush(): void {
   const { profile } = useProfile()
   const queryClient = useQueryClient()
   const applyOnboarding = useApplyOnboarding()
+  const { requestPermissionOutcome } = usePushNotifications()
+  const pushPermissionGranted = useOnboardingDraftStore((state) => state.pushPermissionGranted)
+  const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
   const runningRef = useRef(false)
+  const [retryGeneration, setRetryGeneration] = useState(0)
 
   const shouldFlush =
     isAuthenticated &&
     hasHydrated &&
     pendingAnswers &&
+    !pushRegistrationFailed &&
     !!profile &&
     !profile.hasCompletedOnboarding
 
   useEffect(() => {
     if (!shouldFlush || runningRef.current) return
     runningRef.current = true
+    const intendedAccountId = getAccountId()
+    const accountGeneration = getAccountGeneration()
+    const sessionEpoch = getSessionEpoch()
+    const stillCurrent = () => getAccountId() === intendedAccountId
+      && getAccountGeneration() === accountGeneration
+      && getSessionEpoch() === sessionEpoch
 
     let cancelled = false
 
     async function flush() {
+      let onboardingApplied = false
       try {
-        await applyOnboarding()
-        if (cancelled) return
+        await applyOnboarding(stillCurrent)
+        if (!stillCurrent()) return
+        onboardingApplied = true
+        if (pushPermissionGranted) {
+          const outcome = await requestPermissionOutcome(true, stillCurrent)
+          if (outcome !== 'granted') throw new Error('Failed to register deferred push subscription')
+        }
+        if (cancelled || !stillCurrent()) return
+        if (intendedAccountId !== null) await setOnboardingProPending(intendedAccountId, true)
+        if (!stillCurrent()) return
         useOnboardingDraftStore.getState().reset()
+        if (!stillCurrent()) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )
-        /* eslint-disable @typescript-eslint/no-floating-promises -- Cache invalidations may finish after the flush. */
-        queryClient.invalidateQueries({ queryKey: habitKeys.all })
-        queryClient.invalidateQueries({ queryKey: goalKeys.all })
-        queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
-        queryClient.invalidateQueries({ queryKey: profileKeys.all })
-        /* eslint-enable @typescript-eslint/no-floating-promises */
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: habitKeys.all }),
+          queryClient.invalidateQueries({ queryKey: goalKeys.all }),
+          queryClient.invalidateQueries({ queryKey: gamificationKeys.all }),
+          queryClient.invalidateQueries({ queryKey: profileKeys.all }),
+        ])
       } catch (error) {
+        if (!stillCurrent()) return
+        if (onboardingApplied && pushPermissionGranted) {
+          useOnboardingDraftStore.getState().markPushRegistrationFailed()
+        }
         captureError(error)
       } finally {
         runningRef.current = false
+        if (!stillCurrent()) setRetryGeneration((generation) => generation + 1)
       }
     }
 
@@ -59,5 +94,5 @@ export function useOnboardingFlush(): void {
     return () => {
       cancelled = true
     }
-  }, [applyOnboarding, queryClient, shouldFlush])
+  }, [applyOnboarding, pushPermissionGranted, queryClient, requestPermissionOutcome, retryGeneration, shouldFlush])
 }

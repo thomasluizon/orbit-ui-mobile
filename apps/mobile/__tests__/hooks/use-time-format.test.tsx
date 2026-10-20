@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { formatLocaleTime } from '@orbit/shared/utils'
+import { formatLocaleTime, formatLocaleDateTime } from '@orbit/shared/utils'
 
 import { useTimeFormat } from '@/hooks/use-time-format'
 
@@ -10,6 +10,12 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     i18n: { language: 'en' },
   }),
+}))
+
+let uses24HourClock: boolean | undefined = true
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: uses24HourClock === undefined ? undefined : { uses24HourClock } }),
 }))
 
 async function renderUseTimeFormat(): Promise<ReturnType<typeof useTimeFormat>> {
@@ -34,10 +40,29 @@ async function renderUseTimeFormat(): Promise<ReturnType<typeof useTimeFormat>> 
 }
 
 describe('mobile useTimeFormat', () => {
-  it('formats time using the active locale', async () => {
+  it.each([
+    [true, 'h23'],
+    [false, 'h12'],
+  ] as const)('formats time using the server-resolved clock setting %s', async (uses24Hour, hourCycle) => {
+    uses24HourClock = uses24Hour
     const result = await renderUseTimeFormat()
 
-    expect(result.displayTime('14:30')).toBe(formatLocaleTime('14:30', 'en'))
+    expect(result.displayTime('14:30')).toBe(
+      formatLocaleTime('14:30', 'en', { hour: 'numeric', minute: '2-digit', hourCycle }),
+    )
+    expect(result.hourCycle).toBe(hourCycle)
+    expect(result.displayClock('2026-04-06T19:30:00')).toBe(
+      formatLocaleDateTime('2026-04-06T19:30:00', 'en', { hour: 'numeric', minute: '2-digit', hourCycle }),
+    )
+  })
+
+  it('uses locale formatting without deleting the time before the profile resolves', async () => {
+    uses24HourClock = undefined
+    const result = await renderUseTimeFormat()
+
+    expect(result.displayTime('14:30')).toBe(
+      formatLocaleTime('14:30', 'en', { hour: 'numeric', minute: '2-digit' }),
+    )
   })
 
   it('returns an empty string for missing values', async () => {

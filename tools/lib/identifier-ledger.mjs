@@ -1,12 +1,8 @@
-
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { gitDirectoryOf } from "./run-state.mjs"
 
-/**
- * Bounded so a long unattended night cannot grow an unbounded file. Oldest entries are dropped
- */
 const MAX_ENTRIES = 5000
 
 export const identifierLedgerPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-observed-identifiers.json")

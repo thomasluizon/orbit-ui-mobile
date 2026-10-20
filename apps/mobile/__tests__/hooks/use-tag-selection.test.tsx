@@ -42,7 +42,7 @@ describe('mobile useTagSelection', () => {
     expect(tags.current.selectedTagIds).toEqual(['b', 'c'])
   })
 
-  it('reports the tag limit once the selection is full', async () => {
+  it('reports the tag limit once the selection is full', () => {
     const tags = renderTagSelection(['a', 'b'], 2)
     expect(tags.current.atTagLimit).toBe(true)
 
@@ -66,7 +66,7 @@ describe('mobile useTagSelection', () => {
     await act(() => tags.current.setNewTagName('Focus'))
     await act(() => tags.current.setNewTagColor(validColor))
 
-    const createTag = vi.fn(async () => 'new-id')
+    const createTag = vi.fn(() => Promise.resolve('new-id'))
     await act(() => tags.current.createAndSelectTag(createTag))
 
     expect(createTag).toHaveBeenCalledWith('Focus', validColor)
@@ -77,7 +77,7 @@ describe('mobile useTagSelection', () => {
 
   it('surfaces a validation error and skips creation when the new-tag name is blank', async () => {
     const tags = renderTagSelection([])
-    const createTag = vi.fn(async () => 'new-id')
+    const createTag = vi.fn(() => Promise.resolve('new-id'))
 
     await act(() => tags.current.createAndSelectTag(createTag))
 
@@ -89,7 +89,7 @@ describe('mobile useTagSelection', () => {
     const tags = renderTagSelection(['a'], 1)
     await act(() => tags.current.setNewTagName('Focus'))
     await act(() => tags.current.setNewTagColor(validColor))
-    const createTag = vi.fn(async () => 'new-id')
+    const createTag = vi.fn(() => Promise.resolve('new-id'))
 
     await act(() => tags.current.createAndSelectTag(createTag))
 
@@ -99,7 +99,7 @@ describe('mobile useTagSelection', () => {
 
   it('accepts an existing suggested tag by selecting its id without creating', async () => {
     const tags = renderTagSelection([])
-    const createTag = vi.fn(async () => 'new-id')
+    const createTag = vi.fn(() => Promise.resolve('new-id'))
     const suggestion: SuggestedTag = {
       name: 'Health',
       color: validColor,
@@ -115,7 +115,7 @@ describe('mobile useTagSelection', () => {
 
   it('accepts a novel suggested tag by creating and selecting it', async () => {
     const tags = renderTagSelection([])
-    const createTag = vi.fn(async () => 'made-id')
+    const createTag = vi.fn(() => Promise.resolve('made-id'))
     const suggestion: SuggestedTag = {
       name: 'Health',
       color: validColor,
@@ -165,9 +165,7 @@ describe('mobile useTagSelection', () => {
 
   it('restores the selection and rethrows when the delete fails', async () => {
     const tags = renderTagSelection(['t1', 't2'])
-    const deleteTag = vi.fn(async () => {
-      throw new Error('server down')
-    })
+    const deleteTag = vi.fn(() => Promise.reject(new Error('server down')))
 
     let thrown: unknown
     await act(async () => {

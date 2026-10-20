@@ -1,24 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    children,
-    footer,
-  }: {
-    open: boolean
-    children?: ReactNode
-    footer?: ReactNode
-  }) =>
-    open ? (
-      <div>
-        {children}
-        {footer}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import {
   MoveParentOverlay,
@@ -38,7 +23,11 @@ function makeOption(overrides: Partial<MoveParentOption>): MoveParentOption {
   }
 }
 
-function renderOverlay(options: MoveParentOption[], onSelectOption = vi.fn()) {
+function renderOverlay(
+  options: MoveParentOption[],
+  onSelectOption = vi.fn(),
+  selectedMoveParentId: string | null = null,
+) {
   render(
     <MoveParentOverlay
       t={(key) => key}
@@ -47,7 +36,7 @@ function renderOverlay(options: MoveParentOption[], onSelectOption = vi.fn()) {
       movingHabitTitle="Exercise"
       movingHabitParentId={null}
       options={options}
-      selectedMoveParentId={null}
+      selectedMoveParentId={selectedMoveParentId}
       canSubmit={false}
       onClose={vi.fn()}
       onConfirm={vi.fn()}
@@ -58,13 +47,25 @@ function renderOverlay(options: MoveParentOption[], onSelectOption = vi.fn()) {
 }
 
 describe('MoveParentOverlay', () => {
+  it('uses small intrinsic Cancel then Move footer actions', () => {
+    renderOverlay([])
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'habits.moveParent.confirm'])
+    expectSmallSheetActions()
+  })
   it('renders a selectable root row and the destinations eyebrow', () => {
-    const { onSelectOption } = renderOverlay([
-      makeOption({ id: null, label: 'habits.moveParent.toRoot' }),
-      makeOption({ id: 'parent', label: 'Parent' }),
-    ])
+    const { onSelectOption } = renderOverlay(
+      [
+        makeOption({ id: null, label: 'habits.moveParent.toRoot' }),
+        makeOption({ id: 'parent', label: 'Parent' }),
+      ],
+      vi.fn(),
+      'parent',
+    )
 
     expect(screen.getByText('habits.moveParent.destinations')).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', {
+      name: 'habits.moveParent.destinations',
+    })).toBeInTheDocument()
 
     const rootRow = screen.getByText('habits.moveParent.toRoot').closest('button')
     if (!rootRow) throw new Error('Expected the root row button')
@@ -78,8 +79,8 @@ describe('MoveParentOverlay', () => {
       makeOption({ id: 'parent', label: 'Parent', childCount: 12 }),
     ])
 
-    const parentRow = screen.getByText('Parent').closest('button')
-    if (!parentRow) throw new Error('Expected the parent row button')
+    const parentRow = screen.getByRole('radio', { name: /^Parent(?:,|$)/ }).parentElement
+    if (!parentRow) throw new Error('Expected the parent row')
     expect(within(parentRow).getByText('12')).toBeInTheDocument()
   })
 
@@ -121,5 +122,82 @@ describe('MoveParentOverlay', () => {
     expect(screen.getByText('Alpha')).toBeInTheDocument()
     expect(screen.getByText('Bravo')).toBeInTheDocument()
     expect(screen.queryByText('Zeta 0')).not.toBeInTheDocument()
+  })
+
+  it('keeps arrow navigation in rendered order after filtered rows return', () => {
+    const { onSelectOption } = renderOverlay([
+      makeOption({ id: null, label: 'habits.moveParent.toRoot' }),
+      ...Array.from({ length: 9 }, (_, index) =>
+        makeOption({ id: `zeta${index}`, label: `Zeta ${index}` }),
+      ),
+    ])
+    const search = screen.getByPlaceholderText('habits.moveParent.searchPlaceholder')
+
+    fireEvent.change(search, { target: { value: 'Zeta 5' } })
+    fireEvent.change(search, { target: { value: '' } })
+    const zetaFour = screen.getByRole('radio', { name: /Zeta 4/ })
+    const zetaFive = screen.getByRole('radio', { name: /Zeta 5/ })
+    zetaFour.focus()
+    fireEvent.keyDown(zetaFour, { key: 'ArrowDown' })
+
+    expect(zetaFive).toHaveFocus()
+    expect(onSelectOption).toHaveBeenLastCalledWith('zeta5')
+  })
+
+  it('skips a disabled destination and never gives it a tab stop', () => {
+    const { onSelectOption } = renderOverlay([
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha', disabled: true, reason: 'Too deep' }),
+      makeOption({ id: 'bravo', label: 'Bravo' }),
+    ])
+    const root = screen.getByRole('radio', { name: /Top level/ })
+    const blocked = screen.getByRole('radio', { name: /Alpha/ })
+    const bravo = screen.getByRole('radio', { name: /Bravo/ })
+
+    expect([root.tabIndex, blocked.tabIndex, bravo.tabIndex]).toEqual([0, -1, -1])
+    root.focus()
+    fireEvent.keyDown(root, { key: 'ArrowDown' })
+
+    expect(bravo).toHaveFocus()
+    expect(onSelectOption).toHaveBeenCalledExactlyOnceWith('bravo')
+  })
+
+  it('wraps arrow navigation between Top level and the first destination', () => {
+    const { onSelectOption } = renderOverlay([
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha' }),
+    ])
+    const root = screen.getByRole('radio', { name: /Top level/ })
+    const firstDestination = screen.getByRole('radio', { name: /Alpha/ })
+
+    root.focus()
+    fireEvent.keyDown(root, { key: 'ArrowDown' })
+    expect(firstDestination).toHaveFocus()
+    expect(onSelectOption).toHaveBeenLastCalledWith('alpha')
+
+    fireEvent.keyDown(firstDestination, { key: 'ArrowDown' })
+    expect(root).toHaveFocus()
+  })
+
+  it('keeps the Move label on the busy confirm button while the move runs', () => {
+    render(
+      <MoveParentOverlay
+        t={(key) => key}
+        open
+        isMoving
+        movingHabitTitle="Exercise"
+        movingHabitParentId={null}
+        options={[makeOption({ id: 'root-a', label: 'Morning' })]}
+        selectedMoveParentId="root-a"
+        canSubmit={false}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+        onSelectOption={vi.fn()}
+      />,
+    )
+
+    const actions = document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!
+    expect(within(actions).getByRole('button', { name: 'habits.moveParent.confirm' })).toHaveAttribute('aria-busy', 'true')
+    expect(actions.textContent).not.toContain('habits.moveParent.moving')
   })
 })

@@ -1,7 +1,9 @@
 import type { NormalizedHabit } from '../types/habit'
 import { differenceInCalendarDays } from 'date-fns'
-import { formatAPIDate, parseAPIDate } from './dates'
+import { formatAPIDate, formatAPIDateInTimeZone, parseAPIDate, resolveHabitDetailRouteDate } from './dates'
 import { hasHabitScheduleOnDate, isWithinOverdueWindow } from './habits'
+import { getDayOffset } from './today-date'
+import { MAX_INSTANCE_HORIZON_DAYS } from '../api/constants'
 import { formatLocaleDate } from './locale-format'
 
 export type HabitCardStatus = 'completed' | 'pending' | 'overdue' | 'due-today' | 'future'
@@ -11,9 +13,7 @@ export type HabitCardTranslationAdapter = (
   params?: Record<string, string | number | Date>,
 ) => string
 
-export interface HabitCardMatchBadge {
-  label: string
-}
+export type HabitCardMatchBadge = NonNullable<NormalizedHabit['searchMatches']>[number]
 
 function plural(text: string, count: number): string {
   if (!text.includes(' | ')) return text
@@ -27,10 +27,6 @@ function plural(text: string, count: number): string {
     return forms[2] ?? text
   }
   return text
-}
-
-function truncate(value: string, max = 20): string {
-  return value.length > max ? `${value.slice(0, max)}...` : value
 }
 
 export function computeHabitCardStatus(
@@ -68,15 +64,19 @@ export function computeHabitFrequencyLabel(
     | 'isFlexible'
   >,
   t: HabitCardTranslationAdapter,
-): string {
-  if (habit.isGeneral) return t('habits.generalHabit')
+): string | null {
+  if (habit.isGeneral) return null
   const { frequencyUnit, frequencyQuantity, days, isFlexible } = habit
-  if (!frequencyUnit) return t('habits.oneTimeTask')
+  if (!frequencyUnit) return null
   if (isFlexible) {
     return t('habits.frequency.flexibleLabel', {
       n: frequencyQuantity ?? 1,
       unit: t(`habits.form.unit${frequencyUnit}`),
     })
+  }
+  if (frequencyUnit === 'Day' && frequencyQuantity === 1 &&
+    (days.length === 0 || (days.length === 7 && new Set(days).size === 7))) {
+    return t('habits.frequency.everyDay')
   }
   if (frequencyQuantity === 1 && days.length > 0) {
     return days
@@ -94,6 +94,11 @@ export function computeHabitFrequencyLabel(
   )
 }
 
+/**
+ * One-time tasks (no `frequencyUnit`) stay loggable within the overdue window, including
+ * future dates; recurring and flexible habits cannot log a future date; recurring
+ * non-flexible habits must be scheduled on the date (or overdue today).
+ */
 export function canLogHabitOnDate(
   habit: Pick<
     NormalizedHabit,
@@ -110,6 +115,35 @@ export function canLogHabitOnDate(
     if (!isOverdueToday) return false
   }
   return true
+}
+
+export function getHabitLogDateDecision(
+  habit: (Parameters<typeof canLogHabitOnDate>[0] & Pick<NormalizedHabit, 'createdAtUtc' | 'createdAtUtcIsInherited' | 'parentId'>) | null | undefined,
+  date: string,
+  today: string,
+  timeZone: string | null | undefined,
+  confirmed = false,
+  intent: 'log' | 'unlog' = 'log',
+): 'write' | 'confirm' | 'confirm-permanent-unlog' | 'block' {
+  if (!habit || resolveHabitDetailRouteDate(date) !== date || !isWithinOverdueWindow(date, today) || (date > today && habit.frequencyUnit !== null)) return 'block'
+  const createdDate = formatAPIDateInTimeZone(new Date(habit.createdAtUtc), timeZone)
+  if (habit.parentId !== null && habit.createdAtUtcIsInherited === false && date < createdDate) {
+    if (intent === 'log') return 'block'
+    return confirmed ? 'write' : 'confirm-permanent-unlog'
+  }
+  return (habit.parentId !== null && habit.createdAtUtcIsInherited !== false && date < today) || (habit.parentId === null && date < createdDate) || getDayOffset(date, today) > MAX_INSTANCE_HORIZON_DAYS
+    ? confirmed ? 'write' : 'confirm'
+    : 'write'
+}
+
+export function getHabitLogDateConfirmationKeys(intent?: 'log' | 'unlog', permanent = false): {
+  message: 'habits.detail.logDateConfirmUnlogMessage' | 'habits.detail.logDateConfirmPermanentUnlogMessage' | 'habits.detail.logDateConfirmMessage'
+  action: 'habits.detail.logDateConfirmUnlog' | 'habits.detail.logDateConfirmLog'
+} {
+  if (intent === 'unlog' && permanent) return { message: 'habits.detail.logDateConfirmPermanentUnlogMessage', action: 'habits.detail.logDateConfirmUnlog' }
+  return intent === 'unlog'
+    ? { message: 'habits.detail.logDateConfirmUnlogMessage', action: 'habits.detail.logDateConfirmUnlog' } as const
+    : { message: 'habits.detail.logDateConfirmMessage', action: 'habits.detail.logDateConfirmLog' } as const
 }
 
 /**
@@ -132,36 +166,10 @@ export function computeHabitFutureHint(
   })
 }
 
-export function computeHabitFlexibleProgressLabel(
-  habit: Pick<
-    NormalizedHabit,
-    'isFlexible' | 'flexibleTarget' | 'frequencyQuantity' | 'flexibleCompleted' | 'frequencyUnit'
-  >,
-  t: HabitCardTranslationAdapter,
-): string | null {
-  if (!habit.isFlexible) return null
-  const target = habit.flexibleTarget ?? habit.frequencyQuantity ?? 1
-  const done = habit.flexibleCompleted ?? 0
-  const unit = habit.frequencyUnit ? t(`habits.form.unit${habit.frequencyUnit}`) : ''
-  return t('habits.frequency.flexibleProgress', { done, target, unit })
-}
-
 export function computeHabitMatchBadges(
   searchQuery: string,
   habit: Pick<NormalizedHabit, 'searchMatches'>,
-  t: HabitCardTranslationAdapter,
 ): HabitCardMatchBadge[] {
   if (!searchQuery || !habit.searchMatches) return []
-  return habit.searchMatches.flatMap((match) => {
-    if (match.field === 'title') {
-      return []
-    }
-    if (match.field === 'tag') {
-      return [{ label: t('habits.search.matchTag', { value: truncate(match.value ?? '') }) }]
-    }
-    if (match.field === 'child') {
-      return [{ label: t('habits.search.matchChild', { value: truncate(match.value ?? '') }) }]
-    }
-    return [{ label: t('habits.search.matchDescription') }]
-  })
+  return habit.searchMatches.map(({ field, value }) => ({ field, value }))
 }

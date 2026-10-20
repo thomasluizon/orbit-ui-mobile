@@ -25,7 +25,7 @@ export function UserAvatar({ name, size = 44 }: Readonly<UserAvatarProps>) {
         },
       ]}
     >
-      <Text style={[styles.initials, { color: tokens.primary, fontSize: Math.round(size * 0.4) }]}>
+      <Text style={[styles.initials, { color: tokens.fg1, fontSize: size <= 32 ? 12 : size <= 44 ? 17 : size <= 56 ? 20 : 28 }]}>
         {initialsOf(name)}
       </Text>
     </View>
@@ -34,5 +34,5 @@ export function UserAvatar({ name, size = 44 }: Readonly<UserAvatarProps>) {
 
 const styles = StyleSheet.create({
   disc: { alignItems: 'center', justifyContent: 'center' },
-  initials: { fontFamily: 'Rubik_600SemiBold' },
+  initials: { fontFamily: 'Geist_600SemiBold' },
 })

@@ -1,0 +1,102 @@
+import { SPACING } from '@orbit/shared/theme'
+import { useEffect, useState } from 'react'
+import { Keyboard, Text, View, useWindowDimensions } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { Lockup } from '@/components/ui/lockup'
+import { PillButton } from '@/components/ui/pill-button'
+import { TurnstileWidget } from '@/components/auth/turnstile-widget'
+import { createLoginStyles } from '@/app/login-styles'
+import { useLoginFlow } from '@/app/use-login-flow'
+import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
+import { EmailStep } from './email-step'
+import { CodeStep } from './code-step'
+
+export interface LoginCallback {
+  state: 'pending' | 'failed' | 'account'
+  onContinue: () => void
+  loading?: boolean
+}
+
+export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
+  const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const wide = width >= 768
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const styles = createLoginStyles(tokens)
+  const flow = useLoginFlow(Boolean(callback))
+  const { t } = flow
+  const [callbackDismissed, setCallbackDismissed] = useState(false)
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true))
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false))
+    return () => { show.remove(); hide.remove() }
+  }, [])
+  function continueAccount() {
+    if (callback?.state === 'account') callback.onContinue()
+    else void flow.continueAccount()
+  }
+  const account = Boolean(flow.accountBack) || callback?.state === 'account'
+  const googlePending = callback?.state === 'pending'
+  const googleFailed = callback?.state === 'failed' && !callbackDismissed
+  const emailErrorKey = googleFailed ? 'auth.errors.googleError' : flow.errorKey
+  const emailErrorMessage = googleFailed ? t('auth.errors.googleError') : flow.errorMessage
+  const sendCodeLabel = flow.fromOnboarding ? t('auth.onboarding.continue') : undefined
+  const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
+  const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
+    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    : null
+  return <View style={styles.root}>
+    <KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      contentContainerStyle={[styles.scrollContent, keyboardOpen && styles.scrollKeyboardOpen, wide && styles.scrollWide]} keyboardShouldPersistTaps="always"
+      showsVerticalScrollIndicator={false}>
+      <View style={[styles.formColumn, !wide && styles.formCompact, width < 336 && { paddingHorizontal: SPACING.s8 }, wide && styles.panel]}>
+        {flow.showReferralBanner && !account && <ReferralBanner t={t} styles={styles} />}
+        <Lockup />
+        {account ? <AccountBackState t={t} styles={styles} loading={flow.isSubmitting || callback?.loading}
+          continueAccount={continueAccount} errorMessage={flow.errorMessage} /> : <LoginStepStage step={flow.step}>
+          <View style={styles.step}>
+            {flow.step === 'email' && <LoginHeader step="email" t={t} styles={styles} fromOnboarding={flow.fromOnboarding} plannedHabitCount={flow.plannedHabitCount} />}
+            {flow.step === 'email' ? <EmailStep email={flow.email} onEmailChange={(email) => { setCallbackDismissed(true); flow.setEmail(email) }}
+              isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || googlePending}
+              errorKey={emailErrorKey}
+              errorMessage={emailErrorMessage} fieldError={flow.emailFieldError}
+              isOnline={flow.isOnline} t={t} tokens={tokens} styles={styles} emailFocusRequest={flow.emailFocusRequest}
+              canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
+              onSendCode={() => { setCallbackDismissed(true); void flow.sendCode() }}
+              onSignInWithGoogle={() => { setCallbackDismissed(true); void flow.signInWithGoogle() }}
+              onOpenPrivacy={flow.openPrivacyPolicy} onOpenTerms={flow.openTerms}
+              sendCodeLabel={sendCodeLabel} />
+              : <CodeStep email={flow.email} codeDigits={flow.codeDigits} isSubmitting={flow.isSubmitting} isResending={flow.isResending}
+                canResend={flow.canResend} resendCountdown={flow.resendCountdown} codeFailure={flow.codeFailure}
+                lockCountdown={flow.lockCountdown} fieldError={flow.codeFieldError} errorSignal={flow.errorMessage} onCodeBlur={flow.onCodeBlur} codeFocusRequest={flow.codeFocusRequest} successMessage={flow.successMessage}
+                isOnline={flow.isOnline} onCodeChange={flow.onCodeChange} onBackToEmail={flow.backToEmail} t={t}
+                canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
+                tokens={tokens} styles={styles} onVerifyCode={() => void flow.verifyCode()}
+                onResendCode={() => void flow.resendCode()} />}
+          </View>
+        </LoginStepStage>}
+        <LoginValidationMessage message={flow.validationGeneralError} isOnline={flow.isOnline} styles={styles} />
+      </View>
+    </KeyboardAwareScrollView>
+  </View>
+}
+
+function AccountBackState({ t, styles, loading, continueAccount, errorMessage }: Readonly<{
+  t: ReturnType<typeof useLoginFlow>['t']; styles: ReturnType<typeof createLoginStyles>;
+  loading: boolean | undefined; continueAccount: () => void; errorMessage: string | null
+}>) {
+  return <View style={styles.step}>
+          <View style={styles.titleBlock}>
+            <Text accessibilityRole="header" style={styles.stepTitle}>{t('auth.accountBack.title')}</Text>
+            <Text accessibilityLiveRegion="polite" style={styles.stepSubtitle}>{t('auth.accountBack.body')}</Text>
+          </View>
+          <PillButton onClick={continueAccount}
+            loading={loading}>{t('auth.accountBack.action')}</PillButton>
+          {errorMessage && <Text accessibilityRole="alert" style={styles.error}>{errorMessage}</Text>}
+        </View>
+}

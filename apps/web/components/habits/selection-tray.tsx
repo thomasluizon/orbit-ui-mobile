@@ -1,0 +1,196 @@
+'use client'
+
+import { useId } from 'react'
+import {
+  CheckCircle2,
+  FastForward,
+  Trash2,
+  X,
+  type Icon,
+} from '@/components/ui/icons'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+import { motion, useReducedMotion } from 'motion/react'
+import { useTranslations } from 'next-intl'
+import { TOUCH_TARGET_MIN, resolveMotionPreset } from '@orbit/shared/theme'
+import { plural } from '@/lib/plural'
+
+const SELECT_ALL_BUTTON_STYLE = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 12,
+  fontWeight: 500,
+  minWidth: TOUCH_TARGET_MIN,
+  minHeight: TOUCH_TARGET_MIN,
+  padding: "var(--orbit-space-12) var(--orbit-space-8)",
+  margin: "calc(-1 * var(--orbit-space-8)) calc(-1 * var(--orbit-space-4))",
+  textDecoration: 'underline',
+  textUnderlineOffset: 3,
+  textDecorationColor: 'var(--hairline-strong)',
+  textDecorationThickness: 1,
+} as const
+
+/** Selection actions rendered in the shell's pinned composer position. */
+export interface SelectionTrayProps {
+  selectedCount: number
+  allSelected: boolean
+  onSelectAll: () => void
+  onDeselectAll: () => void
+  onBulkLog: () => void
+  onBulkSkip: () => void
+  onBulkDelete: () => void
+  onCancel: () => void
+  completionReadOnly?: boolean
+}
+
+interface BulkBtnProps {
+  icon: Icon
+  label: string
+  iconColor: string
+  onClick: () => void
+  disabled?: boolean
+  reason?: string
+}
+
+function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reason }: Readonly<BulkBtnProps>) {
+  const reasonId = useId()
+  return (
+    <button
+      type="button"
+      onClick={() => { if (!disabled) onClick() }}
+      aria-label={label}
+      disabled={disabled && !reason}
+      aria-disabled={disabled && reason ? true : undefined}
+      aria-describedby={disabled && reason ? reasonId : undefined}
+      title={disabled ? reason : undefined}
+      className={`appearance-none border-0 bg-transparent shrink-0 overflow-hidden flex items-center justify-center transition-[background-color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
+        disabled
+          ? 'opacity-45'
+          : 'cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]'
+      }`}
+      style={{
+        width: TOUCH_TARGET_MIN,
+        height: TOUCH_TARGET_MIN,
+        borderRadius: 999,
+        color: iconColor,
+      }}
+    >
+      <Icon size={20} strokeWidth={1.8} />
+      {disabled && reason ? <span id={reasonId} className="sr-only">{reason}</span> : null}
+    </button>
+  )
+}
+
+export function SelectionTray({
+  selectedCount,
+  allSelected,
+  onSelectAll,
+  onDeselectAll,
+  onBulkLog,
+  onBulkSkip,
+  onBulkDelete,
+  onCancel,
+  completionReadOnly = false,
+}: Readonly<SelectionTrayProps>) {
+  const t = useTranslations()
+  const prefersReducedMotion = useReducedMotion()
+  const motionPreset = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
+  const nothingSelected = selectedCount === 0
+  const completionReason = completionReadOnly ? t('habits.todayBoundary.readOnly') : undefined
+  return (
+    <motion.div
+      data-testid="bulk-action-bar"
+      className="mx-auto flex w-full max-w-[480px] flex-col"
+      style={{
+        gap: 8,
+        background: 'var(--bg-sheet)',
+        borderRadius: 20,
+        padding: "var(--orbit-space-12) var(--orbit-space-16)",
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      }}
+      initial={{
+        opacity: 0,
+        y: motionPreset.shift,
+        scale: motionPreset.scaleFrom,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        scale: motionPreset.scaleTo,
+      }}
+      exit={{
+        opacity: 0,
+        y: motionPreset.shift,
+        scale: motionPreset.scaleFrom,
+      }}
+      transition={{
+        duration: motionPreset.enterDuration / 1000,
+        ease: motionPreset.enterEasing,
+      }}
+    >
+      <div
+        className="flex items-center justify-between"
+        style={{
+          gap: 16,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 12,
+          fontWeight: 400,
+          letterSpacing: '0.02em',
+          color: 'var(--fg-3)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        <span>
+          <span style={{ fontWeight: 500, color: 'var(--fg-1)' }}>
+            {selectedCount}
+          </span>
+          {' '}
+          {plural(t('common.selectedSuffix'), selectedCount)}
+        </span>
+        <button
+          type="button"
+          onClick={allSelected ? onDeselectAll : onSelectAll}
+          className="group touch-target isolate inline-flex items-center justify-center rounded-full overflow-hidden whitespace-nowrap appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-2)] hover:text-[var(--fg-1)] active:text-[var(--fg-1)] motion-safe:active:scale-[0.96] transition-[color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+          style={SELECT_ALL_BUTTON_STYLE}
+        >
+          <span
+            data-press-fill=""
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-[var(--bg-hover-opaque)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:opacity-100 group-active:opacity-100"
+          />
+          {allSelected ? t('common.deselectAll') : t('common.selectAll')}
+        </button>
+      </div>
+      <div className="flex items-center" style={{ gap: 4 }}>
+        <BulkBtn
+          icon={CheckCircle2}
+          label={t('habits.bulkBar.log')}
+          iconColor="var(--fg-1)"
+          onClick={onBulkLog}
+          disabled={nothingSelected || completionReadOnly}
+          reason={completionReason}
+        />
+        <BulkBtn
+          icon={FastForward}
+          label={t('habits.bulkBar.skip')}
+          iconColor="var(--fg-3)"
+          onClick={onBulkSkip}
+          disabled={nothingSelected || completionReadOnly}
+          reason={completionReason}
+        />
+        <BulkBtn
+          icon={Trash2}
+          label={t('habits.bulkBar.delete')}
+          iconColor="var(--status-bad)"
+          onClick={onBulkDelete}
+          disabled={nothingSelected}
+        />
+        <div className="flex-1" />
+        <BulkBtn
+          icon={X}
+          label={t('common.cancel')}
+          iconColor="var(--fg-2)"
+          onClick={onCancel}
+        />
+      </div>
+    </motion.div>
+  )
+}

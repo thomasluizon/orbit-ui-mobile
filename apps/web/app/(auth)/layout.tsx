@@ -1,26 +1,36 @@
 'use client'
 
-import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
+import { useEffect } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useAuthStore } from '@/stores/auth-store'
+import { useOnboardingDraftHydrated, useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 
-/** Auth layout: centered v8 shell for login and auth-callback pages. */
-export default function AuthLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  return (
-    <div
-      className="relative flex flex-col items-center overflow-x-hidden overflow-y-auto"
-      style={{
-        minHeight: '100dvh',
-        background: 'var(--bg)',
-        padding: '24px 16px',
-        paddingTop: 'calc(24px + var(--safe-top))',
-      }}
-    >
-      <RouteTransitionShell className="relative z-[1] my-auto w-full flex justify-center">
-        {children}
-      </RouteTransitionShell>
+export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const query = searchParams.toString()
+  const signInInProgress = (searchParams.has('email') && searchParams.has('code')) || searchParams.has('error') || searchParams.get('googleError') === '1'
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const sessionInactive = useAuthStore((state) => state.sessionInactive)
+  const hydrated = useOnboardingDraftHydrated()
+  const locallyDone = useOnboardingDraftStore((state) => state.onboardingLocallyDone)
+  const showOnboarding = pathname === '/login' && !signInInProgress && !isAuthenticated && !sessionInactive && !locallyDone
+  useEffect(() => { void useOnboardingDraftStore.persist.rehydrate() }, [])
+  useEffect(() => {
+    if (hydrated && showOnboarding) router.replace(query ? `/onboarding?${query}` : '/onboarding')
+  }, [hydrated, query, router, showOnboarding])
+  if (!hydrated || showOnboarding) return null
+  return <>
+    <main className="flex min-h-dvh w-full flex-col items-center justify-center bg-[var(--bg)] text-[var(--fg-1)]"
+      style={{ paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)', paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}>
+      {children}
+      <AppToastHost placement="page" />
+    </main>
+    <div className="fixed inset-x-0 top-[var(--safe-top)] pl-[var(--safe-left)] pr-[var(--safe-right)] z-sticky text-[var(--fg-1)]">
+      <UpdateAvailableBanner />
     </div>
-  )
+  </>
 }

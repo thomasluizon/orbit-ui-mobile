@@ -3,12 +3,35 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { gamificationKeys } from '@orbit/shared/query'
 import { ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
-import { buildWrappedSlides } from '@orbit/shared/utils'
 import {
   createMockRecap,
   createMockRetrospectiveMetrics,
 } from '@orbit/shared/__tests__/factories'
+import { buildAccountScopedStorageKey, buildWrappedSlides } from '@orbit/shared/utils'
 import { useWrapped, useWrappedStory } from '@/hooks/use-wrapped'
+import { useAuthStore } from '@/stores/auth-store'
+
+
+const LEGACY_WRAPPED_KEY = 'orbit_wrapped_year_seen'
+const ACCOUNT_A_WRAPPED_KEY = buildAccountScopedStorageKey(LEGACY_WRAPPED_KEY, 'user-1')
+const ACCOUNT_B_WRAPPED_KEY = buildAccountScopedStorageKey(LEGACY_WRAPPED_KEY, 'user-2')
+
+/** Signs the device in, because the key the recap writes is named after the account. */
+function holdAccount(userId: string | null): void {
+  useAuthStore.setState({
+    isAuthenticated: userId !== null,
+    user: userId === null ? null : { userId, name: 'Ada', email: `${userId}@example.com` },
+  })
+}
+
+/** Answers a `multiGet` the way AsyncStorage does, one pair per requested key. */
+function storedFlags(stored: Record<string, string>) {
+  return vi
+    .spyOn(AsyncStorage, 'multiGet')
+    .mockImplementation((keys) =>
+      Promise.resolve(keys.map((key): [string, string | null] => [key, stored[key] ?? null])),
+    )
+}
 
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
@@ -16,7 +39,10 @@ const mocks = vi.hoisted(() => ({
   reportEvent: vi.fn(),
 }))
 
-vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.useQuery }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQuery: mocks.useQuery,
+}))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('expo-constants', () => ({
   default: { expoConfig: { extra: { router: { origin: 'https://app-staging.useorbit.org' } } } },
@@ -45,20 +71,27 @@ function firstQueryOptions(): WrappedQueryOptions {
 function renderStory(slideCount: number) {
   const ref: { current: Story | null } = { current: null }
 
-  function Harness() {
-    ref.current = useWrappedStory(slideCount)
+  function Harness({ count }: { count: number }) {
+    ref.current = useWrappedStory(count)
     return null
   }
 
+  let tree!: { update: (element: React.ReactElement) => void; unmount: () => void }
   TestRenderer.act(() => {
-    TestRenderer.create(React.createElement(Harness))
+    tree = TestRenderer.create(React.createElement(Harness, { count: slideCount }))
   })
+  mountedTrees.push(tree)
 
   if (!ref.current) {
     throw new Error('Expected useWrappedStory to initialize')
   }
 
-  return ref as { current: Story }
+  return {
+    get current(): Story { return ref.current as Story },
+    rerender: (count: number) => {
+      TestRenderer.act(() => tree.update(React.createElement(Harness, { count })))
+    },
+  }
 }
 
 const mountedTrees: { unmount: () => void }[] = []
@@ -74,15 +107,15 @@ async function renderWrapped(
     return null
   }
 
-  let tree!: { unmount: () => void }
+  const treeHolder: { current: { unmount: () => void } | null } = { current: null }
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(React.createElement(Harness))
+    treeHolder.current = TestRenderer.create(React.createElement(Harness))
     await Promise.resolve()
     await Promise.resolve()
   })
 
-  if (!ref.current) throw new Error('useWrapped did not render')
-  mountedTrees.push(tree)
+  if (!ref.current || !treeHolder.current) throw new Error('useWrapped did not render')
+  mountedTrees.push(treeHolder.current)
   return ref as { current: WrappedApi }
 }
 
@@ -96,6 +129,7 @@ describe('mobile useWrapped', () => {
       refetch: vi.fn(),
     })
     mocks.reportEvent.mockReset()
+    holdAccount('user-1')
   })
 
   afterEach(() => {
@@ -122,17 +156,20 @@ describe('mobile useWrapped', () => {
       .toBe('https://app-staging.useorbit.org/r/ABC123?recap=week')
   })
 
-  it('requests and caches a notified closed month separately from the current month', async () => {
-    await renderWrapped('month', { closedMonth: { year: 2024, month: 2 } })
-    const options = firstQueryOptions()
-    expect(options.queryKey).toEqual(['gamification', 'recap', 'month', 2024, 2])
-    await options.queryFn()
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/gamification/recap?period=month&year=2024&month=2')
-  })
-
   it('respects an explicit enabled: false flag', async () => {
     await renderWrapped('week', { enabled: false })
     expect(firstQueryOptions().enabled).toBe(false)
+  })
+
+  it('fetches and caches a notification-carried closed month separately', async () => {
+    await renderWrapped('month', { closedMonth: { year: 2026, month: 8 } })
+
+    const options = firstQueryOptions()
+    expect(options.queryKey).toEqual(['gamification', 'recap', 'month', 2026, 8])
+    await options.queryFn()
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      '/api/gamification/recap?period=month&year=2026&month=8',
+    )
   })
 
   it('derives slides and a populated empty flag from a non-empty recap', async () => {
@@ -152,6 +189,7 @@ describe('mobile useWrapped', () => {
 
   it('marks an all-zero recap as empty', async () => {
     const emptyRecap = createMockRecap({
+      goalCompletions: 0,
       metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
     })
     mocks.useQuery.mockReturnValue({
@@ -166,8 +204,26 @@ describe('mobile useWrapped', () => {
     expect(mocks.reportEvent).not.toHaveBeenCalled()
   })
 
+  it('keeps Start enabled and reaches the goals slide for a goal-only recap', async () => {
+    const goalOnlyRecap = createMockRecap({
+      goalCompletions: 4,
+      metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+    })
+    mocks.useQuery.mockReturnValue({
+      data: goalOnlyRecap,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+
+    const api = await renderWrapped('month')
+    expect(api.current.isEmpty).toBe(false)
+    expect(api.current.slides.at(-1)?.id).toBe('share')
+    expect(api.current.slides).toContainEqual({ id: 'goals', closedGoals: 4 })
+  })
+
   it('reports the wrapped-viewed achievement once for a fresh active year recap', async () => {
-    const getItem = vi.spyOn(AsyncStorage, 'getItem').mockResolvedValue(null)
+    const multiGet = storedFlags({})
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
     mocks.useQuery.mockReturnValue({
       data: createMockRecap({ period: 'year' }),
@@ -178,14 +234,48 @@ describe('mobile useWrapped', () => {
 
     await renderWrapped('year', { active: true })
 
-    expect(getItem).toHaveBeenCalledWith('orbit_wrapped_year_seen:signed-out')
-    expect(setItem).toHaveBeenCalledWith('orbit_wrapped_year_seen:signed-out', '1')
+    expect(multiGet).toHaveBeenCalledWith([ACCOUNT_A_WRAPPED_KEY, LEGACY_WRAPPED_KEY])
+    expect(setItem).toHaveBeenCalledWith(ACCOUNT_A_WRAPPED_KEY, '1')
     expect(mocks.reportEvent).toHaveBeenCalledWith(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
   })
 
+  it('reports it for the next account on a device the previous account used', async () => {
+    storedFlags({ [ACCOUNT_A_WRAPPED_KEY]: '1' })
+    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    mocks.useQuery.mockReturnValue({
+      data: createMockRecap({ period: 'year' }),
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+    holdAccount('user-2')
+
+    await renderWrapped('year', { active: true })
+
+    expect(setItem).toHaveBeenCalledWith(ACCOUNT_B_WRAPPED_KEY, '1')
+    expect(mocks.reportEvent).toHaveBeenCalledWith(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
+  })
+
+  it('gives the pre-rename flag to the account signed in now and then consumes it', async () => {
+    storedFlags({ [LEGACY_WRAPPED_KEY]: '1' })
+    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    const removeItem = vi.spyOn(AsyncStorage, 'removeItem').mockResolvedValue(undefined)
+    mocks.useQuery.mockReturnValue({
+      data: createMockRecap({ period: 'year' }),
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+
+    await renderWrapped('year', { active: true })
+
+    expect(setItem).toHaveBeenCalledWith(ACCOUNT_A_WRAPPED_KEY, '1')
+    expect(removeItem).toHaveBeenCalledWith(LEGACY_WRAPPED_KEY)
+    expect(mocks.reportEvent).not.toHaveBeenCalled()
+  })
   it('does not re-report when the year recap was already seen', async () => {
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
-    vi.spyOn(AsyncStorage, 'getItem').mockResolvedValue('1')
+    storedFlags({ [ACCOUNT_A_WRAPPED_KEY]: '1' })
     mocks.useQuery.mockReturnValue({
       data: createMockRecap({ period: 'year' }),
       isLoading: false,
@@ -200,7 +290,7 @@ describe('mobile useWrapped', () => {
   })
 
   it('skips the achievement side effect when the player is not actively viewing', async () => {
-    const getItem = vi.spyOn(AsyncStorage, 'getItem').mockResolvedValue(null)
+    const multiGet = storedFlags({})
     mocks.useQuery.mockReturnValue({
       data: createMockRecap({ period: 'year' }),
       isLoading: false,
@@ -210,12 +300,55 @@ describe('mobile useWrapped', () => {
 
     await renderWrapped('year', { active: false })
 
-    expect(getItem).not.toHaveBeenCalled()
+    expect(multiGet).not.toHaveBeenCalled()
     expect(mocks.reportEvent).not.toHaveBeenCalled()
   })
 })
 
 describe('mobile useWrappedStory', () => {
+  afterEach(() => {
+    while (mountedTrees.length > 0) {
+      const tree = mountedTrees.pop()
+      TestRenderer.act(() => tree?.unmount())
+    }
+  })
+
+  it('clamps to the last slide when a refetch removes the top habit', () => {
+    const slides = buildWrappedSlides(createMockRecap())
+    const shorterSlides = buildWrappedSlides(createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ topHabits: [] }),
+    }))
+    expect(slides).toHaveLength(8)
+    expect(shorterSlides).toHaveLength(7)
+    const story = renderStory(slides.length)
+    for (let step = 0; step < slides.length - 1; step += 1) {
+      TestRenderer.act(() => story.current.next())
+    }
+    expect(story.current.index).toBe(7)
+
+    story.rerender(shorterSlides.length)
+
+    expect(story.current.index).toBe(6)
+    expect(story.current.isLast).toBe(true)
+    expect(shorterSlides[story.current.index]?.id).toBe('share')
+    TestRenderer.act(() => story.current.prev())
+    expect(story.current.index).toBe(5)
+    expect(story.current.isLast).toBe(false)
+    TestRenderer.act(() => story.current.next())
+    TestRenderer.act(() => story.current.next())
+    expect(story.current.index).toBe(6)
+
+    story.rerender(0)
+    expect(story.current.index).toBe(0)
+    expect(story.current.isFirst).toBe(true)
+    TestRenderer.act(() => story.current.prev())
+    TestRenderer.act(() => story.current.next())
+    expect(story.current.index).toBe(0)
+    story.rerender(slides.length)
+    expect(story.current.index).toBe(0)
+    expect(story.current.isLast).toBe(false)
+  })
+
   it('opens on the first slide', () => {
     const story = renderStory(7)
     expect(story.current.index).toBe(0)
@@ -266,7 +399,7 @@ describe('mobile useWrappedStory', () => {
       createMockRecap({ metrics: createMockRetrospectiveMetrics({ topHabits: [] }) }),
     )
 
-    expect(slides).toHaveLength(6)
+    expect(slides).toHaveLength(7)
     expect(slides.at(-1)?.id).toBe('share')
   })
 })

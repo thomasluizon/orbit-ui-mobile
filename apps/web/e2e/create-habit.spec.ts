@@ -7,7 +7,7 @@ test('create a habit from the Today FAB', async ({ page }) => {
 
   await page.goto('/')
 
-  await page.locator('[data-tour="tour-fab-button"]').click()
+  await page.getByRole('button', { name: 'Create' }).click()
 
   const titleInput = page.locator('#habit-form-title')
   await expect(titleInput).toBeVisible()

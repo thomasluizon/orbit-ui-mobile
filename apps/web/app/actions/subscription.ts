@@ -8,6 +8,10 @@ export interface PortalResponse {
   url: string
 }
 
-export async function openCustomerPortal(intendedAccountId: string | null): Promise<ServerActionResult<PortalResponse>> {
-  return wrapServerAction(() => serverAuthMutate(API.subscription.portal, { method: 'POST' }, intendedAccountId))
+export async function openCustomerPortal(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<PortalResponse>> {
+  return wrapServerAction(
+    () => serverAuthMutate(API.subscription.portal, { method: 'POST' }, intendedAccountId),
+  )
 }

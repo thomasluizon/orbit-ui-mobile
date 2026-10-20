@@ -1,0 +1,59 @@
+import React from 'react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+
+import { HabitLogButton } from '@/components/habits/habit-log-button'
+
+vi.mock('@/components/ui/progress-ring', () => ({
+  ProgressRing: ({ value }: { value: number }) => <span data-testid="progress-ring">{value}</span>,
+}))
+
+vi.mock('@/components/ui/status-ring', () => ({
+  StatusRing: ({ status }: { status: string }) => <span data-testid="status-ring">{status}</span>,
+}))
+
+describe('HabitLogButton', () => {
+  it('announces the log action, shows the empty state, and accepts the action', () => {
+    const onPress = vi.fn()
+    render(<HabitLogButton label="Log Read" logged={false} onPress={onPress} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Log Read' }))
+
+    expect(screen.getByTestId('status-ring')).toHaveTextContent('empty')
+    expect(onPress).toHaveBeenCalledOnce()
+  })
+
+  it('uses the supplied overdue status when there is no child progress', () => {
+    const view = render(<HabitLogButton label="Log Read" logged={false} status="overdue" onPress={vi.fn()} />)
+    expect(screen.getByTestId('status-ring')).toHaveTextContent('overdue')
+    expect(screen.queryByTestId('progress-ring')).not.toBeInTheDocument()
+    view.rerender(<HabitLogButton label="Log Read" logged={false} status="overdue" progress={0} onPress={vi.fn()} />)
+    expect(screen.getByTestId('progress-ring')).toHaveTextContent('0')
+    expect(screen.queryByTestId('status-ring')).not.toBeInTheDocument()
+  })
+
+  it('shows visible partial progress until the habit is complete', () => {
+    const view = render(
+      <HabitLogButton label="Log Read" logged={false} completed={false} progress={0.5} onPress={vi.fn()} />,
+    )
+
+    expect(screen.getByTestId('progress-ring')).toHaveTextContent('0.5')
+
+    view.rerender(
+      <HabitLogButton label="Unlog Read" logged completed progress={1} onPress={vi.fn()} />,
+    )
+    expect(screen.getByRole('button', { name: 'Unlog Read' })).toBeInTheDocument()
+    expect(screen.getByTestId('status-ring')).toHaveTextContent('done')
+  })
+
+  it('announces why an old-day action is disabled', () => {
+    const onPress = vi.fn()
+    render(<HabitLogButton label="Log Read" logged={false} onPress={onPress}
+      disabled disabledReason="Logging stops 7 days back." />)
+    const button = screen.getByRole('button', { name: 'Log Read' })
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveAccessibleDescription('Logging stops 7 days back.')
+    fireEvent.click(button)
+    expect(onPress).not.toHaveBeenCalled()
+  })
+})

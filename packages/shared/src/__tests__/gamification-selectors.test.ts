@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   calculateXpProgress,
   deriveGamificationProfileState,
-  deriveNextRewardCarrot,
   deriveStreakFreezeState,
   detectCrossedStreakMilestones,
   detectGamificationMilestones,
@@ -14,6 +13,7 @@ import {
   SHAREABLE_ACHIEVEMENT_RARITIES,
 } from '../utils/gamification-selectors'
 import type { Achievement, GamificationProfile, StreakInfo } from '../types/gamification'
+import { createMockProfile } from './factories'
 
 describe('getStreakTierLabelKey', () => {
   it('maps streak length to the tier i18n key at each threshold', () => {
@@ -107,6 +107,7 @@ function makeStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
     daysUntilNextFreeze: 0,
     freezesAvailableToUse: 2,
     canEarnMore: true,
+    isRepairAvailable: false,
     ...overrides,
   }
 }
@@ -218,16 +219,17 @@ describe('gamification-selectors', () => {
     })
   })
 
-  it('falls back to profile values when streak info is missing', () => {
+  it.each([null, undefined, { currentStreak: 4 }])('keeps the bank empty without streak bank data: %s', (streakInfo) => {
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
     expect(
-      deriveStreakFreezeState(null, { streakFreezesAvailable: 1, currentStreak: 4 }, '2025-01-16'),
+      deriveStreakFreezeState(streakInfo, profile, '2025-01-16'),
     ).toMatchObject({
-      freezesAvailable: 1,
+      freezesAvailable: 0,
       isFrozenToday: false,
       hasCompletedToday: false,
       currentStreak: 4,
-      canFreeze: true,
-      streakFreezesAccumulated: 1,
+      canFreeze: false,
+      streakFreezesAccumulated: 0,
     })
   })
 
@@ -263,43 +265,6 @@ describe('gamification-selectors', () => {
       '2025-01-16',
     )
     expect(state.canEarnMore).toBe(false)
-  })
-})
-
-describe('deriveNextRewardCarrot', () => {
-  it('returns carrot data for a free-unlocked user with a locked teaser', () => {
-    const profile = makeProfile({
-      isPro: false,
-      nextReward: {
-        nextLevel: 6,
-        nextLevelTitle: 'Pilot',
-        xpToNextLevel: 100,
-        proTeaser: { kind: 'achievements', locked: true },
-      },
-    })
-
-    const carrot = deriveNextRewardCarrot(profile, true)
-
-    expect(carrot).toEqual({
-      nextLevel: 6,
-      nextLevelTitle: 'Pilot',
-      xpToNextLevel: 100,
-      showProTeaser: true,
-    })
-  })
-
-  it('returns null for a Pro user', () => {
-    const profile = makeProfile({ isPro: true, nextReward: { nextLevel: 6, nextLevelTitle: 'Pilot', xpToNextLevel: 100, proTeaser: null } })
-    expect(deriveNextRewardCarrot(profile, true)).toBeNull()
-  })
-
-  it('returns null when gamification is not viewable', () => {
-    const profile = makeProfile({ isPro: false })
-    expect(deriveNextRewardCarrot(profile, false)).toBeNull()
-  })
-
-  it('returns null for a missing profile', () => {
-    expect(deriveNextRewardCarrot(null, true)).toBeNull()
   })
 })
 

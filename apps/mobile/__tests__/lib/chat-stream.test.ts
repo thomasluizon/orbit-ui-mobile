@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 
 import { openChatStream } from '@/lib/chat-stream'
+import { useThrottleStore } from '@/stores/throttle-store'
+import { getErrorSurface } from '@orbit/shared/utils'
 
 const mocks = vi.hoisted(() => ({
   expoFetch: vi.fn(),
@@ -30,9 +32,37 @@ function makeResponse(status: number): { status: number } {
 
 describe('openChatStream', () => {
   beforeEach(() => {
+    useThrottleStore.getState().clear()
     mocks.expoFetch.mockReset()
     mocks.getToken.mockReset()
     mocks.refreshSessionToken.mockReset()
+  })
+
+  it.each([false, true])('publishes a timed refusal and preserves its body (refreshed: %s)', async (refreshed) => {
+    const payload = { error: 'Too many requests', requestId: 'stream-reference', limit: 10, count: 11, retryAfterUtc: '2026-09-06T00:00:42.000Z' }
+    mocks.getToken.mockResolvedValue('token')
+    if (refreshed) {
+      mocks.expoFetch.mockResolvedValueOnce(makeResponse(401))
+      mocks.refreshSessionToken.mockResolvedValue('refreshed-token')
+    }
+    mocks.expoFetch.mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 429 }))
+
+    const response = await openChatStream(new FormData(), new AbortController().signal)
+
+    expect(getErrorSurface(useThrottleStore.getState().error)).toEqual({ requestId: 'stream-reference', retryAt: Date.parse(payload.retryAfterUtc) })
+    expect(await response.json()).toEqual(payload)
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(refreshed ? 2 : 1)
+  })
+
+  it.each([
+    [429, '{'],
+    [429, JSON.stringify({ error: 'Too many requests', retryAfterUtc: 'invalid' })],
+    [500, JSON.stringify({ retryAfterUtc: '2026-09-06T00:00:42.000Z' })],
+  ])('leaves untimed or non-throttle failures with the caller (%s, %s)', async (status, body) => {
+    mocks.expoFetch.mockResolvedValue(new Response(body, { status }))
+    const response = await openChatStream(new FormData(), new AbortController().signal)
+    expect(useThrottleStore.getState().error).toBeNull()
+    expect(await response.text()).toBe(body)
   })
 
   it('posts the form data with a bearer token and time-zone header', async () => {

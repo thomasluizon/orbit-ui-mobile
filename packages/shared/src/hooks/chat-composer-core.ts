@@ -13,7 +13,6 @@ import {
 } from '../query/keys'
 import type {
   ActionResult,
-  AgentExecuteOperationResponse,
   AgentPolicyDenial,
 } from '../types/index'
 import {
@@ -43,6 +42,7 @@ const CHAT_HABIT_ACTION_TYPES: ReadonlySet<string> = new Set([
   'MoveHabit',
   'SuggestBreakdown',
   'ReorderHabits',
+  'UnlogHabit',
 ])
 
 export const CHAT_GOAL_ACTION_TYPES: ReadonlySet<string> = new Set([
@@ -63,11 +63,12 @@ const CHAT_TAG_ACTION_TYPES: ReadonlySet<string> = new Set([
 
 export const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
 
-export function buildAgentExecutionMessage(
-  response: AgentExecuteOperationResponse,
-  labels: { done: string; failed: string },
-): string {
-  return response.operation.status === 'Succeeded' ? labels.done : labels.failed
+export function sendInConversation(
+  conversation: { astraConversationOpen: boolean; setAstraConversationOpen: (open: boolean) => void },
+  send: () => Promise<boolean>,
+): Promise<boolean> {
+  if (!conversation.astraConversationOpen) conversation.setAstraConversationOpen(true)
+  return send()
 }
 
 /**

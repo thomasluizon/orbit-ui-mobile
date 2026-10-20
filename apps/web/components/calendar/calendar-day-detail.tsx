@@ -1,273 +1,330 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
-import Link from 'next/link'
-import { ArrowRight, Check } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { plural } from '@/lib/plural'
+import { PADDING, SPACING } from '@orbit/shared/theme'
+
+
+import { PersonalText } from '@/components/ui/personal-text'
+
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { Fragment, useMemo } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { useDateFormat } from '@/hooks/use-date-format'
-import { parseAPIDate, filterRecurringEntries } from '@orbit/shared/utils'
+import {
+  formatCalendarDayTitle,
+  filterRecurringEntries,
+  type CalendarEventsDisplayState,
+} from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
+import type { CalendarSyncEvent } from '@orbit/shared'
+import type { StatusRingProps } from '@orbit/shared/contracts/lists'
+import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
+import { CheckRow } from '@/components/ui/check-row'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { PillButton } from '@/components/ui/pill-button'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
+import { ListRow } from '@/components/ui/list-row'
+import { Skeleton } from '@/components/ui/skeleton'
+import { StatusRing } from '@/components/ui/status-ring'
 
 interface CalendarDayDetailProps {
+  loadingLabel?: string
   dateStr: string | null
+  today: string
   entries: CalendarDayEntry[]
+  calendarEvents: CalendarSyncEvent[]
+  showEventSource?: boolean
+  calendarEventsState: CalendarEventsDisplayState
+  onRetryCalendarEvents: () => void
+  onReconnectCalendarEvents: () => void
+  onOpenCalendarImport: (eventId: string | null) => void
+  onViewPro: () => void
+  onOpenEvents?: () => void
+  onOpenHabitTitle?: (title: string) => void
+  loggable: boolean
   showRecurring: boolean
-  onShowRecurringChange: (value: boolean) => void
-  /** Desktop side-panel mode: the entries list scrolls within the viewport, a
-   *  bottom fade hints at more content, and the go-to-day CTA stays pinned below. */
-  fitViewport?: boolean
+  pendingEntryStates: ReadonlyMap<string, boolean>
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
+  showTitle?: boolean
 }
 
-function statusBadgeColor(entry: CalendarDayEntry): string {
+function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry, onReconnect, onOpenImport, onOpenEvents, onViewPro }: Readonly<{
+  calendarEvents: CalendarSyncEvent[]
+  showEventSource: boolean
+  state: CalendarEventsDisplayState
+  onRetry: () => void
+  onReconnect: () => void
+  onOpenImport: (eventId: string | null) => void
+  onViewPro: () => void
+  onOpenEvents?: () => void
+}>) {
+  const t = useTranslations()
+  const wide = useIsWideDesktop()
+  if (state === 'pro-boundary') return <CapacityNotice
+    message={t('calendar.proBoundary.title')}
+    body={t('calendar.proBoundary.body')}
+    // eslint-disable-next-line local/max-button-words -- #1341 requires the granted calendar boundary action.
+    action={<PillButton size="sm" variant={wide ? 'secondary' : 'primary'} onClick={onViewPro}>{t('calendar.proBoundary.action')}</PillButton>}
+  />
+  if (state === 'not-connected') return <div>
+    <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
+  </div>
+  return <div className="flex flex-col gap-2">
+    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: SPACING.s0, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
+    {state === 'loading' ? <div className="relative">
+      <p aria-hidden="true" className="invisible m-0 text-sm">{t('calendar.dayDetail.noEventsToImport')}</p>
+      <div className="absolute inset-0"><Skeleton variant="fill" label={t('calendar.fetchingEvents')} /></div>
+    </div> : null}
+    {state === 'failed' ? <div className="flex flex-col gap-2"><p role="alert" className="m-0 text-base text-[var(--fg-1)]">{t('calendar.fetchError')}</p><ListRow textMode="label" title={t('common.retry')} onClick={onRetry} /></div> : null}
+    {state === 'ready' && calendarEvents.length === 0 ? <p className="m-0 text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p> : null}
+    {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
+  </div>
+}
+
+type EntryOutcome = {
+  ringLabel: string
+  status: NonNullable<StatusRingProps['status']>
+}
+
+function getEntryOutcome(
+  entry: CalendarDayEntry,
+  t: ReturnType<typeof useTranslations>,
+): EntryOutcome {
+  const completed = entry.status === 'completed'
+
   if (entry.isBadHabit) {
-    return entry.status === 'completed' ? 'var(--status-bad-text)' : 'var(--status-done)'
-  }
-  return entry.status === 'completed' ? 'var(--status-done)' : 'var(--status-overdue-text)'
-}
-
-function statusCircleStyle(entry: CalendarDayEntry): React.CSSProperties {
-  if (entry.status === 'completed') {
+    const label = t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted')
     return {
-      background: entry.isBadHabit ? 'var(--status-bad)' : 'var(--status-done)',
+      ringLabel: entry.status === 'upcoming' ? t('calendar.status.missed') : label,
+      status: completed ? 'bad' : entry.status === 'upcoming' ? 'empty' : 'done',
     }
   }
-  if (entry.status === 'missed' && !entry.isBadHabit) {
-    return { boxShadow: 'inset 0 0 0 2px var(--status-overdue)' }
+
+  const label = t(completed ? 'calendar.status.completed' : 'calendar.status.missed')
+  return {
+    ringLabel: label,
+    status: completed ? 'done' : 'empty',
   }
-  if (entry.status === 'missed' && entry.isBadHabit) {
-    return { boxShadow: 'inset 0 0 0 2px var(--status-done)' }
-  }
-  return { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
 }
 
-/** Inline selected-day section: the day's entries in a kit card with per-entry
- *  status rings, and the go-to-day ghost pill. */
-export function CalendarDayDetail({
+function CalendarDayCheckRow({
+  disabled,
+  entry,
+  value,
+  isPending,
+  pendingChecked,
+  onEntryChange,
+  onOpenTitle,
+}: Readonly<{
+  disabled?: boolean
+  entry: CalendarDayEntry
+  value: string
+  isPending: boolean
+  pendingChecked: boolean | undefined
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
+  onOpenTitle: (title: string) => void
+}>) {
+  const sourceChecked = entry.status === 'completed'
+  const displayedChecked = pendingChecked === undefined || pendingChecked === sourceChecked
+    ? null
+    : pendingChecked
+  const checked = displayedChecked ?? sourceChecked
+
+  async function changeChecked(nextChecked: boolean) {
+    const entryChange = onEntryChange(entry, nextChecked)
+    if (!entryChange) return
+    await entryChange.catch(() => undefined)
+  }
+
+  return (
+    <CheckRow
+      disabled={disabled}
+      label={entry.title}
+      textMode="personal"
+      variant="calendar-day"
+      onOpenLabel={() => onOpenTitle(entry.title)}
+      checked={checked}
+      value={value}
+      loading={isPending}
+      onChange={(nextChecked) => void changeChecked(nextChecked)}
+    />
+  )
+}
+
+function CalendarDayRows({
   dateStr,
   entries,
+  loadingLabel,
+  loggable,
+  displayTime,
+  pendingEntryStates,
+  onEntryChange,
+  onOpenTitle,
+  t,
+}: Readonly<{
+  dateStr: string
+  entries: CalendarDayEntry[]
+  loadingLabel?: string
+  loggable: boolean
+  displayTime: (time: string) => string
+  pendingEntryStates: ReadonlyMap<string, boolean>
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
+  onOpenTitle: (title: string) => void
+  t: ReturnType<typeof useTranslations>
+}>) {
+  return entries.map((entry) => {
+    const entryKey = getCalendarEntryMutationKey(dateStr, entry.habitId)
+    const outcome = getEntryOutcome(entry, t)
+    const value = entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime')
+
+    const row = loggable ? (
+        <CalendarDayCheckRow
+          disabled={Boolean(loadingLabel)}
+          entry={entry}
+          value={value}
+          isPending={pendingEntryStates.has(entryKey)}
+          pendingChecked={pendingEntryStates.get(entryKey)}
+          onEntryChange={onEntryChange}
+          onOpenTitle={onOpenTitle}
+        />
+      ) : (
+      // eslint-disable-next-line local/max-button-words -- #1342 requires the existing no-set-time metadata beneath the personal title.
+      <button disabled={Boolean(loadingLabel)} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="orbit-calendar-day-disclosure relative min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start">
+        <span className="relative flex min-w-0 items-start" style={{ gap: 8, paddingInline: SPACING.s16, paddingBlock: SPACING.s12 }}>
+          <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
+            <PersonalText className=" text-base  text-[var(--fg-1)]">{entry.title}</PersonalText>
+            <span className="font-mono text-xs tabular-nums text-[var(--fg-2)]">{value}</span>
+          </span>
+          <StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />
+        </span>
+      </button>
+    )
+    return loadingLabel ? <div key={`${dateStr}:${entry.habitId}`} className="relative">
+      <div inert aria-hidden="true" className="invisible">{row}</div>
+      <div className="absolute inset-0 flex items-center"><Skeleton variant="settings" rows={1} label={loadingLabel} /></div>
+    </div> : <Fragment key={`${dateStr}:${entry.habitId}`}>{row}</Fragment>
+  })
+}
+
+export function CalendarDayDetail({
+  loadingLabel,
+  dateStr,
+  today,
+  entries,
+  calendarEvents,
+  showEventSource = false,
+  calendarEventsState,
+  onRetryCalendarEvents,
+  onReconnectCalendarEvents,
+  onOpenCalendarImport,
+  onViewPro,
+  onOpenEvents,
+  onOpenHabitTitle,
+  loggable,
   showRecurring,
-  onShowRecurringChange,
-  fitViewport = false,
+  pendingEntryStates,
+  onEntryChange,
+  showTitle = true,
 }: Readonly<CalendarDayDetailProps>) {
+  const [expandedTitle, setExpandedTitle] = useAccountScopedState<string | null>(null)
+  const { sheetRef } = useSheetHost()
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
-  const { displayWeekdayDate } = useDateFormat()
+  const locale = useLocale()
 
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
-    const date = parseAPIDate(dateStr)
-    return displayWeekdayDate(date)
-  }, [dateStr, displayWeekdayDate])
+    return formatCalendarDayTitle(dateStr, locale, today, (date) => t('dates.todayWithDate', { date }))
+  }, [dateStr, locale, today, t])
 
   const filteredEntries = useMemo(
     () => filterRecurringEntries(entries, showRecurring),
     [entries, showRecurring],
   )
 
-  const completedCount = filteredEntries.filter((e) => e.status === 'completed').length
-
-  const statusLabel = useCallback((entry: CalendarDayEntry): string | null => {
-    if (entry.isBadHabit) {
-      if (entry.status === 'completed') return t('calendar.status.indulged')
-      if (entry.status === 'missed') return t('calendar.status.resisted')
-      return null
-    }
-    if (entry.status === 'completed') return t('calendar.status.completed')
-    if (entry.status === 'missed') return t('calendar.status.missed')
-    return null
-  }, [t])
-
   if (!dateStr) return null
 
-  const recurringToggle = entries.length > 0 && (
-    <div className="flex shrink-0 justify-end" style={{ marginBottom: 12 }}>
-      <ShowRecurringToggle
-        checked={showRecurring}
-        onChange={onShowRecurringChange}
-      />
-    </div>
+  const completedCount = filteredEntries.filter((entry) => entry.status === 'completed').length
+  const summary = filteredEntries.length > 0
+    ? t('calendar.dayDetail.completionSummary', {
+        done: completedCount,
+        total: filteredEntries.length,
+      })
+    : t('calendar.dayDetail.nothingDue')
+
+  const goToDay = (
+    // eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing.
+    <ListRow
+      compact
+      href={`/?date=${dateStr}`}
+      accessibilityLabel={t('calendar.goToDay')}
+      icon="external-link"
+      title={t('calendar.goToDay')}
+      textMode="label"
+      chevron={false}
+    />
   )
 
   const body = (
-    <>
-      {entries.length === 0 && (
-        <div
-          className="text-[var(--fg-3)] text-sm text-center"
-          style={{
-            padding: '24px 18px',
-            borderRadius: 18,
-            background: 'var(--bg-card)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          }}
-        >
-          {t('calendar.noHabitsScheduled')}
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <div className="flex flex-col" style={{ gap: 4 }}>
+        {showTitle ? <h2 className="text-xl font-medium text-[var(--fg-1)]" style={{ margin: SPACING.s0 }}>{formattedDate}</h2> : null}
+        <p className="font-mono text-xs text-[var(--fg-3)]" style={{ margin: SPACING.s0, visibility: loadingLabel ? 'hidden' : undefined }}>
+          {summary}
+        </p>
+      </div>
+      {!loadingLabel && filteredEntries.length === 0 ? (
+        <p className="m-0 text-sm text-[var(--fg-3)]">{t('calendar.noHabitsScheduled')}</p>
+      ) : null}
+      {loadingLabel || filteredEntries.length > 0 ? (
+        <div data-testid={loadingLabel ? 'calendar-day-skeleton' : undefined} className="flex flex-col">
+          {loadingLabel && filteredEntries.length === 0 ? <div className="relative">
+            <p aria-hidden="true" className="invisible m-0 text-sm">{t('calendar.noHabitsScheduled')}</p>
+            <div className="absolute inset-0"><Skeleton variant="fill" label={loadingLabel} /></div>
+          </div> : <CalendarDayRows
+            dateStr={dateStr}
+            entries={filteredEntries}
+            loadingLabel={loadingLabel}
+            loggable={loggable}
+            displayTime={displayTime}
+            pendingEntryStates={pendingEntryStates}
+            onEntryChange={onEntryChange}
+            onOpenTitle={onOpenHabitTitle ?? setExpandedTitle}
+            t={t}
+          />}
         </div>
-      )}
+      ) : null}
+      {goToDay}
+      <CalendarEventsSection
+        key={dateStr}
+        calendarEvents={calendarEvents}
+        showEventSource={showEventSource}
+        state={calendarEventsState}
+        onRetry={onRetryCalendarEvents}
+        onReconnect={onReconnectCalendarEvents}
+        onOpenImport={onOpenCalendarImport}
+        onOpenEvents={onOpenEvents}
+        onViewPro={onViewPro}
+      />
 
-      {entries.length > 0 && (
-        <div className="flex flex-col" style={{ gap: 12 }}>
-          <p
-            className="text-sm text-[var(--fg-3)]"
-            style={{ margin: 0 }}
-          >
-            {plural(t('calendar.dayDetail.completionSummary', {
-              done: completedCount,
-              total: filteredEntries.length,
-            }), filteredEntries.length)}
-          </p>
-
-          {filteredEntries.length === 0 && (
-            <div
-              className="text-[var(--fg-3)] text-sm text-center"
-              style={{
-                padding: '24px 18px',
-                borderRadius: 18,
-                background: 'var(--bg-card)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              }}
-            >
-              {t('calendar.noHabitsScheduled')}
-            </div>
-          )}
-
-          {filteredEntries.length > 0 && (
-            <div
-              className="stagger-enter"
-              style={{
-                borderRadius: 18,
-                background: 'var(--bg-card)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                overflow: 'hidden',
-              }}
-            >
-              {filteredEntries.map((entry, i) => {
-                const label = statusLabel(entry)
-                return (
-                  <div
-                    key={entry.habitId}
-                    className="flex items-center gap-3"
-                    style={{
-                      padding: '15px 18px',
-                      borderBottom:
-                        i < filteredEntries.length - 1
-                          ? '1px solid var(--hairline)'
-                          : 'none',
-                    }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full"
-                      style={statusCircleStyle(entry)}
-                    >
-                      {entry.status === 'completed' && (
-                        <Check size={15} strokeWidth={2.5} color="var(--fg-on-primary)" />
-                      )}
-                    </span>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span
-                          className={`truncate ${
-                            entry.status === 'completed'
-                              ? 'text-[var(--fg-3)] line-through'
-                              : 'text-[var(--fg-1)]'
-                          }`}
-                          style={{
-                            fontFamily: 'var(--font-sans)',
-                            fontSize: 15,
-                            fontWeight: 500,
-                          }}
-                        >
-                          {entry.title}
-                        </span>
-                        {entry.dueTime && (
-                          <span
-                            className="shrink-0 text-[var(--fg-3)]"
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 12,
-                              fontVariantNumeric: 'tabular-nums',
-                            }}
-                          >
-                            {displayTime(entry.dueTime)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {label && (
-                      <span
-                        className="shrink-0 rounded-full uppercase"
-                        style={{
-                          padding: '4px 8px',
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          letterSpacing: '0.06em',
-                          color: statusBadgeColor(entry),
-                          boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                        }}
-                      >
-                        {label}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-    </>
+    </div>
   )
 
-  const goToDay = (
-    <Link
-      href={`/?date=${dateStr}`}
-      className="flex w-full shrink-0 sm:max-w-[360px] sm:mx-auto items-center justify-center gap-2 rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
-      style={{
-        marginTop: 16,
-        padding: '14px 26px',
-        fontFamily: 'var(--font-sans)',
-        fontSize: 16,
-        fontWeight: 500,
-        boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-      }}
-    >
-      <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
-      {t('calendar.goToDay')}
-    </Link>
-  )
 
-  if (fitViewport) {
-    return (
-      <section
-        aria-label={formattedDate}
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ padding: '12px 20px 12px' }}
-      >
-        {recurringToggle}
-        <div className="relative min-h-0 flex-1">
-          <div
-            className="h-full overflow-y-auto overscroll-contain"
-            style={{ paddingBottom: 8 }}
-          >
-            {body}
-          </div>
-        </div>
-        {goToDay}
-      </section>
-    )
-  }
 
   return (
-    <section aria-label={formattedDate} style={{ padding: '12px 20px 12px' }}>
-      {recurringToggle}
+    <section
+      aria-label={formattedDate}
+      aria-busy={loadingLabel ? true : undefined}
+      data-field-surface="card"
+      className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
+      style={{ padding: PADDING.cardInset }}
+    >
       {body}
-      {goToDay}
+      {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>
+        <PersonalText expanded className="text-base text-[var(--fg-1)]">{expandedTitle}</PersonalText>
+      </Sheet> : null}
     </section>
   )
 }

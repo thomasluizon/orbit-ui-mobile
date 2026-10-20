@@ -1,16 +1,21 @@
 'use client'
 
-import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { SPACING } from '@orbit/shared/theme'
 
-import { useEffect, useRef, useState } from 'react'
+
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { useTranslations } from 'next-intl'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { FieldInput } from '@/components/ui/field-input'
+import { Input } from '@/components/ui/input'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { ActionRow } from '@/components/ui/action-row'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useProfile } from '@/hooks/use-profile'
 import { updateName } from '@/lib/actions/profile'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface EditNameSheetProps {
   open: boolean
@@ -21,28 +26,27 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
   const t = useTranslations()
   const { profile, patchProfile, invalidate } = useProfile()
 
-  const [name, setName] = useState(() => profile?.name ?? '')
-  const [error, setError] = useState('')
-  const previousOpen = useRef(open)
-  useEffect(() => {
-    const wasOpen = previousOpen.current
-    previousOpen.current = open
-    if (!open || wasOpen) return
-    void Promise.resolve().then(() => {
+  const { sheetRef, closeSheet } = useSheetHost()
+  const [name, setName] = useAccountScopedState(() => profile?.name ?? '')
+  const [error, setError] = useAccountScopedState('')
+  const [prevOpen, setPrevOpen] = useAccountScopedState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
       setName(profile?.name ?? '')
       setError('')
-    })
-  }, [open, profile?.name])
+    }
+  }
 
   const mutation = useAccountScopedMutation<void, Error, string, { previous: string | undefined }>({
-    mutationFn: (nextName) => updateName({ name: nextName }),
+    mutationFn: (nextName, intendedAccountId) => updateName({ name: nextName }, intendedAccountId),
     onMutate: (nextName) => {
       const previous = profile?.name
       patchProfile({ name: nextName })
       return { previous }
     },
     onSuccess: () => {
-      onOpenChange(false)
+      closeSheet()
     },
     onError: (err, _nextName, context) => {
       if (context?.previous !== undefined) {
@@ -74,50 +78,46 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
   }
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={() => onOpenChange(false)}
       title={t('profile.editName.title')}
+      actions={(
+        <ActionRow>
+          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton size="sm" onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
+            {t('common.save')}
+          </PillButton>
+        </ActionRow>
+      )}
     >
       <div className="flex flex-col" style={{ gap: 16 }}>
-        <FieldInput
+        <Input
           label={t('profile.editName.label')}
           value={name}
           onChange={handleNameChange}
-          placeholder={t('profile.editName.placeholder')}
           autoComplete="name"
           autoFocus
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') handleSave()
-          }}
+          onSubmit={handleSave}
         />
+        {profile?.email ? <PersonalText expanded translate="no" className="text-sm text-[var(--fg-2)]">{profile.email}</PersonalText> : null}
         {error && (
           <p
             role="alert"
             style={{
-              margin: 0,
+              margin: SPACING.s0,
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
+              fontSize: 14,
               color: 'var(--status-bad-text)',
             }}
           >
             {error}
           </p>
         )}
-        <div
-          className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
-          style={{ gap: 12, paddingTop: 8 }}
-        >
-          <PillButton
-            fullWidth
-            onClick={handleSave}
-            disabled={mutation.isPending}
-            busy={mutation.isPending}
-          >
-            {t('common.save')}
-          </PillButton>
-        </div>
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

@@ -1,3 +1,8 @@
+/**
+ * Deadline after which the home-screen widget refresh spinner is force-cleared even if the
+ * native `onDataSetChanged` callback never fires, bounding the ColorOS binder fetch hang.
+ * Mirrored as `WIDGET_REFRESH_TIMEOUT_MS` in OrbitWidgetProvider.kt.
+ */
 export const WIDGET_REFRESH_TIMEOUT_MS = 12_000
 
 /**

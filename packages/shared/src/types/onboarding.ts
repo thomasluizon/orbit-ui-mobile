@@ -9,6 +9,11 @@ export const applyOnboardingFirstLogSchema = z.object({
 
 export type ApplyOnboardingFirstLog = z.infer<typeof applyOnboardingFirstLogSchema>
 
+/**
+ * Deliberately narrower than `createHabitRequestSchema`: the apply endpoint does not accept
+ * tagIds, subHabits, goalIds, scheduledReminders, slipAlertEnabled, dueEndTime, or endDate,
+ * so the contract omits them rather than advertising fields the server would silently drop.
+ */
 export const applyOnboardingHabitSchema = createHabitRequestSchema.pick({
   title: true,
   description: true,

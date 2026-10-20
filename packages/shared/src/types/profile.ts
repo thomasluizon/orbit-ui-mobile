@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { calendarAutoSyncStatusSchema } from './calendar'
 
+export type ColorScheme = 'purple' | 'blue' | 'green' | 'rose' | 'orange' | 'cyan'
+
 export const planTypeSchema = z.enum(['free', 'pro'])
 
 export type PlanType = z.infer<typeof planTypeSchema>
@@ -12,6 +14,31 @@ export type SubscriptionInterval = z.infer<typeof subscriptionIntervalSchema>
 export const subscriptionSourceSchema = z.enum(['stripe', 'play'])
 
 export type SubscriptionSource = z.infer<typeof subscriptionSourceSchema>
+
+export const subscriptionLapseReasonSchema = z.enum([
+  'canceled',
+  'payment_failed',
+  'expired',
+])
+
+export type SubscriptionLapseReason = z.infer<typeof subscriptionLapseReasonSchema>
+
+export const subscriptionStatusSchema = z.object({
+  plan: planTypeSchema,
+  hasProAccess: z.boolean(),
+  isTrialActive: z.boolean(),
+  trialEndsAt: z.string().nullable(),
+  planExpiresAt: z.string().nullable(),
+  aiMessagesUsed: z.number(),
+  aiMessagesLimit: z.number(),
+  isLifetimePro: z.boolean(),
+  subscriptionInterval: subscriptionIntervalSchema.nullable(),
+  source: subscriptionSourceSchema.nullable(),
+  lapseReason: subscriptionLapseReasonSchema.nullable().optional(),
+  subscriptionEndedAtUtc: z.string().nullable().optional(),
+})
+
+export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>
 
 export const supportedLocaleSchema = z.enum(['en', 'pt-BR'])
 
@@ -69,6 +96,10 @@ export const profileSchema = z.object({
   }).optional(),
   proactiveAstraEnabled: z.boolean().optional(),
   marketingEmailConsent: z.boolean().nullable().optional(),
+  lapseReason: subscriptionLapseReasonSchema.nullable().optional(),
+  subscriptionEndedAt: z.string().nullable().optional(),
+  lastCompletionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  activeApiKeyCount: z.number().int().nonnegative().nullable().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>
@@ -114,6 +145,12 @@ export const setWeekStartDayRequestSchema = z.object({
 })
 
 export type SetWeekStartDayRequest = z.infer<typeof setWeekStartDayRequestSchema>
+
+export const setClockFormatRequestSchema = z.object({
+  uses24HourClock: z.boolean(),
+})
+
+export type SetClockFormatRequest = z.infer<typeof setClockFormatRequestSchema>
 
 export const setThemePreferenceRequestSchema = z.object({
   themePreference: z.string().nullable(),

@@ -1,7 +1,25 @@
 import { describe, it, expect } from 'vitest'
+import { createTranslator } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { plural } from '@/lib/plural'
 
 describe('plural', () => {
+  it.each([
+    { locale: 'en', messages: en, one: '1 step', other: '2 steps', diff: 'Date: from Not set to Monday', more: 'and 30 more' },
+    { locale: 'pt-BR', messages: ptBR, one: '1 etapa', other: '2 etapas', diff: 'Data: de Não definido para segunda-feira', more: 'e mais 30' },
+  ] as const)('renders preview and trace copy in $locale', ({ locale, messages, one, other, diff, more }) => {
+    const t = createTranslator({ locale, messages })
+    expect(t('chat.trace.steps', { count: 1 })).toBe(one)
+    expect(t('chat.trace.steps', { count: 2 })).toBe(other)
+    expect(t('chat.preview.diff', {
+      field: locale === 'en' ? 'Date' : 'Data',
+      old: locale === 'en' ? 'Not set' : 'Não definido',
+      new: locale === 'en' ? 'Monday' : 'segunda-feira',
+    })).toBe(diff)
+    expect(t('chat.preview.more', { count: 30 })).toBe(more)
+  })
+
   describe('two-form strings (singular | plural)', () => {
     it('returns singular when count is 1', () => {
       expect(plural('day | days', 1)).toBe('day')
@@ -61,5 +79,27 @@ describe('plural', () => {
     it('handles strings with more than 3 pipe-separated forms', () => {
       expect(plural('a | b | c | d', 1)).toBe('a | b | c | d')
     })
+  })
+
+  it.each([
+    { locale: 'en', messages: en, count: 0, expected: 'Streak progress is calculated automatically, so it cannot be edited here.' },
+    { locale: 'en', messages: en, count: 1, expected: 'It comes from the current streak of the linked habit, so it cannot be edited here.' },
+    { locale: 'en', messages: en, count: 3, expected: 'It comes from the smallest current streak among the 3 linked habits, so it cannot be edited here.' },
+    { locale: 'pt-BR', messages: ptBR, count: 0, expected: 'O progresso da sequência é calculado automaticamente, então não pode ser editado aqui.' },
+    { locale: 'pt-BR', messages: ptBR, count: 1, expected: 'Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui.' },
+    { locale: 'pt-BR', messages: ptBR, count: 3, expected: 'Vem da menor sequência atual entre os 3 hábitos ligados a esta meta, então não pode ser editado aqui.' },
+  ] as const)('renders derived streak copy in $locale at count $count', ({ locale, messages, count, expected }) => {
+    const t = createTranslator({ locale, messages })
+
+    expect(plural(t('goals.detail.derivedStreak', { count }), count)).toBe(expected)
+  })
+
+  it.each([
+    { locale: 'en', messages: en, expected: "Created 'Corrida'" },
+    { locale: 'pt-BR', messages: ptBR, expected: "'Corrida' criado" },
+  ] as const)('renders a quoted name in $locale through next-intl', ({ locale, messages, expected }) => {
+    const t = createTranslator({ locale, messages })
+
+    expect(t('habits.clarification.successCreated', { name: 'Corrida' })).toBe(expected)
   })
 })

@@ -1,15 +1,26 @@
 'use client'
 
-import { Plus, Sparkles } from 'lucide-react'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
+import { ActionRow } from '@/components/ui/action-row'
+
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useTranslations } from 'next-intl'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-frequency-filter'
+import type { HabitFrequencyFilter } from '@orbit/shared/stores'
+import { useUIStore } from '@/stores/ui-store'
 
 const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
-  fontSize: 13,
+  fontSize: 14,
   fontWeight: 500,
-  padding: '12px 16px',
-  margin: '-6px 0',
+  minHeight: TOUCH_TARGET_MIN,
+  minWidth: TOUCH_TARGET_MIN,
+  padding: "var(--orbit-space-12) var(--orbit-space-16)",
+  margin: "calc(-1 * var(--orbit-space-4)) var(--orbit-space-0)",
   textDecoration: 'underline',
   textUnderlineOffset: 4,
   textDecorationThickness: 1,
@@ -21,40 +32,40 @@ interface HabitListEmptyStateProps {
   description: string
   actionLabel?: string
   onAction?: () => void
+  createRefusal?: boolean
   askAstraLabel?: string
   onAskAstra?: () => void
   variant?: 'primary' | 'secondary'
 }
 
-/** InicioEmpty kit state — 104px satellite glyph, 22/500 title, 15 fg-2 body,
- *  then a stacked full-width Astra pill + ghost create pill. Description
- *  renders only when it's a distinct sentence from the title (avoids the
- *  legacy "title and description share the same key" double-render). */
+
 export function HabitListEmptyState({
   title,
   description,
   actionLabel,
   onAction,
+  createRefusal,
   askAstraLabel,
   onAskAstra,
   variant = 'primary',
 }: Readonly<HabitListEmptyStateProps>) {
+  const t = useTranslations()
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription =
     Boolean(description) && description !== title
   const showAstraAction = isAstraPrompt && Boolean(askAstraLabel) && Boolean(onAskAstra)
-  const showStackedActions = showAstraAction || (isAstraPrompt && Boolean(actionLabel))
+  const showActions = showAstraAction || (isAstraPrompt && Boolean(actionLabel))
 
   return (
     <div
       className="flex flex-col items-center justify-center text-center"
-      style={{ padding: '64px 36px', gap: 16 }}
+      style={{ padding: "var(--orbit-space-64) var(--orbit-space-32)", gap: 16 }}
     >
-      <SatelliteGlyph size={104} />
+      <OrbitMark size={96} />
       <div
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: 500,
           color: 'var(--fg-1)',
           textWrap: 'balance',
@@ -66,7 +77,7 @@ export function HabitListEmptyState({
         <div
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 15,
+            fontSize: 16,
             color: 'var(--fg-2)',
             maxWidth: 300,
             lineHeight: 1.5,
@@ -76,89 +87,92 @@ export function HabitListEmptyState({
           {description}
         </div>
       )}
-      {showStackedActions ? (
+      {showActions ? (
         <div
-          className="flex flex-col items-center"
-          style={{ marginTop: 8, gap: 12 }}
-        >
-          {showAstraAction && (
-            <PillButton
-              className="min-w-[240px]"
-              onClick={onAskAstra}
-              leading={<Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
-            >
-              {askAstraLabel}
-            </PillButton>
-          )}
+          className="flex w-full max-w-[300px] flex-col items-stretch"
+          style={{ marginTop: SPACING.s8, gap: 12 }}
+        ><ActionRow align="center">
           {actionLabel && (
             <PillButton
               variant="ghost"
-              className="min-w-[240px]"
+
               onClick={onAction}
-              leading={<Plus size={18} strokeWidth={1.8} aria-hidden="true" />}
+
             >
               {actionLabel}
             </PillButton>
           )}
-        </div>
+          {showAstraAction && askAstraLabel && (
+            <PillButton
+
+              onClick={onAskAstra}
+
+            >
+              {askAstraLabel}
+            </PillButton>
+          )}
+        </ActionRow></div>
       ) : (
         actionLabel && (
           <button
             type="button"
             onClick={onAction}
-            className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+            className="touch-target inline-flex items-center justify-center rounded-full overflow-hidden whitespace-nowrap appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
             style={SECONDARY_ACTION_STYLE}
           >
             {actionLabel}
           </button>
         )
       )}
+      <div aria-live="polite" aria-atomic="true" className="w-full max-w-[300px]">
+        {createRefusal ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
+      </div>
     </div>
   )
 }
 
-const SKELETON_BONE = 'color-mix(in srgb, var(--fg-1) 8%, transparent)'
+export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
+  const t = useTranslations()
+  return (
+    <div className="flex flex-col items-start" style={{ gap: 8, paddingBlock: SPACING.s8 }}>
+      <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>
+        {t('habits.allDoneToday')}
+      </p>
+      <p style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)', textWrap: 'pretty' }}>
+        {t('habits.allDoneHint')}
+      </p>
+      {onSeeUpcoming ? (
+        <PillButton variant="ghost" size="sm" onClick={onSeeUpcoming}>
+          {t('habits.seeUpcoming')}
+        </PillButton>
+      ) : null}
+    </div>
+  )
+}
+
+export function HabitListNothingOpen() {
+  const t = useTranslations()
+  return <p style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--fg-3)', textWrap: 'pretty' }}>{t('habits.nothingOpen')}</p>
+}
+
+export function HabitListFrequencyEmptyState({ frequencyUnit }: Readonly<{ frequencyUnit: HabitFrequencyFilter }>) {
+  const t = useTranslations()
+  const option = HABIT_FREQUENCY_FILTER_OPTIONS.find(({ value }) => value === frequencyUnit)!
+  return <HabitListEmptyState
+    title={t(option.labelKey)} description={t('habits.nothingOpen')}
+    actionLabel={t('common.all')}
+    onAction={() => useUIStore.getState().setFilters({ frequencyUnit: undefined })}
+  />
+}
 
 export function HabitListSkeleton() {
+  const t = useTranslations()
+
   return (
-    <div>
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="flex items-center animate-pulse"
-          style={{
-            padding: '14px 16px',
-            gap: 14,
-            borderRadius: 18,
-            background: 'var(--bg-card)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-            margin: '0 20px 10px',
-          }}
-        >
-          <div
-            className="shrink-0"
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 14,
-              background: SKELETON_BONE,
-            }}
-          />
-          <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
-            <div
-              style={{ width: '55%', height: 12, borderRadius: 6, background: SKELETON_BONE }}
-            />
-            <div
-              style={{ width: '32%', height: 12, borderRadius: 6, background: SKELETON_BONE }}
-            />
-          </div>
-          <div
-            className="rounded-full shrink-0"
-            style={{ width: 30, height: 30, background: SKELETON_BONE }}
-          />
-        </div>
+    <div className="flex flex-col gap-3 px-4" aria-busy="true">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Skeleton key={i} variant="habit-row" label={t('common.loading')} />
       ))}
     </div>
   )
 }
-

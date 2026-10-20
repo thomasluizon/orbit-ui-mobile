@@ -1,3 +1,4 @@
+import type { HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   gamificationKeys,
@@ -8,7 +9,7 @@ import {
   tagKeys,
   updateCachedHabitLists,
 } from '@orbit/shared/query'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { findHabitInList, formatAPIDate, optimisticPatchHabit } from '@orbit/shared/utils'
 import type {
   CreateHabitRequest,
   CreateSubHabitRequest,
@@ -27,17 +28,40 @@ interface CachedTag {
   color: string
 }
 
-export function snapshotHabitLists(queryClient: QueryClient) {
+export function snapshotHabitLists(queryClient: QueryClient): HabitListSnapshots {
   return queryClient.getQueriesData<HabitScheduleItem[]>({
     queryKey: habitKeys.lists(),
-  })
+  }).filter((entry): entry is [HabitListKey, HabitScheduleItem[] | undefined] => entry[0][0] === 'habits' && entry[0][1] === 'list')
 }
 
 export function restoreHabitLists(
   queryClient: QueryClient,
-  snapshots: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[],
+  snapshots: HabitListSnapshots,
 ): void {
   restoreCachedHabitLists(queryClient, snapshots)
+}
+
+export function restoreHabitCompletionForIds(
+  queryClient: QueryClient,
+  snapshots: HabitListSnapshots,
+  habitIds: ReadonlySet<string>,
+): void {
+  for (const [key, snapshot] of snapshots) {
+    if (!snapshot) continue
+    queryClient.setQueryData<HabitScheduleItem[]>(key, (current) => {
+      if (!current) return current
+      let restored = current
+      for (const habitId of habitIds) {
+        const previousHabit = findHabitInList(snapshot, habitId)
+        if (previousHabit) {
+          restored = optimisticPatchHabit(restored, habitId, {
+            isCompleted: previousHabit.isCompleted,
+          })
+        }
+      }
+      return restored
+    })
+  }
 }
 
 export function updateHabitLists(
@@ -46,6 +70,8 @@ export function updateHabitLists(
 ): void {
   updateCachedHabitLists(queryClient, updater)
 }
+
+export { updateHabitListsForDate } from '@orbit/shared/query'
 
 export function adjustHabitCount(queryClient: QueryClient, delta: number): void {
   queryClient.setQueryData<number>(habitKeys.count(), (old) => {
@@ -62,6 +88,7 @@ function cloneChildHabit(node: HabitTreeNode): HabitScheduleChild {
 
   return {
     id: node.id,
+    createdAtUtc: node.createdAtUtc,
     title: node.title,
     description: node.description,
     frequencyUnit: node.frequencyUnit,
@@ -108,7 +135,7 @@ function cloneTopLevelHabit(node: HabitTreeNode): HabitScheduleItem {
     endDate: node.endDate,
     position: node.position,
     checklistItems: node.checklistItems,
-    createdAtUtc: 'createdAtUtc' in node ? node.createdAtUtc : new Date().toISOString(),
+    createdAtUtc: node.createdAtUtc ?? new Date().toISOString(),
     scheduledDates: ('scheduledDates' in node ? node.scheduledDates : []) ?? [],
     isOverdue: ('isOverdue' in node ? node.isOverdue : false) ?? false,
     reminderEnabled: 'reminderEnabled' in node ? node.reminderEnabled : false,
@@ -664,11 +691,14 @@ export function invalidateHabitMutationQueries(
      * bucket. Parity with `apps/web/hooks/use-habits.ts`.
      */
     queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
+    queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() }),
+    queryClient.invalidateQueries({ queryKey: gamificationKeys.recapPrefix() }),
   ]
 
   if (options?.includeLists !== false) {
     invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.lists() }))
   }
+  invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.searches() }))
 
   if (options?.includeCount !== false) {
     invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.count() }))
@@ -698,6 +728,12 @@ export function invalidateHabitMutationQueries(
   runBackgroundInvalidations(invalidations)
 }
 
+export function discardCachedHabitSearches(queryClient: QueryClient): void {
+  const filters = { queryKey: habitKeys.searches() }
+  for (const query of queryClient.getQueryCache().findAll(filters)) query.reset()
+  queryClient.removeQueries(filters)
+}
+
 export function finalizeHabitMutation(
   queryClient: QueryClient,
   data: unknown,
@@ -705,6 +741,11 @@ export function finalizeHabitMutation(
   options?: HabitInvalidationOptions,
 ): void {
   if (isQueuedResult(data)) {
+    discardCachedHabitSearches(queryClient)
+    void queryClient.invalidateQueries({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
     return
   }
 

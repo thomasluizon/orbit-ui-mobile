@@ -20,6 +20,7 @@ export interface CalendarSyncStepInput {
   isQueryLoading: boolean
   isQueryError: boolean
   eventsStatus: string | undefined
+  hasLoadedEvents: boolean
 }
 
 /** Resolves the wizard step from the current stage, connectivity, and query state. */
@@ -27,7 +28,7 @@ export function resolveCalendarSyncStep(input: CalendarSyncStepInput): Step {
   if (input.wizardStage === 'importing') return 'importing'
   if (input.wizardStage === 'done') return 'done'
   if (input.wizardStage === 'error') return 'error'
-  if (!input.isOnline) return 'offline'
+  if (!input.isOnline) return input.hasLoadedEvents ? 'select' : 'offline'
   if (input.isQueryLoading) return 'loading'
   if (input.isQueryError) return 'error'
   if (!input.isReviewMode && input.eventsStatus === 'not-connected') {
@@ -51,25 +52,4 @@ export function resolveDisplayedErrorMessage(input: DisplayedErrorMessageInput):
     return getFriendlyErrorMessage(input.queryError, input.translate, 'calendar.fetchError', 'textless')
   }
   return ''
-}
-
-/**
- * Resolves the next selected-event set when the incoming events change: in
- * review mode (after the first load) keep the still-present prior selections,
- * otherwise select every incoming event.
- */
-export function resolveSyncedSelection(
-  previousSelection: ReadonlySet<string>,
-  incomingEvents: readonly { id: string }[],
-  isReviewMode: boolean,
-  previousEventsKey: string | null,
-): Set<string> {
-  if (isReviewMode && previousEventsKey !== null) {
-    const next = new Set<string>()
-    for (const event of incomingEvents) {
-      if (previousSelection.has(event.id)) next.add(event.id)
-    }
-    return next
-  }
-  return new Set(incomingEvents.map((event) => event.id))
 }

@@ -1,12 +1,12 @@
+import { ListRow } from '@/components/ui/list-row'
 import { useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
-import { ShieldAlert } from "lucide-react-native";
+import { View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { ProBadge } from "@/components/ui/pro-badge";
-import { Switch } from "@/components/ui/settings-row";
+import { Badge } from '@/components/ui/badge'
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface SlipAlertSectionProps {
+  inline?: boolean
   tokens: AppTokens;
   hasProAccess: boolean;
   slipAlertEnabled: boolean;
@@ -16,6 +16,7 @@ interface SlipAlertSectionProps {
 
 export function SlipAlertSection({
   tokens,
+  inline = false,
   hasProAccess,
   slipAlertEnabled,
   onToggle,
@@ -25,54 +26,12 @@ export function SlipAlertSection({
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
 
   return (
-    <View style={sectionStyles.container}>
-      {hasProAccess ? (
-        <View style={sectionStyles.headerRow}>
-          <View style={{ flex: 1, gap: 4 }}>
-            <View style={sectionStyles.headerLeft}>
-              <ShieldAlert size={20} color={tokens.fg2} strokeWidth={1.8} />
-              <Text style={sectionStyles.headerLabel}>
-                {t("habits.form.slipAlert")}
-              </Text>
-            </View>
-            <Text style={sectionStyles.slipDescription}>
-              {t("habits.form.slipAlertDescription")}
-            </Text>
-          </View>
-          <Switch
-            on={slipAlertEnabled}
-            onToggle={onToggle}
-            accessibilityLabel={t("habits.form.slipAlert")}
-          />
-        </View>
-      ) : (
-        <Pressable
-          style={({ pressed }) => [
-            sectionStyles.headerRow,
-            pressed && { transform: [{ scale: 0.98 }] },
-          ]}
-          onPress={onUpgrade}
-          accessibilityRole="button"
-        >
-          <View style={{ flex: 1, gap: 4 }}>
-            <View style={sectionStyles.headerLeft}>
-              <ShieldAlert size={20} color={tokens.fg3} strokeWidth={1.8} />
-              <Text
-                style={[sectionStyles.headerLabel, { color: tokens.fg3 }]}
-              >
-                {t("habits.form.slipAlert")}
-              </Text>
-              <ProBadge alwaysVisible />
-            </View>
-            <Text style={sectionStyles.slipDescription}>
-              {t("habits.form.slipAlertDescription")}
-            </Text>
-          </View>
-          <View style={sectionStyles.disabledSwitch}>
-            <View style={sectionStyles.disabledThumb} />
-          </View>
-        </Pressable>
-      )}
+    <View style={inline ? { gap: 12 } : sectionStyles.container}>
+      {/* eslint-disable-next-line local/max-button-words -- Orbit Habit Create draws the slip-alert boundary label. */}
+      <ListRow textMode="label" placement={inline ? "column" : undefined} icon="shield-alert" title={t('habits.form.slipAlert')} description={t('habits.form.slipAlertDescription')}
+        toggle={hasProAccess ? { checked: slipAlertEnabled, onChange: onToggle } : undefined}
+        trailing={!hasProAccess ? <Badge>{t('common.proBadge')}</Badge> : undefined} chevron={!hasProAccess}
+        onClick={!hasProAccess ? onUpgrade : undefined} />
     </View>
   );
 }

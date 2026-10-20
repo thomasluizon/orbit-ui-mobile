@@ -1,0 +1,146 @@
+import { act, render, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
+import { describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import PrivacyPage from '@/app/(public)/privacy/page'
+import TermsPage from '@/app/(public)/terms/page'
+import PublicLayout from '@/app/(public)/layout'
+import { useAppToastStore } from '@/stores/app-toast-store'
+
+const navigation = vi.hoisted(() => ({ pathname: '/privacy' }))
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => navigation.pathname,
+}))
+
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (select: (state: { isAuthenticated: boolean }) => boolean) =>
+    select({ isAuthenticated: false }),
+}))
+
+const cases = [
+  {
+    Page: PrivacyPage,
+    key: 'privacy',
+    titles: { en: ['Privacy', 'Privacy policy', 'Close privacy policy'], 'pt-BR': ['Privacidade', 'Política de privacidade', 'Fechar política de privacidade'] },
+    sectionKeys: [
+      'intro',
+      'controller',
+      'dataCollected',
+      'howWeUse',
+      'thirdParty',
+      'cookies',
+      'retention',
+      'googleScopes',
+      'dataResidency',
+      'automatedProcessing',
+      'minors',
+      'export',
+      'noSell',
+      'security',
+      'deletion',
+    ],
+  },
+  {
+    Page: TermsPage,
+    key: 'terms',
+    titles: { en: ['Terms', 'Terms of use', 'Close terms of use'], 'pt-BR': ['Termos', 'Termos de uso', 'Fechar termos de uso'] },
+    sectionKeys: [
+      'intro',
+      'provider',
+      'eligibility',
+      'license',
+      'subscription',
+      'ai',
+      'noMedicalAdvice',
+      'warranty',
+      'liability',
+      'termination',
+      'governingLaw',
+      'changes',
+    ],
+  },
+] as const
+
+type DocumentMessages = {
+  title: string
+  lastUpdated: string
+  contact: { title: string; body: string }
+  [sectionKey: string]: string | { title: string; body?: string }
+}
+
+describe.each([
+  { locale: 'en', messages: en },
+  { locale: 'pt-BR', messages: ptBR },
+])('legal document layout in $locale', ({ locale, messages }) => {
+  it('shows a queued notice in the public page shell', async () => {
+    navigation.pathname = '/privacy'
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    const { container } = render(
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <PublicLayout><PrivacyPage /></PublicLayout>
+      </NextIntlClientProvider>,
+    )
+
+    act(() => { useAppToastStore.getState().showError('Unable to save') })
+    await screen.findByText('Unable to save')
+    expect(container.querySelector('[data-toast-page-host] [data-kind="neutral"]'))
+      .toHaveTextContent('Unable to save')
+  })
+
+  it.each(cases)('renders $key through the shared measured layout', ({ Page, key, sectionKeys, titles }) => {
+    navigation.pathname = `/${key}`
+    const document = messages[key] as DocumentMessages
+    const { container } = render(
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <PublicLayout>
+          <Page />
+        </PublicLayout>
+      </NextIntlClientProvider>,
+    )
+
+    const layout = container.querySelector('[data-legal-document]')
+    const sections = container.querySelector('[data-legal-document-sections]')
+    const closingNote = container.querySelector('[data-legal-document-closing]')
+
+    expect(layout).toHaveAttribute('data-measure', '62ch')
+    expect(layout).toHaveAttribute('data-reflow', 'wrap')
+    expect(container.querySelector('[data-shell="flow"]')).toHaveAttribute(
+      'data-flow-mode',
+      'document',
+    )
+    expect(container.querySelectorAll('main')).toHaveLength(1)
+    expect(layout).toHaveClass('min-w-0')
+    expect(layout!.querySelector('[data-legal-document-content]')).toHaveClass('min-w-0', 'px-4')
+    const [headerTitle, documentTitle, backLabel] = titles[locale as keyof typeof titles]
+    expect(screen.getByRole('button', { name: backLabel })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(headerTitle)
+    expect(layout!.querySelector('[data-legal-document-content] header')!.firstElementChild)
+      .toHaveTextContent(documentTitle)
+    expect(screen.getAllByText(documentTitle, { exact: true })).toHaveLength(1)
+    expect(document.title).toBe(messages.about[key])
+    expect(layout).toHaveTextContent(document.lastUpdated)
+    expect(closingNote).toHaveTextContent(document.contact.title)
+    expect(closingNote).toHaveTextContent(document.contact.body)
+    expect(closingNote!.querySelector('p')).toHaveClass('text-base', 'text-[var(--fg-1)]')
+
+    const renderedSectionTitles = Array.from(sections!.querySelectorAll('h2')).map(
+      (heading) => heading.textContent,
+    )
+    expect(renderedSectionTitles).toEqual(
+      sectionKeys.map((sectionKey) => {
+        const section = document[sectionKey]
+        if (typeof section === 'string' || section === undefined) {
+          throw new Error(`${sectionKey} is not a section`)
+        }
+        return section.title
+      }),
+    )
+    expect(layout!.querySelectorAll('[class*="overflow-wrap:anywhere"]')).not.toHaveLength(0)
+  })
+})

@@ -7,12 +7,10 @@ export const AndroidImportance = {
 
 export const setNotificationHandler = vi.fn()
 export const setNotificationChannelAsync = vi.fn(
-  (_channelId: string, _options: Record<string, unknown>) => Promise.resolve(),
+  async (_channelId: string, _options: Record<string, unknown>) => {},
 )
-export const scheduleNotificationAsync = vi.fn(
-  (_request: unknown) => Promise.resolve('orbit-persistent-reminder'),
-)
-export const dismissNotificationAsync = vi.fn((_identifier: string) => Promise.resolve())
+export const dismissNotificationAsync = vi.fn(async (_identifier: string) => {})
+export const deleteNotificationChannelAsync = vi.fn(async (_channelId: string) => {})
 export const getPermissionsAsync = vi.fn(() => Promise.resolve({
   status: 'undetermined',
   granted: false,
@@ -25,6 +23,9 @@ export const requestPermissionsAsync = vi.fn(() => Promise.resolve({
 }))
 export const getExpoPushTokenAsync = vi.fn(() => Promise.resolve({ data: 'expo-token' }))
 export const getDevicePushTokenAsync = vi.fn(() => Promise.resolve({ type: 'fcm', data: 'native-token' }))
+export const unregisterForNotificationsAsync = vi.fn(async () => {})
+export const getLastNotificationResponse = vi.fn(() => null)
+export const clearLastNotificationResponse = vi.fn()
 export const addNotificationResponseReceivedListener = vi.fn(() => ({
   remove: vi.fn(),
 }))
@@ -36,10 +37,10 @@ export function resetExpoNotificationsMocks(): void {
   setNotificationHandler.mockClear()
   setNotificationChannelAsync.mockReset()
   setNotificationChannelAsync.mockResolvedValue(undefined)
-  scheduleNotificationAsync.mockReset()
-  scheduleNotificationAsync.mockResolvedValue('orbit-persistent-reminder')
   dismissNotificationAsync.mockReset()
   dismissNotificationAsync.mockResolvedValue(undefined)
+  deleteNotificationChannelAsync.mockReset()
+  deleteNotificationChannelAsync.mockResolvedValue(undefined)
   getPermissionsAsync.mockReset()
   getPermissionsAsync.mockResolvedValue({
     status: 'undetermined',
@@ -56,6 +57,11 @@ export function resetExpoNotificationsMocks(): void {
   getExpoPushTokenAsync.mockResolvedValue({ data: 'expo-token' })
   getDevicePushTokenAsync.mockReset()
   getDevicePushTokenAsync.mockResolvedValue({ type: 'fcm', data: 'native-token' })
+  unregisterForNotificationsAsync.mockReset()
+  unregisterForNotificationsAsync.mockResolvedValue(undefined)
+  getLastNotificationResponse.mockReset()
+  getLastNotificationResponse.mockReturnValue(null)
+  clearLastNotificationResponse.mockReset()
   addNotificationResponseReceivedListener.mockReset()
   addNotificationResponseReceivedListener.mockImplementation(() => ({
     remove: vi.fn(),
@@ -70,12 +76,15 @@ const expoNotificationsMock = {
   AndroidImportance,
   setNotificationHandler,
   setNotificationChannelAsync,
-  scheduleNotificationAsync,
   dismissNotificationAsync,
+  deleteNotificationChannelAsync,
   getPermissionsAsync,
   requestPermissionsAsync,
   getExpoPushTokenAsync,
   getDevicePushTokenAsync,
+  unregisterForNotificationsAsync,
+  getLastNotificationResponse,
+  clearLastNotificationResponse,
   addNotificationResponseReceivedListener,
   addNotificationReceivedListener,
 }

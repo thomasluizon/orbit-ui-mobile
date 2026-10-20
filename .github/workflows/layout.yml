@@ -1,0 +1,119 @@
+name: Layout Guard
+
+on:
+  pull_request:
+    branches: [main, redesign/main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/shared/**'
+      - '.github/workflows/layout.yml'
+      - 'tools/check-hermetic-web-build.mjs'
+      - 'tools/__tests__/check-hermetic-web-build.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: layout-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build hermetic layout app
+    runs-on: ubuntu-24.04
+    env:
+      API_BASE: http://127.0.0.1:5099
+      NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Cache Next compiler
+        uses: actions/cache@v6
+        with:
+          path: apps/web/.next/cache
+          key: ${{ runner.os }}-next-hermetic-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-hermetic-${{ hashFiles('package-lock.json') }}-
+
+      - name: Build web
+        run: npm run build:hermetic -w apps/web
+
+      - name: Check hermetic client output
+        run: node tools/check-hermetic-web-build.mjs
+
+      - name: Pack hermetic build
+        run: tar -C apps/web --exclude='.next/cache' -czf "$RUNNER_TEMP/layout-build.tgz" .next
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: layout-build
+          path: ${{ runner.temp }}/layout-build.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  shards:
+    name: Layout shard ${{ matrix.shard }}
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      API_BASE: http://127.0.0.1:5099
+      NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --prefer-offline --no-audit --fund=false
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: layout-build
+          path: ${{ runner.temp }}
+
+      - name: Restore hermetic build
+        run: tar -C apps/web -xzf "$RUNNER_TEMP/layout-build.tgz"
+
+      - name: Install lockfile-pinned Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Check upgrade layout
+        run: npm run test:layout -w apps/web -- --shard=${{ matrix.shard }}/3
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: layout-diagnostics-${{ matrix.shard }}
+          path: apps/web/e2e/.results
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14
+
+  layout:
+    name: Upgrade layout geometry
+    if: ${{ always() }}
+    needs: [build, shards]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require the build and every shard
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          SHARD_RESULT: ${{ needs.shards.result }}
+        run: test "$BUILD_RESULT" = success && test "$SHARD_RESULT" = success

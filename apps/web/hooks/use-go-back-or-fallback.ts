@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { canGoBackInAppHistory } from '@/lib/app-navigation-history'
+import { getBackNavigation } from '@/lib/back-navigation'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 
@@ -22,21 +22,8 @@ export function useGoBackOrFallback() {
         return
       }
 
-      let hasSameOriginReferrer = false
-      const referrer = globalThis.document.referrer
-      if (referrer) {
-        try {
-          hasSameOriginReferrer =
-            new URL(referrer).origin === globalThis.location.origin
-        } catch {
-          hasSameOriginReferrer = false
-        }
-      }
-
-      if (
-        canGoBackInAppHistory() ||
-        (globalThis.history.length > 1 && hasSameOriginReferrer)
-      ) {
+      const navigation = getBackNavigation(fallbackRoute)
+      if (navigation.kind === 'history') {
         setRouteTransitionIntent('back')
         router.back()
         return
@@ -44,12 +31,12 @@ export function useGoBackOrFallback() {
 
       if (replace) {
         setRouteTransitionIntent('replace')
-        router.replace(fallbackRoute)
+        router.replace(navigation.route)
         return
       }
 
       setRouteTransitionIntent('forward')
-      router.push(fallbackRoute)
+      router.push(navigation.route)
     },
     [router],
   )

@@ -1,0 +1,45 @@
+import type { AccountDayValue, DayStripProps, HabitDayValue } from '@orbit/shared/contracts/dates'
+import { getDayStripStateWord } from '@orbit/shared/utils'
+import { Snowflake } from '@/components/ui/icons'
+
+type StripValue = AccountDayValue | HabitDayValue
+
+function cellStyle(state: StripValue) {
+  if (state === 'done' || state === 'active') return { background: 'var(--fg-1)' }
+  if (state === 'frozen') return { background: 'var(--status-frozen)' }
+  if (state === 'today') return { boxShadow: 'inset 0 0 0 2px var(--primary)' }
+  if (state === 'not-scheduled') return { background: 'var(--bg-well)' }
+  return { boxShadow: 'inset 0 0 0 1px var(--status-empty)' }
+}
+
+export function DayStrip(props: Readonly<DayStripProps>) {
+  const size = props.size ?? 20
+  const account = props.scope === 'account'
+  const count = props.length === undefined ? props.days.length : Math.max(props.length, 0)
+  const firstIndex = Math.max(props.days.length - count, 0)
+  const days = props.days.slice(firstIndex)
+  const labels = props.labels?.slice(firstIndex)
+
+  return (
+    <div role="group" aria-label={props.label} data-scope={props.scope} className={account ? 'flex items-center' : 'grid items-center'} style={{ width: '100%', minWidth: 0, justifyContent: 'space-between', gap: account ? 4 : 0, gridTemplateColumns: account ? undefined : `repeat(${days.length}, minmax(0, 1fr))` }}>
+      {days.map((state, index) => {
+        const cellLabel = labels?.[index] ?? String(firstIndex + index + 1)
+        return (
+          <span
+            key={`${cellLabel}-${index}`}
+            role="img"
+            aria-label={`${cellLabel}, ${getDayStripStateWord(props, state)}`}
+            aria-current={state === 'today' ? 'date' : undefined}
+            data-state={state}
+            className="inline-flex items-center justify-center"
+            style={{ width: account ? size : `min(100%, var(--habit-strip-cell-size, ${size}px))`, height: account ? undefined : `var(--habit-strip-cell-size, ${size}px)`, aspectRatio: account ? 1 : undefined, flexShrink: account ? 1 : undefined, minWidth: 0, borderRadius: 8, ...cellStyle(state) }}
+          >
+            {state === 'frozen' ? (
+              <Snowflake aria-hidden="true" size={16} strokeWidth={2} color="var(--bg)" />
+            ) : null}
+          </span>
+        )
+      })}
+    </div>
+  )
+}

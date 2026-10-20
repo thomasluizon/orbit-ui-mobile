@@ -1,11 +1,13 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useMemo, useState } from 'react'
 import {
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
-import { Plus, X } from 'lucide-react-native'
+import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
@@ -18,6 +20,11 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { Icon } from '@/components/ui/icon'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { ListRow } from '@/components/ui/list-row'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -26,10 +33,31 @@ interface ChecklistTemplatesProps {
   onLoad: (items: ChecklistItem[]) => void
 }
 
+interface ChecklistTemplatesEmptyStateProps {
+  canSave: boolean
+  onSave: () => void
+  styles: ReturnType<typeof createStyles>
+  translate: (key: string) => string
+}
+
+function ChecklistTemplatesEmptyState({ canSave, onSave, styles, translate }: Readonly<ChecklistTemplatesEmptyStateProps>) {
+  return (
+    <View style={styles.emptyState}>
+      <Text numberOfLines={1} style={styles.emptyTitle}>{translate('habits.form.noTemplates')}</Text>
+      <Text style={styles.emptyDescription}>{translate('habits.form.noTemplatesDescription')}</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !canSave }} disabled={!canSave} style={[styles.emptyAction, !canSave ? styles.saveButtonDisabled : null]} onPress={onSave}>
+        <Text numberOfLines={1} style={styles.emptyActionText}>{translate('habits.form.saveCurrentList')}</Text>
+      </Pressable>
+      {!canSave ? <Text style={styles.emptyReason}>{translate('habits.form.saveCurrentListDisabled')}</Text> : null}
+    </View>
+  )
+}
+
 export function ChecklistTemplates({
   items,
   onLoad,
 }: Readonly<ChecklistTemplatesProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -41,13 +69,10 @@ export function ChecklistTemplates({
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
+  const [open, setOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
-
-  const isDeletingThisTemplate = useCallback(
-    (id: string) => deleteTemplate.isPending && deleteTemplate.variables === id,
-    [deleteTemplate.isPending, deleteTemplate.variables],
-  )
 
   const handleSave = useCallback(() => {
     const name = templateName.trim()
@@ -70,8 +95,11 @@ export function ChecklistTemplates({
   const handleLoad = useCallback((id: string) => {
     const template = templates.find((entry) => entry.id === id)
     if (!template) return
-    onLoad(applyChecklistTemplate(template))
-  }, [onLoad, templates])
+    closeSheet(() => {
+      setOpen(false)
+      onLoad(applyChecklistTemplate(template))
+    })
+  }, [closeSheet, onLoad, templates])
 
   const handleDelete = useCallback((id: string) => {
     deleteTemplate.mutate(id, {
@@ -81,71 +109,30 @@ export function ChecklistTemplates({
     })
   }, [deleteTemplate, showError, t])
 
-  if (items.length === 0 && templates.length === 0 && !showSave) {
-    return null
-  }
-
   return (
-    <View style={styles.container}>
-      <View style={styles.actionsRow}>
-        {items.length > 0 && !showSave ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.saveChip,
-              pressed ? { opacity: 0.8 } : null,
-            ]}
-            onPress={() => setShowSave(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t('habits.form.saveAsTemplate')}
-            accessibilityHint={t('habits.form.templateNamePlaceholder')}
-          >
-            <Plus size={14} color={tokens.fg2} strokeWidth={2} />
-            <Text style={styles.saveChipText}>{t('habits.form.saveAsTemplate')}</Text>
-          </Pressable>
-        ) : null}
-
-        {templates.length > 0 ? (
-          <View style={styles.templatesWrap}>
-            <Text style={styles.templatesLabel}>{t('habits.form.templates')}:</Text>
-            <View style={styles.chipsRow}>
-              {templates.map((template) => (
-                <View key={template.id} style={styles.chip}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.chipLoadButton,
-                      pressed ? { opacity: 0.8 } : null,
-                    ]}
-                    onPress={() => handleLoad(template.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={template.name}
-                    accessibilityHint={t('habits.form.templates')}
-                  >
-                    <Text style={styles.chipText}>{template.name}</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityLabel={t('common.delete')}
-                    accessibilityRole="button"
-                    accessibilityHint={template.name}
-                    accessibilityState={{ disabled: isDeletingThisTemplate(template.id) }}
-                    style={({ pressed }) => [
-                      styles.chipDeleteButton,
-                      isDeletingThisTemplate(template.id) && styles.chipDeleteButtonDisabled,
-                      pressed ? { opacity: 0.8 } : null,
-                    ]}
-                    onPress={() => handleDelete(template.id)}
-                    disabled={isDeletingThisTemplate(template.id)}
-                  >
-                    <X size={13} color={tokens.fg3} strokeWidth={1.8} />
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
+    <>
+      <View style={styles.formRow}>
+        <ListRow
+          icon="template"
+          title={t('habits.form.useTemplate')}
+          compact
+          placement="column"
+          onClick={() => setOpen(true)}
+        />
       </View>
-
-      {showSave ? (
-        <View style={styles.saveRow}>
+      {open ? (
+        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
+          <View style={styles.container}>
+            {templates.length > 0 && items.length > 0 && !showSave ? (
+              <ListRow
+                icon="device-floppy"
+                title={t('habits.form.saveAsTemplate')}
+                chevron={false}
+                onClick={() => setShowSave(true)}
+              />
+            ) : null}
+            {showSave ? (
+              <View style={styles.saveRow}>
           <BottomSheetAppTextInput
             value={templateName}
             placeholder={t('habits.form.templateNamePlaceholder')}
@@ -160,7 +147,7 @@ export function ChecklistTemplates({
             style={({ pressed }) => [
               styles.saveButton,
               (!templateName.trim() || createTemplate.isPending) && styles.saveButtonDisabled,
-              pressed ? { opacity: 0.8 } : null,
+              pressed ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
             ]}
             onPress={handleSave}
             disabled={!templateName.trim() || createTemplate.isPending}
@@ -173,7 +160,7 @@ export function ChecklistTemplates({
           <Pressable
             style={({ pressed }) => [
               styles.closeButton,
-              pressed ? { opacity: 0.8 } : null,
+              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
             ]}
             onPress={() => {
               setTemplateName('')
@@ -184,82 +171,42 @@ export function ChecklistTemplates({
           >
             <X size={16} color={tokens.fg3} strokeWidth={1.8} />
           </Pressable>
-        </View>
+              </View>
+            ) : null}
+            {templates.map((template) => (
+              <View key={template.id} style={styles.templateRow}>
+                <Pressable accessibilityRole="button" accessibilityLabel={template.name} focusInset style={({ pressed }) => [styles.templateLoad, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleLoad(template.id)}>
+                  <PersonalText style={styles.templateName}>{template.name}</PersonalText>
+                </Pressable>
+                <View style={styles.templateActions}>
+                  <Icon name="template" size={20} color={tokens.fg3} />
+                  <Text style={styles.templateCount}>{t('habits.form.templateItemCount', { count: template.items.length })}</Text>
+                  <PersonalTextDetails iconOnly>{template.name}</PersonalTextDetails>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`${t('common.delete')}: ${template.name}`} focusInset style={({ pressed }) => [styles.templateDelete, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleDelete(template.id)}>
+                    <Icon name="trash" size={20} color={tokens.statusBad} />
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+            {templates.length === 0 && !showSave ? <ChecklistTemplatesEmptyState canSave={items.length > 0} onSave={() => setShowSave(true)} styles={styles} translate={t} /> : null}
+          </View>
+        </Sheet>
       ) : null}
-    </View>
+    </>
   )
 }
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
+    templateRow: { minWidth: 0, gap: 4, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s8 },
+    templateLoad: { overflow: 'hidden', minWidth: 0, minHeight: TOUCH_TARGET_MIN, width: '100%', borderRadius: 12, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, justifyContent: 'center' },
+    templateName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 },
+    templateActions: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: SPACING.s8 },
+    templateCount: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 },
+    templateDelete: { overflow: 'hidden', width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+    formRow: { paddingTop: SPACING.s8 },
     container: {
-      gap: 10,
-    },
-    actionsRow: {
-      gap: 8,
-    },
-    saveChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: 7,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
-    },
-    saveChipText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
-    },
-    templatesWrap: {
-      gap: 6,
-    },
-    templatesLabel: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      color: tokens.fg3,
-      textTransform: 'uppercase',
-      letterSpacing: 0.96,
-    },
-    chipsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-    },
-    chip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
-      overflow: 'hidden',
-    },
-    chipLoadButton: {
-      minHeight: 36,
-      justifyContent: 'center',
-      paddingLeft: 12,
-      paddingVertical: 7,
-      paddingRight: 5,
-    },
-    chipText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
-    },
-    chipDeleteButton: {
-      minHeight: 36,
-      justifyContent: 'center',
-      paddingLeft: 3,
-      paddingRight: 10,
-      paddingVertical: 7,
-    },
-    chipDeleteButtonDisabled: {
-      opacity: 0.5,
+      gap: 4,
     },
     saveRow: {
       flexDirection: 'row',
@@ -268,21 +215,22 @@ function createStyles(tokens: AppTokens) {
     },
     input: {
       flex: 1,
-      minHeight: 44,
+      minHeight: TOUCH_TARGET_MIN,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgField,
-      paddingHorizontal: 12,
+      paddingHorizontal: SPACING.s12,
       color: tokens.fg1,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
     },
     saveButton: {
-      minHeight: 44,
+      overflow: 'hidden',
+      minHeight: TOUCH_TARGET_MIN,
       borderRadius: 999,
       backgroundColor: tokens.primary,
-      paddingHorizontal: 14,
+      paddingHorizontal: SPACING.s12,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -290,15 +238,23 @@ function createStyles(tokens: AppTokens) {
       opacity: 0.4,
     },
     saveButtonText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 14,
       color: tokens.fgOnPrimary,
     },
     closeButton: {
-      width: 40,
-      height: 40,
+      borderRadius: 999,
+      overflow: 'hidden',
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       alignItems: 'center',
       justifyContent: 'center',
     },
+    emptyState: { alignItems: 'center', gap: 12, paddingVertical: SPACING.s32 },
+    emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
+    emptyDescription: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
+    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: SPACING.s16 },
+    emptyActionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
+    emptyReason: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 12, textAlign: 'center' },
   })
 }

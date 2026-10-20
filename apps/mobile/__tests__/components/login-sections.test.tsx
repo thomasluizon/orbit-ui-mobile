@@ -7,7 +7,7 @@ import {
   LoginHeader,
   ReferralBanner,
   LoginSuccessMessage,
-} from '@/app/login-sections'
+} from '@/components/auth/login-sections'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -50,7 +50,7 @@ describe('LoginHeader', () => {
       (node) => node.props.accessibilityRole === 'header',
     )
 
-    expect(heading.props.children).toBe('auth.signIn')
+    expect(heading.props.children).toBe('auth.emailTitle')
   })
 })
 

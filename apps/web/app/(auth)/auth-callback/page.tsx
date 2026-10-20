@@ -1,94 +1,16 @@
-'use client'
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { z } from 'zod'
+import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+import { AuthCallbackContent } from './auth-callback-content'
 
-import { Suspense, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
-import { getAccountGeneration, useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
-import { hydrateProfilePresentation } from '@/lib/profile-presentation'
-import type { LoginResponse } from '@orbit/shared/types/auth'
-
-function getCookieValue(name: string): string | undefined {
-  const match = new RegExp(`(?:^|; )${name}=([^;]*)`).exec(document.cookie)
-  return match?.[1] === undefined ? undefined : decodeURIComponent(match[1])
-}
-
-function AuthCallbackContent() {
-  const router = useRouter()
-  const locale = useLocale()
-  const t = useTranslations()
-  const setAuth = useAuthStore((store) => store.setAuth)
-  const processed = useRef(false)
-
-  useEffect(() => {
-    if (processed.current) return
-    processed.current = true
-    const params = new URLSearchParams(globalThis.location.search)
-    const code = params.get('code')
-    const state = params.get('state')
-    if (params.has('error') || !code || !state) {
-      const storedReturn = sessionStorage.getItem('auth_return_url')
-      const calendarReturn = storedReturn === '/calendar-sync' || storedReturn === '/calendar-sync?mode=review'
-      const cancelled = ['access_denied', 'cancel', 'dismiss'].includes(params.get('error') ?? '')
-      const destination = calendarReturn && cancelled ? storedReturn : '/login?googleError=1'
-      if (state) {
-        void fetch(`/api/auth/google/code?state=${encodeURIComponent(state)}`, { method: 'DELETE' })
-          .then(() => router.replace(destination), () => router.replace(destination))
-      } else {
-        router.replace(destination)
-      }
-      return
-    }
-
-    let ownedGeneration = getAccountGeneration()
-    async function complete() {
-      const referralCode = getCookieValue('referral_code')
-      const generation = ownedGeneration
-      await withCookieSettingLogin(async () => {
-        if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
-        const response = await fetch('/api/auth/google/code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, state, language: locale, ...(referralCode ? { referralCode } : {}) }),
-        })
-        if (!response.ok || generation !== getAccountGeneration()) throw new Error('Google sign-in failed')
-        const loginResponse = (await response.json()) as LoginResponse
-        if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
-        setAuth(loginResponse)
-        ownedGeneration = getAccountGeneration()
-      })
-      const completedGeneration = getAccountGeneration()
-      await hydrateProfilePresentation()
-      if (completedGeneration !== getAccountGeneration()) return
-      if (referralCode) {
-        localStorage.setItem('orbit_referral_applied', '1')
-        document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
-      }
-      const storedReturn = sessionStorage.getItem('auth_return_url')
-      sessionStorage.removeItem('auth_return_url')
-      const safeReturn = storedReturn?.startsWith('/') && !storedReturn.startsWith('//')
-        ? storedReturn : '/'
-      router.push(safeReturn)
-    }
-    void complete().catch(() => {
-      if (ownedGeneration === getAccountGeneration()) router.replace('/login?googleError=1')
-    })
-  }, [locale, router, setAuth])
-
-  return (
-    <div className="w-full max-w-sm">
-      <div className="flex flex-col items-center" style={{ gap: 20 }}>
-        <svg className="size-8 animate-spin text-[var(--primary)]" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.02em', color: 'var(--fg-3)', margin: 0 }}>
-          {t('auth.signingIn')}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-export default function AuthCallbackPage() {
-  return <Suspense fallback={null}><AuthCallbackContent /></Suspense>
+export default async function AuthCallbackPage() {
+  const pendingRaw = (await cookies()).get(GOOGLE_OAUTH_COOKIE)?.value
+  let pendingWebState: string | null = null
+  if (pendingRaw) {
+    try {
+      pendingWebState = z.object({ state: z.string().min(1) }).safeParse(JSON.parse(pendingRaw)).data?.state ?? null
+    } catch { pendingWebState = null }
+  }
+  return <Suspense fallback={null}><AuthCallbackContent pendingWebState={pendingWebState} /></Suspense>
 }

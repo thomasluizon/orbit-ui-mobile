@@ -1,28 +1,31 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Sheet } from '@/components/ui/sheet'
 
 type SectionKey =
+  | 'habits'
   | 'astra'
   | 'connect'
-  | 'habits'
-  | 'goals'
+  | 'progress'
   | 'calendar'
   | 'rewards'
-  | 'settings'
-  | 'notifications'
+  | 'reminders'
+  | 'widget'
 
 const tabs: { key: SectionKey; labelKey: string }[] = [
+  { key: 'habits', labelKey: 'onboarding.featureGuide.habits' },
   { key: 'astra', labelKey: 'onboarding.featureGuide.astra' },
   { key: 'connect', labelKey: 'onboarding.featureGuide.connect' },
-  { key: 'habits', labelKey: 'onboarding.featureGuide.habits' },
-  { key: 'goals', labelKey: 'onboarding.featureGuide.goals' },
+  { key: 'progress', labelKey: 'onboarding.featureGuide.progress' },
   { key: 'calendar', labelKey: 'onboarding.featureGuide.calendar' },
   { key: 'rewards', labelKey: 'onboarding.featureGuide.rewards' },
-  { key: 'settings', labelKey: 'onboarding.featureGuide.settings' },
-  { key: 'notifications', labelKey: 'onboarding.featureGuide.notifications' },
+  { key: 'reminders', labelKey: 'onboarding.featureGuide.reminders' },
+  { key: 'widget', labelKey: 'onboarding.featureGuide.widget' },
 ]
 
 interface SectionItem {
@@ -65,23 +68,18 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.habitsSection.filteringTitle', descKey: 'onboarding.featureGuide.habitsSection.filteringDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.summaryTitle', descKey: 'onboarding.featureGuide.habitsSection.summaryDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.remindersTitle', descKey: 'onboarding.featureGuide.habitsSection.remindersDesc' },
-    { titleKey: 'onboarding.featureGuide.habitsSection.oneTimeTasksTitle', descKey: 'onboarding.featureGuide.habitsSection.oneTimeTasksDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.duplicateTitle', descKey: 'onboarding.featureGuide.habitsSection.duplicateDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.dateNavTitle', descKey: 'onboarding.featureGuide.habitsSection.dateNavDesc' },
-    { titleKey: 'onboarding.featureGuide.habitsSection.flexibleTitle', descKey: 'onboarding.featureGuide.habitsSection.flexibleDesc' },
-    { titleKey: 'onboarding.featureGuide.habitsSection.generalTitle', descKey: 'onboarding.featureGuide.habitsSection.generalDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.skipTitle', descKey: 'onboarding.featureGuide.habitsSection.skipDesc' },
   ],
-  goals: [
-    { titleKey: 'onboarding.featureGuide.goalsSection.creatingTitle', descKey: 'onboarding.featureGuide.goalsSection.creatingDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.trackingTitle', descKey: 'onboarding.featureGuide.goalsSection.trackingDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.linkingTitle', descKey: 'onboarding.featureGuide.goalsSection.linkingDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.dashboardTitle', descKey: 'onboarding.featureGuide.goalsSection.dashboardDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.aiReviewTitle', descKey: 'onboarding.featureGuide.goalsSection.aiReviewDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.statusTitle', descKey: 'onboarding.featureGuide.goalsSection.statusDesc' },
+  progress: [
+    { titleKey: 'onboarding.featureGuide.progressSection.goalsTitle', descKey: 'onboarding.featureGuide.progressSection.goalsDesc' },
+    { titleKey: 'onboarding.featureGuide.progressSection.trackingTitle', descKey: 'onboarding.featureGuide.progressSection.trackingDesc' },
+    { titleKey: 'onboarding.featureGuide.progressSection.linkingTitle', descKey: 'onboarding.featureGuide.progressSection.linkingDesc' },
+    { titleKey: 'onboarding.featureGuide.progressSection.aiReviewTitle', descKey: 'onboarding.featureGuide.progressSection.aiReviewDesc' },
+    { titleKey: 'onboarding.featureGuide.progressSection.statusTitle', descKey: 'onboarding.featureGuide.progressSection.statusDesc' },
   ],
   calendar: [
-    { titleKey: 'onboarding.featureGuide.calendarSection.colorsTitle', descKey: 'onboarding.featureGuide.calendarSection.colorsDesc' },
     { titleKey: 'onboarding.featureGuide.calendarSection.dayDetailsTitle', descKey: 'onboarding.featureGuide.calendarSection.dayDetailsDesc' },
     { titleKey: 'onboarding.featureGuide.calendarSection.navigationTitle', descKey: 'onboarding.featureGuide.calendarSection.navigationDesc' },
     { titleKey: 'onboarding.featureGuide.calendarSection.streaksTitle', descKey: 'onboarding.featureGuide.calendarSection.streaksDesc' },
@@ -93,27 +91,17 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.rewardsSection.streaksTitle', descKey: 'onboarding.featureGuide.rewardsSection.streaksDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.streakFreezeTitle', descKey: 'onboarding.featureGuide.rewardsSection.streakFreezeDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.wrappedTitle', descKey: 'onboarding.featureGuide.rewardsSection.wrappedDesc' },
-    { titleKey: 'onboarding.featureGuide.rewardsSection.widgetTitle', descKey: 'onboarding.featureGuide.rewardsSection.widgetDesc' },
-    { titleKey: 'onboarding.featureGuide.rewardsSection.insightsTitle', descKey: 'onboarding.featureGuide.rewardsSection.insightsDesc' },
-    { titleKey: 'onboarding.featureGuide.rewardsSection.retrospectiveTitle', descKey: 'onboarding.featureGuide.rewardsSection.retrospectiveDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.milestoneShareTitle', descKey: 'onboarding.featureGuide.rewardsSection.milestoneShareDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.referralsTitle', descKey: 'onboarding.featureGuide.rewardsSection.referralsDesc' },
   ],
-  settings: [
-    { titleKey: 'onboarding.featureGuide.settingsSection.colorSchemeTitle', descKey: 'onboarding.featureGuide.settingsSection.colorSchemeDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.languageTitle', descKey: 'onboarding.featureGuide.settingsSection.languageDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.aiSummaryTitle', descKey: 'onboarding.featureGuide.settingsSection.aiSummaryDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.timezoneTitle', descKey: 'onboarding.featureGuide.settingsSection.timezoneDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.supportTitle', descKey: 'onboarding.featureGuide.settingsSection.supportDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.pushNotificationsTitle', descKey: 'onboarding.featureGuide.settingsSection.pushNotificationsDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.subscriptionTitle', descKey: 'onboarding.featureGuide.settingsSection.subscriptionDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.weekStartDayTitle', descKey: 'onboarding.featureGuide.settingsSection.weekStartDayDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.showGeneralTodayTitle', descKey: 'onboarding.featureGuide.settingsSection.showGeneralTodayDesc' },
+  reminders: [
+    { titleKey: 'onboarding.featureGuide.remindersSection.bellTitle', descKey: 'onboarding.featureGuide.remindersSection.bellDesc' },
+    { titleKey: 'onboarding.featureGuide.remindersSection.managingTitle', descKey: 'onboarding.featureGuide.remindersSection.managingDesc' },
+    { titleKey: 'onboarding.featureGuide.remindersSection.configuringRemindersTitle', descKey: 'onboarding.featureGuide.remindersSection.configuringRemindersDesc' },
   ],
-  notifications: [
-    { titleKey: 'onboarding.featureGuide.notificationsSection.bellTitle', descKey: 'onboarding.featureGuide.notificationsSection.bellDesc' },
-    { titleKey: 'onboarding.featureGuide.notificationsSection.managingTitle', descKey: 'onboarding.featureGuide.notificationsSection.managingDesc' },
-    { titleKey: 'onboarding.featureGuide.notificationsSection.configuringRemindersTitle', descKey: 'onboarding.featureGuide.notificationsSection.configuringRemindersDesc' },
+  widget: [
+    { titleKey: 'onboarding.featureGuide.widgetSection.todayTitle', descKey: 'onboarding.featureGuide.widgetSection.todayDesc' },
+    { titleKey: 'onboarding.featureGuide.widgetSection.opensTitle', descKey: 'onboarding.featureGuide.widgetSection.opensDesc' },
   ],
 }
 
@@ -124,19 +112,19 @@ interface FeatureGuideDrawerProps {
 
 export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuideDrawerProps>) {
   const t = useTranslations()
-  const [activeSection, setActiveSection] = useState<SectionKey>('astra')
+  const [activeSection, setActiveSection] = useState<SectionKey>('habits')
 
   const items = sectionItems[activeSection]
 
   return (
-    <AppOverlay open={open} onOpenChange={onOpenChange} title={t('onboarding.featureGuide.title')}>
-      <div className="overlay-bleed">
+    open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('onboarding.featureGuide.title')} titleTranslate="no">
+      <div>
         <div
           role="tablist"
           className="flex"
           style={{
-            gap: 6,
-            padding: '4px 20px 12px',
+            gap: 8,
+            paddingBlock: SPACING.s8,
             overflowX: 'auto',
           }}
         >
@@ -157,38 +145,39 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
           })}
         </div>
 
-        {items.map((item) => (
-          <div
-            key={item.titleKey}
-            className="flex flex-col"
-            style={{
-              padding: '12px 20px',
-              gap: 4,
-            }}
-          >
-            <h3
+        <div className="flex flex-col gap-4" style={{ paddingTop: SPACING.s16 }}>
+          {items.map((item) => (
+            <div
+              key={item.titleKey}
+              className="flex flex-col"
               style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
+                gap: 4,
               }}
             >
-              {t(item.titleKey)}
-            </h3>
-            <p
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13.5,
-                color: 'var(--fg-3)',
-                lineHeight: 1.55,
-              }}
-            >
-              {t(item.descKey)}
-            </p>
-          </div>
-        ))}
+              <h3
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 16,
+                  fontWeight: 500,
+                  color: 'var(--fg-1)',
+                }}
+              >
+                {t(item.titleKey)}
+              </h3>
+              <p
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 14,
+                  color: 'var(--fg-3)',
+                  lineHeight: 1.55,
+                }}
+              >
+                {t(item.descKey)}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
-    </AppOverlay>
+    </Sheet>) : null
   )
 }

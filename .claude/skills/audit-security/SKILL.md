@@ -72,8 +72,8 @@ Parse `$ARGUMENTS` into a `{scope}` token to pass to the workflow: blank → `bo
 
 | Repo | Root |
 |---|---|
-| `orbit-ui-mobile` | `primary Orbit UI checkout` |
-| `orbit-api` | `../orbit-api from the primary checkout` |
+| `orbit-ui-mobile` | `.claude/orchestrator.json` `repos.ui` |
+| `orbit-api` | `.claude/orchestrator.json` `repos.api` |
 
 Load **`.claude/skills/_shared/verification-protocol.md`** (the reliability contract: the
 workflow *executes* the coverage contract §1, adversarial verify §2, and loop-until-dry §3;
@@ -87,10 +87,10 @@ skill's Phase 4 runs).
 
 Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
-From the UI checkout, run `node --input-type=module -e 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; const { ui, api } = readOrchestratorConfig().repos; console.log(JSON.stringify({ ui, api }))'`. Parse its JSON output as `{ ui, api }` and pass it as `roots`.
+From the UI checkout, run `node --input-type=module -e 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; console.log(JSON.stringify(readOrchestratorConfig().repos))'`. Use its absolute `ui` and `api` values as `roots`.
 
 ```
-Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: { kind: 'security', scope: '<resolved {scope}>', roots: { ui, api } } })
+Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: { kind: 'security', scope: '<resolved {scope}>', roots: { ui: '<resolved ui>', api: '<resolved api>' } } })
 ```
 
 (`scriptPath` is canonical, named workflow resolution is not available in this Claude Code build.)

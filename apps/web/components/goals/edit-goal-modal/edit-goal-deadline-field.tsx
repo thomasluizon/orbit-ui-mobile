@@ -1,11 +1,13 @@
 'use client'
 
-import { Plus, X } from 'lucide-react'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
+import { Plus, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { DateField } from '@/components/ui/date-field'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import { isGoalDeadlinePast } from '@orbit/shared/utils/goal-form'
-import { GoalGroupLabel } from '../create-goal-modal/goal-group-label'
+import { GoalGroupLabel } from '../goal-group-label'
 
 interface EditGoalDeadlineFieldProps {
   deadline: string
@@ -18,8 +20,8 @@ export function EditGoalDeadlineField({
 }: Readonly<EditGoalDeadlineFieldProps>) {
   const t = useTranslations()
   return (
-    <div style={{ padding: '16px 0 16px' }}>
-      <GoalGroupLabel top={0}>
+    <div style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-16)" }}>
+      <GoalGroupLabel top={SPACING.s0}>
         {t('goals.form.deadline')}{' '}
         <span style={{ color: 'var(--fg-3)', fontWeight: 400 }}>
           ({t('goals.form.deadlineOptional')})
@@ -29,12 +31,12 @@ export function EditGoalDeadlineField({
         <div className="flex flex-col" style={{ gap: 8 }}>
           <div className="flex items-center" style={{ gap: 8 }}>
             <div className="flex-1">
-              <AppDatePicker value={deadline} onChange={onChangeDeadline} />
+              <DateField value={deadline} onChange={onChangeDeadline} />
             </div>
             <button
               type="button"
               className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-              style={{ width: 44, height: 44, color: 'var(--fg-3)' }}
+              style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, color: 'var(--fg-3)' }}
               aria-label={t('goals.form.removeDeadline')}
               onClick={() => onChangeDeadline('')}
             >
@@ -45,7 +47,7 @@ export function EditGoalDeadlineField({
             <p
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13,
+                fontSize: 14,
                 color: 'var(--status-overdue-text)',
               }}
             >
@@ -56,18 +58,18 @@ export function EditGoalDeadlineField({
       ) : (
         <button
           type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary)]"
+          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 500,
-            minHeight: 44,
-            padding: 0,
-            gap: 6,
+            minHeight: TOUCH_TARGET_MIN,
+            padding: SPACING.s0,
+            gap: 8,
           }}
           onClick={() => onChangeDeadline(formatAPIDate(new Date()))}
         >
-          <Plus size={14} strokeWidth={1.8} />
+          <Plus size={16} strokeWidth={1.8} />
           {t('goals.form.addDeadline')}
         </button>
       )}

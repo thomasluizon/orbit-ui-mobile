@@ -8,28 +8,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    title,
-    children,
-    onOpenChange,
-  }: {
-    open: boolean
-    title?: string
-    children?: ReactNode
-    onOpenChange?: (next: boolean) => void
-  }) =>
-    open ? (
-      <div role="dialog" aria-label={title}>
-        <h2>{title}</h2>
-        <button type="button" onClick={() => onOpenChange?.(false)}>
-          close-overlay
-        </button>
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import { DescriptionViewer } from '@/components/habits/description-viewer'
 
@@ -152,7 +131,7 @@ describe('DescriptionViewer', () => {
     )
     fireEvent.click(screen.getByLabelText('habits.detail.copyDescription'))
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.copyFailed')
+      expect(screen.getByRole('status')).toHaveTextContent('habits.detail.copyFailed')
     })
     expect(screen.getByLabelText('habits.detail.copyDescription')).toBeInTheDocument()
   })
@@ -169,7 +148,7 @@ describe('DescriptionViewer', () => {
       />,
     )
     fireEvent.click(screen.getByLabelText('habits.detail.copyDescription'))
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument())
 
     fireEvent.click(screen.getByText('close-overlay'))
     expect(onOpenChange).toHaveBeenCalledWith(false)
@@ -190,6 +169,6 @@ describe('DescriptionViewer', () => {
         description="Copy me"
       />,
     )
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 })

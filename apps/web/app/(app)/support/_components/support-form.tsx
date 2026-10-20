@@ -1,87 +1,179 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import {
+  SUPPORT_SUBJECT_OPTIONS,
+  type SupportSubjectId,
+} from '@orbit/shared/utils'
+import { SupportReplyEmail } from './support-reply-email'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { SupportField } from './support-field'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioRow } from '@/components/ui/select-check'
+import { WifiOff } from '@/components/ui/icons'
 
 interface SupportFormProps {
-  subject: string
+  email: string
+  subject: SupportSubjectId | null
   message: string
+  appVersion: string | null
+  messageMaxLength: number
+  messageOverLimitHint: string | null
+  validationMessage?: string | null
   error: string | null
+  subjectError: string | null
+  messageError: string | null
   isSending: boolean
+  isOnline: boolean
   disabled: boolean
-  onSubjectChange: (next: string) => void
+  disabledReason: string | null
+  subjectFocusRequest: number
+  messageFocusRequest: number
+  onSubjectChange: (next: SupportSubjectId) => void
   onMessageChange: (next: string) => void
+  onSubjectBlur: () => void
+  onMessageBlur: () => void
   onSend: () => void
 }
 
 export function SupportForm({
+  email,
   subject,
   message,
+  appVersion,
+  messageMaxLength,
+  messageOverLimitHint,
   error,
+  validationMessage,
+  subjectError,
+  messageError,
   isSending,
+  isOnline,
   disabled,
+  disabledReason,
+  subjectFocusRequest,
+  messageFocusRequest,
   onSubjectChange,
   onMessageChange,
+  onSubjectBlur,
+  onMessageBlur,
   onSend,
 }: Readonly<SupportFormProps>) {
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col stagger-enter" style={{ gap: 16 }}>
+    <form
+      noValidate
+      className="flex min-w-0 flex-col gap-6"
+      onSubmit={(event) => {
+        event.preventDefault()
+        onSend()
+      }}
+    >
       <p
-        className="md:hidden"
+        className="text-pretty text-[16px] leading-[1.55] text-[var(--fg-2)]"
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          lineHeight: 1.55,
-          color: 'var(--fg-3)',
         }}
       >
         {t('profile.support.description')}
       </p>
-      <SupportField
-        label={t('profile.support.subject')}
-        value={subject}
-        onChange={onSubjectChange}
-        placeholder={t('profile.support.subjectPlaceholder')}
-        ariaLabel={t('profile.support.subject')}
-      />
-      <SupportField
+      {error ? (
+        <div role="alert" className="flex flex-col gap-2 rounded-[var(--r-well)] bg-[var(--bg-well)] p-4">
+          <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
+            {t('profile.support.failureTitle')}
+          </p>
+          <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
+            {validationMessage ?? t('profile.support.failureBody')}
+          </p>
+        </div>
+      ) : null}
+      <div className="flex min-w-0 flex-col gap-2">
+        <span id="support-subject-label" className="text-sm font-medium text-[var(--fg-2)]">
+          {t('profile.support.subject')}
+        </span>
+        <RadioGroup
+          className="flex flex-col gap-1"
+          aria-labelledby="support-subject-label"
+          aria-describedby={subjectError ? 'support-subject-error' : undefined}
+          aria-invalid={subjectError ? true : undefined}
+          aria-required
+          focusRequest={subjectFocusRequest}
+          onBlur={onSubjectBlur}
+        >
+          {SUPPORT_SUBJECT_OPTIONS.map((option) => (
+            isSending ? (
+              <RadioRow
+                key={option.id}
+                label={t(option.labelKey)}
+                selected={subject === option.id}
+                disabled
+                reason={t('profile.support.subjectSendingReason')}
+              />
+            ) : (
+              <RadioRow
+                key={option.id}
+                label={t(option.labelKey)}
+                selected={subject === option.id}
+                onSelect={() => onSubjectChange(option.id)}
+              />
+            )
+          ))}
+        </RadioGroup>
+        {subjectError ? (
+          <p id="support-subject-error" role="alert" className="text-sm text-[var(--status-bad-text)]">
+            {subjectError}
+          </p>
+        ) : null}
+      </div>
+      <Input
         label={t('profile.support.message')}
+        required
+        name="message"
         value={message}
         onChange={onMessageChange}
         placeholder={t('profile.support.messagePlaceholder')}
-        ariaLabel={t('profile.support.message')}
+        disabled={isSending}
+        error={messageError ?? undefined}
+        hint={messageError ? undefined : messageOverLimitHint ?? undefined}
+        maxLength={messageMaxLength}
+        autoComplete="off"
         multiline
         rows={6}
+        focusRequest={messageFocusRequest}
+        onBlur={onMessageBlur}
       />
-      {error && (
+      <SupportReplyEmail email={email} />
+      {appVersion ? (
+        <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
+          {t('profile.support.versionIncluded', { version: appVersion })}
+        </p>
+      ) : null}
+      {!isOnline ? (
         <div
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            color: 'var(--status-bad-text)',
-          }}
+          id="support-send-reason"
+          role="status"
+          className="flex min-w-0 items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-3"
         >
-          {error}
+          <WifiOff size={20} aria-hidden className="shrink-0 text-[var(--fg-3)]" />
+          <p className="min-w-0 flex-1 text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">
+            {t('profile.support.offlineReason')}
+          </p>
         </div>
-      )}
-      <div style={{ paddingTop: 8 }}>
-        <PillButton
-          onClick={onSend}
+      ) : disabledReason ? (
+        <p id="support-send-reason" className="text-sm text-[var(--fg-2)]">
+          {disabledReason}
+        </p>
+      ) : null}
+      <div className="[&_button]:w-full md:[&_button]:w-auto md:[&_button]:bg-[var(--fg-1)] md:[&_button]:text-[var(--bg)] md:[&_button]:[transition-property:background-color,color,opacity,scale] md:[&_button]:[transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-1),var(--dur-1)] md:[&_button]:[transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out),var(--ease-out)] md:[&_button:enabled]:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] md:[&_button:enabled:active]:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]">
+        <PillButton size="md"
           disabled={disabled}
-          fullWidth
-          leading={
-            isSending ? (
-              <Loader2 size={16} strokeWidth={1.8} className="animate-spin" aria-hidden="true" />
-            ) : undefined
-          }
+          loading={isSending}
+          descriptionId={!isOnline || disabledReason ? 'support-send-reason' : undefined}
         >
-          {t('profile.support.send')}
+          {error ? t('profile.support.retry') : t('profile.support.send')}
         </PillButton>
       </div>
-    </div>
+    </form>
   )
 }

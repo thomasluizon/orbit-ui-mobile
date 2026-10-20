@@ -1,5 +1,18 @@
 import type { Recap } from '../types/gamification'
+import type { Profile } from '../types/profile'
 import type { RetrospectiveHabitStat } from './retrospective'
+import type { RecapSharePeriod, ClosedRecapMonth } from './share-card'
+
+export function formatClosedWrappedMonth(closedMonth: ClosedRecapMonth, locale: string): string {
+  const date = new Date(0)
+  date.setUTCFullYear(closedMonth.year, closedMonth.month - 1, 1)
+  const label = new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+  return label.charAt(0).toLocaleUpperCase(locale) + label.slice(1)
+}
 
 /**
  * One Orbit Wrapped story slide, discriminated by `id` and carrying the recap
@@ -12,15 +25,50 @@ export type WrappedSlide =
   | { id: 'consistency'; weeklyConsistency: number[] }
   | { id: 'streak'; bestStreak: number; currentStreak: number }
   | { id: 'topHabit'; habit: RetrospectiveHabitStat }
+  | { id: 'goals'; closedGoals: number }
   | { id: 'share' }
 
 export type WrappedSlideId = WrappedSlide['id']
 
+export type WeeklyConsistencyReading =
+  | { kind: 'thin' }
+  | { kind: 'even' }
+  | { kind: 'compared'; strongestIndex: number }
+
+export function getWrappedWeekdayValues(
+  weeklyConsistency: readonly number[],
+  period: RecapSharePeriod,
+  periodDays: number,
+  weekStartDay: Profile['weekStartDay'] | undefined,
+): (number | null)[] {
+  return weeklyConsistency.slice(0, 7).map((value, index) => {
+    if (period !== 'week') return value
+    if (weekStartDay === undefined) return null
+    const daysFromWeekStart = (index + 1 - weekStartDay + 7) % 7
+    return daysFromWeekStart < periodDays ? value : null
+  })
+}
+
+export function getWeeklyConsistencyReading(
+  weeklyConsistency: readonly (number | null)[],
+): WeeklyConsistencyReading {
+  const weekdayAverages = weeklyConsistency.slice(0, 7)
+  const highestAverage = Math.max(0, ...weekdayAverages.flatMap((value) => value === null ? [] : [value]))
+  if (highestAverage <= 0) return { kind: 'thin' }
+
+  const strongestWeekdays = weekdayAverages
+    .map((average, index) => ({ average, index }))
+    .filter(({ average }) => average === highestAverage)
+  if (strongestWeekdays.length !== 1) return { kind: 'even' }
+
+  return { kind: 'compared', strongestIndex: strongestWeekdays[0]!.index }
+}
+
 /**
  * Builds the ordered Orbit Wrapped story from a recap: a fixed positive-only
  * sequence (intro → completions → active days → consistency → best streak →
- * standout habit), omitting the standout slide when there are no top habits,
- * and always ending on the shareable card slide.
+ * standout habit → goals), omitting the standout slide when there are no top
+ * habits, and always ending on the shareable card slide.
  */
 export function buildWrappedSlides(recap: Recap): WrappedSlide[] {
   const { metrics } = recap
@@ -42,6 +90,6 @@ export function buildWrappedSlides(recap: Recap): WrappedSlide[] {
     slides.push({ id: 'topHabit', habit: topHabit })
   }
 
-  slides.push({ id: 'share' })
+  slides.push({ id: 'goals', closedGoals: recap.goalCompletions }, { id: 'share' })
   return slides
 }

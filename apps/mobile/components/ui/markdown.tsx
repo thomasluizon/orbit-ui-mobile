@@ -1,49 +1,67 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { Linking, Text, type TextStyle } from 'react-native'
+import { Children, cloneElement, isValidElement, useMemo, useState, type ElementType, type ReactNode } from 'react'
+import { Linking, Text, View, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import RNMarkdown, {
+  MarkedTokenizer,
   Renderer,
   type MarkedStyles,
   type RendererInterface,
 } from 'react-native-marked'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { getMarkdownImageLabel } from '@orbit/shared/utils'
+import { SPACING } from '@orbit/shared/theme'
+import { BlockCopyControl } from './block-copy-control'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-type MarkdownTone = "default" | "muted" | "onPrimary"
+type MarkdownTone = "default" | "muted" | "thread"
 
 interface MarkdownProps {
   children: string
   tone?: MarkdownTone
+  copyableBlocks?: boolean
 }
 
 interface ProseColors {
   body: string
   heading: string
   link: string
+  quote: string
   activeLink: TextStyle
 }
 
 function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors {
   if (tone === "muted")
-    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.primarySoft, activeLink: { color: tokens.fg1 } }
-  if (tone === "onPrimary")
-    return {
-      body: tokens.fgOnPrimary,
-      heading: tokens.fgOnPrimary,
-      link: tokens.fgOnPrimary,
-      activeLink: { color: tokens.fgOnPrimary, backgroundColor: tokens.primaryPressed },
-    }
-  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.primarySoft, activeLink: { color: tokens.fg1 } }
+    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.fg1, quote: tokens.fg3, activeLink: { color: tokens.fg2 } }
+  if (tone === "thread")
+    return { body: tokens.fg1, heading: tokens.fg1, link: tokens.fg1, quote: tokens.fg3, activeLink: { color: tokens.fg2 } }
+  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.fg1, quote: tokens.fg3, activeLink: { color: tokens.fg2 } }
 }
 
 const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
 
-/**
- * Renderer that gates link presses to http(s)/mailto. The library's default
- * link handler passes the raw href straight to Linking.openURL, which would
- * happily attempt javascript:/data: URLs — so we reject anything else.
- */
+function styleTextDescendants(children: ReactNode, style: TextStyle, preserved?: ElementType): ReactNode {
+  return Children.map(children, (child) => {
+    if (!isValidElement<{ style?: StyleProp<TextStyle>; children?: ReactNode }>(child)) return child
+    if (preserved && child.type === preserved) return child
+    return cloneElement(child, {
+      ...(child.type === Text ? { style: [child.props.style, style] } : {}),
+      children: styleTextDescendants(child.props.children, style, preserved),
+    })
+  })
+}
+
+function StrongText({ children, style }: Readonly<{ children: ReactNode; style?: TextStyle }>) {
+  return <Text selectable style={style}>{children}</Text>
+}
+
+function retainContainerIdentity(container: ReactNode, children: ReactNode[]): ReactNode {
+  const firstChild = children.find(isValidElement)
+  return isValidElement(container) && firstChild
+    ? cloneElement(container, { key: firstChild.key })
+    : container
+}
+
 function ProseLink({ children, href, styles, colors }: Readonly<{
   children: ReactNode
   href: string
@@ -52,29 +70,83 @@ function ProseLink({ children, href, styles, colors }: Readonly<{
 }>) {
   const [pressed, setPressed] = useState(false)
   const safe = SAFE_LINK_SCHEME.test(href.trim())
+  const style: TextStyle = safe
+    ? { color: colors.link, textDecorationLine: 'underline', ...(pressed ? colors.activeLink : {}) }
+    : { color: colors.body, textDecorationLine: 'none' }
   return (
     <Text
       selectable
       accessibilityRole={safe ? 'link' : undefined}
-      style={[
-        styles,
-        safe
-          ? { color: colors.link, textDecorationLine: 'underline' }
-          : { color: colors.body, textDecorationLine: 'none' },
-        safe && pressed ? colors.activeLink : undefined,
-      ]}
+      style={[styles, style]}
       onPress={safe ? () => { void Linking.openURL(href) } : undefined}
       onPressIn={safe ? () => setPressed(true) : undefined}
       onPressOut={safe ? () => setPressed(false) : undefined}
     >
-      {children}
+      {styleTextDescendants(children, style)}
     </Text>
   )
 }
 
+class ImageLabelTokenizer extends MarkedTokenizer {
+  override link(...args: Parameters<MarkedTokenizer['link']>): ReturnType<MarkedTokenizer['link']> {
+    const token = super.link(...args)
+    if (token?.type === 'image') token.text = getMarkdownImageLabel(token)
+    return token
+  }
+
+  override reflink(...args: Parameters<MarkedTokenizer['reflink']>): ReturnType<MarkedTokenizer['reflink']> {
+    const token = super.reflink(...args)
+    if (token?.type === 'image') token.text = getMarkdownImageLabel(token)
+    return token
+  }
+}
+
 class SafeLinkRenderer extends Renderer implements RendererInterface {
-  constructor(private readonly colors: ProseColors) {
+  constructor(private readonly colors: ProseColors, private readonly textStyles?: TextStyle, private readonly copyableBlocks = false) {
     super()
+  }
+
+  override code(text: string, language?: string, containerStyle?: ViewStyle, textStyle?: TextStyle): ReactNode {
+    const code = super.code(text, language, containerStyle, textStyle)
+    return this.copyableBlocks
+      ? <View key={this.getKey()} style={{ minWidth: 0, gap: 8 }}><BlockCopyControl key={text} text={text} />{code}</View>
+      : code
+  }
+
+  override paragraph(children: ReactNode[], styles?: ViewStyle): ReactNode {
+    return super.paragraph([this.text(children, this.textStyles)], styles)
+  }
+
+  override blockquote(children: ReactNode[], styles?: ViewStyle): ReactNode {
+    const quote = super.blockquote([styleTextDescendants(children, { color: this.colors.quote }, StrongText)], styles)
+    return retainContainerIdentity(quote, children)
+  }
+
+  override strong(children: string | ReactNode[], styles?: TextStyle): ReactNode {
+    return <StrongText key={this.getKey()} style={styles}>{children}</StrongText>
+  }
+
+  override listItem(children: ReactNode[], styles?: ViewStyle): ReactNode {
+    const blocks: ReactNode[] = []
+    let inline: ReactNode[] = []
+    const flush = () => {
+      if (inline.length > 0) blocks.push(this.text(inline, this.textStyles))
+      inline = []
+    }
+    for (const child of children) {
+      if (isValidElement(child) && (child.type === Text || child.type === ProseLink)) {
+        inline.push(child)
+      } else {
+        flush()
+        blocks.push(child)
+      }
+    }
+    flush()
+    return retainContainerIdentity(super.listItem(blocks, styles), children)
+  }
+
+  override list(ordered: boolean, children: ReactNode[], listStyle?: ViewStyle, textStyle?: TextStyle, startIndex?: number): ReactNode {
+    return retainContainerIdentity(super.list(ordered, children, listStyle, textStyle, startIndex), children)
   }
 
   override link(
@@ -93,68 +165,82 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
       </ProseLink>
     )
   }
+
+  override image(_uri: string, alt?: string, _style?: ImageStyle, title?: string): ReactNode {
+    return <Text selectable key={this.getKey()} style={this.textStyles}>{alt ?? title ?? ''}</Text>
+  }
+
+  override linkImage(href: string, _imageUrl: string, alt?: string, _style?: ImageStyle, title?: string | null): ReactNode {
+    return this.link(alt ?? title ?? '', href, this.textStyles)
+  }
 }
 
-function createMarkedStyles(tokens: AppTokens, colors: ProseColors): MarkedStyles {
+function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: MarkdownTone): MarkedStyles {
   const { body, heading, link } = colors
+  const thread = tone === 'thread'
   return {
     text: {
       color: body,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
+      fontFamily: 'Geist_400Regular',
+      fontSize: thread ? 16 : 14,
+      lineHeight: thread ? 24 : 20,
       flexShrink: 1,
     },
-    paragraph: { marginVertical: 4 },
-    strong: { color: heading, fontFamily: 'Rubik_500Medium' },
+    paragraph: thread ? { marginVertical: SPACING.s0, paddingVertical: SPACING.s0 } : { marginVertical: SPACING.s4 },
+    strong: { color: heading, fontFamily: 'Geist_500Medium' },
     em: { color: body, fontStyle: 'italic' },
     link: { color: link, textDecorationLine: 'underline', flexShrink: 1 },
     h1: {
       color: heading,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 28,
-      marginVertical: 6,
+      marginVertical: SPACING.s8,
     },
     h2: {
       color: heading,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 22,
-      marginVertical: 6,
+      marginVertical: SPACING.s8,
     },
     h3: {
       color: heading,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 18,
-      marginVertical: 4,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 17,
+      marginVertical: SPACING.s4,
     },
-    list: { marginVertical: 4 },
+    list: { marginVertical: SPACING.s4 },
     li: {
       color: body,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
+      fontFamily: 'Geist_400Regular',
+      fontSize: thread ? 16 : 14,
+      lineHeight: thread ? 24 : 20,
       flexShrink: 1,
     },
     codespan: {
       color: body,
       backgroundColor: tokens.bgElev,
       borderRadius: radius.sm,
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
     },
     code: {
       backgroundColor: tokens.bgElev,
-      padding: 12,
+      padding: SPACING.s12,
       borderRadius: radius.sm,
     },
     blockquote: {
       borderLeftWidth: 2,
       borderLeftColor: tokens.hairline,
-      paddingLeft: 12,
+      paddingLeft: SPACING.s12,
     },
   }
 }
 
-export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>) {
+/**
+ * The single mobile markdown renderer for chat messages and habit/goal descriptions. Wraps
+ * react-native-marked (same `marked` engine as web for parsing parity), themes it with the
+ * current theme tokens, and never opens unsafe link schemes.
+ */
+export function Markdown({ children, tone = "default", copyableBlocks = false }: Readonly<MarkdownProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -162,27 +248,29 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
   )
   const colors = useMemo(() => resolveProseColors(tokens, tone), [tokens, tone])
   const styles = useMemo(
-    () => createMarkedStyles(tokens, colors),
-    [tokens, colors],
+    () => createMarkedStyles(tokens, colors, tone),
+    [tokens, colors, tone],
   )
-  const renderer = useMemo(() => new SafeLinkRenderer(colors), [colors])
+  const prose = useMemo(() => ({
+    value: children,
+    renderer: new SafeLinkRenderer(colors, styles.text, copyableBlocks),
+  }), [children, colors, styles.text, copyableBlocks])
+  const tokenizer = useMemo(() => new ImageLabelTokenizer(), [])
+  const theme = useMemo(() => ({
+    colors: { text: colors.body, link: colors.link, code: colors.body, border: tokens.hairline },
+  }), [colors.body, colors.link, tokens.hairline])
 
   return (
     <RNMarkdown
-      value={children}
+      value={prose.value}
       styles={styles}
-      renderer={renderer}
-      theme={{
-        colors: {
-          text: colors.body,
-          link: colors.link,
-          code: colors.body,
-          border: tokens.hairline,
-        },
-      }}
+      renderer={prose.renderer}
+      tokenizer={tokenizer}
+      theme={theme}
       flatListProps={{
         scrollEnabled: false,
         initialNumToRender: 12,
+        ItemSeparatorComponent: tone === 'thread' ? () => <View style={{ height: 12 }} /> : undefined,
         style: { backgroundColor: 'transparent', minWidth: 0 },
       }}
     />

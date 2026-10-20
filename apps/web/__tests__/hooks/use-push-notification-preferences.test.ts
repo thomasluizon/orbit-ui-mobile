@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
 import { createApiClientError } from '@orbit/shared'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { installWebLocks } from '../helpers/web-locks'
 
 const mockSubscribePush = vi.fn()
@@ -12,6 +12,7 @@ vi.mock('@/lib/actions/notifications', () => ({
 }))
 
 import {
+  ensurePushSubscription,
   getPushStatusMessageKey,
   getPushStatusTone,
   loadPushNotificationState,
@@ -53,7 +54,7 @@ interface MockRegistration {
  */
 function createServiceWorkerContainer(registration: MockRegistration, registerRejects: boolean) {
   let registered = false
-  let activate: (value: MockRegistration) => void = () => undefined
+  let activate!: (value: MockRegistration) => void
   const ready = new Promise<MockRegistration>((resolve) => {
     activate = resolve
   })
@@ -181,9 +182,9 @@ describe('use-push-notification-preferences helpers', () => {
   })
 
   it('maps push statuses to the expected tone classes', () => {
-    expect(getPushStatusTone('denied')).toBe('text-[var(--status-bad-text)]')
+    expect(getPushStatusTone('denied')).toBe('text-[var(--fg-3)]')
     expect(getPushStatusTone('sync-failed')).toBe('text-[var(--status-bad-text)]')
-    expect(getPushStatusTone('registered')).toBe('text-[var(--primary)]')
+    expect(getPushStatusTone('registered')).toBe('text-[var(--fg-3)]')
     expect(getPushStatusTone('not-registered')).toBe('text-[var(--fg-3)]')
   })
 
@@ -337,7 +338,7 @@ describe('use-push-notification-preferences helpers', () => {
     expect(previous.unsubscribe).toHaveBeenCalledOnce()
     expect(mockUnsubscribePush).toHaveBeenCalledWith(expect.objectContaining({
       ...previous.toJSON(), releaseOtherAccount: true,
-    }))
+    }), null)
   })
 
   it('finishes new registration when releasing the prior API endpoint fails', async () => {
@@ -349,7 +350,7 @@ describe('use-push-notification-preferences helpers', () => {
     expect((await settleWithin(subscribeToPushNotifications())).status).toBe('registered')
     expect(mockUnsubscribePush).toHaveBeenCalledOnce()
     expect(previous.unsubscribe).toHaveBeenCalledOnce()
-    expect(mockSubscribePush).toHaveBeenCalledWith(next.toJSON())
+    expect(mockSubscribePush).toHaveBeenCalledWith(next.toJSON(), null)
   })
 
   it('releases the foreign API row with device keys once the replacement session becomes active', async () => {
@@ -362,7 +363,7 @@ describe('use-push-notification-preferences helpers', () => {
     startAccountScopedSession('account-a', 'account-b')
     await vi.waitFor(() => expect(subscription.unsubscribe).toHaveBeenCalledOnce())
     expect(owner).toBeNull()
-    expect(mockUnsubscribePush).toHaveBeenCalledWith({ ...subscription.toJSON(), releaseOtherAccount: true })
+    expect(mockUnsubscribePush).toHaveBeenCalledWith({ ...subscription.toJSON(), releaseOtherAccount: true }, 'account-b')
   })
 
   it('keeps the new account subscription when account-switch cleanup has a pending browser lookup', async () => {
@@ -372,7 +373,7 @@ describe('use-push-notification-preferences helpers', () => {
       getSubscription.mockResolvedValue(nextSubscription)
       return nextSubscription
     })
-    let finishLookup: (registration: MockRegistration) => void = () => undefined
+    let finishLookup!: (registration: MockRegistration) => void
     getRegistration.mockReturnValueOnce(new Promise<MockRegistration>((resolve) => { finishLookup = resolve }))
     let finishPersist: () => void = () => undefined
     mockSubscribePush.mockReturnValueOnce(new Promise<void>((resolve) => { finishPersist = resolve }))
@@ -418,7 +419,7 @@ describe('use-push-notification-preferences helpers', () => {
 
   it.each(['cleanup', 'rotation'] as const)('preserves the live endpoint when stale %s reaches its deadline before account refusal', async (operation) => {
     const { subscription, getSubscription, subscribe } = await enablePushAs('account-b')
-    let refuseRelease: (error: Error) => void = () => undefined
+    let refuseRelease!: (error: Error) => void
     mockUnsubscribePush.mockReturnValue(new Promise<void>((_, reject) => { refuseRelease = reject }))
     setAccountId('account-a')
     vi.useFakeTimers()
@@ -464,7 +465,7 @@ describe('use-push-notification-preferences helpers', () => {
     setAccountId('account-b')
     let finishPersist: () => void = () => undefined
     mockSubscribePush.mockReturnValueOnce(new Promise<void>((resolve) => { finishPersist = resolve }))
-    let refuseRelease: (error: Error) => void = () => undefined
+    let refuseRelease!: (error: Error) => void
     mockUnsubscribePush.mockReturnValue(new Promise<void>((_, reject) => { refuseRelease = reject }))
     vi.useFakeTimers()
 
@@ -483,6 +484,22 @@ describe('use-push-notification-preferences helpers', () => {
     expect(subscription.unsubscribe).not.toHaveBeenCalled()
     expect(await getSubscription()).toBe(subscription)
     expect((await loadPushNotificationState('account-b')).status).toBe('registered')
+  })
+
+  it('does not reopen the OS prompt after a denied answer', async () => {
+    const { requestPermission, subscribe } = setupPushEnvironment({ permission: 'denied' })
+    expect((await subscribeToPushNotifications()).status).toBe('denied')
+    expect((await ensurePushSubscription()).status).toBe('denied')
+    expect(requestPermission).not.toHaveBeenCalled()
+    expect(subscribe).not.toHaveBeenCalled()
+    expect(mockSubscribePush).not.toHaveBeenCalled()
+  })
+
+  it('shares one permission dialog between reminder gestures', async () => {
+    const { requestPermission } = setupPushEnvironment({ permission: 'default', requestPermissionResult: 'granted' })
+    const results = await Promise.all([ensurePushSubscription(), ensurePushSubscription()])
+    expect(requestPermission).toHaveBeenCalledOnce()
+    expect(results.every((result) => result.status === 'registered')).toBe(true)
   })
 
   it('refuses to subscribe without a VAPID key before prompting or dropping the current subscription', async () => {
@@ -508,6 +525,67 @@ describe('use-push-notification-preferences helpers', () => {
     )
     expect(subscribe).not.toHaveBeenCalled()
     expect(mockSubscribePush).not.toHaveBeenCalled()
+  })
+
+  it('keeps an existing subscription when a reminder is turned on', async () => {
+    const existingSubscription = createMockSubscription('https://example.com/working')
+    const { subscribe } = setupPushEnvironment({ permission: 'granted', existingSubscription })
+    mockSubscribePush.mockResolvedValue(undefined)
+
+    const result = await ensurePushSubscription()
+
+    expect(existingSubscription.unsubscribe).not.toHaveBeenCalled()
+    expect(subscribe).not.toHaveBeenCalled()
+    expect(mockSubscribePush).toHaveBeenCalledWith(existingSubscription.toJSON(), null)
+    expect(result.status).toBe('registered')
+  })
+
+  it('replaces an endpoint owned by another account before registering this browser', async () => {
+    const previousSubscription = createMockSubscription('https://example.com/account-a')
+    const currentSubscription = createMockSubscription('https://example.com/account-b')
+    const { subscribe } = setupPushEnvironment({
+      permission: 'granted',
+      existingSubscription: previousSubscription,
+      subscribeResult: currentSubscription,
+    })
+    mockSubscribePush
+      .mockRejectedValueOnce(createApiClientError(400, {
+        error: 'Push subscription endpoint is already registered to a different user.',
+        errorCode: 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER',
+      }, 'Failed with status 400'))
+      .mockResolvedValueOnce(undefined)
+
+    const result = await ensurePushSubscription()
+
+    expect(mockSubscribePush).toHaveBeenNthCalledWith(1,
+      expect.objectContaining({ endpoint: 'https://example.com/account-a' }), null)
+    expect(previousSubscription.unsubscribe).toHaveBeenCalledTimes(1)
+    expect(subscribe).toHaveBeenCalledTimes(1)
+    expect(mockSubscribePush).toHaveBeenNthCalledWith(2,
+      expect.objectContaining({ endpoint: 'https://example.com/account-b' }), null)
+    expect(result.status).toBe('registered')
+  })
+
+  it('leaves an existing subscription subscribed when re-sending it fails', async () => {
+    const existingSubscription = createMockSubscription('https://example.com/working')
+    const { subscribe } = setupPushEnvironment({ permission: 'granted', existingSubscription })
+    mockSubscribePush.mockRejectedValue(new Error('Server error'))
+
+    await expect(ensurePushSubscription()).rejects.toThrow('Server error')
+    expect(existingSubscription.unsubscribe).not.toHaveBeenCalled()
+    expect(subscribe).not.toHaveBeenCalled()
+  })
+
+  it('registers a new subscription for a reminder when the browser holds none', async () => {
+    const nextSubscription = createMockSubscription('https://example.com/current')
+    const { subscribe } = setupPushEnvironment({ permission: 'granted', subscribeResult: nextSubscription })
+    mockSubscribePush.mockResolvedValue(undefined)
+
+    const result = await ensurePushSubscription()
+
+    expect(subscribe).toHaveBeenCalledTimes(1)
+    expect(mockSubscribePush).toHaveBeenCalledTimes(1)
+    expect(result.status).toBe('registered')
   })
 
   it('unsubscribes the current subscription and reports not-registered', async () => {
@@ -569,7 +647,7 @@ describe('releasing this browser push subscription at logout', () => {
     finishApiCall()
     await settleWithin(released)
 
-    expect(mockUnsubscribePush).toHaveBeenCalledWith(subscription.toJSON())
+    expect(mockUnsubscribePush).toHaveBeenCalledWith(subscription.toJSON(), 'account-a')
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
   })
 
@@ -660,14 +738,15 @@ describe('usePushNotificationPreferences hook', () => {
     expect(result.current.subscribed).toBe(true)
   })
 
-  it('waits for the signed-in account before it reads the browser subscription', async () => {
+  it('reports anonymous browser support without claiming another account subscription', async () => {
     const { getSubscription } = await enablePushAs('account-a')
     setAccountId(null)
     const { result } = renderHook(() => usePushNotificationPreferences())
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    await waitFor(() => expect(result.current.status).toBe('not-registered'))
 
-    expect(result.current.status).toBe('checking')
-    expect(getSubscription).not.toHaveBeenCalled()
+    expect(result.current.supported).toBe(true)
+    expect(result.current.subscribed).toBe(false)
+    expect(getSubscription).toHaveBeenCalled()
 
     act(() => setAccountId('account-a'))
     await waitFor(() => expect(result.current.status).toBe('registered'))
@@ -733,7 +812,8 @@ describe('usePushNotificationPreferences hook', () => {
     setAccountId('account-a')
     const { result } = renderHook(() => usePushNotificationPreferences())
     await waitFor(() => expect(result.current.status).toBe('not-registered'))
-    let refuseRelease: (error: Error) => void = () => undefined
+    mockSubscribePush.mockRejectedValueOnce(createApiClientError(409, { errorCode: 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER' }, 'Endpoint owned by another account'))
+    let refuseRelease!: (error: Error) => void
     mockUnsubscribePush.mockReturnValue(new Promise<void>((_, reject) => { refuseRelease = reject }))
     vi.useFakeTimers()
 

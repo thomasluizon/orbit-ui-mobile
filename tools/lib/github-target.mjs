@@ -1,4 +1,3 @@
-
 /** Two slugs name the same repository when they differ only in case. GitHub is case-insensitive
  * on owner and name, so a case difference is not a misdirection and must not read as one. */
 const sameRepository = (left, right) =>

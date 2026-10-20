@@ -1,3 +1,9 @@
+/**
+ * Maps the app-surface IDs the assistant emits in a describe_feature reply
+ * (`ChatResponse.relatedSurfaces`) to their i18n label key and per-platform client route.
+ * Both web and mobile consume this map; only the route field they read differs (platform
+ * adapter).
+ */
 interface RelatedSurface {
   id: string
   labelKey: string
@@ -20,8 +26,8 @@ export const RELATED_SURFACE_ROUTES: Readonly<Record<string, RelatedSurface>> = 
   gamification: {
     id: 'gamification',
     labelKey: 'chat.related.surface.gamification',
-    webRoute: '/achievements',
-    mobileRoute: '/achievements',
+    webRoute: '/progress/achievements',
+    mobileRoute: '/progress/achievements',
   },
   notifications: {
     id: 'notifications',
@@ -32,14 +38,14 @@ export const RELATED_SURFACE_ROUTES: Readonly<Record<string, RelatedSurface>> = 
   subscriptions: {
     id: 'subscriptions',
     labelKey: 'chat.related.surface.subscriptions',
-    webRoute: '/upgrade',
-    mobileRoute: '/upgrade',
+    webRoute: '/profile',
+    mobileRoute: '/profile',
   },
   'ai-settings': {
     id: 'ai-settings',
-    labelKey: 'chat.related.surface.aiSettings',
-    webRoute: '/ai-settings',
-    mobileRoute: '/ai-settings',
+    labelKey: 'nav.profile',
+    webRoute: '/profile',
+    mobileRoute: '/profile',
   },
 }
 

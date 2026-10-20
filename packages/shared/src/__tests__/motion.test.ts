@@ -12,15 +12,16 @@ import {
 describe('motion theme contract', () => {
   it('keeps every shared easing within the no-overshoot control bounds', () => {
     for (const easing of Object.values(motionEasings)) {
-      expect(easing[1]).toBeGreaterThanOrEqual(0)
-      expect(easing[1]).toBeLessThanOrEqual(1)
-      expect(easing[3]).toBeGreaterThanOrEqual(0)
-      expect(easing[3]).toBeLessThanOrEqual(1)
+      for (const control of [easing[1], easing[3]]) {
+        expect(control).toBeGreaterThanOrEqual(0)
+        expect(control).toBeLessThanOrEqual(1)
+      }
     }
   })
 
   it('uses the entrance easing for success feedback', () => {
     expect(resolveMotionPreset('success-feedback').enterEasing).toEqual(motionEasings.enter)
+    expect(resolveMotionPreset('success-feedback', true).enterEasing).toEqual(motionEasings.linear)
   })
 
   it('defines the full shared scenario vocabulary', () => {
@@ -47,6 +48,24 @@ describe('motion theme contract', () => {
     }
   })
 
+  it('keeps destination switches completely still', () => {
+    const tabSwitch = resolveMotionPreset('tab-switch')
+
+    expect(tabSwitch.enterDuration).toBe(0)
+    expect(tabSwitch.exitDuration).toBe(0)
+    expect(tabSwitch.shift).toBe(0)
+    expect(tabSwitch.scaleFrom).toBe(1)
+  })
+
+  it('uses the exact hierarchical route timing and distance', () => {
+    const routePush = resolveMotionPreset('route-push')
+
+    expect(routePush.enterDuration).toBe(220)
+    expect(routePush.exitDuration).toBe(165)
+    expect(routePush.shift).toBe(12)
+    expect(routePush.scaleFrom).toBe(1)
+  })
+
   it('exports stable spring presets for motion consumers', () => {
     expect(motionSprings.sheet.stiffness).toBeGreaterThan(motionSprings.soft.stiffness)
     expect(motionSprings.completion.damping).toBeLessThan(motionSprings.sheet.damping)
@@ -67,7 +86,8 @@ describe('motion theme contract', () => {
   })
 
   it('exports orbital interaction tokens for cross-platform UI polish', () => {
-    expect(orbitalMotion.press.scale).toBeLessThan(1)
+    expect(orbitalMotion.press.scale).toBeCloseTo(0.96)
+    expect(orbitalMotion.press.duration).toBe(150)
     expect(orbitalMotion.elevatedPress.translateY).toBeLessThan(0)
     expect(orbitalMotion.list.maxStaggerItems).toBeGreaterThan(0)
     expect(orbitalMotion.completion.peakScale).toBeGreaterThan(orbitalMotion.completion.reducedPeakScale)

@@ -1,192 +1,183 @@
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { renderedText } from '@/__tests__/support/react-test-renderer'
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
+import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ActionResult } from '@orbit/shared/types/chat'
-
+import { makeActionResult } from '@orbit/shared/test-support/chat-fixtures'
 import { ActionChips } from '@/components/chat/action-chips'
 
 const TestRenderer = require('react-test-renderer')
 
-const colorProxy: any = new Proxy(
-  {},
-  {
-    get: (_target, prop) => {
-      if (prop === 'white') return '#ffffff'
-      return '#111111'
-    },
-  },
-)
-
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
-      if (params) return `${key}:${JSON.stringify(params)}`
-      return key
+      const translations: Record<string, string> = {
+        'chat.action.created': 'Criou {name}',
+        'chat.action.failed': 'Não foi possível concluir a ação',
+        'chat.action.createFailed': 'Não foi possível criar {name}',
+        'chat.action.updateFailed': 'Não foi possível atualizar {name}',
+        'chat.action.deleteFailed': 'Não foi possível apagar {name}',
+        'chat.action.updatedChecklist': ptBR.chat.action.updatedChecklist,
+        'chat.action.updateChecklistFailed': ptBR.chat.action.updateChecklistFailed,
+        'chat.action.changedHabitParent': ptBR.chat.action.changedHabitParent,
+        'chat.action.changeHabitParentFailed': ptBR.chat.action.changeHabitParentFailed,
+        'chat.action.linkedHabitGoals': ptBR.chat.action.linkedHabitGoals,
+        'chat.action.linkHabitGoalsFailed': ptBR.chat.action.linkHabitGoalsFailed,
+        'chat.unknownEntity': 'Desconhecido',
+      }
+      const template = translations[key]
+      const name = typeof params?.name === 'string' ? params.name : ''
+      return template
+        ? template.replace('{name}', name)
+        : params
+          ? `${key}:${JSON.stringify(params)}`
+          : key
     },
+    i18n: { language: 'pt-BR' },
   }),
 }))
 
-vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({
-    colors: colorProxy,
-  }),
+vi.mock('@/components/ui/block-frame', () => ({
+  BlockFrame: (props: Record<string, any>) => React.createElement(
+    'BlockFrame',
+    props,
+    ...props.items.map((item: Record<string, any>) => React.createElement('Item', item, item.label, item.meta, item.control)),
+    props.actions,
+  ),
 }))
 
-vi.mock('@/lib/theme', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/theme')>()
-  return {
-    ...actual,
-    createColors: () => colorProxy,
-  }
-})
+vi.mock('@/components/ui/pill-button', () => ({
+  Button: ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) =>
+    React.createElement('Button', { onPress: onClick }, children),
+}))
 
-vi.mock('@/components/chat/conflict-warning', () => {
-  const React = require('react')
-  return {
-    ConflictWarning: () => React.createElement('ConflictWarning'),
-  }
-})
+vi.mock('@/components/chat/conflict-warning', () => ({
+  ConflictWarning: () => React.createElement('ConflictWarning'),
+}))
 
-vi.mock('lucide-react-native', () => {
-  const React = require('react')
-  const createIcon = (name: string) => (props: any) => React.createElement(name, props)
-  return {
-    CheckCircle: createIcon('CheckCircle'),
-    XCircle: createIcon('XCircle'),
-    Info: createIcon('Info'),
-  }
-})
-
-function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
-  return {
-    type: 'CreateHabit',
-    status: 'Success',
-    entityId: 'h-1',
-    entityName: 'Meditate',
-    error: null,
-    field: null,
-    suggestedSubHabits: null,
-    conflictWarning: null,
-    ...overrides,
-  }
-}
-
-function findPressableByType(root: any) {
-  return root.findAll(
-    (node: any) =>
-      node.props &&
-      node.props.accessibilityRole === 'button' &&
-      typeof node.props.onPress === 'function' &&
-      typeof node.type !== 'string',
-  )
+function renderActions(actions: ActionResult[], onChipClick?: (id: string, type: string) => void) {
+  let tree: any
+  TestRenderer.act(() => {
+    tree = TestRenderer.create(<ActionChips actions={actions} onChipClick={onChipClick} />)
+  })
+  return tree
 }
 
 describe('ActionChips (mobile)', () => {
-  it.each<{ name: string; overrides: Partial<ActionResult>; handler: boolean; expected: number }>([
-    { name: 'renders successful Create chip as a Pressable when onChipClick is provided', overrides: { type: 'CreateHabit', status: 'Success', entityId: 'h-1' }, handler: true, expected: 1 },
-    { name: 'does not render Delete chip as Pressable even with handler', overrides: { type: 'DeleteHabit', status: 'Success', entityId: 'h-1' }, handler: true, expected: 0 },
-    { name: 'does not render DeleteGoal chip as Pressable even with handler', overrides: { type: 'DeleteGoal', status: 'Success', entityId: 'g-1' }, handler: true, expected: 0 },
-    { name: 'does not render Failed chip as Pressable even with handler', overrides: { type: 'CreateHabit', status: 'Failed', entityId: 'h-1', error: 'oops' }, handler: true, expected: 0 },
-    { name: 'does not render as Pressable when no handler is provided', overrides: { type: 'CreateHabit', status: 'Success', entityId: 'h-1' }, handler: false, expected: 0 },
-    { name: 'does not render chip with null entityId as Pressable', overrides: { type: 'CreateHabit', status: 'Success', entityId: null }, handler: true, expected: 0 },
-  ])('$name', ({ overrides, handler, expected }) => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction(overrides)]}
-          onChipClick={handler ? () => {} : undefined}
-        />,
-      )
-    })
-    expect(findPressableByType(tree.root)).toHaveLength(expected)
+  it.each([
+    { type: 'UpdateChecklist', label: 'Checklist atualizado: Leitura' },
+    { type: 'update_checklist', label: 'Checklist atualizado: Leitura' },
+    { type: 'MoveHabitParent', label: 'Hábito principal alterado: Leitura' },
+    { type: 'move_habit_parent', label: 'Hábito principal alterado: Leitura' },
+    { type: 'LinkGoalsToHabit', label: 'Metas vinculadas a Leitura' },
+    { type: 'link_goals_to_habit', label: 'Metas vinculadas a Leitura' },
+  ])('localizes $type with the real habit name', ({ type, label }) => {
+    const tree = renderActions([makeActionResult({ type, entityName: 'Leitura' })])
+    const frame = tree.root.findByType('BlockFrame')
+    expect(renderedText(frame.props.items[0].label)).toBe(label)
+    expect(renderedText(tree.toJSON())).not.toContain(type)
   })
 
-  it('calls onChipClick with entityId and actionType on press', () => {
-    const onChipClick = vi.fn()
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-42' })]}
-          onChipClick={onChipClick}
-        />,
-      )
-    })
-    const [pressable] = findPressableByType(tree.root)
-    TestRenderer.act(() => {
-      pressable?.props.onPress?.()
-    })
-    expect(onChipClick).toHaveBeenCalledWith('h-42', 'CreateHabit')
+  it('renders legacy results as one block and omits suggestions', () => {
+    const tree = renderActions([makeActionResult(), makeActionResult({ status: 'Suggestion' })])
+    const frame = tree.root.findByType('BlockFrame')
+
+    expect(frame.props.title).toBe('chat.action.changes')
+    expect(frame.props.items).toHaveLength(1)
+    expect(frame.props.items[0].status).toBe('done')
   })
 
-  it('calls onChipClick with goal entityId and actionType on press', () => {
-    const onChipClick = vi.fn()
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction({ type: 'UpdateGoal', status: 'Success', entityId: 'g-42' })]}
-          onChipClick={onChipClick}
-        />,
-      )
-    })
-    const [pressable] = findPressableByType(tree.root)
-    TestRenderer.act(() => {
-      pressable?.props.onPress?.()
-    })
-    expect(onChipClick).toHaveBeenCalledWith('g-42', 'UpdateGoal')
+  it('uses the frame failed state without exposing a server error', () => {
+    const tree = renderActions([makeActionResult({ status: 'Failed', error: 'database unavailable' })])
+    const frame = tree.root.findByType('BlockFrame')
+
+    expect(frame.props.state).toBe('partiallyFailed')
+    expect(frame.props.items[0].meta).toBe('chat.operation.status.Failed')
+    expect(renderedText(tree.toJSON())).not.toContain('database unavailable')
   })
 
-  it('does not render tag mutation chips as Pressable even with handler', () => {
-    for (const type of ['CreateTag', 'UpdateTag', 'DeleteTag']) {
-      let tree: any
-      TestRenderer.act(() => {
-        tree = TestRenderer.create(
-          <ActionChips
-            actions={[makeAction({ type, status: 'Success', entityId: 'tag-1' })]}
-            onChipClick={() => {}}
-          />,
-        )
-      })
-      expect(findPressableByType(tree.root)).toHaveLength(0)
-    }
+  it('does not describe a nameless failed create as created or unknown', () => {
+    const tree = renderActions([makeActionResult({
+      type: 'create_habit',
+      status: 'Failed',
+      entityId: null,
+      entityName: null,
+    })])
+    const output = JSON.stringify(tree.toJSON())
+
+    expect(output).not.toContain('Criou')
+    expect(output).not.toContain('Desconhecido')
   })
 
-  it('renders localized labels for the new tag and reorder action types', () => {
-    const cases: [string, string][] = [
-      ['CreateTag', 'chat.action.createdTag'],
-      ['UpdateTag', 'chat.action.updatedTag'],
-      ['DeleteTag', 'chat.action.deletedTag'],
-      ['ReorderGoals', 'chat.action.reorderedGoals'],
-      ['ReorderHabits', 'chat.action.reorderedHabits'],
-    ]
-    for (const [type, labelKey] of cases) {
-      let tree: any
-      TestRenderer.act(() => {
-        tree = TestRenderer.create(
-          <ActionChips actions={[makeAction({ type, entityName: 'Work' })]} />,
-        )
-      })
-      const matches = tree.root.findAll(
-        (node: any) =>
-          typeof node.props?.children === 'string' &&
-          node.props.children.startsWith(labelKey),
-      )
-      expect(matches.length).toBeGreaterThan(0)
-    }
-  })
+  it('names the attempted entity in a failed create', () => {
+    const tree = renderActions([makeActionResult({
+      type: 'create_habit',
+      status: 'Failed',
+      entityId: null,
+      entityName: 'Perspirex Strong - Semana 2 (Manutenção)',
+    })])
+    const frame = tree.root.findByType('BlockFrame')
 
-  it('renders fallback copy for an unknown action type', () => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips actions={[makeAction({ type: 'custom_action', entityName: null })]} />,
-      )
-    })
-
-    const matches = tree.root.findAll(
-      (node: any) => node.props?.children === 'custom action: chat.unknownEntity',
+    expect(renderedText(frame.props.items[0].label)).toBe(
+      'Não foi possível criar Perspirex Strong - Semana 2 (Manutenção)',
     )
-    expect(matches.length).toBeGreaterThan(0)
+  })
+
+  it('renders three failed attempts as distinguishable rows', () => {
+    const tree = renderActions([
+      makeActionResult({ type: 'create_habit', status: 'Failed', entityName: 'Morning walk' }),
+      makeActionResult({ type: 'update_habit', status: 'Failed', entityName: 'Read ten pages' }),
+      makeActionResult({ type: 'delete_habit', status: 'Failed', entityName: 'Drink water' }),
+    ])
+    const frame = tree.root.findByType('BlockFrame')
+
+    expect(frame.props.items.map((item: { label: React.ReactNode }) => renderedText(item.label))).toEqual([
+      'Não foi possível criar Morning walk',
+      'Não foi possível atualizar Read ten pages',
+      'Não foi possível apagar Drink water',
+    ])
+  })
+
+  it('keeps the successful create label unchanged', () => {
+    const tree = renderActions([makeActionResult({ type: 'create_habit' })])
+    const frame = tree.root.findByType('BlockFrame')
+
+    expect(renderedText(frame.props.items[0].label)).toBe('Criou Meditate')
+  })
+
+  it('opens a successful navigable result', () => {
+    const onChipClick = vi.fn()
+    const tree = renderActions([makeActionResult()], onChipClick)
+
+    TestRenderer.act(() => tree.root.findByType('Button').props.onPress())
+    expect(onChipClick).toHaveBeenCalledWith('habit-1', 'LogHabit')
+  })
+
+  it('does not add a control for a destructive result', () => {
+    const tree = renderActions([makeActionResult({ type: 'DeleteHabit' })], vi.fn())
+
+    expect(tree.root.findAllByType('Button')).toHaveLength(0)
+  })
+
+  it('keeps legacy content without rendering unknown operation symbols', () => {
+    const tree = renderActions([makeActionResult({ type: 'UnexpectedServerSymbol' })])
+    const frame = tree.root.findByType('BlockFrame')
+
+    expect(renderedText(frame.props.items[0].label)).toBe('Meditate')
+    expect(renderedText(tree.toJSON())).not.toContain('UnexpectedServerSymbol')
+  })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full attempted entity %s', async (name) => {
+    const label = `Não foi possível criar ${name}`
+    const onChipClick = vi.fn()
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<ActionChips actions={[makeActionResult({ type: 'create_habit', status: 'Failed', entityName: name, entityId: null })]} onChipClick={onChipClick} />) })
+    await expectPersonalTextLayout(tree.root, label)
+    await act(() => pressTextControl(expandedTextControls(tree.root, label, false)[0]!))
+    expect(expandedTextControls(tree.root, label, true)).toHaveLength(1)
+    expect(onChipClick).not.toHaveBeenCalled()
+    await act(() => tree.update(<></>))
   })
 
 })

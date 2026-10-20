@@ -1,14 +1,15 @@
 import { z } from 'zod'
-import { relativeReminderTimeSchema } from './habit'
+import { habitScheduleSchema, relativeReminderTimeSchema } from './habit'
 
 export const mutationTypeSchema = z.enum([
   'createHabit', 'updateHabit', 'deleteHabit', 'restoreHabit', 'logHabit', 'skipHabit',
+  'undoSkipHabit',
   'reorderHabits', 'updateChecklist', 'duplicateHabit', 'moveHabitParent', 'createSubHabit',
-  'bulkCreateHabits', 'bulkDeleteHabits', 'bulkLogHabits', 'bulkSkipHabits',
+  'bulkCreateHabits', 'bulkDeleteHabits', 'bulkCascadeDeleteHabits', 'bulkLogHabits', 'bulkSkipHabits',
   'createGoal', 'updateGoal', 'deleteGoal', 'restoreGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals', 'linkGoalHabits',
   'createTag', 'updateTag', 'deleteTag', 'restoreTag', 'assignTags',
   'markNotificationRead', 'markAllNotificationsRead', 'deleteNotification', 'deleteAllNotifications',
-  'setName', 'setLanguage', 'setWeekStartDay', 'setColorScheme', 'setThemePreference', 'setTimeZone', 'setAiSummary', 'setProactiveAstra', 'setMarketingConsent',
+  'setName', 'setLanguage', 'setWeekStartDay', 'setClockFormat', 'setColorScheme', 'setThemePreference', 'setTimeZone', 'setAiSummary', 'setProactiveAstra', 'setMarketingConsent',
   'completeOnboarding', 'dismissCalendarPrompt', 'dismissImportPrompt', 'resetProfile',
   'createApiKey', 'deleteApiKey',
 ])
@@ -107,6 +108,8 @@ const syncScheduledReminderSchema = z.object({
 })
 
 const syncHabitDtoSchema = z.object({
+  startDate: z.iso.date().optional(),
+  schedule: habitScheduleSchema.optional(),
   id: z.string(),
   title: z.string(),
   description: z.string().nullable(),

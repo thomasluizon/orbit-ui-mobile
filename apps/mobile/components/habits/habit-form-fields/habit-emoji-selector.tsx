@@ -1,39 +1,66 @@
+import { PillButton } from '@/components/ui/pill-button'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, useCallback } from "react";
-import { ActivityIndicator, View, Text, Pressable, ScrollView } from "react-native";
-import { Plus, X } from "lucide-react-native";
+import { View, Text, } from "react-native";
+import { Plus, Trash2, X } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import {
   HABIT_EMOJI_CATEGORIES,
   filterHabitEmojiCategories,
 } from "@orbit/shared/utils";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
-import { AstraMark } from "@/components/ui/astra-avatar";
 import { type AppTokens, createStyles } from "./styles";
 
 interface HabitEmojiSelectorProps {
+  onSuggest?: () => void
+  canSuggest?: boolean
+  isSuggesting?: boolean
+  suggestionHint?: string
+  suggestionError?: string
   selectedEmoji: string;
   tokens: AppTokens;
   styles: ReturnType<typeof createStyles>;
   onSelect: (emoji: string) => void;
-  onSuggest?: () => void;
-  canSuggest?: boolean;
-  isSuggesting?: boolean;
   isDisabled?: boolean;
+  wellSize?: number;
+}
+
+function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError'>>) {
+  const { t } = useTranslation()
+  return onSuggest ? (
+    <PillButton
+      variant="ghost"
+      accessibleName={t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
+      minimumHeight={TOUCH_TARGET_MIN}
+      loading={isSuggesting}
+      focusableWhenLoading
+      disabled={!isSuggesting && (!canSuggest || isDisabled)}
+      hint={[suggestionHint, suggestionError].filter(Boolean).join(' ') || undefined}
+      onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
+    >
+      {t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
+    </PillButton>
+  ) : null
 }
 
 export function HabitEmojiSelector({
+  onSuggest,
+  canSuggest = false,
+  isSuggesting = false,
+  suggestionHint,
+  suggestionError,
   selectedEmoji,
   tokens,
   styles,
   onSelect,
-  onSuggest,
-  canSuggest = false,
-  isSuggesting = false,
   isDisabled = false,
+  wellSize = TOUCH_TARGET_MIN,
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { sheetRef, closeSheet } = useSheetHost();
   const [query, setQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const searchedCategories = useMemo(() => filterHabitEmojiCategories(query), [query]);
@@ -44,15 +71,18 @@ export function HabitEmojiSelector({
     [searchedCategories, selectedCategoryId],
   );
 
-  const closePicker = useCallback(() => {
+  const hidePicker = useCallback(() => {
     setPickerOpen(false);
     setQuery("");
     setSelectedCategoryId(null);
   }, []);
 
   function handleSelectEmoji(emoji: string) {
-    onSelect(emoji);
-    closePicker();
+    if (isDisabled) return;
+    closeSheet(() => {
+      hidePicker();
+      onSelect(emoji);
+    });
   }
 
   function handleSelectCategory(categoryId: string) {
@@ -61,117 +91,104 @@ export function HabitEmojiSelector({
 
   return (
     <>
-      <View style={styles.emojiField}>
-        <Pressable
+      <View style={{ gap: 8, maxWidth: '100%' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Pressable focusInset
           style={({ pressed }) => [
             styles.emojiWell,
+            { width: Math.max(wellSize, TOUCH_TARGET_MIN), height: Math.max(wellSize, TOUCH_TARGET_MIN), borderRadius: 12, overflow: 'hidden' },
             pressed
               ? {
-                  backgroundColor: tokens.bgElevPressed,
+                  backgroundColor: tokens.bgHover,
                   transform: [{ scale: 0.96 }],
                 }
               : null,
+            isDisabled ? { opacity: 0.45 } : null,
           ]}
+          disabled={isDisabled}
           onPress={() => setPickerOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={t("habits.form.emojiOpenPicker")}
+          accessibilityState={{ disabled: isDisabled }}
         >
           {selectedEmoji ? (
-            <Text style={styles.emojiWellText}>{selectedEmoji}</Text>
+            <Text style={[styles.emojiWellText, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
           ) : (
-            <Plus size={22} color={tokens.fg3} strokeWidth={1.8} />
+            <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
           )}
         </Pressable>
-        {onSuggest ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.emojiSuggestButton,
-              (isSuggesting || isDisabled || !canSuggest) ? styles.emojiSuggestButtonDisabled : null,
-              pressed ? { transform: [{ scale: 0.96 }] } : null,
-            ]}
-            onPress={onSuggest}
-            disabled={isSuggesting || isDisabled || !canSuggest}
-            accessibilityRole="button"
-            accessibilityLabel={t(isSuggesting ? "habits.form.emojiSuggesting" : "habits.form.emojiSuggest")}
-            accessibilityHint={!canSuggest ? t("habits.form.titleRequired") : undefined}
-            accessibilityState={{ disabled: isSuggesting || isDisabled || !canSuggest, busy: isSuggesting }}
-          >
-            {isSuggesting ? (
-              <ActivityIndicator size="small" color={tokens.primary} />
-            ) : (
-              <AstraMark size={18} color={tokens.primary} strokeWidth={2} />
-            )}
-          </Pressable>
-        ) : null}
+        <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} />
+        </View>
+        {onSuggest && suggestionHint ? <Text style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{suggestionHint}</Text> : null}
+        {onSuggest ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{suggestionError}</Text> : null}
       </View>
 
-      <BottomSheetModal
-        open={pickerOpen}
-        onClose={closePicker}
+      {pickerOpen ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={hidePicker}
         title={t("habits.form.emojiPickerTitle")}
-        snapPoints={["82%"]}
-        contentManagesScroll
+        headerAccessory={selectedEmoji ? (
+          <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
+            <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
+            <Pressable focusInset accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
+              <Trash2 size={20} color={tokens.fg2} strokeWidth={1.8} />
+            </Pressable>
+          </View>
+        ) : undefined}
       >
-        {pickerOpen ? (
-          <View style={styles.emojiSheetContent}>
-            <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
-            <BottomSheetAppTextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t("habits.form.emojiSearchPlaceholder")}
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel={t("habits.form.emojiSearchPlaceholder")}
-            />
+        <View style={styles.emojiSheetContent}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <BottomSheetAppTextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder={t("habits.form.emojiSearchPlaceholder")}
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel={t("habits.form.emojiSearchPlaceholder")}
+                style={{ flex: 1 }}
+              />
+              {query ? (
+                <Pressable focusInset
+                  accessibilityRole="button"
+                  accessibilityLabel={t("habits.form.emojiClearSearch")}
+                  style={({ pressed }) => [{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, pressed && { backgroundColor: tokens.bgHover }]}
+                  onPress={() => setQuery('')}
+                >
+                  <X size={20} color={tokens.fg2} strokeWidth={1.8} />
+                </Pressable>
+              ) : null}
+            </View>
 
-            {selectedEmoji ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.emojiRemoveButton,
-                  pressed ? { transform: [{ scale: 0.96 }] } : null,
-                ]}
-                hitSlop={{ top: 6, bottom: 6 }}
-                onPress={() => handleSelectEmoji("")}
-                accessibilityRole="button"
-                accessibilityLabel={t("habits.form.emojiRemove")}
-              >
-                <X size={14} color={tokens.fg2} strokeWidth={1.8} />
-                <Text style={styles.emojiRemoveButtonText}>{t("habits.form.emojiRemove")}</Text>
-              </Pressable>
-            ) : null}
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.emojiCategoryTabs}
+            <View
+              style={styles.emojiCategoryTabs}
               accessibilityLabel={t("habits.form.emojiCategories")}
             >
-              {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- fixed horizontal category-tab strip over a static category list; ScrollView is the right primitive for a short horizontal tab row https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
               {HABIT_EMOJI_CATEGORIES.map((category) => {
                 const selected = selectedCategoryId === category.id;
                 return (
-                  <Pressable
+                  <Pressable focusInset selectionRingWidth={1}
                     key={category.id}
                     style={({ pressed }) => [
                       styles.emojiCategoryTab,
                       selected ? styles.emojiCategoryTabActive : null,
-                      pressed ? { transform: [{ scale: 0.96 }] } : null,
+                      pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
                     ]}
-                    hitSlop={{ top: 4, bottom: 4 }}
+
                     onPress={() => handleSelectCategory(category.id)}
                     accessibilityRole="button"
                     accessibilityLabel={t(category.labelKey)}
                     accessibilityState={{ selected }}
                   >
-                    <Text style={[styles.emojiCategoryTabText, selected ? styles.emojiCategoryTabTextActive : null]}>
+                    <Text numberOfLines={1} style={[styles.emojiCategoryTabText, selected ? styles.emojiCategoryTabTextActive : null]}>
                       {t(category.labelKey)}
                     </Text>
                   </Pressable>
                 );
               })}
-            </ScrollView>
+            </View>
 
-            <ScrollView style={styles.emojiModalList} showsVerticalScrollIndicator>
+            <View>
               {filteredCategories.length === 0 ? (
                 <Text style={styles.emojiEmptyText}>{t("habits.form.emojiPickerEmpty")}</Text>
               ) : filteredCategories.map((category) => (
@@ -181,16 +198,20 @@ export function HabitEmojiSelector({
                     {category.emojis.map((emoji) => {
                       const selected = selectedEmoji === emoji;
                       return (
-                        <Pressable
+                        <Pressable focusInset selectionRingWidth={2}
                           key={`${category.id}-${emoji}`}
                           style={({ pressed }) => [
                             styles.emojiOption,
                             selected ? styles.emojiOptionSelected : null,
-                            pressed ? { transform: [{ scale: 0.96 }] } : null,
+                            pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
                           ]}
+                          disabled={isDisabled}
                           onPress={() => handleSelectEmoji(emoji)}
                           accessibilityRole="button"
-                          accessibilityState={{ selected }}
+                          accessibilityState={{
+                            selected,
+                            ...(isDisabled ? { disabled: true } : {}),
+                          }}
                           accessibilityLabel={`${t("habits.form.emoji")}: ${emoji}`}
                         >
                           <Text style={[styles.emojiOptionText, { color: tokens.fg1 }]}>{emoji}</Text>
@@ -200,10 +221,9 @@ export function HabitEmojiSelector({
                   </View>
                 </View>
               ))}
-            </ScrollView>
-          </View>
-        ) : null}
-      </BottomSheetModal>
+            </View>
+        </View>
+      </Sheet>) : null}
     </>
   );
 }

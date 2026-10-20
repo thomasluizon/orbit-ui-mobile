@@ -2,10 +2,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ClarificationRequest } from '@orbit/shared/types'
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
+import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { AccessibilityInfo } from 'react-native'
+import { renderedText } from '../../support/react-test-renderer'
 
-// react-test-renderer ships as CJS-only and doesn't surface ESM-friendly types
-// for the bits we use, so we declare a local shape and require() it the same
-// way the sibling pending-operation-card.test.tsx does.
 interface TestNode {
   type: unknown
   props: {
@@ -21,6 +21,7 @@ interface TestTreeRoot extends TestNode {
 
 interface TestInstance {
   root: TestTreeRoot
+  update(element: React.ReactNode): void
 }
 
 interface TestRendererApi {
@@ -45,10 +46,16 @@ const colorProxy = new Proxy<ColorRecord>(
   },
 )
 
-vi.mock('react-i18next', () => ({
+vi.mock('react-i18next', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-i18next')>(),
   useTranslation: () => ({
     t: (key: string) => key,
+    i18n: { language: 'en' },
   }),
+}))
+
+vi.mock('@/hooks/use-time-format', () => ({
+  useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -69,14 +76,6 @@ vi.mock('@/lib/theme', () => ({
     },
   }),
 }))
-
-vi.mock('lucide-react-native', () => {
-   
-  const React = require('react')
-  return {
-    Check: (props: Record<string, unknown>) => React.createElement('Check', props),
-  }
-})
 
 const mutateAsync = vi.fn()
 const isPendingRef = { current: false }
@@ -128,7 +127,7 @@ describe('ClarificationCard (mobile)', () => {
 
   it('renders four quick-action buttons', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
@@ -138,7 +137,7 @@ describe('ClarificationCard (mobile)', () => {
 
   it('renders the question text', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
@@ -150,7 +149,7 @@ describe('ClarificationCard (mobile)', () => {
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Succeeded' } })
 
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
@@ -170,7 +169,7 @@ describe('ClarificationCard (mobile)', () => {
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Succeeded' } })
 
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <ClarificationCard clarificationRequest={baseClarification} entityName="meditation" />,
       )
@@ -186,6 +185,30 @@ describe('ClarificationCard (mobile)', () => {
     expect(successNodes.length).toBeGreaterThan(0)
   })
 
+  it('replaces the question with an editable pending preview', async () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    const onPreview = vi.fn()
+    mutateAsync.mockResolvedValueOnce({ operation: { status: 'PendingConfirmation' }, pendingOperation })
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} onPreview={onPreview} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />)
+    })
+    const [firstButton] = findPressables(tree.root)
+    await TestRenderer.act(async () => { await firstButton!.props.onPress!() })
+    const output = renderedText(tree.root)
+    expect(output).toContain('Beber água')
+    expect(output).toContain('chat.operation.approve')
+    expect(output).toContain('chat.operation.edit')
+    expect(output).toContain('chat.operation.reject')
+    expect(announce).toHaveBeenCalledWith('chat.operation.pendingTitle')
+    expect(output).not.toContain('habits.clarification.errorGeneric')
+    expect(onPreview).toHaveBeenCalledWith(pendingOperation)
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<ClarificationCard clarificationRequest={baseClarification} pendingOperation={pendingOperation} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.approve')
+  })
+
   it.each<{ name: string; error: Error; expectedKey: string }>([
     { name: 'shows expired-error text when resolve throws a 404', error: Object.assign(new Error('expired'), { status: 404 }), expectedKey: 'habits.clarification.errorExpired' },
     { name: 'shows generic-error text when resolve throws a non-404 error', error: new Error('network error'), expectedKey: 'habits.clarification.errorGeneric' },
@@ -195,7 +218,7 @@ describe('ClarificationCard (mobile)', () => {
     mutateAsync.mockRejectedValueOnce(error)
 
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
@@ -213,7 +236,7 @@ describe('ClarificationCard (mobile)', () => {
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Denied' } })
 
     let tree!: TestInstance
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 

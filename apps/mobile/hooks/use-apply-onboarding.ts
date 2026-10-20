@@ -12,12 +12,13 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
  * (not through the offline queue) so the caller observes the real 2xx before
  * clearing local answers. Returns the parsed, idempotent apply response.
  */
-export function useApplyOnboarding(): () => Promise<ApplyOnboardingResponse> {
-  return useCallback(async () => {
+export function useApplyOnboarding(): (isCurrent?: () => boolean) => Promise<ApplyOnboardingResponse> {
+  return useCallback(async (isCurrent?: () => boolean) => {
     const payload = useOnboardingDraftStore.getState().buildApplyPayload()
     const response = await apiClient<unknown>(API.profile.onboardingApply, {
       method: 'POST',
       body: JSON.stringify(payload),
+      ...(isCurrent ? { isCurrent } : {}),
     })
     return applyOnboardingResponseSchema.parse(response)
   }, [])

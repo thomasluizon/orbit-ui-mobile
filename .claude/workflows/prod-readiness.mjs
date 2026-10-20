@@ -3,18 +3,16 @@ export const meta = {
   description: 'Pre-launch orchestrator that runs the four audit workflows in parallel (Haiku fan-out), adds the ops-layer and static-a11y audits no child covers (D11 judgement no gate checks), verifies its own findings, and returns consolidated data for Opus to tier-tag, verdict, and turn into GitHub tickets (D10).',
   phases: [
     { title: 'Audits', detail: 'the four /audit workflows in parallel' },
-    { title: 'Ops', detail: 'observability · multi-instance · background durability · staging' },
+    { title: 'Ops', detail: 'observability · multi-instance · background durability · staging · concurrency' },
     { title: 'A11y', detail: 'static WCAG 2.2 AA sweep — web + mobile' },
     { title: 'Verify', detail: 'skeptic per Blocker/High ops or a11y finding — default refuted' },
   ],
 }
 
 const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
-for (const name of ['ui', 'api']) {
-  const root = parsedArgs.roots?.[name]
-  if (typeof root !== 'string' || !/^(?:\/|[A-Za-z]:[\\/]|\\\\[^\\]+\\)/.test(root)) {
-    throw new Error(`prod-readiness workflow: args.roots.${name} must be an absolute path`)
-  }
+const absolutePath = (path) => typeof path === 'string' && /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(path)
+if (!absolutePath(parsedArgs.roots?.ui) || !absolutePath(parsedArgs.roots?.api)) {
+  throw new Error('prod-readiness workflow requires absolute ui and api roots')
 }
 const { ui: UI, api: API } = parsedArgs.roots
 
@@ -59,27 +57,33 @@ const OPS_LADDER = 'Blocker (a whole runtime is dark, or it corrupts user data o
 const OPS_CHECKS = [
   {
     check: 'observability',
-    where: `Sentry across all three runtimes — web ${UI}\\apps\\web\\sentry.server.config.ts + sentry.edge.config.ts + lib\\sentry-scrub.ts; mobile ${UI}\\apps\\mobile\\lib\\sentry-init.ts + lib\\sentry.ts; api ${API}\\src\\Orbit.Infrastructure\\Configuration\\SentrySettings.cs + ${API}\\src\\Orbit.Api\\Middleware\\UnhandledExceptionHandler.cs. Health: ${API}\\src\\Orbit.Infrastructure\\Services\\BackgroundServiceHealthCheck.cs + the MapHealthChecks registration. Alert routing: the Discord sink.`,
+    where: `Sentry across all three runtimes — web ${UI}/apps/web/sentry.server.config.ts + sentry.edge.config.ts + lib/sentry-scrub.ts; mobile ${UI}/apps/mobile/lib/sentry-init.ts + lib/sentry.ts; api ${API}/src/Orbit.Infrastructure/Configuration/SentrySettings.cs + ${API}/src/Orbit.Api/Middleware/UnhandledExceptionHandler.cs. Health: ${API}/src/Orbit.Infrastructure/Services/BackgroundServiceHealthCheck.cs + the MapHealthChecks registration. Alert routing: the Discord sink.`,
     ready: 'error capture initialized + DSN wired on all three surfaces, an unhandled-exception handler, a /health endpoint, and alerts routed to a sink someone watches',
     gap: 'a surface with no error capture, no health endpoint, or no alert sink is a finding (Blocker if a whole runtime is dark, High for a single gap)',
   },
   {
     check: 'multi-instance',
-    where: `IHostedService schedulers (${API}\\src\\Orbit.Infrastructure\\Services\\*SchedulerService.cs, Services\\Hosting\\ScheduledServiceBase.cs) vs Hangfire (${API}\\src\\Orbit.Infrastructure\\BackgroundJobs\\HangfireRecurringJobRegistrar.cs, IScheduledJob.cs); any in-memory cache / rate-limit / counter assumed authoritative; session-affinity assumptions`,
+    where: `IHostedService schedulers (${API}/src/Orbit.Infrastructure/Services/*SchedulerService.cs, Services/Hosting/ScheduledServiceBase.cs) vs Hangfire (${API}/src/Orbit.Infrastructure/BackgroundJobs/HangfireRecurringJobRegistrar.cs, IScheduledJob.cs); any in-memory cache / rate-limit / counter assumed authoritative; session-affinity assumptions`,
     ready: 'recurring work coordinated through Hangfire durable store (one run cluster-wide); no single-instance in-memory authority',
     gap: 'an IHostedService that double-fires on every replica, or an in-memory rate-limit/cache that breaks when a second instance starts (High; Blocker if it corrupts user data on scale-out)',
   },
   {
     check: 'background-durability',
-    where: `Hangfire store config (${API}\\src\\Orbit.Infrastructure\\Configuration\\BackgroundJobSettings.cs, ${API}\\src\\Orbit.Api\\Extensions\\ServiceCollectionExtensions.BackgroundJobs.cs); fire-and-forget paths (RunBackgroundPostResponseWork, push/email dispatch)`,
+    where: `Hangfire store config (${API}/src/Orbit.Infrastructure/Configuration/BackgroundJobSettings.cs, ${API}/src/Orbit.Api/Extensions/ServiceCollectionExtensions.BackgroundJobs.cs); fire-and-forget paths (RunBackgroundPostResponseWork, push/email dispatch)`,
     ready: 'jobs persisted to a durable store, survive a restart, are idempotent / retried',
     gap: 'in-process fire-and-forget work lost on restart or crash, or a non-idempotent recurring job that double-applies on retry (High)',
   },
   {
     check: 'staging',
-    where: `deploy/CI workflows in BOTH repos — ${UI}\\.github\\workflows\\promote-prod.yml, smoke-prod.yml, test.yml; ${API}\\.github\\workflows\\*. Discover the real state per repo; do not hardcode a snapshot (the QA env was aborted per #211 and the workflow set drifts)`,
+    where: `deploy/CI workflows in BOTH repos — ${UI}/.github/workflows/promote-prod.yml, smoke-prod.yml, test.yml; ${API}/.github/workflows/*. Discover the current state per repo.`,
     ready: 'a pre-prod gate (smoke + promote) sits between merge and prod',
     gap: 'no staging/QA env or no pre-prod gate (Medium, calibrated)',
+  },
+  {
+    check: 'concurrency',
+    where: `Read the canonical "Concurrency checklist (inventory item 13)" in ${UI}/.claude/skills/prod-readiness/SKILL.md, then trace its named paths in ${API} and ${UI}. Use the checklist as the sole authority for this dimension.`,
+    ready: 'each shared-resource operation satisfies the canonical concurrency checklist',
+    gap: 'a source-provable broken interleaving under that checklist, with the competing operations and missing guard',
   },
 ]
 
@@ -88,11 +92,11 @@ const A11Y_LADDER = 'Blocker (an essential journey cannot complete by keyboard o
 const A11Y_CHECKS = [
   {
     check: 'a11y-web',
-    where: `${UI}\\apps\\web — shared primitives and shell first (components/, the app/(app) layout, dialogs, menus, toasts, forms), then the core journeys (auth, today, habit logging, settings, billing)`,
+    where: `${UI}/apps/web — shared primitives and shell first (components/, the app/(app) layout, dialogs, menus, toasts, forms), then the core journeys (auth, today, habit logging, settings, billing)`,
   },
   {
     check: 'a11y-mobile',
-    where: `${UI}\\apps\\mobile — shared primitives and the navigation shell first (components/, sheets, dialogs, tab bar), then the same core journeys; judge React Native semantics (accessibilityRole / accessibilityLabel / accessibilityState, grouped children, focus after navigation)`,
+    where: `${UI}/apps/mobile — shared primitives and the navigation shell first (components/, sheets, dialogs, tab bar), then the same core journeys; judge React Native semantics (accessibilityRole / accessibilityLabel / accessibilityState, grouped children, focus after navigation)`,
   },
 ]
 
@@ -101,7 +105,7 @@ function a11yPrompt(c) {
     `Static accessibility sweep "${c.check}" for Orbit. The floor is WCAG 2.2 Level AA and the objective is accessible task completion, never a score. This is a source read: claim only what source can prove.`,
     `Where to look: ${c.where}.`,
     `Judge the a11y judgement no gate owns: native-element-first (a pressable div/View where a button belongs); every ARIA role or RN accessibility prop as a keyboard and focus contract the code must honour (a role added without its key handling or focus management); focus on open, trapped while open, returned on close for dialogs and menus; a localized label in both locales for icon-only controls; colour as the only signal; the 3:1 non-text contrast floor for icons, borders, and state indicators; hit targets under 44 grown by glyph instead of padding; and materially different UI states (empty, loading, validation-error, dialog, menu, toast) that lose semantics the populated state has.`,
-    `Gate-owned, do NOT flag: anything the React Doctor a11y rules in guards.yml already fail on, and anything ESLint local/* or the Design Token Guard owns. Runtime-only claims (200% zoom, screen-reader output, the route x state x viewport x input-mode matrix) are OUT of scope: the workflow defers them as a11y-runtime-matrix, so never emit a finding that needs the live DOM.`,
+    `Gate-owned, do NOT flag: anything the React Doctor steps in guards.yml already fail on, and anything ESLint local/* or the Design Token Guard owns. Runtime-only claims (200% zoom, screen-reader output, the route x state x viewport x input-mode matrix) are OUT of scope: the workflow defers them as a11y-runtime-matrix, so never emit a finding that needs the live DOM.`,
     `Severity ladder: [${A11Y_LADDER}]. For each finding return: severity, check ("${c.check}"), title, location (repo-relative path:line), risk (which user and which task is blocked, and how), evidence (the exact line that proves it), fix (the concrete change). Findings only; return an empty array if the surface is clean.`,
   ].join('\n')
 }
@@ -183,8 +187,8 @@ const a11yRaw = a11yResults.filter((x) => x && x.result).flatMap((x) => x.result
 
 phase('Verify')
 const REFUTE_FRAMING = {
-  ops: 'ops-readiness finding. Read the cited config/code in full context and argue it is a FALSE POSITIVE — Hangfire already coordinates that job, the unhandled-exception handler DOES exist, the runtime really has a promote gate, the cache is per-request not process-global.',
-  a11y: 'static-a11y finding. Read the cited component in full context and argue it is a FALSE POSITIVE — the control IS a native element further up the tree, the label DOES exist in both locales, the role carries its keyboard contract elsewhere, the state is not user-reachable, a React Doctor rule in guards.yml already fails on it, or the severity is inflated.',
+  ops: 'ops-readiness finding. Read the cited config/code in full context and argue it is a FALSE POSITIVE — Hangfire already coordinates that job, the unhandled-exception handler DOES exist, the runtime really has a promote gate, the cache is per-request not process-global, or a concurrency guard prevents the cited interleaving.',
+  a11y: 'static-a11y finding. Read the cited component in full context and argue it is a FALSE POSITIVE — the control IS a native element further up the tree, the label DOES exist in both locales, the role carries its keyboard contract elsewhere, the state is not user-reachable, a react-doctor.yml rule already fails on it, or the severity is inflated.',
 }
 const verifyTargets = [
   ...opsRaw.filter(isSerious).map((f) => ({ f, layer: 'ops' })),

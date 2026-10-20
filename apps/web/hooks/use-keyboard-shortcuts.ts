@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { requestHabitCreateNavigation } from './use-habit-create-navigation-guard'
 import { useRouter } from 'next/navigation'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
-import { hasOpenOverlay } from '@/lib/overlay-stack'
+import { hasOpenModalFocusOwner, hasOpenOverlay } from '@/lib/overlay-stack'
 
 const CHORD_TIMEOUT_MS = 1200
 
@@ -17,17 +17,18 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
 }
 
-export function useKeyboardShortcuts(): void {
+export function useKeyboardShortcuts(enabled = true): void {
   const router = useRouter()
   const togglePalette = useShellStore((state) => state.togglePalette)
-  const setAstraOpen = useShellStore((state) => state.setAstraOpen)
-  const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
+  const paletteOpen = useShellStore((state) => state.paletteOpen)
   const setActiveView = useUIStore((state) => state.setActiveView)
-  const isDesktop = useIsDesktop()
+  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const chordArmed = useRef(false)
   const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    if (!enabled) return
+
     function clearChord() {
       chordArmed.current = false
       if (chordTimer.current) {
@@ -36,19 +37,12 @@ export function useKeyboardShortcuts(): void {
       }
     }
 
-    function navigate(path: string, view?: 'today' | 'goals') {
-      if (view) setActiveView(view)
-      setRouteTransitionIntent('tab')
-      router.push(path)
-    }
-
-    function openAstra() {
-      if (isDesktop) {
-        setAstraOpen(true)
-        setAstraMaximized(true)
-        return
-      }
-      navigate('/chat')
+    function navigate(path: string, view?: 'today') {
+      requestHabitCreateNavigation(() => {
+        if (view) setActiveView(view)
+        setRouteTransitionIntent('tab')
+        router.push(path)
+      })
     }
 
     function runChord(key: string): boolean {
@@ -59,11 +53,11 @@ export function useKeyboardShortcuts(): void {
         case 'c':
           navigate('/calendar')
           return true
-        case 'i':
-          navigate('/insights')
-          return true
         case 'a':
-          openAstra()
+          setAstraConversationOpen(true)
+          return true
+        case 'i':
+          navigate('/progress')
           return true
         case 'p':
           navigate('/profile')
@@ -76,6 +70,7 @@ export function useKeyboardShortcuts(): void {
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && (event.key === 'k' || event.key === 'K')) {
         event.preventDefault()
+        if (!paletteOpen && hasOpenModalFocusOwner()) return
         togglePalette()
         return
       }
@@ -104,5 +99,5 @@ export function useKeyboardShortcuts(): void {
       document.removeEventListener('keydown', onKeyDown)
       clearChord()
     }
-  }, [router, togglePalette, setActiveView, isDesktop, setAstraOpen, setAstraMaximized])
+  }, [enabled, paletteOpen, router, togglePalette, setActiveView, setAstraConversationOpen])
 }

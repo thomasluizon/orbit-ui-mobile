@@ -14,7 +14,6 @@ import {
 describe('getCelebrationPriority', () => {
   it('ranks kinds from streak (highest) to level-up (lowest)', () => {
     expect(getCelebrationPriority('streak')).toBe(0)
-    expect(getCelebrationPriority('achievement')).toBe(1)
     expect(getCelebrationPriority('goal-completed')).toBe(2)
     expect(getCelebrationPriority('all-done')).toBe(2)
     expect(getCelebrationPriority('level-up')).toBe(3)
@@ -31,7 +30,7 @@ describe('sortCelebrationQueue', () => {
       createCelebrationItem('level-up', { level: 2 }, 5),
       createCelebrationItem('streak', { streak: 3 }, 4),
       createCelebrationItem('all-done', { count: 1 }, 1),
-      createCelebrationItem('goal-completed', { name: 'Ship' }, 0),
+      createCelebrationItem('goal-completed', { name: 'Ship', count: 12, unit: 'releases' }, 0),
     ]
 
     const sorted = sortCelebrationQueue(queue)
@@ -49,7 +48,7 @@ describe('sortCelebrationQueue', () => {
 describe('isDuplicateCelebration', () => {
   it('matches by kind-specific payload identity', () => {
     const active = createCelebrationItem('streak', { streak: 5 }, 0)
-    const queued = [createCelebrationItem('achievement', { achievementId: 'a1', xpReward: 10 }, 1)]
+    const queued = [createCelebrationItem('goal-completed', { name: 'Read', count: 12, unit: 'books' }, 1)]
 
     expect(
       isDuplicateCelebration(queued, active, createCelebrationItem('streak', { streak: 5 }, 2)),
@@ -58,10 +57,10 @@ describe('isDuplicateCelebration', () => {
       isDuplicateCelebration(queued, active, createCelebrationItem('streak', { streak: 9 }, 2)),
     ).toBe(false)
     expect(
-      isDuplicateCelebration(queued, active, createCelebrationItem('achievement', { achievementId: 'a1', xpReward: 99 }, 2)),
+      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Read', count: 12, unit: 'books' }, 2)),
     ).toBe(true)
     expect(
-      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Ship' }, 2)),
+      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Ship', count: 12, unit: 'releases' }, 2)),
     ).toBe(false)
   })
 
@@ -82,12 +81,12 @@ describe('isDuplicateCelebration', () => {
 
 describe('createCelebrationItem', () => {
   it('stamps a deterministic id and the kind priority', () => {
-    const item = createCelebrationItem('goal-completed', { name: 'Ship Orbit' }, 7)
+    const item = createCelebrationItem('goal-completed', { name: 'Ship Orbit', count: 12, unit: 'releases' }, 7)
 
     expect(item).toEqual({
       id: 'goal-completed-7',
       kind: 'goal-completed',
-      payload: { name: 'Ship Orbit' },
+      payload: { name: 'Ship Orbit', count: 12, unit: 'releases' },
       priority: 2,
       sequence: 7,
     })
@@ -120,8 +119,8 @@ describe('activateNextCelebration', () => {
   it('derives legacy all-done and goal-completed state', () => {
     expect(activateNextCelebration([createCelebrationItem('all-done', { count: 1 }, 0)]).allDoneCelebration).toBe(true)
     expect(
-      activateNextCelebration([createCelebrationItem('goal-completed', { name: 'Ship' }, 0)]).goalCompletedCelebration,
-    ).toEqual({ name: 'Ship' })
+      activateNextCelebration([createCelebrationItem('goal-completed', { name: 'Ship', count: 12, unit: 'releases' }, 0)]).goalCompletedCelebration,
+    ).toEqual({ name: 'Ship', count: 12, unit: 'releases' })
   })
 })
 
@@ -137,7 +136,7 @@ describe('enqueueCelebrationItem', () => {
 
   it('queues behind an active celebration in priority order', () => {
     const state = {
-      activeCelebration: createCelebrationItem('achievement', { achievementId: 'a', xpReward: 5 }, 0),
+      activeCelebration: createCelebrationItem('all-done', { count: 1 }, 0),
       queuedCelebrations: [createCelebrationItem('level-up', { level: 2 }, 1)],
     }
 
@@ -170,9 +169,9 @@ describe('clearCelebrationKind', () => {
 
   it('only filters the queue when a different kind is active', () => {
     const state = {
-      activeCelebration: createCelebrationItem('achievement', { achievementId: 'a', xpReward: 5 }, 0),
+      activeCelebration: createCelebrationItem('all-done', { count: 1 }, 0),
       queuedCelebrations: [
-        createCelebrationItem('goal-completed', { name: 'Ship' }, 1),
+        createCelebrationItem('goal-completed', { name: 'Ship', count: 12, unit: 'releases' }, 1),
         createCelebrationItem('level-up', { level: 2 }, 2),
       ],
     }

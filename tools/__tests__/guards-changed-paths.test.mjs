@@ -1,0 +1,205 @@
+import assert from "node:assert/strict"
+import { execFileSync, spawnSync } from "node:child_process"
+import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
+import test from "node:test"
+import yaml from "js-yaml"
+import { guardGroups } from "./_guard-groups.mjs"
+
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
+const workflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"))
+const testWorkflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/test.yml"), "utf8"))
+const cases = [
+  ["root-allowlist", "Workspace packages declare no ignored overrides", "package.json"],
+  ["copy", "Changed copy stays inside the register", "apps/web/app/page.tsx"],
+  ["i18n-usage", "Changed translation usage resolves", "apps/mobile/app/page.tsx"],
+  ["surface-manifest", "Changed surface inputs match the committed inventory", "design/canvas/screen.svg"],
+]
+
+function git(directory, ...arguments_) {
+  return execFileSync("git", arguments_, { cwd: directory, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim()
+}
+
+function runCase(jobId, stepName, changedPath, mode, options = {}) {
+  const directory = mkdtempSync(join(tmpdir(), "guards-changed-paths-"))
+  try {
+    git(directory, "init", "-q")
+    git(directory, "config", "user.email", "test@example.invalid")
+    git(directory, "config", "user.name", "Test")
+    writeFileSync(join(directory, "initial.txt"), "base\n")
+    git(directory, "add", "initial.txt")
+    git(directory, "commit", "-qm", "base")
+    const base = git(directory, "rev-parse", "HEAD")
+    if (mode === "fetchable") git(directory, "branch", "base", base)
+    const path = mode === "unowned" ? "unowned.txt" : changedPath
+    mkdirSync(dirname(join(directory, path)), { recursive: true })
+    writeFileSync(join(directory, path), options.content ?? "changed\n")
+    git(directory, "add", path)
+    git(directory, "commit", "-qm", "change")
+    const origin = join(directory, "origin.git")
+    if (mode === "fetchable") {
+      execFileSync("git", ["init", "--bare", "-q", origin])
+      git(directory, "remote", "add", "origin", origin)
+      git(directory, "push", "-q", "origin", "base")
+      git(directory, "update-ref", "-d", "refs/remotes/origin/base")
+    } else {
+      git(directory, "remote", "add", "origin", join(directory, "absent-origin"))
+    }
+    if (mode === "owned" || mode === "unowned") git(directory, "update-ref", "refs/remotes/origin/base", base)
+    if (mode === "unfetched") git(directory, "update-ref", "refs/heads/base", base)
+    const baseRef = mode === "missing" ? "missing" : "base"
+    const job = guardGroups(options.workflow ?? workflow)[jobId]
+    const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
+    assert.ok(prepare?.run, `${jobId} must prepare changed paths in its own step`)
+    const gate = job.steps.find((step) => step.name === stepName)
+    assert.ok(gate?.run, `${jobId} must retain ${stepName}`)
+    const source = join(repositoryRoot, ".github/scripts/changed-paths.sh")
+    const destination = join(directory, ".github/scripts/changed-paths.sh")
+    mkdirSync(dirname(destination), { recursive: true })
+    copyFileSync(source, destination)
+    const substitute = (script) => script
+      .replaceAll("${{ github.event_name }}", "pull_request")
+      .replaceAll("${{ github.base_ref }}", baseRef)
+    const environment = { ...process.env, RUNNER_TEMP: directory, BASE_REF: baseRef }
+    const first = spawnSync("bash", ["-e", "-c", substitute(prepare.run)], { cwd: directory, env: environment, encoding: "utf8" })
+    if (mode === "missing" || mode === "unfetched") {
+      assert.notEqual(first.status, 0, `${jobId}: ${mode} base must fail`)
+      assert.match(first.stderr, new RegExp(baseRef), `${jobId}: failure must name the base`)
+      return
+    }
+    assert.equal(first.status, 0, `${jobId}: changed paths must resolve: ${first.stderr}`)
+    const second = spawnSync("bash", ["-e", "-c", `${options.stubs ?? "node() { echo GATE_RAN; }"}\n${substitute(gate.run)}`], {
+      cwd: directory, env: environment, encoding: "utf8",
+    })
+    assert.equal(second.status, mode === "owned" ? (options.ownedStatus ?? 0) : 0,
+      `${jobId}: gate step exit: ${second.stderr}`)
+    const shouldRun = mode === "owned" || mode === "fetchable"
+    assert.equal(`${second.stdout}${second.stderr}`.includes(options.marker ?? "GATE_RAN"), shouldRun,
+      `${jobId}: ${mode} must ${shouldRun ? "run" : "skip"} the gate`)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+
+for (const [jobId, stepName, path] of cases) {
+  test(`${jobId}: ${stepName}`, () => {
+    for (const mode of ["missing", "unfetched", "owned", "unowned", "fetchable"]) runCase(jobId, stepName, path, mode)
+  })
+}
+
+for (const [jobId, stepName, path, options] of [
+  ["lint", "Lint only files changed by this pull request", "apps/web/app/page.tsx",
+    { stubs: "npm() { echo GATE_RAN; }" }],
+  ["design-guard", "Ban raw --slate-*, transition-all, h-screen in app code", "apps/web/app/page.tsx",
+    { content: "transition-all\n", ownedStatus: 1, marker: "DESIGN.md ban" }],
+  ["design-guard", "Ban decorative gradients in app code", "tools/check-gradients.mjs", {}],
+]) {
+  test(`${jobId}: ${stepName} resolves before consuming changed paths`, () => {
+    for (const mode of ["missing", "unfetched", "owned", "unowned"]) {
+      runCase(jobId, stepName, path, mode, { workflow: jobId === "lint" ? testWorkflow : workflow, ...options })
+    }
+  })
+}
+
+test("each diff reader resolves paths before using them", () => {
+  const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
+    "expo-pin", "surface-manifest", "gate-charter"]
+  for (const jobId of readers) {
+    const steps = guardGroups(workflow)[jobId].steps
+    const preparation = steps.findIndex((step) => step.name === "Resolve pull request changed paths")
+    assert.ok(preparation > 0, `${jobId} must prepare paths after checkout`)
+    assert.equal(steps[preparation].if, "${{ !cancelled() && (github.event_name == 'pull_request') }}")
+    assert.ok(steps.slice(preparation + 1).some((step) => step.run?.includes("$RUNNER_TEMP/changed-paths")),
+      `${jobId} must read the prepared list`)
+  }
+  assert.doesNotMatch(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"), /git diff --name-only/)
+})
+
+test("Astra eval exports temporary paths before evaluation without job-level runner expressions", () => {
+  const astra = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/astra-eval.yml"), "utf8"))
+  assert.deepEqual(Object.keys(astra.on), ["workflow_dispatch"])
+  const job = astra.jobs.evaluate
+  assert.doesNotMatch(JSON.stringify(job.env), /runner\.temp/)
+  const setup = job.steps[0]
+  assert.equal(setup["working-directory"], "${{ runner.temp }}")
+  const directory = mkdtempSync(join(tmpdir(), "astra eval paths "))
+  try {
+    const environmentFile = join(directory, "environment")
+    const result = spawnSync("bash", ["-e", "-c", setup.run], {
+      cwd: directory,
+      env: { ...process.env, RUNNER_TEMP: directory, GITHUB_ENV: environmentFile },
+      encoding: "utf8",
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(readFileSync(environmentFile, "utf8").trim().split("\n"), [
+      `ORBIT_EVAL_RESET_SCRIPT=${directory}/astra-reset.sh`,
+      `PROMPTFOO_CONFIG_DIR=${directory}/astra-promptfoo`,
+    ])
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test("Guards checks every workflow with a checksum-pinned actionlint and no baseline", () => {
+  const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === "workflow-syntax__1")
+  assert.ok(step, "workflow syntax must have a guard")
+  assert.equal(step.if, "${{ !cancelled() }}")
+  assert.match(step.run, /releases\/download\/v1\.7\.12\/actionlint_1\.7\.12_linux_amd64\.tar\.gz/)
+  assert.match(step.run, /8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8/)
+  assert.match(step.run, /sha256sum -c/)
+  assert.ok(step.run.indexOf("sha256sum -c") < step.run.indexOf("tar -xzf"))
+  assert.match(step.run, /actionlint" -shellcheck= -pyflakes= \.github\/workflows\/\*\.yml/)
+  assert.doesNotMatch(step.run, /-ignore|\|\| true/)
+})
+
+test("script guards share one checkout and install, and run after another guard fails", () => {
+  assert.deepEqual(Object.keys(workflow.jobs), ["guards"])
+  const steps = workflow.jobs.guards.steps
+  assert.equal(steps.filter((step) => step.uses?.startsWith("actions/checkout@")).length, 1)
+  assert.equal(steps.filter((step) => /^npm ci\b/.test(step.run ?? "")).length, 1)
+  for (const step of steps.filter((candidate) => candidate.id?.includes("__"))) {
+    assert.ok(step.name, `${step.id} must name the guard`)
+    assert.match(step.if, /!cancelled\(\)/, `${step.id} must run after a previous failure`)
+    assert.doesNotMatch(step.if, /success\(\)/, `${step.id} must not depend on another guard passing`)
+  }
+})
+
+test("calibration stays advisory and React Doctor retains its time limit", () => {
+  assert.equal(guardGroups(workflow).calibration.steps.find((step) => step.name === "Report calibration drift")["continue-on-error"], true)
+  assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 15)
+})
+
+test("pull requests run each source check through one owner", () => {
+  assert.equal(guardGroups(workflow)["surface-scope-report"], undefined)
+  for (const id of ["lint-severity__1", "performance-workflow__1", "root-allowlist__4"]) {
+    const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === id)
+    assert.equal(step.if, "${{ !cancelled() && (github.event_name != 'pull_request') }}")
+  }
+  assert.ok(testWorkflow.jobs["tool-hook-tests"].steps.some((step) => step.run === "node tools/test-tools.mjs"))
+  assert.ok(testWorkflow.jobs["web-tests"].steps.some((step) => step.name === "Run web shard with coverage"))
+  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === 'npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage'))
+  assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("npx turbo run test")), false)
+})
+
+test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {
+  const job = testWorkflow.jobs["tool-hook-tests"]
+  const step = job.steps.find((candidate) => candidate.run?.includes("node tools/check-surface-scope.mjs"))
+  assert.ok(step, "Tool and Hook Tests must execute the full-tree surface scope scan")
+  assert.equal(step.if, "${{ !cancelled() }}")
+  assert.doesNotMatch(step.run, /changed-paths/, "a mobile-only change must still run the full-tree scan")
+  assert.equal(job.needs, undefined)
+  assert.equal(testWorkflow.on.pull_request.paths, undefined)
+  const directory = mkdtempSync(join(tmpdir(), "surface-scope-step-"))
+  try {
+    mkdirSync(join(directory, "tools"))
+    for (const [checkerStatus, stepStatus] of [[0, 0], [1, 0], [2, 2]]) {
+      writeFileSync(join(directory, "tools/check-surface-scope.mjs"), `process.exit(${checkerStatus})\n`)
+      const result = spawnSync("bash", ["--noprofile", "--norc", "-eo", "pipefail", "-c", step.run], { cwd: directory, encoding: "utf8" })
+      assert.equal(result.status, stepStatus, `checker exit ${checkerStatus} must end the step with ${stepStatus}`)
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})

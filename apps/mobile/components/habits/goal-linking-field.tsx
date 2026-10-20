@@ -1,17 +1,27 @@
-import { useMemo } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { SPACING } from '@orbit/shared/theme'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { PickerRow } from '@/components/ui/picker-row'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useMemo, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { apiClient } from '@/lib/api-client'
-import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
-
-type AppTokens = ReturnType<typeof createTokensV2>
+import type { createTokensV2 } from '@/lib/theme'
+import { useThemeTokens } from '@/hooks/use-theme-tokens'
+import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
+import { KeyboardAwareFlatList } from '@/components/ui/keyboard-aware-scroll-view'
+import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { ActionRow } from '@/components/ui/action-row'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { CreateGoalSheet } from '../goals/create-goal-sheet'
 
 interface GoalLinkingFieldProps {
+  habitId?: string
   selectedGoalIds: string[]
   atGoalLimit: boolean
   onToggleGoal: (goalId: string) => void
@@ -22,144 +32,62 @@ async function fetchGoals(): Promise<Goal[]> {
   return Array.isArray(response) ? response : response.items
 }
 
-export function GoalLinkingField({
-  selectedGoalIds,
-  atGoalLimit,
-  onToggleGoal,
-}: Readonly<GoalLinkingFieldProps>) {
+function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<{ goals: Goal[]; selectedIds: string[]; atLimit: boolean; onToggle: (id: string) => void }>) {
   const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
+  const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const [query, setQuery] = useState('')
+  const filteredGoals = goals.filter((goal) => goal.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  const renderGoal = ({ item: goal }: { item: Goal }) => {
+    const selected = selectedIds.includes(goal.id)
+    return <PickerRow name={goal.title} selected={selected} disabled={!selected && atLimit} onToggle={() => onToggle(goal.id)} value={selected ? '✓' : `${Math.round(goal.progressPercentage)}%`} valueStyle={styles.rowValue} />
+  }
+  return <View style={styles.list}>
+    {goals.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: goals.length })}</Text> : null}
+    {goals.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} accessibilityLabel={t('habits.form.searchGoals')} placeholder={t('habits.form.searchGoals')} style={styles.search} /> : null}
+    {goals.length >= 21 ? <KeyboardAwareFlatList key={query} data={filteredGoals} renderItem={renderGoal} keyExtractor={(goal) => goal.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" /> : filteredGoals.map((goal) => <View key={goal.id}>{renderGoal({ item: goal })}</View>)}
+  </View>
+}
 
-  const { data: goals } = useQuery({
-    queryKey: goalKeys.lists(),
-    queryFn: fetchGoals,
-    staleTime: QUERY_STALE_TIMES.goals,
+export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onToggleGoal }: Readonly<GoalLinkingFieldProps>) {
+  const { t } = useTranslation()
+  const tokens = useThemeTokens()
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const [open, setOpen] = useAccountScopedState(false)
+  const [creating, setCreating] = useAccountScopedState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const { data: goals } = useQuery({ queryKey: goalKeys.lists(), queryFn: fetchGoals, staleTime: QUERY_STALE_TIMES.goals })
+  const activeGoals = useMemo(() => goals?.filter((goal) => goal.status === 'Active') ?? [], [goals])
+  const selectedSet = useMemo(() => new Set(selectedGoalIds), [selectedGoalIds])
+  const selectedGoals = activeGoals.filter((goal) => selectedSet.has(goal.id))
+  const openCreateGoal = () => closeSheet(() => {
+    setOpen(false)
+    setCreating(true)
   })
 
-  const activeGoals = useMemo(
-    () => goals?.filter((goal) => goal.status === 'Active') ?? [],
-    [goals],
-  )
-  const selectedGoalIdSet = useMemo(
-    () => new Set(selectedGoalIds),
-    [selectedGoalIds],
-  )
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>{t('habits.form.goals')}</Text>
-      {activeGoals.length > 0 ? (
-        <View style={styles.chips}>
-          {activeGoals.map((goal) => {
-            const isSelected = selectedGoalIdSet.has(goal.id)
-            const isDisabled = !isSelected && atGoalLimit
-
-            return (
-              <Pressable
-                key={goal.id}
-                style={({ pressed }) => [
-                  styles.chip,
-                  isSelected ? styles.chipSelected : styles.chipDefault,
-                  isDisabled && styles.chipDisabled,
-                  pressed && !isDisabled ? { opacity: 0.75 } : null,
-                ]}
-                disabled={isDisabled}
-                onPress={() => onToggleGoal(goal.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected, disabled: isDisabled }}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    isSelected ? styles.chipTextSelected : styles.chipTextDefault,
-                  ]}
-                >
-                  {goal.title}
-                  <Text
-                    style={[
-                      styles.chipPercentage,
-                      isSelected
-                        ? styles.chipPercentageSelected
-                        : styles.chipPercentageDefault,
-                    ]}
-                  >
-                    {' '}
-                    {Math.round(goal.progressPercentage)}%
-                  </Text>
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
-      ) : (
-        <Text style={styles.emptyText}>{t('habits.form.noGoals')}</Text>
-      )}
-    </View>
+    <>
+      <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} placement="column" onClick={() => setOpen(true)} />
+      {selectedGoals.length > 0 ? <View style={styles.chips}>{selectedGoals.slice(0, 3).map((goal) => <View key={goal.id} style={styles.chip}><PersonalTextDetails lines={1} textStyle={styles.chipText}>{goal.title}</PersonalTextDetails></View>)}{selectedGoals.length > 3 ? <View style={[styles.chip, { paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s8 }]}><Text style={styles.chipText}>{t('habits.form.moreSelected', { count: selectedGoals.length - 3 })}</Text></View> : null}</View> : null}
+      {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} virtualizedBody={activeGoals.length >= 21} actions={activeGoals.length ? <ActionRow><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('goals.create')}</PillButton></ActionRow> : undefined} onClose={() => setOpen(false)}>
+        {activeGoals.length === 0 ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noGoals')}</Text><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('habits.form.createGoal')}</PillButton></View> : <GoalPickerList goals={activeGoals} selectedIds={selectedGoalIds} atLimit={atGoalLimit} onToggle={onToggleGoal} />}
+      </Sheet> : null}
+      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={habitId || atGoalLimit ? undefined : onToggleGoal} onClose={() => setCreating(false)} /> : null}
+    </>
   )
 }
 
-function createStyles(tokens: AppTokens) {
+type Tokens = ReturnType<typeof createTokensV2>
+function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    container: {
-      gap: 10,
-    },
-    label: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.fg2,
-    },
-    chips: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-    },
-    chip: {
-      borderRadius: radius.full,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderWidth: 1,
-    },
-    chipDefault: {
-      backgroundColor: tokens.bgElev,
-      borderColor: tokens.hairline,
-    },
-    chipSelected: {
-      backgroundColor: tokens.selectionBg,
-      borderColor: tintFromPrimary(tokens, 0.45),
-    },
-    chipDisabled: {
-      opacity: 0.35,
-    },
-    chipText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-    },
-    chipTextDefault: {
-      color: tokens.fg2,
-    },
-    chipTextSelected: {
-      color: tokens.primarySoft,
-    },
-    chipPercentage: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 11,
-      fontVariant: ['tabular-nums'],
-    },
-    chipPercentageDefault: {
-      color: tokens.fg3,
-    },
-    chipPercentageSelected: {
-      color: tokens.primarySoft,
-    },
-    emptyText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
-    },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: SPACING.s8 },
+    chip: { backgroundColor: tokens.bgWell, borderRadius: 8, minWidth: 0, maxWidth: '100%' },
+    chipText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14, flexShrink: 1 },
+    list: { flexShrink: 1, gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: SPACING.s8 },
+    search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: SPACING.s8, minHeight: 54, paddingHorizontal: SPACING.s16 },
+    virtualList: { maxHeight: 320 },
+    rowValue: { flex: 1, color: tokens.fg2, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
+    empty: { alignItems: 'center', gap: 16, padding: SPACING.s32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
   })
 }

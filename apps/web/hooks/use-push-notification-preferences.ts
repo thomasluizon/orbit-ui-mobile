@@ -12,9 +12,9 @@ import {
   unsubscribePushForCleanup,
 } from '@/lib/actions/notifications'
 import { reportsAccountChanged } from '@/app/actions/action-result'
+import { ApiClientError } from '@orbit/shared/utils/error-utils'
 import { getAccountId, useAccountId } from '@/lib/account-scope'
 import { getHeldAccountId } from '@/stores/auth-store'
-import { withAccountIntent } from '@/lib/client-action'
 import {
   getExistingPushSubscription,
   isPushSubscriptionOwner,
@@ -26,6 +26,7 @@ import {
 import { getActiveServiceWorkerRegistration } from '@/lib/service-worker-registration'
 
 /** `checking` covers the first render, before the browser reports its push support and subscription. */
+export type WebPushPermissionOutcome = 'granted' | 'denied' | 'unsupported'
 export type PushPreferenceStatus = WebPushPreferenceStatus | 'checking'
 
 export interface PushPreferenceSnapshot {
@@ -37,7 +38,7 @@ export interface PushPreferenceSnapshot {
 
 export interface UsePushNotificationPreferencesResult extends PushPreferenceSnapshot {
   loading: boolean
-  togglePush: () => Promise<void>
+  togglePush: (enabled?: boolean) => Promise<void>
 }
 
 function createCheckingSnapshot(): PushPreferenceSnapshot {
@@ -111,7 +112,7 @@ export function getPushStatusMessageKey(
 }
 
 /** Reports registered only for the account that turned push on in this browser, never for an earlier one. */
-export async function loadPushNotificationState(accountId: string): Promise<PushPreferenceSnapshot> {
+export async function loadPushNotificationState(accountId: string | null): Promise<PushPreferenceSnapshot> {
   if (!isPushNotificationSupported()) {
     return createUnsupportedSnapshot()
   }
@@ -126,15 +127,24 @@ export async function loadPushNotificationState(accountId: string): Promise<Push
     const registration = await getActiveServiceWorkerRegistration()
     const subscription = await registration.pushManager.getSubscription()
 
-    return createSnapshot(permission, subscription !== null && isPushSubscriptionOwner(accountId))
+    return createSnapshot(permission, subscription !== null && accountId !== null && isPushSubscriptionOwner(accountId))
   } catch {
     return createSyncFailedSnapshot(permission)
   }
 }
 
+let activePermissionRequest: Promise<NotificationPermission> | null = null
+
+function readOrRequestPushPermission(): Promise<NotificationPermission> {
+  if (Notification.permission !== 'default') return Promise.resolve(Notification.permission)
+  if (activePermissionRequest) return activePermissionRequest
+  activePermissionRequest = Notification.requestPermission().finally(() => { activePermissionRequest = null })
+  return activePermissionRequest
+}
+
 export async function subscribeToPushNotifications(
   vapidKey: string | undefined = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-  options: { reuseExisting?: boolean } = {},
+  intendedAccountId: string | null = getHeldAccountId(),
 ): Promise<PushPreferenceSnapshot> {
   if (!isPushNotificationSupported()) {
     return createUnsupportedSnapshot()
@@ -144,10 +154,8 @@ export async function subscribeToPushNotifications(
     throw new Error('Missing VAPID public key')
   }
 
-  const permission =
-    Notification.permission === 'granted'
-      ? 'granted'
-      : await Notification.requestPermission()
+  const ownerAccountId = getAccountId()
+  const permission = await readOrRequestPushPermission()
 
   if (permission !== 'granted') {
     return createSnapshot(permission, false)
@@ -157,28 +165,75 @@ export async function subscribeToPushNotifications(
     const registration = await getActiveServiceWorkerRegistration()
     const existingSubscription = await registration.pushManager.getSubscription()
 
-    const ownerAccountId = getAccountId()
-    if (existingSubscription && !options.reuseExisting) {
-      await releaseExistingPushSubscriptionOnServer(existingSubscription, ownerAccountId)
+    if (existingSubscription) {
+      await releaseExistingPushSubscriptionOnServer(existingSubscription, intendedAccountId)
       await existingSubscription.unsubscribe()
     }
 
-    const subscription = options.reuseExisting && existingSubscription ? existingSubscription : await registration.pushManager.subscribe({
+    const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
     })
 
-    try {
-      await withAccountIntent(ownerAccountId, () => subscribePushAction(subscription.toJSON()))
-    } catch (error) {
-      if (subscription !== existingSubscription) await subscription.unsubscribe().catch(() => undefined)
-      if (reportsAccountChanged(error)) throw error
-      throw new Error('Failed to persist push subscription')
-    }
-    if (ownerAccountId) recordPushSubscriptionOwner(ownerAccountId)
+    await persistPushSubscription(subscription, intendedAccountId, ownerAccountId)
 
     return createSnapshot(permission, true)
   })
+}
+
+async function persistPushSubscription(
+  subscription: PushSubscription,
+  intendedAccountId: string | null,
+  ownerAccountId: string | null,
+): Promise<void> {
+  try {
+    await subscribePushAction(subscription.toJSON(), intendedAccountId)
+  } catch (error) {
+    await subscription.unsubscribe().catch(() => undefined)
+    if (reportsAccountChanged(error)) throw error
+    throw new Error('Failed to persist push subscription')
+  }
+  if (ownerAccountId) recordPushSubscriptionOwner(ownerAccountId)
+}
+
+/** Keeps a working endpoint when a reminder is enabled, replacing only an endpoint another account owns. */
+export async function ensurePushSubscription(): Promise<PushPreferenceSnapshot> {
+  if (!isPushNotificationSupported() || Notification.permission !== 'granted') {
+    return subscribeToPushNotifications()
+  }
+  const intendedAccountId = getHeldAccountId()
+  const ownerAccountId = getAccountId()
+  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  return serializePushSubscriptionMutation(async () => {
+    const registration = await getActiveServiceWorkerRegistration()
+    const subscription = await registration.pushManager.getSubscription()
+    if (subscription) {
+      try {
+        await subscribePushAction(subscription.toJSON(), intendedAccountId)
+        if (ownerAccountId) recordPushSubscriptionOwner(ownerAccountId)
+        return createSnapshot('granted', true)
+      } catch (error) {
+        if (!(error instanceof ApiClientError) || error.code !== 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER') throw error
+      }
+    }
+    if (!vapidKey) throw new Error('Missing VAPID public key')
+    if (subscription) {
+      await releaseExistingPushSubscriptionOnServer(subscription, intendedAccountId)
+      await subscription.unsubscribe()
+    }
+    const replacement = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
+    })
+    await persistPushSubscription(replacement, intendedAccountId, ownerAccountId)
+    return createSnapshot('granted', true)
+  })
+}
+
+export async function requestWebPushPermission(): Promise<WebPushPermissionOutcome> {
+  if (!isPushNotificationSupported()) return 'unsupported'
+  const permission = await readOrRequestPushPermission()
+  return permission === 'granted' ? 'granted' : 'denied'
 }
 
 export async function unsubscribeFromPushNotifications(
@@ -188,13 +243,14 @@ export async function unsubscribeFromPushNotifications(
     return createUnsupportedSnapshot()
   }
 
+  const intendedAccountId = getHeldAccountId()
   return serializePushSubscriptionMutation(async () => {
     const registration = await getActiveServiceWorkerRegistration()
     const subscription = await registration.pushManager.getSubscription()
 
     if (subscription) {
       try {
-        await unsubscribePushAction(subscription.toJSON())
+        await unsubscribePushAction(subscription.toJSON(), intendedAccountId)
       } catch (error) {
         if (reportsAccountChanged(error)) throw error
         await subscription.unsubscribe().catch(() => undefined)
@@ -222,8 +278,8 @@ export async function releasePushSubscription(accountId = getHeldAccountId()): P
       controller.signal.throwIfAborted()
       if (!subscription || !isPushSubscriptionOwner(accountId)) return
       try {
-        await settlePushCleanupBeforeAbort(withAccountIntent(accountId,
-          () => unsubscribePushForCleanup(subscription.toJSON())), controller.signal)
+        await settlePushCleanupBeforeAbort(
+          unsubscribePushForCleanup(subscription.toJSON(), accountId), controller.signal)
       } catch (error) {
         if (controller.signal.aborted || reportsAccountChanged(error)) throw error
         if (isPushSubscriptionOwner(accountId)) await subscription.unsubscribe()
@@ -247,7 +303,6 @@ export function usePushNotificationPreferences(): UsePushNotificationPreferences
   })
 
   useEffect(() => {
-    if (accountId === null) return undefined
     let cancelled = false
 
     void loadPushNotificationState(accountId).then((snapshot) => {
@@ -267,17 +322,17 @@ export function usePushNotificationPreferences(): UsePushNotificationPreferences
     }
   }, [accountId])
 
-  async function togglePush() {
+  async function togglePush(enabled = !state.subscribed) {
     setState((current) => ({
       ...current,
       loading: true,
-      status: current.subscribed ? current.status : 'requesting',
+      status: enabled ? 'requesting' : current.status,
     }))
 
     try {
-      const snapshot = state.subscribed
-        ? await unsubscribeFromPushNotifications(state.permission)
-        : await subscribeToPushNotifications()
+      const snapshot = enabled
+        ? await ensurePushSubscription()
+        : await unsubscribeFromPushNotifications(state.permission)
 
       setState((current) => ({
         ...current,

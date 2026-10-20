@@ -1,1231 +1,719 @@
-import React from "react";
-import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
+import React from 'react'
+import { Shell412 } from '@/components/shell/shell-412'
+import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { AccessibilityInfo, Animated, StyleSheet } from 'react-native'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import {
-  createMockHabit,
-  createMockProfile,
-} from "@orbit/shared/__tests__/factories";
-import type { NormalizedHabit } from "@orbit/shared/types/habit";
-import { setAccountId } from "@/lib/account-scope";
-import { computeHabitCardStatus } from "@orbit/shared/utils";
+  canNavigateToNextDay,
+  formatAPIDate,
+  getTodayBoundary,
+} from '@orbit/shared/utils'
+import type { Profile } from '@orbit/shared/types/profile'
+import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { Menu } from '@/components/ui/menu'
+import type { MenuProps } from '@orbit/shared/contracts/overlay'
+import TodayScreen from '@/app/(tabs)/index'
+import { useUIStore } from '@/stores/ui-store'
+import { setAccountId } from '@/lib/account-scope'
 
-import TodayScreen, {
-  resolveBulkActionBarEnterShift,
-  resolveTodayView,
-  shouldRedirectGoalsTab,
-} from "@/app/(tabs)/index";
-import {
-  BackHandler,
-  Keyboard,
-  __setWindowDimensions,
-} from "@/test-mocks/react-native";
+const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
+;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-vi.mock("@/components/referral/referral-card", () => ({
-  ReferralCard: () => null,
-}));
-vi.mock("@/components/referral/referral-drawer", () => ({
-  ReferralDrawer: () => null,
-}));
-
-
-const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
-type RenderedNode = {
-  props: Record<string, unknown>;
-  parent: RenderedNode | null;
-};
-
-type RenderedTree = {
-  root: {
-    findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[];
-    findAllByType: (type: string) => RenderedNode[];
-    findByType: (type: string) => RenderedNode;
-  };
-};
-const { todayShellMock } = vi.hoisted(() => ({
-  todayShellMock: {
-    TodayHeader: () => React.createElement("TodayHeader"),
-    TodayTabs: (props: Record<string, unknown>) =>
-      React.createElement("TodayTabs", props),
-    TodayDateNavigation: (props: Record<string, unknown>) =>
-      React.createElement("TodayDateNavigation", props),
-  },
-}));
-const { useTourTargetMock } = vi.hoisted(() => ({
-  useTourTargetMock: vi.fn(),
-}));
-const { useHabitsMock } = vi.hoisted(() => ({
-  useHabitsMock: vi.fn(),
-}));
-
-const colorProxy = new Proxy<Record<string, string>>(
-  {},
-  {
-    get: (_target, prop: string | symbol) =>
-      prop === "white" ? "#ffffff" : "#111111",
-  },
-);
-
-const shadowStub = {
-  shadowColor: "#111111",
-  shadowOffset: { width: 0, height: 0 },
-  shadowOpacity: 0,
-  shadowRadius: 0,
-};
-const createSurfaceLayer = () => ({
-  backgroundColor: "#111111",
-  borderColor: "#111111",
-  topHighlight: "#111111",
-  shadow: shadowStub,
-  elevation: 0,
-});
-const surfacesMock = {
-  screen: {
-    backgroundColor: "#111111",
-  },
-  ground: createSurfaceLayer(),
-  card: createSurfaceLayer(),
-  elevated: createSurfaceLayer(),
-  overlay: createSurfaceLayer(),
-  glow: {
-    subtle: shadowStub,
-    base: shadowStub,
-    strong: shadowStub,
-  },
-};
-
-const dateParamState = { value: null as string | null };
-
-const uiState = {
-  activeView: "today",
-  setActiveView: vi.fn(),
-  searchQuery: "",
-  setSearchQuery: vi.fn(),
-  selectedFrequency: null,
-  setSelectedFrequency: vi.fn(),
-  selectedTagIds: [],
-  setSelectedTagIds: vi.fn(),
-  showCompleted: false,
-  setShowCompleted: vi.fn(),
-  isSelectMode: false,
-  selectedHabitIds: new Set<string>(),
-  toggleSelectMode: vi.fn(),
-  selectAllHabits: vi.fn(),
-  clearSelection: vi.fn(),
-  setFilters: vi.fn(),
-  showCreateModal: false,
-  setShowCreateModal: vi.fn(),
-  showCreateGoalModal: false,
-  setShowCreateGoalModal: vi.fn(),
-};
-const bulkLogMutateAsync = vi.fn();
-const bulkSkipMutateAsync = vi.fn();
-const markRecentlyCompleted = vi.fn();
-const checkAndPromptParentLog = vi.fn();
-const settleBulkHabitResolutions = vi.fn();
-const mockHabitsData: {
-  habitsById: Map<string, NormalizedHabit>;
-  childrenByParent: Map<string, string[]>;
-  topLevelHabits: NormalizedHabit[];
-} = {
-  habitsById: new Map<string, NormalizedHabit>(),
-  childrenByParent: new Map<string, string[]>(),
-  topLevelHabits: [],
-};
-const habitListHandle = {
-  allCollapsed: false,
-  allLoadedIds: new Set<string>(),
-  collapseAll: vi.fn(),
-  expandAll: vi.fn(),
-  markRecentlyCompleted,
-  checkAndPromptParentLog,
-  settleBulkHabitResolutions,
-  refetch: vi.fn(),
-  scrollToOffset: vi.fn(),
-};
-function defaultUseHabitsReturn() {
-  return {
-    data: mockHabitsData,
-    getChildren: () => [],
-    isFetching: false,
-  };
+const mountedTrees: { unmount: () => void }[] = []
+function createTestTree(node: React.ReactElement) {
+  const tree = TestRenderer.create(node)
+  mountedTrees.push(tree as typeof tree & { unmount: () => void })
+  return tree
 }
-const mockRouterPush = vi.fn();
-const mockRouterNavigate = vi.fn();
-const todayStorageGetItem = vi.hoisted(() => vi.fn((_key: string) => Promise.resolve<string | null>(null)));
-let mockProfile = createMockProfile({
-  hasProAccess: false,
-  aiSummaryEnabled: false,
-});
+afterEach(async () => {
+  await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.unmount() })
+})
 
-vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: {
-    getItem: todayStorageGetItem,
+it('announces whether inline search is open and offers its closing action', async () => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
+  const searchButton = (label: string) => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label)[0]!
+  expect(searchButton(en.habits.search.title).props.accessibilityState).toMatchObject({ expanded: false })
+  await TestRenderer.act(() => { (searchButton(en.habits.search.title).props.onPress as () => void)() })
+  expect(searchButton(en.habits.closeSearch).props.accessibilityState).toMatchObject({ expanded: true })
+  await TestRenderer.act(() => { (searchButton(en.habits.closeSearch).props.onPress as () => void)() })
+  expect(searchButton(en.habits.search.title).props.accessibilityState).toMatchObject({ expanded: false })
+})
+
+const mocks = vi.hoisted(() => ({
+  scrollToOffset: vi.fn(),
+  logHabitMutateAsync: vi.fn(),
+  routerPush: vi.fn(),
+  routerReplace: vi.fn(),
+  focusCallback: null as null | (() => void | (() => void)),
+  clearSelection: vi.fn(),
+  composerEnabled: [] as boolean[],
+  astraOwnership: [] as boolean[],
+  firstUsePermission: vi.fn(async (_isCurrent?: () => boolean) => {}),
+  focusCallbacks: [] as (() => void | (() => void))[],
+  onboardingComplete: true,
+  profileReady: true,
+  checklistProfile: null as Profile | null,
+  habitsFailed: false,
+  habitsFetching: false,
+  plan: 'trial',
+  habitFilters: [] as HabitsFilter[],
+  date: {
+    pinnedDateStr: null as string | null,
+    today: '2026-04-08',
+    selectedDate: new Date('2026-04-08T00:00:00'),
+    dateStr: '2026-04-08',
+    dayName: 'Wednesday',
+    numericDate: '08/04/2026',
+    nextDisabled: false,
+    goToPreviousDay: vi.fn(),
+    goToToday: vi.fn(),
+    goToNextDay: vi.fn(),
   },
-}));
+}))
 
-vi.mock("@/hooks/use-coach-tour", () => ({
-  useCoachTour: () => {},
-}));
+vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: mocks.firstUsePermission }) }))
 
-vi.mock("@/hooks/use-engagement-slot", () => ({
-  useEngagementSlot: () => ({
-    slot: null,
-  }),
-}));
+vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
 
-vi.mock("@/components/today/setup-checklist-card", () => ({
-  SetupChecklistCard: () => null,
-}));
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: mocks.profileReady ? mocks.checklistProfile ?? { hasCompletedOnboarding: mocks.onboardingComplete, timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
+}))
 
-vi.mock("expo-router", () => ({
-  useLocalSearchParams: () =>
-    dateParamState.value ? { date: dateParamState.value } : {},
-  useRouter: () => ({
-    push: mockRouterPush,
-    navigate: mockRouterNavigate,
-  }),
-}));
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
-vi.mock("react-i18next", () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}(${JSON.stringify(params)})` : key,
-    i18n: { language: "en" },
-  }),
-}));
+vi.mock('expo-router', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: mocks.routerPush, replace: mocks.routerReplace }),
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    mocks.focusCallbacks.push(callback)
+    mocks.focusCallback = callback
+  },
+}))
 
-vi.mock("@/hooks/use-profile", () => ({
-  useProfile: () => ({
-    profile: mockProfile,
-  }),
-}));
+const asyncStorageState = vi.hoisted(() => ({
+  values: new Map<string, string>(),
+}))
 
-vi.mock("@/hooks/use-tour-target", () => ({
-  useTourTarget: useTourTargetMock,
-}));
+const pendingHabit = createMockHabit({
+  id: 'habit-pending',
+  title: 'Exercise',
+  isCompleted: false,
+})
 
-vi.mock("@/hooks/use-tags", () => ({
-  useTags: () => ({
-    tags: [],
-  }),
-}));
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: vi.fn((key: string) => Promise.resolve(asyncStorageState.values.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
+      asyncStorageState.values.set(key, value)
+      return Promise.resolve()
+    }),
+    removeItem: vi.fn((key: string) => {
+      asyncStorageState.values.delete(key)
+      return Promise.resolve()
+    }),
+  },
+}))
 
-vi.mock("@/hooks/use-gamification", () => ({
-  useStreakInfo: () => ({
-    data: { currentStreak: 0 },
-  }),
-}));
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}))
 
-vi.mock("@/hooks/use-habits", () => ({
-  EMPTY_HABITS_BY_ID: new Map(),
-  EMPTY_CHILDREN_BY_PARENT: new Map(),
-  EMPTY_NORMALIZED_HABITS: [],
-  useHabits: useHabitsMock,
-  useDeleteHabit: () => ({ mutateAsync: vi.fn() }),
-  useBulkDeleteHabits: () => ({ mutateAsync: vi.fn() }),
-  useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
-  useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
-}));
+vi.mock('react-i18next', async () => {
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  const translate = (key: string) => {
+    let value: unknown = messages
+    for (const segment of key.split('.')) {
+      if (typeof value !== 'object' || value === null || !(segment in value)) return key
+      value = (value as Record<string, unknown>)[segment]
+    }
+    return typeof value === 'string' ? value : key
+  }
 
-vi.mock("@/stores/ui-store", () => ({
-  useUIStore: <T,>(selector: (state: typeof uiState) => T) => selector(uiState),
-}));
+  return {
+    useTranslation: () => ({ t: translate, i18n: { language: 'en' } }),
+  }
+})
 
-vi.mock("@/components/habit-list", () => ({
+
+vi.mock('@/hooks/use-habits', () => ({
+  EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
+  useHabits: (filters: HabitsFilter) => {
+    mocks.habitFilters.push(filters)
+    return {
+      data: mocks.habitsFailed ? undefined : { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
+      isFetching: mocks.habitsFetching,
+      isError: mocks.habitsFailed,
+    }
+  },
+}))
+
+vi.mock('@/components/habit-list', () => ({
   HabitList: React.forwardRef(function MockHabitList(
     props: Record<string, unknown>,
     ref: React.ForwardedRef<unknown>,
   ) {
-    React.useImperativeHandle(ref, () => habitListHandle);
-    const reportedIds = habitListHandle.allLoadedIds;
-    React.useEffect(() => {
-      const reportLoadedIds = props.onAllLoadedIdsChange as
-        | ((ids: Set<string>) => void)
-        | undefined;
-      reportLoadedIds?.(reportedIds);
-    }, [props.onAllLoadedIdsChange, reportedIds]);
+    React.useImperativeHandle(ref, () => ({
+      scrollToOffset: mocks.scrollToOffset,
+      markRecentlyCompleted: vi.fn(),
+      checkAndPromptParentLog: vi.fn(),
+    }))
+
+    const pressPendingRing = () => {
+      const onLogHabit = props.onLogHabit as ((habit: NormalizedHabit) => void) | undefined
+      if (onLogHabit) {
+        onLogHabit(pendingHabit)
+        return
+      }
+
+      const selectedDate = props.selectedDate as Date
+      void mocks.logHabitMutateAsync({
+        habitId: pendingHabit.id,
+        date: formatAPIDate(selectedDate),
+      })
+    }
+
     return React.createElement(
-      "HabitList",
-      props,
+      React.Fragment,
+      null,
       props.listHeader as React.ReactNode,
-    );
+      React.createElement('HabitListProps', { view: props.view, selectedDate: props.selectedDate, showCompleted: props.showCompleted, onScroll: props.onScroll }),
+      React.createElement('PendingRing', { onPress: pressPendingRing }),
+      props.onSeeUpcoming
+        ? React.createElement('UpcomingAction', { onPress: props.onSeeUpcoming })
+        : null,
+    )
   }),
-}));
+}))
 
-vi.mock("@/components/habits/create-habit-modal", () => ({
-  CreateHabitModal: () => null,
-}));
+vi.mock('@/components/habits/selection-tray', () => ({
+  SelectionTray: () => null,
+}))
 
-vi.mock("@/components/habits/habit-detail-drawer", () => ({
-  HabitDetailDrawer: () => null,
-}));
 
-vi.mock("@/components/habits/edit-habit-modal", () => ({
-  EditHabitModal: (props: Record<string, unknown>) =>
-    React.createElement("EditHabitModal", props),
-}));
+vi.mock('@/components/today/today-astra', () => ({
+  TodayAstra: () => {
+    React.useEffect(() => {
+      mocks.astraOwnership.push(true)
+      return () => {
+        mocks.astraOwnership.push(false)
+      }
+    }, [])
+    return React.createElement('TodayAstraOwner')
+  },
+}))
 
-vi.mock("@/components/habits/today-ai-summary", () => ({
-  TodayAISummary: () => null,
-}));
-
-vi.mock("@/components/habits/bulk-action-bar-v2", () => ({
-  BulkActionBarV2: (props: Record<string, unknown>) =>
-    React.createElement("BulkActionBarV2", props),
-}));
-
-vi.mock("@/components/ui/chip", () => ({
-  Chip: (props: Record<string, unknown>) =>
-    React.createElement("Chip", props, props.children as React.ReactNode),
-}));
-
-vi.mock("@/components/ui/tag-chip", () => ({
-  TagChip: (props: Record<string, unknown>) =>
-    React.createElement("TagChip", props),
-}));
-
-vi.mock("@/components/ui/section-label", () => ({
-  SectionLabel: (props: Record<string, unknown>) =>
-    React.createElement(
-      "SectionLabel",
-      props,
-      props.children as React.ReactNode,
-    ),
-}));
-
-vi.mock("@/components/goals/goals-view", () => ({
-  GoalsView: (props: Record<string, unknown>) =>
-    React.createElement("GoalsView", props),
-}));
-
-vi.mock("@/components/goals/create-goal-modal", () => ({
-  CreateGoalModal: () => null,
-}));
-
-vi.mock("@/components/gamification/streak-badge", () => ({
-  StreakBadge: () => React.createElement("StreakBadge"),
-}));
-
-vi.mock("@/components/ui/confirm-dialog", () => ({
-  ConfirmDialog: (props: Record<string, unknown>) =>
-    React.createElement("ConfirmDialog", props),
-}));
-
-vi.mock("@/components/ui/theme-toggle", () => ({
-  ThemeToggle: () => React.createElement("ThemeToggle"),
-}));
-
-vi.mock("@/components/ui/trial-banner", () => ({
-  TrialBanner: () => React.createElement("TrialBanner"),
-}));
-
-vi.mock("@/components/navigation/notification-bell", () => ({
-  NotificationBell: () => React.createElement("NotificationBell"),
-}));
-
-vi.mock("@/components/ui/anchored-menu", () => ({
-  AnchoredMenu: () => null,
-  MenuAnchorHost: ({ children }: { children?: unknown }) => children,
-  useAnchoredMenu: () => ({
-    anchorRef: { current: null },
-    visible: false,
-    anchorRect: null,
-    open: () => {},
-    close: () => {},
-    toggle: () => {},
+vi.mock('@/app/(tabs)/use-today-motion', () => ({
+  useTodayMotion: () => ({
+    dayAnimatedStyle: { transform: [{ translateY: 0 }] },
+    refetchAnimatedStyle: { transform: [{ translateY: 0 }] },
+    bulkBarAnimatedStyle: {},
+    renderBulkActionBar: true,
   }),
-}));
+}))
 
-vi.mock("../../app/(tabs)/today-shell", () => todayShellMock);
-vi.mock("@/hooks/use-horizontal-swipe", () => ({
-  useHorizontalSwipe: () => ({ toGestureArray: () => [] }),
-}));
+vi.mock('@/components/today/today-modals', () => ({
+  TodayModals: () => null,
+}))
 
-vi.mock("@/lib/habit-selection-state", () => ({
-  shouldResetSelectionForViewChange: () => false,
-}));
-
-vi.mock("@/lib/theme", () => ({
-  createColors: () => colorProxy,
-  createTokensV2: () => colorProxy,
-  tintFromPrimary: () => "rgba(127, 70, 247, 0.1)",
-  easings: {
-    out: [0.16, 1, 0.3, 1],
-    smooth: [0.2, 0, 0, 1],
-  },
-  radius: {
-    full: 999,
-    lg: 16,
-    md: 12,
-    xl: 20,
-  },
-  spacing: {
-    pageX: 20,
-    pageBottom: 40,
-    sectionGap: 16,
-    cardPadding: 20,
-    cardGap: 12,
-    itemGap: 8,
-  },
-  shadows: {
-    lg: {},
-  },
-  shadowsV2: {
-    shadow1: {
-      shadowColor: "#111111",
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0,
-      shadowRadius: 0,
-      elevation: 0,
-    },
-    shadow2: {
-      shadowColor: "#111111",
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0,
-      shadowRadius: 0,
-      elevation: 0,
-    },
-    shadow3: {
-      shadowColor: "#111111",
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0,
-      shadowRadius: 0,
-      elevation: 0,
-    },
-  },
-}));
-
-vi.mock("@/lib/use-app-theme", () => ({
-  useAppTheme: () => ({
-    colors: colorProxy,
-    surfaces: surfacesMock,
-    currentScheme: "purple",
-    currentTheme: "dark",
-  }),
-}));
-
-vi.mock("lucide-react-native", () => {
-  const createIcon = (name: string) => (props: Record<string, unknown>) =>
-    React.createElement(name, props);
+vi.mock('@/lib/theme', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/theme')>()
   return {
-    ArrowUp: createIcon("ArrowUp"),
-    Check: createIcon("Check"),
-    CheckCircle2: createIcon("CheckCircle2"),
-    ChevronLeft: createIcon("ChevronLeft"),
-    ChevronRight: createIcon("ChevronRight"),
-    ChevronsDownUp: createIcon("ChevronsDownUp"),
-    ChevronsUpDown: createIcon("ChevronsUpDown"),
-    Eye: createIcon("Eye"),
-    FastForward: createIcon("FastForward"),
-    Filter: createIcon("Filter"),
-    MinusCircle: createIcon("MinusCircle"),
-    MoreVertical: createIcon("MoreVertical"),
-    PlusCircle: createIcon("PlusCircle"),
-    RefreshCw: createIcon("RefreshCw"),
-    Search: createIcon("Search"),
-    Trash2: createIcon("Trash2"),
-    X: createIcon("X"),
-  };
-});
-
-async function renderTodayScreen(): Promise<RenderedTree> {
-  let tree: unknown = null;
-
-  await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<TodayScreen />);
-    await Promise.resolve();
-  });
-
-  if (!tree) {
-    throw new Error("Expected screen to render");
+    ...actual,
+    createTokensV2: () => actual.createTokensV2('orange', 'dark'),
   }
+})
 
-  return tree as unknown as RenderedTree;
-}
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }),
+}))
 
-function findBackToTopButton(tree: RenderedTree): RenderedNode {
-  const button = tree.root.findAll(
-    (node) =>
-      node.props.accessibilityLabel === "common.backToTop" &&
-      typeof node.props.onPress === "function",
-  )[0];
-  if (!button) {
-    throw new Error("Expected the back-to-top button to be rendered");
+vi.mock('@/app/(tabs)/use-today-date', () => ({
+  useTodayDate: () => mocks.date,
+}))
+
+vi.mock('@/app/(tabs)/use-today-selection', () => ({
+  useTodaySelection: () => ({
+    selectedCount: 0,
+    allSelected: false,
+    handleSelectAll: vi.fn(),
+    handleDeselectAll: vi.fn(),
+    handleOpenBulkLog: vi.fn(),
+    handleOpenBulkSkip: vi.fn(),
+    handleOpenBulkDelete: vi.fn(),
+    clearSelection: mocks.clearSelection,
+    showBulkDeleteConfirm: false,
+    setShowBulkDeleteConfirm: vi.fn(),
+    confirmBulkDelete: vi.fn(),
+  }),
+}))
+
+vi.mock('@/components/shell/shell-composer-slot', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/shell/shell-composer-slot')>()),
+  useShellComposerSlot: (enabled: boolean) => {
+    mocks.composerEnabled.push(enabled)
+  },
+}))
+
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'children' in node) {
+    return flattenText((node as { children?: unknown }).children)
   }
-  return button;
-}
-
-function isBackToTopHiddenFromAccessibility(tree: RenderedTree): boolean {
-  let ancestor = findBackToTopButton(tree).parent;
-  while (ancestor) {
-    if ("accessibilityElementsHidden" in ancestor.props) {
-      return ancestor.props.accessibilityElementsHidden === true;
-    }
-    ancestor = ancestor.parent;
+  if (typeof node === 'object' && 'props' in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children)
   }
-  throw new Error("Expected the back-to-top visibility wrapper to be rendered");
+  return ''
 }
 
-function getHabitsHeader(tree: RenderedTree): React.ReactElement<Record<string, unknown>> {
-  return tree.root.findByType("HabitList").props.listHeader as React.ReactElement<
-    Record<string, unknown>
-  >;
+function todayMenu(tree: import('react-test-renderer').ReactTestRenderer): MenuProps {
+  return tree.root.findAll((node) => node.type === Menu)[0]!.props
 }
 
-describe("TodayScreen", () => {
+describe('Hoje date boundaries', () => {
+  it.each([320, 412, 840, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('keeps the Android Hoje section gaps at $width with $fontScale text scale', async ({ width, fontScale }) => {
+    const native = await import('react-native')
+    const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<TodayScreen />); await Promise.resolve() })
+    try {
+      const header = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-section-header')[0]!
+      const dateGroup = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-date-group')[0]!
+      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ gap: 24, paddingBottom: 24 })
+      expect(StyleSheet.flatten(dateGroup.props.style)).toMatchObject({ gap: 24 })
+    } finally { await TestRenderer.act(() => tree.update(<></>)); dimensions.mockRestore() }
+  })
+  it.each(['all', 'general'] as const)('removes the stale date when choosing %s', async (activeView) => {
+    mocks.date.pinnedDateStr = '2026-04-01'
+    let tree!: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as typeof tree })
+    const radio = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && typeof node.props.testID === 'string' && node.props.testID.startsWith(`segment-${activeView}-`))[0]!
+    await TestRenderer.act(() => { (radio.props.onPress as () => void)() })
+    expect(mocks.routerReplace).toHaveBeenCalledWith('/(tabs)')
+    expect(useUIStore.getState().activeView).toBe(activeView)
+    await TestRenderer.act(() => tree.unmount())
+    mocks.date.pinnedDateStr = null
+  })
+
+  it.each(['all', 'general'] as const)('offers the saved %s view above a hidden date pager', async (activeView) => {
+    useUIStore.setState({ activeView })
+    let tree!: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as typeof tree })
+    const radios = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+    expect(radios).toHaveLength(3)
+    expect(radios.find((radio) => typeof radio.props.testID === 'string' && radio.props.testID.startsWith(`segment-${activeView}-`))?.props.accessibilityState).toMatchObject({ checked: true })
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'today-date-row')).toHaveLength(0)
+    const list = tree.root.findAll((node) => String(node.type) === 'HabitListProps')[0]!
+    expect(list.props.view).toBe(activeView)
+    expect(list.props.selectedDate).toBeUndefined()
+    await TestRenderer.act(() => { (radios.find((radio) => typeof radio.props.testID === 'string' && radio.props.testID.startsWith('segment-today-'))!.props.onPress as () => void)() })
+    expect(useUIStore.getState().activeView).toBe('today')
+    await TestRenderer.act(() => tree.unmount())
+  })
+
   beforeEach(() => {
-    setAccountId(null);
-    todayStorageGetItem.mockReset();
-    todayStorageGetItem.mockResolvedValue(null);
-    vi.clearAllMocks();
-    useHabitsMock.mockImplementation(defaultUseHabitsReturn);
-    vi.useRealTimers();
-    mockRouterPush.mockReset();
-    mockRouterNavigate.mockReset();
-    mockProfile = createMockProfile({
-      hasProAccess: false,
-      aiSummaryEnabled: false,
-    });
-    bulkLogMutateAsync.mockReset();
-    bulkSkipMutateAsync.mockReset();
-    mockHabitsData.habitsById = new Map();
-    mockHabitsData.childrenByParent = new Map();
-    mockHabitsData.topLevelHabits = [];
-    habitListHandle.allLoadedIds = new Set();
-    dateParamState.value = "2026-04-07";
-    uiState.activeView = "today";
-    uiState.isSelectMode = false;
-    uiState.searchQuery = "";
-    uiState.selectedFrequency = null;
-    uiState.selectedTagIds = [];
-    uiState.showCompleted = false;
-    uiState.selectedHabitIds = new Set<string>();
-    uiState.showCreateModal = false;
-    uiState.showCreateGoalModal = false;
-    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 });
-  });
+    vi.clearAllMocks()
+    mocks.focusCallback = null
+    mocks.composerEnabled.length = 0
+    mocks.astraOwnership.length = 0
+    mocks.profileReady = true
+    mocks.checklistProfile = null
+    mocks.habitsFailed = false
+    mocks.habitsFetching = false
+    mocks.onboardingComplete = true
+    mocks.focusCallbacks.length = 0
+    mocks.plan = 'trial'
+    mocks.habitFilters.length = 0
+    setAccountId(null)
+    asyncStorageState.values.clear()
+    useUIStore.setState({
+      activeView: 'today',
+      activeFilters: {},
+      isSelectMode: false,
+      selectedHabitIds: new Set<string>(),
+      showCreateModal: false,
+    })
+    mocks.date.selectedDate = new Date('2026-04-08T00:00:00')
+    mocks.date.pinnedDateStr = null
+    mocks.date.dateStr = '2026-04-08'
+    mocks.date.nextDisabled = false
+  })
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
+  it('dismisses the setup checklist from Today and keeps it dismissed after rehydration', async () => {
+    mocks.checklistProfile = createMockProfile({ isTrialActive: false, hasCreatedFirstHabit: true })
+    asyncStorageState.values.set('orbit-ui-store', JSON.stringify({ state: { setupChecklistDismissed: false }, version: 6 }))
+    await useUIStore.persist.rehydrate()
+    let page!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { page = TestRenderer.create(<TodayScreen />) })
+    const dismiss = page.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === en.today.setupChecklist.dismiss)
+    expect(dismiss).toHaveLength(1)
+    await TestRenderer.act(async () => { (dismiss[0]!.props.onPress as () => void)(); await Promise.resolve() })
+    expect(page.root.findAll((node) => node.props.accessibilityLabel === en.today.setupChecklist.dismiss)).toHaveLength(0)
+    await TestRenderer.act(() => page.update(<></>))
+    await useUIStore.persist.rehydrate()
+    await TestRenderer.act(() => { page.update(<TodayScreen />) })
+    expect(page.root.findAll((node) => node.props.accessibilityLabel === en.today.setupChecklist.dismiss)).toHaveLength(0)
+    await TestRenderer.act(() => page.update(<></>))
+  })
 
-  it("ignores A Today preference when its read settles after B", async () => {
-    let resolveA!: (value: string | null) => void;
-    setAccountId("account-a");
-    todayStorageGetItem.mockImplementation((key: string) => key.endsWith(":account-a")
-      ? new Promise<string | null>((resolve) => { resolveA = resolve; })
-      : Promise.resolve(null));
-    await renderTodayScreen();
+  it('applies frequency choices to the day query and retains them across date and screen changes', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    for (const unit of ['Day', 'Week', 'Month', 'Year', 'none'] as const) {
+      await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+      const frequencies = todayMenu(tree)
+      expect(frequencies.title).toBe(en.habits.frequencyFilter)
+      expect(frequencies.items).toHaveLength(6)
+      await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.(unit) })
+      expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBe(unit)
+    }
+    mocks.date.dateStr = '2026-04-07'
+    await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+    expect(mocks.habitFilters.at(-1)).toMatchObject({ dateFrom: '2026-04-07', frequencyUnit: 'none', includeOverdue: false })
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBe('none')
+    await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+    const frequencies = todayMenu(tree)
+    expect(frequencies.items?.find((item) => item.id === 'none')?.checked).toBe(true)
+    await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.('all') })
+    expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBeUndefined()
+    await TestRenderer.act(() => { tree.update(<></>) })
+  })
+
+  it.each([false, true])('allows clearing the filter after a query error with fetching=%s', async (isFetching) => {
+    mocks.habitsFailed = true
+    mocks.habitsFetching = isFetching
+    useUIStore.getState().setFilters({ frequencyUnit: 'Week' })
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    expect(todayMenu(tree).items?.find((item) => item.id === 'refresh')?.disabled).toBe(isFetching)
+    await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+    const frequencies = todayMenu(tree)
+    expect(frequencies.items?.every((item) => !item.disabled)).toBe(true)
+    await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.('all') })
+    expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBeUndefined()
+    await TestRenderer.act(() => { tree.update(<></>) })
+  })
+
+  it.each(['loading', 'onboarding', 'today'])('starts first-use permission only on loaded Today: %s', async (state) => {
+    mocks.profileReady = state !== 'loading'
+    mocks.onboardingComplete = state !== 'onboarding'
+    await TestRenderer.act(() => { createTestTree(<TodayScreen />) })
+    let cleanup: void | (() => void)
+    await TestRenderer.act(() => { cleanup = mocks.focusCallbacks.at(state === 'loading' ? -1 : -2)!() })
+    if (state === 'today') {
+      expect(mocks.firstUsePermission).toHaveBeenCalledOnce()
+      const isCurrent = mocks.firstUsePermission.mock.calls[0]![0]!
+      expect(isCurrent()).toBe(true)
+      cleanup!()
+      expect(isCurrent()).toBe(false)
+    } else {
+      expect(mocks.firstUsePermission).not.toHaveBeenCalled()
+    }
+  })
+
+  it.each(['trial', 'free', 'pro'])('keeps the plan line off Hoje for a %s account', async (plan) => {
+    mocks.plan = plan
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
+    expect(tree.root.findAll((node) => node.props.testID === 'trial-banner')).toHaveLength(0)
+  })
+
+  it('withholds Today actions until the account day is known', async () => {
+    mocks.profileReady = false
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
+    expect(tree.root.findAll((node) => String(node.type) === 'PendingRing')).toHaveLength(0)
+    const headings = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'header')
+    const progressbar = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')[0]
+    expect(headings).toHaveLength(1)
+    expect(progressbar?.findAll((node) => node.props.accessibilityRole === 'header')).toHaveLength(0)
+    mocks.profileReady = true
+    mocks.plan = 'trial'
+    await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+    expect(tree.root.findAll((node) => String(node.type) === 'PendingRing')).toHaveLength(1)
+  })
+
+  it('loads the account preference when Today gains focus', async () => {
+    setAccountId('account-a')
+    asyncStorageState.values.set('orbit_show_general_on_today:account-a', 'true')
+    asyncStorageState.values.set('orbit_show_general_on_today:account-b', 'false')
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    let blur: void | (() => void)
+    await TestRenderer.act(async () => {
+      blur = mocks.focusCallback?.()
+      await Promise.resolve()
+    })
+
+    expect(mocks.habitFilters.at(-1)?.includeGeneral).toBe(true)
 
     await TestRenderer.act(async () => {
-      setAccountId("account-b");
-      await Promise.resolve();
-    });
+      blur?.()
+      setAccountId('account-b')
+      tree.update(<TodayScreen />)
+      await Promise.resolve()
+    })
     await TestRenderer.act(async () => {
-      resolveA("true");
-      await Promise.resolve();
-    });
+      mocks.focusCallback?.()
+      await Promise.resolve()
+    })
 
-    expect(useHabitsMock.mock.lastCall?.[0]).toMatchObject({ includeGeneral: undefined });
-  });
+    expect(mocks.habitFilters.at(-1)?.includeGeneral).toBeUndefined()
+  })
 
-  it("passes the shared habits header through the habit list and removes the nestable scroll container", async () => {
-    const tree = await renderTodayScreen();
+  it('keeps seven days back loggable and marks the next day read only', () => {
+    expect(getTodayBoundary('2026-04-01', '2026-04-08')).toBe('last-loggable')
+    expect(getTodayBoundary('2026-03-31', '2026-04-08')).toBe('read-only')
+  })
 
-    expect(tree.root.findAllByType("NestableScrollContainer")).toHaveLength(0);
+  it('composes day and refetch motion without flattening either transform', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
 
-    const habitList = tree.root.findByType("HabitList");
-    expect(habitList.props.listHeader).toBeTruthy();
-    expect(habitList.props.onLogHabit).toBeUndefined();
-  });
+    const motionViews = tree.root.findAll((node) => node.type === Animated.View).filter((node) => {
+      const styles = Array.isArray(node.props.style) ? node.props.style : [node.props.style]
+      return styles.some((style: unknown) => (
+        typeof style === 'object' && style !== null && 'transform' in style
+      ))
+    })
 
-  it("renders the animated filter shell, list shell, and bulk action bar", async () => {
-    uiState.isSelectMode = true;
+    expect(motionViews).toHaveLength(2)
+  })
 
-    const tree = await renderTodayScreen();
+  it('registers the selection tray only while Today is focused', async () => {
+    useUIStore.setState({
+      isSelectMode: true,
+      selectedHabitIds: new Set(['habit-pending']),
+    })
 
-    expect(
-      tree.root.findAll((node) => node.props.testID === "today-filters-shell")
-        .length,
-    ).toBeGreaterThanOrEqual(1);
-    expect(
-      tree.root.findAll((node) => node.props.testID === "today-list-shell")
-        .length,
-    ).toBeGreaterThanOrEqual(1);
-    expect(
-      tree.root.findAll((node) => node.props.testID === "bulk-action-bar")
-        .length,
-    ).toBeGreaterThanOrEqual(1);
-  });
+    await TestRenderer.act(async () => {
+      createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
 
-  it("keeps the Today list readable on a large landscape screen", async () => {
-    __setWindowDimensions({ width: 1280, height: 800, scale: 1, fontScale: 1 });
+    expect(mocks.composerEnabled.at(-1)).toBe(false)
+    let blur: void | (() => void)
+    await TestRenderer.act(async () => {
+      blur = mocks.focusCallback?.()
+      await Promise.resolve()
+    })
+    expect(mocks.composerEnabled.at(-1)).toBe(true)
 
-    const tree = await renderTodayScreen();
+    await TestRenderer.act(async () => {
+      blur?.()
+      await Promise.resolve()
+    })
+    expect(mocks.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mocks.composerEnabled.at(-1)).toBe(false)
+  })
+
+  it('keeps the Today list within the large-screen content column', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
     const contentColumn = tree.root.findAll(
-      (node) => node.props.testID === "today-content-column",
-    )[0];
+      (node) => node.props.testID === 'today-content-column',
+    )[0]
+    expect(contentColumn).toBeDefined()
+    expect(StyleSheet.flatten(contentColumn?.props.style)).toMatchObject({
+      alignSelf: 'center',
+      maxWidth: 740,
+      width: '100%',
+    })
+  })
 
-    assert(contentColumn);
-    expect(contentColumn.props.style).toEqual(
-      expect.objectContaining({
-        alignSelf: "center",
-        maxWidth: 740,
-        width: "100%",
+  it('releases the Astra composer and conversation owner when Today blurs', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node) => String(node.type) === 'TodayAstraOwner')).toHaveLength(0)
+    let blur: void | (() => void)
+    await TestRenderer.act(async () => {
+      blur = mocks.focusCallback?.()
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => String(node.type) === 'TodayAstraOwner')).toHaveLength(1)
+    expect(mocks.astraOwnership).toEqual([true])
+
+    await TestRenderer.act(async () => {
+      blur?.()
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => String(node.type) === 'TodayAstraOwner')).toHaveLength(0)
+    expect(mocks.astraOwnership).toEqual([true, false])
+  })
+
+  it('marks future days without blocking navigation', () => {
+    expect(getTodayBoundary('2026-04-09', '2026-04-08')).toBe('future')
+  })
+
+  it('stops the forward control at the API horizon', () => {
+    expect(canNavigateToNextDay('2026-07-06', '2026-04-08')).toBe(true)
+    expect(canNavigateToNextDay('2026-07-07', '2026-04-08')).toBe(false)
+  })
+
+  it('renders the resolved read-only boundary notice', async () => {
+    mocks.date.selectedDate = new Date('2026-03-31T00:00:00')
+    mocks.date.dateStr = '2026-03-31'
+    let tree: import('react-test-renderer').ReactTestRenderer
+
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    expect(flattenText(tree!.root)).toContain(en.habits.todayBoundary.readOnly)
+    expect(en.habits.todayBoundary.readOnly).toBe('Logging stops 7 days back. You can still edit, move and delete here.')
+  })
+
+  it('ignores an upgraded showCompleted true payload when rendering Today', async () => {
+    asyncStorageState.values.set(
+      'orbit-ui-store',
+      JSON.stringify({
+        state: { activeFilters: {}, activeView: 'today', showCompleted: true },
+        version: 4,
       }),
-    );
-  });
-
-  it("clears the selection when hardware back is pressed in select mode", async () => {
-    uiState.isSelectMode = true;
-
-    await renderTodayScreen();
-
-    const handled = BackHandler.emitBackPress();
-
-    expect(handled).toBe(true);
-    expect(uiState.clearSelection).toHaveBeenCalled();
-  });
-
-  it("registers the list shell as the habits tour overview target", async () => {
-    await renderTodayScreen();
-
-    expect(useTourTargetMock).toHaveBeenCalledWith(
-      "tour-habit-list",
-      expect.objectContaining({ current: expect.anything() }),
-    );
-  });
-
-  it("drops bulk action bar movement when reduced motion is enabled", () => {
-    expect(
-      resolveBulkActionBarEnterShift({
-        shift: 0,
-        reducedMotionEnabled: true,
-      }),
-    ).toBe(0);
-    expect(
-      resolveBulkActionBarEnterShift({
-        shift: 6,
-        reducedMotionEnabled: false,
-      }),
-    ).toBe(12);
-  });
-
-  it("passes confirmed bulk results to hierarchy settlement", async () => {
-    const root = createMockHabit({
-      id: "root",
-      title: "Root",
-      hasSubHabits: true,
-    });
-    const parent = createMockHabit({
-      id: "parent",
-      title: "Parent",
-      parentId: "root",
-      hasSubHabits: true,
-    });
-    const child = createMockHabit({
-      id: "child",
-      title: "Child",
-      parentId: "parent",
-    });
-
-    mockHabitsData.habitsById = new Map([
-      [root.id, root],
-      [parent.id, parent],
-      [child.id, child],
-    ]);
-    mockHabitsData.childrenByParent = new Map([
-      [root.id, [parent.id]],
-      [parent.id, [child.id]],
-    ]);
-    mockHabitsData.topLevelHabits = [root];
-    uiState.selectedHabitIds = new Set([parent.id, child.id]);
-
-    bulkLogMutateAsync.mockResolvedValue({
-      results: [
-        { index: 0, habitId: parent.id, status: "Success" },
-        { index: 1, habitId: child.id, status: "Success" },
-      ],
-    });
-
-    const tree = await renderTodayScreen();
-
-    const bulkLogDialog = tree.root
-      .findAllByType("ConfirmDialog")
-      .find(
-        (node: { props: { title?: string } }) =>
-          node.props.title === "habits.bulkLogTitle",
-      );
-
-    if (!bulkLogDialog || typeof bulkLogDialog.props.onConfirm !== "function") {
-      throw new Error("Expected bulk log confirm dialog to be rendered");
-    }
-    const onConfirm = bulkLogDialog.props.onConfirm;
+    )
+    await useUIStore.persist.rehydrate()
+    let tree: import('react-test-renderer').ReactTestRenderer
 
     await TestRenderer.act(async () => {
-      await onConfirm();
-    });
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
 
-    expect(settleBulkHabitResolutions).toHaveBeenCalledWith(
-      [
-        { habitId: parent.id, date: expect.any(String) },
-        { habitId: child.id, date: expect.any(String) },
-      ],
-      "log",
-    );
-  });
+    const habitListProps = tree!.root.findAll(
+      (node) => String(node.type) === 'HabitListProps',
+    )[0]
+    expect(habitListProps?.props.showCompleted).toBe(false)
+    expect(useUIStore.getState()).not.toHaveProperty('showCompleted')
+  })
 
-  it("routes free users to upgrade when they select goals", () => {
-    expect(shouldRedirectGoalsTab("goals", false)).toBe(true);
-    expect(shouldRedirectGoalsTab("today", false)).toBe(false);
-  });
-
-  it("lets pro users switch to goals", () => {
-    expect(shouldRedirectGoalsTab("goals", true)).toBe(false);
-    expect(resolveTodayView("goals", true)).toBe("goals");
-  });
-
-  it("recovers a stale free goals view back to today", async () => {
-    uiState.activeView = "goals";
-    const tree = await renderTodayScreen();
-
-    const habitList = tree.root.findByType("HabitList");
-    expect(habitList.props.view).toBe("today");
-  });
-
-  it("advances a followed today selection after midnight without reopening the screen", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-07T23:59:55"));
-    dateParamState.value = null;
-
-    await renderTodayScreen();
-
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: "2026-04-07",
-      dateTo: "2026-04-07",
-    });
+  it('persists a pending ring log with the selected date', async () => {
+    let tree: import('react-test-renderer').ReactTestRenderer
 
     await TestRenderer.act(async () => {
-      await vi.advanceTimersByTimeAsync(6_000);
-    });
-
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: "2026-04-08",
-      dateTo: "2026-04-08",
-    });
-  });
-
-  it("keeps a manually pinned date fixed after midnight", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-07T23:59:55"));
-    dateParamState.value = "2026-04-06";
-
-    await renderTodayScreen();
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
 
     await TestRenderer.act(async () => {
-      await vi.advanceTimersByTimeAsync(6_000);
-    });
+      const pendingRing = tree!.root.findAll((node) => String(node.type) === 'PendingRing')[0]
+      const onPress = pendingRing?.props.onPress
+      if (typeof onPress !== 'function') throw new Error('Pending ring press handler is missing')
+      onPress()
+      await Promise.resolve()
+    })
 
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: "2026-04-06",
-      dateTo: "2026-04-06",
-    });
-  });
+    expect(mocks.logHabitMutateAsync).toHaveBeenCalledOnce()
+    expect(mocks.logHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'habit-pending',
+      date: '2026-04-08',
+    })
+  })
 
-  it("navigates to adjacent days with a date query param", async () => {
-    dateParamState.value = "2026-04-07";
-
-    const tree = await renderTodayScreen();
-
-    const dateNav = tree.root.findByType("TodayDateNavigation");
-
-    await TestRenderer.act(() => {
-      (dateNav.props.onGoToPreviousDay as () => void)();
-    });
-    expect(mockRouterPush).toHaveBeenCalledWith("/?date=2026-04-06");
-
-    await TestRenderer.act(() => {
-      (dateNav.props.onGoToNextDay as () => void)();
-    });
-    expect(mockRouterPush).toHaveBeenCalledWith("/?date=2026-04-08");
-  });
-
-  it("returns to today via the explicit tabs index, clearing the date param", async () => {
-    dateParamState.value = "2026-04-06";
-
-    const tree = await renderTodayScreen();
-
-    const dateNav = tree.root.findByType("TodayDateNavigation");
-
-    await TestRenderer.act(() => {
-      (dateNav.props.onGoToToday as () => void)();
-    });
-
-    expect(mockRouterNavigate).toHaveBeenCalledWith("/(tabs)");
-  });
-
-  it("renders today on the bare route and the pinned day on a date deep link", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-07T12:00:00"));
-
-    dateParamState.value = null;
-    await renderTodayScreen();
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: "2026-04-07",
-      dateTo: "2026-04-07",
-    });
-
-    dateParamState.value = "2026-04-02";
-    await renderTodayScreen();
-    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      dateFrom: "2026-04-02",
-      dateTo: "2026-04-02",
-    });
-  });
-
-  it("renders the load-error state with a working retry when habits fail before any data", async () => {
-    const refetch = vi.fn();
-    useHabitsMock.mockReturnValue({
-      data: undefined,
-      getChildren: () => [],
-      isFetching: false,
-      isError: true,
-      refetch,
-    });
-
-    const tree = await renderTodayScreen();
-
-    expect(tree.root.findAllByType("HabitList")).toHaveLength(0);
-    expect(tree.root.findAllByType("TodayTabs").length).toBeGreaterThanOrEqual(
-      1,
-    );
-
-    const retryPill = tree.root.findAll(
-      (node) =>
-        node.props.accessibilityLabel === "common.retry" &&
-        typeof node.props.onPress === "function",
-    )[0];
-    if (!retryPill) {
-      throw new Error("Expected the retry pill to be rendered");
-    }
-
-    await TestRenderer.act(() => {
-      (retryPill.props.onPress as () => void)();
-    });
-
-    expect(refetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("clears the search query when the active view changes", async () => {
-    const dismissSpy = vi.spyOn(Keyboard, "dismiss");
-    const tree = await renderTodayScreen();
-    const header = getHabitsHeader(tree);
-    await TestRenderer.act(() => {
-      (header.props.onSearchToggle as () => void)();
-    });
-    (getHabitsHeader(tree).props.onSearchChange as (value: string) => void)("gym");
-    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(true);
-
-    const tabs = tree.root.findAllByType("TodayTabs")[0];
-    if (!tabs) {
-      throw new Error("Expected TodayTabs to be rendered");
-    }
+  it('omits the all-done upcoming action at the instance horizon', async () => {
+    mocks.date.selectedDate = new Date('2026-07-07T00:00:00')
+    mocks.date.dateStr = '2026-07-07'
+    mocks.date.nextDisabled = true
+    let tree: import('react-test-renderer').ReactTestRenderer
 
     await TestRenderer.act(async () => {
-      (tabs.props.onChangeView as (view: string) => void)("all");
-      await Promise.resolve();
-    });
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
 
-    expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
-    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(false);
-    expect(dismissSpy).toHaveBeenCalledOnce();
-  });
+    expect(tree!.root.findAll((node) => String(node.type) === 'UpcomingAction')).toHaveLength(0)
+    expect(mocks.date.goToNextDay).not.toHaveBeenCalled()
+  })
 
-  it("closes a typed search when the selected day changes", async () => {
-    const dismissSpy = vi.spyOn(Keyboard, "dismiss");
-    const tree = await renderTodayScreen();
-    const header = getHabitsHeader(tree);
-    await TestRenderer.act(() => {
-      (header.props.onSearchToggle as () => void)();
-    });
-    (getHabitsHeader(tree).props.onSearchChange as (value: string) => void)("gym");
-    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(true);
-
-    const dateNav = tree.root.findByType("TodayDateNavigation");
-    await TestRenderer.act(() => {
-      (dateNav.props.onGoToNextDay as () => void)();
-    });
-
-    expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
-    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(false);
-    expect(dismissSpy).toHaveBeenCalledOnce();
-  });
-
-  it("closes and clears a typed search with one press on the X", async () => {
-    const dismissSpy = vi.spyOn(Keyboard, "dismiss");
-    const tree = await renderTodayScreen();
-    const header = getHabitsHeader(tree);
-    await TestRenderer.act(() => {
-      (header.props.onSearchToggle as () => void)();
-    });
-
-    let headerTree: any;
-    await TestRenderer.act(() => {
-      headerTree = TestRenderer.create(getHabitsHeader(tree));
-    });
-    const closeButton = headerTree!.root.findAll(
-      (node: any) => node.props.accessibilityLabel === "habits.closeSearch",
-    )[0];
-    const searchInput = headerTree!.root.findAll(
-      (node: any) =>
-        node.props.placeholder === "habits.searchPlaceholder" &&
-        typeof node.props.onChangeText === "function",
-    )[0];
-    assert(closeButton);
-    assert(searchInput);
-    await TestRenderer.act(() => {
-      (searchInput.props.onChangeText as (value: string) => void)("gym");
-    });
-    expect(closeButton.props.accessibilityLabel).toBe("habits.closeSearch");
-    await TestRenderer.act(() => {
-      (closeButton.props.onPress as () => void)();
-    });
-
-    expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
-    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(false);
-    expect(dismissSpy).toHaveBeenCalledOnce();
-  });
-
-  it("locks the edit modal General toggle to the parent isGeneral when editing a sub-habit", async () => {
-    const parent = createMockHabit({
-      id: "parent",
-      title: "Parent",
-      isGeneral: true,
-    });
-    const child = createMockHabit({
-      id: "child",
-      title: "Child",
-      parentId: "parent",
-      isGeneral: true,
-    });
-    mockHabitsData.habitsById.set(parent.id, parent);
-    mockHabitsData.habitsById.set(child.id, child);
-
-    const tree = await renderTodayScreen();
-
-    const habitList = tree.root.findAllByType("HabitList")[0];
-    if (!habitList) {
-      throw new Error("Expected HabitList to be rendered");
-    }
+  it('keeps the all-done upcoming action active below the instance horizon', async () => {
+    mocks.date.selectedDate = new Date('2026-07-06T00:00:00')
+    mocks.date.dateStr = '2026-07-06'
+    let tree: import('react-test-renderer').ReactTestRenderer
 
     await TestRenderer.act(async () => {
-      (habitList.props.onEditHabit as (habit: NormalizedHabit) => void)(
-        child,
-      );
-      await Promise.resolve();
-    });
-
-    const editModal = tree.root.findAllByType("EditHabitModal")[0];
-    if (!editModal) {
-      throw new Error("Expected EditHabitModal to be rendered");
-    }
-    expect(editModal.props.parentIsGeneral).toBe(true);
-  });
-
-  it("shows the back-to-top button past 600 on the today view, scrolls back on press, and hides under 600", async () => {
-    const tree = await renderTodayScreen();
-
-    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
-
-    const driveHabitListScroll = async (offsetY: number) => {
-      const habitList = tree.root.findByType("HabitList");
-      await TestRenderer.act(async () => {
-        (habitList.props.onScroll as (offsetY: number) => void)(offsetY);
-        await Promise.resolve();
-      });
-    };
-
-    await driveHabitListScroll(650);
-    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(false);
-
-    const button = findBackToTopButton(tree);
-    await TestRenderer.act(() => {
-      (button.props.onPress as () => void)();
-    });
-    expect(habitListHandle.scrollToOffset).toHaveBeenCalledWith(0);
-
-    await driveHabitListScroll(120);
-    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
-  });
-
-  it("gates the back-to-top button on the goals view scroll offset", async () => {
-    mockProfile = createMockProfile({
-      hasProAccess: true,
-      aiSummaryEnabled: false,
-    });
-    uiState.activeView = "goals";
-
-    const tree = await renderTodayScreen();
-
-    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
-
-    const driveGoalsScroll = async (offsetY: number) => {
-      const goalsView = tree.root.findByType("GoalsView");
-      await TestRenderer.act(async () => {
-        (goalsView.props.onScroll as (offsetY: number) => void)(offsetY);
-        await Promise.resolve();
-      });
-    };
-
-    await driveGoalsScroll(650);
-    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(false);
-
-    await driveGoalsScroll(80);
-    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
-  });
-});
-
-describe("TodayScreen overdue bulk selection", () => {
-  function seedOverdueHabit(): NormalizedHabit {
-    const overdue = createMockHabit({
-      id: "overdue-1",
-      title: "Overdue task",
-      isOverdue: true,
-      frequencyUnit: null,
-      dueDate: "2026-04-01",
-      scheduledDates: [],
-      isCompleted: false,
-    });
-    mockHabitsData.habitsById = new Map([[overdue.id, overdue]]);
-    mockHabitsData.topLevelHabits = [overdue];
-    return overdue;
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    useHabitsMock.mockImplementation(defaultUseHabitsReturn);
-    vi.useRealTimers();
-    mockProfile = createMockProfile({
-      hasProAccess: false,
-      aiSummaryEnabled: false,
-    });
-    bulkLogMutateAsync.mockReset();
-    bulkSkipMutateAsync.mockReset();
-    mockHabitsData.habitsById = new Map();
-    mockHabitsData.childrenByParent = new Map();
-    mockHabitsData.topLevelHabits = [];
-    habitListHandle.allLoadedIds = new Set();
-    dateParamState.value = "2026-04-07";
-    uiState.activeView = "today";
-    uiState.isSelectMode = true;
-    uiState.searchQuery = "";
-    uiState.selectedFrequency = null;
-    uiState.selectedTagIds = [];
-    uiState.showCompleted = false;
-    uiState.selectedHabitIds = new Set<string>();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("treats an overdue one-time habit fixture as overdue", () => {
-    const overdue = seedOverdueHabit();
-
-    expect(computeHabitCardStatus(overdue)).toBe("overdue");
-  });
-
-  it("includes the overdue habit when selecting all", async () => {
-    const overdue = seedOverdueHabit();
-    habitListHandle.allLoadedIds = new Set([overdue.id]);
-
-    const tree = await renderTodayScreen();
-
-    const bulkBar = tree.root.findByType("BulkActionBarV2");
+      tree = createTestTree(<TodayScreen />)
+      await Promise.resolve()
+    })
 
     await TestRenderer.act(() => {
-      (bulkBar.props.onSelectAll as () => void)();
-    });
+      const upcomingAction = tree!.root.findAll(
+        (node) => String(node.type) === 'UpcomingAction',
+      )[0]
+      const onPress = upcomingAction?.props.onPress
+      if (typeof onPress !== 'function') throw new Error('Upcoming action is missing')
+      onPress()
+    })
 
-    expect(uiState.selectAllHabits).toHaveBeenCalledWith(
-      expect.arrayContaining([overdue.id]),
-    );
-  });
+    expect(mocks.date.goToNextDay).toHaveBeenCalledOnce()
+  })
+  it('shows the Hoje pill only beyond a viewport while scrolling up, and both entries return to the top', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = createTestTree(<Shell412 header={<></>} tabBar={<DestinationTabBar pathname="/" />}><TodayScreen /></Shell412>) })
+    let blur: void | (() => void)
+    await TestRenderer.act(() => { blur = mocks.focusCallback?.() })
+    let accessibilityTarget: unknown = null
+    const focusEvent = vi.spyOn(AccessibilityInfo, 'sendAccessibilityEvent').mockImplementation((handle, eventType) => {
+      if (eventType === 'focus') accessibilityTarget = handle
+    })
+    const selectedDate = mocks.date.dateStr
+    const column = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-content-column')[0]!
+    await TestRenderer.act(() => (column.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height: 500 } } }))
+    const scroll = async (offset: number) => TestRenderer.act(() => (tree.root.findAll((node) => String(node.type) === 'HabitListProps')[0]!.props.onScroll as (offset: number) => void)(offset))
+    const pills = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === en.common.backToTop)
+    await scroll(900)
+    expect(pills()).toHaveLength(0)
+    await scroll(700)
+    expect(pills()).toHaveLength(1)
+    expect(flattenText(pills()[0]!.props.children)).toContain(en.common.top)
+    accessibilityTarget = { __nativeTag: pills()[0]!.props.__nativeTag }
+    expect(accessibilityTarget).toEqual({ __nativeTag: pills()[0]!.props.__nativeTag })
+    await TestRenderer.act(() => (pills()[0]!.props.onPress as () => void)())
+    const heading = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === en.nav.today)[0]!
+    expect(accessibilityTarget).toMatchObject({ __nativeTag: heading.props.__nativeTag })
+    expect(focusEvent).toHaveBeenCalledOnce()
+    expect(mocks.scrollToOffset).toHaveBeenCalledWith(0, false)
+    expect(pills()).toHaveLength(0)
+    await scroll(900)
+    await scroll(600)
+    expect(pills()).toHaveLength(1)
+    await scroll(0)
+    expect(pills()).toHaveLength(0)
+    await scroll(400)
+    await scroll(300)
+    expect(pills()).toHaveLength(0)
+    await scroll(900)
+    await scroll(600)
+    await TestRenderer.act(() => { (tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'tab' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!.props.onPress as () => void)() })
+    expect(mocks.scrollToOffset).toHaveBeenCalledTimes(2)
+    expect(mocks.date.dateStr).toBe(selectedDate)
+    expect(mocks.date.goToToday).not.toHaveBeenCalled()
+    expect(pills()).toHaveLength(0)
+    await scroll(900)
+    await scroll(600)
+    expect(pills()).toHaveLength(1)
+    await TestRenderer.act(() => { if (blur) blur() })
+    expect(pills()).toHaveLength(0)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
 
-  it("keeps hidden historical completions out of bulk selection", async () => {
-    const historicalCompletion = createMockHabit({
-      id: "historical-completion",
-      title: "Historical completion",
-      frequencyUnit: null,
-      dueDate: "2026-04-01",
-      scheduledDates: [],
-      isCompleted: true,
-      isLoggedInRange: false,
-      instances: [],
-    });
-    mockHabitsData.habitsById = new Map([
-      [historicalCompletion.id, historicalCompletion],
-    ]);
-    mockHabitsData.topLevelHabits = [historicalCompletion];
-    habitListHandle.allLoadedIds = new Set();
-    uiState.showCompleted = true;
-    uiState.selectAllHabits.mockImplementation((ids: string[]) => {
-      uiState.selectedHabitIds = new Set(ids);
-    });
-
-    const tree = await renderTodayScreen();
-    const bulkBar = tree.root.findByType("BulkActionBarV2");
-
-    await TestRenderer.act(() => {
-      (bulkBar.props.onSelectAll as () => void)();
-    });
-
-    expect(uiState.selectAllHabits).toHaveBeenCalledWith([]);
-
-    const updatedTree = await renderTodayScreen();
-    const updatedBulkBar = updatedTree.root.findByType("BulkActionBarV2");
-    expect(updatedBulkBar.props.count).toBe(0);
-
-    await TestRenderer.act(() => {
-      (updatedBulkBar.props.onLog as () => void)();
-      (updatedBulkBar.props.onSkip as () => void)();
-      (updatedBulkBar.props.onDelete as () => void)();
-    });
-
-    const bulkDialogs = updatedTree.root
-      .findAllByType("ConfirmDialog")
-      .filter((dialog) =>
-        [
-          "habits.bulkLogTitle",
-          "habits.bulkSkipTitle",
-          "habits.bulkDeleteTitle",
-        ].includes(dialog.props.title as string),
-      );
-    expect(bulkDialogs.every((dialog) => dialog.props.open === false)).toBe(true);
-  });
-
-  it("dispatches a dated bulk log for a selected overdue habit", async () => {
-    const overdue = seedOverdueHabit();
-    uiState.selectedHabitIds = new Set([overdue.id]);
-    bulkLogMutateAsync.mockResolvedValue({
-      results: [{ index: 0, habitId: overdue.id, status: "Success" }],
-    });
-
-    const tree = await renderTodayScreen();
-
-    const bulkLogDialog = tree.root
-      .findAllByType("ConfirmDialog")
-      .find(
-        (node: { props: { title?: string } }) =>
-          node.props.title === "habits.bulkLogTitle",
-      );
-
-    if (!bulkLogDialog || typeof bulkLogDialog.props.onConfirm !== "function") {
-      throw new Error("Expected bulk log confirm dialog to be rendered");
-    }
-    const onConfirm = bulkLogDialog.props.onConfirm as () => Promise<void>;
-
-    await TestRenderer.act(async () => {
-      await onConfirm();
-    });
-
-    expect(bulkLogMutateAsync).toHaveBeenCalledWith([
-      { habitId: overdue.id, date: "2026-04-07" },
-    ]);
-  });
-
-  it("dispatches a dated bulk skip for a selected overdue habit", async () => {
-    const overdue = seedOverdueHabit();
-    uiState.selectedHabitIds = new Set([overdue.id]);
-    bulkSkipMutateAsync.mockResolvedValue({
-      results: [{ index: 0, habitId: overdue.id, status: "Success" }],
-    });
-
-    const tree = await renderTodayScreen();
-
-    const bulkSkipDialog = tree.root
-      .findAllByType("ConfirmDialog")
-      .find(
-        (node: { props: { title?: string } }) =>
-          node.props.title === "habits.bulkSkipTitle",
-      );
-
-    if (!bulkSkipDialog || typeof bulkSkipDialog.props.onConfirm !== "function") {
-      throw new Error("Expected bulk skip confirm dialog to be rendered");
-    }
-    const onConfirm = bulkSkipDialog.props.onConfirm as () => Promise<void>;
-
-    await TestRenderer.act(async () => {
-      await onConfirm();
-    });
-
-    expect(bulkSkipMutateAsync).toHaveBeenCalledWith([
-      { habitId: overdue.id, date: "2026-04-07" },
-    ]);
-  });
-});
-
-describe("TodayScreen overdue date gating", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    useHabitsMock.mockImplementation(defaultUseHabitsReturn);
-    vi.useRealTimers();
-    mockProfile = createMockProfile({
-      hasProAccess: false,
-      aiSummaryEnabled: false,
-    });
-    mockHabitsData.habitsById = new Map();
-    mockHabitsData.childrenByParent = new Map();
-    mockHabitsData.topLevelHabits = [];
-    dateParamState.value = null;
-    uiState.activeView = "today";
-    uiState.isSelectMode = false;
-    uiState.searchQuery = "";
-    uiState.selectedFrequency = null;
-    uiState.selectedTagIds = [];
-    uiState.showCompleted = false;
-    uiState.selectedHabitIds = new Set<string>();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  function lastFilters() {
-    return useHabitsMock.mock.calls.at(-1)?.[0];
-  }
-
-  it("includes overdue when the selected date is today", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-07T12:00:00"));
-    dateParamState.value = null;
-
-    await renderTodayScreen();
-
-    expect(lastFilters()).toMatchObject({
-      dateFrom: "2026-04-07",
-      dateTo: "2026-04-07",
-      includeOverdue: true,
-    });
-  });
-
-  it("excludes overdue when the selected date is in the future", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-07T12:00:00"));
-    dateParamState.value = "2026-04-09";
-
-    await renderTodayScreen();
-
-    expect(lastFilters()).toMatchObject({ includeOverdue: false });
-  });
-
-  it("excludes overdue when the selected date is in the past", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-07T12:00:00"));
-    dateParamState.value = "2026-04-05";
-
-    await renderTodayScreen();
-
-    expect(lastFilters()).toMatchObject({ includeOverdue: false });
-  });
-});
+})

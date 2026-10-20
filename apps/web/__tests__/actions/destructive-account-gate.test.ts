@@ -9,16 +9,17 @@ const { mockCookieStore } = vi.hoisted(() => ({
 }))
 
 vi.mock('next/headers', () => ({
+  headers: async () => new Headers(),
   cookies: () => Promise.resolve(mockCookieStore),
 }))
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-const { confirmDeletion } = await import('@/app/actions/auth')
-const { revokeApiKey } = await import('@/app/actions/api-keys')
-const { deleteGoal } = await import('@/app/actions/goals')
-const { deleteHabit } = await import('@/app/actions/habits')
+const { confirmDeletion } = await import('@/lib/actions/auth')
+const { revokeApiKey } = await import('@/lib/actions/api-keys')
+const { deleteGoal } = await import('@/lib/actions/goals')
+const { deleteHabit } = await import('@/lib/actions/habits')
 
 /**
  * The claim the API puts the account id under. It is the literal `auth-api.ts` reads and the one
@@ -51,6 +52,7 @@ function holdCookieForAccount(accountId: string): void {
   )
 }
 
+
 const destructiveWrites = [
   ['delete the account', () => confirmDeletion('123456', 'account-a'), API.auth.confirmDeletion],
   ['delete a habit', () => deleteHabit('habit-1', 'account-a'), API.habits.delete('habit-1')],
@@ -75,8 +77,7 @@ describe('a destructive write formed under a replaced account', () => {
     async (_name, runWrite) => {
       holdCookieForAccount('account-b')
 
-      await expect(runWrite()).resolves.toMatchObject({
-        ok: false,
+      await expect(runWrite()).rejects.toMatchObject({
         status: 409,
         code: 'ACCOUNT_CHANGED',
       })
@@ -111,9 +112,8 @@ describe('a destructive write formed under a replaced account', () => {
   it('reports the refused account deletion as a failure rather than as a wrong code', async () => {
     holdCookieForAccount('account-b')
 
-    await expect(confirmDeletion('123456', 'account-a')).resolves.toMatchObject({
-      ok: false,
-      error: 'The signed in account changed before this request ran',
-    })
+    await expect(confirmDeletion('123456', 'account-a')).rejects.toThrow(
+      'The signed in account changed before this request ran',
+    )
   })
 })

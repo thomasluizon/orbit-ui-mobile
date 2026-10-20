@@ -5,32 +5,52 @@ import type { UnsubscribePushInput } from '@orbit/shared/types'
 import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
-export async function markNotificationRead(
-  notificationId: string, intendedAccountId: string | null
+/**
+ * Every notification write carries the account the person was looking at when they acted, so the
+ * server can refuse it once the shared cookie has moved on. The four of them run the same two
+ * lines, so they share one, and the account argument cannot then be added to three of them and
+ * forgotten on the fourth.
+ */
+function writeNotificationsForAccount(
+  path: string,
+  method: 'PUT' | 'DELETE',
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.notifications.markRead(notificationId), {
-    method: 'PUT',
-  }, intendedAccountId))
+  return wrapServerAction(() => serverAuthMutate(path, { method }, intendedAccountId))
 }
 
-export async function markAllNotificationsRead(intendedAccountId: string | null): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.notifications.markAllRead, {
-    method: 'PUT',
-  }, intendedAccountId))
+export async function markNotificationRead(
+  notificationId: string,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return writeNotificationsForAccount(
+    API.notifications.markRead(notificationId),
+    'PUT',
+    intendedAccountId,
+  )
+}
+
+export async function markAllNotificationsRead(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return writeNotificationsForAccount(API.notifications.markAllRead, 'PUT', intendedAccountId)
 }
 
 export async function deleteNotification(
-  notificationId: string, intendedAccountId: string | null
+  notificationId: string,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.notifications.delete(notificationId), {
-    method: 'DELETE',
-  }, intendedAccountId))
+  return writeNotificationsForAccount(
+    API.notifications.delete(notificationId),
+    'DELETE',
+    intendedAccountId,
+  )
 }
 
-export async function deleteAllNotifications(intendedAccountId: string | null): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.notifications.deleteAll, {
-    method: 'DELETE',
-  }, intendedAccountId))
+export async function deleteAllNotifications(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return writeNotificationsForAccount(API.notifications.deleteAll, 'DELETE', intendedAccountId)
 }
 
 /**
@@ -39,7 +59,8 @@ export async function deleteAllNotifications(intendedAccountId: string | null): 
  * PushSubscriptionJSON has keys nested under subscription.keys.
  */
 export async function subscribePush(
-  subscription: PushSubscriptionJSON, intendedAccountId: string | null
+  subscription: PushSubscriptionJSON,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.notifications.subscribe, {
     method: 'POST',
@@ -56,7 +77,8 @@ export async function subscribePush(
  * The backend expects { endpoint, p256dh, auth } as flat fields.
  */
 export async function unsubscribePush(
-  subscription: PushSubscriptionJSON & Pick<UnsubscribePushInput, 'releaseOtherAccount'>, intendedAccountId: string | null
+  subscription: PushSubscriptionJSON & Pick<UnsubscribePushInput, 'releaseOtherAccount'>,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.notifications.unsubscribe, {
     method: 'POST',

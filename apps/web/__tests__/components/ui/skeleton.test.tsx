@@ -1,65 +1,111 @@
-import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
-import React from 'react'
-import { SkeletonLine, SkeletonCard } from '@/components/ui/skeleton'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { StatTile } from '@/components/ui/stat-tile'
 
-describe('SkeletonLine', () => {
-  it('renders with default classes', () => {
-    const { container } = render(<SkeletonLine />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('skeleton-pulse')
-    expect(div).toHaveAttribute('aria-hidden', 'true')
+function staticTokenValue(token: string): string {
+  const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+  const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return stylesheet.match(new RegExp(`${escapedToken}:\\s*([^;]+);`))?.[1]?.trim() ?? ''
+}
+
+function skeletonPulseDeclaration(): string {
+  const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+  return stylesheet.match(/\.skeleton-pulse\s*{([^}]+)}/)?.[1] ?? ''
+}
+
+function installStaticTokenStyle(token: string) {
+  const style = document.createElement('style')
+  style.textContent = `
+    * { border-radius: 0px; }
+    [class~="rounded-[var(${token})]"] { border-radius: ${staticTokenValue(token)}; }
+  `
+  document.head.append(style)
+}
+
+describe('Skeleton', () => {
+  afterEach(() => {
+    document.head.innerHTML = ''
+    vi.useRealTimers()
   })
 
-  it('applies custom width and height', () => {
-    const { container } = render(<SkeletonLine width="w-1/2" height="h-5" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('w-1/2')
-    expect(div).toHaveClass('h-5')
+  it('exposes its label, busy state, and final-layout variant', () => {
+    render(<Skeleton variant="habit-row" label="Loading habits" />)
+
+    const unit = screen.getByRole('progressbar', { name: 'Loading habits' })
+    expect(unit).toHaveAttribute('aria-busy', 'true')
+    expect(unit).not.toHaveAttribute('aria-hidden')
+    expect(unit).toHaveAttribute('data-variant', 'habit-row')
   })
 
-  it('applies custom className', () => {
-    const { container } = render(<SkeletonLine className="mt-4" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('mt-4')
+  it('renders habit cards with the specified 20px radius', () => {
+    installStaticTokenStyle('--r-card')
+    render(<Skeleton variant="habit-row" label="Loading habits" />)
+
+    const unit = screen.getByRole('progressbar', { name: 'Loading habits' })
+    const card = unit.firstElementChild
+    expect(card).toBeInstanceOf(HTMLElement)
+    expect(getComputedStyle(card as HTMLElement).borderRadius).toBe('20px')
+  })
+
+  it('renders every cell in a multirow grid on the supplied dimensions', () => {
+    const { container } = render(
+      <div style={{ height: 40 }}>
+        <Skeleton variant="grid" label="Loading calendar" rows={3} cols={7} cell={40} gap={8} />
+      </div>,
+    )
+
+    const grid = container.querySelector('[data-cols="7"]') as HTMLElement
+    expect(grid).toHaveAttribute('data-rows', '3')
+    expect(grid).toHaveStyle({
+      gridTemplateColumns: 'repeat(7, 40px)',
+      gridTemplateRows: 'repeat(3, 40px)',
+      gap: '8px',
+    })
+    expect(grid.children).toHaveLength(21)
+    expect(grid.firstElementChild).toHaveStyle({ width: '40px', height: '40px' })
+  })
+
+  it('keeps the statistic placeholder at the loaded tile height', () => {
+    const { container } = render(
+      <>
+        <Skeleton variant="stat-tile" label="Loading stats" />
+        <StatTile value={12} label="Logs" />
+      </>,
+    )
+
+    const placeholder = container.querySelector('[data-variant="stat-tile"] > div') as HTMLElement
+    const loaded = container.querySelector('[data-state="default"]') as HTMLElement
+    expect(placeholder.style.minHeight).toBe(loaded.style.minHeight)
+    expect(placeholder.style.minHeight).toBe('')
+  })
+
+  it('uses only an opacity pulse and no sweep or spinner', () => {
+    const { container } = render(<Skeleton variant="settings" label="Loading settings" />)
+
+    expect(container.querySelectorAll('.skeleton-pulse').length).toBeGreaterThan(0)
+    expect(container.innerHTML).not.toMatch(/gradient|shimmer|spinner/i)
+  })
+
+  it('settles a stalled skeleton before five seconds and leaves it visible', () => {
+    vi.useFakeTimers()
+    const { container } = render(<Skeleton variant="settings" label="Loading settings" />)
+
+    vi.advanceTimersByTime(5_000)
+
+    expect(skeletonPulseDeclaration()).not.toContain('infinite')
+    expect(skeletonPulseDeclaration()).toContain('var(--skeleton-pulse-iterations)')
+    expect(container.querySelector('.skeleton-pulse')).toBeVisible()
+  })
+
+  it('renders the requested number of settings rows as one busy region', () => {
+    const { container } = render(
+      <Skeleton variant="settings" label="Loading profile" rows={8} />,
+    )
+
+    expect(screen.getByRole('progressbar', { name: 'Loading profile' })).toBeInTheDocument()
+    expect(container.querySelectorAll('[data-settings-skeleton-row]')).toHaveLength(8)
   })
 })
-
-describe('SkeletonCard', () => {
-  it('renders default 3 lines', () => {
-    const { container } = render(<SkeletonCard />)
-    const card = container.firstChild as HTMLElement
-    expect(card).toHaveAttribute('aria-hidden', 'true')
-    const lines = card.querySelectorAll('.skeleton-pulse')
-    expect(lines).toHaveLength(3)
-  })
-
-  it('renders custom number of lines', () => {
-    const { container } = render(<SkeletonCard lines={5} />)
-    const card = container.firstChild as HTMLElement
-    const lines = card.querySelectorAll('.skeleton-pulse')
-    expect(lines).toHaveLength(5)
-  })
-
-  it('first line is wider (h-4) than others', () => {
-    const { container } = render(<SkeletonCard lines={3} />)
-    const card = container.firstChild as HTMLElement
-    const lines = card.querySelectorAll('.skeleton-pulse')
-    expect(lines[0]).toHaveClass('h-4')
-    expect(lines[0]).toHaveClass('w-1/3')
-  })
-
-  it('last line has w-2/3', () => {
-    const { container } = render(<SkeletonCard lines={3} />)
-    const card = container.firstChild as HTMLElement
-    const lines = card.querySelectorAll('.skeleton-pulse')
-    expect(lines[2]).toHaveClass('w-2/3')
-  })
-
-  it('applies className', () => {
-    const { container } = render(<SkeletonCard className="my-card" />)
-    const card = container.firstChild as HTMLElement
-    expect(card).toHaveClass('my-card')
-  })
-})
-

@@ -1,135 +1,195 @@
 import React from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
-import { GoalsView } from '@/components/goals/goals-view'
-import { TodayHabitsHeader } from '@/components/today/today-habits-header'
-import { useAnchoredMenu } from '@/components/ui/anchored-menu'
-import { Animated } from 'react-native'
-import { Animated as TestAnimated } from '@/test-mocks/react-native'
+import { TodayDateControl } from '@/components/today/today-date-control'
+import { TrueSheet } from '@lodev09/react-native-true-sheet'
+import { Menu, useAnchoredMenu } from '@/components/ui/menu'
+import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
-vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ data: { allGoals: [] }, isFetched: true }) }))
-vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
-vi.mock('@/components/goals/goal-list', () => ({
-  GoalList: ({ ListHeaderComponent }: { ListHeaderComponent: React.ReactNode }) => ListHeaderComponent,
-}))
-vi.mock('@/app/(tabs)/today-shell', () => ({ TodayDateNavigation: () => null }))
-vi.mock('@/components/habits/today-ai-summary', () => ({ TodayAISummary: () => null }))
-
-vi.mock('lucide-react-native', async () => ({
-  ...await import('@/test-mocks/lucide-react-native'),
-  Filter: (props: Record<string, unknown>) => React.createElement('Filter', props),
-}))
-
-afterEach(() => vi.restoreAllMocks())
-
-function HeaderMenus() {
-  const controls = useAnchoredMenu()
-  const frequency = useAnchoredMenu()
-  return <TodayHabitsHeader
-    header={null} showSummary={false} dateStr="2026-01-01" currentActiveView="today"
-    dateLabel="Today" selectedDate={new Date('2026-01-01')} slideDirection="left"
-    dateLabelAnim={new Animated.Value(1)} isSearchFocused={false} showDayProgress={false}
-    dayProgress={{ done: 0, total: 0 }} isSearchOpen={false} searchQuery="" selectedFrequency={null}
-    selectedTagIds={[]} tags={[]} frequencyOptions={[{ key: 'Day', label: 'Daily' }]}
-    isSelectMode={false} showCompleted={false} isFetching={false} allCollapsed={false}
-    showControlsMenu={controls.visible} isControlsMenuClosing={controls.isClosing}
-    controlsMenuOpenRevision={controls.openRevision} controlsMenuAnchorRect={controls.anchorRect}
-    showFreqMenu={frequency.visible} isFreqMenuClosing={frequency.isClosing}
-    freqMenuOpenRevision={frequency.openRevision} freqMenuAnchorRect={frequency.anchorRect}
-    controlsButtonRef={controls.anchorRef} freqMenuButtonRef={frequency.anchorRef} filtersAnimatedStyle={{}}
-    onGoToPreviousDay={vi.fn()} onGoToToday={vi.fn()} onGoToNextDay={vi.fn()}
-    onSearchToggle={vi.fn()} onSearchChange={vi.fn()} onSearchFocusChange={vi.fn()} onTagToggle={vi.fn()}
-    onToggleFreqMenu={frequency.toggle} onToggleControlsMenu={controls.toggle}
-    onCloseControlsMenu={controls.close} onFinishControlsMenuClose={controls.finishClose}
-    onCloseFreqMenu={frequency.close} onFinishFreqMenuClose={frequency.finishClose}
-    onToggleSelect={vi.fn()} onToggleCollapse={vi.fn()} onRefresh={vi.fn()}
-    onToggleCompleted={vi.fn()} onSelectFrequency={vi.fn()}
-  />
-}
-
-const surfaces = [
-  { name: 'Today controls', trigger: 'habits.actions.more', content: 'common.select' },
-  { name: 'Today frequency', trigger: 'habits.frequencyFilter', content: 'common.all' },
-  { name: 'goal filters', trigger: 'goals.filters.statusFilter', content: 'goals.filters.all' },
-]
-
 interface RenderedNode {
-  props: { accessibilityLabel?: string; onPress: () => void; onRequestClose: () => void }
-  children: unknown[]
-  findAllByType: (type: string) => RenderedNode[]
-  findByType: (type: string) => RenderedNode
+  props: { accessibilityLabel?: string; open?: boolean; items: { id: string }[]; onPress: () => void; onClose: () => void; onDidDismiss: () => void; onRequestClose: () => void }
+  findAllByType: (type: string | typeof Menu | typeof TrueSheet) => RenderedNode[]
 }
-
 interface RenderedTree {
   root: RenderedNode
+  update: (element: React.ReactNode) => void
   unmount: () => void
+  toJSON: () => unknown
+}
+vi.mock('expo-router', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
+const nativeDismiss = vi.hoisted(() => vi.fn(() => Promise.resolve()))
+beforeEach(() => nativeDismiss.mockClear())
+vi.unmock('@/components/ui/sheet')
+vi.mock('@lodev09/react-native-true-sheet', () => ({
+  TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode }> {
+    present = vi.fn(() => Promise.resolve())
+    dismiss = nativeDismiss
+    render() { return <>{this.props.header}{this.props.children}{this.props.footer}</> }
+  },
+}))
+afterEach(__resetTestHostConfig)
+
+function TodayControls() {
+  return <TodayDateControl dayName="Monday" numericDate="01/01" isTodaySelected nextDisabled={false}
+    previousLabel="Previous" goToTodayLabel="Go to today" nextLabel="Next"
+    moreLabel="List options" selectLabel="Select" collapseLabel="Collapse" allCollapsed={false}
+    refreshLabel="Refresh" completedLabel="Completed" showCompleted={false} isFetching={false}
+    searchLabel="Search" onSearch={vi.fn()} onToggleSelect={vi.fn()} onToggleCollapse={vi.fn()}
+    onRefresh={vi.fn()} onToggleCompleted={vi.fn()} onGoToPreviousDay={vi.fn()}
+    onGoToToday={vi.fn()} onGoToNextDay={vi.fn()} />
 }
 
-function textContents(root: RenderedNode): string {
-  return root.findAllByType('Text').map((node) => node.children.join('')).join(' ')
+function trigger(tree: RenderedTree, label: string): RenderedNode {
+  return tree.root.findAllByType('Pressable').find((node) => node.props.accessibilityLabel === label)!
 }
 
-describe.each(surfaces)('$name menu ownership', ({ trigger, content }) => {
-  it.each(['open', 'exiting', 'reopened'])('replaces the %s surface menu with a habit menu and back', (phase) => {
-    const completions: ((result: { finished: boolean; value: number; offset: number }) => void)[] = []
-    vi.spyOn(TestAnimated, 'timing').mockImplementation(() => ({
-      start: (callback?: (result: { finished: boolean; value: number; offset: number }) => void) => {
-        if (callback) completions.push(callback)
-      },
-      stop: () => {},
-    }))
-    let renderer: RenderedTree
-    void TestRenderer.act(() => {
-      renderer = TestRenderer.create(<>
-        <HeaderMenus />
-        <GoalsView />
-        <HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />
-      </>) as unknown as RenderedTree
-    })
-    const buttons = renderer!.root.findAllByType('Pressable')
-    const rowTrigger = buttons.filter((node) => node.props.accessibilityLabel === 'habits.actions.more').at(-1)!
-    const surfaceTrigger = buttons.find((node) => node.props.accessibilityLabel === trigger)!
-    try {
-      void TestRenderer.act(() => surfaceTrigger.props.onPress())
-      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-      expect(textContents(renderer!.root)).toContain(content)
-      if (phase !== 'open') {
-        void TestRenderer.act(() => renderer!.root.findByType('Modal').props.onRequestClose())
-        expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
+function openMenus(tree: RenderedTree): RenderedNode[] {
+  return tree.root.findAllByType(Menu).filter((node) => node.props.open)
+}
+
+const cases = (['sheet', 'anchored'] as const).flatMap((presentation) =>
+  (['open', 'exiting', 'reopened'] as const).map((phase) => ({ presentation, phase })))
+
+describe('redesign menu ownership on Android', () => {
+  it.each(cases)('replaces the $phase $presentation controls menu with a row and back', async ({ presentation, phase }) => {
+    __setWindowDimensions({ width: presentation === 'sheet' ? 412 : 1280, height: 915, scale: 1, fontScale: 1 })
+    let tree!: RenderedTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<>
+      <TodayControls />
+      <HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />
+    </>) as unknown as RenderedTree })
+    const pendingDismissals: (() => void)[] = []
+    const prepare = async (label: string) => {
+      await TestRenderer.act(() => trigger(tree, label).props.onPress())
+      expect(openMenus(tree)).toHaveLength(1)
+      if (phase === 'open') return
+      if (presentation === 'sheet') {
+        const complete = tree.root.findAllByType(TrueSheet)[0]!.props.onDidDismiss
+        pendingDismissals.push(complete)
+        await TestRenderer.act(() => trigger(tree, 'common.close').props.onPress())
+        expect(nativeDismiss).toHaveBeenCalled()
+        expect(openMenus(tree)).toHaveLength(1)
+        if (phase === 'reopened') await TestRenderer.act(() => complete())
+      } else {
+        await TestRenderer.act(() => tree.root.findAllByType('Modal')[0]!.props.onRequestClose())
+        expect(openMenus(tree)).toHaveLength(0)
       }
-      if (phase === 'reopened') {
-        void TestRenderer.act(() => {
-          surfaceTrigger.props.onPress()
-          completions.at(-1)!({ finished: true, value: 0, offset: 0 })
-        })
-      }
-      void TestRenderer.act(() => rowTrigger.props.onPress())
-      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-      expect(textContents(renderer!.root)).toContain('common.edit')
-      expect(textContents(renderer!.root)).not.toContain(content)
-      if (phase !== 'open') {
-        void TestRenderer.act(() => renderer!.root.findByType('Modal').props.onRequestClose())
-      }
-      if (phase === 'reopened') {
-        void TestRenderer.act(() => {
-          rowTrigger.props.onPress()
-          completions.at(-1)!({ finished: true, value: 0, offset: 0 })
-        })
-      }
-      void TestRenderer.act(() => surfaceTrigger.props.onPress())
-      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-      expect(textContents(renderer!.root)).toContain(content)
-      expect(textContents(renderer!.root)).not.toContain('common.edit')
-      void TestRenderer.act(() => {
-        for (const complete of completions) complete({ finished: true, value: 0, offset: 0 })
-      })
-      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-    } finally {
-      void TestRenderer.act(() => renderer!.unmount())
+      if (phase === 'reopened') await TestRenderer.act(() => trigger(tree, label).props.onPress())
     }
+    try {
+      await prepare('List options')
+      await prepare('habits.actions.more')
+      if (phase !== 'exiting') {
+        expect(openMenus(tree)).toHaveLength(1)
+        expect(openMenus(tree)[0]!.props.items.map((item: { id: string }) => item.id)).toEqual(['edit'])
+      }
+      await TestRenderer.act(() => trigger(tree, 'List options').props.onPress())
+      expect(openMenus(tree)).toHaveLength(1)
+      expect(openMenus(tree)[0]!.props.items.map((item: { id: string }) => item.id)).toContain('select')
+      expect(JSON.stringify(tree.toJSON())).not.toContain('common.edit')
+      expect(tree.root.findAllByType('Modal')).toHaveLength(presentation === 'anchored' ? 1 : 0)
+      for (const complete of pendingDismissals) await TestRenderer.act(() => complete())
+      expect(openMenus(tree)).toHaveLength(1)
+      expect(openMenus(tree)[0]!.props.items.map((item: { id: string }) => item.id)).toContain('select')
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+    }
+  })
+
+  it.each(cases)('replaces the $phase $presentation row menu and releases an unmounted owner', async ({ presentation, phase }) => {
+    __setWindowDimensions({ width: presentation === 'sheet' ? 412 : 1280, height: 915, scale: 1, fontScale: 1 })
+    function Rows({ showFirst }: { showFirst: boolean }) {
+      return <>
+        {showFirst ? <HabitRow key="a" habit={createMockHabit({ id: 'a', title: 'Read' })} actions={{ onEdit: vi.fn() }} /> : null}
+        <HabitRow key="b" habit={createMockHabit({ id: 'b', title: 'Run' })} actions={{ onDelete: vi.fn() }} />
+        <HabitRow key="c" habit={createMockHabit({ id: 'c', title: 'Walk' })} actions={{ onDuplicate: vi.fn() }} />
+      </>
+    }
+    let tree!: RenderedTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Rows showFirst />) as unknown as RenderedTree })
+    let pendingDismissal: (() => void) | undefined
+    const triggers = () => tree.root.findAllByType('Pressable').filter((node) => node.props.accessibilityLabel === 'habits.actions.more')
+    try {
+      await TestRenderer.act(() => triggers()[0]!.props.onPress())
+      if (phase !== 'open') {
+        if (presentation === 'sheet') {
+          pendingDismissal = tree.root.findAllByType(TrueSheet)[0]!.props.onDidDismiss
+          await TestRenderer.act(() => trigger(tree, 'common.close').props.onPress())
+          expect(nativeDismiss).toHaveBeenCalled()
+          expect(openMenus(tree)).toHaveLength(1)
+          if (phase === 'reopened') await TestRenderer.act(() => pendingDismissal?.())
+        } else {
+          await TestRenderer.act(() => tree.root.findAllByType('Modal')[0]!.props.onRequestClose())
+          expect(openMenus(tree)).toHaveLength(0)
+        }
+        if (phase === 'reopened') await TestRenderer.act(() => triggers()[0]!.props.onPress())
+      }
+      await TestRenderer.act(() => triggers()[1]!.props.onPress())
+      expect(openMenus(tree)).toHaveLength(1)
+      expect(JSON.stringify(tree.toJSON())).toContain('habits.actions.delete')
+      expect(JSON.stringify(tree.toJSON())).not.toContain('common.edit')
+      await TestRenderer.act(() => tree.update(<Rows showFirst={false} />))
+      await TestRenderer.act(() => triggers()[1]!.props.onPress())
+      expect(openMenus(tree)).toHaveLength(1)
+      expect(JSON.stringify(tree.toJSON())).toContain('habits.actions.duplicate')
+      expect(JSON.stringify(tree.toJSON())).not.toContain('habits.actions.delete')
+      await TestRenderer.act(() => pendingDismissal?.())
+      expect(openMenus(tree)).toHaveLength(1)
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+    }
+  })
+
+  it('ignores native dismissal from a replaced sheet after the same row reopens', async () => {
+    __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
+    let tree!: RenderedTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<>
+      <TodayControls />
+      <HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />
+    </>) as unknown as RenderedTree })
+    try {
+      await TestRenderer.act(() => trigger(tree, 'habits.actions.more').props.onPress())
+      const oldDismissal = tree.root.findAllByType(TrueSheet)[0]!.props.onDidDismiss
+      await TestRenderer.act(() => trigger(tree, 'common.close').props.onPress())
+      expect(nativeDismiss).toHaveBeenCalledOnce()
+      expect(openMenus(tree)).toHaveLength(1)
+      await TestRenderer.act(() => trigger(tree, 'List options').props.onPress())
+      await TestRenderer.act(() => trigger(tree, 'habits.actions.more').props.onPress())
+      await TestRenderer.act(() => oldDismissal())
+      expect(openMenus(tree)).toHaveLength(1)
+      expect(JSON.stringify(tree.toJSON())).toContain('common.edit')
+      await TestRenderer.act(() => trigger(tree, 'List options').props.onPress())
+      expect(openMenus(tree)).toHaveLength(1)
+      expect(JSON.stringify(tree.toJSON())).not.toContain('common.edit')
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+    }
+  })
+
+  it('does not let a stale unmounted close release a replacement owner', async () => {
+    const controllers: ReturnType<typeof useAnchoredMenu>[] = []
+    function Owner({ index }: { index: number }) {
+      const menu = useAnchoredMenu()
+      React.useEffect(() => { controllers[index] = menu })
+      return null
+    }
+    let tree!: RenderedTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Owner index={0} />) as unknown as RenderedTree })
+    await TestRenderer.act(() => controllers[0]!.open())
+    const staleClose = controllers[0]!.close
+    await TestRenderer.act(() => tree.update(<><Owner key="b" index={1} /><Owner key="c" index={2} /></>))
+    await TestRenderer.act(() => controllers[1]!.open())
+    await TestRenderer.act(() => staleClose())
+    await TestRenderer.act(() => controllers[2]!.open())
+    expect(controllers[1]!.visible).toBe(false)
+    expect(controllers[2]!.visible).toBe(true)
+    await TestRenderer.act(() => tree.unmount())
   })
 })

@@ -1,6 +1,6 @@
 # Each guard keeps its own status condition so failures do not skip later guards.
 name: Guards
-'on':
+"on":
   pull_request:
     branches:
       - main
@@ -12,8 +12,9 @@ name: Guards
   push:
     branches:
       - main
+      - redesign/main
 concurrency:
-  group: '${{ github.workflow }}-${{ github.ref }}'
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
@@ -46,85 +47,235 @@ jobs:
         run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
       - name: Install dependencies
         run: npm ci --no-audit
-      - name: 'Timeless Text: Check text'
+      - name: Resolve pull request changed paths
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"
+      - id: feature-parity__1
+        name: "Production Feature Parity: Regenerate inventory and reject new capability losses"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if grep -Eq '.' "$RUNNER_TEMP/changed-paths.txt"; then
+            git fetch origin main
+            # WHY: Compare with the queued merge's own base so later restorations cannot create false losses (https://github.com/thomasluizon/orbit-tickets/issues/1495).
+            node tools/check-feature-parity.mjs --write --ci --base "HEAD^1"
+          fi
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.base_ref == 'redesign/main') }}
+      - id: feature-parity__2
+        name: "Production Feature Parity: Upload capability evidence"
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.base_ref == 'redesign/main') && (always()) }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-feature-parity
+          path: .claude/manifests/feature-parity.json
+          include-hidden-files: true
+      - id: timeless__1
+        name: "Timeless Text: Check text"
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             node tools/check-timeless.mjs --base origin/${{ github.base_ref }}
           else
             node tools/check-timeless.mjs --all
           fi
-        id: timeless__1
         if: ${{ !cancelled() }}
-      - run: node tools/check-root-allowlist.mjs
-        id: root-allowlist__1
-        name: 'Root Allowlist: node tools/check-root-allowlist.mjs'
+      - id: mobile-styles__1
+        name: "Mobile StyleSheet Guard: Mobile source carries no inert class names"
+        run: |
+          if [ '${{ github.event_name }}' = 'pull_request' ]; then
+            hits=$(grep -zE '^apps/mobile/' "$RUNNER_TEMP/changed-paths-present.nul" \
+              | xargs -0 --no-run-if-empty grep -nH 'className=' || true)
+          else
+            hits=$(git grep -n 'className=' -- apps/mobile || true)
+          fi
+          if [ -n "$hits" ]; then
+            echo "::error::Use React Native StyleSheet under apps/mobile."
+            echo "$hits"
+            exit 1
+          fi
+          echo "Mobile StyleSheet guard passed."
         if: ${{ !cancelled() }}
-      - name: 'Root Allowlist: Workspace packages declare no ignored overrides'
-        run: node tools/check-workspace-overrides.mjs
-        id: root-allowlist__2
+      - id: root-allowlist__1
+        name: "Root Allowlist: Root entries changed deliberately"
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ]; then
+            node tools/check-root-allowlist.mjs
+          else
+            cp "$RUNNER_TEMP/changed-paths.nul" "$RUNNER_TEMP/root-allowlist-changed.txt"
+            node tools/check-root-allowlist.mjs \
+              --changed-files-file "$RUNNER_TEMP/root-allowlist-changed.txt"
+          fi
         if: ${{ !cancelled() }}
-      - name: 'Root Allowlist: Docker base images name an explicit registry'
-        run: node tools/check-docker-registries.mjs
-        id: root-allowlist__3
+      - id: root-allowlist__2
+        name: "Root Allowlist: Workspace packages declare no ignored overrides"
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '(^|/)package\.json$|^tools/check-workspace-overrides\.mjs$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node tools/check-workspace-overrides.mjs
+          else
+            echo "Workspace overrides skipped: no owned path changed."
+          fi
         if: ${{ !cancelled() }}
-      - name: 'Dash Ban: Changed files carry no new dashes'
+      - id: padding-contract__1
+        name: "Shared padding aliases and source CSS stay on scale"
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '^apps/(web|mobile)/|^packages/shared/src/theme/|^eslint-rules/' "$RUNNER_TEMP/changed-paths.txt"; then
+            node eslint-rules/_spacing-contract.cjs
+          else
+            echo "Padding contract skipped: no owned path changed."
+          fi
+        if: ${{ !cancelled() }}
+      - id: root-allowlist__3
+        name: "Root Allowlist: Docker base images name an explicit registry"
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '^\.github/workflows/[^/]+\.ya?ml$|^tools/check-docker-registries\.mjs$' "$RUNNER_TEMP/changed-paths.txt" || \
+             grep -Eiq '(^|/)(Dockerfile(\.[^/]+)?|[^/]+\.Dockerfile)$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node tools/check-docker-registries.mjs
+          else
+            echo "Docker registries skipped: no owned path changed."
+          fi
+        if: ${{ !cancelled() }}
+      - id: root-allowlist__4
+        name: "Root Allowlist: Check the lockup crop on branch pushes"
+        if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
+        run: node tools/check-lockup-crop.mjs
+      - id: dashes__1
+        name: "Dash Ban: Changed files carry no new dashes"
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
         run: |
-          git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD -z \
-            | xargs -0 --no-run-if-empty node tools/check-dashes.mjs --files
-        id: dashes__1
-      - name: 'Dash Ban: Baseline only shrinks'
+          xargs -0 --no-run-if-empty node tools/check-dashes.mjs --files \
+            < "$RUNNER_TEMP/changed-paths-present.nul"
+      - id: dashes__2
+        name: "Dash Ban: Baseline only shrinks"
         run: node tools/check-dashes.mjs --check-baseline
-        id: dashes__2
         if: ${{ !cancelled() }}
-      - run: node tools/check-copy.mjs --check
-        id: copy__1
-        name: 'Copy Register: node tools/check-copy.mjs --check'
+      - id: sonar-paths__1
+        name: "Sonar Paths: Sonar paths exist"
+        run: node tools/check-sonar-paths.mjs
         if: ${{ !cancelled() }}
-      - name: 'Expo SDK Pin: Detect apps/mobile/package.json change'
-        id: mobile-pkg
+      - id: mobile-fonts__1
+        name: "Mobile Font Guard: Ban Rubik under apps/mobile"
         run: |
-          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q '^apps/mobile/package\.json$'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+          if [ '${{ github.event_name }}' = 'pull_request' ]; then
+            hits=$(grep -zE '^apps/mobile/' "$RUNNER_TEMP/changed-paths-present.nul" \
+              | xargs -0 --no-run-if-empty grep -niH 'rubik' || true)
           else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            hits=$(grep -rni 'rubik' apps/mobile || true)
+          fi
+          if [ -n "$hits" ]; then
+            echo "::error::DESIGN.md font ban: apps/mobile may use only Geist Sans, Space Grotesk, and Geist Mono."
+            echo "$hits"
+            exit 1
+          fi
+          echo "Mobile font guard passed."
+        if: ${{ !cancelled() }}
+      - id: copy__1
+        name: "Copy Register: Changed copy stays inside the register"
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '^packages/shared/src/i18n/(en|pt-BR)\.json$|^apps/(web|mobile)/.*\.(ts|tsx|css)$|^tools/(check-copy\.mjs|copy-baseline\.json)$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node tools/check-copy.mjs --check
+          else
+            echo "Copy register skipped: no owned path changed."
+          fi
+        if: ${{ !cancelled() }}
+      - id: i18n-usage__1
+        name: "i18n key usage: Changed translation usage resolves"
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '^(apps/web|apps/mobile|packages/shared)/.*\.[cm]?[jt]sx?$|^packages/shared/src/i18n/(en|pt-BR)\.json$|^tools/check-i18n-usage\.mjs$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node tools/check-i18n-usage.mjs
+          else
+            echo "i18n usage skipped: no owned path changed."
+          fi
+        if: ${{ !cancelled() }}
+      - id: lint-severity__1
+        name: "Lint Severity: Check local lint rules on branch pushes"
+        if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
+        run: node tools/check-lint-severity.mjs
+      - id: calibration__1
+        name: "Harness Calibration: Report calibration drift"
+        continue-on-error: true
+        run: node tools/check-calibration.mjs
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'calibration:reseed')) }}
+      - id: expo-pin__1
+        name: "Expo SDK Pin: Expo-pinned versions still resolve to the SDK set"
+        working-directory: apps/mobile
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '^(package-lock\.json|apps/mobile/package\.json)$' "$RUNNER_TEMP/changed-paths.txt"; then
+            CI=1 npx expo install --check
+          else
+            echo "Expo pin skipped: no dependency manifest changed."
           fi
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - name: 'Expo SDK Pin: Expo-pinned versions still resolve to the SDK set'
-        if: ${{ !cancelled() && (github.event_name == 'pull_request') && (steps.mobile-pkg.outputs.changed == 'true') }}
-        working-directory: apps/mobile
-        run: CI=1 npx expo install --check
-        id: expo-pin__2
-      - run: node tools/generate-performance-workflow.mjs --check
-        id: performance-workflow__1
-        name: 'Performance Workflow Drift: node tools/generate-performance-workflow.mjs --check'
+      - id: performance-workflow__1
+        name: "Performance Workflow Drift: Check generated workflow on branch pushes"
         if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
-      - name: 'Dependency Audit: Fail on critical production CVEs'
-        run: npm audit --omit=dev --audit-level=critical
-        id: dependency-audit__1
-        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - name: 'Dependency Audit: Report high and moderate advisories (non-blocking)'
-        if: ${{ !cancelled() && (github.event_name == 'pull_request') && (always()) }}
-        run: npm audit --audit-level=moderate || true
-        id: dependency-audit__2
-      - name: 'Design Token Guard: Ban raw --slate-*, transition-all, h-screen in app code'
+        run: node tools/generate-performance-workflow.mjs --check
+      - id: surface-manifest__1
+        name: "Surface Manifest Drift: Changed surface inputs match the committed inventory"
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '^apps/(web|mobile)/|^packages/shared/src/|^design/canvas/|^\.claude/manifests/surfaces\.json$|^tools/(surface-manifest|redesign-coverage)\.mjs$|^tools/redesign-groups\.json$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node tools/surface-manifest.mjs --check
+            node tools/redesign-coverage.mjs
+          else
+            echo "Surface manifest skipped: no owned path changed."
+          fi
+        if: ${{ !cancelled() }}
+      - id: gate-charter__1
+        name: "Gate Charter: Changed gates obey the charter"
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '^\.github/workflows/(guards|test|pr-metadata)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$|^package(-lock)?\.json$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node tools/check-gate-charter.mjs
+          else
+            echo "Gate charter skipped: no registered gate changed."
+          fi
+        if: ${{ !cancelled() }}
+      - id: design-guard__1
+        name: "Design Token Guard: Ban raw --slate-*, transition-all, h-screen in app code"
         run: |
           # DESIGN.md bans semantic-token violations. Accent-color literals are caught by
           # the Copy Register gate (tools/check-copy.mjs); this gate covers the rest.
-          hits=$(grep -rnE '\-\-slate-|transition-all|\bh-screen\b' apps/web apps/mobile \
-            --include='*.ts' --include='*.tsx' --include='*.css' \
-            --exclude-dir=node_modules --exclude-dir=__tests__ \
-            --exclude='globals.css' --exclude='theme.ts' \
-            --exclude='*.test.ts' --exclude='*.test.tsx' --exclude='*.spec.ts' --exclude='*.spec.tsx' || true)
+          hits=$(grep -zE '^apps/(web|mobile)/.*\.(ts|tsx|css)$' "$RUNNER_TEMP/changed-paths-present.nul" \
+            | grep -zvE '(^|/)__tests__/|/globals\.css$|/theme\.ts$|\.(test|spec)\.tsx?$' \
+            | xargs -0 --no-run-if-empty grep -nHE '\-\-slate-|transition-all|\bh-screen\b' || true)
           if [ -n "$hits" ]; then
             echo "::error::DESIGN.md ban: use semantic tokens (var(--fg-*)/var(--primary)), transform+opacity transitions, and min-h-dvh."
             echo "$hits"
             exit 1
           fi
           echo "Design token guard passed."
-        id: design-guard__1
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - name: 'Contract Drift: Regenerate Zod contract snapshot from the pinned orbit-api commit'
+      - id: design-guard__2
+        name: "Design Token Guard: Ban decorative gradients in app code"
+        run: |
+          if grep -Eq '^apps/(web|mobile)/.*\.(cjs|css|js|jsx|mjs|ts|tsx)$|^tools/check-gradients\.mjs$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node tools/check-gradients.mjs
+          else
+            echo "Gradient guard skipped: no owned path changed."
+          fi
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - id: dependency-audit__1
+        name: "Dependency Audit: Test critical production CVE gate"
+        run: node --test .github/scripts/check-critical-production-cves.test.mjs
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - id: dependency-audit__2
+        name: "Dependency Audit: Fail on critical production CVEs"
+        timeout-minutes: 3
+        run: node .github/scripts/check-critical-production-cves.mjs
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - id: dependency-audit__3
+        name: "Dependency Audit: Report high and moderate advisories (non-blocking)"
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') && (always()) }}
+        run: npm audit --audit-level=moderate || true
+      - id: contract-drift__1
+        name: "Contract Drift: Regenerate Zod contract snapshot from the pinned orbit-api commit"
         working-directory: packages/shared
         run: |
           set -euo pipefail
@@ -135,9 +286,9 @@ jobs:
           fi
           curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o "$RUNNER_TEMP/orbit-openapi.json"
           ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npx --yes orval@8.37.0 --config ./orval.config.ts
-        id: contract-drift__1
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - name: 'Contract Drift: Fail if the snapshot does not match the pinned API commit'
+      - id: contract-drift__2
+        name: "Contract Drift: Fail if the snapshot does not match the pinned API commit"
         run: |
           if ! git diff --quiet -- packages/shared/src/types/__generated__/api.generated.ts; then
             echo "::error::The committed Zod snapshot does not match the pinned orbit-api commit. Regenerate the snapshot from the pin or update both files together. See packages/shared/CONTRACT_DRIFT.md."
@@ -145,13 +296,13 @@ jobs:
             exit 1
           fi
           echo "The committed snapshot matches the pinned orbit-api commit."
-        id: contract-drift__2
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - name: 'Architecture map drift: Generate the architecture map'
+      - id: architecture-map__1
+        name: "Architecture map drift: Generate the architecture map"
         run: node tools/arch-map.mjs
-        id: architecture-map__1
         if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
-      - name: 'Architecture map drift: The map is deterministic across two runs'
+      - id: architecture-map__2
+        name: "Architecture map drift: The map is deterministic across two runs"
         run: |
           set -euo pipefail
           for artifact in architecture.json architecture.html architecture.mmd; do
@@ -166,9 +317,9 @@ jobs:
             fi
           done
           echo "All three artifacts are byte-identical across two runs."
-        id: architecture-map__2
         if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
-      - name: 'Architecture map drift: Publish the map'
+      - id: architecture-map__3
+        name: "Architecture map drift: Publish the map"
         uses: actions/upload-artifact@v7
         with:
           name: architecture-map
@@ -178,11 +329,10 @@ jobs:
             architecture.mmd
           if-no-files-found: error
           retention-days: 14
-        id: architecture-map__3
         if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
-      - name: 'React Doctor: Fail on new React issues in changed files'
+      - id: react-doctor__1
+        timeout-minutes: 15
+        name: "React Doctor: Fail on new React issues in changed files"
         run: |
           npx -y react-doctor@0.7.6 . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes
-        id: react-doctor__1
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-        timeout-minutes: 15

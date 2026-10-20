@@ -1,0 +1,359 @@
+# The canvas documents
+
+> **At a glance** - the granted canvas export and design tokens for every redesign surface.
+> Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
+
+## The authority
+
+**Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records
+the grant in its D42 paragraph, and `CLAUDE.md` points here. Without that grant a canvas export
+carries nothing, and the eleven in `superseded/` still carry nothing.
+
+**Amendments since the grant, listed so no reader treats the export as byte-identical to it.** An
+amendment lands here and in the shipped tokens together, never in one alone, because a canvas token
+that disagrees with production is a trap rather than an authority.
+
+| amendment | what changed | why |
+|---|---|---|
+| Astra blocks in place | `Orbit Astra Conversation` combines the day ring with up to 20 live habit rows and in-place logging; calendar EventRow actions open Calendários with one event selected for import review; streak keeps DayStrip and a read-only FreezeBank linking to Sequência; goals use ProgressBar, tracking badges and named derived sources; metrics keeps BarChart with at most three StatTile figures. The pt-BR stale line reads `A manhã mudou desde que a Astra montou este bloco.` | Blocks reuse their app actions and live state. This supersedes the drawing's goal rings, metrics note excluding a chart, and masculine reference to Astra in the stale line. |
+| #1471 | `Orbit Progresso` and `Orbit Astra Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Astra metrics. |
+| #1483 | Astra choice blocks use one column of radio or checkbox options and explicit Send; labels up to 20 characters and descriptions up to 24 each fit one line at default text size. Above font scale 1.3 or web text zoom 130%, rows grow and text may wrap; never ellipsize at 200% text. Pick list habit names use the full available row width, at most two lines then an ellipsis with the complete accessible name and one-tap label expansion independent of its checkbox; detail fits one line at default text size. Review prepares the existing approval preview. | Selected labels use `--fg-1`, resting labels `--fg-2`; one status line follows the trailing action. Selections use `Intl.ListFormat`, and no answer action writes. Identical answer recovery stays available at the limit and refreshes server usage. |
+| #1479 | Astra replies interleave text and block parts in server order, with at most one write preview per reply; unknown block kinds are skipped | Text streams before whole blocks arrive, keeping the first text position, the 16 gap, selectable prose and independent code-block copy controls. |
+| Astra ideas library | A second full view in the conversation layer uses AppBar back, persistent search, one scrolling category chip row, eight-row result pages, SectionLabel headings and ListRow ideas; the conversation header adds a 48 browse icon and the empty thread adds one ghost browse action; live suggestions become rows, Calendar requires Pro and Google, slots preserve drafts, and Escape or Android back returns focus to the entry | This amendment specifies the library without a separate drawing and makes routine, bulk and restart requests discoverable. |
+| #1366 | Hoje date paging spans the content column: 48px arrow targets at its leading and trailing edges, day title and date centred between equal 12px gaps, in both compact and wide drawings | The placement uses the content-column centre and preserves the shell inset, full date labels and shared touch floor. |
+| #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
+| Week time grid | Named timed blocks with status rings, per-day any-time chips and +N, natural short weekdays, one today date disc, one hour scroller and opening near now | The owner's report supersedes #1148 and adopts the Google Calendar week pattern. |
+| #1321 | Calendário's any-time gutter uses `Sem horário` in pt-BR and retains `No set time` in en, at 12 with 1.4 line height and 8 padding inside a gutter of at least 96; the label stays whole on one line at default text size and its cell grows when accessibility text wraps | The prior pt-BR label wrapped inside the drawn gutter, contrary to `DESIGN.md` Bans. Agenda values and entry details share the same no-time wording. |
+| Astra full screen | One conversation layout at every width, with NavHeader, a shared thread, one live chip set and a composer with 16 padding; wide web keeps its sidebar with an Astra row above Hoje and drops the resting Hoje shell composer while retaining the active selection tray in the pinned bottom slot; habit detail keeps its own composer | Astra opens as a layer with no route or Android tab. Compact shells cover the tab bar; wide web replaces the destination column from every Astra entry, including proactive and empty-state actions. The empty disclosure uses `--fg-3` and the close control is 48. App implementation follows in #1295. |
+| 2026-10-04 | Dark `--primary-text` uses `#ED773E` and dark `--track-empty` uses `#8B8B8E`, with their widget mirrors | Each is the first rounded byte at constant source OKLCH hue and chroma with higher lightness. Accent text clears 4.518:1 on card-child hover; the empty track clears 3.001:1 on the calendar card and hover inside a sheet. The immediately preceding bytes measure 4.497:1 and 2.993:1. |
+| Progresso overview | The root contains the 30-day chart, completion rate, active days, best weekday and most consistent habit, then Sequência, Metas and Conquistas sub-menu rows. Sequência owns its freezes and protected days. Metas retains every goal action. Conquistas retains the drawn level and XP row before the achievement categories. Each opens its own route with a visible back control | Supersedes the inline detail stack in `Orbit Progresso.dc.html`; the detail drawings remain the reference. Three entries keep level and achievements together. Navigation stays available during loading, empty, locked and error states on both platforms, in a centred column capped at 740px. |
+| Native mobile rule | Hoje, Habit Detail and Astra Conversation use the attach menu composer; Hoje uses a whole-row proactive action, date paging at the content edges and top-centre back-to-top; Calendário moves repeat, Google Calendar and legends to disclosure and restructures day rows and figures; Progresso moves its legend to a sheet and long figures to rows; Perfil uses icon-led sub-menu rows; Avisos uses an options menu and root/sidebar bell examples. Habit Detail puts the emoji well, rename and header ring on a controls row above the full-width wrapping title and summary, with 12px metadata gaps and 24px to the strip. Every Progresso tab glyph is layout-dashboard. `native-mobile.js` renders the amended drawing primitives alongside the mirrored export. Composer, Shell412, TabBar, Menu, StatTile, ListRow, SegmentedControl, NavHeader, Badge and HabitRow contracts carry the matching rules | Product labels remain whole, typed text gets full width then two lines, rows grow at 200% text, and secondary content preserves selection in disclosure. Progresso and Perfil bell-only rows scroll. The touch floor follows the shared touch target amendment. |
+| Touch targets | `--touch-min` is 48px on web and 48 logical pixels on Android, from shared `TOUCH_TARGET_MIN`; small pills retain their visible geometry and reserve the expanded hit area; month-grid cells use their full column width and at least 44px | Controls stay usable with distinct, non-overlapping targets at compact widths. |
+| Astra connections | Perfil > Astra owns Conexões with Google Calendar and feature-gated Notion. The Google Calendar row and the retained Sincronizar calendário row both open the Calendários sheet through `/calendar?import=1`. Notion grants read-only access to chosen pages, with connection, reconnect and confirmed disconnect states | Connection management belongs with Astra settings. |
+| Perfil sub-menus | The account row opens Conta, followed by Preferências, Astra and Notificações; Mais do Orbit and sign out stay inline | Grouped navigation replaces the five-heading page so a setting is found without scrolling past every group. |
+| #1288 | Calendário shares one centred navigation row across all four views; span titles are borderless mono controls that return to today, and Agenda rows carry a time or no-time value, a status ring and entry details | Agenda keeps day order stable, lists no-time habits before timed habits and builds the today heading from one localized template. |
+| #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
+| Hoje one Astra slot | Web and Android show one slot below the habit-view switch and above the date in Hoje only: unread proactive check-in, otherwise returning guidance, otherwise the daily summary. The summary's first sentence opens its full text as Astra's newest conversation message, preserving earlier turns. Loading, retry and the free plan's upgrade path use the same slot. One 20px glyph, one padded target at least 48 high and at most two prose lines | Supersedes the separate summary block. Hoje carries no second insight, AI badge, expand action or round Astra button. Only the way in and this slot carry the glyph outside the conversation. |
+| Hoje composer | A one-line pill with inside Astra glyph, input, + menu and send appears on Hoje and habit detail; Hoje chips move into the conversation and habit detail chips stay in one scroll row; Calendário, Progresso and Perfil clear the bottom | The front door stays visible on Hoje and habit detail. An open conversation and disclosure preserve state. |
+| Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
+| Light transparent hover | `--p-l-hover` uses `rgba(9,9,11,0.11)`; supporting text under the fill uses `fg-2` | The step measures 1.271:1 over white and 1.276:1 over the canvas. |
+| Light empty track | `--p-l-track-empty` uses `#7E7E82`; `--status-empty` retains this neutral at rest and under hover | Constant OKLCH hue and chroma with lower lightness clears 3.036:1 on canvas hover, 3.180:1 on card-child hover and 3.052:1 on canvas selection, while staying between `fg-3` and `fg-4`. |
+| Light accent and status text | `--primary-text` uses `#A63A00`, `--status-overdue` and its text role use `#7D5700`, and `--status-bad-text` uses `#C00000`; only `fg-3` promotes to `fg-2` under light hover | Lower source OKLCH lightness with fixed hue and chroma before gamut-clamping and byte-rounding. Worst-stack well-hover ratios are 4.522:1 orange, 4.510:1 amber and 4.502:1 red; canvas-hover ratios are 4.887:1, 4.874:1 and 4.865:1. |
+| Opaque control hover | Added `--bg-hover-opaque`: dark reuses `--p-hover`, light uses `--p-l-hover-opaque` at `rgba(9,9,11,0.11)` | Layered over the resting elevated fill, the hover step measures 1.477:1 dark and 1.271:1 light, clearing the 1.25:1 floor. |
+| 2026-09-29 | `Orbit Entrar` and `Orbit Verificacao` centre their compact columns with equal vertical padding | The owner's phone layout decision places both sign-in steps between the safe areas. |
+| 2026-09-29 | `Orbit Wrapped`: period line and weekday note from `fg-4` to `fg-3` | Both lines are text, and `fg-4` only clears the non-text floor on the canvas. `fg-3` clears the text floor. |
+| 2026-09-28 | Calendário uses one centred column at both widths, with the view selector in the header and a 24px day-card inset | The owner's layout decision replaces the split and sheet composition. |
+| 2026-09-28 | Removed the naming note from both locales of `Orbit Sobre` | The note describes an internal writing rule rather than information a person needs on Sobre. |
+| 2026-09-11 | Added dark `--primary-text` at `#E16D33` and light at `#B64900`, then moved the Android widget streak figure to it | The widget streak is rationed accent text on a raised surface. `--primary` measured 4.057:1 on the dark card and 3.680:1 on its well, below the 4.5 text floor. The raised-surface pair measures 4.510:1 dark and 4.509:1 light on its worst surface. |
+| 2026-09-10 | Corrected dark `--track-empty` to `#7A7A7D` and light to `#7F7F83`, then kept `--status-empty` bound to it | The first values measured only canvas and replacement hover. These clear the reachable selection and card-child hover stacks after range endpoints were reduced to one tint, while preserving the neutral ramp. |
+| 2026-09-10 | Light `--p-l-overdue` from `#946A00` to `#886100` | The old value missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint the session-expiry warning paints text on. The new value measures 4.91, 4.73 and 4.70 on those, and 4.95 on the widget well, preserving the OKLCH hue and its 36.3 degree separation from the accent. |
+| 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
+| 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
+
+### BarChart amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Progresso overview | Thirty daily columns remain visible at compact and wide widths. Existing completion figures, best weekday, top habit, navigation and loading, empty, locked and error states stay with their owners. |
+| Astra metrics block | Existing metric series and figure rows use the shared selectable chart. No-data and absent-series behavior, habit context and destination links remain. |
+| Astra period insight | Existing daily and weekly series use the same control on the overview page. Figures, habit rows, narrative pages, paging and destination links remain. |
+| Shared chart control | Full-height column targets, one selected neutral bar, localized complete radio names, today selection, moving bounded readout, first/last dates and baseline stubs. Web uses one roving tab stop with arrows and Home/End; Android uses radio roles, checked states, presses and accessibility actions. |
+
+Vitest covers chart behavior, column geometry and edge readouts on both platforms. Web cases also
+mount the owning Progresso composition at 320, 412 and 1352. The layout workflow owns whole-page evidence;
+TalkBack and real Android text rendering remain device-verification boundaries.
+
+### Ordered Astra reply surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Streaming reply | One selectable text part, with blocks withheld until final delivery. |
+| Ordered final reply | Text, habit list, text and metrics retain server order with a 16 gap; all nine existing block kinds use the platform registry. |
+| Unsupported or malformed block | The part is skipped while text and valid blocks remain; a fully skipped reply uses its joined text. |
+| Legacy and cached reply | Missing or null parts adapt the joined text and cards in their existing order, including every record list. |
+| Prose and trailing slots | Every text part uses the existing Markdown renderer and code-block copy controls; pending operations, outcomes and follow-ups keep their slots. |
+
+Chromium unit geometry covers the first text offset and scroll position during final replacement.
+Controller tests drive final delivery and conversation resize callbacks on both platforms, retaining
+the reading position until the next send or a deliberate return to the bottom.
+Native component tests cover ordering and the existing spacing cases. Whole-page layout remains
+owned by the layout workflow, and native text geometry remains a device-verification boundary.
+
+### Hoje date pager amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Hoje selected day | Day title and full month date centred between edge targets; compact 320 and 412 geometry and full date labels in both locales. |
+| Hoje another day and forward boundary | Same geometry with the centred date label returning to today and an enabled or disabled forward target. The label is inert on today, retains the 48 touch floor and one focus indicator, and announces the return action away from today. No separate Hoje jump control. Native composition tests include the proactive line and populated habit rows. |
+| Hoje compact and wide drawing | Both pager compositions span their content column with 48px targets and centred labels; this amendment and DESIGN.md record the placement. |
+
+The date pager has no separate loading, empty or error state. Those belong to the surrounding habit
+list and do not change its placement. Large text grows the date row without clipping or overlap.
+Vitest owns isolated Chromium and native Yoga evidence; the layout workflow owns whole-page
+geometry, and real Android text rendering remains a device-verification boundary.
+
+### Legal title amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Privacy document | Short Privacidade/Privacy header and Política de privacidade/Privacy policy body title, matching the Sobre row in each locale; full document and closing contact remain present. Both platform layout tests mount the owning page. |
+| Terms document | Short Termos/Terms header and Termos de uso/Terms of use body title, matching the Sobre row in each locale; full document and closing contact remain present. Both platform layout tests mount the owning page. |
+| Sobre drawing | Privacy selects the privacy row and terms selects the terms row for their prose titles, in both locales and at both drawn widths. |
+
+These read-only documents have no data-loading or empty state. Back navigation and the document
+scroll owners retain their existing behavior.
+
+### Week time grid surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Semana page and week wrapper | Fill the height below the header with one hour scroll owner; 1352x726, 1100x726 and 412x640 cases at font scale 1; 1352x726 and 1100x726 also at font scale 2. The weekday header and any-time lane pin only while together they occupy at most half the hour viewport; larger panes scroll with the hours. |
+| Weekday header | Natural short names, pinned with the lane only while their pane fits within half the hour viewport, one today date disc, day selection and clearance from calendar options. |
+| Any-time gutter and per-day lanes | Empty, one, two and three-or-more habits; named 28 chips inside separate 48 targets and +N day disclosure; long words and unbroken tokens. |
+| Timed blocks | Two-line names, status ring, bad mark and time; concurrent and adjacent lanes, transparent future blocks and full-name disclosure. |
+| Hours and position | Every hour labelled, aligned gutter, horizontal columns, now in today's column and upper third on opening, earlier morning for another week and trailing space at 200% text. |
+| Entry and day disclosures | Existing CalendarEntryDetails and day sheets retained; complete titles, selection and scroll preservation, localized copy and loading, empty and error states. |
+| Drawing and specification | Amended calendar drawing, views note, TimeGrid contract, scroll ownership and docs registry; crowded Chromium unit geometry and CI page layout cases. |
+
+The unit geometry fixtures include crowded lanes and long titles. Whole-page layout and real native
+rendering remain verification boundaries: the layout workflow owns page evidence, and the unit
+screen tests verify native scroll ownership without an emulator.
+
+### Return-to-today navigation amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Hoje header and date pager | No header jump pill. The centred date label returns from past and future days, remains inert on today, announces its action in both locales and retains a padded 48 target and one focus indicator. Surrounding loading, empty, error and populated lists share this pager. |
+| Calendário month header | The month label returns to today's selected day, including from another day of the current month. The adjacent chevron retains the month and year picker and wraps below the whole label when large text needs another line. Month controls have no gap so full labels and independent 48px targets fit the narrow column; other views keep their 8px gap. |
+| Calendário week, range and agenda headers | The centred span label returns to the span containing today and remains inert on the current span. Existing paging boundaries and view selection remain intact. |
+| Calendário month and year picker sheet | Month selection and year browsing remain available; the separate current-month shortcut is removed. |
+| Other date controls | Form date pickers and habit history controls have no separate return-to-today action and retain their existing jobs. |
+
+Unit tests cover activation, keyboard behavior on web and native target styles. The layout workflow
+owns full-page web evidence. Android screen geometry remains a native rendering boundary.
+
+### Habit detail header fill clearance amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Habit detail header column | `Orbit Habit Detail.dc.html` draws 12 from the emoji and actions row to the title and 4 from the title to the frequency summary. The owner's fill clearance order names this surface: the rename fill never touches the emoji row or the summary line. A 4 gap cannot hold a block fill with 4 of clearance, so both gaps are 8. The header keeps its drawn height and the summary keeps its drawn position; only the title moves 4 up. |
+| Habit rename fill | The fill reaches 4 above and below the title and 12 to each side, with one inset focus indicator; the 48 target comes from the hit area, not the paint. |
+
+`habit-title-focus.spec.ts` and `habit-detail-spacing.spec.ts` hold the drawn header height and the glyph and summary clearance on web;
+the Android interaction fill clearance tests hold the same gaps and the 16 total.
+
+### Any-time label amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Week time-grid gutter | The shared no-time label fits the 96 minimum gutter in both locales at default text size, including crowded days; accessibility text can wrap and grow the aligned day band. Chromium unit geometry covers 320, 360, 384, 412 and 1352; native unit geometry covers the same widths at font scale 1 and measured growth at font scale 2. The CI label-fit case covers 320, 412 and 1352. |
+| Agenda row value | Untimed entries use the amended shared wording in both locales; populated row tests retain complete accessible announcements and ordering. |
+| Entry details meta line | The existing shared no-time key supplies the amended wording beside the status on both platforms; existing details tests retain complete titles and disclosure behavior. |
+| Calendar drawing | Both locale variants follow the shared gutter wording, padding and line-height contract. |
+
+Loading, empty and error states retain their existing controls; this amendment changes the shared
+no-time wording and gutter geometry rather than the calendar's state or disclosure behavior.
+
+**Precedence is a ladder, defined in `DESIGN.md` D42.** `## Information architecture` outranks every
+drawing on whether a surface should exist. `## Bans` outranks every drawing, so a granted export
+never authorises a banned value. **Below those two the drawing wins**, over `DESIGN.md` prose, a
+ticket body, and this file. `DESIGN.md` remains the written spec and the place mechanical rules are
+enforced, but a drawing here outranks a sentence there (D42).
+
+Each `.dc.html` is **one screen as one interactive document**, not a picture of a screen. It carries
+a control bar with four axes, mode, width, state and locale, and renders the whole matrix from one
+build.
+
+| document | screen |
+|---|---|
+| `Orbit Hoje.dc.html` | Hoje, the habit list, the core loop |
+| `Orbit Calendario.dc.html` | calendário, the month grid, the day cell and the event row |
+| `Orbit Progresso.dc.html` | progresso, and the goals that live inside it |
+| `Orbit Perfil.dc.html` | perfil and settings |
+| `Orbit Habit Create.dc.html` | criar hábito |
+| `Orbit Habit Detail.dc.html` | one habit, its history and its actions |
+| `Orbit Astra Conversation.dc.html` | the full-screen Astra conversation and the web sidebar Astra row |
+| `Orbit Wrapped.dc.html` | Wrapped, its cover and its pager |
+| `Orbit Onboarding.dc.html` | onboarding |
+| `Orbit Entrar.dc.html` | entrar |
+| `Orbit Verificacao.dc.html` | the code entry |
+| `Orbit Assinatura.dc.html` | assinatura |
+| `Orbit Pro.dc.html` | the Pro surface |
+| `Orbit Avisos.dc.html` | avisos, the notification surface |
+| `Orbit Busca.dc.html` | busca |
+| `Orbit Celebracao.dc.html` | the celebration set |
+| `Orbit Estados.dc.html` | the shared state set |
+| `Orbit Offline.dc.html` | the offline surface |
+| `Orbit Sobre.dc.html` | sobre |
+| `Orbit Sobreposicoes.dc.html` | the overlay set |
+| `Orbit Widget Android.dc.html` | the Android home screen widget |
+
+### Pro plan-card surfaces
+
+1. `/upgrade` on web and Android: the free and trial pitch, including the last trial day,
+   annual or monthly selection, coupon arithmetic and checkout pending or failed.
+2. The final onboarding paywall on web and Android: the same annual and monthly cards,
+   with price loading, price failure, retry and offline states shared with `/upgrade`.
+3. The final onboarding trial step on web and Android: the pitch and 5 against 50 comparison,
+   with outcomes owned by purchasable tier cards rather than a standalone pitch list.
+
+Both card owners cover loaded prices, loading reservations, absent prices, retry and offline
+states in English and Brazilian Portuguese. Card geometry covers compact and desktop widths.
+
+## The design system, under `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`
+
+`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **183 authoritative token values**. A number typed into a component that
+disagrees with a token here is wrong, whatever any document says.
+
+| file | what it fixes |
+|---|---|
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css` | the surface ladder, the foreground ramp, the one accent and the status set |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css` | exactly ten values: 0 4 8 12 16 24 32 48 64 96. **20, 28, 40 and 56 must not appear** |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css` | the radius scale, the shadows and the motion durations. Radius 999 means interactive |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css` | three families and a closed size set: 12 14 16 17 20 22 28 34 44 60 |
+| `.../tokens/fonts.css`, `.../tokens/base.css` | the font faces, repointed at the tracked binaries in `design/brand/fonts/`, and the reset |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css` | the shared component styles |
+| `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_manifest.json` | the inventory: 41 component names with their canvas source paths, and 36 guideline cards with a one-line summary each |
+
+**A component in the manifest is a promoted primitive. A component that appears only inside a screen
+is drawn inline there**, and the screen is its reference. Both are equally binding.
+
+**A guideline-card subtitle names a component and summarises it in one line. It is an index entry, not
+a specification.** The Actions card says only "Button variants and the FAB, dark and light", while the
+screens deliver the variants, sizes, states and measurements. The binding specification of any
+component is: the token values, `styles.css`, and every screen that draws it, with the screen named in
+its ticket as the reference. Read those, not the subtitle.
+
+## What is deliberately not committed
+
+* **The font binaries.** `design/brand/fonts/` already carries them.
+* **`support.js`**, the canvas runtime. It is vendor code and its em dashes fail the repository dash
+  gate.
+* **`_ds_bundle.js`**, which is compiled output carrying no readable component source.
+* **`_adherence.oxlintrc.json`**, the canvas's own lint config. Nothing here consumes it, and its
+  messages carry em dashes the dash gate rejects.
+
+### Reading them, and rendering them
+
+**Reading works from a checkout.** The markup is plain HTML with a `{{ }}` template layer, each
+screen carries a prose report block explaining its own decisions, and every stylesheet link resolves
+against the design-system tree committed beside them. That is what an implementer needs and it is why this
+export is here.
+
+**Rendering does not work from a checkout, by design.** Each document also pulls `support.js` and
+`_ds/<uuid>/_ds_bundle.js`, and neither is committed. To see one rendered, export the project archive
+from Claude Design and open it there, or drop those two files beside these. The font binaries are
+already tracked: `tokens/fonts.css` resolves into `design/brand/fonts/`, so nothing needs copying.
+
+The `_ds/<uuid>/` directory keeps the export's own UUID name because the screens link through it.
+Flattening it silently breaks every stylesheet reference.
+
+### The component contracts
+
+`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/components/` holds **48 `.d.ts` prop contracts**, at the exact
+paths the manifest names and the redesign tickets cite. They are pulled from the design-system project
+itself, because the downloadable archive omits them.
+
+**These are the reference an implementer builds against, and they are not binding yet.** Nothing
+imports them and they sit in no `tsconfig` include, so today they are inert reference material.
+
+**Moving a group into `packages/shared/src/contracts/` is necessary but it is not sufficient.** A
+declaration in an included folder still binds nothing until a component imports it and is typed by
+it. `#351` goes first and is the only ticket that edits `packages/shared/package.json`; each porting
+ticket then makes its own group binding by having both platforms' components consume it.
+
+**Two things do not port straight across, and a porting ticket has to reconcile both.**
+
+*The handler name.* These contracts are drawn for the canvas's own React, so they say `onClick`. Web
+matches that, because it renders DOM. Mobile does not: `apps/mobile` is React Native and its
+components take `onPress`. So a single shared declaration cannot type both platforms unchanged. The
+handler name is a platform adapter under the parity rule, the same way the storage and styling layers
+are, so the split is allowed; what is not allowed is the two sides drifting on anything below it.
+
+*The `any`s.* Every one of the 48 contracts uses `any`, 94 times in total, for node-typed slots like
+`children`, `trailing` and `control`. That is fine while these files are inert reference material,
+and it stops being fine the moment a group moves: `packages/shared/eslint.config.mjs` turns
+`@typescript-eslint/no-explicit-any` off only for test files, so a contract landing as ordinary
+source under `src/contracts/` is linted like any other source and a verbatim copy fails. Porting a
+group means giving each node-typed slot a real type, not carrying `any` across and suppressing it.
+
+They are written to survive that move, which is why the canvas held its rules across three drawing
+sessions and prose did not:
+
+* `StatTile` discriminates on `state`, so an empty tile cannot accept `value` and can never render a `0`
+  that reads as a real measurement.
+* `Columns` has no date, start, interval or ordering prop at all, so a category set cannot become a time
+  axis whose gaps carry meaning.
+* `Button` accepts only visible text on its ordinary path. Passing a glyph or any other opaque node
+  requires `iconOnly: true` and the word in `label`, the same guarantee `Fab.label` and
+  `NavHeader.backLabel` already carry.
+* `Sheet.open` accepts only the literal `true`, so a kept-and-toggled instance does not compile.
+* `StepUp` has no `children` and no node-typed prop, so a credential field cannot be nested into it.
+* `Toast` is four discriminated kinds; `lost` cannot be constructed without both what was lost and the
+  way back.
+
+**Where a screen and a contract disagree, the contract is the stricter artifact and the screen is a
+prototype.** A `.dc.html` is never type-checked, so several screens omit a word a contract requires:
+`StatTile`'s `loadingLabel` and `BlockFrame`'s `staleMessage` are both drawn without them. Build to
+the contract and supply the word. The two places where the drawing and the contract genuinely
+conflict are filed as tickets rather than settled here.
+
+The matching `.jsx` implementations and `.prompt.md` files stay in the project and are not mirrored
+here: the contract is what an implementer builds against, and the canvas's own React source is not the
+app's.
+
+`CanvasControls` is deliberately absent. It is the canvas review bar, chrome for the drawing tool
+rather than a product surface.
+
+## Calendário Agenda amendment surfaces
+
+1. The shared Mês, Semana, Período and Agenda navigation, including paging, the current-span action, the disabled next range and the month picker, on web and Android.
+2. Agenda day headings and populated, loading and empty lists, with clock-formatted values, no-time values, ordered rows and status marks, on both platforms.
+3. The Mês selected-day card, with the same day order and complete today-title template, on both platforms.
+4. The Agenda entry-details sheet, preserving full habit text, time and status on both platforms.
+5. The granted Calendário drawing at both widths, including shared navigation and the Agenda details disclosure.
+
+## `superseded/`
+
+Eleven documents from the pass that predates the information architecture (2026-08-16). They reskin
+the app that existed and draw a habit tracker with a chat tab, so **every one of them contradicts
+`DESIGN.md` section `## Information architecture`**. They are kept as a record of what the canvas
+produces when the prompt describes the screen that exists instead of the job the screen does.
+
+They live in their own folder rather than beside the authority because prose asking an implementer to
+ignore a file in front of them is not a control. `Orbit Insights.dc.html` was deleted on 2026-08-16
+with the `/insights` route.
+
+### Astra glyph surface inventory
+
+Each row names the paired web and Android component unless a platform is explicit.
+The glyph primitives provide the asset; their consumers below own its placement.
+
+| Consumer | Disposition |
+|---|---|
+| `today/today-astra` | Moved its sole 20px glyph into `today/today-astra-line`, shared by the check-in, returning line and summary states. |
+| `today/today-ai-summary` | Removed the heading glyph and both loading and loaded round-button glyphs. Uses the single slot instead. |
+| `shell/shell-wide` (web) | Retained the sidebar conversation entry. Android uses its composer entry instead. |
+| `shell/composer` | Retained the compact Hoje and habit-detail conversation entry. Wide Hoje uses the sidebar. |
+| `profile/profile-nav-icon` | Removed the Astra settings glyph. The labelled settings row remains aligned with its neighbours. |
+| `onboarding/onboarding-create-habit` | Removed the proposal-heading glyph; the attribution text and proposed treatment remain. |
+| `habits/habit-create-frame` | Removed the origin glyph; the conversation-origin text remains. |
+| `habits/habit-form-fields/tag-suggestions` | Removed the suggestion-action glyph; its localized label, loading, proposals, acceptance and retry remain. |
+| `habits/habit-form-fields/habit-emoji-selector` | Replaced the icon-only suggestion action with its localized text. Loading, focus, retry and error behavior remain. |
+| `habits/habit-detail-screen` | Removed the ask row's glyph and rescue-plan badge glyph; the row, composer, proposal and upgrade actions remain. |
+| `habits/reschedule-sheet` | Removed the heading glyph; Astra attribution, disclosure and proposal actions remain. |
+| `goals/goal-detail-drawer` | Removed the ask row's glyph; the text action and contextual request remain. |
+| `upgrade/page` (web), `app/upgrade` (Android) | Removed the pitch glyph; plans and purchase states remain. |
+| `upgrade/subscription-notice` | Removed the lapsed-plan glyph; notices and recovery actions remain. |
+| `upgrade/billing-dashboard`, `upgrade/play-billing-dashboard` (web), `upgrade/plan-summary-card` (Android) | Removed plan-summary glyphs; provider-specific management, facts and actions remain. |
+| `review-moment/review-moment-sheet` (Android) | Removed the sheet glyph; rating copy, request and dismissal remain. The web review moment already uses text. |
+| `ui/empty-state` | Retained Astra rendering for its only Astra-mark callers, `chat/chat-empty-state` on each platform, inside the conversation. Other callers use the Orbit mark. |
+| `chat/breakdown-suggestion` | Retained the conversation-owned empty proposal mark; only conversation message bubbles render this component. |
+| `chat/conversation` | Retained header, participant and pending-reply marks under the conversation rules. |
+
+Vitest covers slot priority, summary handoff, refresh, retry, free-plan navigation and suppression on
+both platforms. Empty and populated conversations retain the AI disclosure; the loaded summary
+destination is covered explicitly. A hermetic Chromium Vitest composition counts visible insight slots and Astra glyphs
+at 412, 1024 and 1352 in English and Brazilian Portuguese for check-in, returning, loading, loaded,
+error, free-plan and absent states. Native component tests cover semantics and two-line prose;
+Android font rendering remains a device-verification boundary.

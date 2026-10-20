@@ -35,14 +35,14 @@ describe('buildUrlWithQuery', () => {
 })
 
 describe('daily summary time buckets', () => {
-  it('classifies day periods by local hour', () => {
-    expect(getDailySummaryTimeBucket(new Date('2025-04-01T07:00:00'))).toBe('morning')
-    expect(getDailySummaryTimeBucket(new Date('2025-04-01T13:00:00'))).toBe('afternoon')
-    expect(getDailySummaryTimeBucket(new Date('2025-04-01T19:00:00'))).toBe('evening')
-    expect(getDailySummaryTimeBucket(new Date('2025-04-01T22:00:00'))).toBe('night')
+  it('classifies day periods by UTC hour when the account timezone is missing', () => {
+    expect(getDailySummaryTimeBucket(new Date('2025-04-01T07:00:00Z'))).toBe('morning')
+    expect(getDailySummaryTimeBucket(new Date('2025-04-01T13:00:00Z'))).toBe('afternoon')
+    expect(getDailySummaryTimeBucket(new Date('2025-04-01T19:00:00Z'))).toBe('evening')
+    expect(getDailySummaryTimeBucket(new Date('2025-04-01T22:00:00Z'))).toBe('night')
   })
 
   it('returns the next bucket boundary delay', () => {
-    expect(getMsUntilNextDailySummaryTimeBucket(new Date('2025-04-01T10:59:00'))).toBe(60_000)
+    expect(getMsUntilNextDailySummaryTimeBucket(new Date('2025-04-01T10:59:00Z'))).toBe(60_000)
   })
 })

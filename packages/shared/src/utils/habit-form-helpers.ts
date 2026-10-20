@@ -1,4 +1,6 @@
-import type { ChecklistItem, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
+import { formatWeekdaySchedule } from './weekday-schedule'
+import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion, type NormalizedHabit } from '../types/habit'
+import type { HabitPhraseRead, HabitPhraseToken } from './habit-phrase-parser'
 import type { HabitFormData } from '../validation/habit-form'
 import {
   validateGoalSelection,
@@ -16,6 +18,13 @@ export interface HabitFormTranslationAdapter {
   friday: string
   saturday: string
   sunday: string
+  mondayLong: string
+  tuesdayLong: string
+  wednesdayLong: string
+  thursdayLong: string
+  fridayLong: string
+  saturdayLong: string
+  sundayLong: string
   unitDay: string
   unitWeek: string
   unitMonth: string
@@ -53,6 +62,7 @@ export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFor
     emoji: values.emoji ?? '',
     frequencyUnit: values.frequencyUnit ?? null,
     frequencyQuantity: values.frequencyQuantity ?? null,
+    intervalWeeks: values.intervalWeeks ?? 1,
     days: values.days ?? [],
     isBadHabit: values.isBadHabit ?? false,
     isGeneral: values.isGeneral ?? false,
@@ -68,7 +78,14 @@ export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFor
   }
 }
 
-export function getHabitFormFlags(values: HabitFormData) {
+export function getHabitFormFlags(values: HabitFormData): {
+  isOneTime: boolean
+  isGeneral: boolean
+  isFlexible: boolean
+  isRecurring: boolean
+  showDayPicker: boolean
+  showEndDate: boolean
+} {
   const isGeneral = values.isGeneral
   const isFlexible = values.isFlexible
   const frequencyUnit = values.frequencyUnit
@@ -91,15 +108,15 @@ export function getHabitFormFlags(values: HabitFormData) {
 export function buildHabitDaysList(
   translations: HabitFormTranslationAdapter,
   weekStartDay = 1,
-): Array<{ value: string; label: string }> {
+): HabitDayOption[] {
   const mondayFirst = [
-    { value: 'Monday', label: translations.monday },
-    { value: 'Tuesday', label: translations.tuesday },
-    { value: 'Wednesday', label: translations.wednesday },
-    { value: 'Thursday', label: translations.thursday },
-    { value: 'Friday', label: translations.friday },
-    { value: 'Saturday', label: translations.saturday },
-    { value: 'Sunday', label: translations.sunday },
+    { value: 'Monday', label: translations.monday, accessibleLabel: translations.mondayLong },
+    { value: 'Tuesday', label: translations.tuesday, accessibleLabel: translations.tuesdayLong },
+    { value: 'Wednesday', label: translations.wednesday, accessibleLabel: translations.wednesdayLong },
+    { value: 'Thursday', label: translations.thursday, accessibleLabel: translations.thursdayLong },
+    { value: 'Friday', label: translations.friday, accessibleLabel: translations.fridayLong },
+    { value: 'Saturday', label: translations.saturday, accessibleLabel: translations.saturdayLong },
+    { value: 'Sunday', label: translations.sunday, accessibleLabel: translations.sundayLong },
   ]
 
   if (weekStartDay === 0) {
@@ -131,6 +148,622 @@ export interface HabitFormSuggestionPatch {
   checklistItems: ChecklistItem[]
 }
 
+export interface HabitDayOption {
+  value: string
+  label: string
+  accessibleLabel: string
+}
+
+export function isHabitDailySchedule(
+  days: readonly string[],
+  isFlexible: boolean,
+  frequencyUnit: FrequencyUnit | null | undefined,
+  frequencyQuantity: number | null,
+): boolean {
+  return days.length === 0 && !isFlexible && frequencyUnit === 'Day' && frequencyQuantity === 1
+}
+
+export function toggleHabitDaySelection(
+  days: readonly string[],
+  day: string,
+  allDays: readonly string[],
+  daily: boolean,
+): string[] {
+  const selected = daily ? allDays : days
+  const next = selected.includes(day)
+    ? selected.filter((selectedDay) => selectedDay !== day)
+    : [...selected, day]
+  return next.length === allDays.length ? [] : next
+}
+
+export interface HabitFormProposal {
+  setup: boolean
+  checklist: boolean
+  subHabits: boolean
+  checklistItems: number
+  subHabitItems: number
+}
+
+export interface HabitFormSuggestionRevision {
+  advance: () => number
+  isCurrent: (revision: number) => boolean
+}
+
+export function createHabitFormSuggestionRevision(): HabitFormSuggestionRevision {
+  let currentRevision = 0
+  return {
+    advance: () => {
+      currentRevision += 1
+      return currentRevision
+    },
+    isCurrent: (revision) => revision === currentRevision,
+  }
+}
+
+export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
+  formHelpers: FormHelpers
+  tags: TagState
+  selectedGoalIds: string[]
+  atGoalLimit: boolean
+  onToggleGoal: (goalId: string) => void
+  reminderTimes: number[]
+  onReminderTimesChange: (times: number[]) => void
+  onReminderEnabledChange?: (nextEnabled: boolean) => void
+  onSlipAlertEnabledChange?: (nextEnabled: boolean) => void
+  onSuggestionContextChange?: () => void
+  onResolveSubHabitProposalReady?: (resolve: () => void) => void
+  defaultExpanded?: boolean
+  lockedGeneral?: boolean | null
+  expandAdvancedSignal?: number
+  onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+  onSuggestEmoji?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+  emojiSuggestionLimitReached?: boolean
+  emojiSuggestionError?: string
+  isEmojiSuggesting?: boolean
+  isSuggesting?: boolean
+  readPhraseLocally?: boolean
+  onPhraseOwnershipChange?: (ownership: HabitPhraseFormOwnership) => void
+  startDate?: string | null
+  children?: ChildNode | ((proposedItems: number) => ChildNode)
+}
+
+export interface HabitUnderstandingLabels {
+  field: string
+  placeholder: string
+  understood: string
+  understoodAstra: string
+  unresolved: string
+  days: string
+  less: string
+  more: string
+  count: (count: number) => string
+  repeat: (count: number) => string
+  repeatLess: string
+  repeatMore: string
+  proposed: string
+}
+
+export interface HabitScheduleFieldsProps {
+  proposed?: boolean
+  unit: FrequencyUnit | null
+  quantity: number | null
+  flexible: boolean
+  disabled: boolean
+  onChange: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
+}
+
+export interface HabitRepeatIntervalProps {
+  visible: boolean
+  intervalWeeks: number
+  scheduleLocked?: boolean
+  onIntervalWeeksChange: (intervalWeeks: number) => void
+  labels: HabitUnderstandingLabels
+}
+
+export interface HabitUnderstandingProps {
+  onSuggestEmoji?: HabitFormCommonProps<unknown, unknown, unknown>['onSuggestEmoji']
+  canSuggestEmoji?: boolean
+  emojiSuggestionError?: string
+  isEmojiSuggesting?: boolean
+  emojiSuggestionHint?: string
+
+  value: string
+  error?: string
+  emoji: string
+  days: string[]
+  daily?: boolean
+  dayOptions: HabitDayOption[]
+  quantity: number
+  mode: 'fixed' | 'flexible'
+  showCountCorrection?: boolean
+  sentence: string | null
+  consumed: readonly HabitPhraseToken[]
+  proposed?: boolean
+  scheduleLocked?: boolean
+  onValueChange: (value: string) => void
+  onEmojiSelect: (emoji: string) => void
+  onToggleDay: (day: string) => void
+  onQuantityChange: (quantity: number) => void
+  labels: HabitUnderstandingLabels
+}
+
+export const EMPTY_HABIT_FORM_PROPOSAL: HabitFormProposal = {
+  setup: false,
+  checklist: false,
+  subHabits: false,
+  checklistItems: 0,
+  subHabitItems: 0,
+}
+
+export function hasHabitFormProposal(proposal: HabitFormProposal): boolean {
+  return proposal.setup || proposal.checklist || proposal.subHabits
+}
+
+export function clearHabitFormProposalSection(
+  proposal: HabitFormProposal,
+  section: 'setup' | 'checklist' | 'subHabits',
+): HabitFormProposal {
+  if (!proposal[section]) return proposal
+  if (section === 'checklist') return { ...proposal, checklist: false, checklistItems: 0 }
+  if (section === 'subHabits') return { ...proposal, subHabits: false, subHabitItems: 0 }
+  return { ...proposal, setup: false }
+}
+
+export function habitFeaturePlan(hasProAccess: boolean): 'pro' | 'free' {
+  return hasProAccess ? 'pro' : 'free'
+}
+
+export async function requestHabitFormProposal(
+  action: HabitFormCommonProps<unknown, unknown, unknown>['onSuggestSetup'],
+  atLimit: boolean,
+): Promise<HabitFormProposal | null> {
+  if (!action || atLimit) return EMPTY_HABIT_FORM_PROPOSAL
+  return action()
+}
+
+type PhraseField = 'days' | 'dueTime' | 'emoji' | 'frequencyQuantity' | 'frequencyUnit' | 'intervalWeeks'
+
+export interface HabitPhraseFormTarget {
+  setOneTime: () => void
+  setRecurring: () => void
+  setFlexible: () => void
+  setGeneral: () => void
+  setField: (field: PhraseField, value: string | number | string[]) => void
+}
+
+export interface HabitPhraseFormOwnership {
+  cadence: boolean
+  dueTime: boolean
+}
+
+export function releaseHabitPhraseOwnership(
+  ownership: HabitPhraseFormOwnership,
+  field: keyof HabitPhraseFormOwnership,
+): HabitPhraseFormOwnership {
+  return ownership[field] ? { ...ownership, [field]: false } : ownership
+}
+
+interface HabitCadenceCorrectionTarget {
+  setRecurring: () => void
+  setFlexible: () => void
+  setGeneral: () => void
+  setField: <Field extends 'frequencyQuantity' | 'frequencyUnit'>(
+    field: Field,
+    value: HabitFormData[Field],
+  ) => void
+}
+
+type HabitControllerField =
+  | PhraseField
+  | 'checklistItems'
+  | 'dueEndTime'
+  | 'reminderEnabled'
+  | 'slipAlertEnabled'
+  | 'title'
+
+interface HabitFormControllerTarget {
+  setOneTime: () => void
+  setRecurring: () => void
+  setFlexible: () => void
+  setGeneral: () => void
+  getOwnership: () => HabitPhraseFormOwnership
+  setOwnership: (ownership: HabitPhraseFormOwnership) => void
+  updateProposal: (update: (proposal: HabitFormProposal) => HabitFormProposal) => void
+  hasSchedule?: () => boolean
+  setField: <Field extends HabitControllerField>(field: Field, value: HabitFormData[Field], validate?: boolean) => void
+  toggleDay: (day: string, daily?: boolean) => void
+}
+
+export interface HabitFormControllerOptions {
+  action: HabitFormCommonProps<unknown, unknown, unknown>['onSuggestSetup']
+  atLimit: boolean
+  lockedGeneral: boolean | null
+  onReminderEnabledChange?: (enabled: boolean) => void
+  onSlipAlertEnabledChange?: (enabled: boolean) => void
+  onSuggestionContextChange?: () => void
+  target: HabitFormControllerTarget
+}
+
+export interface HabitFormController {
+  askAstra: () => Promise<void>
+  clearProposal: () => void
+  resolveChecklistProposal: () => void
+  resolveSetupProposal: () => void
+  resolveSubHabitProposal: () => void
+  releaseDueTime: () => void
+  readPhrase: (enabled: boolean, read: HabitPhraseRead, emoji: string) => void
+  setDueTime: (dueTime: string) => void
+  clearDueTime: () => void
+  setChecklistItems: (items: ChecklistItem[]) => void
+  setReminderEnabled: (enabled: boolean) => void
+  setSlipAlertEnabled: (enabled: boolean) => void
+  setTitle: (title: string) => void
+  setEmoji: (emoji: string) => void
+  setIntervalWeeks: (intervalWeeks: number) => void
+  toggleDay: (day: string, daily?: boolean, selectedDays?: readonly string[]) => void
+  setQuantity: (quantity: number) => void
+  setSchedule: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
+}
+
+export function createHabitFormController({
+  action,
+  atLimit,
+  lockedGeneral,
+  onReminderEnabledChange,
+  onSlipAlertEnabledChange,
+  onSuggestionContextChange,
+  target,
+}: HabitFormControllerOptions): HabitFormController {
+  const resolveSection = (section: 'setup' | 'checklist' | 'subHabits') => {
+    target.updateProposal((proposal) => clearHabitFormProposalSection(proposal, section))
+  }
+  const releaseOwnership = (field: keyof HabitPhraseFormOwnership) => {
+    target.setOwnership(releaseHabitPhraseOwnership(target.getOwnership(), field))
+  }
+
+  return {
+    askAstra: async (): Promise<void> => {
+      const proposal = await requestHabitFormProposal(action, atLimit)
+      if (!proposal) return
+      if (proposal.setup) target.setOwnership({ cadence: false, dueTime: false })
+      target.updateProposal(() => proposal)
+    },
+    clearProposal: (): void => target.updateProposal(() => EMPTY_HABIT_FORM_PROPOSAL),
+    resolveChecklistProposal: (): void => resolveSection('checklist'),
+    resolveSetupProposal: (): void => resolveSection('setup'),
+    resolveSubHabitProposal: (): void => resolveSection('subHabits'),
+    releaseDueTime: (): void => releaseOwnership('dueTime'),
+    readPhrase: (enabled, read, emoji) => readOwnedHabitPhrase(enabled, read, emoji, lockedGeneral, target),
+    setDueTime: (dueTime: string): void => {
+      releaseOwnership('dueTime')
+      target.setField('dueTime', dueTime)
+    },
+    clearDueTime: (): void => {
+      releaseOwnership('dueTime')
+      target.setField('dueTime', '')
+      target.setField('dueEndTime', '')
+    },
+    setChecklistItems: (items: ChecklistItem[]): void => {
+      resolveSection('checklist')
+      target.setField('checklistItems', items)
+    },
+    setReminderEnabled: (enabled: boolean): void => {
+      if (onReminderEnabledChange) onReminderEnabledChange(enabled)
+      else target.setField('reminderEnabled', enabled)
+    },
+    setSlipAlertEnabled: (enabled: boolean): void => {
+      if (onSlipAlertEnabledChange) onSlipAlertEnabledChange(enabled)
+      else target.setField('slipAlertEnabled', enabled)
+    },
+    setTitle: (title: string): void => {
+      onSuggestionContextChange?.()
+      target.updateProposal(() => EMPTY_HABIT_FORM_PROPOSAL)
+      target.setField('title', title, true)
+    },
+    setEmoji: (emoji: string): void => {
+      resolveSection('setup')
+      target.setField('emoji', emoji)
+    },
+    toggleDay: (day: string, daily = false, selectedDays = []): void => {
+      resolveSection('setup')
+      releaseOwnership('cadence')
+      if (!daily && selectedDays.length === 1 && selectedDays.includes(day)) {
+        applyHabitQuantityCorrection(3, lockedGeneral, target)
+        return
+      }
+      if (applyHabitDayCorrection(lockedGeneral, target)) target.toggleDay(day, daily)
+    },
+    setQuantity: (quantity: number): void => {
+      resolveSection('setup')
+      releaseOwnership('cadence')
+      applyHabitQuantityCorrection(quantity, lockedGeneral, target)
+    },
+    setSchedule: (unit, quantity, flexible): void => {
+      if (lockedGeneral === true) return
+      onSuggestionContextChange?.()
+      resolveSection('setup')
+      releaseOwnership('cadence')
+      if (flexible) target.setFlexible()
+      else target.setRecurring()
+      target.setField('frequencyUnit', unit)
+      target.setField('frequencyQuantity', quantity)
+      if (flexible || unit !== 'Day' || quantity !== 1) target.setField('days', [])
+    },
+    setIntervalWeeks: (intervalWeeks): void => {
+      resolveSection('setup')
+      releaseOwnership('cadence')
+      if (lockedGeneral === true) {
+        target.setGeneral()
+        return
+      }
+      if (target.hasSchedule?.() === false) applyHabitDayCorrection(false, target)
+      target.setField('intervalWeeks', Math.max(1, Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks)))
+    },
+  }
+}
+
+function readOwnedHabitPhrase(
+  enabled: boolean,
+  read: HabitPhraseRead,
+  emoji: string,
+  lockedGeneral: boolean | null,
+  target: HabitFormControllerTarget,
+): void {
+  target.setOwnership(applyHabitPhraseRead(enabled, read, emoji, lockedGeneral, target.getOwnership(), target))
+}
+
+export function applyHabitDayCorrection(
+  lockedGeneral: boolean | null,
+  target: HabitCadenceCorrectionTarget,
+): boolean {
+  if (lockedGeneral === true) {
+    target.setGeneral()
+    return false
+  }
+  target.setRecurring()
+  target.setField('frequencyUnit', 'Day')
+  target.setField('frequencyQuantity', 1)
+  return true
+}
+
+export function applyHabitQuantityCorrection(
+  quantity: number,
+  lockedGeneral: boolean | null,
+  target: HabitCadenceCorrectionTarget,
+): boolean {
+  if (lockedGeneral === true) {
+    target.setGeneral()
+    return false
+  }
+  target.setFlexible()
+  target.setField('frequencyUnit', 'Week')
+  target.setField('frequencyQuantity', quantity)
+  return true
+}
+
+export function applyHabitPhraseRead(
+  enabled: boolean,
+  read: HabitPhraseRead,
+  emoji: string,
+  lockedGeneral: boolean | null,
+  ownership: HabitPhraseFormOwnership,
+  target: HabitPhraseFormTarget,
+): HabitPhraseFormOwnership {
+  if (!enabled) return ownership
+  if (lockedGeneral === true) {
+    target.setGeneral()
+    return { cadence: true, dueTime: true }
+  }
+
+  const nextOwnership = { ...ownership }
+  if (read.dueTime) {
+    target.setField('dueTime', read.dueTime)
+    nextOwnership.dueTime = true
+  } else if (ownership.dueTime) {
+    target.setField('dueTime', '')
+  }
+  if (read.emoji && !emoji) target.setField('emoji', read.emoji)
+  if (read.cadence) target.setField('intervalWeeks', Math.min(MAX_HABIT_INTERVAL_WEEKS, read.intervalWeeks ?? 1))
+  if (!read.cadence) {
+    if (ownership.cadence) target.setOneTime()
+    return nextOwnership
+  }
+  nextOwnership.cadence = true
+  if (read.cadence === 'flexible') {
+    target.setFlexible()
+    target.setField('frequencyUnit', 'Week')
+    target.setField('frequencyQuantity', read.frequencyQuantity!)
+    target.setField('days', [])
+    return nextOwnership
+  }
+
+  target.setRecurring()
+  target.setField('frequencyUnit', 'Day')
+  target.setField('frequencyQuantity', 1)
+  target.setField('days', read.days)
+  return nextOwnership
+}
+
+type UnderstandingTranslator = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string
+
+export function buildHabitUnderstandingLabels(
+  translate: UnderstandingTranslator,
+): HabitUnderstandingLabels {
+  return {
+    field: translate('habits.form.describe'),
+    placeholder: translate('habits.form.describePlaceholder'),
+    understood: translate('habits.form.understood'),
+    understoodAstra: translate('habits.form.understoodAstra'),
+    unresolved: translate('habits.form.unresolved'),
+    days: translate('habits.form.activeDays'),
+    less: translate('habits.form.lessOften'),
+    more: translate('habits.form.moreOften'),
+    count: (count) => translate('habits.form.timesAWeekCount', { count }),
+    repeat: (count) => translate('habits.form.repeatWeeks', { count }),
+    repeatLess: translate('habits.form.repeatLess'),
+    repeatMore: translate('habits.form.repeatMore'),
+    proposed: translate('habits.form.proposedByAstra'),
+  }
+}
+
+export function buildHabitAstraFallbackCopy(
+  translate: UnderstandingTranslator,
+  allowance: number,
+): {
+  limitMessage: string
+  readingLabel: string
+  askLabel: string
+  costLabel: string
+} {
+  return {
+    limitMessage: translate('habits.form.localReadLimit', { allowance }),
+    readingLabel: translate('habits.form.astraReading'),
+    askLabel: translate('habits.form.askAstra'),
+    costLabel: translate('habits.form.askAstraCost', { allowance }),
+  }
+}
+
+function getHabitRecurringIntervalUnderstandingKey(
+  frequencyUnit: FrequencyUnit | null | undefined,
+  quantity: number,
+): string | null {
+  if (frequencyUnit === 'Day') return 'habits.form.understoodEveryNDays'
+  if (frequencyUnit === 'Week') return quantity === 1 ? 'habits.form.understoodEveryWeek' : 'habits.form.understoodEveryNWeeks'
+  if (frequencyUnit === 'Month') {
+    return quantity === 1 ? 'habits.form.understoodEveryMonth' : 'habits.form.understoodEveryNMonths'
+  }
+  if (frequencyUnit === 'Year') {
+    return quantity === 1 ? 'habits.form.understoodEveryYear' : 'habits.form.understoodEveryNYears'
+  }
+  return null
+}
+
+function getHabitFlexibleIntervalUnderstandingKey(
+  frequencyUnit: FrequencyUnit | null | undefined,
+  quantity: number,
+): string | null {
+  if (frequencyUnit === 'Day') return quantity === 1 ? 'habits.form.understoodDayOnce' : 'habits.form.understoodDayCount'
+  if (frequencyUnit === 'Month') {
+    return quantity === 1 ? 'habits.form.understoodMonthOnce' : 'habits.form.understoodMonth'
+  }
+  if (frequencyUnit === 'Year') {
+    return quantity === 1 ? 'habits.form.understoodYearOnce' : 'habits.form.understoodYear'
+  }
+  return null
+}
+
+function getHabitWeekdayUnderstanding(
+  days: string[],
+  dayOptions: { value: string; label: string }[],
+  locale: string,
+  translate: UnderstandingTranslator,
+  intervalWeeks: number,
+): { key: string; values: Record<string, string | number> } {
+  const selectedDays = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.value)
+  const key = intervalWeeks > 1 ? 'habits.form.understoodIntervalDays'
+    : selectedDays.length === 1 ? 'habits.form.understoodDay' : 'habits.form.understoodDays'
+  const values: Record<string, string | number> = {
+    days: formatWeekdaySchedule(selectedDays, locale, translate, selectedDays.length > 1 || intervalWeeks > 1),
+  }
+  if (intervalWeeks > 1) values.count = intervalWeeks
+  return { key, values }
+}
+
+export function buildHabitUnderstandingSentence(
+  days: string[],
+  dayOptions: { value: string; label: string }[],
+  isFlexible: boolean,
+  frequencyUnit: FrequencyUnit | null | undefined,
+  quantity: number,
+  dueTime: string,
+  locale: string,
+  translate: UnderstandingTranslator,
+  intervalWeeks = 1,
+): string | null {
+  if ((isFlexible || frequencyUnit) && (!Number.isInteger(quantity) || quantity < 1)) return ''
+  let key: string
+  let values: Record<string, string | number> = {}
+  const intervalKey = isFlexible
+    ? getHabitFlexibleIntervalUnderstandingKey(frequencyUnit, quantity)
+    : getHabitRecurringIntervalUnderstandingKey(frequencyUnit, quantity)
+  if (!isFlexible && frequencyUnit === 'Day' && quantity === 1 &&
+    (days.length === 0 || (days.length === 7 && new Set(days).size === 7))) {
+    key = 'habits.form.understoodDaily'
+  } else if (days.length > 0) {
+    const weekdayUnderstanding = getHabitWeekdayUnderstanding(days, dayOptions, locale, translate, intervalWeeks)
+    key = weekdayUnderstanding.key
+    values = weekdayUnderstanding.values
+  } else if (intervalKey) {
+    key = intervalKey
+    values.count = quantity
+  } else if (isFlexible || frequencyUnit) {
+    key = 'habits.form.understoodCount'
+    values.count = quantity
+  } else if (dueTime) {
+    return translate('habits.form.understoodTime', { time: dueTime })
+  } else {
+    return null
+  }
+
+  if (dueTime) {
+    values = { ...values, time: dueTime }
+    key = `${key}At`
+  }
+  const sentence = translate(key, values)
+  return intervalWeeks > 1
+    && !key.startsWith('habits.form.understoodIntervalDays')
+    ? translate('habits.form.understoodRepeatWeeks', { schedule: sentence, count: intervalWeeks })
+    : sentence
+}
+
+export function shouldShowHabitAstraFallback(
+  title: string,
+  sentence: string | null,
+  action: unknown,
+  proposal: HabitFormProposal,
+): boolean {
+  return title.trim().length > 0 && sentence === null && typeof action === 'function' && !hasHabitFormProposal(proposal)
+}
+
+export function isHabitAstraLimitReached(used: number, allowance: number): boolean {
+  return used >= allowance
+}
+
+export function getHabitDisplayStartDate(habit: Pick<NormalizedHabit, 'startDate' | 'createdAtUtc'>): string {
+  // Preserve older API responses until #227 step 3 removes this fallback: https://github.com/thomasluizon/orbit-tickets/issues/227
+  return habit.startDate ?? habit.createdAtUtc
+}
+
+export function resolveHabitStartDate(
+  startDate: string | null | undefined,
+  dueDate: string,
+): string | null {
+  return startDate === undefined ? dueDate : startDate
+}
+
+export function formatHabitReminderLabel(
+  minutes: number,
+  translate: (key: string) => string,
+): string {
+  const preset = HABIT_REMINDER_PRESETS.find((item) => item.value === minutes)
+  if (preset) return translate(preset.key)
+  if (minutes < 60) return `${minutes} ${translate('habits.form.reminderMinutes')}`
+  if (minutes < 1440) {
+    const hours = Math.floor(minutes / 60)
+    return `${hours} ${translate(hours === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours')}`
+  }
+  const days = Math.floor(minutes / 1440)
+  return `${days} ${translate(days === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays')}`
+}
+
+/**
+ * Keeps suggested weekdays only for a daily (Day, quantity 1) schedule, carries the due
+ * time, surfaces the sub-habit titles, and maps the checklist strings to unchecked checklist
+ * items (distinct from sub-habits).
+ */
 export function buildHabitFormPatchFromSuggestion(
   suggestion: HabitSetupSuggestion,
 ): HabitFormSuggestionPatch {
@@ -169,6 +802,12 @@ export function buildHabitFormPatchFromSuggestion(
   }
 }
 
+/**
+ * `watch` / `useWatch` / `getValues` type a required string field (e.g. the habit title) as
+ * `string`, but return `undefined` before RHF applies `defaultValues`, so callers pass the
+ * `string`-typed read into this honest `string | undefined` boundary rather than guarding a
+ * value the type claims is always present..
+ */
 export function coalesceFormText(value: string | undefined): string {
   return value ?? ''
 }
@@ -223,4 +862,24 @@ export function validateHabitFormInput(
   if (subHabitError) return subHabitError
 
   return null
+}
+
+export function applyHabitEmojiSuggestion(
+  emoji: string | null,
+  currentEmoji: string | undefined,
+  onApply: (emoji: string) => void,
+): boolean {
+  if (!emoji || emoji === currentEmoji) return false
+  onApply(emoji)
+  return true
+}
+
+export function buildHabitEmojiSuggestionAvailability(
+  title: string,
+  atLimit: boolean,
+  labels: { titleRequired: string; limitReached: string },
+): { canSuggest: boolean; hint?: string } {
+  if (!title.trim()) return { canSuggest: false, hint: labels.titleRequired }
+  if (atLimit) return { canSuggest: false, hint: labels.limitReached }
+  return { canSuggest: true }
 }

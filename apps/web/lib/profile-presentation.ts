@@ -1,8 +1,8 @@
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { API } from '@orbit/shared/api'
 import type { Profile, ThemeMode } from '@orbit/shared/types/profile'
 import { resolveSupportedLocale } from '@orbit/shared/utils'
 import { applyThemeTokensToDOM, normalizeColorScheme } from './theme-dom'
-import { sessionAwareFetch } from './api-fetch'
 
 function setClientCookie(name: string, value: string) {
   if (typeof document === 'undefined') return
@@ -41,7 +41,7 @@ export function applyProfilePresentation(profile: Pick<
 
 export async function hydrateProfilePresentation(): Promise<Profile | null> {
   try {
-    const response = await sessionAwareFetch(API.profile.get, { cache: 'no-store' })
+    const response = await fetchWithThrottle(API.profile.get, { cache: 'no-store' })
     if (!response.ok) return null
     const profile = await response.json() as Profile
     applyProfilePresentation(profile)

@@ -1,4 +1,3 @@
-
 const { collectStaticStrings, collectStyleProperties, getAttribute, getAttributeValueNode, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const CALC_WIDTH_CLASS_RE = /(?:^|\s|:)((?:min-|max-)?w-\[calc\((.*?)\)\])/

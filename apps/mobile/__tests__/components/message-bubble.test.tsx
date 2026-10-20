@@ -1,13 +1,31 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
+import { createTokensV2 } from '@/lib/theme'
 
 import { MessageBubble } from '@/components/message-bubble'
+import { useChatStore } from '@/stores/chat-store'
+import { PendingOperationCard } from '@/components/chat/pending-operation-card'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { renderedText } from '../support/react-test-renderer'
+import { makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldGoalMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+const realClarification = vi.hoisted(() => ({ current: false }))
+const resolveClarification = vi.hoisted(() => vi.fn())
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => {
+  vi.useRealTimers()
+  realClarification.current = false
+  resolveClarification.mockReset()
+})
 
 interface TestNode {
   type: unknown
   props: {
     children?: unknown
     onPress?: (...args: unknown[]) => unknown
+    onChangeText?: (value: string) => void
     accessibilityLabel?: string
     [key: string]: unknown
   }
@@ -19,6 +37,7 @@ interface TestTreeRoot extends TestNode {
 
 interface TestInstance {
   root: TestTreeRoot
+  update(element: React.ReactNode): void
 }
 
 interface TestRendererApi {
@@ -29,7 +48,10 @@ interface TestRendererApi {
 
 const TestRenderer: TestRendererApi = require('react-test-renderer')
 
-vi.mock('react-i18next', () => ({
+vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
+
+vi.mock('react-i18next', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-i18next')>(),
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
@@ -37,30 +59,14 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/lib/theme', () => ({
-  createTokensV2: () =>
-    new Proxy(
-      {},
-      {
-        get: (_target, prop) => {
-          if (prop === 'fgOnPrimary') return '#ffffff'
-          return '#111111'
-        },
-      },
-    ),
-  tintFromPrimary: () => 'rgba(17, 17, 17, 0.18)',
+vi.mock('@/hooks/use-time-format', () => ({
+  useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
-vi.mock('lucide-react-native', () => {
 
-  const React = require('react')
-  return {
-    Sparkles: (props: Record<string, unknown>) =>
-      React.createElement('Sparkles', props),
-    ArrowUpRight: (props: Record<string, unknown>) =>
-      React.createElement('ArrowUpRight', props),
-  }
-})
+vi.mock('@/hooks/use-resolve-clarification', () => ({
+  useResolveClarification: () => ({ mutateAsync: resolveClarification, isPending: false }),
+}))
 
 const push = vi.fn()
 vi.mock('expo-router', () => ({
@@ -75,18 +81,339 @@ vi.mock('@/components/ui/markdown', () => {
   }
 })
 
-vi.mock('@/components/chat/action-chips', () => ({
-  ActionChips: () => null,
-}))
+describe('MessageBubble write blocks (mobile)', () => {
+  it('renders a clarified operation and its repeated pending preview once', async () => {
+    realClarification.current = true
+    const message = makeClarificationPreviewMessage()
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    message.clarificationPreviews = { [message.actions![0]!.clarificationRequest!.operationId]: operation }
+    message.pendingOperations = [operation]
+    message.pendingOperationStates = { [operation.id]: { status: 'done' } }
+    const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} {...callbacks} />) })
+    expect(blocks(tree)).toHaveLength(1)
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+  })
+
+  it.each((['onPendingOperationConfirmExecute', 'onPendingOperationPrepareStepUp', 'onPendingOperationVerifyStepUp'] as const).flatMap(missing => [false, true].map(earlier => ({ missing, earlier }))))('keeps a clarification visible when $missing is absent (earlier=$earlier)', async ({ missing, earlier }) => {
+    realClarification.current = true
+    const message = makeClarificationPreviewMessage()
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    message.clarificationPreviews = { [message.actions![0]!.clarificationRequest!.operationId]: operation }
+    message.pendingOperations = [operation]
+    const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn(), [missing]: undefined }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} earlierMessages={earlier ? [makeHeldHabitMessage({ pendingOperations: [operation] })] : []} {...callbacks} />) })
+    expect(blocks(tree)).toHaveLength(1)
+    expect(renderedText(tree.root)).toContain(message.actions![0]!.clarificationRequest!.question)
+    expect(press(tree, 'habits.clarification.quickAction.daily')).toBeDefined()
+  })
+
+  it('renders an operation id once and retains the original reply state', async () => {
+    const message = makeHeldHabitMessage()
+    message.pendingOperations = [message.pendingOperations![0]!, message.pendingOperations![0]!]
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} {...callbacks} />) })
+    expect(blocks(tree)).toHaveLength(1)
+    await TestRenderer.act(() => { tree.update(<MessageBubble message={{ ...message, id: 'later-reply' }} earlierMessages={[message]} {...callbacks} />) })
+    expect(blocks(tree)).toHaveLength(0)
+  })
+
+  function blocks(tree: TestInstance) {
+    return tree.root.findAll((node) => node.type === BlockFrame)
+  }
+
+  function press(tree: TestInstance, label: string) {
+    const button = tree.root.findAll((node) => typeof node.props.onPress === 'function' && renderedText(node.props.children).includes(label))[0]
+    if (!button) throw new Error(`Missing button ${label}`)
+    return button.props.onPress!
+  }
+
+  it('shows one real preview block and finishes it in place', async () => {
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+    } } })
+    const onOpenTarget = vi.fn()
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage()} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={confirm} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onActionChipClick={onOpenTarget} />)
+    })
+    expect(blocks(tree)).toHaveLength(1)
+    expect(renderedText(tree.root)).toContain('chat.operation.edit')
+    expect(renderedText(tree.root)).toContain('chat.operation.reject')
+    expect(renderedText(tree.root)).not.toContain('chat.operation.risk')
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('status.done')
+    expect(blocks(tree)).toHaveLength(1)
+    await TestRenderer.act(() => { press(tree, 'chat.action.open')() })
+    expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
+  })
+
+  it('keeps an approved preview settled after the bubble remounts', async () => {
+    const message = makeHeldHabitMessage()
+    useChatStore.setState({ messages: [message] })
+    const onOpenTarget = vi.fn()
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+    } } })
+    const props = { onActionChipClick: onOpenTarget, onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: confirm,
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => {
+      const current = useChatStore((state) => state.messages[0]!)
+      return <MessageBubble {...props} message={current} />
+    }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('status.done')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+    expect(renderedText(tree.root)).toContain('status.done')
+    await TestRenderer.act(() => { press(tree, 'chat.action.open')() })
+    expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
+    expect(useChatStore.getState().messages).toHaveLength(1)
+  })
+
+  it('keeps a rejected preview rejected after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const onPendingOperationRevise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: true } })
+    const StoredBubble = () => {
+      const message = useChatStore((state) => state.messages[0]!)
+      return <MessageBubble message={message} onPendingOperationRevise={onPendingOperationRevise} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} />
+    }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.reject')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.rejected')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+    expect(renderedText(tree.root)).toContain('chat.operation.rejected')
+  })
+
+  it('keeps a failed approval retryable after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const confirm = vi.fn()
+      .mockResolvedValueOnce({ ok: false, error: 'temporary' })
+      .mockResolvedValueOnce({ ok: true, response: { operation: {
+        operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low',
+        confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+      } } })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: confirm,
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operationFailed')
+    expect(renderedText(tree.root)).not.toContain('status.failed')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('chat.operationFailed')
+    expect(renderedText(tree.root)).not.toContain('status.failed')
+    await TestRenderer.act(async () => { press(tree, 'common.retry')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('status.done')
+    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps an expired preview stale after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const confirm = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationRefresh: vi.fn(),
+      onPendingOperationConfirmExecute: confirm, onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.stale')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.stale')
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+    expect(confirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a stale revision blocked after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const revise = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' })
+    const callbacks = { onPendingOperationRevise: revise, onPendingOperationRefresh: vi.fn(),
+      onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.reject')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.stale')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.stale')
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+    expect(revise).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a rejected refresh unavailable after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const refresh = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationRefresh: refresh,
+      onPendingOperationConfirmExecute: vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' }),
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    const refreshButton = () => tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.operation.refresh' && typeof node.props.onPress === 'function')[0]
+    expect(refreshButton()).toBeDefined()
+    await TestRenderer.act(async () => { refreshButton()!.props.onPress!(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.staleUnavailable')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.staleUnavailable')
+    expect(refreshButton()).toBeUndefined()
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an edited item marked after the bubble remounts', async () => {
+    const message = makeHeldHabitMessage()
+    useChatStore.setState({ messages: [message] })
+    const original = message.pendingOperations![0]!.items![0]!
+    const edited = { ...original, entityName: 'Drink water', fields: [{ ...original.fields[0]!, newValue: 'Drink water' }] }
+    const revise = vi.fn().mockResolvedValue({ ok: true, result: {
+      cancelled: false, preview: { items: [edited], changes: [], changeTargetCount: 1, previewFingerprint: 'habit-preview-2' },
+    } })
+    const callbacks = { onPendingOperationRevise: revise, onPendingOperationConfirmExecute: vi.fn(),
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(() => { press(tree, 'chat.operation.edit')() })
+    await TestRenderer.act(() => { tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.operation.field.title')[0]!.props.onChangeText!('Drink water') })
+    await TestRenderer.act(async () => { press(tree, 'common.save')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.edited')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.edited')
+    expect(renderedText(tree.root)).toContain('Drink water')
+  })
+
+  it('keeps a clarification preview in the message after remount', async () => {
+    realClarification.current = true
+    useChatStore.setState({ messages: [makeClarificationPreviewMessage()] })
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    resolveClarification.mockResolvedValueOnce({ operation: { status: 'PendingConfirmation' }, pendingOperation })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: vi.fn(),
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'habits.clarification.quickAction.daily')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.approve')
+    expect(useChatStore.getState().messages[0]?.clarificationPreviews?.[makeClarificationPreviewMessage().actions![0]!.clarificationRequest!.operationId]).toEqual(pendingOperation)
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    const output = renderedText(tree.root)
+    expect(output).toContain('chat.operation.approve')
+    expect(output).toContain('chat.operation.edit')
+    expect(output).toContain('chat.operation.reject')
+    expect(resolveClarification).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens an approved create_goal preview as a goal', async () => {
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'create_goal', sourceName: 'create_goal', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'goal-created',
+    } } })
+    const onOpenTarget = vi.fn()
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={makeHeldGoalMessage()} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={confirm} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onActionChipClick={onOpenTarget} />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    await TestRenderer.act(() => { press(tree, 'chat.action.open')() })
+    expect(onOpenTarget).toHaveBeenCalledWith('goal-created', 'CreateGoal')
+  })
+
+  it('keeps a failed approval in one preview block', async () => {
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: { status: 'Failed' } } })
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage()} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={confirm} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} />)
+    })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.unavailableRecovery')
+    expect(renderedText(tree.root)).not.toContain('status.failed')
+    expect(blocks(tree)).toHaveLength(1)
+  })
+
+  it('shows a denied action and policy outcome in one block', async () => {
+    const operation = makeAgentOperationResult('Denied', 1)
+    const message = makeHeldHabitMessage({ pendingOperations: [], actions: [makeActionResult({ type: 'CreateHabit', status: 'Failed' })], operations: [operation], policyDenials: [{
+      operationId: operation.operationId, sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', reason: 'policy',
+    }] })
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
+    expect(blocks(tree)).toHaveLength(1)
+    expect(renderedText(tree.root)).toContain('chat.operation.outcome.UnsupportedByPolicy')
+  })
+
+  it('shows a legacy success action once and no outcome for reads', async () => {
+    const message = makeHeldHabitMessage({ pendingOperations: [], actions: [makeActionResult({ type: 'CreateHabit', status: 'Success' })], operations: [makeAgentOperationResult('Succeeded', 1)] })
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
+    expect(blocks(tree)).toHaveLength(1)
+    await TestRenderer.act(() => { tree.update(<MessageBubble message={makeHeldHabitMessage({ pendingOperations: [], operations: [makeAgentOperationResult('Succeeded', 1)] })} />) })
+    expect(blocks(tree)).toHaveLength(0)
+  })
+})
+
 vi.mock('@/components/chat/breakdown-suggestion', () => ({
-  BreakdownSuggestion: () => null,
+  BreakdownSuggestion: (props: Record<string, unknown>) =>
+    require('react').createElement('BreakdownSuggestion', props),
 }))
-vi.mock('@/components/chat/clarification-card', () => ({
-  ClarificationCard: () => null,
+vi.mock('@/components/chat/clarification-card', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/chat/clarification-card')>()
+  return {
+    ClarificationCard: (props: Record<string, unknown>) => require('react').createElement(
+      realClarification.current ? actual.ClarificationCard : 'ClarificationCard', props,
+    ),
+  }
+})
+vi.mock('@/components/chat/habit-list-card', () => ({
+  HabitListCard: ({ habitList }: { habitList: { items: { id: string; title: string; status: string }[] } }) => {
+    const React = require('react')
+    return React.createElement(
+      'HabitListCard',
+      null,
+      ...habitList.items.flatMap((item) => [
+        React.createElement('Text', { key: `${item.id}-title` }, item.title),
+        React.createElement('Text', { key: `${item.id}-status` }, `chat.habitList.${item.status}`),
+      ]),
+    )
+  },
 }))
-vi.mock('@/components/chat/pending-operation-card', () => ({
-  PendingOperationCard: () => null,
+vi.mock('@/components/chat/goal-list-card', () => ({
+  GoalListCard: (props: {
+    goalList: { items: { id: string; title: string; current: number; target: number }[] }
+    onOpenGoal?: (id: string) => void
+  }) => {
+    const React = require('react')
+    const { goalList } = props
+    return React.createElement(
+      'GoalListCard',
+      props,
+      ...goalList.items.flatMap((item) => [
+        React.createElement('Text', { key: `${item.id}-title` }, item.title),
+        React.createElement('Text', { key: `${item.id}-progress` }, `chat.goalList.percentage:{"pct":${Math.round((item.current / item.target) * 100)}}`),
+      ]),
+    )
+  },
 }))
+vi.mock('@/components/chat/day-summary-card', () => ({ DaySummaryCard: () => null }))
+vi.mock('@/components/chat/streak-card', () => ({ StreakCard: () => null }))
+vi.mock('@/components/chat/calendar-card', () => ({ CalendarCard: () => null }))
+vi.mock('@/components/chat/record-list-card', () => ({ RecordListCard: () => null }))
+vi.mock('@/components/chat/account-rows-card', () => ({ AccountRowsCard: () => null }))
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {
@@ -98,7 +425,25 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   }
 }
 
+const periodInsight: NonNullable<ChatMessage['periodInsight']> = {
+  period: 'week', dateFrom: '2026-09-01', dateTo: '2026-09-07',
+  completionRate: 50, activeDays: 4, periodDays: 7,
+  totalCompletions: 7, totalScheduled: 14, currentStreak: 2, bestStreak: 5,
+  topHabits: [], needsAttention: [],
+  narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
+}
+
 describe('MessageBubble trace footer (mobile)', () => {
+  it('reveals the period insight only after the final response', async () => {
+    const message = makeMessage({ role: 'ai', periodInsight })
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={message} isStreaming />)
+    })
+    expect(tree.root.findAll((node) => node.props.testID === 'block-frame-resting')).toHaveLength(0)
+    await TestRenderer.act(() => { tree.update(<MessageBubble message={message} />) })
+    expect(tree.root.findAll((node) => node.props.testID === 'block-frame-resting').length).toBeGreaterThan(0)
+  })
   it('never renders a trace footer, even when the AI message has a correlationId', async () => {
     let tree!: TestInstance
     await TestRenderer.act(() => {
@@ -114,6 +459,71 @@ describe('MessageBubble trace footer (mobile)', () => {
             node.props.children.includes('req-abc-123')),
     )
     expect(traceNodes).toHaveLength(0)
+  })
+})
+
+describe('MessageBubble text copying (mobile)', () => {
+  it.each(['ai', 'user'] as const)('renders %s prose without a copy control', async (role) => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ role, content: 'Your habits' })} />)
+    })
+    expect(renderedText(tree.root)).toContain('Your habits')
+    expect(tree.root.findAll(node => node.props.accessibilityRole === 'button')).toHaveLength(0)
+  })
+
+  it('hides partial directives during streaming without offering a copy control', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ content: '[[orbit:habits:' })} isStreaming />)
+    })
+    expect(renderedText(tree.root)).not.toContain('[[orbit:')
+    await TestRenderer.act(() => {
+      tree.update(<MessageBubble message={makeMessage({ content: 'Hello [[orbit:habits:' })} isStreaming />)
+    })
+    expect(renderedText(tree.root)).toContain('Hello')
+    expect(renderedText(tree.root)).not.toContain('[[orbit:')
+    expect(tree.root.findAll(node => node.props.accessibilityRole === 'button')).toHaveLength(0)
+  })
+})
+
+describe('MessageBubble thread treatment (mobile)', () => {
+  it('uses a neutral 16-radius well with an 80% cap for sent messages', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ role: 'user' })} />)
+    })
+    const tokens = createTokensV2('purple', 'dark')
+    const bubble = tree.root.findAll((node) =>
+      Array.isArray(node.props.style) && node.props.style[0]?.flexShrink === 1,
+    )[0]
+    expect(bubble).toBeDefined()
+    const bubbleStyle = Object.assign({}, ...((bubble?.props.style ?? []) as object[]))
+    expect(bubbleStyle).toMatchObject({
+      backgroundColor: tokens.bgWell,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+    })
+    expect(tree.root.findAll((node) =>
+      typeof node.type === 'string' && (node.props.style as { maxWidth?: string } | undefined)?.maxWidth === '80%',
+    )).toHaveLength(1)
+  })
+
+  it('renders AI prose without an avatar or filled surface', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ role: 'ai' })} />)
+    })
+    const tokens = createTokensV2('purple', 'dark')
+    expect(tree.root.findAll((node) => {
+      const style = node.props.style as { width?: number; height?: number } | undefined
+      return typeof node.type === 'string' && style != null && style.width === 30 && style.height === 30
+    })).toHaveLength(0)
+    expect(tree.root.findAll((node) =>
+      Array.isArray(node.props.style) && node.props.style.some((style: { backgroundColor?: string } | null) => style != null && style.backgroundColor === tokens.bgElev),
+    )).toHaveLength(0)
   })
 })
 
@@ -147,11 +557,14 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
     const links = findSurfaceLinks(tree.root, 'chat.related.surface.gamification')
     expect(links).toHaveLength(1)
     expect(findSurfaceLinks(tree.root, 'chat.related.surface.mystery')).toHaveLength(0)
+    const linkStyle = links[0]?.props.style as ((state: { pressed: boolean }) => unknown[])
+    expect(linkStyle({ pressed: true })).toHaveLength(2)
+    expect(linkStyle({ pressed: false })).toHaveLength(2)
 
     await TestRenderer.act(() => {
       links[0]?.props.onPress?.()
     })
-    expect(push).toHaveBeenCalledWith('/achievements')
+    expect(push).toHaveBeenCalledWith('/progress/achievements')
   })
 
   it('does not render the footer for user messages', async () => {
@@ -316,5 +729,126 @@ describe('MessageBubble goal-list card (mobile)', () => {
     })
 
     expect(collectStrings(tree.root)).not.toContain('Read books')
+  })
+
+  it('routes a goal row through the conversation action handler', async () => {
+    const onActionChipClick = vi.fn()
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({
+            goalList: {
+              items: [{ id: 'g1', title: 'Read books', current: 12, target: 30, unit: 'books', deadline: null }],
+            },
+          })}
+          onActionChipClick={onActionChipClick}
+        />,
+      )
+    })
+    const goalCard = tree.root.findAll((node) => node.type === 'GoalListCard')[0]
+
+    await TestRenderer.act(() => {
+      const openGoal = goalCard?.props.onOpenGoal as ((id: string) => void)
+      openGoal('g1')
+    })
+
+    expect(onActionChipClick).toHaveBeenCalledWith('g1', 'CreateGoal')
+  })
+})
+
+describe('MessageBubble interactive blocks (mobile)', () => {
+  it('renders each actionable AI payload and dismisses a rejected breakdown in place', async () => {
+    const onActionChipClick = vi.fn()
+    const onBreakdownConfirmed = vi.fn()
+    const onConfirmExecute = vi.fn()
+    const onPrepareStepUp = vi.fn()
+    const onVerifyStepUp = vi.fn()
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          animateEntry
+          message={makeMessage({
+            imageUrl: 'file:///morning.jpg',
+            actions: [
+              { type: 'LogHabit', status: 'Success', entityId: 'habit-1', entityName: 'Morning walk' },
+              { type: 'LogHabit', status: 'Success', entityId: 'empty-result' },
+              {
+                type: 'BreakDownHabit',
+                status: 'Suggestion',
+                entityName: 'Morning',
+                suggestedSubHabits: [{ title: 'Walk' }],
+              },
+              {
+                type: 'LogHabit',
+                status: 'NeedsClarification',
+                entityName: 'Walk',
+                clarificationRequest: {
+                  question: 'Which walk?',
+                  operationId: '11111111-1111-4111-8111-111111111111',
+                  missingArgumentKey: 'habitId',
+                  quickActions: [{ label: 'Morning walk', value: 'habit-1' }],
+                },
+              },
+            ],
+            pendingOperations: [{
+              id: 'pending-1',
+              capabilityId: 'habits.delete',
+              displayName: 'DeleteHabit',
+              summary: 'Delete Morning walk',
+              riskClass: 'Destructive',
+              confirmationRequirement: 'FreshConfirmation',
+              expiresAtUtc: '2026-09-02T12:00:00Z',
+            }],
+            operations: [{
+              operationId: 'operation-1',
+              sourceName: 'LogHabit',
+              riskClass: 'Low',
+              confirmationRequirement: 'None',
+              status: 'Succeeded',
+              targetName: 'Morning walk',
+            }],
+          })}
+          onActionChipClick={onActionChipClick}
+          onBreakdownConfirmed={onBreakdownConfirmed}
+          onPendingOperationConfirmExecute={onConfirmExecute}
+          onPendingOperationPrepareStepUp={onPrepareStepUp}
+          onPendingOperationVerifyStepUp={onVerifyStepUp}
+        />,
+      )
+    })
+
+    expect(
+      tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.attachmentPreview').length,
+    ).toBeGreaterThan(0)
+    const openActions = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && renderedText(node.props.children).includes('chat.action.open'))
+    expect(openActions).toHaveLength(1)
+    const openAction = openActions[0]
+    expect(openAction).toBeDefined()
+    await TestRenderer.act(() => { openAction?.props.onPress?.() })
+    expect(onActionChipClick).toHaveBeenCalledWith('habit-1', 'LogHabit')
+
+    const clarification = tree.root.findAll((node) => node.type === 'ClarificationCard')[0]
+    expect(clarification?.props.entityName).toBe('Walk')
+    const pending = tree.root.findAll((node) => node.type === PendingOperationCard)[0]
+    expect(pending?.props).toMatchObject({
+      onConfirmExecute,
+      onPrepareStepUp,
+      onVerifyStepUp,
+    })
+    expect(renderedText(tree.root)).not.toContain('chat.operation.outcome.Succeeded')
+
+    const breakdown = tree.root.findAll((node) => node.type === 'BreakdownSuggestion')[0]
+    await TestRenderer.act(() => {
+      const confirmBreakdown = breakdown?.props.onConfirmed as (() => void)
+      confirmBreakdown()
+    })
+    expect(onBreakdownConfirmed).toHaveBeenCalledOnce()
+    await TestRenderer.act(() => {
+      const cancelBreakdown = breakdown?.props.onCancelled as (() => void)
+      cancelBreakdown()
+    })
+    expect(tree.root.findAll((node) => node.type === 'BreakdownSuggestion')).toHaveLength(0)
   })
 })

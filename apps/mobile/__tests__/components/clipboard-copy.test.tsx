@@ -1,14 +1,15 @@
-import { captureException } from '@sentry/react-native'
+import { captureError } from '@/lib/sentry'
 import React from 'react'
 import { AccessibilityInfo } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DescriptionViewer } from '@/components/habits/description-viewer'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 
-const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn() }))
+const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn(), getStringAsync: vi.fn() }))
 const referral = vi.hoisted(() => ({ url: 'https://app.useorbit.org/r/test-code' }))
 
 vi.mock('expo-clipboard', () => clipboard)
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 vi.mock('@/hooks/use-referral', () => ({
   useReferral: () => ({ referralUrl: referral.url, stats: null, isLoading: false, isError: false }),
 }))
@@ -65,7 +66,8 @@ function copiedIcons() {
 beforeEach(() => {
   vi.useFakeTimers()
   clipboard.setStringAsync.mockReset().mockResolvedValue(true)
-  vi.mocked(captureException).mockClear()
+  clipboard.getStringAsync.mockReset().mockImplementation(() => Promise.resolve(clipboard.setStringAsync.mock.calls.at(-1)![0]))
+  vi.mocked(captureError).mockClear()
   vi.spyOn(AccessibilityInfo, 'announceForAccessibility')
 })
 afterEach(async () => {
@@ -76,7 +78,7 @@ afterEach(async () => {
 })
 
 describe.each(copyActions)('$name copy', ({ element, label, text }) => {
-  it('confirms only after writing the exact text and clears confirmation', async () => {
+  it('confirms only after writing the exact text and retains the surface confirmation lifetime', async () => {
     let finishWrite!: (value: boolean) => void
     const write = new Promise<boolean>((resolve) => { finishWrite = resolve })
     clipboard.setStringAsync.mockReturnValueOnce(write)
@@ -91,7 +93,7 @@ describe.each(copyActions)('$name copy', ({ element, label, text }) => {
       expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith('referral.drawer.linkCopied')
     }
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(2000) })
-    expect(copiedIcons()).toHaveLength(0)
+    expect(copiedIcons()).toHaveLength(label === 'referral.drawer.copyLink' ? 0 : 1)
   })
 
   it('does not confirm a rejected clipboard write', async () => {
@@ -99,7 +101,7 @@ describe.each(copyActions)('$name copy', ({ element, label, text }) => {
     clipboard.setStringAsync.mockRejectedValueOnce(failure)
     await render(element)
     await TestRenderer.act(() => { copy(label) })
-    expect(captureException).toHaveBeenCalledWith(failure)
+    expect(captureError).toHaveBeenCalledWith(failure)
     expect(copiedIcons()).toHaveLength(0)
     expect(AccessibilityInfo.announceForAccessibility).not.toHaveBeenCalled()
   })

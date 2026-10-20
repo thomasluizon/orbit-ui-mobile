@@ -1,4 +1,3 @@
-
 const TAG_TO_PROPERTY = new Map([
   ['wght', 'font-weight'],
   ['ital', 'font-style: italic'],

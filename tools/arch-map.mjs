@@ -45,11 +45,6 @@ Exit codes:
  */
 const GENERATOR_VERSION = 2
 
-/**
- * Every path the generator actually reads, recorded so the provenance hash covers the real input set
- * (#232). Deliberately not a second glob: a hardcoded or re-derived list stops covering new files the
- * moment the walk changes, and reads as coverage while it does.
- */
 const inputFiles = new Map()
 const readFileSync = (path, encoding) => {
   const body = readFileSyncRaw(path, encoding)
@@ -666,12 +661,6 @@ function buildMap() {
   return { map: { routes, endpoints, dependencies, i18nOwnership, testCoverage }, pairedWeb, pairedMobile }
 }
 
-/**
- * The provenance block, computed AFTER the map is built so the recorded read set is complete. Field
- * names and block position follow .claude/manifests/surfaces.json; `generatedFrom` is redefined as an
- * input content hash because that file's git-based baseline fields cannot exist here (#232). The path
- * is hashed alongside its contents, so moving a file changes the hash even when its bytes do not.
- */
 function provenance() {
   const paths = [...inputFiles.keys()].sort(byCode)
   const hash = createHash("sha256")
@@ -684,12 +673,6 @@ function provenance() {
   return { generatedFrom: hash.digest("hex").slice(0, 12), inputFiles: paths.length, generatorVersion: GENERATOR_VERSION }
 }
 
-/**
- * The ceiling the Mermaid emitter refuses to exceed. The graph is already aggregated to directory
- * groups by buildDependencies, so the real node count is around 30, not the 184 an earlier reading of
- * #321 assumed by counting EDGES (72 web, 75 mobile, 37 shared) as nodes. The cap guards against a
- * future restructure quietly producing a diagram no renderer will draw.
- */
 const MERMAID_NODE_CAP = 64
 
 /**
@@ -710,12 +693,6 @@ function mermaidIds(paths) {
   return ids
 }
 
-/**
- * Serializes the SAME map object renderHtml receives into Mermaid `flowchart` source, so the two
- * artifacts cannot disagree: the tree is never re-walked here (#321). One subgraph per workspace,
- * nodes are the directory groups buildDependencies already aggregated to, edges deduped at that
- * grain, LF endings so a cross-OS byte comparison cannot flake on line endings.
- */
 function renderMermaid(map) {
   const workspaceOfNode = (node) => WORKSPACES.find((workspace) => node === workspace || node.startsWith(`${workspace}/`)) ?? null
   const nodesByWorkspace = new Map(WORKSPACES.map((workspace) => [workspace, new Set()]))

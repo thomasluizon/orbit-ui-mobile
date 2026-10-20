@@ -15,14 +15,14 @@ Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy.
 
 | What | Where |
 |---|---|
-| App shell + nav | `app/(app)/layout.tsx` + `components/navigation/web-nav.tsx` |
+| App shell + nav | `app/(app)/layout.tsx` + `components/shell/destination-shell.tsx` + `components/shell/flow-shell.tsx` |
 | Design tokens (navy+violet system, 6 schemes × dark/light) | `app/globals.css` (Tailwind v4 CSS-first) |
 | Auth proxy and public root files | `proxy.ts` |
 | BFF catch-all proxy | `app/api/[...path]/route.ts` |
 | Server Actions (mutations) | `app/actions/*.ts` |
 | TanStack Query hooks | `hooks/use-*.ts` |
 | Zustand stores | `stores/*-store.ts` |
-| Primitives (AppBar, SectionLabel, HabitRow, StatusDot, ParentRing, Chip, SettingsRow, ConfirmDialog, RingMotif) | `components/ui/*` + `components/habits/habit-row.tsx` + `components/gamification/ring-motif.tsx` |
+| Primitives (AppBar, SectionLabel, HabitRow, StatusDot, ParentRing, Chip, ListRow, ConfirmDialog, RingMotif) | `components/ui/*` + `components/habits/habit-row.tsx` + `components/gamification/ring-motif.tsx` |
 
 ## State management
 

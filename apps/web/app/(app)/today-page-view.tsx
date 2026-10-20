@@ -1,217 +1,232 @@
 'use client'
 
-import { useCallback } from 'react'
-// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useId, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { useQueryClient } from '@tanstack/react-query'
+import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { habitKeys } from '@orbit/shared/query'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided motion components. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react'
+import { resolveMotionPreset } from '@orbit/shared/theme'
+import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
-import { useIsClient } from '@/hooks/use-is-client'
-import { useMountedAfterOpen } from '@/hooks/use-mounted-after-open'
-import { TodayAISummary } from '@/components/habits/today-ai-summary'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
-import { TodayHeader, TodayTabs, TodayDateNavigation, TodayUtilityRow } from './today-shell'
-import {
-  TodayEngagementCards,
-  TodayHabitsProgressHeader,
-  TodayHabitsStates,
-  TodayHabitsListShell,
-} from './today-sections'
+import { HabitList } from '@/components/habits/habit-list'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { Input } from '@/components/ui/input'
+import { HabitViewSwitch } from '@/components/today/habit-view-switch'
+import { TodayDateControl } from './today-shell'
+import { useShellComposerSlot } from '@/components/shell/destination-shell'
+import { useOffline } from '@/hooks/use-offline'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { TodayView } from './use-today-page'
 
-const GoalsView = dynamic(() => import('@/components/goals/goals-view').then((module) => module.GoalsView))
-const ReferralDrawer = dynamic(() => import('@/components/referral/referral-drawer').then((module) => module.ReferralDrawer))
+const SelectionTray = dynamic(
+  () => import('@/components/habits/selection-tray').then((module) => module.SelectionTray),
+  { loading: () => null },
+)
+const ConfirmSheet = dynamic(
+  () => import('@/components/ui/confirm-sheet').then((module) => module.ConfirmSheet),
+  { loading: () => null },
+)
 
-export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
-  const { nav, currentActiveView } = view
-  const showAISummary = currentActiveView === 'today' && nav.isTodaySelected
-
-  return (
-    <>
-      <div className="md:hidden">
-        <TodayHeader streak={view.streak} />
-
-        <TodayTabs
-          tabs={view.tabItems}
-          activeView={currentActiveView}
-          hasProAccess={view.hasProAccess}
-          onChangeView={view.attemptViewChange}
-          viewsLabel={view.viewsLabel}
-        />
-      </div>
-
-      <div className="pt-1.5 md:pt-2.5">
-        {showAISummary && <TodayAISummary date={nav.dateStr} />}
-
-        <TodayEngagementCards
-          engagementSlot={view.engagementSlot}
-          exitTransition={view.engagementExitTransition}
-          onOpenReferral={() => view.setShowReferral(true)}
-          onDismissReferral={view.dismissHomeEntry}
-        />
-      </div>
-
-      <div className="md:hidden">
-        <TodayDateNavigation visible={currentActiveView === 'today'} {...nav.dateNav} />
-      </div>
-    </>
-  )
+export function buildSelectionRefreshKey(
+  selectedHabitIds: ReadonlySet<string>,
+  allSelected: boolean,
+  completionReadOnly: boolean,
+): string {
+  const selectedKey = Array.from(selectedHabitIds)
+    .sort((left, right) => {
+      if (left < right) return -1
+      if (left > right) return 1
+      return 0
+    })
+    .join(',')
+  return `${selectedKey}:${allSelected ? 'all' : 'some'}:${completionReadOnly ? 'read-only' : 'loggable'}`
 }
 
-export function TodayGoalsPanel({ view }: Readonly<{ view: TodayView }>) {
+function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | null {
+  if (boundary === 'last-loggable') return 'habits.todayBoundary.lastLoggable'
+  if (boundary === 'read-only') return 'habits.todayBoundary.readOnly'
+  if (boundary === 'future') return 'habits.todayBoundary.future'
+  return null
+}
+
+function useTodayRefetchMotion(isRefetching: boolean) {
+  const prefersReducedMotion = useReducedMotion()
+  const preset = useMemo(
+    () => resolveMotionPreset('list-enter', Boolean(prefersReducedMotion)),
+    [prefersReducedMotion],
+  )
+  const opacity = useMotionValue(1)
+  const translate = useMotionValue(0)
+  const animationsRef = useRef<ReturnType<typeof animate>[]>([])
+
+  useEffect(() => {
+    for (const animation of animationsRef.current) animation.stop()
+    const entering = isRefetching
+    const transition = {
+      duration: (entering ? preset.enterDuration : preset.exitDuration) / 1000,
+      ease: entering ? preset.enterEasing : preset.exitEasing,
+    }
+    animationsRef.current = [
+      animate(opacity, entering ? 0.8 : 1, transition),
+      animate(
+        translate,
+        entering && !preset.reducedMotionEnabled ? 4 : 0,
+        transition,
+      ),
+    ]
+    return () => {
+      for (const animation of animationsRef.current) animation.stop()
+    }
+  }, [
+    isRefetching,
+    preset.enterDuration,
+    preset.enterEasing,
+    preset.exitDuration,
+    preset.exitEasing,
+    preset.reducedMotionEnabled,
+    opacity,
+    translate,
+  ])
+
+  return { opacity, translate }
+}
+
+export function TodayHeaderRegion({ view, children }: Readonly<{ view: TodayView; children?: React.ReactNode }>) {
+  const t = useTranslations()
+  const searchId = useId()
+  const key = view.activeView === 'today' ? boundaryKey(getTodayBoundary(view.nav.dateStr, view.nav.today)) : null
+
   return (
-    <div id="tabpanel-goals" role="tabpanel" aria-labelledby="tab-goals">
-      {view.currentActiveView === 'goals' && <GoalsView />}
+    <div className="flex min-w-0 flex-col gap-6">
+      <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
+      <TodayDateControl
+        beforeDate={<div className="flex min-w-0 flex-col gap-6"><div id={searchId} hidden={!view.search.open} className="px-4">{view.search.open ? <Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={view.search.text} onChange={view.search.changeText} focusRequest={1} /> : null}</div><HabitViewSwitch value={view.activeView} onChange={view.changeView} />{view.activeView === 'today' ? children : null}</div>}
+        showDate={view.activeView === 'today'}
+        {...view.nav.dateNav}
+        moreLabel={t('habits.listOptions')}
+        menuHeading={t('common.options')}
+        searchLabel={t(view.search.open ? 'habits.closeSearch' : 'habits.search.title')}
+        searchOpen={view.search.open}
+        searchControlsId={searchId}
+        onSearch={view.search.toggle}
+        selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
+        collapseLabel={view.habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        allCollapsed={view.habitListAllCollapsed}
+        refreshLabel={t('habits.refresh')}
+        completedLabel={view.showCompleted ? t('habits.hideCompletedMenu') : t('habits.showCompletedMenu')}
+        showCompleted={view.showCompleted}
+        isFetching={view.data.isFetching}
+        onToggleSelect={view.toggleSelectMode}
+        onToggleCollapse={() => {
+          if (view.habitListAllCollapsed) view.habitListRef.current?.expandAll()
+          else view.habitListRef.current?.collapseAll()
+        }}
+        onRefresh={() => void view.data.refetch()}
+        onToggleCompleted={() => view.setShowCompleted(!view.showCompleted)}
+      />
+      {key ? (
+        <div className="px-4">
+          <CapacityNotice message={t(key)} />
+        </div>
+      ) : null}
     </div>
   )
 }
 
 export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
-  const { data, search, selection, nav, currentActiveView, habitListRef, habitListAllCollapsed } = view
-  const queryClient = useQueryClient()
-
-  const handleToggleCollapse = useCallback(() => {
-    if (habitListAllCollapsed) {
-      habitListRef.current?.expandAll()
-    } else {
-      habitListRef.current?.collapseAll()
-    }
-  }, [habitListAllCollapsed, habitListRef])
-
-  const handleRefresh = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-  }, [queryClient])
+  const { isOnline } = useOffline()
+  const [showCreateRefusal, setShowCreateRefusal] = useAccountScopedState(false)
+  useEffect(() => { if (isOnline) setShowCreateRefusal(false) }, [isOnline, setShowCreateRefusal])
+  const {
+    data,
+    habitListRef,
+    isSelectMode,
+    nav,
+    selectedHabitIds,
+    selection,
+    setHabitListAllCollapsed,
+    setShowCreateModal,
+    setShowCompleted,
+    showCompleted,
+    toggleSelectMode,
+  } = view
+  const refetchMotion = useTodayRefetchMotion(data.isRefetching && !view.search.open)
 
   return (
-    <div id="tabpanel-habits" role="tabpanel" aria-labelledby={`tab-${currentActiveView}`}>
-      <TodayHabitsProgressHeader
-        showDayProgress={data.showDayProgress}
-        dayProgress={data.dayProgress}
-        engagementSlot={view.engagementSlot}
-        exitTransition={view.engagementExitTransition}
-      />
-
-      <motion.div layout transition={view.listTransition} data-testid="today-utility-row">
-        <TodayUtilityRow
-          activeView={currentActiveView}
-          searchOpen={search.searchOpen}
-          searchValue={search.localSearchQuery}
-          selectedFrequency={data.selectedFrequency}
-          selectedTagIds={data.selectedTagIds}
-          tags={view.tags}
-          frequencyOptions={data.frequencyOptions}
-          isSelectMode={view.isSelectMode}
-          showCompleted={view.showCompleted}
-          isFetching={data.isFetching}
-          allCollapsed={habitListAllCollapsed}
-          onSearchToggle={search.toggleSearch}
-          onSearchChange={search.setLocalSearchQuery}
-          onFrequencyChange={data.setSelectedFrequency}
-          onTagToggle={data.toggleTagFilter}
-          onToggleSelect={view.toggleSelectMode}
-          onToggleCollapse={handleToggleCollapse}
-          onRefresh={handleRefresh}
-          onToggleCompleted={() => view.setShowCompleted(!view.showCompleted)}
-        />
-      </motion.div>
-
-      <TodayHabitsStates
-        showLoadError={data.showLoadError}
-        onRetry={data.refetch}
-        hasFetched={data.hasFetched}
-        isRefetching={data.isRefetching}
-        listTransition={view.listTransition}
-      />
-
-      <TodayHabitsListShell
-        hasFetched={data.hasFetched}
-        isRefetching={data.isRefetching}
-        refetchShift={view.refetchShift}
-        listTransition={view.listTransition}
-        isSelectMode={view.isSelectMode}
-        habitListRef={habitListRef}
-        view={currentActiveView}
-        selectedDate={nav.selectedDate}
-        showCompleted={view.showCompleted}
-        selectedHabitIds={view.selectedHabitIds}
-        searchQuery={view.searchQueryStore}
+    <motion.div
+      data-testid="today-refetch-motion"
+      style={{ opacity: refetchMotion.opacity, y: refetchMotion.translate }}
+    >
+      <HabitList
+        ref={habitListRef}
+        view={view.activeView}
+        searchQuery={view.search.query}
+        onClearSearch={view.search.close}
+        selectedDate={view.activeView === 'today' ? nav.selectedDate : undefined}
+        showCompleted={showCompleted}
+        onShowCompleted={() => setShowCompleted(true)}
+        isSelectMode={isSelectMode}
+        selectedHabitIds={selectedHabitIds}
         filters={data.filters}
         onToggleSelection={selection.handleToggleSelection}
-        onToggleSelectMode={view.toggleSelectMode}
-        onCreate={() => view.setShowCreateModal(true)}
-        onSeeUpcoming={nav.goToNextDay}
-        onAllCollapsedChange={view.setHabitListAllCollapsed}
+        onEnterSelectMode={(habitId) => {
+          if (!isSelectMode) toggleSelectMode()
+          selection.handleToggleSelection(habitId)
+        }}
+        onCreate={() => {
+          if (!isOnline) { setShowCreateRefusal(true); return }
+          setShowCreateModal(true)
+        }}
+        createRefusal={showCreateRefusal && !isOnline}
+        onSeeUpcoming={view.activeView === 'today' && !nav.dateNav.nextDisabled ? nav.goToNextDay : undefined}
+        onAllLoadedIdsChange={view.setAllLoadedIds}
+        onAllCollapsedChange={setHabitListAllCollapsed}
+        onSurfaceOpenChange={view.setListSurfaceOpen}
       />
-    </div>
+    </motion.div>
   )
 }
 
 export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
   const t = useTranslations()
-  const isClient = useIsClient()
-  const { selection } = view
+  const pathname = usePathname()
   const count = view.selectedHabitIds.size
-  const hasOpenedReferral = useMountedAfterOpen(view.showReferral)
+
+  useShellComposerSlot(
+    pathname === '/' && view.isSelectMode,
+    () => (
+      <SelectionTray
+        selectedCount={count}
+        allSelected={view.selection.allSelected}
+        onSelectAll={view.selection.selectAll}
+        onDeselectAll={view.selection.deselectAll}
+        onBulkLog={() => void view.selection.confirmBulkLog()}
+        onBulkSkip={() => void view.selection.confirmBulkSkip()}
+        onBulkDelete={() => view.selection.setShowBulkDeleteConfirm(true)}
+        onCancel={view.toggleSelectMode}
+        completionReadOnly={view.selection.completionReadOnly}
+      />
+    ),
+    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected, view.selection.completionReadOnly),
+  )
 
   return (
     <>
-      <AnimatePresence initial={false}>
-        {view.isSelectMode && isClient ? (
-          <BulkActionBarV2
-            selectedCount={count}
-            allSelected={selection.allSelected}
-            onSelectAll={selection.selectAll}
-            onDeselectAll={selection.deselectAll}
-            onBulkLog={() => selection.setShowBulkLogConfirm(true)}
-            onBulkSkip={() => selection.setShowBulkSkipConfirm(true)}
-            onBulkDelete={() => selection.setShowBulkDeleteConfirm(true)}
-            onCancel={view.toggleSelectMode}
-          />
-        ) : null}
-      </AnimatePresence>
-
-      <ConfirmDialog
-        open={selection.showBulkDeleteConfirm}
-        onOpenChange={selection.setShowBulkDeleteConfirm}
-        title={t('habits.bulkDeleteTitle')}
-        description={plural(t('habits.bulkDeleteMessage', { count }), count)}
-        confirmLabel={t('habits.bulkDeleteConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="danger"
-        onConfirm={() => void selection.confirmBulkDelete()}
-        onCancel={() => selection.setShowBulkDeleteConfirm(false)}
-      />
-
-      <ConfirmDialog
-        open={selection.showBulkLogConfirm}
-        onOpenChange={selection.setShowBulkLogConfirm}
-        title={t('habits.bulkLogTitle')}
-        description={plural(t('habits.bulkLogMessage', { count }), count)}
-        confirmLabel={t('habits.bulkLogConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="success"
-        onConfirm={() => void selection.confirmBulkLog()}
-        onCancel={() => selection.setShowBulkLogConfirm(false)}
-      />
-
-      <ConfirmDialog
-        open={selection.showBulkSkipConfirm}
-        onOpenChange={selection.setShowBulkSkipConfirm}
-        title={t('habits.bulkSkipTitle')}
-        description={plural(t('habits.bulkSkipMessage', { count }), count)}
-        confirmLabel={t('habits.bulkSkipConfirm')}
-        cancelLabel={t('common.cancel')}
-        variant="warning"
-        onConfirm={() => void selection.confirmBulkSkip()}
-        onCancel={() => selection.setShowBulkSkipConfirm(false)}
-      />
-
-      {hasOpenedReferral && (
-        <ReferralDrawer open={view.showReferral} onOpenChange={view.setShowReferral} />
-      )}
+      {view.selection.showBulkDeleteConfirm ? (
+        <ConfirmSheet
+          open
+          title={t('habits.bulkDeleteTitle')}
+          message={plural(t('habits.bulkDeleteMessage', { count }), count)}
+          confirmLabel={t('habits.bulkDeleteConfirm')}
+          destructive
+          onCancel={() => view.selection.setShowBulkDeleteConfirm(false)}
+          onConfirm={() => {
+            view.selection.setShowBulkDeleteConfirm(false)
+            void view.selection.confirmBulkDelete()
+          }}
+        />
+      ) : null}
     </>
   )
 }

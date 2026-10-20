@@ -1,10 +1,44 @@
+import { QueryClient, QueryObserver, onlineManager } from '@tanstack/react-query'
+import { goalKeys } from '@orbit/shared/query'
+import { MAX_GOAL_PROGRESS_NOTE_LENGTH } from '@orbit/shared/validation'
+import { PersonalText } from '@/components/ui/personal-text'
+import { Animated, BackHandler, StyleSheet } from 'react-native'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { createMockGoal, createMockProfile } from '@orbit/shared/__tests__/factories'
+import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
+import { updateGoalProgressDetail } from '@orbit/shared/utils'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { buildTempGoal } from '@/lib/goal-mutation-helpers'
+import { i18n } from '@/lib/i18n'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
+const nativeMocks = vi.hoisted(() => ({ sendAccessibilityEvent: vi.fn() }))
+
+vi.mock('react-native', async () => {
+  const native = await vi.importActual<typeof import('react-native')>('react-native')
+  return {
+    ...native,
+    AccessibilityInfo: {
+      ...native.AccessibilityInfo,
+      sendAccessibilityEvent: nativeMocks.sendAccessibilityEvent,
+    },
+  }
+})
+
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children)
+  }
+  return ''
+}
 
 const colorProxy: Record<string, string> = new Proxy(
   {},
@@ -13,37 +47,31 @@ const colorProxy: Record<string, string> = new Proxy(
   },
 )
 
-const listGoal = {
-  id: '1',
-  title: 'Read 12 books',
-  description: null,
-  targetValue: 12,
-  currentValue: 3,
-  unit: 'books',
-  status: 'Active',
-  deadline: null,
-  position: 0,
-  createdAtUtc: '2025-01-01T00:00:00Z',
-  completedAtUtc: null,
-  progressPercentage: 25,
-  linkedHabits: [],
-}
+const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue: 3, targetValue: 12, unit: 'books', progressPercentage: 25 })
 
-let detailGoal: Record<string, unknown> = {
-  ...listGoal,
-  progressHistory: [] as unknown[],
-}
+let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
+let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
+let forecastMetrics: Pick<GoalDetailWithMetrics['metrics'], 'velocityPerDay' | 'projectedCompletionDate' | 'daysToDeadline' | 'trackingStatus'> = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline' }
+let detailLoading = false
 let detailLoadError = false
+let detailAvailable = true
 const refetchDetail = vi.fn()
+const updateProgressMutateAsync = vi.fn()
 const mockDeleteMutateAsync = vi.fn()
 const mockStatusMutateAsync = vi.fn()
 const mockPush = vi.fn()
+const translation = vi.hoisted(() => ({
+  language: 'en-US',
+  current: (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key,
+}))
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
-    i18n: { language: 'en-US' },
+      translation.current(key, params),
+    i18n: { language: translation.language },
   }),
 }))
 
@@ -71,31 +99,7 @@ vi.mock('@/lib/use-app-theme', () => ({
   }),
 }))
 
-/* WHY: like the real wrapper, the mock stays in the tree when `open` is false -
-   TrueSheet only fires didDismiss after a close, so modelling close as unmount
-   would green-light flows production cannot execute.
-   https://sheet.lodev09.com/guides/navigation */
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, title, onAttemptDismiss, onDidDismiss }: any) =>
-    React.createElement(
-      'BottomSheetModal',
-      { title, open },
-      React.createElement('Pressable', {
-        accessibilityLabel: 'attempt-dismiss',
-        onPress: () => onAttemptDismiss?.(),
-      }),
-      React.createElement('Pressable', {
-        accessibilityLabel: 'sheet-did-dismiss',
-        onPress: () => onDidDismiss?.(),
-      }),
-      children,
-    ),
-}))
-
-vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
-  KeyboardAwareBottomSheetScrollView: ({ children }: any) =>
-    React.createElement('KeyboardAwareBottomSheetScrollView', null, children),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
   BottomSheetAppTextInput: (props: any) =>
@@ -124,34 +128,9 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
       : null,
 }))
 
-vi.mock('@/components/goals/goal-detail-drawer/goal-ask-astra-button', () => ({
-  GoalAskAstraButton: ({ onPress }: any) =>
-    React.createElement('Pressable', { accessibilityLabel: 'ask-astra', onPress }),
-}))
-
 vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
 }))
-
-vi.mock('@/components/goals/goal-metrics-panel', () => ({
-  GoalMetricsPanel: () => React.createElement('GoalMetricsPanel'),
-}))
-
-vi.mock('lucide-react-native', () => {
-  const createIcon = (name: string) => (props: any) => React.createElement(name, props)
-  return {
-    ArchiveX: createIcon('ArchiveX'),
-    CheckCircle2: createIcon('CheckCircle2'),
-    ChevronRight: createIcon('ChevronRight'),
-    Flame: createIcon('Flame'),
-    PencilLine: createIcon('PencilLine'),
-    Plus: createIcon('Plus'),
-    Repeat: createIcon('Repeat'),
-    RotateCw: createIcon('RotateCw'),
-    Orbit: createIcon('Orbit'),
-    Trash2: createIcon('Trash2'),
-  }
-})
 
 vi.mock('@/hooks/use-goals', () => ({
   useGoals: () => ({
@@ -161,12 +140,12 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id ? { goal: detailGoal, metrics: null } : null,
-    isLoading: false,
+    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, ...forecastMetrics, habitAdherence } } : null,
+    isLoading: detailLoading,
     isError: detailLoadError,
     refetch: refetchDetail,
   }),
-  useUpdateGoalProgress: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useUpdateGoalProgress: () => ({ mutateAsync: updateProgressMutateAsync, isPending: false, error: null }),
   useUpdateGoalStatus: () => ({ mutateAsync: mockStatusMutateAsync, isPending: false, error: null }),
   useDeleteGoal: () => ({ mutateAsync: mockDeleteMutateAsync, isPending: false, error: null }),
 }))
@@ -176,6 +155,14 @@ function collectText(node: any): string {
   if (typeof node === 'string') return node
   if (Array.isArray(node)) return node.map(collectText).join('')
   return collectText(node.children ?? [])
+}
+
+function countRenderedActions(node: unknown, label: string): number {
+  if (Array.isArray(node)) return node.reduce((count, child) => count + countRenderedActions(child, label), 0)
+  if (!node || typeof node !== 'object') return 0
+  const renderedNode = node as { props?: Record<string, unknown>; children?: unknown[] }
+  const isAction = renderedNode.props?.accessibilityRole === 'button' && renderedNode.props.accessibilityLabel === label
+  return Number(isAction) + countRenderedActions(renderedNode.children ?? [], label)
 }
 
 const historyEntries = [
@@ -192,13 +179,25 @@ const linkedHabits = [{ id: 'h1', title: 'Read every night' }]
 describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     detailGoal = { ...listGoal, progressHistory: [] }
+    habitAdherence = []
+    forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline' }
+    detailLoading = false
     detailLoadError = false
+    detailAvailable = true
     refetchDetail.mockClear()
     mockDeleteMutateAsync.mockReset()
     mockDeleteMutateAsync.mockResolvedValue(undefined)
     mockStatusMutateAsync.mockReset()
     mockStatusMutateAsync.mockResolvedValue(undefined)
     mockPush.mockClear()
+    sheetTestControls.defer(false)
+    translation.current = (key: string, params?: Record<string, unknown>) =>
+      params ? `${key}:${JSON.stringify(params)}` : key
+    translation.language = 'en-US'
+    updateProgressMutateAsync.mockReset()
+    nativeMocks.sendAccessibilityEvent.mockReset()
+    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
+    useUIStore.setState({ astraConversationOpen: false })
   })
 
   function renderDrawer(onClose: () => void = vi.fn()) {
@@ -225,6 +224,363 @@ describe('GoalDetailDrawer', () => {
     })
   }
 
+
+  it.each(['Standard', 'Streak'] as const)('shows the producer forecast for a %s goal', (type) => {
+    detailGoal = { ...listGoal, type, isProgressDerived: true, deadline: '2025-01-20', linkedHabits: [{ id: 'habit-read', title: 'Read nightly' }], progressHistory: [] }
+    forecastMetrics = { velocityPerDay: 0.5, daysToDeadline: 13, projectedCompletionDate: '2025-01-25', trackingStatus: 'on_track' }
+    habitAdherence = [{ habitId: 'habit-read', habitTitle: 'Read nightly', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 3 }]
+    const tree = renderDrawer()
+    const text = collectText(tree.toJSON())
+    expect(text).toContain('goals.metrics.daysToDeadline13')
+    expect(text).toContain('goals.metrics.velocitygoals.metrics.dailyPace:{"value":"0.5","unit":"books"}')
+    expect(text).toContain('goals.metrics.projectedCompletionJan 25, 2025')
+    expect(text).toContain('goals.metrics.weeklyAdherence:{"percent":"75"}')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps no-deadline and no-data forecasts explicit', () => {
+    detailGoal = { ...listGoal, currentValue: 0, progressPercentage: 0, progressHistory: [] }
+    const tree = renderDrawer()
+    const text = collectText(tree.toJSON())
+    expect(text).toContain('goals.metrics.daysToDeadlinegoals.metrics.noDeadline')
+    expect(text).toContain('goals.metrics.velocitygoals.metrics.noData')
+    expect(text).toContain('goals.metrics.projectedCompletiongoals.metrics.noData')
+    expect(text).not.toContain('goals.metrics.weeklyAdherence')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([0, -3])('preserves %s deadline days instead of treating them as missing', (daysToDeadline) => {
+    detailGoal = { ...listGoal, deadline: daysToDeadline === 0 ? '2025-01-07' : '2025-01-04', progressHistory: [] }
+    forecastMetrics = { velocityPerDay: 0.5, projectedCompletionDate: '2025-01-25', daysToDeadline, trackingStatus: daysToDeadline === 0 ? 'at_risk' : 'behind' }
+    const tree = renderDrawer()
+    expect(collectText(tree.toJSON())).toContain(`goals.metrics.daysToDeadline${daysToDeadline}`)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('shows loading and recovers the forecast through the existing retry', () => {
+    detailAvailable = false
+    detailLoading = true
+    const tree = renderDrawer()
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'goals.metrics.title', accessibilityRole: 'progressbar' }).length).toBeGreaterThan(0)
+    expect(collectText(tree.toJSON())).not.toContain('goals.metrics.velocity')
+    detailLoading = false
+    detailLoadError = true
+    TestRenderer.act(() => tree.update(<GoalDetailDrawer open onClose={vi.fn()} goalId="1" />))
+    press(tree, 'common.retry')
+    expect(refetchDetail).toHaveBeenCalledOnce()
+    expect(collectText(tree.toJSON())).not.toContain('goals.metrics.title')
+    detailAvailable = true
+    detailLoadError = false
+    TestRenderer.act(() => tree.update(<GoalDetailDrawer open onClose={vi.fn()} goalId="1" />))
+    expect(collectText(tree.toJSON())).toContain('goals.metrics.velocity')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('waits for native detail dismissal before opening manual entry', () => {
+    sheetTestControls.defer(true)
+    const onClose = vi.fn()
+    const tree = renderDrawer(onClose)
+    press(tree, 'goals.updateProgress')
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progress' && typeof node.props.onChangeText === 'function')).toHaveLength(0)
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progress' && typeof node.props.onChangeText === 'function').length).toBeGreaterThan(0)
+    expect(onClose).not.toHaveBeenCalled()
+    press(tree, 'common.cancel')
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(collectText(tree.toJSON())).toContain('Read 12 books')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('keeps inline detail mounted through manual cancellation and saving', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    const onClose = vi.fn()
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={onClose} goalId="1" />) })
+    press(tree, 'goals.updateProgress')
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'goals.updateProgress').length).toBeGreaterThan(0)
+    press(tree, 'common.cancel')
+    press(tree, 'goals.updateProgress')
+    changeEntry(tree, 'goals.progress', '6')
+    changeEntry(tree, 'goals.progressNote', 'Inline note')
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 6, note: 'Inline note' } }))
+    expect(onClose).not.toHaveBeenCalled()
+    TestRenderer.act(() => { tree.unmount() })
+  })
+
+  it('labels unlinked streak entry as current progress', () => {
+    detailGoal = { ...detailGoal, type: 'Streak' }
+    const tree = renderDrawer()
+    press(tree, 'goals.updateProgress')
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'goals.form.streakTarget')).toHaveLength(0)
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progress' && typeof node.props.onChangeText === 'function').length).toBeGreaterThan(0)
+  })
+
+  function changeEntry(tree: ReturnType<typeof TestRenderer.create>, label: string, value: string) {
+    TestRenderer.act(() => {
+      const input = tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === label && typeof node.props.onChangeText === 'function')[0]
+      input.props.onChangeText(value)
+    })
+  }
+
+  it.each(['', '  ', '-1', 'abc', 'Infinity'])('rejects invalid manual progress %j without losing the note', async (value) => {
+    const tree = renderDrawer()
+    press(tree, 'goals.updateProgress')
+    changeEntry(tree, 'goals.progress', value)
+    changeEntry(tree, 'goals.progressNote', 'Keep this note')
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(collectText(tree.toJSON())).toContain('goals.form.progressValueInvalid')
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
+    expect(tree.root.findAllByProps({ value: 'Keep this note' }).length).toBeGreaterThan(0)
+  })
+
+  it.each(['0', '100'])('caps manual progress %s and permits an omitted note', async (value) => {
+    const tree = renderDrawer()
+    press(tree, 'goals.updateProgress')
+    changeEntry(tree, 'goals.progress', value)
+    if (value === '100') expect(collectText(tree.toJSON())).toContain('goals.form.progressExceedsTarget')
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: Math.min(Number(value), 12) } }))
+  })
+
+  it('retains a failed manual entry and note for retry and refreshes history after saving', async () => {
+    updateProgressMutateAsync.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined)
+    const tree = renderDrawer()
+    press(tree, 'goals.updateProgress')
+    changeEntry(tree, 'goals.progress', '8')
+    changeEntry(tree, 'goals.progressNote', 'Saved note')
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(tree.root.findAllByProps({ value: '8' }).length).toBeGreaterThan(0)
+    expect(tree.root.findAllByProps({ value: 'Saved note' }).length).toBeGreaterThan(0)
+    const alerts = tree.root.findAll((node: { type: unknown; props: { accessibilityLiveRegion?: string } }) => node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite')
+    expect(alerts.some((alert: unknown) => !!flattenText(alert))).toBe(true)
+    expect(refetchDetail).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(refetchDetail).toHaveBeenCalledOnce()
+    detailGoal = { ...detailGoal, currentValue: 8, progressHistory: [{ previousValue: 3, value: 8, note: 'Saved note', createdAtUtc: listGoal.createdAtUtc }] }
+    TestRenderer.act(() => { tree.update(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />) })
+    expect(collectText(tree.toJSON())).toContain('Saved note')
+    TestRenderer.act(() => { tree.unmount() })
+  })
+
+  it('returns to detail when an accepted save leaves its refresh paused offline', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    client.mount()
+    const query = vi.fn(() => Promise.resolve(detailGoal))
+    const observer = new QueryObserver(client, { queryKey: goalKeys.detail('1'), queryFn: query, initialData: detailGoal, enabled: false })
+    const unsubscribe = observer.subscribe(() => undefined)
+    refetchDetail.mockImplementationOnce(() => observer.refetch())
+    updateProgressMutateAsync.mockImplementationOnce(() => { onlineManager.setOnline(false); return Promise.resolve() })
+    try {
+      const tree = renderDrawer()
+      press(tree, 'goals.updateProgress')
+      changeEntry(tree, 'goals.progress', '7')
+      await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+      expect(client.getQueryState(goalKeys.detail('1'))?.fetchStatus).toBe('paused')
+      expect(query).not.toHaveBeenCalled()
+      expect(tree.root.findAllByProps({ name: 'progressNote' })).toHaveLength(0)
+      expect(updateProgressMutateAsync).toHaveBeenCalledOnce()
+      press(tree, 'goals.updateProgress')
+      press(tree, 'common.cancel')
+      expect(tree.root.findAllByProps({ name: 'progressNote' })).toHaveLength(0)
+    } finally {
+      await TestRenderer.act(async () => { await client.cancelQueries() })
+      unsubscribe()
+      client.unmount()
+      client.clear()
+      onlineManager.setOnline(true)
+    }
+  })
+
+  it('bounds progress notes and retains an over-limit draft for correction', async () => {
+    const tree = renderDrawer()
+    press(tree, 'goals.updateProgress')
+    const note = tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progressNote' && typeof node.props.onChangeText === 'function')[0]
+    changeEntry(tree, 'goals.progress', '7.5')
+    changeEntry(tree, 'goals.progressNote', 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
+    expect(note.props.value).toBe('a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
+    expect(note.props.accessibilityHint).toContain('goals.form.progressNoteTooLong')
+    expect(collectText(tree.toJSON())).toContain('goals.form.progressNoteTooLong')
+    const validNote = 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH)
+    changeEntry(tree, 'goals.progressNote', validNote)
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 7.5, note: validNote } }))
+  })
+
+  it('disables manual fields and repeated saves through successful dismissal', async () => {
+    let finish!: () => void
+    updateProgressMutateAsync.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
+    const tree = renderDrawer()
+    press(tree, 'goals.updateProgress')
+    changeEntry(tree, 'goals.progress', '7')
+    changeEntry(tree, 'goals.progressNote', 'One history entry')
+    sheetTestControls.defer(true)
+    const button = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.save')[0]
+    const submit = button.props.onPress
+    TestRenderer.act(() => { submit(); submit() })
+    expect(button.props.disabled).toBe(true)
+    expect(button.props.accessibilityState.busy).toBe(true)
+    for (const label of ['goals.progress', 'goals.progressNote']) {
+      const input = tree.root.findAll((node: { props: { accessibilityLabel?: string; editable?: boolean } }) => node.props.accessibilityLabel === label && node.props.editable === false)
+      expect(input.length).toBeGreaterThan(0)
+    }
+    expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
+    try {
+      await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      await TestRenderer.act(async () => { submit(); submit(); await Promise.resolve() })
+      expect(updateProgressMutateAsync).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ data: { currentValue: 7, note: 'One history entry' } }))
+      expect(button.props.disabled).toBe(true)
+      expect(button.props.accessibilityState.busy).toBe(true)
+      for (const label of ['goals.progress', 'goals.progressNote']) {
+        expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; editable?: boolean } }) => node.props.accessibilityLabel === label && node.props.editable === false).length).toBeGreaterThan(0)
+      }
+    } finally {
+      TestRenderer.act(() => sheetTestControls.completeDismissal())
+      sheetTestControls.defer(false)
+    }
+    expect(tree.root.findAllByProps({ name: 'progressNote' })).toHaveLength(0)
+    press(tree, 'goals.updateProgress')
+    const reopened = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.save')[0]
+    expect(reopened.props.disabled).toBe(false)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([
+    { status: 'Active', isProgressDerived: true },
+    { status: 'Completed', isProgressDerived: false },
+    { status: 'Abandoned', isProgressDerived: false },
+  ] as const)('hides manual entry for $status derived=$isProgressDerived', (state) => {
+    detailGoal = { ...detailGoal, ...state }
+    const tree = renderDrawer()
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'goals.updateProgress')).toHaveLength(0)
+  })
+
+  it('saves an arbitrary absolute progress value and trimmed note from the drawer', async () => {
+    const tree = renderDrawer()
+    press(tree, 'goals.updateProgress')
+    const change = (label: string, value: string) => TestRenderer.act(() => {
+      const input = tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === label && typeof node.props.onChangeText === 'function')[0]
+      input.props.onChangeText(value)
+    })
+    change('goals.progress', '7.5')
+    change('goals.progressNote', '  Finished a chapter  ')
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith({
+      goalId: '1', data: { currentValue: 7.5, note: 'Finished a chapter' },
+      goalName: listGoal.title, goalCount: 12, goalUnit: 'books',
+    })
+    expect(refetchDetail).toHaveBeenCalled()
+  })
+
+  const astraLabel = 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault'
+
+  it('opens Astra after sheet dismissal with the selected synced goal', () => {
+    detailGoal = { ...detailGoal, title: 'Synced goal' }
+    const onClose = vi.fn()
+    sheetTestControls.defer(true)
+    const tree = renderDrawer(onClose)
+    press(tree, astraLabel)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().draft).toBe('')
+    expect(onClose).not.toHaveBeenCalled()
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().draft).toBe('goals.detail.askAstraSeedDefault:{"title":"Synced goal"}')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('retains inline goal detail and the existing draft when Astra opens', () => {
+    useChatStore.setState({ draft: 'My unfinished message' })
+    const onClose = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={onClose} goalId="1" />) })
+    press(tree, astraLabel)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useChatStore.getState().draft).toBe('My unfinished message')
+    expect(useChatStore.getState().contextualSuggestion).toEqual({
+      id: 'goal-detail:1', label: 'nav.astra',
+      prompt: 'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
+    })
+    const chips = buildComposerChips({
+      surface: 'progress', status: 'success', habits: [], totalHabitCount: 0,
+      profile: createMockProfile(), contextualSuggestion: useChatStore.getState().contextualSuggestion,
+    })
+    expect(chips[0]?.id).toBe('goal-detail:1')
+    expect(chips[0]?.prompt).toBe('goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}')
+    TestRenderer.act(() => { useUIStore.getState().setAstraConversationOpen(false) })
+    expect(collectText(tree.toJSON())).toContain('Read 12 books')
+    TestRenderer.act(() => { tree.unmount() })
+  })
+
+  it('yields Android back to the conversation and restores detail back on return', () => {
+    const listeners = new Set<Parameters<typeof BackHandler.addEventListener>[1]>()
+    const subscription = vi.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, listener) => {
+      listeners.add(listener)
+      return { remove: () => { listeners.delete(listener) } }
+    })
+    const onClose = vi.fn()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={onClose} goalId="1" />) })
+    try {
+      expect(listeners.size).toBe(1)
+      press(tree, astraLabel)
+      expect(listeners.size).toBe(0)
+      expect(onClose).not.toHaveBeenCalled()
+      TestRenderer.act(() => { useUIStore.getState().setAstraConversationOpen(false) })
+      expect(listeners.size).toBe(1)
+      TestRenderer.act(() => { expect([...listeners][0]?.({ type: 'hardwareBackPress', timeStamp: 0 })).toBe(true) })
+      expect(onClose).toHaveBeenCalledOnce()
+    } finally {
+      TestRenderer.act(() => { tree.unmount() })
+      subscription.mockRestore()
+    }
+  })
+
+  it('disables the goal request until the saved draft is hydrated', () => {
+    useChatStore.setState({ draftHydrated: false })
+    const tree = renderDrawer()
+    const action = tree.root.findAll((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === astraLabel && node.props.accessibilityRole === 'button')[0]
+    expect(action.props.disabled).toBe(true)
+    expect(action.props.accessibilityState.disabled).toBe(true)
+    TestRenderer.act(() => { action.props.onPress() })
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().draft).toBe('')
+    TestRenderer.act(() => { useChatStore.setState({ draftHydrated: true }) })
+    expect(action.props.disabled).toBe(false)
+  })
+
+  it('keeps the sheet and chat unchanged if native dismissal rejects', () => {
+    sheetTestControls.defer(true)
+    const onClose = vi.fn()
+    const tree = renderDrawer(onClose)
+    press(tree, astraLabel)
+    TestRenderer.act(() => sheetTestControls.rejectDismissal())
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().draft).toBe('')
+    press(tree, astraLabel)
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  })
+
+  it('offers the cached goal on detail error and no request for an unavailable goal', () => {
+    detailLoadError = true
+    detailAvailable = false
+    const tree = renderDrawer()
+    press(tree, astraLabel)
+    expect(useChatStore.getState().draft).toContain('Read 12 books')
+    expect(collectText(tree.toJSON())).toContain('goals.detail.loadError')
+    TestRenderer.act(() => tree.update(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="missing" />))
+    expect(countRenderedActions(tree.toJSON(), astraLabel)).toBe(0)
+  })
+
   it('prefers synced detail data over the stale list cache', () => {
     detailGoal = {
       ...listGoal,
@@ -242,11 +598,30 @@ describe('GoalDetailDrawer', () => {
       )
     })
 
-    const sheet = tree.root.findByType('BottomSheetModal')
+    const sheet = tree.root.findByType('Sheet')
     const textContent = collectText(tree.toJSON())
 
-    expect(sheet.props.title).toBe('Read 12 books (synced)')
+    expect(sheet.props.title).toBe('progressScreen.sections.goals')
+    expect(textContent).toContain('Read 12 books (synced)')
     expect(textContent).toContain('"current":6')
+  })
+
+  it('retargets the already-mounted detail ring when progress changes', () => {
+    const timing = vi.spyOn(Animated, 'timing')
+    const tree = renderDrawer()
+    const ring = tree.root.findAll((node: any) => node.props.accessibilityRole === 'progressbar')[0]
+    const svg = ring.findAll((node: any) => node.type === 'Svg')[0]
+    TestRenderer.act(() => svg.props.onLayout())
+
+    detailGoal = { ...detailGoal, currentValue: 6, progressPercentage: 50 }
+    TestRenderer.act(() => {
+      tree.update(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />)
+    })
+
+    const updatedRing = tree.root.findAll((node: any) => node.props.accessibilityRole === 'progressbar')[0]
+    expect(updatedRing).toBe(ring)
+    expect(updatedRing.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 50 })
+    expect(timing).toHaveBeenCalledOnce()
   })
 
   it('renders the progress block with percentage', () => {
@@ -261,36 +636,10 @@ describe('GoalDetailDrawer', () => {
     const textContent = collectText(tree.toJSON())
 
     expect(textContent).toContain('goals.progress')
-    expect(textContent).toContain('25%')
+    expect(tree.root.findAll((node: any) => node.props.accessibilityValue?.now === 25).length).toBeGreaterThan(0)
   })
 
-  it('opens the progress form when the edit affordance is tapped', () => {
-    let tree: any
 
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
-      )
-    })
-
-    expect(tree.root.findAllByType('BottomSheetAppTextInput')).toHaveLength(0)
-
-    const editButton = tree.root
-      .findAll(
-        (node: any) =>
-          node.props.accessibilityLabel === 'goals.updateProgress' &&
-          typeof node.props.onPress === 'function',
-      )
-      .at(0)
-
-    TestRenderer.act(() => {
-      editButton.props.onPress()
-    })
-
-    expect(
-      tree.root.findAllByType('BottomSheetAppTextInput').length,
-    ).toBeGreaterThan(0)
-  })
 
   it('does not offer manual progress editing for a derived goal', () => {
     detailGoal = {
@@ -345,13 +694,121 @@ describe('GoalDetailDrawer', () => {
       .findAll((node: any) => typeof node.props.accessibilityLabel === 'string')
       .map((node: any) => node.props.accessibilityLabel)
 
-    expect(labels).toContain('goals.detail.markCompleted')
+    expect(labels).not.toContain('goals.detail.markCompleted')
     expect(labels).toContain('goals.detail.markAbandoned')
     expect(labels).toContain('goals.detail.edit')
     expect(labels).toContain('goals.detail.delete')
   })
 
-  it('orders history before linked habits for standard goals', () => {
+  it('keeps the linked habits section visible at count zero', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    expect(collectText(tree.toJSON())).toContain('goals.noLinkedHabits')
+  })
+
+  it('opens each linked habit with its own adherence value', () => {
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [
+        { id: 'habit-read', title: 'Read every night' },
+        { id: 'habit-stretch', title: 'Stretch' },
+      ],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-stretch', habitTitle: 'Stretch', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 4 },
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+    const tree = renderDrawer()
+    const readLabel = 'Read every night, goals.metrics.weeklyAdherence:{"percent":"90"}, goals.detail.linkedHabitStreak:{"count":12}'
+    const stretchLabel = 'Stretch, goals.metrics.weeklyAdherence:{"percent":"75"}, goals.detail.linkedHabitStreak:{"count":4}'
+
+    expect(collectText(tree.toJSON())).toContain('goals.detail.linkedHabitStreak:{"count":12}')
+    expect(collectText(tree.toJSON())).toContain('goals.detail.linkedHabitStreak:{"count":4}')
+
+    press(tree, readLabel)
+    press(tree, stretchLabel)
+
+    expect(mockPush).toHaveBeenNthCalledWith(1, { pathname: '/habits/[id]', params: { id: 'habit-read' } })
+    expect(mockPush).toHaveBeenNthCalledWith(2, { pathname: '/habits/[id]', params: { id: 'habit-stretch' } })
+  })
+
+  it('dismisses the sheet before opening a linked habit', async () => {
+    await i18n.changeLanguage('en')
+    translation.current = i18n.t.bind(i18n)
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+    const events: string[] = []
+    const onClose = vi.fn(() => { events.push('close') })
+    mockPush.mockImplementationOnce(() => { events.push('push') })
+    sheetTestControls.defer(true)
+    const tree = renderDrawer(onClose)
+
+    press(tree, `Read every night, ${i18n.t('goals.metrics.weeklyAdherence', { percent: '90' })}, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-read' } })
+    expect(events).toEqual(['close', 'push'])
+  })
+
+  it('opens a linked habit directly when the detail is inline', async () => {
+    await i18n.changeLanguage('en')
+    translation.current = i18n.t.bind(i18n)
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+    sheetTestControls.defer(true)
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} inline onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    press(tree, `Read every night, ${i18n.t('goals.metrics.weeklyAdherence', { percent: '90' })}, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
+
+    expect(sheetTestControls.isDismissPending).toBe(false)
+    expect(mockPush).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-read' } })
+  })
+
+  it('composes footer actions from canonical ListRow controls', () => {
+    const tree = renderDrawer()
+
+    for (const label of ['goals.detail.edit', 'goals.detail.markAbandoned', 'goals.detail.delete']) {
+      const row = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]
+      expect(row?.props.onPressIn).toBeTypeOf('function')
+      expect(row?.props.onPressOut).toBeTypeOf('function')
+    }
+  })
+
+  it('orders linked habits before history for standard goals', () => {
     detailGoal = {
       ...listGoal,
       progressHistory: historyEntries,
@@ -367,8 +824,8 @@ describe('GoalDetailDrawer', () => {
 
     const textContent = collectText(tree.toJSON())
     expect(textContent.indexOf('goals.progressHistory')).toBeGreaterThan(-1)
-    expect(textContent.indexOf('goals.progressHistory')).toBeLessThan(
-      textContent.indexOf('goals.linkedHabits'),
+    expect(textContent.indexOf('goals.linkedHabits')).toBeLessThan(
+      textContent.indexOf('goals.progressHistory'),
     )
   })
 
@@ -407,7 +864,7 @@ describe('GoalDetailDrawer', () => {
     const retryButton = tree.root
       .findAll(
         (node: any) =>
-          node.props.accessibilityLabel === 'common.retry' &&
+          flattenText(node.props.children) === 'common.retry' &&
           typeof node.props.onPress === 'function',
       )
       .at(0)
@@ -426,13 +883,7 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer(onClose)
 
     press(tree, 'goals.detail.delete')
-    const confirm = tree.root
-      .findAll(
-        (n: any) =>
-          n.props.accessibilityLabel === 'confirm:goals.detail.delete' &&
-          typeof n.props.onPress === 'function',
-      )
-      .at(0)
+    const confirm = tree.root.findAllByProps({ testID: 'button-destructive-sm' }).at(0)
     await TestRenderer.act(async () => {
       await confirm.props.onPress()
     })
@@ -447,13 +898,7 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer(onClose)
 
     press(tree, 'goals.detail.delete')
-    const confirm = tree.root
-      .findAll(
-        (n: any) =>
-          n.props.accessibilityLabel === 'confirm:goals.detail.delete' &&
-          typeof n.props.onPress === 'function',
-      )
-      .at(0)
+    const confirm = tree.root.findAllByProps({ testID: 'button-destructive-sm' }).at(0)
     await TestRenderer.act(async () => {
       await confirm.props.onPress()
     })
@@ -462,70 +907,10 @@ describe('GoalDetailDrawer', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  /* WHY: replicates the goal-list host contract (drawer mounted while
-     selectedGoalId is set, close only clears `open`) so the exit action is
-     proven to survive the close the way production actually runs it.
-     https://sheet.lodev09.com/guides/navigation */
-  function GoalListHostReplica() {
-    const [selectedGoalId, setSelectedGoalId] = React.useState<string | null>(null)
-    const [showDetail, setShowDetail] = React.useState(false)
-    return React.createElement(
-      React.Fragment,
-      null,
-      React.createElement('Pressable', {
-        accessibilityLabel: 'open-goal-detail',
-        onPress: () => {
-          setSelectedGoalId('1')
-          setShowDetail(true)
-        },
-      }),
-      selectedGoalId
-        ? React.createElement(GoalDetailDrawer, {
-            open: showDetail,
-            onClose: () => setShowDetail(false),
-            goalId: selectedGoalId,
-          })
-        : null,
-    )
-  }
-
-  it('seeds a chat draft and navigates to Astra only after the host-mounted sheet finishes dismissing', () => {
-    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<GoalListHostReplica />)
-    })
-
-    press(tree, 'open-goal-detail')
-    expect(tree.root.findByType('BottomSheetModal').props.open).toBe(true)
-
-    press(tree, 'ask-astra')
-
-    expect(setItem).toHaveBeenCalledWith(
-      'orbit-chat-draft',
-      'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
-    )
-    expect(mockPush).not.toHaveBeenCalled()
-
-    const sheet = tree.root.findByType('BottomSheetModal')
-    expect(sheet.props.open).toBe(false)
-
-    press(tree, 'sheet-did-dismiss')
-
-    expect(mockPush).toHaveBeenCalledWith('/chat')
-    expect(mockPush).toHaveBeenCalledTimes(1)
-
-    press(tree, 'sheet-did-dismiss')
-    expect(mockPush).toHaveBeenCalledTimes(1)
-  })
-
   it('runs status mutations from the active action footer', () => {
     const tree = renderDrawer()
-    press(tree, 'goals.detail.markCompleted')
-    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
-
     press(tree, 'goals.detail.markAbandoned')
-    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(2)
+    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
   })
 
   it('offers reactivate for a non-active goal', () => {
@@ -540,4 +925,310 @@ describe('GoalDetailDrawer', () => {
     expect(() => press(tree, 'goals.detail.edit')).not.toThrow()
     expect(() => press(tree, 'attempt-dismiss')).not.toThrow()
   })
+  it.each(['Standard', 'Streak'] as const)('stage 5 names derived progress for %s and hides steppers', (type) => {
+    detailGoal = { ...listGoal, type, isProgressDerived: true, linkedHabits: [{ id: 'h1', title: 'Read nightly' }], progressHistory: [] }
+    const tree = renderDrawer()
+    expect(collectText(tree.toJSON())).toContain('goals.detail.derived')
+    const label = 'goals.detail.increase'
+    expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').at(0)).toBeFalsy()
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it.each([false, undefined])('stage 5 steps manual progress when derived is %s', (isProgressDerived) => {
+    detailGoal = { ...listGoal, type: 'Streak', isProgressDerived, progressHistory: [] }
+    const tree = renderDrawer()
+    expect(collectText(tree.toJSON())).toContain('goals.detail.manualProgress')
+    const label = 'goals.detail.increase'
+    press(tree, label)
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { currentValue: 4 },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
+  })
+
+  it('announces one successful progress update with the resulting value', async () => {
+    translation.language = 'pt-BR'
+    detailGoal = { ...listGoal, currentValue: 0.23456, targetValue: 2.34567, progressPercentage: 10, progressHistory: [] }
+    updateProgressMutateAsync.mockResolvedValueOnce(undefined)
+    const tree = renderDrawer()
+
+    await TestRenderer.act(async () => { press(tree, 'goals.detail.increase'); await Promise.resolve() })
+
+    const statuses = tree.root.findAll((node: any) =>
+      node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite' &&
+      flattenText(node) === 'goals.detail.progressUpdated:{"current":"1,23456","target":"2,34567","unit":"books"}',
+    )
+    expect(statuses).toHaveLength(1)
+  })
+
+  it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
+    detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: true, progressHistory: [] }
+    const tree = renderDrawer()
+    expect(collectText(tree.toJSON())).toContain('goals.detail.completeWhy')
+    const label = 'goals.detail.markCompleted'
+    const complete = tree.root.findAll((node: any) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').at(0)
+    expect(complete).toBeTruthy()
+    expect(tree.root.findAll((node: any) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+    const completedIndicator = tree.root.findByProps({ testID: 'status-ring' })
+    expect(StyleSheet.flatten(completedIndicator.props.style)).toMatchObject({ width: 44, height: 44 })
+    expect(complete.props.testID).toBe("button-secondary-sm")
+    press(tree, label)
+    expect(mockStatusMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { status: 'Completed' },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
+    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('stage 5 keeps unfinished goal progress at 60px', () => {
+    const tree = renderDrawer()
+
+    const unfinishedIndicator = tree.root.findByProps({ testID: 'progress-ring-unfinished' })
+    expect(unfinishedIndicator.props.width).toBe(60)
+    expect(unfinishedIndicator.props.height).toBe(60)
+  })
+
+  it('stage 5 lets the progress write complete a manual goal at its target', async () => {
+    detailGoal = { ...listGoal, currentValue: 11, progressPercentage: 92, progressHistory: [] }
+    updateProgressMutateAsync.mockImplementationOnce(({ data }) => {
+      const optimisticDetail = updateGoalProgressDetail({
+        goal: detailGoal,
+        metrics: {
+          progressPercentage: detailGoal.progressPercentage,
+          velocityPerDay: 0,
+          projectedCompletionDate: null,
+          daysToDeadline: null,
+          trackingStatus: 'no_deadline',
+          habitAdherence: [],
+        },
+      }, data.currentValue)
+      detailGoal = optimisticDetail!.goal
+      return Promise.resolve({ queued: true, queuedMutationId: 'mutation-1' })
+    })
+    const tree = renderDrawer()
+
+    press(tree, 'goals.detail.increase')
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { currentValue: 12 },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
+    expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
+    expect(refetchDetail).toHaveBeenCalled()
+    TestRenderer.act(() => {
+      tree.update(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />)
+    })
+    expect(detailGoal.status).toBe('Completed')
+    expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === 'goals.detail.markCompleted')).toHaveLength(0)
+    expect(mockStatusMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('stage 5 completes a target-reached manual goal with one neutral action and explanation', () => {
+    detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: false, progressHistory: [] }
+    const tree = renderDrawer()
+
+    const completionLabel = 'goals.detail.markCompleted'
+    expect(countRenderedActions(tree.toJSON(), completionLabel)).toBe(1)
+    const complete = tree.root.findAll((node: any) => node.props.accessibilityLabel === completionLabel && typeof node.props.onPress === 'function').at(0)
+    expect(complete.props.testID).toBe('button-secondary-sm')
+    expect(collectText(tree.toJSON())).toContain('goals.detail.manualProgress')
+    expect(collectText(tree.toJSON())).toContain('goals.detail.completeWhy')
+    press(tree, 'goals.detail.markCompleted')
+    expect(mockStatusMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { status: 'Completed' },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
+    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    { name: 'manual below target', status: 'Active', progressPercentage: 92, isProgressDerived: false },
+    { name: 'derived below target', status: 'Active', progressPercentage: 92, isProgressDerived: true },
+    { name: 'completed', status: 'Completed', progressPercentage: 100, isProgressDerived: false },
+    { name: 'abandoned', status: 'Abandoned', progressPercentage: 100, isProgressDerived: false },
+  ] as const)('stage 5 hides completion for $name goals', ({ status, progressPercentage, isProgressDerived }) => {
+    detailGoal = { ...listGoal, status, progressPercentage, isProgressDerived, progressHistory: [] }
+    const tree = renderDrawer()
+
+    expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === 'goals.detail.markCompleted')).toHaveLength(0)
+  })
+
+  it.each(['Active', 'Completed'] as const)('stage 5 never reopens a %s goal', (status) => {
+    detailGoal = { ...listGoal, status, progressHistory: [] }
+    const tree = renderDrawer()
+    const label = 'goals.detail.reactivate'
+    expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').at(0)).toBeFalsy()
+    expect(collectText(tree.toJSON())).not.toContain('goals.detail.markCompleted')
+  })
+
+  it('stage 5 removes the figure and ring from an abandoned goal', () => {
+    detailGoal = { ...listGoal, status: 'Abandoned', progressHistory: [] }
+    const tree = renderDrawer()
+    expect(collectText(tree.toJSON())).not.toContain('"current":3')
+    expect(tree.root.findAll((node: any) => node.props.accessibilityRole === "progressbar")).toHaveLength(0)
+    const label = 'goals.detail.reactivate'
+    expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').at(0)).toBeTruthy()
+  })
+
+  it('stage 5 shows capacity and the newest three history rows before expanding', () => {
+    detailGoal = { ...listGoal, linkedHabits: Array.from({ length: 20 }, (_, index) => ({ id: String(index), title: `Habit ${index}` })), progressHistory: [4, 3, 2, 1].map(value => ({ createdAtUtc: `2026-09-0${value}T00:00:00Z`, previousValue: value - 1, value, note: `entry-${value}` })) }
+    const tree = renderDrawer()
+    const content = collectText(tree.toJSON())
+    expect(content).toContain('goals.detail.linkedLimit')
+    expect(content.indexOf('goals.linkedHabits')).toBeLessThan(content.indexOf('goals.detail.linkedLimit'))
+    expect(collectText(tree.toJSON())).toContain('entry-4')
+    expect(collectText(tree.toJSON())).not.toContain('entry-1')
+    let label = 'goals.detail.showAllHistory:{"count":4}'
+    press(tree, label)
+    expect(collectText(tree.toJSON())).toContain('entry-1')
+    label = 'goals.detail.showLessHistory'
+    press(tree, label)
+    expect(collectText(tree.toJSON())).not.toContain('entry-1')
+  })
+
+  it('stage 5 renders localized history dates, signed deltas, and current over target in three columns', () => {
+    detailGoal = {
+      ...listGoal,
+      targetValue: 0.0002,
+      progressHistory: [
+        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0, value: 0.0001, note: 'positive' },
+        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 0.0002, value: 0.0001, note: 'negative' },
+        { createdAtUtc: '2026-09-02T12:34:00Z', previousValue: 0.0001, value: 0.0001, note: 'zero' },
+      ],
+    }
+
+    const tree = renderDrawer()
+
+    const historyText = (testID: string) => tree.root.findAll((node: any) => node.type === 'Text' && node.props.testID === testID).map(flattenText)
+    expect(historyText('history-delta-positive')).toEqual(['+0.0001'])
+    expect(historyText('history-delta-negative')).toEqual(['-0.0001'])
+    expect(historyText('history-delta-zero')).toEqual(['0'])
+    expect(historyText('history-progress')).toEqual([
+      '0.0001 / 0.0002',
+      '0.0001 / 0.0002',
+      '0.0001 / 0.0002',
+    ])
+    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.accessibilityRole === 'list').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.role === 'listitem')).toHaveLength(0)
+    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.accessible && node.props.accessibilityLabel?.includes('goals.detail.historyDate'))).toHaveLength(3)
+    for (const date of tree.root.findAll((node: any) => node.type === 'Text' && node.props.testID === 'history-date')) {
+      expect(flattenText(date)).not.toMatch(/\d:\d/)
+    }
+  })
+
+  it('rounds decimal history deltas without exposing floating-point noise', () => {
+    detailGoal = {
+      ...listGoal,
+      targetValue: 1.2,
+      progressHistory: [
+        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0.2, value: 0.3, note: null },
+        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 1.1, value: 1.2, note: null },
+      ],
+    }
+
+    const tree = renderDrawer()
+    const deltas = tree.root
+      .findAll((node: any) => node.type === 'Text' && node.props.testID === 'history-delta-positive')
+      .map(flattenText)
+
+    expect(deltas).toEqual(['+0.1', '+0.1'])
+  })
+
+  it('stage 5 names the goal in deletion confirmation before any write', () => {
+    const tree = renderDrawer()
+    const label = 'goals.detail.delete'
+    press(tree, label)
+    expect(collectText(tree.toJSON())).toContain('goals.detail.deleteNamed:{"title":"Read 12 books"}')
+    expect(mockDeleteMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('stage 5 keeps failed progress unchanged and allows retry', async () => {
+    updateProgressMutateAsync.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined)
+    const tree = renderDrawer()
+    await TestRenderer.act(async () => { press(tree, 'goals.detail.increase'); await Promise.resolve() })
+    const alert = tree.root.findAll((node: any) => node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]
+    expect(flattenText(alert)).not.toBe('')
+    expect(collectText(tree.toJSON())).toContain('"current":3')
+    await TestRenderer.act(async () => { press(tree, 'goals.detail.increase'); await Promise.resolve() })
+    expect(updateProgressMutateAsync).toHaveBeenCalledTimes(2)
+  })
+
+  it('stage 5 bounds the stepper and blocks duplicate pending writes', async () => {
+    detailGoal = { ...listGoal, currentValue: 0, progressPercentage: 0, progressHistory: [] }
+    let resolve: () => void = () => {}
+    updateProgressMutateAsync.mockImplementationOnce(() => new Promise<void>(done => { resolve = done }))
+    const tree = renderDrawer()
+    const decrease = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'goals.detail.decrease')[0]
+    expect(decrease.props.disabled).toBe(true)
+    press(tree, 'goals.detail.increase')
+    press(tree, 'goals.detail.increase')
+    expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
+    const increase = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'goals.detail.increase')[0]
+    expect(increase.props.disabled).toBe(true)
+    await TestRenderer.act(async () => { resolve(); await Promise.resolve() })
+    expect(increase.props.disabled).toBe(false)
+  })
+
+  it('stage 5 returns from inline detail with Android back', () => {
+    const onClose = vi.fn()
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={onClose} goalId="1" />) })
+    TestRenderer.act(() => { (BackHandler as typeof BackHandler & { emitBackPress: () => boolean }).emitBackPress() })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('moves accessibility focus to the inline detail heading on entry', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />,
+        {
+          createNodeMock: () => null,
+        },
+      )
+    })
+
+    expect(tree.root.findAll((node: any) => node.props.testID === 'goal-detail-heading').length).toBeGreaterThan(0)
+    expect(nativeMocks.sendAccessibilityEvent).toHaveBeenCalledWith(expect.any(Object), 'focus')
+    expect(nativeMocks.sendAccessibilityEvent).toHaveBeenCalledTimes(1)
+    TestRenderer.act(() => tree.unmount())
+  })
+  it('uses the inline goal title rather than the bar title as its page header', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />) })
+    const titles = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      node.type === PersonalText && node.props.accessibilityRole === 'header' &&
+      (node.props.children === 'Read 12 books' || node.props.children === 'progressScreen.sections.goals'))
+    expect(titles).toHaveLength(1)
+    expect(titles[0]!.props.children).toBe('Read 12 books')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps one fallback header while an inline goal has no data', () => {
+    detailAvailable = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="missing" />) })
+    const titles = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'progressScreen.sections.goals')
+    expect(titles).toHaveLength(1)
+    TestRenderer.act(() => tree.unmount())
+  })
+
 })

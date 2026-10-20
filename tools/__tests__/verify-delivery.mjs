@@ -8,12 +8,15 @@ const BRANCH = "feature/orb-200-delivery"
 const ISSUE = "ORB-200"
 let testedToolPath = null
 
-const stageDelivery = (label, { commit = true, push = true, dirty = [] } = {}) => {
+const stageDelivery = (label, { commit = true, push = true, dirty = [], changedPaths = ["worked.txt"] } = {}) => {
   const repo = stageRepo(`verify-delivery-${label}`)
   if (!repo || repo.git(["switch", "-q", "-c", BRANCH]).status !== 0) return null
   if (commit) {
-    writeFileSync(join(repo.path, "worked.txt"), `${label}\n`)
-    if (repo.git(["add", "worked.txt"]).status !== 0 || repo.git(["commit", "-q", "-m", `${label} the ticket's real work`]).status !== 0) return null
+    for (const path of changedPaths) {
+      mkdirSync(dirname(join(repo.path, path)), { recursive: true })
+      writeFileSync(join(repo.path, path), `${label}\n`)
+    }
+    if (repo.git(["add", ...changedPaths]).status !== 0 || repo.git(["commit", "-q", "-m", `${label} the ticket's real work`]).status !== 0) return null
   }
   if (push && repo.git(["push", "-q", "-u", "origin", BRANCH]).status !== 0) return null
   for (const path of dirty) {
@@ -33,17 +36,15 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
   number,
   url: `https://github.com/useorbitai/orbit-ui-mobile/pull/${number}`,
   headRefOid,
+  baseRefName: "main",
   additions,
   deletions,
   changedFiles,
   title: `${ISSUE} do the thing`,
   body: `Implements ${ISSUE}.`,
+  labels: [],
 })
 
-/**
- * `gh api repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks`,
- * which pins every workflow check to 15368 (github-actions) and `pullfrog-approval` to 1768019.
- */
 const GITHUB_ACTIONS_APP = 15368
 const PULLFROG_APP = 1768019
 
@@ -60,20 +61,34 @@ const checkRun = (name, { status = "COMPLETED", conclusion = "SUCCESS", startedA
 const statusContext = (context, state, createdAt = "2026-08-06T10:00:00Z") => ({ __typename: "StatusContext", context, state, createdAt, targetUrl: null })
 
 /**
+ * A review node exactly as the confirmed query returns one. GraphQL spells the reviewing app's login
+ * `pullfrog` with `__typename: "Bot"`, which is what the fallback matches on; REST's `pullfrog[bot]`
+ * spelling never reaches this tool.
+ */
+const review = (state, commitOid, { login = "pullfrog", typename = "Bot", submittedAt = "2026-08-06T10:20:00Z" } = {}) => ({
+  state,
+  submittedAt,
+  author: login === null ? null : { __typename: typename, login },
+  commit: commitOid === null ? null : { oid: commitOid },
+})
+
+/**
  * Branch protection pins each required context to the app that must provide it, so the default
  * required list here is derived from the fixture's own producers. `checks` is what the tool reads;
  * `contexts` is the same list with the producer erased and is present because GitHub returns both.
  */
 const requiredFrom = (nodes) => nodes.map((node) => ({ context: node.name ?? node.context, app_id: node.checkSuite?.app?.databaseId ?? null }))
 
-/** The envelope the confirmed GraphQL query returns, keyed exactly like the live #716 response. */
-const prState = (nodes, headRefOid, isDraft = false) => ({
-  data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft, statusCheckRollup: { contexts: { nodes } } } } },
+const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
+  data: { repository: { nameWithOwner: "useorbitai/orbit-ui-mobile", pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid,
+    headRefName: BRANCH, headRepository: { nameWithOwner: "useorbitai/orbit-ui-mobile" },
+    commits: { nodes: [{ commit: { oid: headRefOid } }] },
+    isDraft, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: reviews }, statusCheckRollup: { contexts: { nodes } } } } },
 })
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")
 
-const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null) => {
+const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [], runs, rerunCountFile, rerunExit = 0, rerunStderr = "", rerunHangPidFile, rerunOverflowBytes, ciReadMarker } = {}) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -81,6 +96,14 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     /* the malformed-output tests fail before this state is read */
   }
   const required = requiredChecks ?? requiredFrom(nodes)
+  const state = prState(nodes, headRefOid, false, reviews)
+  state.data.repository.pullRequest.baseRefName = baseRefName
+  try {
+    const pullRequests = JSON.parse(stdout)
+    if (Array.isArray(pullRequests)) stdout = JSON.stringify(pullRequests.map((pullRequest) => ({ ...pullRequest, baseRefName })))
+  } catch {
+    /* malformed-output tests retain their original response */
+  }
   return orcaEnv([
     /**
      * Only the repository label is asserted from the ticket, so a whole-board read here is pure
@@ -90,14 +113,37 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }), removePath: boardReadMarker },
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
-    { match: "api graphql", stdout: JSON.stringify(prState(nodes, headRefOid)) },
-    { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }) },
+    { match: "api graphql", stdout: JSON.stringify(state), stdoutSequence: states?.map((entry) => JSON.stringify(entry)), sequenceFile, removePath: ciReadMarker },
+    { match: "/activity?", stdout: JSON.stringify([{ activity_type: "push", actor: { login: "<actor>" }, after: headRefOid,
+      before: "base-sha", id: 1, node_id: "<activity-id>", ref: `refs/heads/${BRANCH}`, timestamp: "2026-08-01T00:00:01Z" }]) },
+    { match: `branches/${encodeURIComponent(baseRefName)}/protection/required_status_checks`, stdout: protectionResponse ?? JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }), exit: protectionExit },
     { match: "api repos/", stdout: JSON.stringify(comparison) },
+    ...(runs ? [{ match: "run list --branch", stdout: JSON.stringify(runs) }] : []),
+    ...(rerunCountFile ? [{ match: "run rerun", stdout: "", stdoutSequence: ["", ""], sequenceFile: rerunCountFile, exit: rerunExit, stderr: rerunStderr,
+      hangTreePidFile: rerunHangPidFile, overflowStdoutBytes: rerunOverflowBytes }] : []),
   ])
 }
 
 const verdictOf = (fixture, stdout, expected, status, name) =>
   check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { path: testedToolPath, env: ghPlan(stdout) })
+
+/** `gh pr view 1163 --json baseRefName,headRefOid` returned these two keys:
+ * {"baseRefName":"redesign/main","headRefOid":"<commit SHA>"}. Fixture heads come from real Git commits. */
+const REDESIGN_BASE = "redesign/main"
+const stageRedesignParity = (label, uiCommitOn) => {
+  const repo = stageRepo(`verify-delivery-${label}`)
+  if (!repo || repo.git(["branch", REDESIGN_BASE]).status !== 0) return null
+  if (uiCommitOn === REDESIGN_BASE && repo.git(["switch", "-q", REDESIGN_BASE]).status !== 0) return null
+  const uiPath = "apps/mobile/components/Message.tsx"
+  mkdirSync(dirname(join(repo.path, uiPath)), { recursive: true })
+  writeFileSync(join(repo.path, uiPath), "mobile change\n")
+  if (repo.git(["add", uiPath]).status !== 0 || repo.git(["commit", "-q", "-m", "mobile change"]).status !== 0) return null
+  if (repo.git(["switch", "-q", "-c", BRANCH]).status !== 0) return null
+  writeFileSync(join(repo.path, "worked.txt"), "non-UI work\n")
+  if (repo.git(["add", "worked.txt"]).status !== 0 || repo.git(["commit", "-q", "-m", "non-UI work"]).status !== 0 ||
+      repo.git(["push", "-q", "-u", "origin", BRANCH]).status !== 0) return null
+  return { ...repo, head: repo.git(["rev-parse", "HEAD"]).stdout.trim() }
+}
 
 export const cases = () => {
   check(TOOL, "refuses a missing issue", ["--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue requires ORB-N, #N, or N/ })
@@ -127,8 +173,9 @@ export const cases = () => {
 
 export const resolveTicket = (reference) => {
   const value = String(reference).toUpperCase()
-  if (value === "ORB-200") return { identifier: "ORB-200", number: 200 }
-  if (value === "#9001" || value === "9001") return { identifier: null, number: 9001 }
+  if (value === "ORB-200") return { identifier: "ORB-200", number: 200, reference: "ORB-200" }
+  if (value === "#393") return { identifier: null, number: 393, reference: "#393" }
+  if (value === "#9001" || value === "9001") return { identifier: null, number: 9001, reference: "#9001" }
   throw new Error("Unknown migrated ticket " + reference)
 }
 /**
@@ -161,7 +208,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const dirtyNoCommit = stageDelivery("dirty-no-commit", { commit: false, dirty: ["src/half-done.ts"] })
   verdictOf(dirtyNoCommit, JSON.stringify([pullRequest(dirtyNoCommit.head)]), "NO_COMMIT", 1, "no commits and a dirty tree is NO_COMMIT, which now means exactly that")
 
-  const residue = stageDelivery("dirty-residue", { dirty: ["apps/web/next-env.d.ts", "apps/web/e2e/visual/orb-39-evidence.visual.ts"] })
+  const residue = stageDelivery("dirty-residue", { dirty: ["apps/web/next-env.d.ts", "apps/web/e2e/orb-39-evidence.spec.ts"] })
   const residueResult = verdictOf(residue, JSON.stringify([pullRequest(residue.head)]), "DIRTY_TREE", 1, "commits plus a dirty tree is DIRTY_TREE, never NO_COMMIT")
   T(
     `${TOOL}: DIRTY_TREE still evaluates hasCommits, so the report says the work exists`,
@@ -247,6 +294,39 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   verdictOf(unpushed, JSON.stringify([pullRequest(unpushed.head)]), "UNPUSHED", 1, "a commit that never reached origin is UNPUSHED")
 
   const pushed = stageDelivery("pushed")
+  T(`${TOOL}: alternate base staged for PR state fixtures`, pushed.git(["branch", REDESIGN_BASE, "main"]).status === 0)
+  const mobileOnly = stageDelivery("mobile-only", { changedPaths: ["apps/mobile/components/Message.tsx"] })
+  const parityCiReadMarker = stage("verify-delivery/parity-ci-read", "must remain")
+  check(
+    TOOL,
+    "a one-sided mobile change without parity:exempt is a delivery defect before CI",
+    ["--issue", ISSUE, "--worktree", mobileOnly.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "MISSING_PARITY_LABEL"[\s\S]*"parityLabel": \{[\s\S]*"pass": false/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(mobileOnly.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { ciReadMarker: parityCiReadMarker }) },
+  )
+  T(`${TOOL}: a missing parity label is reported before CI is read`, existsSync(parityCiReadMarker))
+  verdictOf(mobileOnly, JSON.stringify([{ ...pullRequest(mobileOnly.head), labels: [{ name: "parity:exempt" }] }]), "DELIVERED", 0, "a labeled one-sided mobile change is deliverable")
+  const webOnly = stageDelivery("web-only", { changedPaths: ["apps/web/components/Message.tsx"] })
+  verdictOf(webOnly, JSON.stringify([pullRequest(webOnly.head)]), "MISSING_PARITY_LABEL", 1, "a one-sided web change also needs parity:exempt")
+  const mirrored = stageDelivery("mirrored", { changedPaths: ["apps/web/components/Message.tsx", "apps/mobile/components/Message.tsx"] })
+  verdictOf(mirrored, JSON.stringify([pullRequest(mirrored.head)]), "DELIVERED", 0, "a mirrored change needs no parity label")
+  const nonUiAgainstRedesign = stageRedesignParity("non-ui-redesign", REDESIGN_BASE)
+  const mobileAgainstRedesign = stageRedesignParity("mobile-redesign", "main")
+  T(`${TOOL}: divergent base fixtures staged`, Boolean(nonUiAgainstRedesign && mobileAgainstRedesign))
+  if (nonUiAgainstRedesign && mobileAgainstRedesign) {
+    for (const [fixture, expected, name] of [
+      [nonUiAgainstRedesign, "DELIVERED", "a non-UI PR against redesign/main ignores its base's mobile commit"],
+      [mobileAgainstRedesign, "MISSING_PARITY_LABEL", "a mobile PR against redesign/main needs the label even when main has the change"],
+    ]) {
+      check(TOOL, name, ["--issue", ISSUE, "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"],
+        { status: expected === "DELIVERED" ? 0 : 1, stdout: new RegExp(`"verdict": "${expected}"`) },
+        { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(fixture.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { baseRefName: REDESIGN_BASE }) })
+    }
+    check(TOOL, "an explicit base that disagrees with the PR is an error",
+      ["--issue", ISSUE, "--worktree", mobileAgainstRedesign.path, "--branch", BRANCH, "--repo", "ui", "--base", "main"],
+      { status: 2, stderr: /--base main disagrees with pull request #200 base redesign\/main/ },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(mobileAgainstRedesign.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { baseRefName: REDESIGN_BASE }) })
+  }
   const ghDescendantPidFile = stage("verify-delivery/gh-descendant.pid", "")
   const hangingGh = run(
     TOOL,
@@ -296,6 +376,47 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { path: testedToolPath, env: ghPlan(JSON.stringify([numericPullRequest])) },
   )
 
+  const ticketRepository = hermeticConfig.tickets.repository
+  for (const [name, reference, title, body, linked] of [
+    ["canonical closing reference alone links the ticket", "#393", "Fix delivery linking", "Closes thomasluizon/orbit-tickets#393", true],
+    ["a full issue URL alone links the ticket", "#393", "Fix delivery linking", `Ticket: https://github.com/${ticketRepository}/issues/393`, true],
+    ["a full issue URL with a longer number does not link", "#393", "Fix delivery linking", `https://github.com/${ticketRepository}/issues/3931`, false],
+    ["a full issue URL for another repository does not link", "#393", "Fix delivery linking", "https://github.com/thomasluizon/orbit-ui-mobile/issues/393", false],
+    ["a full issue URL for another owner does not link", "#393", "Fix delivery linking", "https://github.com/other-owner/orbit-tickets/issues/393", false],
+    ["a qualified numeric suffix does not link the ticket", "#393", "Fix delivery linking", "thomasluizon/orbit-tickets#3931", false],
+    ["a qualified alphabetic suffix does not link the ticket", "#393", "Fix delivery linking", `${ticketRepository}#393a`, false],
+    ["a bare reference remains accepted for compatibility", "#393", "Fix delivery linking", "Implements #393.", true],
+    ["a bare numeric suffix does not link the ticket", "#393", "Fix delivery linking", "#3931", false],
+    ["a qualified title alone links the ticket", "#393", `${ticketRepository}#393`, "", true],
+    ["qualified references are case insensitive and allow punctuation", "#393", "Fix delivery linking", `(${ticketRepository.toUpperCase()}#393).`, true],
+    ["another repository does not link the ticket", "#393", "Fix delivery linking", "thomasluizon/orbit-ui-mobile#393", false],
+    ["another owner does not link by suffix", "#393", "Fix delivery linking", `other-${ticketRepository}#393`, false],
+    ["a migrated identifier accepts its canonical numeric reference", "ORB-200", "Fix delivery linking", `${ticketRepository}#200`, true],
+  ]) {
+    const result = check(
+      TOOL,
+      name,
+      ["--issue", reference, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+      { status: linked ? 0 : 1, stdout: new RegExp(`"verdict": "${linked ? "DELIVERED" : "UNLINKED_PR"}"`) },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([{ ...pullRequest(pushed.head), title, body }])) },
+    )
+    T(`${TOOL}: ${name} reports linksTicket`, JSON.parse(result.stdout).checks.linksTicket.pass === linked, result.stdout)
+  }
+
+  /** A different owner and a literal dot prove the matcher reads and escapes the configured slug. */
+  const configuredRepository = "another-owner/ticket.archive"
+  writeFileSync(hermeticStaged.configPath, JSON.stringify({ ...hermeticConfig, tickets: { ...hermeticConfig.tickets, repository: configuredRepository } }))
+  for (const [repository, linked] of [[configuredRepository, true], [ticketRepository, false], ["another-owner/ticketXarchive", false]]) {
+    check(
+      TOOL,
+      `configured ticket repository matches ${repository}: ${linked}`,
+      ["--issue", "#393", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+      { status: linked ? 0 : 1, stdout: new RegExp(`"verdict": "${linked ? "DELIVERED" : "UNLINKED_PR"}"`) },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([{ ...pullRequest(pushed.head), title: "Fix delivery linking", body: `Closes ${repository}#393` }])) },
+    )
+  }
+  writeFileSync(hermeticStaged.configPath, JSON.stringify(hermeticConfig))
+
   /**
    * Pullfrog publishes `pullfrog-approval`, which branch protection requires on `main` and pins to
    * Pullfrog's own app 1768019, so the review verdict reaches this tool as one more required check.
@@ -317,6 +438,48 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), approval], { behind_by: 0 }, requiredWithApproval) },
+  )
+
+  const approvedAtHead = { reviews: [review("APPROVED", pushed.head)] }
+  check(
+    TOOL,
+    "an absent pullfrog-approval on a PROTECTED base is DELIVERED when an APPROVED review sits at the exact head",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"verdict": "APPROVED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, approvedAtHead) },
+  )
+  /** The approval is evidence about ITS head alone, so a review of an older commit excuses nothing. */
+  check(
+    TOOL,
+    "an APPROVED review at a DIFFERENT commit does not excuse the absent approval context",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, { reviews: [review("APPROVED", "some-older-commit")] }) },
+  )
+  for (const state of ["COMMENTED", "CHANGES_REQUESTED", "DISMISSED"]) {
+    check(
+      TOOL,
+      `a ${state} review at the head does not excuse the absent approval context`,
+      ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+      { status: 1, stdout: /"verdict": "CI_PENDING"/ },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, { reviews: [review(state, pushed.head)] }) },
+    )
+  }
+  /** A human account spelled `pullfrog` is not the app, so its approval carries no excuse either. */
+  check(
+    TOOL,
+    "an APPROVED review by a non-Bot author named pullfrog does not excuse the absent approval context",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, { reviews: [review("APPROVED", pushed.head, { typename: "User" })] }) },
+  )
+  /** An excuse waives an ABSENCE, never a red check: a failing Lint still fails alongside the review. */
+  check(
+    TOOL,
+    "an exact-head approval never waives a different check that is actually failing",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_FAILING"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint", { conclusion: "FAILURE" })], { behind_by: 0 }, requiredWithApproval, approvedAtHead) },
   )
 
   /**
@@ -374,6 +537,247 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const withChecks = (nodes) => ({ path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, nodes) })
   const ciArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"]
 
+  /** Every key and value type follows a recorded `gh run list --json` pull request response. */
+  const runRecord = (databaseId, headSha, createdAt, updatedAt, conclusion) => ({
+    attempt: 1, conclusion, createdAt, databaseId, event: "pull_request", headBranch: BRANCH,
+    headSha, number: 4210, startedAt: createdAt, status: "completed", updatedAt,
+    url: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${databaseId}`,
+    workflowDatabaseId: 319352732, workflowName: "Guards",
+  })
+  const cancelledRunId = 36236062668
+  const cancelledCheck = checkRun("Dash Ban", { conclusion: "CANCELLED", workflow: "Guards",
+    detailsUrl: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${cancelledRunId}/job/67890` })
+  const olderHead = pushed.git(["rev-parse", "HEAD^"]).stdout.trim()
+  const cancelled = runRecord(cancelledRunId, pushed.head, "2026-09-26T10:31:43Z", "2026-09-26T10:33:02Z", "cancelled")
+  const older = runRecord(36236062667, olderHead, "2026-09-26T10:30:00Z", "2026-09-26T10:34:00Z", "success")
+  const rerunCountFile = join(pushed.path, ".git", "cancelled-rerun-count")
+  const collision = check(TOOL, "a cancelled current-head run overtaken by an older-head run is rerun once", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"reruns": \[[\s\S]*36236062668/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
+      { behind_by: 0 }, null, { runs: [cancelled, older], rerunCountFile }) })
+  T(`${TOOL}: collision invokes exactly one rerun`, existsSync(rerunCountFile) && readFileSync(rerunCountFile, "utf8") === "1", collision.stdout)
+  const repeatedCollision = check(TOOL, "the same cancelled run stays pending without a second rerun", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"outcome": "accepted"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
+      { behind_by: 0 }, null, { runs: [cancelled, older], rerunCountFile }) })
+  T(`${TOOL}: a second delivery read did not invoke rerun again`, readFileSync(rerunCountFile, "utf8") === "1", repeatedCollision.stdout)
+  const activeAttempt = { ...cancelled, attempt: 2, status: "in_progress", conclusion: "" }
+  const activeCheck = checkRun("Dash Ban", { status: "IN_PROGRESS", conclusion: null, workflow: "Guards",
+    detailsUrl: cancelledCheck.detailsUrl })
+  const activeRerun = check(TOOL, "an accepted rerun remains pending on its active second attempt", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"outcome": "accepted"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [activeCheck],
+      { behind_by: 0 }, null, { runs: [activeAttempt, older], rerunCountFile }) })
+  T(`${TOOL}: an active second attempt requests no second rerun`, readFileSync(rerunCountFile, "utf8") === "1", activeRerun.stdout)
+  const staleRollup = check(TOOL, "an accepted second attempt keeps an old cancelled check pending", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"outcome": "accepted"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
+      { behind_by: 0 }, null, { runs: [activeAttempt, older], rerunCountFile }) })
+  T(`${TOOL}: a stale cancelled rollup requests no second rerun`, readFileSync(rerunCountFile, "utf8") === "1", staleRollup.stdout)
+  check(TOOL, "a completed successful rerun supersedes an old cancelled check", ciArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"currentConclusion": "success"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
+      { behind_by: 0 }, null, { runs: [{ ...activeAttempt, status: "completed", conclusion: "success" }, older], rerunCountFile }) })
+  check(TOOL, "a completed failed rerun reports its own failure", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_ATTEMPT_FAILED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
+      { behind_by: 0 }, null, { runs: [{ ...activeAttempt, status: "completed", conclusion: "failure" }, older], rerunCountFile }) })
+  check(TOOL, "a completed failed rerun overrides a stale active check", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_ATTEMPT_FAILED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [activeCheck],
+      { behind_by: 0 }, null, { runs: [{ ...activeAttempt, status: "completed", conclusion: "failure" }, older], rerunCountFile }) })
+  const failedRunId = cancelledRunId + 10
+  const failedRun = { ...cancelled, databaseId: failedRunId }
+  const failedCheck = checkRun("Dash Ban", { conclusion: "CANCELLED", workflow: "Guards",
+    detailsUrl: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${failedRunId}/job/67890` })
+  const failedRerunCountFile = join(pushed.path, ".git", "failed-rerun-count")
+  check(TOOL, "a failed rerun request reports its exit code and first stderr line", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_REQUEST_FAILED"[\s\S]*"exitCode": 17[\s\S]*"stderr": "request rejected"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [failedCheck],
+      { behind_by: 0 }, null, { runs: [failedRun, older], rerunCountFile: failedRerunCountFile,
+        rerunExit: 17, rerunStderr: "request rejected\nmore detail\n" }) })
+  const repeatedFailure = check(TOOL, "a failed rerun request stays failing on reverification", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_REQUEST_FAILED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [failedCheck],
+      { behind_by: 0 }, null, { runs: [failedRun, older], rerunCountFile: failedRerunCountFile }) })
+  T(`${TOOL}: a failed request is never retried`, readFileSync(failedRerunCountFile, "utf8") === "1", repeatedFailure.stdout)
+  const fakeToken = "ghp_abcdefghijklmnopqrstuvwxyz123456"
+  for (const [label, offset] of [["timeout", 30], ["overflow", 40]]) {
+    const runId = cancelledRunId + offset
+    const targetRun = { ...cancelled, databaseId: runId }
+    const targetCheck = checkRun("Dash Ban", { conclusion: "CANCELLED", workflow: "Guards",
+      detailsUrl: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${runId}/job/67890` })
+    const countFile = join(pushed.path, ".git", `${label}-rerun-count`)
+    const result = check(TOOL, `a ${label} rerun request redacts stderr in its report`,
+      label === "timeout" ? [...ciArgv, "--command-timeout-seconds", "1"] : ciArgv,
+      { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_REQUEST_FAILED"[\s\S]*"stderr": "<redacted>"/ },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [targetCheck],
+        { behind_by: 0 }, null, { runs: [targetRun, older], rerunCountFile: countFile,
+          rerunStderr: `${fakeToken}\n`, rerunHangPidFile: label === "timeout" ? stage(`verify-delivery/${label}-child.pid`, "") : undefined,
+          rerunOverflowBytes: label === "overflow" ? 33 * 1024 * 1024 : undefined }) })
+    const marker = readFileSync(join(pushed.path, ".git", "orbit-ci-reruns", `200-${runId}.json`), "utf8")
+    T(`${TOOL}: a ${label} rerun request keeps its marker and report secret-free`,
+      !marker.includes(fakeToken) && !result.stdout.includes(fakeToken) &&
+      JSON.parse(marker).stderr === "<redacted>" && readFileSync(countFile, "utf8") === "1",
+      `marker: ${marker}\nreport: ${result.stdout}`)
+  }
+  const unknownRunId = cancelledRunId + 20
+  const unknownRun = { ...cancelled, databaseId: unknownRunId }
+  const unknownCheck = checkRun("Dash Ban", { conclusion: "CANCELLED", workflow: "Guards",
+    detailsUrl: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${unknownRunId}/job/67890` })
+  const markerDirectory = join(pushed.path, ".git", "orbit-ci-reruns")
+  mkdirSync(markerDirectory, { recursive: true })
+  writeFileSync(join(markerDirectory, `200-${unknownRunId}.json`), JSON.stringify({
+    runId: unknownRunId, headSha: pushed.head, olderRunId: older.databaseId, attempt: 1,
+  }))
+  check(TOOL, "a crash after the intent marker reports an unknown request outcome", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_REQUEST_UNKNOWN"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [unknownCheck],
+      { behind_by: 0 }, null, { runs: [unknownRun, older] }) })
+  const isolatedCancellation = (offset) => {
+    const runId = cancelledRunId + offset
+    return {
+      runId,
+      run: { ...cancelled, databaseId: runId },
+      check: checkRun("Dash Ban", { conclusion: "CANCELLED", workflow: "Guards",
+        detailsUrl: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${runId}/job/67890` }),
+    }
+  }
+  const excludedCancellation = (name, fixture, runs) => {
+    const marker = join(pushed.path, ".git", "orbit-ci-reruns", `200-${fixture.runId}.json`)
+    const countFile = join(pushed.path, ".git", `${fixture.runId}-excluded-rerun-count`)
+    T(`${TOOL}: ${name} starts without a rerun marker`, !existsSync(marker), marker)
+    const result = check(TOOL, name, ciArgv,
+      { status: 1, stdout: /"verdict": "CI_FAILING"/ },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [fixture.check],
+        { behind_by: 0 }, null, { runs, rerunCountFile: countFile }) })
+    T(`${TOOL}: ${name} requests no rerun`, !existsSync(countFile) && !existsSync(marker), result.stdout)
+  }
+  const withoutOlder = isolatedCancellation(70)
+  excludedCancellation("a cancelled run without a later older-head run remains CI_FAILING", withoutOlder, [withoutOlder.run])
+  const otherWorkflow = isolatedCancellation(80)
+  excludedCancellation("a different workflow ending later cannot authorize a rerun", otherWorkflow,
+    [otherWorkflow.run, { ...older, workflowDatabaseId: 1 }])
+  const unrelatedHead = isolatedCancellation(90)
+  excludedCancellation("an unrelated head ending later cannot authorize a rerun", unrelatedHead,
+    [unrelatedHead.run, { ...older, headSha: "cccccccccccccccccccccccccccccccccccccccc" }])
+  const olderCancellation = isolatedCancellation(100)
+  excludedCancellation("a cancellation of an older head cannot authorize a current-head rerun", olderCancellation,
+    [{ ...olderCancellation.run, headSha: olderHead }, older])
+
+  const unprotectedResponse = {
+    message: "Branch not protected",
+    documentation_url: "https://docs.github.com/rest/branches/branch-protection#get-status-checks-protection",
+    status: "404",
+  }
+  /** Advance only the verifier's clock at its real polling sleep; no production timing bypass.
+   * Git/GitHub fixtures and the complete CLI verdict/receipt path still execute on every poll. */
+  const observationClock = stage("verify-delivery/observation-clock.cjs", `
+if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
+  let now = 0
+  Date.now = () => now
+  Atomics.wait = (_buffer, _index, _value, milliseconds) => { now += milliseconds; return "timed-out" }
+}
+`)
+  const onUnprotectedBase = (nodes, protectionResponse = JSON.stringify(unprotectedResponse), sequence = {}) => {
+    const env = ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, nodes, { behind_by: 0 }, [], {
+      baseRefName: "redesign/main", protectionResponse, protectionExit: 1, ...sequence,
+    })
+    env.NODE_OPTIONS += ` --require "${observationClock.replaceAll("\\", "/")}"`
+    return { path: testedToolPath, env }
+  }
+  const observedCiArgv = [...ciArgv, "--wait-ci", "60"]
+  const observedDelivery = check(TOOL, "an unprotected base delivers after observing unchanged successful CI", observedCiArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase([checkRun("Lint"), statusContext("Vercel", "SUCCESS")]))
+  const expectedFingerprint = JSON.stringify([pushed.head, "base-sha", "redesign/main", [
+    [JSON.stringify(["Lint", GITHUB_ACTIONS_APP]), {
+      __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS",
+      startedAt: "2026-08-06T10:00:00Z", completedAt: "2026-08-06T10:00:00Z",
+      detailsUrl: null, workflowName: null, appId: GITHUB_ACTIONS_APP,
+    }],
+    [JSON.stringify(["Vercel", null]), {
+      __typename: "StatusContext", context: "Vercel", state: "SUCCESS",
+      createdAt: "2026-08-06T10:00:00Z", targetUrl: null, appId: null,
+    }],
+  ]])
+  T(`${TOOL}: delivery persists the exact normalized observation fingerprint for both check types`,
+    JSON.parse(observedDelivery.stdout).checks.ci.registrationFingerprint === expectedFingerprint, observedDelivery.stdout)
+  check(TOOL, "an unprotected base with no checks is pending with an explicit reason", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"pass": false[\s\S]*No checks reported; an empty required set is not evidence[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase([]))
+  check(TOOL, "an empty successful protection response also needs observed CI", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*No checks reported/ }, withChecks([]))
+  check(TOOL, "one fast successful check is pending with its registration reason in the receipt", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*1 checks: 0 failing, 1 pending[\s\S]*"status": "OBSERVING"[\s\S]*unchanged for 0s; requires 60s/ }, onUnprotectedBase([checkRun("Lint")]))
+  check(TOOL, "a fast successful check enters the wait loop despite having no running checks", [...ciArgv, "--wait-ci", "30"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*unchanged for 30s; requires 60s/ }, onUnprotectedBase([checkRun("Lint")]))
+  check(TOOL, "an empty rollup remains pending even after the observation window", observedCiArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*No checks reported/ }, onUnprotectedBase([]))
+
+  const completeRollup = [...Array.from({ length: 24 }, (_, index) => checkRun(`Gate ${index + 1}`)), statusContext("Vercel", "SUCCESS")]
+  check(TOOL, "a complete 25-check unprotected rollup delivers after the observation window", observedCiArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*25 checks: 0 failing, 0 pending[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase(completeRollup))
+  const sequenceOptions = (label, rollups) => {
+    const sequenceFile = stage(`verify-delivery/${label}-sequence.txt`, "0")
+    const states = rollups.map((nodes) => {
+      const state = prState(nodes, pushed.head)
+      state.data.repository.pullRequest.baseRefName = "redesign/main"
+      return state
+    })
+    return { sequenceFile, states }
+  }
+  const registrationRace = [[completeRollup[0]], completeRollup]
+  const shortRace = sequenceOptions("short-registration", registrationRace)
+  check(TOOL, "one-to-25 registration resets the window and cannot deliver at the original deadline", observedCiArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*25 checks: 0 failing, 1 pending[\s\S]*unchanged for 30s; requires 60s/ },
+    onUnprotectedBase(registrationRace[0], undefined, shortRace))
+  T(`${TOOL}: the partial rollup forced two additional GitHub observations`, readFileSync(shortRace.sequenceFile, "utf8") === "3")
+  const settledDelivery = check(TOOL, "one-to-25 registration eventually delivers once the complete rollup stabilizes", [...ciArgv, "--wait-ci", "90"],
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*25 checks: 0 failing, 0 pending/ },
+    onUnprotectedBase(registrationRace[0], undefined, sequenceOptions("settled-registration", registrationRace)))
+  const settledFingerprint = JSON.parse(JSON.parse(settledDelivery.stdout).checks.ci.registrationFingerprint)
+  T(`${TOOL}: the persisted fingerprint names the final observed rollup rather than its early subset`,
+    settledFingerprint[3].length === 25 && settledFingerprint[3].some(([key]) => key === JSON.stringify(["Vercel", null])), settledDelivery.stdout)
+  check(TOOL, "rollup ordering alone does not restart observation", observedCiArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"/ },
+    onUnprotectedBase(completeRollup, undefined, sequenceOptions("reordered", [completeRollup, [...completeRollup].reverse(), completeRollup])))
+  for (const [label, changed] of [
+    ["same-count replacement", [checkRun("Replacement")]],
+    ["new rerun", [checkRun("Lint", { startedAt: "2026-08-06T11:00:00Z" })]],
+    ["new producer", [checkRun("Lint", { appId: PULLFROG_APP })]],
+    ["status completion", [checkRun("Lint")]],
+  ]) {
+    const first = [checkRun("Lint", label === "status completion" ? { status: "IN_PROGRESS", conclusion: null } : {})]
+    check(TOOL, `${label} restarts the observation window`, observedCiArgv,
+      { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*unchanged for 30s; requires 60s/ },
+      onUnprotectedBase(first, undefined, sequenceOptions(label, [first, changed])))
+  }
+  const movedBase = sequenceOptions("moved-base", [completeRollup, completeRollup])
+  movedBase.states[1].data.repository.pullRequest.baseRefOid = "new-base-sha"
+  check(TOOL, "a base change restarts the observation window even if the rollup is unchanged", observedCiArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*unchanged for 30s; requires 60s/ },
+    onUnprotectedBase(completeRollup, undefined, movedBase))
+  check(TOOL, "a non-required failure on an unprotected base still blocks delivery", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"/ }, onUnprotectedBase([checkRun("Lint"), checkRun("Build", { conclusion: "FAILURE" })]))
+  check(TOOL, "a non-required pending check on an unprotected base still blocks delivery", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"/ }, onUnprotectedBase([checkRun("Lint"), checkRun("Build", { status: "IN_PROGRESS", conclusion: null })]))
+  check(TOOL, "a failed status context on an unprotected base still blocks delivery", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"/ }, onUnprotectedBase([statusContext("Vercel", "FAILURE")]))
+  check(TOOL, "an unprotected base retains the shared skipped and neutral conclusions", observedCiArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"/ }, onUnprotectedBase([checkRun("Optional", { conclusion: "SKIPPED" }), checkRun("Advisory", { conclusion: "NEUTRAL" })]))
+  check(TOOL, "an unprotected base retains newest-rerun-wins", observedCiArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"/ }, onUnprotectedBase([checkRun("Lint", { conclusion: "FAILURE" }), checkRun("Lint", { startedAt: "2026-08-06T11:00:00Z" })]))
+  check(TOOL, "the unprotected response is recognized by status rather than message prose", observedCiArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"/ }, onUnprotectedBase([checkRun("Lint")], JSON.stringify({ ...unprotectedResponse, message: "Changed wording" })))
+  for (const [label, response] of [
+    ["another error status", JSON.stringify({ ...unprotectedResponse, status: "503" })],
+    ["an error without a status", JSON.stringify({ message: "Branch not protected" })],
+    ["a malformed error body", "not json"],
+    ["an empty error body", ""],
+  ]) {
+    check(TOOL, `${label} remains an environment error`, ciArgv,
+      { status: 2, stderr: /gh api required status checks failed/ }, onUnprotectedBase([checkRun("Lint")], response))
+  }
+
   const failedCi = check(TOOL, "a red required check is CI_FAILING, never DELIVERED", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([checkRun("React Doctor", { conclusion: "FAILURE", detailsUrl: "https://github.com/useorbitai/orbit-ui-mobile/actions/runs/12345/job/67890", workflow: "React Doctor" })]))
   T(`${TOOL}: failed CI retains exact inspectable run metadata`, /"runId": "12345"[\s\S]*"jobId": "67890"[\s\S]*"detailsUrl": "https:\/\/github\.com\/[^"\s]+"[\s\S]*"workflow": "React Doctor"[\s\S]*"name": "React Doctor"[\s\S]*"status": "COMPLETED"[\s\S]*"conclusion": "FAILURE"[\s\S]*"appId": 15368/.test(failedCi.stdout), failedCi.stdout)
 
@@ -420,12 +824,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   check(TOOL, "GitHub's completed STALE conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([checkRun("Required gate", { conclusion: "STALE" })]))
   check(TOOL, "an unknown completed conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([checkRun("Future gate", { conclusion: "A_FUTURE_VALUE" })]))
 
-  /**
-   * The trap this exists for: a re-run does NOT replace the old entry, so the rollup carries the old
-   * FAILURE and the new SUCCESS under ONE name and ONE producer. Reading every entry leaves the
-   * check permanently red and permanently pending at once, and no re-run could ever clear it.
-   * Measured on #685.
-   */
   check(TOOL, "a re-run supersedes its own failed entry rather than counting twice", ciArgv, { status: 0, stdout: /"verdict": "DELIVERED"/ }, withChecks([
     checkRun("Dash Ban", { conclusion: "FAILURE" }),
     checkRun("Dash Ban", { startedAt: "2026-08-06T11:00:00Z" }),

@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 import {
@@ -7,10 +7,14 @@ import {
   useHasProAccess,
   useIsYearlyPro,
   useProfile,
-  useTrialDaysLeft,
   useTrialExpired,
   useTrialUrgent,
 } from '@/hooks/use-profile'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -34,10 +38,10 @@ const mocks = vi.hoisted(() => {
       error: null,
     })),
     useQueryClient: vi.fn(() => queryClient),
-    performQueuedApiMutation: vi.fn(async () => undefined),
+    performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
     i18n: {
       language: 'en',
-      changeLanguage: vi.fn(async () => undefined),
+      changeLanguage: vi.fn(() => Promise.resolve(undefined)),
     },
   }
 })
@@ -101,7 +105,7 @@ describe('mobile useProfile selectors', () => {
   it('exposes the profile query result and patch/invalidate helpers', async () => {
     const result = await renderHookValue(() => useProfile())
 
-    expect(result.profile?.email).toBe('thomas@example.com')
+    expect(result.profile?.email).toBe('alex@example.com')
     expect(typeof result.patchProfile).toBe('function')
     expect(typeof result.invalidate).toBe('function')
   })
@@ -116,7 +120,6 @@ describe('mobile useProfile selectors', () => {
 
     expect(await renderHookValue(() => useHasProAccess())).toBe(true)
     expect(await renderHookValue(() => useCurrentPlan())).toBe('Pro')
-    expect(await renderHookValue(() => useTrialDaysLeft())).toBeNull()
     expect(await renderHookValue(() => useTrialExpired())).toBe(false)
     expect(await renderHookValue(() => useTrialUrgent())).toBe(false)
     expect(await renderHookValue(() => useIsYearlyPro())).toBe(false)
@@ -131,9 +134,6 @@ describe('mobile useProfile selectors', () => {
     })
 
     expect(await renderHookValue(() => useCurrentPlan())).toBe('Trial')
-    const daysLeft = await renderHookValue(() => useTrialDaysLeft())
-    expect(daysLeft).not.toBeNull()
-    expect(daysLeft).toBeGreaterThanOrEqual(0)
     expect(await renderHookValue(() => useTrialUrgent())).toBe(true)
     expect(await renderHookValue(() => useTrialExpired())).toBe(false)
   })

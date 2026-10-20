@@ -3,7 +3,6 @@ import { ApiClientError } from '@orbit/shared'
 import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
-  resolveSyncedSelection,
 } from '@/lib/calendar-sync-state'
 
 const baseStep = {
@@ -13,6 +12,7 @@ const baseStep = {
   isQueryLoading: false,
   isQueryError: false,
   eventsStatus: 'connected' as string | undefined,
+  hasLoadedEvents: false,
 }
 
 describe('resolveCalendarSyncStep (web)', () => {
@@ -24,6 +24,11 @@ describe('resolveCalendarSyncStep (web)', () => {
 
   it('returns offline when disconnected', () => {
     expect(resolveCalendarSyncStep({ ...baseStep, isOnline: false })).toBe('offline')
+  })
+
+  it('keeps the selection step when loaded events exist after disconnect', () => {
+    expect(resolveCalendarSyncStep({ ...baseStep, isOnline: false, hasLoadedEvents: true })).toBe('select')
+    expect(resolveCalendarSyncStep({ ...baseStep, isOnline: false, isReviewMode: true, hasLoadedEvents: true })).toBe('select')
   })
 
   it('reflects query loading and error', () => {
@@ -89,31 +94,5 @@ describe('resolveDisplayedErrorMessage (web)', () => {
         translate,
       }),
     ).toBe('')
-  })
-})
-
-describe('resolveSyncedSelection (web)', () => {
-  const events = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
-
-  it('selects every incoming event outside review mode', () => {
-    expect([...resolveSyncedSelection(new Set(['a']), events, false, 'prev')].sort()).toEqual([
-      'a',
-      'b',
-      'c',
-    ])
-  })
-
-  it('selects every incoming event on the first review load', () => {
-    expect([...resolveSyncedSelection(new Set(['a']), events, true, null)].sort()).toEqual([
-      'a',
-      'b',
-      'c',
-    ])
-  })
-
-  it('keeps only still-present prior selections on later review loads', () => {
-    expect([...resolveSyncedSelection(new Set(['a', 'z']), events, true, 'prev')].sort()).toEqual([
-      'a',
-    ])
   })
 })

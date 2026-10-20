@@ -1,0 +1,1035 @@
+import { useUIStore } from '@/stores/ui-store'
+import { createContext, useContext, useState, type ReactNode } from 'react'
+import { act } from 'react'
+import { hydrateRoot } from 'react-dom/client'
+import { LayoutDashboard, LayoutDashboardFilled } from '@/components/ui/icons'
+import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { ShellScrollerProvider, useShellScrollerRegistration } from '@/components/shell/shell-scroller-context'
+import { Composer } from '@/components/shell/composer'
+import en from '@orbit/shared/i18n/en.json'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { notificationKeys } from '@orbit/shared/query'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+
+const mocks = vi.hoisted(() => ({
+  commandViews: [] as { id: string; onSelect: () => void }[],
+  pathname: '/',
+  params: {} as { missing?: string[] },
+  wide: false,
+  push: vi.fn(),
+  setPaletteOpen: vi.fn(),
+  setShowCreateModal: vi.fn(),
+  keyboardEnabled: vi.fn(),
+  togglePalette: vi.fn(),
+  setActiveView: vi.fn(),
+  profileName: '',
+  profileLoaded: true,
+  lastDestination: 'hoje',
+  setLastDestination: vi.fn(),
+  requestHeaders: {} as Record<string, string>,
+}))
+
+vi.mock('next-intl', () => ({
+  NextIntlClientProvider: ({ children }: { children: ReactNode }) => children,
+  useLocale: () => 'en',
+  useTranslations: () => (key: string) => key,
+}))
+vi.mock('next-intl/server', () => ({
+  getLocale: async () => 'en',
+  getMessages: async () => ({}),
+}))
+vi.mock('next/headers', async () => {
+  const { HeadersAdapter } = await import('next/dist/server/web/spec-extension/adapters/headers')
+  return {
+    headers: async () => HeadersAdapter.seal(new HeadersAdapter(mocks.requestHeaders)),
+    cookies: async () => ({ get: () => undefined }),
+  }
+})
+vi.mock('@/app/fonts', () => ({
+  geist: { variable: '' },
+  geistMono: { variable: '' },
+  spaceGrotesk: { variable: '' },
+}))
+vi.mock('@/components/posthog-provider', () => ({ PostHogProvider: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))
+vi.mock('@/lib/public-session-bootstrap', () => ({ PublicSessionBootstrap: () => null }))
+vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => mocks.pathname,
+  useParams: () => mocks.params,
+  useRouter: () => ({ push: mocks.push }),
+}))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => () => mocks.push('/profile') }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide, useIsDesktop: () => mocks.wide }))
+vi.mock('@/hooks/use-keyboard-shortcuts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-keyboard-shortcuts')>()
+  return {
+    useKeyboardShortcuts: (enabled: boolean) => {
+      mocks.keyboardEnabled(enabled)
+      original.useKeyboardShortcuts(enabled)
+    },
+  }
+})
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: mocks.profileLoaded ? { name: mocks.profileName, email: 'person@example.com' } : undefined }),
+}))
+vi.mock('@/stores/shell-store', () => ({
+  useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen; lastDestination: string; setLastDestination: typeof mocks.setLastDestination; togglePalette: typeof mocks.togglePalette; paletteOpen: boolean }) => unknown) =>
+    selector({ setPaletteOpen: mocks.setPaletteOpen, lastDestination: mocks.lastDestination, setLastDestination: mocks.setLastDestination, togglePalette: mocks.togglePalette, paletteOpen: false }),
+}))
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/stores/ui-store')>()
+  return {
+    ...original,
+    useUIStore: Object.assign((selector: (state: { setShowCreateModal: typeof mocks.setShowCreateModal; setActiveView: typeof mocks.setActiveView }) => unknown) => selector({ setShowCreateModal: mocks.setShowCreateModal, setActiveView: mocks.setActiveView }), { getState: original.useUIStore.getState }),
+  }
+})
+vi.mock('@/components/command/command-palette', () => ({
+  CommandPalette: ({ navItems }: { navItems: { id: string; onSelect: () => void }[] }) => {
+    mocks.commandViews = navItems
+    return <div data-testid="command-palette" />
+  },
+}))
+vi.mock('@/components/ui/fab', () => ({
+  Fab: ({ label, onClick }: { label: string; onClick: () => void }) => (
+    <button type="button" aria-label={label} onClick={onClick} />
+  ),
+}))
+function MockComposerSlot({ composer, compactComposer }: Readonly<{ composer?: ReactNode; compactComposer?: ReactNode }>) {
+  const pinnedComposer = composer ?? (!mocks.wide && compactComposer)
+  return pinnedComposer ? <div data-shell-pinned-slot="">{pinnedComposer}</div> : null
+}
+
+vi.mock('@/components/shell/shell-wide', () => ({
+  ShellWide: ({ children, registerHeaderHost, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, compactComposer, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
+    children: ReactNode
+    registerHeaderHost?: import('react').RefCallback<HTMLDivElement>
+    header?: ReactNode
+    items?: ReadonlyArray<{ id: string; href: string; label: string }>
+    activeId?: string | null
+    onSelect?: (id: string) => void
+    onCreate?: () => void
+    createLabel?: string
+    createRefusal?: ReactNode
+    notice?: ReactNode
+    composer?: ReactNode
+    compactComposer?: ReactNode
+    scrollToTop?: ReactNode
+    account?: string
+    accountEmail?: string
+    paletteHint?: string
+    onPalette?: () => void
+    paletteLabel?: string
+    tabBar?: ReactNode
+    fab?: ReactNode
+    conversation?: ReactNode
+    conversationOpen?: boolean
+  }) => {
+    const registerScroller = useShellScrollerRegistration()
+    return (
+    <div data-testid={mocks.wide ? 'wide-shell' : 'compact-shell'}>
+      {header || registerHeaderHost ? <div ref={registerHeaderHost} data-shell-header="">{header}</div> : null}
+      {scrollToTop}
+      <main ref={registerScroller} data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
+      {mocks.wide && <>
+        {account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />}
+        {accountEmail ? <span data-testid="wide-account-email">{accountEmail}</span> : null}
+      </>}
+      {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
+      {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
+      <MockComposerSlot composer={composer} compactComposer={compactComposer} />
+      {mocks.wide ? items?.map((item) => (
+        <a href={item.href} key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={(event) => { event.preventDefault(); onSelect?.(item.id) }}>{item.label}</a>
+      )) : tabBar}
+      {mocks.wide && onCreate ? <button type="button" onClick={onCreate}>{createLabel}</button> : null}
+      {mocks.wide ? createRefusal : null}
+      {!mocks.wide ? fab : null}
+      {conversationOpen && <div data-testid="conversation">{conversation}</div>}
+    </div>
+  )
+  },
+}))
+
+import {
+  DestinationShell,
+  useShellComposerSlot,
+} from '@/components/shell/destination-shell'
+import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
+import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
+import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
+import { ShellHeader } from '@/components/shell/shell-header'
+import { PageHeader } from '@/components/ui/page-header'
+import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
+import { NotificationInbox } from '@/components/navigation/notification-inbox'
+import { AppBar } from '@/components/ui/app-bar'
+import { SelectionTray } from '@/components/habits/selection-tray'
+import { TodayOverlays } from '@/app/(app)/today-page-view'
+import NotFound from '@/app/not-found'
+import RootLayout from '@/app/layout'
+import { KeyboardPlatformProvider } from '@/components/shell/keyboard-platform-provider'
+import type { TodayView } from '@/app/(app)/use-today-page'
+import {
+  getCurrentRouteTransitionIntent,
+  getRouteScenarioForIntent,
+  resetRouteTransitionIntent,
+  setRouteTransitionIntent,
+} from '@/lib/motion/route-intent'
+
+describe('DestinationShell', () => {
+  it.each(['all', 'general'] as const)('opens %s from the keyboard command palette', (view) => {
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+    act(() => mocks.commandViews.find((item) => item.id === view)!.onSelect())
+    expect(useUIStore.getState().activeView).toBe(view)
+    expect(mocks.push).toHaveBeenCalledWith('/')
+  })
+
+  const originalUserAgentData = Object.getOwnPropertyDescriptor(navigator, 'userAgentData')
+  const originalPlatform = Object.getOwnPropertyDescriptor(navigator, 'platform')
+
+  beforeEach(() => {
+    mocks.pathname = '/'
+    mocks.params = {}
+    mocks.wide = false
+    mocks.profileName = ''
+    mocks.profileLoaded = true
+    mocks.lastDestination = 'hoje'
+    mocks.requestHeaders = {}
+    mocks.setLastDestination.mockImplementation((destination: string) => { mocks.lastDestination = destination })
+    resetRouteTransitionIntent()
+    vi.clearAllMocks()
+  })
+
+  it.each([false, true])('opens Progress with g then i in the app shell at wide=%s', (wide) => {
+    mocks.wide = wide
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/progress')
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+  })
+
+  it.each(['/upgrade', '/wrapped'])('keeps g then i disabled on %s', (pathname) => {
+    mocks.pathname = pathname
+    render(<DestinationShell onCreate={() => {}}><h1>Flow</h1></DestinationShell>)
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it.each(['/', '/calendar', '/progress', '/profile'])('uses filled active icons and the dashboard destination on %s', (pathname) => {
+    mocks.pathname = pathname
+    render(<DestinationShell onCreate={() => {}}><h1>Root</h1></DestinationShell>)
+    const tabs = within(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).getAllByRole('link')
+    const active = tabs.filter((button) => button.hasAttribute('aria-current'))
+    expect(active).toHaveLength(1)
+    expect(active[0]!.querySelector('svg')).toHaveAttribute('fill', 'var(--primary)')
+    expect(tabs.filter((button) => !button.hasAttribute('aria-current')).every((button) => button.querySelector('svg')?.getAttribute('fill') === 'none')).toBe(true)
+    const progress = screen.getByRole('link', { name: 'nav.progress' }).querySelector('svg')!
+    const expected = document.createElement('div')
+    const Icon = pathname === '/progress' ? LayoutDashboardFilled : LayoutDashboard
+    expected.innerHTML = renderToStaticMarkup(<Icon size={24} strokeWidth={pathname === '/progress' ? 2 : 1.5} />)
+    expect(progress.innerHTML).toBe(expected.querySelector('svg')!.innerHTML)
+    expect(progress).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it.each([[false, '/nao-existe'], [true, '/nao-existe'], [false, '/habits/missing'], [true, '/habits/missing']] as const)('shows an unselected not-found shell without a composer at wide=%s for %s', (wide, pathname) => {
+    mocks.pathname = pathname
+    mocks.params = { missing: ['nao-existe'] }
+    mocks.wide = wide
+    const view = render(
+      <DestinationShell onCreate={() => {}} composer={<span>Composer</span>}>
+        <NotFound />
+      </DestinationShell>,
+    )
+    expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).not.toBeInTheDocument()
+    expect(view.container.querySelectorAll('[aria-current="page"]')).toHaveLength(0)
+  })
+
+  it.each([false, true])('omits the not-found composer and keeps unselected navigation in server markup at wide=%s', (wide) => {
+    mocks.pathname = '/nao-existe'
+    mocks.params = { missing: ['nao-existe'] }
+    mocks.wide = wide
+    const html = renderToString(
+      <DestinationShell onCreate={() => {}} composer={<span>Composer</span>}>
+        <NotFound />
+      </DestinationShell>,
+    )
+
+    expect(html).not.toContain('data-shell-pinned-slot=""')
+    expect(html).not.toContain('Composer')
+    expect(html).not.toContain('aria-current="page"')
+  })
+
+  afterEach(() => {
+    if (originalUserAgentData) Object.defineProperty(navigator, 'userAgentData', originalUserAgentData)
+    else Reflect.deleteProperty(navigator, 'userAgentData')
+    if (originalPlatform) Object.defineProperty(navigator, 'platform', originalPlatform)
+    else Reflect.deleteProperty(navigator, 'platform')
+  })
+
+  it.each([
+    ['macOS', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15', '⌘K', 'Ctrl K'],
+    ['Windows', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36', 'Ctrl K', '⌘K'],
+  ])('server-renders the %s request shortcut in the app shell', async (_platform, userAgent, hint, wrongHint) => {
+    mocks.wide = true
+    mocks.requestHeaders = { 'user-agent': userAgent }
+    const layout = await RootLayout({
+      children: <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>,
+    })
+    const html = renderToString(layout)
+
+    expect(html).toContain(`<kbd>${hint}</kbd>`)
+    expect(html).not.toContain(`<kbd>${wrongHint}</kbd>`)
+  })
+
+  it.each([
+    ['"macOS"', 'Windows NT 10.0', '⌘K', 'Ctrl K'],
+    ['"Windows"', 'Macintosh; Intel Mac OS X', 'Ctrl K', '⌘K'],
+    ['"Linux"', 'Linux x86_64', 'Ctrl K', '⌘K'],
+    ['"iOS"', 'iPhone', '⌘K', 'Ctrl K'],
+    ['', 'Macintosh; Intel Mac OS X', '⌘K', 'Ctrl K'],
+  ])('prefers the %s request platform hint over the user agent', async (platform, userAgent, hint, wrongHint) => {
+    mocks.wide = true
+    mocks.requestHeaders = { 'sec-ch-ua-platform': platform, 'user-agent': userAgent }
+    const html = renderToString(await RootLayout({
+      children: <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>,
+    }))
+
+    expect(html).toContain(`<kbd>${hint}</kbd>`)
+    expect(html).not.toContain(`<kbd>${wrongHint}</kbd>`)
+  })
+
+  it.each([
+    ['Mac', 'Win32', '⌘K'],
+    ['iOS', 'iPhone', '⌘K'],
+    ['Windows', 'Win32', 'Ctrl K'],
+    ['Linux', 'Linux x86_64', 'Ctrl K'],
+  ])('shows the palette shortcut for %s', (platform, fallback, hint) => {
+    mocks.wide = true
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: { platform },
+    })
+    Object.defineProperty(navigator, 'platform', {
+      configurable: true,
+      value: fallback,
+    })
+
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    expect(screen.getByText(hint, { selector: 'kbd' })).toBeInTheDocument()
+  })
+
+  it.each([
+    [true, 'MacIntel', '⌘K', 'Ctrl K'],
+    [false, 'Win32', 'Ctrl K', '⌘K'],
+  ])('hydrates the request shortcut without switching at apple=%s', async (applePlatform, platform, hint, wrongHint) => {
+    mocks.wide = true
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: undefined,
+    })
+    Object.defineProperty(navigator, 'platform', {
+      configurable: true,
+      value: platform,
+    })
+    const shell = (
+      <KeyboardPlatformProvider applePlatform={applePlatform}>
+        <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>
+      </KeyboardPlatformProvider>
+    )
+    const serverHtml = renderToString(shell)
+    expect(serverHtml).toContain(`<kbd>${hint}</kbd>`)
+    expect(serverHtml).not.toContain(`<kbd>${wrongHint}</kbd>`)
+    const container = document.createElement('div')
+    container.innerHTML = serverHtml
+    const initialMarkup = container.innerHTML
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+
+    await act(async () => {
+      root = hydrateRoot(container, shell, { onRecoverableError: recoverableError })
+    })
+
+    expect(initialMarkup).toBe(serverHtml)
+    expect(recoverableError).not.toHaveBeenCalled()
+    expect(container.querySelector('kbd')).toHaveTextContent(hint)
+    await act(async () => root?.unmount())
+  })
+
+  it('renders exactly four compact destinations and keeps the FAB on Hoje only', () => {
+    const onCreate = vi.fn()
+    render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
+
+    expect(screen.getAllByRole('link').filter((link) => link.getAttribute('href') !== '#orbit-main').map((button) => button.getAttribute('aria-label'))).toEqual([
+      'nav.today',
+      'nav.calendar',
+      'nav.progress',
+      'nav.profile',
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'nav.createHabit' }))
+    expect(onCreate).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
+    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument()
+    expect(mocks.keyboardEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('forwards the create refusal to the wide create control', () => {
+    mocks.wide = true
+    render(<DestinationShell onCreate={() => {}} createRefusal={<span>Offline create refusal</span>}><h1>Today</h1></DestinationShell>)
+    expect(screen.getByText('Offline create refusal')).toBeInTheDocument()
+  })
+
+  it('forwards the create refusal beside the compact FAB', () => {
+    render(<DestinationShell onCreate={() => {}} createRefusal={<span>Offline create refusal</span>}><h1>Today</h1></DestinationShell>)
+    expect(screen.getByText('Offline create refusal')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'nav.createHabit' })).toBeInTheDocument()
+  })
+
+  it('passes the selection tray target through the destination composer slot', () => {
+    render(
+      <DestinationShell onCreate={() => {}} composer={<div data-testid="selection-composer" />}>
+        <h1>Today</h1>
+      </DestinationShell>,
+    )
+
+    expect(screen.getByTestId('selection-composer')).toBeInTheDocument()
+  })
+
+  it.each([false, true])('mounts destination feedback in the shell notice slot at wide=%s', async (wide) => {
+    mocks.wide = wide
+    mocks.pathname = '/profile'
+
+    function ProfileExportNotice() {
+      const [done, setDone] = useState(false)
+      useShellNoticeSlot(
+        done,
+        () => <div data-testid="export-done">Export done</div>,
+        done ? 'export-done' : 'export-idle',
+      )
+      return <button type="button" onClick={() => setDone(true)}>Export</button>
+    }
+
+    render(
+      <DestinationShell onCreate={() => {}} composer={<div>Composer</div>}>
+        <ProfileExportNotice />
+      </DestinationShell>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+
+    const notice = await screen.findByTestId('export-done')
+    expect(notice.parentElement).toHaveAttribute('data-shell-notice')
+    expect(document.querySelector('[data-shell-pinned-slot]')).toBeNull()
+  })
+
+  it.each([
+    ['compact', false],
+    ['wide', true],
+  ])(
+    'mounts the tray directly in the %s shell slot and removes it with Today',
+    async (_layout, wide) => {
+      mocks.wide = wide
+
+      function TodaySelection() {
+        const [active, setActive] = useState(false)
+        useShellComposerSlot(
+          active,
+          () => (
+            <SelectionTray
+              selectedCount={1}
+              allSelected={false}
+              onSelectAll={() => {}}
+              onDeselectAll={() => {}}
+              onBulkLog={() => {}}
+              onBulkSkip={() => {}}
+              onBulkDelete={() => {}}
+              onCancel={() => {}}
+            />
+          ),
+          active ? 'selected:h-1' : 'empty',
+        )
+        return <button type="button" onClick={() => setActive(true)}>Select habit</button>
+      }
+
+      function App({ todayOwnsDestination }: Readonly<{ todayOwnsDestination: boolean }>) {
+        return (
+          <DestinationShell onCreate={() => {}}>
+            {todayOwnsDestination ? <TodaySelection /> : <h1>Calendar</h1>}
+          </DestinationShell>
+        )
+      }
+
+      const { rerender } = render(<App todayOwnsDestination />)
+
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Select habit' }))
+
+      const tray = await screen.findByTestId('bulk-action-bar')
+      expect(tray.parentElement).toHaveAttribute('data-shell-pinned-slot')
+      expect(tray.parentElement).not.toBe(document.body)
+
+      rerender(<App todayOwnsDestination={false} />)
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+      })
+      expect(document.querySelector('[data-shell-pinned-slot]')).not.toBeInTheDocument()
+    },
+  )
+
+  it('clears the tray while the exiting Today subtree remains mounted', async () => {
+    const view = {
+      isSelectMode: true,
+      selectedHabitIds: new Set(['h-1']),
+      selection: {
+        allSelected: false,
+        confirmBulkDelete: vi.fn(),
+        confirmBulkLog: vi.fn(),
+        confirmBulkSkip: vi.fn(),
+        deselectAll: vi.fn(),
+        selectAll: vi.fn(),
+        setShowBulkDeleteConfirm: vi.fn(),
+        showBulkDeleteConfirm: false,
+      },
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+
+    function App() {
+      return (
+        <DestinationShell onCreate={() => {}}>
+          <div data-testid="retained-today">
+            <TodayOverlays view={view} />
+          </div>
+          {mocks.pathname === '/calendar' ? <h1>Calendar</h1> : <h1>Today</h1>}
+        </DestinationShell>
+      )
+    }
+
+    const { rerender } = render(<App />)
+
+    expect(await screen.findByTestId('bulk-action-bar')).toBeInTheDocument()
+
+    mocks.pathname = '/calendar'
+    rerender(<App />)
+
+    expect(screen.getByTestId('retained-today')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+    })
+  })
+
+  it('removes the compact FAB away from Hoje', () => {
+    mocks.pathname = '/calendar'
+    render(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
+
+    expect(screen.queryByRole('button', { name: 'nav.createHabit' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a later pushed flow after selecting the active destination', () => {
+    setRouteTransitionIntent('tab')
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('link', { name: 'nav.today' }))
+    mocks.push('/habits/h1')
+
+    expect(mocks.push).toHaveBeenCalledOnce()
+    expect(mocks.push).toHaveBeenCalledWith('/habits/h1')
+    expect(
+      getRouteScenarioForIntent(getCurrentRouteTransitionIntent()),
+    ).toBe('route-push')
+  })
+
+  it('renders the same four destinations in the wide shell', () => {
+    mocks.wide = true
+    const onCreate = vi.fn()
+    render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
+
+    expect(screen.getAllByRole('link').filter((link) => link.getAttribute('href') !== '#orbit-main').map((button) => button.textContent)).toEqual([
+      'nav.today',
+      'nav.calendar',
+      'nav.progress',
+      'nav.profile',
+    ])
+    expect(screen.getByRole('button', { name: 'nav.search' })).not.toHaveTextContent('command.title')
+    fireEvent.click(screen.getByRole('button', { name: 'nav.search' }))
+    expect(mocks.setPaletteOpen).toHaveBeenCalledWith(true)
+    fireEvent.click(screen.getByRole('button', { name: 'nav.createHabit' }))
+    expect(onCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes the profile name and falls back to the email local part', () => {
+    mocks.wide = true
+    mocks.profileName = 'Ada Lovelace'
+    const page = render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    expect(screen.getByTestId('wide-account')).toHaveTextContent('Ada Lovelace')
+    expect(screen.getByTestId('wide-account-email')).toHaveTextContent('person@example.com')
+    expect(screen.getByTestId('wide-account')).not.toHaveTextContent('@')
+
+    mocks.profileName = ''
+    page.rerender(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+    expect(screen.getByTestId('wide-account')).toHaveTextContent('person')
+    expect(screen.getByTestId('wide-account')).not.toHaveTextContent('example.com')
+  })
+
+  it('uses the flow shell without primary navigation on upgrade', () => {
+    mocks.pathname = '/upgrade'
+    render(<DestinationShell onCreate={() => {}}><h1>Upgrade</h1></DestinationShell>)
+
+    expect(screen.getByTestId('compact-shell')).toBeInTheDocument()
+    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+    expect(mocks.keyboardEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it('lets Wrapped replace the destination shell', () => {
+    mocks.pathname = '/wrapped'
+    mocks.wide = true
+    render(
+      <DestinationShell onCreate={() => {}} notice={<div role="status">Reload</div>}>
+        <h1>Wrapped</h1>
+      </DestinationShell>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Wrapped' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('wide-shell')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('compact-shell')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+    expect(mocks.keyboardEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it.each([
+    '/profile/security',
+    '/account/billing',
+  ])('selects Profile for its secondary route %s', (pathname) => {
+    mocks.pathname = pathname
+    render(<DestinationShell onCreate={() => {}}><h1>Profile flow</h1></DestinationShell>)
+
+    expect(screen.getByRole('link', { name: 'nav.profile' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it.each([false, true])('keeps navigation and hides the composer for alerts at wide=%s', (wide) => {
+    mocks.pathname = '/notifications'
+    mocks.wide = wide
+    render(<DestinationShell onCreate={() => {}} composer={<div data-testid="composer" />}><h1>Alerts</h1></DestinationShell>)
+    expect(screen.queryByTestId('composer')).toBeNull()
+    expect(screen.getByRole('link', { name: 'nav.today' })).toBeInTheDocument()
+    if (!wide) expect(screen.getByRole('link', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it.each(['/streak', '/retrospective', '/unknown'])(
+    'keeps a current destination for the removed or unknown route %s',
+    (pathname) => {
+      mocks.pathname = pathname
+      render(<DestinationShell onCreate={() => {}}><h1>Unknown</h1></DestinationShell>)
+
+      expect(screen.getAllByRole('link').filter((button) => button.hasAttribute('aria-current')))
+        .toHaveLength(1)
+    },
+  )
+
+  it.each([
+    '/',
+    '/about',
+    '/calendar-sync',
+    '/calendar',
+    '/chat',
+    '/onboarding',
+    '/profile',
+    '/progress',
+    '/retrospective',
+    '/streak',
+    '/support',
+    '/upgrade',
+    '/wrapped',
+  ])('never adds a second page heading at %s', (pathname) => {
+    mocks.pathname = pathname
+
+    render(<DestinationShell onCreate={() => {}}><h1>Page title</h1></DestinationShell>)
+
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it('focuses the object heading after navigating to a detail route', async () => {
+    function Detail() {
+      return <><ShellHeader><AppBar title="Habit" titleIsHeading={false} /></ShellHeader><h1 tabIndex={-1}>Read</h1></>
+    }
+    const view = render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+    mocks.pathname = '/habits/h1'
+    view.rerender(<DestinationShell onCreate={() => {}}><Detail /></DestinationShell>)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Read' })).toHaveFocus())
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByText('Habit').closest('[data-shell-header]')).toBeInTheDocument()
+  })
+
+  it.each([false, true])('pins pushed headers outside the scroller at wide=%s', async (wide) => {
+    mocks.pathname = '/about'
+    mocks.wide = wide
+    render(<DestinationShell onCreate={() => {}}>
+      <PageHeader title="About" backLabel="Back" onBack={() => {}} />
+      <p>Content</p>
+    </DestinationShell>)
+    const heading = await screen.findByRole('heading', { name: 'About' })
+    expect(heading.closest('[data-shell-header]')).toBeInTheDocument()
+    expect(heading.closest('[data-shell-scroller]')).toBeNull()
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it.each(['page', 'create', 'detail'] as const)('server-renders and hydrates one %s header before pinning it', async (surface) => {
+    mocks.profileLoaded = false
+    mocks.pathname = surface === 'page' ? '/about' : surface === 'create' ? '/habits/new' : '/habits/habit-1'
+    const child = surface === 'page'
+      ? <PageHeader title="About" backLabel="Back" onBack={() => {}} />
+      : surface === 'detail'
+        ? <HabitDetailScreen habitId="habit-1" />
+        : <HabitCreateFrame presentation="screen" fromConversation={false} leaving={false}
+            actionRefreshKey="ready" onNavigate={() => {}} onReturn={() => {}}
+            open title="New habit" actions={<button type="button">Save habit</button>} onAttemptDismiss={() => {}} onClose={() => {}}>
+            <label>Habit title<input /></label>
+          </HabitCreateFrame>
+    const shell = <DestinationShell onCreate={() => {}}>{child}</DestinationShell>
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(shell)
+    document.body.append(container)
+    const title = surface === 'page' ? 'About' : surface === 'create' ? 'New habit' : 'habits.detail.screenTitle'
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    try {
+      expect(within(container).getAllByRole('heading', { name: title })).toHaveLength(1)
+      const firstHeading = within(container).getByRole('heading', { name: title })
+      if (surface === 'create') expect(within(container).getByRole('button', { name: 'Save habit' })).toBeVisible()
+      await act(async () => { root = hydrateRoot(container, shell, { onRecoverableError: recoverableError }) })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(within(container).getByRole('heading', { name: title })).toBe(firstHeading)
+      expect(within(container).getAllByRole('heading', { name: title })).toHaveLength(1)
+      expect(within(container).getByRole('heading', { name: title }).closest('[data-shell-header]')).not.toBeNull()
+      if (surface === 'create') expect(within(container).getAllByRole('button', { name: 'Save habit' })).toHaveLength(1)
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+    }
+  })
+
+  it.each([false, true])('keeps the incoming header after the outgoing route exits at wide=%s', async (wide) => {
+    mocks.pathname = '/profile'
+    mocks.wide = wide
+    function App() {
+      return <DestinationShell onCreate={() => {}}>
+        <RouteTransitionShell>
+          {mocks.pathname === '/profile'
+            ? <h1>Profile</h1>
+            : <PageHeader title="Support" backLabel="Back to Profile" onBack={() => mocks.push('/profile')} />}
+        </RouteTransitionShell>
+      </DestinationShell>
+    }
+    const view = render(<App />)
+    mocks.pathname = '/support'
+    view.rerender(<App />)
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Profile' })).not.toBeInTheDocument())
+    expect(screen.getByRole('heading', { level: 1, name: 'Support' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Profile' }))
+    expect(mocks.push).toHaveBeenCalledWith('/profile')
+  })
+
+  it.each([false, true])('renders one live route during a push and return at wide=%s', (wide) => {
+    const RouteContext = createContext('/profile')
+    function LiveRoute() {
+      const path = useContext(RouteContext)
+      return path === '/profile'
+        ? <div data-testid="profile-settings-groups"><button type="button">Setting</button></div>
+        : <><PageHeader title="Support" backLabel="Back to Profile" onBack={() => {}} /><p>Support content</p></>
+    }
+    function App() {
+      return <RouteContext.Provider value={mocks.pathname}>
+        <DestinationShell onCreate={() => {}}><RouteTransitionShell><LiveRoute /></RouteTransitionShell></DestinationShell>
+      </RouteContext.Provider>
+    }
+    mocks.wide = wide
+    mocks.pathname = '/profile'
+    const view = render(<App />)
+    mocks.pathname = '/support'
+    act(() => { setRouteTransitionIntent('forward'); view.rerender(<App />) })
+    expect.soft(screen.getAllByText('Support content')).toHaveLength(1)
+    mocks.pathname = '/profile'
+    act(() => { setRouteTransitionIntent('back'); view.rerender(<App />) })
+    expect(screen.getAllByTestId('profile-settings-groups')).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Setting' })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Back to Profile' })).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('keeps a neutral pushed inbox header after live route cleanup at wide=%s', async (wide) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+    queryClient.setQueryData(notificationKeys.lists(), { items: [], unreadCount: 0 })
+    const RouteContext = createContext('/profile')
+    function LiveRoute() {
+      const path = useContext(RouteContext)
+      return path === '/profile'
+        ? <h1>Profile</h1>
+        : <NotificationInbox />
+    }
+    function App() {
+      return <RouteContext.Provider value={mocks.pathname}>
+        <DestinationShell onCreate={() => {}}><RouteTransitionShell><LiveRoute /></RouteTransitionShell></DestinationShell>
+      </RouteContext.Provider>
+    }
+    mocks.wide = wide
+    mocks.pathname = '/profile'
+    const view = render(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
+    mocks.pathname = '/notifications'
+    view.rerender(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
+    expect.soft(screen.getAllByRole('list', { name: 'notifications.title' })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1, name: 'notifications.title' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'notifications.options' })).not.toBeInTheDocument()
+    await act(async () => {
+      queryClient.setQueryData(notificationKeys.lists(), { items: [createMockNotification({ isRead: false })], unreadCount: 1 })
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    })
+    expect(screen.getByRole('heading', { level: 1, name: 'notifications.title' }).closest('[data-shell-header]')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'notifications.options' }).closest('[data-shell-header]')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    expect(mocks.push).toHaveBeenCalledWith('/profile')
+    mocks.pathname = '/profile'
+    view.rerender(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
+    expect(screen.getByRole('heading', { name: 'Profile' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'notifications.title' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'notifications.title' })).not.toBeInTheDocument()
+    view.unmount()
+    queryClient.clear()
+  })
+
+  it.each([false, true])('does not let a retained route clear the incoming header at wide=%s', async (wide) => {
+    mocks.pathname = '/profile'
+    mocks.wide = wide
+    const onBack = vi.fn()
+    const incoming = <PageHeader key="incoming" title="Support" backLabel="Back to Profile" onBack={onBack} />
+    function App({ retainingPrevious, showIncoming = true }: { retainingPrevious: boolean; showIncoming?: boolean }) {
+      return <DestinationShell onCreate={() => {}}>
+        {retainingPrevious ? <PageHeader key="previous" title="Previous" backLabel="Previous back" onBack={() => {}} /> : null}
+        {showIncoming ? incoming : <h1>Profile</h1>}
+      </DestinationShell>
+    }
+    const view = render(<App retainingPrevious />)
+    expect(screen.getByRole('button', { name: 'Back to Profile' })).toBeInTheDocument()
+    mocks.pathname = '/support'
+    view.rerender(<App retainingPrevious />)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Support' })).toHaveFocus())
+    view.rerender(<App retainingPrevious={false} />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Support' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Profile' }))
+    expect(onBack).toHaveBeenCalledOnce()
+    mocks.pathname = '/profile'
+    view.rerender(<App retainingPrevious={false} showIncoming={false} />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Support' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Back to Profile' })).not.toBeInTheDocument()
+  })
+
+  it('updates a hosted header without replacing its subtree', () => {
+    function HeaderSlot({ title }: { title: string }) {
+      return <ShellHeader><h1>{title}</h1></ShellHeader>
+    }
+    const view = render(<DestinationShell onCreate={() => {}}><HeaderSlot title="Loading" /></DestinationShell>)
+    expect(screen.getByRole('heading', { level: 1, name: 'Loading' })).toBeInTheDocument()
+
+    view.rerender(<DestinationShell onCreate={() => {}}><HeaderSlot title="Ready" /></DestinationShell>)
+    expect(screen.getByRole('heading', { level: 1, name: 'Ready' })).toBeInTheDocument()
+  })
+
+  it('updates a pushed page header action while its title stays the same', () => {
+    const view = render(<DestinationShell onCreate={() => {}}>
+      <PageHeader title="Inbox" backLabel="Back" onBack={() => {}} action={<span>One unread</span>} />
+    </DestinationShell>)
+    expect(screen.getByText('One unread').closest('[data-shell-header]')).toBeInTheDocument()
+
+    view.rerender(<DestinationShell onCreate={() => {}}>
+      <PageHeader title="Inbox" backLabel="Back" onBack={() => {}} action={<span>Two unread</span>} />
+    </DestinationShell>)
+    expect(screen.getByText('Two unread').closest('[data-shell-header]')).toBeInTheDocument()
+    expect(screen.queryByText('One unread')).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('shows composer only on Hoje and habit detail at wide=%s', (wide) => {
+    mocks.wide = wide
+    for (const pathname of ['/', '/calendar', '/progress', '/profile', '/habits/h1', '/about', '/support', '/search', '/ai-settings', '/preferences', '/advanced']) {
+      mocks.pathname = pathname
+      const view = render(<DestinationShell onCreate={() => {}} composer={<span>Composer</span>}><h1>Title</h1></DestinationShell>)
+      expect(Boolean(view.container.querySelector('[data-shell-pinned-slot]'))).toBe(
+        pathname === '/habits/h1' || (pathname === '/' && !wide),
+      )
+      view.unmount()
+    }
+  })
+
+  it.each([false])('shows input and chips only on compact Hoje and preserves the conversation at wide=%s', (wide) => {
+    mocks.wide = wide
+    function App() {
+      const [open, setOpen] = useState(false)
+      return <DestinationShell onCreate={() => {}} conversation={<button type="button" onClick={() => setOpen(false)}>Close conversation</button>}
+        conversationOpen={open} conversationLabel="Conversation" composer={<Composer words={en.shell.composer} value="" state="idle"
+          suggestions={[
+            { id: 'first', label: 'First suggestion', onSelect: () => {} },
+            { id: 'second', label: 'Second suggestion', onSelect: () => {} },
+            { id: 'third', label: 'Third suggestion', onSelect: () => {} },
+          ]} onChangeValue={() => {}} onSend={() => {}} onOpenConversation={() => setOpen(true)} conversationLabel="Open conversation" />}>
+        <h1>Destination</h1>
+      </DestinationShell>
+    }
+    const view = render(<App />)
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: en.shell.composer.suggestionsLabel })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open conversation' }))
+    expect(screen.getByTestId('conversation')).toBeInTheDocument()
+    for (const pathname of ['/calendar', '/progress', '/profile']) {
+      mocks.pathname = pathname
+      view.rerender(<App />)
+      expect(screen.getByTestId('conversation')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: en.shell.composer.suggestionsLabel })).not.toBeInTheDocument()
+      expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
+      expect(screen.getByRole('link', { name: 'nav.today' })).toBeInTheDocument()
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Close conversation' }))
+    expect(screen.queryByTestId('conversation')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    mocks.pathname = '/'
+    view.rerender(<App />)
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: en.shell.composer.suggestionsLabel })).toBeInTheDocument()
+  })
+
+  it.each([false, true])('retains Calendar on Search at wide=%s', (wide) => {
+    mocks.wide = wide
+    mocks.pathname = '/calendar'
+    const view = render(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
+    mocks.pathname = '/search'
+    view.rerender(<DestinationShell onCreate={() => {}}><h1>Search</h1></DestinationShell>)
+    expect(screen.getByRole('link', { name: 'nav.calendar' })).toHaveAttribute('aria-current', 'page')
+    view.unmount()
+    mocks.lastDestination = 'hoje'
+    render(<DestinationShell onCreate={() => {}}><h1>Search</h1></DestinationShell>)
+    expect(screen.getByRole('link', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it.each([false, true])('hosts creation header and action without another create control at wide=%s', (wide) => {
+    mocks.wide = wide
+    mocks.pathname = '/habits/new'
+    const view = render(<DestinationShell onCreate={() => {}}>
+      <HabitCreateFrame presentation="screen" fromConversation={false} leaving={false}
+        actionRefreshKey="ready" onNavigate={() => {}} onReturn={() => {}}
+        open title="New habit" onAttemptDismiss={() => {}} onClose={() => {}}
+        actions={<button type="button">Create habit</button>}>
+        <label>Habit title<input /></label>
+      </HabitCreateFrame>
+    </DestinationShell>)
+    expect(screen.getByRole('button', { name: 'common.back' }).closest('[data-shell-header]')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create habit' }).closest('[data-shell-pinned-slot]')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'nav.createHabit' })).toBeNull()
+    if (!wide) expect(screen.queryByRole('navigation', { name: 'nav.mainNavigation' })).toBeNull()
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+  })
+
+  it('keeps the wide upgrade sidebar and reserves its account row', () => {
+    mocks.wide = true
+    mocks.pathname = '/upgrade'
+    mocks.profileLoaded = false
+    const view = render(<DestinationShell onCreate={() => {}} composer={<span>Composer</span>}><h1>Upgrade</h1></DestinationShell>)
+    expect(view.container.querySelectorAll('a[aria-current]')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: 'nav.profile' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('button', { name: 'nav.search' })).toBeInTheDocument()
+    expect(view.container.querySelector('[data-shell-account]')).toHaveAttribute('data-loading', 'true')
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'wide-create' })).toBeNull()
+    expect(mocks.keyboardEnabled).toHaveBeenCalledWith(true)
+    mocks.profileLoaded = true
+    mocks.profileName = 'Ada'
+    view.rerender(<DestinationShell onCreate={() => {}}><h1>Upgrade</h1></DestinationShell>)
+    expect(screen.getByTestId('wide-account')).toHaveTextContent('Ada')
+  })
+})
+
+it.each(['/', '/calendar', '/progress', '/profile'].flatMap((pathname) => [false, true].map((wide) => ({ pathname, wide }))))('scrolls the owning root on reselect at $pathname, wide=$wide', ({ pathname, wide }) => {
+  mocks.pathname = pathname
+  mocks.wide = wide
+  render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Root</h1><input aria-label="Draft" defaultValue="Written draft" /></DestinationShell></ShellScrollerProvider>)
+  const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+  const scrollTo = vi.fn()
+  scroller.scrollTo = scrollTo
+  fireEvent.click(document.querySelector<HTMLAnchorElement>('a[aria-current="page"]')!)
+  expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
+  expect(mocks.push).not.toHaveBeenCalled()
+  expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('Written draft')
+})
+
+function HeaderSlotProbe({ children }: { children: ReactNode }) {
+  return <ShellHeader>{children}</ShellHeader>
+}
+
+it.each(['heading', 'main', 'pinned heading', 'retained heading'])('offers the Hoje pill and restores keyboard focus to %s', async (target) => {
+  const user = userEvent.setup()
+  mocks.pathname = '/'
+  const view = render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}>
+    {target === 'retained heading' ? <HeaderSlotProbe><h1>Previous</h1></HeaderSlotProbe> : null}
+    {target === 'pinned heading' || target === 'retained heading' ? <HeaderSlotProbe><h1>Today</h1></HeaderSlotProbe> : null}
+    {target === 'heading' ? <h1>Today</h1> : null}
+    <input aria-label="Top draft" defaultValue="Written draft" />
+  </DestinationShell></ShellScrollerProvider>)
+  const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+  Object.defineProperty(scroller, 'clientHeight', { value: 500 })
+  const scrollTo = vi.fn()
+  scroller.scrollTo = scrollTo
+  const scroll = async (offset: number) => {
+    scroller.scrollTop = offset; fireEvent.scroll(scroller)
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))) })
+  }
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(900)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(700)
+  const pill = screen.getByRole('button', { name: 'common.backToTop' })
+  expect(pill).toHaveTextContent('common.top')
+  pill.focus()
+  expect(document.activeElement).toBe(pill)
+  await user.keyboard('{Enter}')
+  const focusTarget = target === 'main' ? scroller : screen.getByRole('heading', { name: 'Today' })
+  expect(document.activeElement).toBe(focusTarget)
+  await user.tab()
+  expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Top draft' }))
+  expect(screen.getByRole('textbox', { name: 'Top draft' })).toHaveValue('Written draft')
+  expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(900)
+  await scroll(600)
+  expect(screen.getByRole('button', { name: 'common.backToTop' })).toBeInTheDocument()
+  await scroll(0)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(900)
+  await scroll(600)
+  expect(screen.getByRole('button', { name: 'common.backToTop' })).toBeInTheDocument()
+  mocks.pathname = '/calendar'
+  view.rerender(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell></ShellScrollerProvider>)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(550)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+})
+
+ it.each(['/calendar', '/progress', '/profile', '/search', '/habits/example'])('never offers the Hoje pill at %s', async (pathname) => {
+  mocks.pathname = pathname
+  render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Other screen</h1></DestinationShell></ShellScrollerProvider>)
+  const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+  Object.defineProperty(scroller, 'clientHeight', { value: 500 })
+  for (const offset of [900, 700]) {
+    scroller.scrollTop = offset; fireEvent.scroll(scroller)
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)) })
+  }
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+})

@@ -1,0 +1,1667 @@
+import { spawn } from "node:child_process"
+import filesystem from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+import { dirname, join } from "node:path"
+import { setTimeout as wait } from "node:timers/promises"
+
+import {
+  T,
+  REPO_ROOT,
+  check,
+  orcaEnv,
+  realOrchestratorConfig,
+  run,
+  stage,
+  stageRepo,
+  stageWithConfig,
+  toolPath,
+} from "./_harness.mjs"
+import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
+import { RELEASE_HOLD_MS, checkAdmission, releaseAdmission } from "../lib/admission.mjs"
+import { runBounded } from "../lib/bounded-process.mjs"
+import {
+  receiptBlocksTicketAdmission,
+  acquireSubmissionLock,
+  CLOUD_FINISHING_CONTRACT,
+  cloudStateRoot,
+  persistReconciledReceipt,
+} from "../lib/cloud-worker.mjs"
+
+const TOOL = "submit-cloud-worker.mjs"
+
+let siblingRepos = null
+const stagedSiblings = (config) => {
+  siblingRepos ??= Object.fromEntries(Object.keys(config.repos).filter((key) => key !== config.cloud.repositoryKey).map((key) => {
+    const sibling = stageRepo(`submit-cloud-sibling-${key}`)
+    sibling.git(["remote", "set-url", "origin", `https://github.com/test-owner/sibling-${key}.git`])
+    return [key, sibling.path]
+  }))
+  return siblingRepos
+}
+
+const fixture = (label) => {
+  const codex = fakeCodex(`submit-${label}`)
+  const config = cloudConfig(codex.command, { real: realOrchestratorConfig(), cloudCeilingMinutes: 45 })
+  config.timeouts.pollSeconds = 0.01
+  const repo = stageRepo(`submit-cloud-${label}`)
+  config.repos = { ...config.repos, ...stagedSiblings(config), [config.cloud.repositoryKey]: repo.path }
+  const staged = stageWithConfig(`submit-cloud-${label}`, TOOL, config)
+  cpSync(toolPath("check-dashes.mjs"), join(staged.base, "tools", "check-dashes.mjs"))
+  const order = stage(`submit-cloud/${label}/order.md`, "Implement the measured cloud path.\n")
+  const log = stage(`submit-cloud/${label}/codex.jsonl`, "")
+  return { ...staged, repo, order, log, codex, config }
+}
+
+const argvOf = (entry) => [
+  "--issue", "#398",
+  "--env", entry.config.cloud.environmentId,
+  "--branch", "main",
+  "--order", entry.order,
+  "--worktree", entry.repo.path,
+]
+
+const argvFor = (entry, issue, order) => [
+  "--issue", issue,
+  "--env", entry.config.cloud.environmentId,
+  "--branch", "main",
+  "--order", order,
+  "--worktree", entry.repo.path,
+]
+
+const spawnTool = (entry, args, env) => {
+  const child = spawn(process.execPath, [entry.path, ...args], {
+    cwd: entry.repo.path,
+    env: { ...process.env, ...env },
+    windowsHide: true,
+  })
+  let stdout = ""
+  let stderr = ""
+  child.stdout.on("data", (chunk) => { stdout += chunk.toString() })
+  child.stderr.on("data", (chunk) => { stderr += chunk.toString() })
+  const result = new Promise((resolveResult) => {
+    child.once("close", (status, signal) => resolveResult({ status, signal, stdout, stderr }))
+  })
+  return { child, result }
+}
+
+const runConcurrent = (entry, args, env) => runBounded(process.execPath, [entry.path, ...args], {
+  cwd: entry.repo.path,
+  env: { ...process.env, ...env },
+  timeoutMs: 30000,
+})
+
+const waitForAcceptance = async (submission, acceptedPath, timeoutMs = 15000) => {
+  let completed
+  submission.result.then((result) => { completed = result })
+  const deadline = Date.now() + timeoutMs
+  while (true) {
+    if (completed) return { stage: "exited before acceptance", ...completed }
+    const acceptance = readFileSync(acceptedPath, "utf8")
+    if (acceptance !== "") return { stage: "accepted", acceptance }
+    if (Date.now() >= deadline) return { stage: "acceptance timed out", timeoutMs }
+    await wait(10)
+  }
+}
+
+const stopSubmission = async (submission, signal) => {
+  submission.child.kill(signal)
+  const deadline = setTimeout(() => submission.child.kill("SIGKILL"), 5000)
+  try {
+    return await submission.result
+  } finally {
+    clearTimeout(deadline)
+  }
+}
+
+const cloudAdmissionAfterHold = (entry, now = Date.now() + RELEASE_HOLD_MS + 1000) => checkAdmission({
+  config: { ...entry.config, repos: { ui: entry.repo.path }, caps: { maxOpenPullRequests: 0, maxQueuedRuns: 0 } },
+  repositoryKey: "ui",
+  branch: "feature/next",
+  environment: orcaEnv([
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: "[]" },
+    { match: "actions/runs?status=queued", stdout: '{"total_count":0,"workflow_runs":[]}' },
+  ]),
+  worktree: entry.repo.path,
+  repoRoot: entry.base,
+  now,
+})
+
+const replacementOwnerSurvives = (interleave, duringRelease = false) => {
+  const stateRoot = join(stage(`submit-cloud/replacement-${interleave}-${duringRelease}/fixture`, ""), "..")
+  const lockDirectory = join(stateRoot, "submit.lock")
+  const releaseFirst = acquireSubmissionLock(stateRoot)
+  const firstOwnerPath = join(lockDirectory, readdirSync(lockDirectory)[0])
+  if (interleave !== "readFileSync" && !duringRelease) writeFileSync(firstOwnerPath, JSON.stringify({ pid: 2147483647 }))
+  const original = filesystem[interleave]
+  let injected = false
+  let missingRead = false
+  let releaseSecond
+  let releaseWaiter
+  let secondOwnerPath
+  let secondOwnerContents
+  let failure
+  let survived = false
+  const publishSecond = () => {
+    releaseSecond = acquireSubmissionLock(stateRoot)
+    secondOwnerPath = join(lockDirectory, readdirSync(lockDirectory)[0])
+    secondOwnerContents = readFileSync(secondOwnerPath, "utf8")
+  }
+  try {
+    filesystem[interleave] = (path, ...args) => {
+      if (injected || path !== (interleave === "rmdirSync" ? lockDirectory : firstOwnerPath)) {
+        return original(path, ...args)
+      }
+      injected = true
+      releaseFirst()
+      if (interleave === "readFileSync") {
+        try {
+          return original(path, ...args)
+        } catch (error) {
+          // Preserve the real failed read, but let a third writer publish before the waiter sees it.
+          missingRead = error.code === "ENOENT"
+          publishSecond()
+          throw error
+        }
+      }
+      publishSecond()
+      return original(path, ...args)
+    }
+    syncBuiltinESMExports()
+    try {
+      if (duringRelease) releaseFirst()
+      else releaseWaiter = acquireSubmissionLock(stateRoot)
+    } catch (error) {
+      failure = error.message
+    }
+    survived = Boolean(secondOwnerPath && existsSync(secondOwnerPath) &&
+      readFileSync(secondOwnerPath, "utf8") === secondOwnerContents)
+  } finally {
+    filesystem[interleave] = original
+    syncBuiltinESMExports()
+    releaseWaiter?.()
+    releaseSecond?.()
+    releaseFirst()
+  }
+  T(
+    `${TOOL}: a replacement owner survives contention at ${interleave}${duringRelease ? " during release" : ""}`,
+    injected && (interleave !== "readFileSync" || missingRead) && !releaseWaiter &&
+      survived && failure === (duringRelease ? undefined : `cloud submission is already running in process ${process.pid}`),
+    JSON.stringify({ injected, missingRead, secondOwnerLockStolen: Boolean(releaseWaiter) || !survived, failure }),
+  )
+}
+
+export const cases = async () => {
+  const originalEnvironment = Object.fromEntries(["GIT_BIN", "GH_BIN", "NODE_OPTIONS", "ORBIT_ORCA_STUB"].map((key) => [key, process.env[key]]))
+  Object.assign(process.env, orcaEnv([
+    { match: "remote get-url origin", stdout: "https://github.com/test-owner/cloud.git" },
+    { match: "auth token --user test-owner", stdout: "test-github-token" },
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: "[]" },
+    { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
+  ]), { GIT_BIN: process.execPath })
+  const disabled = fixture("disabled")
+  disabled.config.cloud.enabled = false
+  writeFileSync(disabled.configPath, `${JSON.stringify(disabled.config, null, 2)}\n`)
+  const disabledEnvironment = {
+    ORBIT_FAKE_CODEX_LOG: disabled.log,
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_d15ab1ed",
+  }
+  const refused = run(TOOL, argvOf(disabled), { path: disabled.path, env: disabledEnvironment })
+  const stateRoot = cloudStateRoot(disabled.repo.path)
+  T(
+    `${TOOL}: cloud.enabled false refuses before Codex contact, reservation, or receipt`,
+    refused.status === 7 && refused.stderr.includes("cloud.enabled is false") &&
+      refused.stderr.includes("Set cloud.enabled to true") && readFileSync(disabled.log, "utf8") === "" &&
+      !existsSync(join(stateRoot, "receipts")) && !existsSync(join(stateRoot, "reservations")),
+    refused.stderr,
+  )
+  const bypass = run(TOOL, [...argvOf(disabled), "--force"], { path: disabled.path, env: disabledEnvironment })
+  T(
+    `${TOOL}: no command-line force flag bypasses cloud.enabled false`,
+    bypass.status === 2 && bypass.stderr.includes("unknown option(s): --force") &&
+      readFileSync(disabled.log, "utf8") === "",
+    bypass.stderr,
+  )
+  disabled.config.cloud.enabled = true
+  writeFileSync(disabled.configPath, `${JSON.stringify(disabled.config, null, 2)}\n`)
+  const enabled = run(TOOL, argvOf(disabled), { path: disabled.path, env: disabledEnvironment })
+  const enabledCodexArgs = JSON.parse(readFileSync(disabled.log, "utf8").trim())
+  T(
+    `${TOOL}: the same submission proceeds only after cloud.enabled becomes true`,
+    enabled.status === 0 && JSON.parse(enabled.stdout).taskId === "task_e_d15ab1ed" &&
+      enabledCodexArgs[0] === "cloud" && enabledCodexArgs[1] === "exec",
+    enabled.stdout || enabled.stderr,
+  )
+  const admissionFixture = fixture("admission-refusal")
+  const pullRequestCap = admissionFixture.config.caps.maxOpenPullRequests
+  const repositoryCount = Object.keys(admissionFixture.config.repos).length
+  const pullsPerRepository = Math.floor(pullRequestCap / repositoryCount) + 1
+  const aboveCapPulls = Array.from({ length: pullsPerRepository }, (_, index) => ({ number: index + 1 }))
+  const admissionEnvironment = orcaEnv([
+    { match: "remote get-url origin", stdout: "https://github.com/test-owner/cloud.git" },
+    { match: "auth token --user test-owner", stdout: "test-github-token" },
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: JSON.stringify(aboveCapPulls) },
+    { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
+  ])
+  const admissionRefusal = run(TOOL, argvOf(admissionFixture), { path: admissionFixture.path, env: { ...admissionEnvironment, ORBIT_FAKE_CODEX_LOG: admissionFixture.log } })
+  const admissionResult = JSON.parse(admissionRefusal.stdout)
+  T(`${TOOL}: admission refuses before Cloud reservation or submission`, admissionRefusal.status === 8 && admissionResult.reason === "ADMISSION_REFUSED" && admissionResult.counts.openPullRequests === pullsPerRepository * repositoryCount && admissionResult.limits.maxOpenPullRequests === pullRequestCap && !existsSync(join(cloudStateRoot(admissionFixture.repo.path), "reservations")) && readFileSync(admissionFixture.log, "utf8") === "", JSON.stringify(admissionResult))
+
+  const legacyRoot = join(stage("submit-cloud/legacy-replacement/fixture", ""), "..")
+  const legacyDirectory = join(legacyRoot, "submit.lock")
+  const legacyOwner = join(legacyDirectory, "owner.json")
+  mkdirSync(legacyDirectory)
+  writeFileSync(legacyOwner, JSON.stringify({ pid: 2147483647 }))
+  const originalLegacyRead = filesystem.readFileSync
+  let legacyPublished = false
+  let legacyRelease
+  let legacyError
+  const replacementContents = JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })
+  try {
+    filesystem.readFileSync = (path, ...args) => {
+      const contents = originalLegacyRead(path, ...args)
+      if (path === legacyOwner && !legacyPublished) {
+        legacyPublished = true
+        // The old writer's reclaim/publication sequence from a5fd34d0 runs after the stale read.
+        const stale = join(legacyRoot, "old-waiter.stale")
+        const candidate = join(legacyRoot, "old-waiter.candidate")
+        filesystem.renameSync(legacyDirectory, stale)
+        filesystem.rmSync(stale, { recursive: true })
+        mkdirSync(candidate)
+        writeFileSync(join(candidate, "owner.json"), replacementContents)
+        filesystem.renameSync(candidate, legacyDirectory)
+      }
+      return contents
+    }
+    syncBuiltinESMExports()
+    try { legacyRelease = acquireSubmissionLock(legacyRoot) } catch (error) { legacyError = error.message }
+    T(
+      `${TOOL}: a delayed reclaimer preserves a live legacy replacement after reading its dead predecessor`,
+      legacyPublished && !legacyRelease && Boolean(legacyError) && existsSync(legacyOwner) &&
+        readFileSync(legacyOwner, "utf8") === replacementContents,
+      JSON.stringify({ legacyPublished, concurrentAcquisition: Boolean(legacyRelease), legacyError }),
+    )
+  } finally {
+    filesystem.readFileSync = originalLegacyRead
+    syncBuiltinESMExports()
+    legacyRelease?.()
+    filesystem.rmSync(legacyDirectory, { recursive: true, force: true })
+  }
+  const renameRaceMirror = stage("submit-cloud/rename-race/receipts/task_e_a419.json", '{"taskId":"task_e_a419"}')
+  const renameRaceLock = join(renameRaceMirror, "..", "..", "receipt-task_e_a419.json.lock")
+  mkdirSync(renameRaceLock)
+  writeFileSync(join(renameRaceLock, "owner.json"), JSON.stringify({ pid: process.pid }))
+  const originalRename = filesystem.renameSync
+  let contentionObserved = false
+  let renameRaceError = null
+  try {
+    filesystem.renameSync = (source, destination) => {
+      try {
+        return originalRename(source, destination)
+      } catch (error) {
+        if (destination === renameRaceLock && !contentionObserved) {
+          contentionObserved = true
+          filesystem.rmSync(renameRaceLock, { recursive: true })
+        }
+        throw error
+      }
+    }
+    syncBuiltinESMExports()
+    persistReconciledReceipt({ taskId: "task_e_a419", firstReadyObservedAt: "2026-09-05T00:00:00.000Z" }, renameRaceMirror, [], { lockTimeoutMs: 1000 })
+  } catch (error) {
+    renameRaceError = error
+  } finally {
+    filesystem.renameSync = originalRename
+    syncBuiltinESMExports()
+  }
+  T(
+    `${TOOL}: a receipt claim survives its owner releasing after a native rename failure`,
+    contentionObserved && renameRaceError === null && !existsSync(renameRaceLock) &&
+      JSON.parse(readFileSync(renameRaceMirror, "utf8")).firstReadyObservedAt === "2026-09-05T00:00:00.000Z",
+    String(renameRaceError),
+  )
+  for (const interleave of ["readFileSync", "unlinkSync", "rmdirSync"]) replacementOwnerSurvives(interleave)
+  replacementOwnerSurvives("rmdirSync", true)
+  for (const staleKind of ["unique owner", "empty directory"]) {
+    const stateRoot = join(stage(`submit-cloud/reclaim-${staleKind}/fixture`, ""), "..")
+    const lockDirectory = join(stateRoot, "submit.lock")
+    if (staleKind === "unique owner") {
+      acquireSubmissionLock(stateRoot)
+      writeFileSync(join(lockDirectory, readdirSync(lockDirectory)[0]), JSON.stringify({ pid: 2147483647 }))
+    } else {
+      mkdirSync(lockDirectory)
+    }
+    const release = acquireSubmissionLock(stateRoot)
+    T(`${TOOL}: stale reclamation recovers ${staleKind}`, existsSync(lockDirectory))
+    release()
+    T(`${TOOL}: release removes a reclaimed ${staleKind}`, !existsSync(lockDirectory))
+  }
+  const schedulerContract = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
+  const normalizedSchedulerContract = schedulerContract.replace(/\s+/g, " ")
+  T(
+    `${TOOL}: the wake report names empty failures and the scheduler retries once`,
+    normalizedSchedulerContract.includes("Resubmit once with the original `submit-cloud-worker.mjs` arguments") &&
+      normalizedSchedulerContract.includes("Every `CLOUD_TASK_EMPTY` failure by name") &&
+      normalizedSchedulerContract.includes("Never count an empty result as a completed ticket"),
+  )
+  for (const ending of ["empty", "materialized", "uncertain", "missing-handoff", "malformed-handoff"]) {
+    const invalidHandoff = ending.endsWith("-handoff")
+    const retryEntry = fixture(`empty-retry-${ending}`)
+    const orderText = "Edit README.md to describe the measured cloud path.\n"
+    writeFileSync(retryEntry.order, orderText)
+    writeFileSync(join(retryEntry.repo.path, "README.md"), "Original description.\n")
+    retryEntry.repo.git(["add", "README.md"])
+    retryEntry.repo.git(["commit", "-q", "-m", "named target"])
+    retryEntry.repo.git(["push", "-q", "origin", "main"])
+    const firstId = "task_e_e433"
+    const retryId = "task_e_e434"
+    const retryStdin = stage(`submit-cloud/empty-retry-${ending}-stdin.txt`, "")
+    const retryEnv = {
+      ORBIT_FAKE_CODEX_LOG: retryEntry.log,
+      ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${firstId}`,
+      ORBIT_FAKE_STDIN_LOG: retryStdin,
+      ORBIT_FAKE_LIST: taskPage([task(firstId, "ready", 0)]),
+    }
+    const first = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
+    const firstReceipt = JSON.parse(first.stdout)
+    T(
+      `${TOOL}: ${ending} named targets exclude the trailing NUL separator from real git ls-files`,
+      JSON.stringify(firstReceipt.namedTargets) === JSON.stringify(["README.md"]),
+      JSON.stringify(firstReceipt.namedTargets),
+    )
+    const materializer = stageWithConfig(`empty-retry-${ending}-materialize`, "materialize-cloud-result.mjs", retryEntry.config)
+    const empty = run("materialize-cloud-result.mjs", ["--receipt", firstReceipt.receiptPath], {
+      path: materializer.path,
+      env: { ...retryEnv, ORBIT_FAKE_APPLY_MODE: "noop" },
+    })
+    const failedReceipt = JSON.parse(readFileSync(firstReceipt.receiptPath, "utf8"))
+    T(
+      `${TOOL}: ${ending} original empty task remains owned and reported`,
+      empty.status === 3 && JSON.parse(empty.stdout).outcome === "CLOUD_TASK_EMPTY" &&
+        receiptBlocksTicketAdmission(failedReceipt) && failedReceipt.emptyFailure.namedTargets[0] === "README.md",
+      empty.stdout || empty.stderr,
+    )
+    const failedWatch = run(TOOL, ["--watch", firstReceipt.receiptPath], { path: retryEntry.path, env: retryEnv })
+    T(
+      `${TOOL}: ${ending} watcher reports the named failure instead of resolved success`,
+      failedWatch.status === 3 && JSON.parse(failedWatch.stdout).outcome === "CLOUD_TASK_EMPTY",
+      failedWatch.stdout || failedWatch.stderr,
+    )
+    writeFileSync(retryEntry.order, "A different order.\n")
+    const changed = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
+    T(`${TOOL}: ${ending} retry refuses changed work orders`, changed.status === 2, changed.stderr)
+    writeFileSync(retryEntry.order, orderText)
+    const second = run(TOOL, argvOf(retryEntry), {
+      path: retryEntry.path,
+      env: { ...retryEnv, ORBIT_FAKE_EXEC_URL: ending === "uncertain" ? "unconfirmed" : `https://chatgpt.com/codex/tasks/${retryId}` },
+    })
+    const pointedOrder = readFileSync(retryStdin, "utf8")
+    T(
+      `${TOOL}: ${ending} retry begins with a standalone commit order and retains the original task`,
+      pointedOrder.startsWith("Commit the changes with `git add`") &&
+        pointedOrder.split("\n")[1] === "" && pointedOrder.includes("Retry 1 of 1") &&
+        pointedOrder.includes(orderText) && (ending === "uncertain" ? second.status === 1 : JSON.parse(second.stdout).emptyRetryOf === firstId),
+      second.stdout || second.stderr,
+    )
+    if (ending !== "uncertain") {
+      const secondReceipt = JSON.parse(second.stdout)
+      let deliveredPatch
+      const handoff = {
+        needsDecision: null,
+        assumptions: [],
+        manualSteps: [],
+        testResults: "Focused README verification passed.",
+      }
+      if (ending === "materialized" || invalidHandoff) {
+        const source = stageRepo(`empty-retry-delivered-patch-${ending}`)
+        writeFileSync(join(source.path, "implementation.txt"), "Recovered implementation.\n")
+        source.git(["add", "implementation.txt"])
+        if (ending !== "missing-handoff") {
+          mkdirSync(join(source.path, ".claude"), { recursive: true })
+          writeFileSync(join(source.path, ".claude", "cloud-handoff.json"),
+            ending === "malformed-handoff" ? "{invalid JSON" : JSON.stringify(handoff))
+          source.git(["add", ".claude/cloud-handoff.json"])
+        }
+        deliveredPatch = source.git(["diff", "--cached", "--binary", "--full-index"]).stdout
+      }
+      const result = run("materialize-cloud-result.mjs", ["--receipt", secondReceipt.receiptPath], {
+        path: materializer.path,
+        env: {
+          ...retryEnv,
+          ORBIT_FAKE_LIST: taskPage([task(firstId, "ready", 0), task(retryId, "ready", 0)]),
+          ...(ending === "empty"
+            ? { ORBIT_FAKE_APPLY_MODE: "noop" }
+            : { ORBIT_FAKE_APPLY_PATCH: deliveredPatch, ORBIT_FAKE_DIFF: deliveredPatch }),
+        },
+      })
+      const settled = JSON.parse(readFileSync(secondReceipt.receiptPath, "utf8"))
+      T(
+        `${TOOL}: ${ending} retry admission follows its terminal outcome`,
+        ending === "empty"
+          ? result.status === 3 && JSON.parse(result.stdout).retry === "exhausted" && receiptBlocksTicketAdmission(settled)
+          : invalidHandoff
+            ? result.status === 10 && settled.unusable?.outcome === "CLOUD_HANDOFF_INVALID" &&
+              !settled.materialized && !receiptBlocksTicketAdmission(settled)
+            : result.status === 0 && !receiptBlocksTicketAdmission(settled) &&
+            JSON.stringify(settled.materialized?.handoff) === JSON.stringify(handoff),
+        result.stdout || result.stderr,
+      )
+      if (invalidHandoff) {
+        T(`${TOOL}: ${ending} preserves the staged implementation for manual delivery`,
+          retryEntry.repo.git(["show", ":implementation.txt"]).stdout === "Recovered implementation.\n")
+        retryEntry.repo.git(["commit", "-q", "-m", "manual delivery of preserved patch"])
+        retryEntry.repo.git(["push", "-q", "origin", "main"])
+        const nextId = "task_e_e435"
+        const nextEnv = {
+          ...retryEnv,
+          ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${nextId}`,
+          ORBIT_FAKE_LIST: taskPage([task(firstId, "ready", 0), task(retryId, "ready", 1), task(nextId, "ready", 0)]),
+        }
+        const next = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: nextEnv })
+        T(`${TOOL}: ${ending} terminal unusability permits a new same-ticket submission`,
+          next.status === 0 && !JSON.parse(next.stdout).emptyRetryOf, next.stdout || next.stderr)
+        if (next.status === 0) {
+          const nextReceipt = JSON.parse(next.stdout)
+          const nextEmpty = run("materialize-cloud-result.mjs", ["--receipt", nextReceipt.receiptPath], {
+            path: materializer.path,
+            env: { ...nextEnv, ORBIT_FAKE_APPLY_MODE: "noop" },
+          })
+          T(`${TOOL}: ${ending} readmitted task still reports an empty result as unfinished`, nextEmpty.status === 3)
+          const exhausted = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: nextEnv })
+          const executions = readFileSync(retryEntry.log, "utf8").trim().split(/\r?\n/).map(JSON.parse)
+            .filter((args) => args[1] === "exec")
+          const receiptsDirectory = join(retryEntry.repo.path, ".git", "orbit-cloud", "receipts")
+          const retries = readdirSync(receiptsDirectory).map((name) =>
+            JSON.parse(readFileSync(join(receiptsDirectory, name), "utf8"))).filter((receipt) => receipt.emptyRetryOf)
+          T(`${TOOL}: ${ending} second session empty routes the next attempt locally`,
+            exhausted.status === 6 && exhausted.stderr.includes("circuit breaker") &&
+              executions.length === 3 && retries.length === 1 && retries[0].emptyRetryOf === firstId,
+            exhausted.stdout || exhausted.stderr)
+        }
+      }
+    }
+    if (ending !== "materialized" && !invalidHandoff) {
+      if (ending === "uncertain") {
+        const receiptsDirectory = join(retryEntry.repo.path, ".git", "orbit-cloud", "receipts")
+        const reservationPath = join(receiptsDirectory, readdirSync(receiptsDirectory).find((name) => name.startsWith("reservation-")))
+        const cleared = run(TOOL, ["--clear-unknown", reservationPath, "--assert-no-task-exists"], { path: retryEntry.path, env: retryEnv })
+        T(`${TOOL}: the uncertain retry can release capacity after explicit absence confirmation`, cleared.status === 0, cleared.stderr)
+      }
+      const third = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
+      const executions = readFileSync(retryEntry.log, "utf8").trim().split(/\r?\n/).map(JSON.parse).filter((args) => args[1] === "exec")
+      T(
+        `${TOOL}: ${ending} retry cannot loop or silently readmit the ticket`,
+        third.status === (ending === "empty" ? 6 : 3) &&
+          third.stderr.includes(ending === "empty" ? "circuit breaker" : "CLOUD_TASK_EMPTY") &&
+          executions.length === 2,
+        third.stdout || third.stderr,
+      )
+    }
+  }
+  T(
+    `${TOOL}: the scheduler contract resolves every terminal task status`,
+    schedulerContract.includes("When a task receipt reaches any terminal status") &&
+      schedulerContract.includes("For `error` and `applied`, it records the distinct unusable result") &&
+      schedulerContract.includes("List summary statistics are advisory"),
+    "the scheduler contract does not route all terminal task receipts through resolution",
+  )
+  T(
+    `${TOOL}: the scheduler contract gives visible tasks a non-adopting abandon path`,
+    normalizedSchedulerContract.includes("--abandon-known <reservation> --task-id <task_e_id>") &&
+      normalizedSchedulerContract.includes("reservation keeps consuming capacity and blocking its ticket") &&
+      normalizedSchedulerContract.includes("Never assert absence while the UI shows a task"),
+    "the visible task abandon action is missing or releases before terminal observation",
+  )
+  T(
+    `${TOOL}: the combined sleep and cloud contract launches one registered receipt watcher`,
+    normalizedSchedulerContract.includes("Under combined `--sleep --cloud`") &&
+      normalizedSchedulerContract.includes("--watch <receiptPath>") &&
+      normalizedSchedulerContract.includes("Submission alone is not a wake source"),
+    "the cloud path has no durable unattended wake contract",
+  )
+  const entry = fixture("success")
+  const stdinLog = stage("submit-cloud/success-stdin.txt", "")
+  const env = {
+    ORBIT_FAKE_CODEX_LOG: entry.log,
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a398",
+    ORBIT_FAKE_STDIN_LOG: stdinLog,
+  }
+  const submitted = check(TOOL, "submits one task and prints one receipt object", argvOf(entry), { status: 0, stdout: /"taskId":"task_e_a398"/ }, { path: entry.path, env })
+  const receipt = JSON.parse(submitted.stdout)
+  const invocations = readFileSync(entry.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  const exec = invocations.find((args) => args[0] === "cloud" && args[1] === "exec")
+  T(
+    `${TOOL}: the order goes through stdin and ends with the finishing contract`,
+    exec?.at(-1) === receipt.baseSha &&
+      readFileSync(stdinLog, "utf8").startsWith("Implement the measured cloud path.") &&
+      readFileSync(stdinLog, "utf8").endsWith(`${CLOUD_FINISHING_CONTRACT}\n`),
+    `${JSON.stringify(exec)}\n${readFileSync(stdinLog, "utf8")}`,
+  )
+  const branchIndex = exec?.indexOf("--branch") ?? -1
+  T(
+    `${TOOL}: cloud execution is pinned to the resolved remote commit while the receipt keeps branch context`,
+    branchIndex !== -1 &&
+      exec[branchIndex + 1] === receipt.baseSha &&
+      receipt.branch === "main" &&
+      receipt.baseSha === entry.repo.git(["rev-parse", "refs/remotes/origin/main"]).stdout.trim(),
+    `${JSON.stringify(exec)}\n${JSON.stringify(receipt)}`,
+  )
+  T(
+    `${TOOL}: receipt captures the pushed base, two order hashes, deadline, worktree, and stable mirror`,
+    /^[0-9a-f]{40}$/.test(receipt.baseSha) &&
+      /^[0-9a-f]{64}$/.test(receipt.orderSha256) &&
+      /^[0-9a-f]{64}$/.test(receipt.submittedOrderSha256) &&
+      Date.parse(receipt.deadline) - Date.parse(receipt.submittedAt) === 45 * 60 * 1000 &&
+      receipt.worktree === entry.repo.path &&
+      existsSync(receipt.receiptPath) &&
+      existsSync(receipt.mirrorPath) &&
+      receipt.kind === "task-receipt" &&
+      receipt.submissionState === "confirmed" &&
+      receipt.repositoryKey === "ui" &&
+      readdirSync(join(entry.repo.path, ".git", "orbit-cloud", "receipts")).length === 1,
+    JSON.stringify(receipt),
+  )
+  const pendingCloudAdmission = await cloudAdmissionAfterHold(entry)
+  T(
+    `${TOOL}: a submitted Cloud task holds admission after process exit and the release window`,
+    !pendingCloudAdmission.admitted && pendingCloudAdmission.counts.reservations?.pullRequests === 1 &&
+      pendingCloudAdmission.counts.reservations?.queuedRuns === 1,
+    JSON.stringify(pendingCloudAdmission),
+  )
+  releaseAdmission(pendingCloudAdmission.reservationId, entry.base, Date.now() - RELEASE_HOLD_MS - 1000)
+
+  const priorReceipt = JSON.parse(readFileSync(receipt.mirrorPath, "utf8"))
+  priorReceipt.ticket = "#397"
+  writeFileSync(receipt.mirrorPath, JSON.stringify(priorReceipt))
+  writeFileSync(entry.log, "")
+  const cwdLog = stage("submit-cloud/cwd-safe.txt", "")
+  const launchRepository = stageRepo("submit-cloud-cwd-safe-launch")
+  const cwdSafeResult = run(TOOL, argvOf(entry), {
+    path: entry.path,
+    cwd: launchRepository.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: entry.log,
+      ORBIT_FAKE_CODEX_CWD_LOG: cwdLog,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_c0d2",
+      ORBIT_FAKE_LIST: taskPage([task(priorReceipt.taskId, "pending", 0)]),
+    },
+  })
+  const cwdSafeInvocations = readFileSync(entry.log, "utf8").trim().split(/\r?\n/).map(JSON.parse)
+  const childWorkingDirectories = readFileSync(cwdLog, "utf8").trim().split(/\r?\n/)
+  const expectedStateRoot = cloudStateRoot(entry.repo.path)
+  const launchStateRoot = cloudStateRoot(launchRepository.path)
+  T(
+    `${TOOL}: list and exec use the target worktree cloud state root from another repository`,
+    cwdSafeResult.status === 0 &&
+      JSON.stringify(cwdSafeInvocations.map((args) => args[1])) === JSON.stringify(["list", "exec"]) &&
+      JSON.stringify(childWorkingDirectories) === JSON.stringify([expectedStateRoot, expectedStateRoot]) &&
+      !childWorkingDirectories.includes(launchStateRoot),
+    `exit ${cwdSafeResult.status}: ${cwdSafeResult.stdout || cwdSafeResult.stderr}\n` +
+      `invocations ${JSON.stringify(cwdSafeInvocations)}\nworking directories ${JSON.stringify(childWorkingDirectories)}`,
+  )
+
+  const watcher = spawnTool(entry, ["--watch", receipt.receiptPath], {
+    ORBIT_FAKE_CODEX_LOG: entry.log,
+    ORBIT_FAKE_LIST: taskPage([task(receipt.taskId, "ready", 1)]),
+    ORBIT_FAKE_LIST_DELAY_MS: "200",
+  })
+  const wakeSource = join(entry.base, ".git", "orbit-wake-sources", `${watcher.child.pid}.json`)
+  const wakeDeadline = Date.now() + 2000
+  while (!existsSync(wakeSource) && Date.now() < wakeDeadline) await wait(10)
+  const watcherWasLive = existsSync(wakeSource)
+  const watcherResult = await watcher.result
+  const watchedReceipt = JSON.parse(readFileSync(receipt.receiptPath, "utf8"))
+  T(
+    `${TOOL}: a cloud watcher is a live registered wake source until it records a terminal receipt`,
+    watcherWasLive &&
+      watcherResult.status === 0 &&
+      /"outcome":"TERMINAL_READY"/.test(watcherResult.stdout) &&
+      watchedReceipt.terminal?.status === "ready" &&
+      !existsSync(wakeSource),
+    `exit ${watcherResult.status}: ${watcherResult.stdout || watcherResult.stderr}\n` +
+      `live ${watcherWasLive}; receipt ${JSON.stringify(watchedReceipt)}`,
+  )
+  const interruptedCloud = fixture("interrupted-admission")
+  const acceptedPath = stage("submit-cloud/interrupted-admission-accepted.txt", "")
+  const startupDelay = stage("submit-cloud/startup-delay.cjs", `
+if (process.argv[1] === ${JSON.stringify(interruptedCloud.path)}) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5500)
+}
+`)
+  const delayedEnvironment = {
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS} --require "${startupDelay.replaceAll("\\", "/")}"`,
+    ORBIT_FAKE_CODEX_LOG: interruptedCloud.log,
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a399",
+    ORBIT_FAKE_ACCEPTANCE_LOG: acceptedPath,
+    ORBIT_FAKE_EXEC_DELAY_MS: "1500",
+  }
+  const beforeAcceptance = spawnTool(interruptedCloud, argvOf(interruptedCloud), delayedEnvironment)
+  const missedAcceptance = await waitForAcceptance(beforeAcceptance, acceptedPath, 100)
+  const beforeAcceptanceResult = await stopSubmission(beforeAcceptance, "SIGTERM")
+  const beforeAcceptanceAdmission = await cloudAdmissionAfterHold(interruptedCloud)
+  T(
+    `${TOOL}: interruption before acceptance reports startup timeout rather than lost reservations`,
+    missedAcceptance.stage === "acceptance timed out" && missedAcceptance.timeoutMs === 100 &&
+      readFileSync(acceptedPath, "utf8") === "" && beforeAcceptanceResult.status === null &&
+      beforeAcceptanceResult.signal === "SIGTERM" && beforeAcceptanceAdmission.admitted &&
+      beforeAcceptanceAdmission.counts.reservations.pullRequests === 0 &&
+      beforeAcceptanceAdmission.counts.reservations.queuedRuns === 0,
+    JSON.stringify({ ...missedAcceptance, ...beforeAcceptanceResult, admission: beforeAcceptanceAdmission }),
+  )
+  releaseAdmission(beforeAcceptanceAdmission.reservationId, interruptedCloud.base, Date.now() - RELEASE_HOLD_MS - 1000)
+
+  const startupFailure = stage("submit-cloud/startup-failure.mjs", 'process.stderr.write("submission startup failed\\n"); process.exit(23)\n')
+  const failedStartup = spawnTool({ ...interruptedCloud, path: startupFailure }, [], {})
+  const failedAcceptance = await waitForAcceptance(failedStartup, acceptedPath)
+  T(
+    `${TOOL}: terminal startup failure reports exit status and stderr without waiting for acceptance`,
+    failedAcceptance.stage === "exited before acceptance" && failedAcceptance.status === 23 &&
+      failedAcceptance.signal === null && failedAcceptance.stderr === "submission startup failed\n",
+    JSON.stringify(failedAcceptance),
+  )
+  const interruptedSubmission = spawnTool(interruptedCloud, argvOf(interruptedCloud), delayedEnvironment)
+  const acceptance = await waitForAcceptance(interruptedSubmission, acceptedPath)
+  const interruptedResult = await stopSubmission(interruptedSubmission, acceptance.stage === "accepted" ? "SIGTERM" : "SIGKILL")
+  T(
+    `${TOOL}: observes Cloud acceptance after delayed startup before sending SIGTERM`,
+    acceptance.stage === "accepted" && acceptance.acceptance === delayedEnvironment.ORBIT_FAKE_EXEC_URL,
+    JSON.stringify({
+      ...acceptance, ...interruptedResult,
+      stdout: interruptedResult.stdout.slice(-2000), stderr: interruptedResult.stderr.slice(-2000),
+    }),
+  )
+  if (acceptance.stage === "accepted") {
+    const interruptedAdmission = await cloudAdmissionAfterHold(interruptedCloud)
+    T(
+      `${TOOL}: SIGTERM during an accepted Cloud submission keeps admission capacity`,
+      interruptedResult.status === 143 && interruptedResult.signal === null && !interruptedAdmission.admitted &&
+        interruptedAdmission.counts.reservations?.pullRequests === 1 &&
+        interruptedAdmission.counts.reservations?.queuedRuns === 1,
+      JSON.stringify({ ...interruptedResult, admission: interruptedAdmission }),
+    )
+  }
+
+  const abandonedWatcher = fixture("abandoned-watcher")
+  const abandonedSubmission = run(TOOL, argvOf(abandonedWatcher), {
+    path: abandonedWatcher.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: abandonedWatcher.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_ab398",
+    },
+  })
+  const abandonedWatcherReceipt = JSON.parse(abandonedSubmission.stdout)
+  abandonedWatcherReceipt.deadline = new Date(Date.now() - 1000).toISOString()
+  writeFileSync(abandonedWatcherReceipt.receiptPath, JSON.stringify(abandonedWatcherReceipt))
+  writeFileSync(abandonedWatcherReceipt.mirrorPath, JSON.stringify(abandonedWatcherReceipt))
+  const abandonedWatcherIndex = stage("submit-cloud/abandoned-watcher-index.txt", "0")
+  const abandonedWatcherResult = run(TOOL, ["--watch", abandonedWatcherReceipt.receiptPath], {
+    path: abandonedWatcher.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: abandonedWatcher.log,
+      ORBIT_FAKE_LIST_SEQUENCE: JSON.stringify([
+        taskPage([task(abandonedWatcherReceipt.taskId, "pending", 0)]),
+        taskPage([task(abandonedWatcherReceipt.taskId, "ready", 1)]),
+      ]),
+      ORBIT_FAKE_LIST_INDEX_PATH: abandonedWatcherIndex,
+    },
+  })
+  const persistedAbandonment = JSON.parse(readFileSync(abandonedWatcherReceipt.receiptPath, "utf8"))
+  T(
+    `${TOOL}: a cloud watcher keeps remote ownership after local abandonment until terminal observation`,
+    abandonedWatcherResult.status === 0 &&
+      /"outcome":"ABANDONED_TERMINAL_READY"/.test(abandonedWatcherResult.stdout) &&
+      persistedAbandonment.abandoned?.lastObservedStatus === "pending" &&
+      persistedAbandonment.lateTerminal?.status === "ready" &&
+      Number(readFileSync(abandonedWatcherIndex, "utf8")) >= 2,
+    `exit ${abandonedWatcherResult.status}: ${abandonedWatcherResult.stdout || abandonedWatcherResult.stderr}\n` +
+      JSON.stringify(persistedAbandonment),
+  )
+  const terminalCloudAdmission = await cloudAdmissionAfterHold(abandonedWatcher)
+  T(
+    `${TOOL}: a terminal Cloud receipt releases admission after the release window`,
+    terminalCloudAdmission.admitted && terminalCloudAdmission.counts.reservations?.pullRequests === 0 &&
+      terminalCloudAdmission.counts.reservations?.queuedRuns === 0,
+    JSON.stringify(terminalCloudAdmission),
+  )
+
+  const largeOrder = fixture("large-order")
+  writeFileSync(largeOrder.order, `${"x".repeat(40_000)}\n`)
+  const largeOrderStdin = stage("submit-cloud/large-order-stdin.txt", "")
+  const largeOrderResult = run(TOOL, argvOf(largeOrder), {
+    path: largeOrder.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: largeOrder.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_aa398",
+      ORBIT_FAKE_STDIN_LOG: largeOrderStdin,
+    },
+  })
+  const largeOrderInvocations = readFileSync(largeOrder.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  const largeOrderExec = largeOrderInvocations.find((args) => args[0] === "cloud" && args[1] === "exec")
+  T(
+    `${TOOL}: an order larger than the Windows argv limit is submitted intact through stdin`,
+    largeOrderResult.status === 0 &&
+      readFileSync(largeOrderStdin, "utf8").startsWith("x".repeat(40_000)) &&
+      readFileSync(largeOrderStdin, "utf8").endsWith(`${CLOUD_FINISHING_CONTRACT}\n`) &&
+      largeOrderExec.every((argument) => argument.length < 1000),
+    `exit ${largeOrderResult.status}: ${largeOrderResult.stdout || largeOrderResult.stderr}\n${JSON.stringify(largeOrderExec)}`,
+  )
+
+  const interruptedTransition = fixture("interrupted-transition")
+  const transitionDirectory = join(interruptedTransition.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(transitionDirectory, { recursive: true })
+  const transitionReservationId = "00000000-0000-0000-0000-000000000398"
+  const transitionTaskId = "task_e_cc398"
+  const transitionReservationPath = join(transitionDirectory, `reservation-${transitionReservationId}.json`)
+  const transitionMirrorPath = join(transitionDirectory, `${transitionTaskId}.json`)
+  const transitionScratchPath = stage("submit-cloud/interrupted-transition-receipt.json", "")
+  const transitionBaseSha = interruptedTransition.repo.git(["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(transitionReservationPath, JSON.stringify({
+    kind: "submission-reservation",
+    reservationId: transitionReservationId,
+    submissionState: "confirmed",
+    taskId: transitionTaskId,
+    taskUrl: `https://chatgpt.com/codex/tasks/${transitionTaskId}`,
+    environmentId: interruptedTransition.config.cloud.environmentId,
+    repositoryKey: interruptedTransition.config.cloud.repositoryKey,
+    ticket: "#398",
+    branch: "main",
+    baseSha: transitionBaseSha,
+    orderFile: interruptedTransition.order,
+    worktree: interruptedTransition.repo.path,
+    submittedAt: new Date().toISOString(),
+    deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    receiptPath: transitionScratchPath,
+    mirrorPath: transitionMirrorPath,
+  }))
+  const transitionResult = run(TOOL, argvOf(interruptedTransition), {
+    path: interruptedTransition.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: interruptedTransition.log,
+      ORBIT_FAKE_LIST: taskPage([task(transitionTaskId, "pending", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_dead",
+    },
+  })
+  const transitionedMirror = JSON.parse(readFileSync(transitionMirrorPath, "utf8"))
+  const transitionedScratch = JSON.parse(readFileSync(transitionScratchPath, "utf8"))
+  T(
+    `${TOOL}: an interrupted reservation to receipt transition reconciles to one governing task receipt`,
+    transitionResult.status === 3 &&
+      !existsSync(transitionReservationPath) &&
+      readdirSync(transitionDirectory).filter((entry) => entry.endsWith(".json")).length === 1 &&
+      transitionedMirror.kind === "task-receipt" &&
+      transitionedMirror.transitionReservationId === transitionReservationId &&
+      transitionedScratch.taskId === transitionTaskId,
+    `exit ${transitionResult.status}: ${transitionResult.stdout || transitionResult.stderr}\n` +
+      `mirror ${JSON.stringify(transitionedMirror)}\nscratch ${JSON.stringify(transitionedScratch)}`,
+  )
+
+  const firstRun = fixture("first-run")
+  const firstRunBranch = "feature/ticket-398-first-run"
+  const firstRunCreated = firstRun.repo.git(["switch", "-q", "-c", firstRunBranch])
+  const unpublished = firstRun.repo.git(["ls-remote", "--exit-code", "origin", `refs/heads/${firstRunBranch}`])
+  const firstRunPublished = firstRun.repo.git(["push", "-q", "-u", "origin", firstRunBranch])
+  const firstRunArguments = argvOf(firstRun)
+  firstRunArguments[firstRunArguments.indexOf("--branch") + 1] = firstRunBranch
+  const firstRunResult = run(TOOL, firstRunArguments, {
+    path: firstRun.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: firstRun.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_f1",
+    },
+  })
+  const firstRunReceipt = firstRunResult.status === 0 ? JSON.parse(firstRunResult.stdout) : null
+  T(
+    `${TOOL}: a newly created contract branch succeeds after the documented publication step`,
+    firstRunCreated.status === 0 &&
+      unpublished.status !== 0 &&
+      firstRunPublished.status === 0 &&
+      firstRunResult.status === 0 &&
+      firstRunReceipt?.branch === firstRunBranch &&
+      firstRunReceipt?.baseSha === firstRun.repo.git(["rev-parse", "HEAD"]).stdout.trim(),
+    `create ${firstRunCreated.status}: ${firstRunCreated.stderr}\n` +
+      `unpublished ${unpublished.status}: ${unpublished.stderr}\n` +
+      `publish ${firstRunPublished.status}: ${firstRunPublished.stderr}\n` +
+      `submit ${firstRunResult.status}: ${firstRunResult.stderr}`,
+  )
+
+  const mismatchedTip = fixture("mismatched-tip")
+  const mismatchedBranch = "feature/ticket-398-mismatched-tip"
+  const mismatchedCreated = mismatchedTip.repo.git(["switch", "-q", "-c", mismatchedBranch])
+  const mismatchedPublished = mismatchedTip.repo.git(["push", "-q", "-u", "origin", mismatchedBranch])
+  const advancedLocally = mismatchedTip.repo.git(["commit", "-q", "--allow-empty", "-m", "advance local head"])
+  const mismatchedArguments = argvOf(mismatchedTip)
+  mismatchedArguments[mismatchedArguments.indexOf("--branch") + 1] = mismatchedBranch
+  const mismatchedResult = run(TOOL, mismatchedArguments, {
+    path: mismatchedTip.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: mismatchedTip.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_badtip",
+    },
+  })
+  T(
+    `${TOOL}: refuses when the remote branch tip differs from the worktree HEAD`,
+    mismatchedCreated.status === 0 &&
+      mismatchedPublished.status === 0 &&
+      advancedLocally.status === 0 &&
+      mismatchedResult.status === 1 &&
+      /origin\/feature\/ticket-398-mismatched-tip is at [0-9a-f]{40}, but the worktree HEAD is [0-9a-f]{40}; publish the worktree HEAD before submission/.test(mismatchedResult.stderr) &&
+      readFileSync(mismatchedTip.log, "utf8") === "" &&
+      !existsSync(join(mismatchedTip.repo.path, ".git", "orbit-cloud")),
+    `create ${mismatchedCreated.status}: ${mismatchedCreated.stderr}\n` +
+      `publish ${mismatchedPublished.status}: ${mismatchedPublished.stderr}\n` +
+      `advance ${advancedLocally.status}: ${advancedLocally.stderr}\n` +
+      `submit ${mismatchedResult.status}: ${mismatchedResult.stderr}`,
+  )
+
+  const wrongRepository = fixture("wrong-repository")
+  const apiRepository = stageRepo("submit-cloud-wrong-repository-api")
+  const wrongRepositoryResult = run(TOOL, [
+    ...argvOf(wrongRepository).slice(0, -1),
+    apiRepository.path,
+  ], {
+    path: wrongRepository.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: wrongRepository.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_bad1",
+    },
+  })
+  T(
+    `${TOOL}: refuses another Orbit repository on the same branch before any cloud command`,
+    wrongRepositoryResult.status === 2 &&
+      /does not belong to configured cloud repository ui/.test(wrongRepositoryResult.stderr) &&
+      readFileSync(wrongRepository.log, "utf8") === "",
+    `exit ${wrongRepositoryResult.status}: ${wrongRepositoryResult.stderr}`,
+  )
+
+  const linkedWorktree = fixture("linked-worktree")
+  const linkedWorktreePath = join(linkedWorktree.repo.path, "..", "submit-cloud-linked-worktree-checkout")
+  const linkedWorktreeAdded = linkedWorktree.repo.git(["worktree", "add", "-q", "--detach", linkedWorktreePath])
+  const linkedWorktreeResult = run(TOOL, [
+    ...argvOf(linkedWorktree).slice(0, -1),
+    linkedWorktreePath,
+  ], {
+    path: linkedWorktree.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: linkedWorktree.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a399",
+    },
+  })
+  const linkedWorktreeReceipt = linkedWorktreeResult.status === 0
+    ? JSON.parse(linkedWorktreeResult.stdout)
+    : null
+  T(
+    `${TOOL}: accepts a linked worktree belonging to the configured main checkout`,
+    linkedWorktreeAdded.status === 0 &&
+      linkedWorktreeResult.status === 0 &&
+      linkedWorktreeReceipt?.worktree === linkedWorktreePath &&
+      linkedWorktreeReceipt?.mirrorPath.startsWith(join(linkedWorktree.repo.path, ".git", "orbit-cloud")),
+    `worktree add ${linkedWorktreeAdded.status}: ${linkedWorktreeAdded.stderr}\n` +
+      `submit ${linkedWorktreeResult.status}: ${linkedWorktreeResult.stderr}`,
+  )
+
+  const missingBranch = fixture("missing-branch")
+  const missingBranchArguments = argvOf(missingBranch)
+  missingBranchArguments[missingBranchArguments.indexOf("--branch") + 1] = "missing-remote-branch"
+  const missingBranchResult = run(TOOL, missingBranchArguments, {
+    path: missingBranch.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: missingBranch.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_bad2",
+    },
+  })
+  T(
+    `${TOOL}: refuses submission when the named remote branch cannot be resolved to a commit`,
+    missingBranchResult.status === 1 &&
+      /git ls-remote could not resolve origin\/missing-remote-branch/.test(missingBranchResult.stderr) &&
+      readFileSync(missingBranch.log, "utf8") === "" &&
+      !existsSync(join(missingBranch.repo.path, ".git", "orbit-cloud")),
+    `exit ${missingBranchResult.status}: ${missingBranchResult.stderr}`,
+  )
+
+  const stalledRemote = fixture("stalled-remote")
+  stalledRemote.config.timeouts.gitRemoteSeconds = 0.25
+  writeFileSync(stalledRemote.configPath, `${JSON.stringify(stalledRemote.config, null, 2)}\n`)
+  stalledRemote.repo.git(["remote", "set-url", "origin", "ssh://example.invalid/orbit.git"])
+  const hangingSsh = stage(
+    "submit-cloud/stalled-remote-ssh.mjs",
+    "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)\n",
+  )
+  const stalledRemoteResult = run(TOOL, argvOf(stalledRemote), {
+    path: stalledRemote.path,
+    env: {
+      GIT_SSH_COMMAND: `\"${process.execPath.replaceAll("\\", "/")}\" \"${hangingSsh.replaceAll("\\", "/")}\"`,
+      ORBIT_FAKE_CODEX_LOG: stalledRemote.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_bad3",
+    },
+  })
+  T(
+    `${TOOL}: a stalled git ls-remote fails within its configured wall clock`,
+    stalledRemoteResult.status === 4 &&
+      /git ls-remote timed out after 250ms resolving origin\/main/.test(stalledRemoteResult.stderr) &&
+      readFileSync(stalledRemote.log, "utf8") === "",
+    `exit ${stalledRemoteResult.status}: ${stalledRemoteResult.stdout || stalledRemoteResult.stderr}`,
+  )
+
+  for (const [label, dash] of [["en", String.fromCharCode(0x2013)], ["em", String.fromCharCode(0x2014)]]) {
+    const refused = fixture(`dash-${label}`)
+    writeFileSync(refused.order, `range 1${dash}10\n`)
+    const result = run(TOOL, argvOf(refused), {
+      path: refused.path,
+      env: { ORBIT_FAKE_CODEX_LOG: refused.log, ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_dead" },
+    })
+    T(
+      `${TOOL}: refuses an ${label} dash before any cloud command`,
+      result.status === 2 && /order file contains a banned/.test(result.stderr) && readFileSync(refused.log, "utf8") === "",
+      `exit ${result.status}: ${result.stderr}\nlog: ${readFileSync(refused.log, "utf8")}`,
+    )
+  }
+
+  const capped = fixture("capacity")
+  const receipts = join(capped.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(receipts, { recursive: true })
+  const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  const fleetTasks = []
+  for (const suffix of ["a1", "b2", "c3", "d4"]) {
+    const id = `task_e_${suffix}`
+    const body = {
+      taskId: id,
+      environmentId: capped.config.cloud.environmentId,
+      deadline: future,
+      worktree: capped.repo.path,
+      baseSha: "0".repeat(40),
+    }
+    writeFileSync(stage(`submit-cloud/receipt-${suffix}.json`, JSON.stringify(body)), JSON.stringify(body))
+    const target = join(receipts, `${id}.json`)
+    cpSync(stage(`submit-cloud/receipt-${suffix}.json`, JSON.stringify(body)), target)
+    fleetTasks.push(task(id, "pending", 0))
+  }
+  const capacity = run(TOOL, argvOf(capped), {
+    path: capped.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: capped.log,
+      ORBIT_FAKE_LIST: taskPage(fleetTasks),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_extra",
+    },
+  })
+  const capacityInvocations = readFileSync(capped.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  T(
+    `${TOOL}: derives the fleet from receipts and refuses a fifth live task without exec`,
+    capacity.status === 3 && /4\/4 tasks are in flight/.test(capacity.stderr) && !capacityInvocations.some((args) => args[1] === "exec"),
+    `exit ${capacity.status}: ${capacity.stderr}\n${JSON.stringify(capacityInvocations)}`,
+  )
+
+  {
+    const status = "pending"
+    const retry = fixture(`retry-${status}`)
+    const retryReceipts = join(retry.repo.path, ".git", "orbit-cloud", "receipts")
+    mkdirSync(retryReceipts, { recursive: true })
+    const taskId = status === "pending" ? "task_e_398a" : "task_e_398b"
+    writeFileSync(join(retryReceipts, `${taskId}.json`), JSON.stringify({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId,
+      environmentId: retry.config.cloud.environmentId,
+      repositoryKey: retry.config.cloud.repositoryKey,
+      ticket: "#398",
+      deadline: future,
+      worktree: retry.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+    const retryResult = run(TOOL, argvOf(retry), {
+      path: retry.path,
+      env: {
+        ORBIT_FAKE_CODEX_LOG: retry.log,
+        ORBIT_FAKE_LIST: taskPage([task(taskId, status, status === "ready" ? 1 : 0)]),
+        ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_competing",
+      },
+    })
+    const cloudInvocations = readFileSync(retry.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+    T(
+      `${TOOL}: a confirmed pending receipt blocks a competing task for the same ticket`,
+      retryResult.status === 3 &&
+        retryResult.stderr.includes(`task ${taskId} is pending`) &&
+        !cloudInvocations.some((args) => args[0] === "cloud" && args[1] === "exec"),
+      `exit ${retryResult.status}: ${retryResult.stderr}\n${JSON.stringify(cloudInvocations)}`,
+    )
+  }
+
+  for (const status of ["ready", "applied", "error"]) {
+    const retry = fixture(`retry-${status}`)
+    const retryReceipts = join(retry.repo.path, ".git", "orbit-cloud", "receipts")
+    mkdirSync(retryReceipts, { recursive: true })
+    const taskId = status === "ready" ? "task_e_398b" : status === "applied" ? "task_e_398c" : "task_e_398d"
+    writeFileSync(join(retryReceipts, `${taskId}.json`), JSON.stringify({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId,
+      environmentId: retry.config.cloud.environmentId,
+      repositoryKey: retry.config.cloud.repositoryKey,
+      ticket: "#398",
+      deadline: future,
+      worktree: retry.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+    const retryResult = run(TOOL, argvOf(retry), {
+      path: retry.path,
+      env: {
+        ORBIT_FAKE_CODEX_LOG: retry.log,
+        ORBIT_FAKE_LIST: taskPage([task(taskId, status, status === "error" ? 0 : 1)]),
+        ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_cafe",
+      },
+    })
+    const cloudInvocations = readFileSync(retry.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+    T(
+      `${TOOL}: an unresolved terminal ${status} receipt still blocks its ticket`,
+      retryResult.status === 3 &&
+        retryResult.stderr.includes(`task ${taskId} is ${status}`) &&
+        !cloudInvocations.some((args) => args[0] === "cloud" && args[1] === "exec"),
+      `exit ${retryResult.status}: ${retryResult.stdout || retryResult.stderr}\n${JSON.stringify(cloudInvocations)}`,
+    )
+  }
+
+  const readyCapacity = fixture("ready-capacity")
+  const readyCapacityReceipts = join(readyCapacity.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(readyCapacityReceipts, { recursive: true })
+  const readyCapacityTaskId = "task_e_398e"
+  const readyCapacityTasks = [task(readyCapacityTaskId, "ready", 1)]
+  for (const [taskId, ticket] of [["task_e_a4", "#400"], ["task_e_b5", "#401"], ["task_e_c6", "#402"]]) {
+    readyCapacityTasks.push(task(taskId, "pending", 0))
+    writeFileSync(join(readyCapacityReceipts, `${taskId}.json`), JSON.stringify({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId,
+      environmentId: readyCapacity.config.cloud.environmentId,
+      repositoryKey: readyCapacity.config.cloud.repositoryKey,
+      ticket,
+      deadline: future,
+      worktree: readyCapacity.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+  }
+  writeFileSync(join(readyCapacityReceipts, `${readyCapacityTaskId}.json`), JSON.stringify({
+    kind: "task-receipt",
+    submissionState: "confirmed",
+    taskId: readyCapacityTaskId,
+    environmentId: readyCapacity.config.cloud.environmentId,
+    repositoryKey: readyCapacity.config.cloud.repositoryKey,
+    ticket: "#399",
+    deadline: future,
+    worktree: readyCapacity.repo.path,
+    baseSha: "0".repeat(40),
+  }))
+  const readyCapacityResult = run(TOOL, argvOf(readyCapacity), {
+    path: readyCapacity.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: readyCapacity.log,
+      ORBIT_FAKE_LIST: taskPage(readyCapacityTasks),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_398f",
+    },
+  })
+  const readyCapacityInvocations = readFileSync(readyCapacity.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  T(
+    `${TOOL}: a ready unmaterialized receipt leaves the fourth fleet slot available`,
+    readyCapacityResult.status === 0 &&
+      readyCapacityInvocations.filter((args) => args[0] === "cloud" && args[1] === "exec").length === 1,
+    `exit ${readyCapacityResult.status}: ${readyCapacityResult.stdout || readyCapacityResult.stderr}\n` +
+      JSON.stringify(readyCapacityInvocations),
+  )
+
+  const interleaved = fixture("interleaved-materialization")
+  const interleavedReceipts = join(interleaved.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(interleavedReceipts, { recursive: true })
+  const interleavedTaskId = "task_e_a399"
+  const interleavedMirror = join(interleavedReceipts, `${interleavedTaskId}.json`)
+  const staleRefreshSnapshot = {
+    kind: "task-receipt",
+    submissionState: "confirmed",
+    taskId: interleavedTaskId,
+    environmentId: interleaved.config.cloud.environmentId,
+    repositoryKey: interleaved.config.cloud.repositoryKey,
+    ticket: "#399",
+    deadline: future,
+    worktree: interleaved.repo.path,
+    baseSha: "0".repeat(40),
+  }
+  const materializationPublication = {
+    ...staleRefreshSnapshot,
+    firstReadyObservedAt: "2020-08-31T18:01:00.000Z",
+    materialized: { at: "2026-08-31T18:02:00.000Z", status: "M  landed.txt\n", stagedStat: "1 file changed\n" },
+  }
+  writeFileSync(interleavedMirror, JSON.stringify(staleRefreshSnapshot))
+  const interleavedResult = run(TOOL, argvOf(interleaved), {
+    path: interleaved.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: interleaved.log,
+      ORBIT_FAKE_LIST: taskPage([task(interleavedTaskId, "ready", 1)]),
+      ORBIT_FAKE_LIST_PUBLICATION_PATH: interleavedMirror,
+      ORBIT_FAKE_LIST_PUBLICATION_JSON: JSON.stringify(materializationPublication),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a400",
+    },
+  })
+  const reconciledInterleavedReceipt = JSON.parse(readFileSync(interleavedMirror, "utf8"))
+  T(
+    `${TOOL}: a stale refresh cannot erase materialization state published while cloud list runs`,
+    interleavedResult.status === 0 &&
+      reconciledInterleavedReceipt.firstReadyObservedAt === materializationPublication.firstReadyObservedAt &&
+      reconciledInterleavedReceipt.materialized?.at === materializationPublication.materialized.at,
+    `exit ${interleavedResult.status}: ${interleavedResult.stdout || interleavedResult.stderr}\n` +
+      JSON.stringify(reconciledInterleavedReceipt),
+  )
+
+  const execTimeout = fixture("exec-timeout")
+  execTimeout.config.timeouts.cloudCommandMinutes = 0.05
+  writeFileSync(execTimeout.configPath, `${JSON.stringify(execTimeout.config, null, 2)}\n`)
+  const acceptanceLog = stage("submit-cloud/exec-timeout-acceptance.txt", "")
+  const execTimeoutResult = run(TOOL, argvOf(execTimeout), {
+    path: execTimeout.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: execTimeout.log,
+      ORBIT_FAKE_ACCEPTANCE_LOG: acceptanceLog,
+      ORBIT_FAKE_HANG_AFTER_ACCEPTANCE: "exec",
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a399",
+    },
+  })
+  const unknownDirectory = join(execTimeout.repo.path, ".git", "orbit-cloud", "receipts")
+  const unknownFiles = readdirSync(unknownDirectory)
+  const unknownPath = join(unknownDirectory, unknownFiles[0])
+  const unknownReceipt = JSON.parse(readFileSync(unknownPath, "utf8"))
+  T(
+    `${TOOL}: a remotely accepted submission that times out remains durable unknown capacity`,
+    execTimeoutResult.status === 4 &&
+      /unknown submission still consumes capacity/.test(execTimeoutResult.stderr) &&
+      readFileSync(acceptanceLog, "utf8") === "https://chatgpt.com/codex/tasks/task_e_a399" &&
+      unknownFiles.length === 1 &&
+      unknownReceipt.kind === "submission-reservation" &&
+      unknownReceipt.submissionState === "unknown" &&
+      unknownReceipt.ticket === "#398",
+    `exit ${execTimeoutResult.status}: ${execTimeoutResult.stdout || execTimeoutResult.stderr}`,
+  )
+  const blockedRetry = run(TOOL, argvOf(execTimeout), {
+    path: execTimeout.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: execTimeout.log,
+      ORBIT_FAKE_LIST: taskPage([]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a400",
+    },
+  })
+  const retryInvocations = readFileSync(execTimeout.log, "utf8").trim().split(/\r?\n/).map(JSON.parse)
+  T(
+    `${TOOL}: an unknown attempt blocks resubmission of the same ticket before a second remote write`,
+    blockedRetry.status === 3 &&
+      /release it only after confirming in the Codex UI that no task exists before resubmitting/.test(blockedRetry.stderr) &&
+      retryInvocations.filter((args) => args[1] === "exec").length === 1,
+    `exit ${blockedRetry.status}: ${blockedRetry.stderr}\n${JSON.stringify(retryInvocations)}`,
+  )
+
+  const liveOrphan = fixture("live-orphan")
+  liveOrphan.config.timeouts.cloudCommandMinutes = 0.05
+  writeFileSync(liveOrphan.configPath, `${JSON.stringify(liveOrphan.config, null, 2)}\n`)
+  const liveOrphanTaskId = "task_e_a401"
+  const liveOrphanDirectory = join(liveOrphan.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(liveOrphanDirectory, { recursive: true })
+  for (const suffix of ["a1", "b2", "c3"]) {
+    writeFileSync(join(liveOrphanDirectory, `task_e_${suffix}.json`), JSON.stringify({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId: `task_e_${suffix}`,
+      environmentId: liveOrphan.config.cloud.environmentId,
+      repositoryKey: liveOrphan.config.cloud.repositoryKey,
+      ticket: "#400",
+      deadline: future,
+      worktree: liveOrphan.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+  }
+  const liveOrphanTimeout = run(TOOL, argvOf(liveOrphan), {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+      ORBIT_FAKE_HANG_AFTER_ACCEPTANCE: "exec",
+      ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${liveOrphanTaskId}`,
+    },
+  })
+  const liveOrphanPath = readdirSync(liveOrphanDirectory)
+    .map((entry) => join(liveOrphanDirectory, entry))
+    .find((path) => JSON.parse(readFileSync(path, "utf8")).kind === "submission-reservation")
+  const refusedClear = run(TOOL, ["--clear-unknown", liveOrphanPath], {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+    },
+  })
+  const blockedSameTicket = run(TOOL, argvOf(liveOrphan), {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "pending", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_competing",
+    },
+  })
+  const otherTicketArguments = argvOf(liveOrphan)
+  otherTicketArguments[otherTicketArguments.indexOf("--issue") + 1] = "#399"
+  const blockedCapacity = run(TOOL, otherTicketArguments, {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "pending", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_competing",
+    },
+  })
+  T(
+    `${TOOL}: clear without the human assertion refuses and keeps capacity and ticket protections`,
+    liveOrphanTimeout.status === 4 &&
+      refusedClear.status === 3 &&
+      /task absence cannot be proven from codex cloud list/.test(refusedClear.stderr) &&
+      /Open the task list in the Codex UI/.test(refusedClear.stderr) &&
+      /--assert-no-task-exists/.test(refusedClear.stderr) &&
+      existsSync(liveOrphanPath) &&
+      blockedSameTicket.status === 3 &&
+      /unknown submission reservation/.test(blockedSameTicket.stderr) &&
+      blockedCapacity.status === 3 &&
+      /4\/4 tasks are in flight/.test(blockedCapacity.stderr),
+    `timeout ${liveOrphanTimeout.status}; clear ${refusedClear.status}: ${refusedClear.stderr}\n` +
+      `same ticket ${blockedSameTicket.status}: ${blockedSameTicket.stderr}\n` +
+      `capacity ${blockedCapacity.status}: ${blockedCapacity.stderr}`,
+  )
+
+  const invocationsBeforeAssertion = readFileSync(liveOrphan.log, "utf8").trim().split(/\r?\n/).filter(Boolean).length
+  const assertedClear = run(TOOL, ["--clear-unknown", liveOrphanPath, "--assert-no-task-exists"], {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+    },
+  })
+  const releasedReservation = JSON.parse(readFileSync(liveOrphanPath, "utf8"))
+  const invocationsAfterAssertion = readFileSync(liveOrphan.log, "utf8").trim().split(/\r?\n/).filter(Boolean).length
+  T(
+    `${TOOL}: the explicit human assertion releases and records the unknown reservation without listing`,
+    assertedClear.status === 0 &&
+      /UNKNOWN_SUBMISSION_CLEARED/.test(assertedClear.stdout) &&
+      releasedReservation.submissionState === "released" &&
+      releasedReservation.released?.by === "human" &&
+      releasedReservation.released?.assertion === "no task exists for this reservation in the Codex UI" &&
+      Number.isFinite(Date.parse(releasedReservation.released?.at)) &&
+      invocationsAfterAssertion === invocationsBeforeAssertion,
+    `exit ${assertedClear.status}: ${assertedClear.stdout || assertedClear.stderr}\n` +
+      JSON.stringify(releasedReservation),
+  )
+
+  const staleAbandonAfterClear = run(TOOL, ["--abandon-known", liveOrphanPath, "--task-id", liveOrphanTaskId], {
+    path: liveOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: liveOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(liveOrphanTaskId, "pending", 0)]),
+    },
+  })
+  T(
+    `${TOOL}: abandon revalidates the locked reservation and cannot overwrite a completed clear`,
+    staleAbandonAfterClear.status === 2 &&
+      /not an unresolved cloud submission reservation/.test(staleAbandonAfterClear.stderr) &&
+      JSON.parse(readFileSync(liveOrphanPath, "utf8")).submissionState === "released",
+    `exit ${staleAbandonAfterClear.status}: ${staleAbandonAfterClear.stdout || staleAbandonAfterClear.stderr}\n` +
+      readFileSync(liveOrphanPath, "utf8"),
+  )
+
+  const knownOrphan = fixture("known-orphan")
+  const knownOrphanDirectory = join(knownOrphan.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(knownOrphanDirectory, { recursive: true })
+  const knownReservationId = "00000000-0000-0000-0000-000000000401"
+  const knownTaskId = "task_e_ab401"
+  const knownReservationPath = join(knownOrphanDirectory, `reservation-${knownReservationId}.json`)
+  writeFileSync(knownReservationPath, JSON.stringify({
+    kind: "submission-reservation",
+    reservationId: knownReservationId,
+    submissionState: "unknown",
+    environmentId: knownOrphan.config.cloud.environmentId,
+    repositoryKey: knownOrphan.config.cloud.repositoryKey,
+    ticket: "#398",
+    branch: "main",
+    baseSha: knownOrphan.repo.git(["rev-parse", "HEAD"]).stdout.trim(),
+    orderFile: knownOrphan.order,
+    worktree: knownOrphan.repo.path,
+    submittedAt: new Date().toISOString(),
+    deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    mirrorPath: knownReservationPath,
+  }))
+  const contradictoryClearResult = run(TOOL, [
+    "--clear-unknown",
+    knownReservationPath,
+    "--assert-no-task-exists",
+    "--task-id",
+    knownTaskId,
+  ], { path: knownOrphan.path })
+  const knownAbandonResult = run(TOOL, ["--abandon-known", knownReservationPath, "--task-id", knownTaskId], {
+    path: knownOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: knownOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(knownTaskId, "pending", 0)]),
+    },
+  })
+  const pendingKnownReservation = JSON.parse(readFileSync(knownReservationPath, "utf8"))
+  const idempotentKnownAbandon = run(TOOL, ["--abandon-known", knownReservationPath, "--task-id", knownTaskId], {
+    path: knownOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: knownOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(knownTaskId, "pending", 0)]),
+    },
+  })
+  const competingKnownAbandon = run(TOOL, ["--abandon-known", knownReservationPath, "--task-id", "task_e_ab402"], {
+    path: knownOrphan.path,
+  })
+  const staleClearAfterAbandon = run(TOOL, ["--clear-unknown", knownReservationPath, "--assert-no-task-exists"], {
+    path: knownOrphan.path,
+  })
+  const blockedKnownResult = run(TOOL, argvOf(knownOrphan), {
+    path: knownOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: knownOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(knownTaskId, "pending", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_ac401",
+    },
+  })
+  const releasedKnownResult = run(TOOL, argvOf(knownOrphan), {
+    path: knownOrphan.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: knownOrphan.log,
+      ORBIT_FAKE_LIST: taskPage([task(knownTaskId, "error", 0)]),
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_ac401",
+    },
+  })
+  const releasedKnownReservation = JSON.parse(readFileSync(knownReservationPath, "utf8"))
+  T(
+    `${TOOL}: a visible orphan is tracked without adoption and releases only after terminal observation`,
+    contradictoryClearResult.status === 2 &&
+      /cannot be combined.*--task-id/.test(contradictoryClearResult.stderr) &&
+      knownAbandonResult.status === 0 &&
+      /KNOWN_TASK_ABANDONED/.test(knownAbandonResult.stdout) &&
+      idempotentKnownAbandon.status === 0 &&
+      competingKnownAbandon.status === 2 &&
+      /already bound to task/.test(competingKnownAbandon.stderr) &&
+      staleClearAfterAbandon.status === 2 &&
+      /not an unknown cloud submission reservation/.test(staleClearAfterAbandon.stderr) &&
+      pendingKnownReservation.submissionState === "known-task-abandoned" &&
+      pendingKnownReservation.released === undefined &&
+      blockedKnownResult.status === 3 &&
+      /wait for its terminal status/.test(blockedKnownResult.stderr) &&
+      releasedKnownResult.status === 0 &&
+      releasedKnownReservation.submissionState === "released" &&
+      releasedKnownReservation.terminal?.status === "error" &&
+      releasedKnownReservation.released?.by === "scheduler",
+    `contradictory clear ${contradictoryClearResult.status}: ${contradictoryClearResult.stderr}\n` +
+      `abandon ${knownAbandonResult.status}: ${knownAbandonResult.stdout || knownAbandonResult.stderr}\n` +
+      `idempotent abandon ${idempotentKnownAbandon.status}: ${idempotentKnownAbandon.stdout || idempotentKnownAbandon.stderr}\n` +
+      `competing abandon ${competingKnownAbandon.status}: ${competingKnownAbandon.stdout || competingKnownAbandon.stderr}\n` +
+      `stale clear ${staleClearAfterAbandon.status}: ${staleClearAfterAbandon.stdout || staleClearAfterAbandon.stderr}\n` +
+      `blocked ${blockedKnownResult.status}: ${blockedKnownResult.stdout || blockedKnownResult.stderr}\n` +
+      `released ${releasedKnownResult.status}: ${releasedKnownResult.stdout || releasedKnownResult.stderr}\n` +
+      JSON.stringify(releasedKnownReservation),
+  )
+
+  const recoveryRace = fixture("recovery-race")
+  const releaseRacingList = stage("submit-cloud/release-racing-list", "waiting")
+  writeFileSync(recoveryRace.codex.script, readFileSync(recoveryRace.codex.script, "utf8").replace(
+    'const args = process.argv.slice(2)',
+    `const args = process.argv.slice(2)
+if (args[1] === "list") {
+  writeFileSync(${JSON.stringify(releaseRacingList)}, "entered")
+  while (readFileSync(${JSON.stringify(releaseRacingList)}, "utf8") !== "released") {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10)
+  }
+}`,
+  ))
+  const recoveryRaceDirectory = join(recoveryRace.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(recoveryRaceDirectory, { recursive: true })
+  const recoveryRaceReservationId = "00000000-0000-0000-0000-000000000402"
+  const recoveryRaceTaskId = "task_e_ab403"
+  const recoveryRacePath = join(recoveryRaceDirectory, `reservation-${recoveryRaceReservationId}.json`)
+  writeFileSync(recoveryRacePath, JSON.stringify({
+    kind: "submission-reservation",
+    reservationId: recoveryRaceReservationId,
+    submissionState: "unknown",
+    environmentId: recoveryRace.config.cloud.environmentId,
+    repositoryKey: recoveryRace.config.cloud.repositoryKey,
+    ticket: "#398",
+    worktree: recoveryRace.repo.path,
+    deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    mirrorPath: recoveryRacePath,
+  }))
+  const racingAbandon = spawnTool(
+    recoveryRace,
+    ["--abandon-known", recoveryRacePath, "--task-id", recoveryRaceTaskId],
+    {
+      ORBIT_FAKE_CODEX_LOG: recoveryRace.log,
+      ORBIT_FAKE_LIST: taskPage([task(recoveryRaceTaskId, "pending", 0)]),
+    },
+  )
+  let racingClear
+  try {
+    const racingListDeadline = Date.now() + 30_000
+    while (readFileSync(releaseRacingList, "utf8") !== "entered") {
+      if (Date.now() >= racingListDeadline) throw new Error("abandon did not enter the coordinated list call")
+      await wait(10)
+    }
+    racingClear = run(TOOL, ["--clear-unknown", recoveryRacePath, "--assert-no-task-exists"], {
+      path: recoveryRace.path,
+    })
+  } finally {
+    writeFileSync(releaseRacingList, "released")
+  }
+  const racingAbandonResult = await racingAbandon.result
+  const racingReservation = JSON.parse(readFileSync(recoveryRacePath, "utf8"))
+  T(
+    `${TOOL}: a coordinated clear cannot erase a task binding while abandon owns the mutation lock`,
+    racingAbandonResult.status === 0 &&
+      racingClear.status === 2 &&
+      /cloud submission is already running/.test(racingClear.stderr) &&
+      racingReservation.submissionState === "known-task-abandoned" &&
+      racingReservation.taskId === recoveryRaceTaskId &&
+      racingReservation.released === undefined,
+    `abandon ${racingAbandonResult.status}: ${racingAbandonResult.stdout || racingAbandonResult.stderr}\n` +
+      `clear ${racingClear.status}: ${racingClear.stdout || racingClear.stderr}\n` +
+      JSON.stringify(racingReservation),
+  )
+
+  const listTimeout = fixture("list-timeout")
+  listTimeout.config.timeouts.cloudCommandMinutes = 0.005
+  writeFileSync(listTimeout.configPath, `${JSON.stringify(listTimeout.config, null, 2)}\n`)
+  const listTimeoutReceipts = join(listTimeout.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(listTimeoutReceipts, { recursive: true })
+  writeFileSync(join(listTimeoutReceipts, "task_e_a1.json"), JSON.stringify({
+    taskId: "task_e_a1",
+    environmentId: listTimeout.config.cloud.environmentId,
+    deadline: future,
+    worktree: listTimeout.repo.path,
+    baseSha: "0".repeat(40),
+  }))
+  const listTimeoutResult = run(TOOL, argvOf(listTimeout), {
+    path: listTimeout.path,
+    env: { ORBIT_FAKE_CODEX_LOG: listTimeout.log, ORBIT_FAKE_HANG: "list" },
+  })
+  T(
+    `${TOOL}: a capacity refresh timeout is a distinct recoverable failure`,
+    listTimeoutResult.status === 4 && /codex cloud list timed out/.test(listTimeoutResult.stderr),
+    `exit ${listTimeoutResult.status}: ${listTimeoutResult.stdout || listTimeoutResult.stderr}`,
+  )
+
+  const concurrent = fixture("concurrent")
+  const concurrentReceipts = join(concurrent.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(concurrentReceipts, { recursive: true })
+  const concurrentTasks = []
+  for (const suffix of ["a1", "b2", "c3"]) {
+    const id = `task_e_${suffix}`
+    writeFileSync(join(concurrentReceipts, `${id}.json`), JSON.stringify({
+      taskId: id,
+      environmentId: concurrent.config.cloud.environmentId,
+      deadline: future,
+      worktree: concurrent.repo.path,
+      baseSha: "0".repeat(40),
+    }))
+    concurrentTasks.push(task(id, "pending", 0))
+  }
+  const concurrentEnv = {
+    ORBIT_FAKE_CODEX_LOG: concurrent.log,
+    ORBIT_FAKE_LIST: taskPage(concurrentTasks),
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_d4",
+  }
+  const concurrentGate = stage("submit-cloud/concurrent/exec-gate", "waiting")
+  writeFileSync(concurrent.codex.script, readFileSync(concurrent.codex.script, "utf8").replace(
+    'const args = process.argv.slice(2)',
+    `const args = process.argv.slice(2)
+if (args[1] === "exec" && process.env.ORBIT_FAKE_EXEC_GATE) {
+  const gate = process.env.ORBIT_FAKE_EXEC_GATE
+  writeFileSync(gate, "entered")
+  const deadline = Date.now() + 30000
+  while (readFileSync(gate, "utf8") !== "released") {
+    if (Date.now() >= deadline) throw new Error("coordinated Cloud execution was not released")
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10)
+  }
+}`,
+  ))
+  // Start the contender after admission has released its lock, while Cloud still owns its slot.
+  const concurrentFirst = runConcurrent(concurrent, argvOf(concurrent), {
+    ...concurrentEnv,
+    ORBIT_FAKE_EXEC_GATE: concurrentGate,
+  })
+  let concurrentFirstResult
+  concurrentFirst.then((result) => { concurrentFirstResult = result })
+  const contenderOrder = stage("submit-cloud/concurrent/contender.md", "Implement the competing ticket.\n")
+  const contenderArguments = argvFor(concurrent, "#399", contenderOrder)
+  const contenderEnvironment = {
+    ...concurrentEnv,
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_e5",
+  }
+  let concurrentBusyResult
+  let concurrentCoordinationError
+  try {
+    const deadline = Date.now() + 30000
+    while (readFileSync(concurrentGate, "utf8") !== "entered") {
+      if (concurrentFirstResult) throw new Error(`first submitter exited before Cloud execution: ${JSON.stringify(concurrentFirstResult)}`)
+      if (Date.now() >= deadline) throw new Error("first submitter did not reach coordinated Cloud execution")
+      await wait(10)
+    }
+    concurrentBusyResult = await runConcurrent(concurrent, contenderArguments, contenderEnvironment)
+  } catch (error) {
+    concurrentCoordinationError = error.message
+  } finally {
+    writeFileSync(concurrentGate, "released")
+    concurrentFirstResult = await concurrentFirst
+  }
+  // A lock refusal proves exclusion only. Retry the distinct ticket to require the capacity check.
+  const concurrentCapResult = await runConcurrent(concurrent, contenderArguments, contenderEnvironment)
+  const concurrentInvocations = readFileSync(concurrent.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  const concurrentExecs = concurrentInvocations.filter((args) => args[0] === "cloud" && args[1] === "exec")
+  const concurrentDiagnostics = JSON.stringify({
+    coordinationError: concurrentCoordinationError,
+    first: concurrentFirstResult,
+    busy: concurrentBusyResult,
+    cap: concurrentCapResult,
+    invocations: concurrentInvocations,
+  })
+  T(
+    `${TOOL}: a concurrent contender reaches the Cloud submission lock after admission`,
+    !concurrentCoordinationError && concurrentFirstResult.status === 0 &&
+      concurrentBusyResult?.status === 2 && /cloud submission is already running/.test(concurrentBusyResult.stderr),
+    concurrentDiagnostics,
+  )
+  T(
+    `${TOOL}: concurrent submitters cannot collectively exceed the fleet cap`,
+    concurrentFirstResult.status === 0 && concurrentCapResult.status === 3 &&
+      concurrentCapResult.stderr.includes(`cloud capacity is full: ${concurrent.config.caps.cloudParallelTasks}/${concurrent.config.caps.cloudParallelTasks} tasks are in flight`) &&
+      concurrentExecs.length === 1,
+    concurrentDiagnostics,
+  )
+
+  const breaker = fixture("session-empty-breaker")
+  const breakerReceipts = join(breaker.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(breakerReceipts, { recursive: true })
+  const breakerStatePath = join(dirname(breaker.order), "cloud-circuit-breaker.json")
+  const breakerTasks = [
+    ["task_e_b4981", "#499", true],
+    ["task_e_b4982", "#500", false],
+    ["task_e_b4983", "#501", true],
+  ]
+  for (const [taskId, ticket, empty] of breakerTasks) {
+    const observedAt = `2026-09-10T0${taskId.endsWith("1") ? "1" : taskId.endsWith("2") ? "2" : "3"}:00:00.000Z`
+    persistReconciledReceipt({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId,
+      environmentId: breaker.config.cloud.environmentId,
+      repositoryKey: breaker.config.cloud.repositoryKey,
+      ticket,
+      orderFile: breaker.order,
+      deadline: future,
+      worktree: breaker.repo.path,
+      baseSha: "0".repeat(40),
+      terminal: { status: "ready", observedAt },
+      ...(empty
+        ? { emptyFailure: { at: observedAt, classification: "lost-work suspect" } }
+        : { materialized: { at: observedAt, status: "M  landed.txt\n", stagedStat: "1 file changed\n" } }),
+    }, join(breakerReceipts, `${taskId}.json`), [], {
+      lockTimeoutMs: breaker.config.timeouts.receiptLockSeconds * 1000,
+    })
+  }
+  const breakerOpenedBeforeAdmission = existsSync(breakerStatePath)
+  const breakerEnv = {
+    ORBIT_FAKE_CODEX_LOG: breaker.log,
+    ORBIT_FAKE_LIST: taskPage(breakerTasks.map(([taskId]) => task(taskId, "ready", 1))),
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_b4984",
+  }
+  const refusedByBreaker = run(TOOL, argvFor(breaker, "#502", breaker.order), {
+    path: breaker.path,
+    env: breakerEnv,
+  })
+  const breakerInvocations = readFileSync(breaker.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  const breakerReport = refusedByBreaker.stdout ? JSON.parse(refusedByBreaker.stdout) : null
+  const breakerState = existsSync(breakerStatePath) ? JSON.parse(readFileSync(breakerStatePath, "utf8")) : null
+  T(
+    `${TOOL}: two session empty results open the breaker despite a successful result between them`,
+    refusedByBreaker.status === 6 && breakerReport?.outcome === "CLOUD_CIRCUIT_OPEN" &&
+      breakerReport.route === "local" && breakerReport.reason.includes("circuit breaker") &&
+      breakerState?.threshold === 2 && breakerState.emptyResults.length === 2 &&
+      breakerOpenedBeforeAdmission && !breakerInvocations.some((args) => args[0] === "cloud"),
+    `exit ${refusedByBreaker.status}: ${refusedByBreaker.stdout || refusedByBreaker.stderr}`,
+  )
+  T(
+    `${TOOL}: a breaker refusal durably records the ticket as routed rather than completed`,
+    breakerState?.routes[0]?.ticket === "#502" && breakerState.routes[0].outcome === "ROUTED_TO_LOCAL" &&
+      !Object.hasOwn(breakerState.routes[0], "completed"),
+    JSON.stringify(breakerState),
+  )
+
+  const freshOrder = stage("submit-cloud/fresh-session/order.md", "Implement the measured cloud path.\n")
+  const freshResult = run(TOOL, argvFor(breaker, "#503", freshOrder), {
+    path: breaker.path,
+    env: { ...breakerEnv, ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_b4985" },
+  })
+  T(
+    `${TOOL}: a fresh session starts with the breaker clear`,
+    freshResult.status === 0 && JSON.parse(freshResult.stdout).taskId === "task_e_b4985" &&
+      !existsSync(join(dirname(freshOrder), "cloud-circuit-breaker.json")),
+    `exit ${freshResult.status}: ${freshResult.stdout || freshResult.stderr}`,
+  )
+
+  const staleOwner = fixture("stale-owner")
+  const staleLock = join(staleOwner.repo.path, ".git", "orbit-cloud", "submit.lock")
+  acquireSubmissionLock(join(staleOwner.repo.path, ".git", "orbit-cloud"))
+  writeFileSync(join(staleLock, readdirSync(staleLock)[0]), JSON.stringify({ pid: 2147483647 }))
+  const staleOwnerResult = run(TOOL, argvOf(staleOwner), {
+    path: staleOwner.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: staleOwner.log,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a400",
+    },
+  })
+  T(
+    `${TOOL}: a crashed submitter cannot leave a permanent fleet reservation`,
+    staleOwnerResult.status === 0 && !existsSync(staleLock),
+    `exit ${staleOwnerResult.status}: ${staleOwnerResult.stdout || staleOwnerResult.stderr}`,
+  )
+  for (const [key, value] of Object.entries(originalEnvironment)) {
+    if (value === undefined) delete process.env[key]
+    else process.env[key] = value
+  }
+}

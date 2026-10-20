@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createTourUIState,
   createUIStoreState,
   getPersistedUIState,
-  getTourSessionUIState,
   migratePersistedUIState,
   type UIStoreState,
 } from "../stores/ui-store";
@@ -33,6 +31,26 @@ function createStoreHarness() {
 }
 
 describe("shared ui store", () => {
+  it("keeps the Calendar error signal outside persisted UI state", () => {
+    const store = createStoreHarness();
+    store.getState().setCalendarHasError(true);
+    expect(store.getState().calendarHasError).toBe(true);
+    expect(getPersistedUIState(store.getState())).not.toHaveProperty('calendarHasError');
+  });
+
+  it("reserves only one prompt while an overlay or create form is open", () => {
+    const store = createStoreHarness();
+    expect(store.getState().tryReservePromptOverlay("calendar")).toBe(true);
+    expect(store.getState().tryReservePromptOverlay("consent")).toBe(false);
+    store.getState().unregisterOpenOverlay("calendar");
+    store.getState().setShowCreateModal(true);
+    expect(store.getState().tryReservePromptOverlay("consent")).toBe(false);
+    store.getState().setShowCreateModal(false);
+    store.getState().setAstraConversationOpen(true);
+    expect(store.getState().tryReservePromptOverlay("consent")).toBe(false);
+    store.getState().setAstraConversationOpen(false);
+    expect(store.getState().tryReservePromptOverlay("consent")).toBe(true);
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-06T12:00:00Z"));
@@ -42,16 +60,19 @@ describe("shared ui store", () => {
     vi.useRealTimers();
   });
 
-  it("updates view and search state", () => {
+  it("merges filters and updates view and search state", () => {
     const store = createStoreHarness();
-    const { setSearchQuery, setActiveView } = store.getState();
+    const { setFilters, setSearchQuery, setActiveView } = store.getState();
 
+    setFilters({ dateFrom: "2026-04-06" });
+    setFilters({ dateTo: "2026-04-06" });
     setSearchQuery("focus");
-    setActiveView("goals");
+    setActiveView("all");
 
     expect(store.getState()).toMatchObject({
+      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
       searchQuery: "focus",
-      activeView: "goals",
+      activeView: "all",
     });
   });
 
@@ -108,19 +129,16 @@ describe("shared ui store", () => {
       hasCelebrationInFlight,
     } = store.getState();
 
-    enqueueCelebration("achievement", {
-      achievementId: "achv-1",
-      xpReward: 10,
-    });
+    enqueueCelebration("streak", { streak: 7 });
     enqueueCelebration("level-up", { level: 2 });
     enqueueCelebration("level-up", { level: 2 });
 
     expect(hasCelebrationInFlight()).toBe(true);
-    expect(store.getState().activeCelebration?.kind).toBe("achievement");
+    expect(store.getState().activeCelebration?.kind).toBe("streak");
     expect(store.getState().queuedCelebrations).toHaveLength(1);
 
     completeActiveCelebration("different-id");
-    expect(store.getState().activeCelebration?.kind).toBe("achievement");
+    expect(store.getState().activeCelebration?.kind).toBe("streak");
 
     completeActiveCelebration(store.getState().activeCelebration?.id);
     expect(store.getState().activeCelebration?.kind).toBe("level-up");
@@ -132,8 +150,14 @@ describe("shared ui store", () => {
   it("removes queued goal celebrations when they are cleared before becoming active", () => {
     const store = createStoreHarness();
 
-    store.getState().setStreakCelebration({ streak: 5 });
-    store.getState().setGoalCompletedCelebration({ name: "Ship Orbit" });
+    store.getState().setStreakCelebration({ streak: 7 });
+    store
+      .getState()
+      .setGoalCompletedCelebration({
+        name: "Ship Orbit",
+        count: 12,
+        unit: "releases",
+      });
 
     expect(
       store.getState().queuedCelebrations.map((item) => item.kind),
@@ -143,42 +167,28 @@ describe("shared ui store", () => {
 
     expect(store.getState().queuedCelebrations).toEqual([]);
     expect(store.getState().goalCompletedCelebration).toBeNull();
-    expect(store.getState().streakCelebration).toEqual({ streak: 5 });
-  });
-
-  it("creates a canonical tour ui state", () => {
-    expect(createTourUIState()).toEqual({
-      activeView: "today",
-      searchQuery: "",
-      selectedFrequency: null,
-      selectedTagIds: [],
-      showCompleted: true,
-      setupChecklistDismissed: false,
-    });
-  });
-
-  it("keeps the active search in the tour session snapshot", () => {
-    const store = createStoreHarness();
-    store.getState().setSearchQuery("focus");
-
-    expect(getTourSessionUIState(store.getState()).searchQuery).toBe("focus");
+    expect(store.getState().streakCelebration).toEqual({ streak: 7 });
   });
 
   it("returns cloned persisted ui state snapshots", () => {
     const store = createStoreHarness();
 
+    store.getState().setFilters({ dateFrom: "2026-04-06" });
     store.setState({
+      activeFilters: { dateFrom: "2026-04-06", includeOverdue: true },
       searchQuery: "focus",
-      selectedTagIds: ["focus"],
     });
 
     const snapshot = getPersistedUIState(store.getState());
 
     store.setState({
-      selectedTagIds: ["health"],
+      activeFilters: { dateFrom: "2026-04-07" },
     });
 
-    expect(snapshot.selectedTagIds).toEqual(["focus"]);
+    expect(snapshot.activeFilters).toEqual({
+      dateFrom: "2026-04-06",
+      includeOverdue: true,
+    });
     expect(snapshot).not.toHaveProperty("searchQuery");
   });
 
@@ -191,13 +201,18 @@ describe("shared ui store", () => {
     expect(snapshot).not.toHaveProperty("followToday");
   });
 
-  it("excludes active search from the persisted snapshot", () => {
+  it("excludes active search filters from the persisted snapshot", () => {
     const store = createStoreHarness();
-    store.getState().setSearchQuery('focus');
-    expect(getPersistedUIState(store.getState())).not.toHaveProperty('searchQuery');
+    store.setState({
+      activeFilters: { dateFrom: "2026-04-06", search: "focus" },
+    });
+
+    expect(getPersistedUIState(store.getState()).activeFilters).toEqual({
+      dateFrom: "2026-04-06",
+    });
   });
 
-  it("drops legacy day-selection and search keys when migrating persisted state", () => {
+  it("drops legacy day-selection, search, and retired control keys when migrating persisted state", () => {
     const migrated = migratePersistedUIState({
       activeFilters: { search: "focus" },
       selectedDate: "2000-01-01",
@@ -212,13 +227,66 @@ describe("shared ui store", () => {
     expect(migrated).not.toHaveProperty("selectedDate");
     expect(migrated).not.toHaveProperty("followToday");
     expect(migrated).not.toHaveProperty("searchQuery");
-    expect(migrated).not.toHaveProperty("activeFilters");
+    expect(migrated).not.toHaveProperty("selectedFrequency");
+    expect(migrated).not.toHaveProperty("selectedTagIds");
+    expect(migrated).not.toHaveProperty("showCompleted");
+    expect(migrated.setupChecklistDismissed).toBe(false);
     expect(migrated).toEqual({
+      activeFilters: {},
       activeView: "all",
-      selectedFrequency: "Month",
-      selectedTagIds: ["deep-work"],
-      showCompleted: true,
+      calendarShowRecurring: true,
+      dailyStreakMomentDate: "",
       setupChecklistDismissed: false,
     });
+  });
+
+  it("persists the recurring calendar filter and defaults invalid stored values", () => {
+    const store = createStoreHarness();
+    expect(store.getState().calendarShowRecurring).toBe(true);
+    store.getState().setCalendarShowRecurring(false);
+    const snapshot = getPersistedUIState(store.getState());
+    expect(migratePersistedUIState(snapshot).calendarShowRecurring).toBe(false);
+    expect(migratePersistedUIState({ calendarShowRecurring: true }).calendarShowRecurring).toBe(true);
+    expect(migratePersistedUIState({ calendarShowRecurring: "false" }).calendarShowRecurring).toBe(true);
+    expect(migratePersistedUIState({}).calendarShowRecurring).toBe(true);
+  });
+
+  it("preserves a production setup checklist dismissal through migration", () => {
+    expect(migratePersistedUIState({ setupChecklistDismissed: true }).setupChecklistDismissed).toBe(true);
+    expect(migratePersistedUIState({ setupChecklistDismissed: "true" }).setupChecklistDismissed).toBe(false);
+  });
+
+  it("maps every retired active view to today", () => {
+    expect(migratePersistedUIState({ activeView: "goals" }).activeView).toBe("today");
+    expect(migratePersistedUIState({ activeView: "retrospective" }).activeView).toBe("today");
+  });
+});
+
+
+describe('daily streak moment lifetime', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('keeps the once-per-day receipt through hydration and allows the next day', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 15, 12));
+    const store = createStoreHarness();
+    const log = { intent: 'log' as const, countsTowardStreak: true };
+    store.getState().showStreakMoment(5, 4, log);
+    expect(store.getState().activeCelebration?.kind).toBe('daily-streak');
+    const restored = createStoreHarness();
+    restored.setState(migratePersistedUIState(getPersistedUIState(store.getState())));
+    restored.getState().showStreakMoment(5, 4, log);
+    expect(restored.getState().activeCelebration).toBeNull();
+    vi.setSystemTime(new Date(2026, 5, 16, 12));
+    restored.getState().showStreakMoment(6, 5, log);
+    expect(restored.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 6 } });
+  });
+
+  it.each([undefined, null])('does not invent an unavailable previous streak: %s', (previousStreak) => {
+    const store = createStoreHarness();
+    store.getState().showStreakMoment(1, previousStreak, { intent: 'log', countsTowardStreak: true });
+    expect(store.getState().activeCelebration).toBeNull();
+    expect(store.getState().queuedCelebrations).toEqual([]);
+    expect(store.getState().dailyStreakMomentDate).toBe('');
   });
 });

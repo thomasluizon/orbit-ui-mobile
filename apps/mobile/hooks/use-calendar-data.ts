@@ -2,21 +2,20 @@
 
 import { useMemo } from 'react'
 import { endOfMonth, startOfMonth } from 'date-fns'
-import { useQuery } from '@tanstack/react-query'
-import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { habitKeys, QUERY_STALE_TIMES, getCachedCalendarDayMap } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { buildCalendarDayMap, formatAPIDate } from '@orbit/shared/utils'
-import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { apiClient } from '@/lib/api-client'
 
 function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = true) {
   const query = useQuery({
     queryKey: habitKeys.calendar(rangeStart, rangeEnd),
-    queryFn: () =>
-      apiClient<CalendarMonthResponse>(
-        `${API.habits.calendarMonth}?dateFrom=${rangeStart}&dateTo=${rangeEnd}`,
-      ),
+    queryFn: async () => calendarMonthResponseSchema.parse(await apiClient<unknown>(
+      `${API.habits.calendarMonth}?dateFrom=${rangeStart}&dateTo=${rangeEnd}`,
+    )),
     staleTime: QUERY_STALE_TIMES.habits,
     enabled,
   })
@@ -43,7 +42,13 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
 export function useCalendarData(currentMonth: Date) {
   const monthStart = formatAPIDate(startOfMonth(currentMonth))
   const monthEnd = formatAPIDate(endOfMonth(currentMonth))
-  return useCalendarRangeQuery(monthStart, monthEnd)
+  const queryClient = useQueryClient()
+  const query = useCalendarRangeQuery(monthStart, monthEnd)
+  const loadingDayMap = useMemo(
+    () => query.isLoading ? getCachedCalendarDayMap(queryClient, monthStart, monthEnd) : undefined,
+    [query.isLoading, queryClient, monthStart, monthEnd],
+  )
+  return { ...query, loadingDayMap }
 }
 
 /** Calendar entries for an arbitrary contiguous date range, powering the

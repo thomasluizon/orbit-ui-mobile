@@ -6,6 +6,22 @@ import {
   resolveChatImageMimeType,
   stripChatDirectives,
 } from '../chat'
+import { hasComposerContent } from '../contracts/composer'
+
+describe('hasComposerContent', () => {
+  it.each(['', ' ', '\t\n'])('rejects blank composer content %j', (content) => {
+    expect(hasComposerContent(content)).toBe(false)
+  })
+
+  it('accepts visible composer content surrounded by whitespace', () => {
+    expect(hasComposerContent('  log my walk  ')).toBe(true)
+  })
+
+  it('accepts a text file without typed content but still rejects an image alone', () => {
+    expect(hasComposerContent('', [{ id: 'file', kind: 'file', name: 'habits.csv' }])).toBe(true)
+    expect(hasComposerContent('', [{ id: 'image', kind: 'image', name: 'walk.png' }])).toBe(false)
+  })
+})
 
 describe('resolveChatImageMimeType', () => {
   it('prefers the provided mime type', () => {
@@ -51,7 +67,7 @@ describe('getChatImageValidationError', () => {
 })
 
 describe('getChatTextFileValidationError', () => {
-  it('accepts supported text files under the size limit, case-insensitively', () => {
+  it('accepts supported text files under the size limit case insensitively', () => {
     expect(getChatTextFileValidationError({ name: 'habits.csv', fileSize: 2048 })).toBeNull()
     expect(getChatTextFileValidationError({ name: 'export.JSON', fileSize: 2048 })).toBeNull()
     expect(getChatTextFileValidationError({ name: 'notes.md', fileSize: 2048 })).toBeNull()
@@ -64,16 +80,17 @@ describe('getChatTextFileValidationError', () => {
     ).toBeNull()
   })
 
-  it('rejects unsupported or extension-less files', () => {
+  it('rejects unsupported or extensionless files', () => {
     expect(getChatTextFileValidationError({ name: 'photo.png', fileSize: 2048 })).toBe('type')
     expect(getChatTextFileValidationError({ name: 'report.pdf', fileSize: 2048 })).toBe('type')
     expect(getChatTextFileValidationError({ name: 'noextension', fileSize: 2048 })).toBe('type')
   })
 
-  it('rejects text files above the max size', () => {
-    expect(getChatTextFileValidationError({ name: 'huge.csv', fileSize: 2 * 1024 * 1024 })).toBe(
-      'size',
-    )
+  it('accepts exactly 1 MiB and rejects one byte more', () => {
+    expect(getChatTextFileValidationError({ name: 'limit.csv', fileSize: 1024 * 1024 })).toBeNull()
+    expect(
+      getChatTextFileValidationError({ name: 'over-limit.csv', fileSize: 1024 * 1024 + 1 }),
+    ).toBe('size')
   })
 })
 

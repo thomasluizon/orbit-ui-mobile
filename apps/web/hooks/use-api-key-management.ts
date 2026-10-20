@@ -1,41 +1,30 @@
-import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-import { useState, useMemo } from 'react'
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useQuery, type QueryClient } from '@tanstack/react-query'
+
 import { API } from '@orbit/shared/api'
-import type {
-  AgentCapability,
-  ApiKey,
-  ApiKeyCreateRequest,
-  ApiKeyCreateResponse,
-} from '@orbit/shared/types'
-import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
+import { ApiClientError, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
+import { apiKeyKeys, profileKeys } from '@orbit/shared/query'
 import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
-import { sessionAwareFetch } from '@/lib/api-fetch'
-import { reportsAccountChanged } from '@/app/actions/action-result'
-import { reportAccountChangedIfNeeded } from '@/lib/client-action'
+import { getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+
+import {
+  clearApiKeyCreationGrant,
+  consumeApiKeyCreationGrant,
+  hasApiKeyCreationGrant,
+} from '@/lib/step-up-storage'
 
 const MAX_API_KEYS = 5
 
-interface ScopeOption {
-  scope: string
-  label: string
-  description: string
-}
-
 async function fetchApiKeys(): Promise<ApiKey[]> {
-  const res = await sessionAwareFetch(API.apiKeys.list)
+  const res = await fetchWithThrottle(API.apiKeys.list)
   if (!res.ok) {
-    throw new Error('Failed to load API keys')
+    throw new ApiClientError(res.status, 'Failed to load API keys')
   }
   return res.json() as Promise<ApiKey[]>
-}
-
-async function fetchCapabilities(): Promise<AgentCapability[]> {
-  const res = await sessionAwareFetch(API.ai.capabilities)
-  if (!res.ok) {
-    throw new Error('Failed to load AI capabilities')
-  }
-  return res.json() as Promise<AgentCapability[]>
 }
 
 interface UseApiKeyManagementParams {
@@ -44,9 +33,7 @@ interface UseApiKeyManagementParams {
   t: (key: string, params?: Record<string, string | number | Date>) => string
 }
 
-/** Owns the Orbit MCP API-key surface: list + capabilities queries, scope
- *  options, create/revoke flow, and the modal/error/revoke state. Hooks run in
- *  the same order they previously sat inline in the Advanced page. */
+/** Owns the Orbit MCP API-key list plus its create and revoke mutations. */
 export function useApiKeyManagement({
   hasProAccess,
   queryClient,
@@ -59,77 +46,75 @@ export function useApiKeyManagement({
     staleTime: 5 * 60 * 1000,
   })
 
-  const capabilitiesQuery = useQuery({
-    queryKey: aiKeys.capabilities(),
-    queryFn: fetchCapabilities,
-    enabled: hasProAccess,
-    staleTime: 5 * 60 * 1000,
-  })
-
   const apiKeys = apiKeysQuery.data ?? []
-  const scopeOptions = useMemo<ScopeOption[]>(() => {
-    const grouped = new Map<string, string[]>()
-
-    for (const capability of capabilitiesQuery.data ?? []) {
-      const descriptions = grouped.get(capability.scope) ?? []
-      descriptions.push(capability.displayName)
-      grouped.set(capability.scope, descriptions)
-    }
-
-    return Array.from(grouped.entries())
-      .map(([scope, labels]) => ({
-        scope,
-        label: scope,
-        description: labels.join(', '),
-      }))
-      .sort((left, right) => left.scope.localeCompare(right.scope))
-  }, [capabilitiesQuery.data])
   const canCreateKey = apiKeys.length < MAX_API_KEYS
-  const canCreateScopedKey =
-    canCreateKey &&
-    !capabilitiesQuery.isLoading &&
-    !capabilitiesQuery.error &&
-    scopeOptions.length > 0
+  const [createKeyError, setCreateKeyError] = useAccountScopedState<string | null>(null)
+  const [createGrantAvailable, setCreateGrantAvailable] = useAccountScopedState(hasApiKeyCreationGrant)
+  const [revokingKeyId, setRevokingKeyId] = useAccountScopedState<string | null>(null)
+  const [revokeKeyError, setRevokeKeyError] = useAccountScopedState<string | null>(null)
 
-  const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
-  const [createKeyError, setCreateKeyError] = useState<string | null>(null)
-  const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
   const revokeKeyMutation = useAccountScopedMutation({
-    mutationFn: revokeApiKey,
+    mutationFn: (keyId: string, intendedAccountId) => revokeApiKey(keyId, intendedAccountId),
     onSuccess: () => {
       setRevokingKeyId(null)
+      setRevokeKeyError(null)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    },
+    onError: (error) => {
+      setRevokeKeyError(getFriendlyErrorMessage(error, t, 'orbitMcp.apiKeysError'))
     },
   })
 
   async function handleCreateKey(
     request: ApiKeyCreateRequest,
+    onCreateGrantRequired: () => Promise<void>,
   ): Promise<ApiKeyCreateResponse | null> {
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
+
     setCreateKeyError(null)
+    if (!createGrantAvailable) {
+      await onCreateGrantRequired()
+      return null
+    }
     try {
-      const result = await createApiKey(request)
+      const result = await createApiKey(request, intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setCreateKeyError(t('errors.api.accountChanged'))
+        return null
+      }
+
+      if (!result.success) {
+        clearApiKeyCreationGrant()
+        setCreateGrantAvailable(false)
+        await onCreateGrantRequired()
+        return null
+      }
+      consumeApiKeyCreationGrant()
+      setCreateGrantAvailable(false)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
-      return result
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      return result.response
     } catch (error) {
-      reportAccountChangedIfNeeded(error)
-      if (reportsAccountChanged(error)) return null
-      setCreateKeyError(t('orbitMcp.createKeyError'))
+      if (getAccountGeneration() !== accountGeneration) return null
+      setCreateKeyError(getFriendlyErrorMessage(error, t, 'orbitMcp.createKeyError'))
+
       return null
     }
   }
 
   return {
     apiKeysQuery,
-    capabilitiesQuery,
     apiKeys,
-    scopeOptions,
     canCreateKey,
-    canCreateScopedKey,
-    createKeyModalOpen,
-    setCreateKeyModalOpen,
+    createGrantAvailable,
     createKeyError,
+    clearCreateKeyError: () => setCreateKeyError(null),
     revokingKeyId,
+    revokeKeyError,
+    clearRevokeKeyError: () => setRevokeKeyError(null),
     setRevokingKeyId,
     revokeKeyMutation,
     handleCreateKey,

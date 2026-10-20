@@ -53,7 +53,7 @@ describe('calendar session readiness', () => {
       await waitFor(() => expect(recoverSessionRefreshFailure).toHaveBeenCalledOnce())
       expect(fetch).toHaveBeenCalledExactlyOnceWith(
         '/api/habits/calendar-month?dateFrom=2025-01-01&dateTo=2025-01-31',
-        undefined,
+        { headers: expect.any(Headers) },
       )
       expect(readBody).not.toHaveBeenCalled()
       expect(result.current.isLoading).toBe(true)

@@ -3,12 +3,10 @@ import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import {
   DEFAULT_FREE_COLOR_SCHEME,
-  UPGRADE_FEATURE_CATEGORIES,
-  UPGRADE_PRO_FEATURES,
-  UPGRADE_YEARLY_EXTRA_FEATURES,
   canAccessEntitlement,
   resolveAccessibleColorScheme,
   resolveUpgradeEntitlementDenial,
+  getUpgradeTierReservation,
 } from '../utils/upgrade'
 
 function getMessageValue(
@@ -23,97 +21,128 @@ function getMessageValue(
   }, messages)
 }
 
-const allMatrixRows = UPGRADE_FEATURE_CATEGORIES.flatMap((category) => category.features)
-
 describe('upgrade utils', () => {
-  it('marks AI Retrospective as yearly-only Pro, not a Pro cross', () => {
-    const retrospective = allMatrixRows.find((feature) => feature.key === 'retrospective')
-    expect(retrospective).toBeDefined()
-    expect(retrospective?.type).toBe('boolean')
-    expect(retrospective?.free).toBe(false)
-    expect(retrospective?.pro).toBe('yearly')
+  it.each([en, ptBR])('reserves complete annual and monthly content in each locale before a price response', (messages) => {
+    const t = (key: string, params?: Record<string, unknown>) => {
+      const message = getMessageValue(messages, key)
+      if (typeof message !== 'string') throw new Error(`Missing message: ${key}`)
+      return message.replace(/\{(\w+)\}/g, (_match, name: string) => String(params?.[name]))
+    }
+    const annual = getUpgradeTierReservation('yearly', t)
+    const monthly = getUpgradeTierReservation('monthly', t)
+    expect(annual.heroLine).toBe(messages.upgrade.plans.yearly.heroLine)
+    expect(annual.secondLine).toContain(messages.upgrade.plans.loading)
+    expect(annual.couponLine).toBe(monthly.couponLine)
+    expect(annual.couponLine).toContain(messages.upgrade.plans.loading)
+    expect(monthly.heroLine).toBeUndefined()
+    expect(monthly.secondLine).toBeUndefined()
+    expect(annual.price).toBe(messages.upgrade.plans.loading)
+    expect(monthly.price).toBe(messages.upgrade.plans.loading)
   })
 
-  it('keeps the post-rebalance free essentials positive on both tiers', () => {
-    const insights = UPGRADE_FEATURE_CATEGORIES.find((category) => category.category === 'insights')
-    const freePositive = (insights?.features ?? [])
-      .filter((feature) => feature.free === true && feature.pro === true)
-      .map((feature) => feature.key)
-    expect(freePositive).toEqual(
-      expect.arrayContaining(['streaks', 'xpLevels', 'streakFreeze']),
+  it('keeps removed feature and preference copy accurate in both locales', () => {
+    const removedKeys = [
+      'trial.expired.allColors',
+      'upgrade.features.colors',
+      'upgrade.plans.proFeatures.themes',
+    ]
+
+    for (const locale of [en, ptBR]) {
+      for (const key of removedKeys) {
+        expect(getMessageValue(locale as Record<string, unknown>, key)).toBeUndefined()
+      }
+    }
+
+    expect(en.profile.freshStart.preservePreferences).toBe(
+      'Theme, language, and timezone',
     )
+    expect(ptBR.profile.freshStart.preservePreferences).toBe(
+      'Tema, idioma e fuso horário',
+    )
+    expect(en.privacy.dataCollected.preferences).toContain('color scheme')
+    expect(ptBR.privacy.dataCollected.preferences).toContain('cor do tema')
   })
 
-  it('defines the shrunk marquee and the yearly extra', () => {
-    expect(UPGRADE_PRO_FEATURES.map((feature) => feature.key)).toEqual([
-      'unlimited',
-      'ai',
-      'goals',
-      'themes',
-    ])
-    expect(UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => feature.key)).toEqual([
-      'retrospective',
-    ])
-  })
-
-  it('groups the matrix under four icon-led categories', () => {
-    expect(UPGRADE_FEATURE_CATEGORIES.map((category) => category.category)).toEqual([
-      'habits',
-      'ai',
-      'insights',
-      'personalization',
-    ])
-    for (const category of UPGRADE_FEATURE_CATEGORIES) {
-      expect(typeof category.iconKey).toBe('string')
+  it('keeps the D70 plan breakdown on the rendered upgrade screen in both locales', () => {
+    expect(en.upgrade.convert).toMatchObject({
+      promise: 'The plan changes what Astra can do, never your habits and logs.',
+      freeHeading: 'Ten times more Astra.',
+      trialHeading: '50 a day or back to 5.',
+      freeAllowance: '5',
+      proAllowance: '50',
+      perDay: 'messages/day',
+    })
+    expect(ptBR.upgrade.convert).toMatchObject({
+      promise: 'O plano muda a Astra, nunca os seus hábitos e registros.',
+      freeHeading: 'Dez vezes mais Astra.',
+      trialHeading: '50 por dia ou só 5.',
+      freeAllowance: '5',
+      proAllowance: '50',
+      perDay: 'mensagens/dia',
+    })
+    for (const messages of [en, ptBR]) {
+      expect(Object.keys(messages.upgrade.outcomes)).toEqual(['label', 'astra', 'calendar', 'retrospective', 'noticing'])
+      expect(messages.upgrade.outcomes.astra).toContain('50')
+      expect(messages.upgrade.outcomes.calendar).toContain(messages === en ? 'Google Calendar' : 'Google Agenda')
+      expect(messages.upgrade.outcomes.noticing).toContain('Astra')
     }
   })
 
-  it('omits the retired AI comparison row', () => {
-    const retiredKey = ['ai', 'Memory'].join('')
-    expect(allMatrixRows.some((feature) => feature.key === retiredKey)).toBe(false)
-  })
-
-  it('has matching locale entries in both en and pt-BR for every rendered key', () => {
-    const matrixKeys = UPGRADE_FEATURE_CATEGORIES.flatMap((category) => [
-      `upgrade.categories.${category.category}`,
-      ...category.features.flatMap((feature) =>
-        feature.type === 'text'
-          ? [
-              `upgrade.features.${feature.key}.label`,
-              `upgrade.features.${feature.key}.free`,
-              `upgrade.features.${feature.key}.pro`,
-            ]
-          : [`upgrade.features.${feature.key}.label`],
-      ),
-    ])
-    const marqueeKeys = [...UPGRADE_PRO_FEATURES, ...UPGRADE_YEARLY_EXTRA_FEATURES].map(
-      (feature) => `upgrade.plans.proFeatures.${feature.key}`,
-    )
+  it('has matching locale entries for the allowance pitch and no matrix copy', () => {
     const copyKeys = [
-      'upgrade.matrix.title',
-      'upgrade.matrix.included',
-      'upgrade.matrix.notIncluded',
-      'upgrade.matrix.yearlyTag',
       'upgrade.convert.promise',
-      'upgrade.convert.trialCta',
-      'upgrade.convert.freeCta',
+      'upgrade.convert.freeHeading',
+      'upgrade.convert.freeEyebrow',
+      'upgrade.convert.trialEyebrow',
+      'upgrade.convert.trialDaysLeft',
+      'upgrade.convert.trialLastDay',
+      'upgrade.convert.trialHeading',
+      'upgrade.convert.promise',
       'upgrade.convert.trustLine',
-      'upgrade.convert.stayFree',
       'upgrade.convert.cancelAnytime',
-      'upgrade.plans.free.note',
-      'upgrade.plans.monthly.note',
+      'upgrade.convert.handOff',
+      'upgrade.plans.renewalNote',
+      'upgrade.convert.allowanceLabel',
+      'upgrade.convert.freeAllowance',
+      'upgrade.convert.proAllowance',
+      'upgrade.convert.perDay',
+      'upgrade.convert.allowanceNote',
+      'upgrade.outcomes.label',
+      'upgrade.outcomes.astra',
+      'upgrade.outcomes.calendar',
+      'upgrade.outcomes.retrospective',
+      'upgrade.outcomes.noticing',
+      'upgrade.plans.loading',
+      'upgrade.plans.intervalLabel',
+      'upgrade.plans.interval.monthly',
+      'upgrade.plans.interval.annual',
+      'upgrade.plans.recommended',
+      'upgrade.plans.cta',
       'upgrade.plans.yearly.heroLine',
-      'upgrade.plans.yearly.billedSave',
+      'upgrade.plans.yearly.equivalent',
+      'upgrade.plans.coupon.line',
     ]
-    const messageKeys = [...matrixKeys, ...marqueeKeys, ...copyKeys]
 
     for (const locale of [en, ptBR]) {
-      for (const key of messageKeys) {
+      for (const key of copyKeys) {
         expect(getMessageValue(locale as Record<string, unknown>, key)).toEqual(
           expect.any(String),
         )
       }
+      expect(getMessageValue(locale as Record<string, unknown>, 'upgrade.matrix')).toBeUndefined()
+      expect(
+        getMessageValue(
+          locale as Record<string, unknown>,
+          'upgrade.features.subHabits.tooltip',
+        ),
+      ).toEqual(expect.any(String))
     }
+    expect(en.upgrade.plans.renewalNote).toBe(
+      'The subscription renews itself at the end of the period, and you can turn that off in the portal.',
+    )
+    expect(ptBR.upgrade.plans.renewalNote).toBe(
+      'A assinatura renova sozinha no fim do período, e dá para desligar isso no portal.',
+    )
   })
 
   it('applies plan checks consistently', () => {
@@ -145,9 +174,10 @@ describe('upgrade utils', () => {
   })
 
   it('falls back to the default free color scheme', () => {
-    expect(resolveAccessibleColorScheme('blue', false)).toBe(DEFAULT_FREE_COLOR_SCHEME)
-    expect(resolveAccessibleColorScheme('purple', false)).toBe('purple')
-    expect(resolveAccessibleColorScheme('blue', true)).toBe('blue')
+    for (const stored of ['purple', 'blue', 'green', 'rose', 'orange', 'cyan', null]) {
+      expect(resolveAccessibleColorScheme(stored, true)).toBe(DEFAULT_FREE_COLOR_SCHEME)
+      expect(resolveAccessibleColorScheme(stored, false)).toBe(DEFAULT_FREE_COLOR_SCHEME)
+    }
   })
 
   it('parses premium denials into upgrade actions', () => {

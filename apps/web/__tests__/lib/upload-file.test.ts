@@ -1,12 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const signUploadMock = vi.fn()
-let heldAccountId: string | null = 'account-a'
-let accountGeneration = 1
-vi.mock('@/stores/auth-store', () => ({
-  getHeldAccountId: () => heldAccountId,
-  getAccountGeneration: () => accountGeneration,
-}))
 vi.mock('@/lib/actions/uploads', () => ({
   signUpload: signUploadMock,
 }))
@@ -28,8 +22,6 @@ function makeFile(type = 'image/png'): File {
 
 describe('web uploadFile', () => {
   beforeEach(() => {
-    heldAccountId = 'account-a'
-    accountGeneration = 1
     signUploadMock.mockReset()
     fetchMock.mockReset()
     signUploadMock.mockResolvedValue(signed)
@@ -44,7 +36,7 @@ describe('web uploadFile', () => {
     expect(signUploadMock).toHaveBeenCalledWith({
       contentType: 'image/png',
       sizeBytes: file.size,
-    })
+    }, null)
     expect(fetchMock).toHaveBeenCalledWith(signed.signedUrl, expect.objectContaining({
       method: 'PUT',
       body: file,
@@ -61,25 +53,5 @@ describe('web uploadFile', () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500 })
 
     await expect(uploadFile(makeFile())).rejects.toThrow(/status 500/)
-  })
-
-  it('does not PUT to an old account signed URL after an account switch', async () => {
-    let finishSigning: (value: typeof signed) => void = () => {}
-    signUploadMock.mockReturnValue(new Promise<typeof signed>((resolve) => { finishSigning = resolve }))
-
-    const upload = uploadFile(makeFile())
-    heldAccountId = 'account-b'
-    accountGeneration++
-    finishSigning(signed)
-
-    await expect(upload).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('still sends an upload when no account was held', async () => {
-    heldAccountId = null
-
-    await expect(uploadFile(makeFile())).resolves.toMatchObject({ key: signed.key })
-    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

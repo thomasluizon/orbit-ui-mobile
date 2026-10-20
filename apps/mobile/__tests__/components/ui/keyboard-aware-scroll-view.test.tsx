@@ -1,13 +1,15 @@
 import React from 'react'
+import { TextInput } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   __emitKeyboardEvent,
   __resetTestHostConfig,
   __setHostRefsNull,
+  __setMeasureInWindowImpl,
 } from '../../../test-mocks/react-native'
 import {
-  KeyboardAwareBottomSheetScrollView,
   KeyboardAwareFlatList,
+  KeyboardAwareSheetScrollView,
   KeyboardAwareScrollView,
   KeyboardAwareView,
   useKeyboardAwareInputReveal,
@@ -30,11 +32,13 @@ interface MeasureResult {
 }
 
 function createFocusableInput({ y, height }: MeasureResult) {
-  return Object.assign(new React.Component({}), {
-    measureInWindow: (
-      callback: (x: number, y: number, width: number, height: number) => void,
-    ) => callback(0, y, 0, height),
+  __setMeasureInWindowImpl((callback) => callback(0, y, 0, height))
+  const inputRef = React.createRef<TextInput>()
+  TestRenderer.act(() => {
+    TestRenderer.create(<TextInput ref={inputRef} />)
   })
+  if (!inputRef.current) throw new Error('TextInput host ref was not assigned')
+  return inputRef.current
 }
 
 function renderScrollView(onScroll?: (event: unknown) => void) {
@@ -72,6 +76,19 @@ describe('KeyboardAwareScrollView (mobile)', () => {
     expect(typeof capturedContext?.handleScroll).toBe('function')
   })
 
+  it('keeps input reveal without a second avoidance wrapper under the shell', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <KeyboardAwareScrollView avoidKeyboard={false}>
+          <ContextProbe />
+        </KeyboardAwareScrollView>,
+      )
+    })
+    expect(tree!.root.findAll((node: { type: unknown }) => String(node.type) === 'KeyboardAvoidingView')).toHaveLength(0)
+    expect(capturedContext?.revealInput).toBeTypeOf('function')
+  })
+
   it('tracks scroll offset through the wrapped onScroll handler', () => {
     const onScroll = vi.fn()
     const tree = renderScrollView(onScroll)
@@ -86,8 +103,9 @@ describe('KeyboardAwareScrollView (mobile)', () => {
   it('ignores revealInput while the keyboard is hidden', () => {
     vi.useFakeTimers()
     renderScrollView()
+    const input = createFocusableInput({ y: 500, height: 40 })
     TestRenderer.act(() => {
-      capturedContext?.revealInput(createFocusableInput({ y: 500, height: 40 }))
+      capturedContext?.revealInput(input)
       vi.advanceTimersByTime(60)
     })
     expect(capturedContext).not.toBeNull()
@@ -152,9 +170,9 @@ describe('KeyboardAwareScrollView (mobile)', () => {
 
   it('returns early when the scrollable ref is null', () => {
     vi.useFakeTimers()
+    const input = createFocusableInput({ y: 700, height: 40 })
     __setHostRefsNull(true)
     renderScrollView()
-    const input = createFocusableInput({ y: 700, height: 40 })
     TestRenderer.act(() => {
       capturedContext?.revealInput(input)
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400 } })
@@ -199,7 +217,7 @@ describe('KeyboardAwareScrollView (mobile)', () => {
   })
 })
 
-describe('KeyboardAwareBottomSheetScrollView (mobile)', () => {
+describe('KeyboardAwareSheetScrollView (mobile)', () => {
   beforeEach(() => {
     __resetTestHostConfig()
   })
@@ -212,15 +230,16 @@ describe('KeyboardAwareBottomSheetScrollView (mobile)', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <KeyboardAwareBottomSheetScrollView onScroll={onScroll} contentContainerStyle={{ padding: 4 }}>
+        <KeyboardAwareSheetScrollView onScroll={onScroll} contentContainerStyle={{ padding: 4 }}>
           <ContextProbe />
-        </KeyboardAwareBottomSheetScrollView>,
+        </KeyboardAwareSheetScrollView>,
       )
     })
     const event = { nativeEvent: { contentOffset: { y: 12 } } }
     TestRenderer.act(() => {
       tree!.root.findByType('ScrollView').props.onScroll(event)
     })
+    expect(tree!.root.findByType('ScrollView').props.nestedScrollEnabled).toBe(true)
     expect(onScroll).toHaveBeenCalledWith(event)
   })
 })

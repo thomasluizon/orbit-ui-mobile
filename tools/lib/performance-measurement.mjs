@@ -377,6 +377,11 @@ export function resolvePerformanceMeasurement(input, options = {}) {
     const queries = (input.queryStats ?? []).map((entry, index) =>
       analyzeQuery(entry, index, windowDays, tableByName, thresholds))
     if (queries.length === 0) throw new Error("queryStats must contain at least one statement")
+    const queryIds = new Set()
+    for (const query of queries) {
+      if (queryIds.has(query.queryId)) throw new Error(`duplicate queryId: ${query.queryId}`)
+      queryIds.add(query.queryId)
+    }
 
     const rowsRanking = [...queries].sort((left, right) => right.rows - left.rows)
     const egressRanking = [...queries].sort((left, right) =>
@@ -532,12 +537,6 @@ const MEASURED_METRIC_KEYS = ["calls", "rowsPerCall", "bytesPerRow", "callsPerMo
 
 export function attachPerformanceMetrics(findings, measurement) {
   if (!measurement) return findings
-  /**
-   * CODE_ONLY is the MOST dangerous path to trust, not the safest. With no measurement there is
-   * nothing to overwrite an agent's numbers with, and the skeptic prompt reads any finding carrying
-   * a `queryId` as normalized production evidence, so an unmeasured run could rank and ticket
-   * invented egress as measured fact. Strip it all.
-   */
   if (measurement.status !== "available") {
     return findings.map((finding) => {
       const stripped = { ...finding }

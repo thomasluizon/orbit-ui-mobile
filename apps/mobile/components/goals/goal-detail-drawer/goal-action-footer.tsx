@@ -1,64 +1,22 @@
-import { Pressable, Text, View } from 'react-native'
+import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   ArchiveX,
-  CheckCircle2,
   PencilLine,
   RotateCw,
   Trash2,
-  type LucideIcon,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
+import { ListRow } from '@/components/ui/list-row'
 import type { createStyles } from './styles'
 
 type GoalDetailStyles = ReturnType<typeof createStyles>
 
-interface GoalActionRowProps {
-  label: string
-  icon: LucideIcon
-  iconColor: string
-  onPress: () => void
-  disabled?: boolean
-  destructive?: boolean
-  styles: GoalDetailStyles
-}
-
-function GoalActionRow({
-  label,
-  icon: Icon,
-  iconColor,
-  onPress,
-  disabled = false,
-  destructive = false,
-  styles,
-}: Readonly<GoalActionRowProps>) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [
-        styles.actionRow,
-        pressed && !disabled ? styles.actionRowPressed : null,
-        disabled ? { opacity: 0.5 } : null,
-      ]}
-    >
-      <Icon size={18} strokeWidth={1.8} color={iconColor} />
-      <Text
-        style={destructive ? styles.actionRowTextDestructive : styles.actionRowText}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  )
-}
-
 interface GoalActionFooterProps {
   isActive: boolean
+  isAbandoned: boolean
   isUpdatingStatus: boolean
+  defaultIconColor: string
   iconColor: string
-  dangerColor: string
-  onMarkCompleted: () => void
   onMarkAbandoned: () => void
   onReactivate: () => void
   onEdit: () => void
@@ -68,10 +26,10 @@ interface GoalActionFooterProps {
 
 export function GoalActionFooter({
   isActive,
+  isAbandoned,
   isUpdatingStatus,
+  defaultIconColor,
   iconColor,
-  dangerColor,
-  onMarkCompleted,
   onMarkAbandoned,
   onReactivate,
   onEdit,
@@ -82,49 +40,44 @@ export function GoalActionFooter({
 
   return (
     <View style={styles.actions}>
-      {isActive ? (
-        <>
-          <GoalActionRow
-            label={t('goals.detail.markCompleted')}
-            icon={CheckCircle2}
-            iconColor={iconColor}
-            onPress={onMarkCompleted}
-            disabled={isUpdatingStatus}
-            styles={styles}
-          />
-          <GoalActionRow
-            label={t('goals.detail.markAbandoned')}
-            icon={ArchiveX}
-            iconColor={iconColor}
-            onPress={onMarkAbandoned}
-            disabled={isUpdatingStatus}
-            styles={styles}
-          />
-        </>
-      ) : (
-        <GoalActionRow
-          label={t('goals.detail.reactivate')}
-          icon={RotateCw}
-          iconColor={iconColor}
-          onPress={onReactivate}
-          disabled={isUpdatingStatus}
-          styles={styles}
-        />
-      )}
-      <GoalActionRow
-        label={t('goals.detail.edit')}
-        icon={PencilLine}
-        iconColor={iconColor}
-        onPress={onEdit}
-        styles={styles}
+      <ListRow
+        compact={false}
+        title={t('goals.detail.edit')}
+        accessibilityLabel={t('goals.detail.edit')}
+        icon={<PencilLine size={24} strokeWidth={1.5} color={defaultIconColor} />}
+        chevron={false}
+        onClick={onEdit}
       />
-      <GoalActionRow
-        label={t('goals.detail.delete')}
-        icon={Trash2}
-        iconColor={dangerColor}
-        destructive
-        onPress={onDelete}
-        styles={styles}
+      {isAbandoned ? (
+        <ListRow
+          compact={false}
+          title={t('goals.detail.reactivate')}
+          accessibilityLabel={t('goals.detail.reactivate')}
+          icon={<RotateCw size={24} strokeWidth={1.5} color={defaultIconColor} />}
+          chevron={false}
+          onClick={onReactivate}
+          disabled={isUpdatingStatus}
+        />
+      ) : null}
+      {isActive ? (
+          <ListRow
+            compact={false}
+            title={t('goals.detail.markAbandoned')}
+            accessibilityLabel={t('goals.detail.markAbandoned')}
+            icon={<ArchiveX size={24} strokeWidth={1.5} color={defaultIconColor} />}
+            chevron={false}
+            onClick={onMarkAbandoned}
+            disabled={isUpdatingStatus}
+          />
+      ) : null}
+      <ListRow
+        compact={false}
+        title={t('goals.detail.delete')}
+        accessibilityLabel={t('goals.detail.delete')}
+        icon={<Trash2 size={24} strokeWidth={1.5} color={iconColor} />}
+        danger
+        chevron={false}
+        onClick={onDelete}
       />
     </View>
   )

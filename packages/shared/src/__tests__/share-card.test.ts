@@ -2,13 +2,21 @@ import { describe, expect, it } from 'vitest'
 import {
   buildRecapRequestUrl,
   buildShareCardStats,
+  buildProgressShareCardStats,
+  buildShareCardWeekday,
   formatCompletionRate,
-  getClosedMonthFromWrappedParams,
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
   recapPeriodLabelKey,
+  parseWrappedRouteSelection,
 } from '../utils/share-card'
 import { createMockRetrospectiveMetrics } from './factories'
+
+it('uses the strongest weekday and clamps its displayed percentage', () => {
+  expect(buildShareCardWeekday([0, 15, 105, 70, 0, 0, 0])).toEqual({
+    labelKey: 'dates.daysShort.wednesday', percentage: 100,
+  })
+})
 
 describe('formatCompletionRate', () => {
   it('rounds to a whole-percent string', () => {
@@ -28,25 +36,35 @@ describe('buildRecapRequestUrl', () => {
     expect(buildRecapRequestUrl('year')).toBe('/api/gamification/recap?period=year')
   })
 
-  it('requests the closed month named by a notification', () => {
-    expect(buildRecapRequestUrl('month', { year: 2024, month: 2 }))
-      .toBe('/api/gamification/recap?period=month&year=2024&month=2')
+  it('targets the carried closed month without changing the selected period', () => {
+    expect(buildRecapRequestUrl('month', { year: 2026, month: 8 })).toBe(
+      '/api/gamification/recap?period=month&year=2026&month=8',
+    )
+    expect(parseWrappedRouteSelection('month', '2026', '8')).toEqual({
+      period: 'month',
+      closedMonth: { year: 2026, month: 8 },
+    })
   })
-})
 
-describe('getClosedMonthFromWrappedParams', () => {
-  it('reads the exact month from a notification URL', () => {
-    expect(getClosedMonthFromWrappedParams({ wrapped: 'month', year: '2024', month: '2' }))
-      .toEqual({ year: 2024, month: 2 })
+  it('accepts only API-supported closed-month year boundaries', () => {
+    expect(parseWrappedRouteSelection('month', '0000', '3')).toEqual({ period: 'month' })
+    expect(parseWrappedRouteSelection('month', '0001', '3')).toEqual({
+      period: 'month',
+      closedMonth: { year: 1, month: 3 },
+    })
+    expect(parseWrappedRouteSelection('month', '9999', '3')).toEqual({
+      period: 'month',
+      closedMonth: { year: 9999, month: 3 },
+    })
   })
 
   it.each([
-    { wrapped: 'year', year: '2024', month: '2' },
-    { wrapped: 'month', year: '2024', month: '13' },
-    { wrapped: 'month', year: '2024x', month: '2' },
-    { wrapped: 'month', year: ['2024'], month: '2' },
-  ])('ignores invalid closed month parameters', (params) => {
-    expect(getClosedMonthFromWrappedParams(params)).toBeNull()
+    ['year', '2024', '2'],
+    ['month', '2024', '13'],
+    ['month', '2024x', '2'],
+    ['month', ['2024'], '2'],
+  ])('ignores the invalid closed month in %s %s %s', (period, year, month) => {
+    expect(parseWrappedRouteSelection(period, year, month)).toEqual({ period })
   })
 })
 
@@ -69,16 +87,15 @@ describe('buildShareCardStats', () => {
         bestStreak: 18,
         activeDays: 5,
       }),
+      3,
     )
 
     expect(stats.map((stat) => stat.labelKey)).toEqual([
-      'shareCard.stats.completionRate',
       'shareCard.stats.completions',
       'shareCard.stats.bestStreak',
-      'shareCard.stats.activeDays',
+      'shareCard.stats.goalsClosed',
     ])
-    expect(stats.map((stat) => stat.value)).toEqual(['74%', '40', '18', '5'])
-    expect(stats.every((stat) => stat.emoji.length > 0)).toBe(true)
+    expect(stats.map((stat) => stat.value)).toEqual(['40', '18', '3'])
   })
 
   it('handles all-zero metrics without throwing', () => {
@@ -89,22 +106,51 @@ describe('buildShareCardStats', () => {
         bestStreak: 0,
         activeDays: 0,
       }),
+      0,
     )
 
-    expect(stats.map((stat) => stat.value)).toEqual(['0%', '0', '0', '0'])
+    expect(stats.map((stat) => stat.value)).toEqual(['0', '0', '0'])
   })
 })
 
 describe('isRecapShareEmpty', () => {
-  it('is true only when there is no logged activity', () => {
+  it('is true only when there are no habit or goal completions', () => {
     expect(
-      isRecapShareEmpty(createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 })),
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+        0,
+      ),
     ).toBe(true)
     expect(
-      isRecapShareEmpty(createMockRetrospectiveMetrics({ totalCompletions: 3, activeDays: 0 })),
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 3, activeDays: 0 }),
+        0,
+      ),
     ).toBe(false)
     expect(
-      isRecapShareEmpty(createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 2 })),
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 2 }),
+        0,
+      ),
     ).toBe(false)
+    expect(
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+        3,
+      ),
+    ).toBe(false)
+  })
+})
+
+
+describe('buildProgressShareCardStats', () => {
+  it('restores the production order and rounded completion rate', () => {
+    const metrics = createMockRetrospectiveMetrics({ completionRate: 73.5, totalCompletions: 40, bestStreak: 18, activeDays: 5 })
+    expect(buildProgressShareCardStats(metrics)).toEqual([
+      { labelKey: 'shareCard.stats.completionRate', value: '74%' },
+      { labelKey: 'shareCard.stats.completions', value: '40' },
+      { labelKey: 'shareCard.stats.bestStreak', value: '18' },
+      { labelKey: 'shareCard.stats.activeDays', value: '5' },
+    ])
   })
 })

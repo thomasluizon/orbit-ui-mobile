@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
 type AsyncStorageMock = {
   getItem: ReturnType<typeof vi.fn>
   setItem: ReturnType<typeof vi.fn>
@@ -10,16 +12,11 @@ async function loadOfflineStateModule(overrides?: Partial<AsyncStorageMock>) {
 
   const asyncStorage: AsyncStorageMock = {
     getItem: overrides?.getItem ?? vi.fn(() => Promise.resolve(null)),
-    setItem: overrides?.setItem ?? vi.fn(() => Promise.resolve()),
+    setItem: overrides?.setItem ?? vi.fn(async () => {}),
   }
 
   vi.doMock('@react-native-async-storage/async-storage', () => ({
     default: asyncStorage,
-  }))
-  vi.doMock('@/stores/offline-sync-store', () => ({
-    useOfflineSyncStore: {
-      getState: () => ({ clearDrops: vi.fn(() => Promise.resolve()) }),
-    },
   }))
 
   const offlineState = await import('@/lib/offline-state')

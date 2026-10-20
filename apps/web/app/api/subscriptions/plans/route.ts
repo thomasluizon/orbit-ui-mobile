@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { NextResponse, type NextRequest } from 'next/server'
 import { resolveServerSession } from '@/lib/auth-api'
 import {
@@ -11,6 +12,11 @@ const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+/**
+ * BFF: GET /api/subscriptions/plans Dedicated route that proxies plan pricing to the .NET
+ * backend. This takes precedence over the catch-all proxy because Next.js resolves specific
+ * routes before [...path].
+ */
 
 function buildHeaders(
   token: string | null,
@@ -18,6 +24,7 @@ function buildHeaders(
 ): Record<string, string> {
   const headers: Record<string, string> = {
     ...forwardedClientHeaders,
+    ...API_VERSION_HEADERS,
   }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`

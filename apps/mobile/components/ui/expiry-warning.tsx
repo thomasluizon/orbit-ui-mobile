@@ -1,19 +1,16 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
-import { AppState, ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { AppState, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { SPACING, zLayers } from '@orbit/shared/theme'
 import { getSessionGeneration, refreshSession, useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
-import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { PillButton } from '@/components/ui/pill-button'
 
 const WARN_AT_MINUTES = 5
 
 type RefreshState = 'ready' | 'refreshing' | 'retrying' | 'network-error' | 'rejected'
-
-function stripTrailingPeriod(text: string): string {
-  const trimmed = text.trimEnd()
-  return (trimmed.endsWith('.') ? trimmed.slice(0, -1) : trimmed).trimEnd()
-}
 
 function mixHexOver(baseHex: string, tintHex: string, alpha: number): string {
   const channels = (hex: string) => {
@@ -66,16 +63,14 @@ export function ExpiryWarning() {
     if (expiresAt || refreshState !== 'rejected') {
       setRefreshState('ready')
     }
+    if (!expiresAt) {
+      setMinutesLeft(null)
+      setIsExpired(false)
+    }
   }
 
   useEffect(() => {
-    if (!expiresAt) {
-      void Promise.resolve().then(() => {
-        setMinutesLeft(null)
-        setIsExpired(false)
-      })
-      return
-    }
+    if (!expiresAt) return
 
     const sessionExpiresAt = expiresAt
 
@@ -144,7 +139,7 @@ export function ExpiryWarning() {
         return
       case 'unauthorized':
         setRefreshState('rejected')
-        await handleLogout()
+        await handleLogout(attemptGeneration)
     }
   }, [handleLogout, isTerminal])
 
@@ -190,32 +185,18 @@ export function ExpiryWarning() {
           {isExpired || isTerminal ? (
             <Text style={styles.urgent}>{expiredMessage}</Text>
           ) : (
-            <>
-              {stripTrailingPeriod(t('auth.sessionExpiring', { minutes: '' }))}{' '}
-              <Text style={styles.monoCount}>
-                {`${minutesLeft ?? 0} min`}
-              </Text>
-            </>
+            t('auth.sessionExpiring', { minutes: minutesLeft ?? 0 })
           )}
         </Text>
-        <Pressable
-          onPress={() => void handleAction()}
+        <PillButton
+          variant="ghost"
+          size="sm"
+          onClick={() => void handleAction()}
           disabled={isRefreshing}
-          hitSlop={6}
-          style={styles.actionPress}
-          accessibilityRole="button"
-          accessibilityState={{
-            busy: isRefreshing,
-            disabled: isRefreshing,
-          }}
+          loading={isRefreshing}
         >
-          {isRefreshing ? (
-            <ActivityIndicator size={14} color={tokens.fg1} />
-          ) : null}
-          <Text style={styles.actionText}>
-            {isTerminal ? t('auth.login') : t('auth.refresh')}
-          </Text>
-        </Pressable>
+          {isTerminal ? t('auth.login') : t('auth.refresh')}
+        </PillButton>
       </View>
     </View>
   )
@@ -228,49 +209,32 @@ function createStyles(tokens: AppTokensV2) {
       top: 0,
       left: 0,
       right: 0,
-      zIndex: 9998,
-      paddingTop: 50,
-      paddingHorizontal: 10,
+      zIndex: zLayers.toast,
+      paddingTop: SPACING.s48,
+      paddingHorizontal: SPACING.s8,
     },
     banner: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 12,
-      borderRadius: 14,
+      borderRadius: radius.xl,
       borderWidth: 1,
       borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
       backgroundColor: mixHexOver(tokens.bg, tokens.statusOverdue, 0.1),
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingHorizontal: SPACING.s12,
+      paddingVertical: SPACING.s8,
       ...shadowsV2.shadow2,
     },
     text: {
       flex: 1,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
+      fontFamily: 'Geist_400Regular',
+      fontVariant: ['tabular-nums'],
+      fontSize: 14,
       color: tokens.fg2,
     },
     urgent: {
       color: tokens.statusOverdueText,
-    },
-    monoCount: {
-      fontFamily: 'Roboto_400Regular',
-      fontVariant: ['tabular-nums'],
-      color: tokens.statusOverdueText,
-    },
-    actionPress: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingVertical: 8,
-      paddingHorizontal: 4,
-    },
-    actionText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg1,
-      textDecorationLine: 'underline',
     },
   })
 }

@@ -1,4 +1,3 @@
-
 const { getClassText, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const ARMS_RACE_FLOOR = 10

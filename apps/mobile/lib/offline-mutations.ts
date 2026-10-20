@@ -1,5 +1,6 @@
 import {
   apiKeyKeys,
+  calendarKeys,
   gamificationKeys,
   goalKeys,
   habitKeys,
@@ -16,23 +17,32 @@ import type {
 } from '@orbit/shared/types/sync'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import {
-  bulkLogItemRequestSchema,
-  bulkLogResultSchema,
-  bulkSkipItemRequestSchema,
-  bulkSkipResultSchema,
-  reorderHabitsRequestSchema,
-  type HabitScheduleItem,
-} from '@orbit/shared/types/habit'
+  setAiSummaryRequestSchema,
+  setClockFormatRequestSchema,
+  setLanguageRequestSchema,
+  setMarketingEmailConsentRequestSchema,
+  setNameRequestSchema,
+  setProactiveAstraRequestSchema,
+  setThemePreferenceRequestSchema,
+  setWeekStartDayRequestSchema,
+  updateTimezoneRequestSchema,
+  type Profile,
+} from '@orbit/shared/types/profile'
+import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { z } from 'zod'
-import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
+import { ApiClientError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { apiClient } from './api-client'
 import { getAccountId } from './account-scope'
 import { notifyBulkReplaySuccess } from './bulk-replay-events'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
+  accountTimezoneDependency,
+  ACCOUNT_TIMEZONE_DEPENDENCY,
   count,
   enqueue,
+  enqueueWithCompaction,
+  findUnfinalizedFirstWrite,
   getAll,
   getById,
   remove,
@@ -46,6 +56,7 @@ import { setPendingIdempotencyKey } from './idempotency-key'
 import { persistQueryCache, queryClient } from './query-client'
 import { captureError } from './sentry'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+export { accountTimezoneDependency, ACCOUNT_TIMEZONE_DEPENDENCY } from './offline-queue'
 
 export { subscribeBulkReplaySuccesses } from './bulk-replay-events'
 
@@ -54,16 +65,32 @@ type InvalidationQueryKey = readonly unknown[]
 const SCOPE_QUERY_KEYS: Record<MutationScope, readonly InvalidationQueryKey[]> = {
   habits: [habitKeys.all, goalKeys.all, profileKeys.all, gamificationKeys.all],
   goals: [goalKeys.all, habitKeys.lists()],
-  tags: [tagKeys.all, habitKeys.lists()],
+  tags: [tagKeys.all, habitKeys.lists(), habitKeys.searches()],
   notifications: [notificationKeys.all],
   profile: [profileKeys.all],
-  apiKeys: [apiKeyKeys.all],
+  apiKeys: [apiKeyKeys.all, profileKeys.all],
   calendar: [profileKeys.all],
 }
 
 export interface QueuedMarker {
   queued: true
   queuedMutationId: string
+  retained?: true
+}
+
+export class OfflineMutationPreflightError extends Error {
+  constructor() {
+    super('Mutation requires an active connection')
+    this.name = 'OfflineMutationPreflightError'
+  }
+}
+
+const AUTOMATIC_REPLAY_BLOCKED_TYPES = new Set<string>([
+  'bulkCascadeDeleteHabits',
+])
+
+export function isAutomaticReplayBlocked(type: string): boolean {
+  return AUTOMATIC_REPLAY_BLOCKED_TYPES.has(type)
 }
 
 export interface DroppedMutation {
@@ -159,10 +186,10 @@ export function isQueuedResult(value: unknown): value is QueuedMarker {
   )
 }
 
-function cancelUnsentDelete(mutation: PersistedQueuedMutation): Promise<'cancelled' | 'uncertain'> {
+function cancelUnsentMutation(mutation: PersistedQueuedMutation): Promise<'cancelled' | 'uncertain'> {
   remove(mutation.id)
   const outcome = mutation.retries > 0 ? 'uncertain' : 'cancelled'
-  if (mutation.entityType && mutation.targetEntityId) {
+  if (mutation.type.startsWith('delete') && mutation.entityType && mutation.targetEntityId) {
     return markOfflineTombstone(mutation.entityType, mutation.targetEntityId, false)
       .then(() => outcome)
   }
@@ -179,7 +206,7 @@ export function cancelQueuedDeleteForUndo(
     compactedCreatesByDeleteId.delete(mutationId)
     if (retained.accountId !== getAccountId()) return Promise.resolve('replayed')
     const compactedCreate = retained.mutation
-    enqueue(compactedCreate)
+    enqueue({ ...compactedCreate, type: mutationTypeSchema.parse(compactedCreate.type) })
     if (compactedCreate.entityType && compactedCreate.clientEntityId) {
       return markOfflineTombstone(
         compactedCreate.entityType,
@@ -189,18 +216,40 @@ export function cancelQueuedDeleteForUndo(
     }
     return Promise.resolve('cancelled')
   }
-  if (mutation.status !== 'syncing') return cancelUnsentDelete(mutation)
+  return cancelQueuedMutationForUndo(mutation)
+}
+
+export function cancelQueuedSkipForUndo(
+  mutationId: string,
+): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
+  const mutation = getById(mutationId)
+  return mutation ? cancelQueuedMutationForUndo(mutation) : Promise.resolve('replayed')
+}
+
+export async function executeSkipUndo(mutation: Pick<PersistedQueuedMutation, 'endpoint' | 'id'>): Promise<void> {
+  try {
+    await apiClient<void>(mutation.endpoint, { method: 'POST', idempotencyKey: mutation.id })
+  } catch (error) {
+    /** A cancelled skip may never have reached the API, so an absent receipt means there is nothing left to undo (#1053). */
+    if (extractBackendErrorCode(error) !== 'SKIP_NOT_FOUND') throw error
+  }
+}
+
+function cancelQueuedMutationForUndo(
+  mutation: PersistedQueuedMutation,
+): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
+  if (mutation.status !== 'syncing') return cancelUnsentMutation(mutation)
 
   return new Promise((resolve) => {
     const unsubscribe = subscribeFlushResults((result) => {
-      const current = getById(mutationId)
+      const current = getById(mutation.id)
       if (current?.status === 'syncing') return
       unsubscribe()
       if (current) {
-        void cancelUnsentDelete(current).then(resolve)
+        void cancelUnsentMutation(current).then(resolve)
         return
       }
-      if (result.droppedMutations.some((dropped) => dropped.id === mutationId)) {
+      if (result.droppedMutations.some((dropped) => dropped.id === mutation.id)) {
         resolve('dropped')
       } else {
         resolve('replayed')
@@ -251,28 +300,37 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
   execute,
   queuedResult,
   queuedResultFactory,
+  isCurrent,
 }: {
   mutation: QueuedMutationBuildOptions
   execute: (resolvedMutation: QueuedMutation) => Promise<TResult>
+  isCurrent?: () => boolean
   queuedResult?: TResult
-  queuedResultFactory?: (mutationId: string) => TQueuedResult
+  queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
 }): Promise<TResult | TQueuedResult> {
   const builtMutation = buildQueuedMutation(mutation)
-  const resolvedQueuedResult =
-    queuedResultFactory?.(builtMutation.id) ?? queuedResult ?? createQueuedAck(builtMutation.id)
 
-  return queueOrExecute({
+  return queueOrExecute<TResult, TResult | TQueuedResult>({
     mutation: builtMutation,
     execute,
-    queuedResult: resolvedQueuedResult as TResult | TQueuedResult,
+    isCurrent,
+    queuedResult,
+    queuedResultFactory:
+      queuedResultFactory ??
+      (queuedResult === undefined
+        ? (mutationId, retained) => createQueuedAck(mutationId, retained) as TResult | TQueuedResult
+        : undefined),
   })
 }
 
-export function createQueuedAck(mutationId: string): QueuedMarker {
-  return {
+export function createQueuedAck(mutationId: string, retained = false): QueuedMarker {
+  const marker: QueuedMarker = {
     queued: true,
     queuedMutationId: mutationId,
   }
+
+  if (retained) marker.retained = true
+  return marker
 }
 
 export function withQueuedMarker<T extends Record<string, unknown>>(
@@ -297,11 +355,9 @@ function nextQueuedIdentifier(prefix: string): string {
 
 function getPayloadOfflineReferences(value: unknown, referenceField = false): string[] {
   if (typeof value === 'string') return referenceField && value.startsWith('offline-') ? [value] : []
-  if (Array.isArray(value)) {
-    return value.flatMap((entry) => getPayloadOfflineReferences(entry, referenceField))
-  }
+  if (Array.isArray(value)) return value.flatMap((entry) => getPayloadOfflineReferences(entry, referenceField))
   if (value && typeof value === 'object') {
-    return Object.entries(value as Record<string, unknown>).flatMap(([key, entry]) =>
+    return Object.entries(value).flatMap(([key, entry]) =>
       getPayloadOfflineReferences(entry, key === 'id' || key.endsWith('Id') || key.endsWith('Ids')),
     )
   }
@@ -315,6 +371,14 @@ function getPendingOfflineDependencies(mutation: PersistedQueuedMutation): strin
     ...mutation.endpoint.split('/'),
     ...getPayloadOfflineReferences(mutation.payload),
   ].filter((id) => id.startsWith('offline-'))
+}
+
+function releaseAccountTimezoneDependencies(timezoneMutationId: string): void {
+  const dependency = accountTimezoneDependency(timezoneMutationId)
+  for (const queued of getAll()) {
+    if (!queued.dependsOn?.includes(dependency)) continue
+    update(queued.id, { dependsOn: queued.dependsOn.filter((entry) => entry !== dependency) })
+  }
 }
 
 export function hasPendingOfflineDependencies(mutation: PersistedQueuedMutation): boolean {
@@ -377,20 +441,10 @@ const RECOVERY_KEY = '@orbit/offline-queue-recovery-310'
 
 let installedQueueRecovered = false
 
-function describeDroppedMutation(
-  mutation: PersistedQueuedMutation,
-  lastError: string,
-): DroppedMutation {
-  const dropped: DroppedMutation = {
-    id: mutation.id,
-    type: mutation.type,
-    lastError,
-    mutation,
-  }
+function describeDroppedMutation(mutation: PersistedQueuedMutation, lastError: string): DroppedMutation {
+  const dropped: DroppedMutation = { id: mutation.id, type: mutation.type, lastError, mutation }
   if (mutation.entityType === 'habit' && mutation.targetEntityId) {
-    for (const [, habits] of queryClient.getQueriesData<HabitScheduleItem[]>({
-      queryKey: habitKeys.lists(),
-    })) {
+    for (const [, habits] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
       const habit = habits && findHabitInList(habits, mutation.targetEntityId)
       if (habit) {
         dropped.itemName = habit.title
@@ -521,7 +575,11 @@ function scheduleBackoffFlush(replaceTimer?: ReturnType<typeof setTimeout>): voi
       await flushQueuedMutations()
     })().catch(captureError)
   }, delay)
-  setReplayControlState({ status: 'waiting-on-backoff', backoffAttempt: nextBackoffAttempt, timer })
+  setReplayControlState({
+    status: 'waiting-on-backoff',
+    backoffAttempt: nextBackoffAttempt,
+    timer,
+  })
 }
 
 function isTransientNetworkError(error: unknown): boolean {
@@ -537,6 +595,10 @@ function isTransientNetworkError(error: unknown): boolean {
     message.includes('load failed') ||
     message.includes('timed out')
   )
+}
+
+function isAuthRefreshNetworkError(error: unknown): boolean {
+  return error instanceof TypeError && error.name === 'AuthRefreshNetworkError'
 }
 
 function isProDenial(error: unknown): boolean {
@@ -570,9 +632,9 @@ function shouldStopFlushing(error: unknown): boolean {
 
 const MUTATION_SCOPES = {
   createHabit: 'habits', updateHabit: 'habits', deleteHabit: 'habits', restoreHabit: 'habits',
-  logHabit: 'habits', skipHabit: 'habits', reorderHabits: 'habits', updateChecklist: 'habits',
+  logHabit: 'habits', skipHabit: 'habits', undoSkipHabit: 'habits', reorderHabits: 'habits', updateChecklist: 'habits',
   duplicateHabit: 'habits', moveHabitParent: 'habits', createSubHabit: 'habits',
-  bulkCreateHabits: 'habits', bulkDeleteHabits: 'habits',
+  bulkCreateHabits: 'habits', bulkDeleteHabits: 'habits', bulkCascadeDeleteHabits: 'habits',
   bulkLogHabits: 'habits', bulkSkipHabits: 'habits',
   createGoal: 'goals', updateGoal: 'goals', deleteGoal: 'goals', restoreGoal: 'goals',
   updateGoalProgress: 'goals', updateGoalStatus: 'goals', reorderGoals: 'goals', linkGoalHabits: 'goals',
@@ -580,7 +642,7 @@ const MUTATION_SCOPES = {
   markNotificationRead: 'notifications', markAllNotificationsRead: 'notifications',
   deleteNotification: 'notifications', deleteAllNotifications: 'notifications',
   createApiKey: 'apiKeys', deleteApiKey: 'apiKeys', dismissCalendarPrompt: 'calendar',
-  setName: 'profile', setLanguage: 'profile', setWeekStartDay: 'profile', setColorScheme: 'profile',
+  setName: 'profile', setLanguage: 'profile', setWeekStartDay: 'profile', setClockFormat: 'profile', setColorScheme: 'profile',
   setThemePreference: 'profile', setTimeZone: 'profile', setAiSummary: 'profile',
   setProactiveAstra: 'profile', setMarketingConsent: 'profile', completeOnboarding: 'profile',
   dismissImportPrompt: 'profile', resetProfile: 'profile',
@@ -588,11 +650,12 @@ const MUTATION_SCOPES = {
 
 export function getMutationScope(type: string): MutationScope | undefined {
   const parsed = mutationTypeSchema.safeParse(type)
-  return parsed.success ? MUTATION_SCOPES[parsed.data] : undefined
+  if (!parsed.success) return undefined
+  return MUTATION_SCOPES[parsed.data]
 }
 
-async function markQueuedMutation(mutation: QueuedMutation): Promise<void> {
-  const compactedCreate = enqueue(mutation)
+async function markQueuedMutation(mutation: QueuedMutation): Promise<string> {
+  const { id: queuedMutationId, compactedCreate } = enqueueWithCompaction(mutation)
   if (compactedCreate && (mutation.type === 'deleteHabit' || mutation.type === 'deleteGoal')) {
     compactedCreatesByDeleteId.set(mutation.id, {
       mutation: compactedCreate,
@@ -616,43 +679,66 @@ async function markQueuedMutation(mutation: QueuedMutation): Promise<void> {
     await markOfflineTombstone(mutation.entityType, mutation.targetEntityId, true)
   }
 
-  await persistQueryCache()
+  await persistQueryCache({ discardHabitSearches: mutation.scope === 'habits' || mutation.scope === 'tags' })
+  return queuedMutationId
 }
 
 export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   mutation,
   execute,
   queuedResult,
+  queuedResultFactory,
+  isCurrent,
 }: {
   mutation: QueuedMutation
   execute: (resolvedMutation: QueuedMutation) => Promise<TOnlineResult>
-  queuedResult: TQueuedResult
+  queuedResult?: TQueuedResult
+  queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
+  isCurrent?: () => boolean
 }): Promise<TOnlineResult | TQueuedResult> {
   const [resolvedMutation, online] = await Promise.all([
     resolveMutationReferences(mutation),
     getCurrentConnectivity(),
   ])
+  if (isCurrent?.() === false) throw new Error('Mutation owner changed')
   const hasPendingDependencies = hasPendingOfflineDependencies(resolvedMutation)
+  const retainedMutation = findUnfinalizedFirstWrite(resolvedMutation)
+
+  if (
+    (!online || hasPendingDependencies) &&
+    isAutomaticReplayBlocked(resolvedMutation.type)
+  ) {
+    throw new OfflineMutationPreflightError()
+  }
+
+  if (retainedMutation) {
+    return queuedResultFactory?.(retainedMutation.id, true) ?? queuedResult as TQueuedResult
+  }
 
   if (!online || hasPendingDependencies) {
-    await markQueuedMutation(resolvedMutation)
-    return queuedResult
+    const queuedMutationId = await markQueuedMutation(resolvedMutation)
+    return queuedResultFactory?.(queuedMutationId, false) ?? queuedResult as TQueuedResult
   }
 
   try {
     setPendingIdempotencyKey(resolvedMutation.id)
-    return await execute(resolvedMutation)
+    const result = await execute(resolvedMutation)
+    if (resolvedMutation.type === 'setTimeZone') releaseAccountTimezoneDependencies(resolvedMutation.id)
+    return result
   } catch (error: unknown) {
-    if (!isTransientNetworkError(error)) {
+    if (!isTransientNetworkError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
       throw error
     }
 
-    await markQueuedMutation({
+    if (isCurrent?.() === false) throw new Error('Mutation owner changed')
+    const attemptedMutation = {
       ...resolvedMutation,
-      status: 'failed',
+      status: 'failed' as const,
       lastError: getErrorMessage(error),
-    })
-    return queuedResult
+    }
+    if (resolvedMutation.type === 'skipHabit') attemptedMutation.retries += 1
+    const queuedMutationId = await markQueuedMutation(attemptedMutation)
+    return queuedResultFactory?.(queuedMutationId, false) ?? queuedResult as TQueuedResult
   } finally {
     setPendingIdempotencyKey(null)
   }
@@ -726,12 +812,41 @@ async function clearDeletedOfflineEntity(mutation: PersistedQueuedMutation): Pro
   await clearOfflineEntity(mutation.entityType, mutation.targetEntityId)
 }
 
+function getSuccessfulProfilePatch(mutation: PersistedQueuedMutation): Partial<Profile> | null {
+  switch (mutation.type) {
+    case 'setName': return setNameRequestSchema.parse(mutation.payload)
+    case 'setLanguage': return setLanguageRequestSchema.parse(mutation.payload)
+    case 'setWeekStartDay': return setWeekStartDayRequestSchema.parse(mutation.payload)
+    case 'setClockFormat': return setClockFormatRequestSchema.parse(mutation.payload)
+    case 'setThemePreference': return setThemePreferenceRequestSchema.parse(mutation.payload)
+    case 'setTimeZone': return updateTimezoneRequestSchema.parse(mutation.payload)
+    case 'setAiSummary': return { aiSummaryEnabled: setAiSummaryRequestSchema.parse(mutation.payload).enabled }
+    case 'setProactiveAstra': return { proactiveAstraEnabled: setProactiveAstraRequestSchema.parse(mutation.payload).enabled }
+    case 'setMarketingConsent': return { marketingEmailConsent: setMarketingEmailConsentRequestSchema.parse(mutation.payload).enabled }
+    default: return null
+  }
+}
+
+function applySuccessfulProfileMutation(mutation: PersistedQueuedMutation): void {
+  const patch = getSuccessfulProfilePatch(mutation)
+  if (!patch) return
+  queryClient.setQueryData<Profile>(profileKeys.detail(), (profile) =>
+    profile ? { ...profile, ...patch } : profile,
+  )
+}
+
 async function finalizeSuccessfulFlush(
   mutation: PersistedQueuedMutation,
   response: unknown,
   touchedScopes: Set<MutationScope>,
 ): Promise<void> {
   addTouchedScope(touchedScopes, mutation)
+  applySuccessfulProfileMutation(mutation)
+  if (mutation.type === 'setTimeZone') {
+    releaseAccountTimezoneDependencies(mutation.id)
+    await queryClient.cancelQueries({ queryKey: calendarKeys.all })
+    await queryClient.invalidateQueries({ queryKey: calendarKeys.all })
+  }
   await clearCreatedOfflineEntity(mutation, response)
   await clearDeletedOfflineEntity(mutation)
   remove(mutation.id)
@@ -765,7 +880,7 @@ async function handleFlushFailure(
     return { incrementFailed: true, stopReason: 'auth', dropped: null }
   }
   const transientNetworkFailure = isTransientNetworkError(error)
-  const nextRetries = mutation.retries + 1
+  const nextRetries = isAuthRefreshNetworkError(error) ? mutation.retries : mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
   let dropped: DroppedMutation | null = null
 
@@ -802,9 +917,30 @@ async function handleFlushFailure(
   }
 }
 
+async function dropQueuedMutation(
+  mutation: PersistedQueuedMutation,
+  lastError: string,
+  touchedScopes: Set<MutationScope>,
+): Promise<DroppedMutation> {
+  remove(mutation.id)
+  addTouchedScope(touchedScopes, mutation)
+
+  if (mutation.entityType && mutation.clientEntityId) {
+    await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
+  }
+
+  return describeDroppedMutation(mutation, lastError)
+}
+
 async function invalidateTouchedScopes(scopes: Set<MutationScope>): Promise<void> {
+  if (scopes.has('profile')) {
+    await queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    await queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
+  }
+
   const invalidations: Promise<void>[] = []
   for (const scope of scopes) {
+    if (scope === 'profile') continue
     for (const queryKey of SCOPE_QUERY_KEYS[scope]) {
       invalidations.push(queryClient.invalidateQueries({ queryKey }))
     }
@@ -819,19 +955,6 @@ type FlushStepResult = {
   dropped: DroppedMutation | null
 }
 
-async function dropQueuedMutation(
-  mutation: PersistedQueuedMutation,
-  lastError: string,
-  touchedScopes: Set<MutationScope>,
-): Promise<DroppedMutation> {
-  remove(mutation.id)
-  addTouchedScope(touchedScopes, mutation)
-  if (mutation.entityType && mutation.clientEntityId) {
-    await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
-  }
-  return describeDroppedMutation(mutation, lastError)
-}
-
 function getExpiredOrphanDependencies(
   mutation: PersistedQueuedMutation,
   dependencies: string[],
@@ -839,7 +962,7 @@ function getExpiredOrphanDependencies(
   if (Date.now() - mutation.timestamp < DEPENDENCY_MAX_AGE_MS) return []
   const producers = getAll().filter((queued) => queued.id !== mutation.id && queued.clientEntityId)
   return dependencies.filter(
-    (id) => !producers.some((producer) => producer.clientEntityId === id),
+    (id) => !id.startsWith(`${ACCOUNT_TIMEZONE_DEPENDENCY}:`) && !producers.some((producer) => producer.clientEntityId === id),
   )
 }
 
@@ -904,6 +1027,20 @@ async function processQueuedMutationFlush(
   if (!currentMutation) {
     return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
   }
+
+  if (currentMutation.type === 'setColorScheme') {
+    remove(currentMutation.id)
+    return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
+  }
+
+  if (isAutomaticReplayBlocked(currentMutation.type)) {
+    const dropped = await dropQueuedMutation(
+      currentMutation,
+      'Automatic replay is blocked for this mutation while offline',
+      touchedScopes,
+    )
+    return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
+  }
   const accountId = getAccountId()
 
   let mutation = await resolveMutationReferences(currentMutation)
@@ -921,7 +1058,7 @@ async function processQueuedMutationFlush(
   await markMutationSyncing(mutation)
 
   try {
-    const response = await apiClient<unknown>(
+    const response = mutation.type === 'undoSkipHabit' ? await executeSkipUndo(mutation) : await apiClient<unknown>(
       mutation.endpoint,
       {
         method: mutation.method,
@@ -959,7 +1096,17 @@ async function runQueueFlush(): Promise<FlushOutcome> {
   let stopReason: FlushStopReason = null
   const droppedMutations: DroppedMutation[] = []
   const touchedScopes = new Set<MutationScope>()
-  const pending = getAll()
+  const mutations = getAll()
+  const pending = [...mutations]
+  for (const mutation of mutations) {
+    const dependencyIndex = pending.reduce((latest, entry, index) =>
+      entry.type === 'setTimeZone' && mutation.dependsOn?.includes(accountTimezoneDependency(entry.id))
+        ? Math.max(latest, index) : latest, -1)
+    const currentIndex = pending.indexOf(mutation)
+    if (dependencyIndex <= currentIndex) continue
+    pending.splice(currentIndex, 1)
+    pending.splice(dependencyIndex, 0, mutation)
+  }
 
   for (const originalMutation of pending) {
     const step = await processQueuedMutationFlush(originalMutation, touchedScopes)

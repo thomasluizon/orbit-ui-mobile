@@ -1,5 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { useAuthStore } from '@/stores/auth-store'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('next-intl', () => ({
@@ -25,25 +28,14 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    title,
-    children,
-  }: {
-    open: boolean
-    title?: string
-    children: React.ReactNode
-  }) =>
-    open ? (
-      <div data-testid="overlay">
-        {title && <h2>{title}</h2>}
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import { EditNameSheet } from '@/app/(app)/profile/_components/edit-name-sheet'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 function renderSheet(onOpenChange = vi.fn()) {
   const queryClient = new QueryClient({
@@ -57,6 +49,10 @@ function renderSheet(onOpenChange = vi.fn()) {
   return onOpenChange
 }
 
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
+})
+
 describe('EditNameSheet', () => {
   beforeEach(() => {
     mockUpdateName.mockReset()
@@ -69,6 +65,22 @@ describe('EditNameSheet', () => {
     renderSheet()
 
     expect(screen.getByDisplayValue('Alex')).toBeInTheDocument()
+  })
+
+  it('pins Save in the sheet footer, never in the scrolling body', () => {
+    renderSheet()
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'common.save'])
+    expectSmallSheetActions()
+    expect(sheetActionsUseActionPair()).toBe(true)
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
+  it('cancels through the sheet host without saving the draft', () => {
+    const onOpenChange = renderSheet()
+    fireEvent.change(screen.getByDisplayValue('Alex'), { target: { value: 'Draft' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(mockUpdateName).not.toHaveBeenCalled()
   })
 
   it('shows the required error and skips the action for a whitespace-only name', () => {
@@ -103,7 +115,7 @@ describe('EditNameSheet', () => {
     fireEvent.click(screen.getByText('common.save'))
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
-    expect(mockUpdateName).toHaveBeenCalledWith({ name: 'Ana Clara' })
+    expect(mockUpdateName).toHaveBeenCalledWith({ name: 'Ana Clara' }, 'account-a')
     expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Ana Clara' })
     expect(mockInvalidate).toHaveBeenCalled()
   })
@@ -121,5 +133,41 @@ describe('EditNameSheet', () => {
     expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Ana Clara' })
     expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Alex' })
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
+  })
+})
+
+describe('EditNameSheet across an account change', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    mockProfileName = 'Alex'
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function typeANewName() {
+    renderSheet()
+    fireEvent.change(screen.getByDisplayValue('Alex'), { target: { value: 'Ana Clara' } })
+    expect(screen.getByDisplayValue('Ana Clara')).toBeInTheDocument()
+  }
+
+  it('drops the name typed by the previous account when another replaces the tab', async () => {
+    typeANewName()
+    mockProfileName = ''
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByDisplayValue('Ana Clara')).not.toBeInTheDocument()
+  })
+
+  it('keeps the typed name when the same account recovers from a rejected refresh', async () => {
+    typeANewName()
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByDisplayValue('Ana Clara')).toBeInTheDocument()
   })
 })

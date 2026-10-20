@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { name: string }) => key === 'common.showFullText' ? `Show full text: ${values?.name}` : key,
 }))
 
 const mockTemplates = vi.fn<() => { data: ChecklistTemplate[] }>(() => ({ data: [] }))
@@ -27,6 +27,15 @@ vi.mock('@/hooks/use-app-toast', () => ({
 
 import { ChecklistTemplates } from '@/components/habits/checklist-templates'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
+
+function openTemplates() {
+  fireEvent.click(screen.getByText('habits.form.useTemplate'))
+}
 
 describe('ChecklistTemplates', () => {
   beforeEach(() => {
@@ -37,29 +46,60 @@ describe('ChecklistTemplates', () => {
     mockIsPending = false
   })
 
+  it('renders the templates glyph in a compact, rounded form row', () => {
+    mockTemplates.mockReturnValue({ data: [{ id: 'template-1', name: 'Workout', items: ['Run'] }] })
+    render(<ChecklistTemplates items={[]} onLoad={vi.fn()} />)
+    const row = screen.getByRole('button', { name: 'habits.form.useTemplate' })
+    expect(row.querySelector('[data-icon="template"] svg')).toBeInTheDocument()
+    expect(row).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '12px' })
+    expect(row.closest('.orbit-list-row-shell')).toHaveClass('orbit-list-row-column')
+    expect(row.querySelector('[data-press-fill]')).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '12px' })
+    expect(row).not.toHaveTextContent('1')
+  })
+
   it('shows save button when items are present', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
-    expect(screen.getByText('habits.form.saveAsTemplate')).toBeInTheDocument()
+    openTemplates()
+    expect(screen.getByText('habits.form.saveCurrentList')).toBeInTheDocument()
   })
 
-  it('does not show save button when no items', () => {
+  it('disables save and explains why when no items are present', () => {
     render(<ChecklistTemplates items={[]} onLoad={vi.fn()} />)
-    expect(screen.queryByText('habits.form.saveAsTemplate')).not.toBeInTheDocument()
+    openTemplates()
+    expect(screen.getByRole('button', { name: 'habits.form.saveCurrentList' })).toBeDisabled()
+    expect(screen.getByText('habits.form.saveCurrentListDisabled')).toBeInTheDocument()
   })
 
   it('shows save form when save button clicked', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    openTemplates()
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     expect(screen.getByPlaceholderText('habits.form.templateNamePlaceholder')).toBeInTheDocument()
+  })
+
+  it('limits the custom focus ring to keyboard focus', () => {
+    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
+    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
+
+    const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
+    const classNames = input.className.split(' ')
+
+    expect(classNames).toContain('focus-visible:outline-none')
+    expect(classNames).toContain('focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]')
+    expect(classNames).not.toContain('focus:outline-none')
+    expect(classNames).not.toContain('focus:shadow-[inset_0_0_0_2px_var(--primary)]')
   })
 
   it('calls createTemplate mutation with the typed name and items', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
 
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
     fireEvent.change(input, { target: { value: 'Morning Routine' } })
     fireEvent.click(screen.getByText('common.save'))
@@ -77,8 +117,9 @@ describe('ChecklistTemplates', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     mockIsPending = true
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
 
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
     fireEvent.change(input, { target: { value: 'Morning Routine' } })
 
@@ -86,11 +127,26 @@ describe('ChecklistTemplates', () => {
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
+  it('saves a named template from the Enter key', () => {
+    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
+    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
+    const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
+    fireEvent.change(input, { target: { value: 'Morning' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(mockCreate).toHaveBeenCalledWith(
+      { name: 'Morning', items: ['Step 1'] },
+      expect.any(Object),
+    )
+  })
+
   it('shows an error toast when create fails', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
 
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     fireEvent.change(
       screen.getByPlaceholderText('habits.form.templateNamePlaceholder'),
       { target: { value: 'Bad' } },
@@ -105,8 +161,9 @@ describe('ChecklistTemplates', () => {
   it('closes the form via onSuccess after a successful save', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
 
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
     fireEvent.change(input, { target: { value: 'Saved' } })
     fireEvent.click(screen.getByText('common.save'))
@@ -130,6 +187,7 @@ describe('ChecklistTemplates', () => {
       <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={onLoad} />,
     )
 
+    openTemplates()
     fireEvent.click(screen.getByText('Workout'))
     expect(onLoad).toHaveBeenCalledWith([
       { text: 'Warmup', isChecked: false },
@@ -146,6 +204,7 @@ describe('ChecklistTemplates', () => {
       <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
     )
 
+    openTemplates()
     fireEvent.click(screen.getByLabelText('common.delete: Workout'))
     expect(mockDelete).toHaveBeenCalledWith(
       'tmpl1',
@@ -162,9 +221,67 @@ describe('ChecklistTemplates', () => {
       <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
     )
 
+    openTemplates()
     fireEvent.click(screen.getByLabelText('common.delete: Workout'))
     const onError = mockDelete.mock.calls[0]![1].onError as () => void
     onError()
     expect(mockShowError).toHaveBeenCalledWith('habits.form.deleteTemplateError')
   })
+})
+
+describe('ChecklistTemplates across an account change', () => {
+  const ACCOUNT_A_ITEMS: ChecklistItem[] = [{ text: 'Account A step', isChecked: false }]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    mockTemplates.mockReturnValue({ data: [] })
+    mockIsPending = false
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function nameATemplate() {
+    render(<ChecklistTemplates items={ACCOUNT_A_ITEMS} onLoad={vi.fn()} />)
+    openTemplates()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.saveCurrentList' }))
+    const field = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
+    fireEvent.change(field, { target: { value: 'Account A checklist' } })
+    expect(field).toHaveValue('Account A checklist')
+  }
+
+  it('closes the sheet and drops the typed template name on a replacement', async () => {
+    nameATemplate()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByPlaceholderText('habits.form.templateNamePlaceholder')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.form.saveCurrentList')).not.toBeInTheDocument()
+  })
+
+  it('keeps the typed template name when the same account recovers from a rejected refresh', async () => {
+    nameATemplate()
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByPlaceholderText('habits.form.templateNamePlaceholder')).toHaveValue('Account A checklist')
+  })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full template name %s without loading it', (name) => {
+    mockTemplates.mockReturnValue({ data: [{ id: 'template-1', name, items: ['Run'] }] })
+    const onLoad = vi.fn()
+    render(<ChecklistTemplates items={[]} onLoad={onLoad} />)
+    openTemplates()
+    const picker = screen.getByRole('dialog')
+    const title = [...picker.querySelectorAll('[data-personal-text]')].find((element) => element.getAttribute('aria-label') === name)!
+    expect(title).toHaveAttribute('aria-label', name)
+    fireEvent.click(screen.getByRole('button', { name: `Show full text: ${name}`, expanded: false }))
+    expect(onLoad).not.toHaveBeenCalled()
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.close' }).at(-1)!)
+    fireEvent.click([...picker.querySelectorAll('button')].find((button) => button.getAttribute('aria-label') === name && !button.hasAttribute('aria-expanded'))!)
+    expect(onLoad).toHaveBeenCalledWith([{ text: 'Run', isChecked: false }])
+  })
+
 })

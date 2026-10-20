@@ -1,0 +1,31 @@
+export interface ChatThreadScroll {
+  followLatest: (currentOffset?: number) => void
+  stopFollowing: () => void
+  holdPosition: () => void
+  isFollowing: () => boolean
+  recordScroll: (offset: number, bottomOffset: number) => void
+}
+
+export function createChatThreadScroll(): ChatThreadScroll {
+  let following = true
+  let previousOffset: number | null = null
+
+  return {
+    followLatest: (currentOffset) => {
+      following = true
+      previousOffset = currentOffset ?? previousOffset
+    },
+    stopFollowing: () => { following = false; previousOffset = null },
+    holdPosition: () => {
+      following = false
+    },
+    isFollowing: () => {
+      return following
+    },
+    recordScroll: (offset, bottomOffset) => {
+      if (previousOffset !== null && offset < previousOffset) following = false
+      if (bottomOffset - offset <= 1) following = true
+      previousOffset = offset
+    },
+  }
+}

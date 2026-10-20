@@ -1,7 +1,7 @@
-
 import { stripHeredocBodies } from "./rules-git.mjs"
 
-const NODE_ID = /\b(?:PRRT|PRR|PR|IC)_[A-Za-z0-9_-]{10,}\b/g
+// A plain trailing \b backtracks before a terminal `-`, because `-` and the next space are both non-word characters.
+const NODE_ID = /\b(?:PRRT|PRR|PR|IC)_[A-Za-z0-9_-]{10,}(?![A-Za-z0-9_-])/g
 const HAS_LOWERCASE = /[a-z]/
 
 /** Only a command that can actually reach GitHub is worth judging. An id inside an editor command
@@ -29,8 +29,7 @@ export function checkInventedIdentifier(command, { observedIdentifiers = new Set
       "A GitHub node id must be COPIED from output produced in the same run. It may not be typed, it\n" +
       "may not be reconstructed from memory, and it may not be passed speculatively with a `||`\n" +
       "fallback that retries on failure. Node ids are globally unique, so a wrong one does not fail:\n" +
-      "it names a live object in somebody else's repository. On 2026-08-08 exactly this command shape\n" +
-      "posted a reply on a stranger's public pull request.\n\n" +
+      "it names a live object in somebody else's repository.\n\n" +
       "Run `node tools/list-bot-threads.mjs --pr <n> --repo <key>` and use an id from THAT output. The\n" +
       "tool records every id it returns, so a copied id clears this gate by construction.\n\n" +
       `Searched: ${searchedRoots.length > 0 ? searchedRoots.join(", ") : "no artifact root was resolvable"}`,

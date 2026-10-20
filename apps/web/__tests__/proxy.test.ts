@@ -9,14 +9,19 @@ import {
   setSessionCookies,
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
+import manifest from '../app/manifest'
 import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
 import { serverAuthMutate } from '@/lib/server-fetch'
 
 vi.mock('@/lib/server-fetch', () => ({ serverAuthMutate: vi.fn() }))
 
-vi.mock('@/lib/auth-api', () => ({
-  AUTH_COOKIE: 'auth_token',
-  REFRESH_COOKIE: 'refresh_token',
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-api')>(),
   clearSessionCookies: vi.fn(),
   resolveSessionTokens: vi.fn(),
   setSessionCookies: vi.fn(),
@@ -41,11 +46,16 @@ vi.mock('next/server', async () => {
   }
 })
 
-function createRequest(path: string, options: { cookies?: Record<string, string>; method?: string; host?: string } = {}) {
+function createRequest(path: string, options: {
+  cookies?: Record<string, string>
+  method?: string
+  host?: string
+  headers?: Record<string, string>
+} = {}) {
   const url = new URL(path, 'http://localhost:3000')
   const request = new NextRequest(url, {
     method: options.method,
-    headers: options.host ? { host: options.host } : undefined,
+    headers: { ...options.headers, ...(options.host ? { host: options.host } : {}) },
   })
 
   if (options.cookies) {
@@ -63,7 +73,7 @@ describe('proxy', () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.useorbit.org')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
     vi.stubEnv('NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN', undefined)
-    vi.mocked(NextResponse.next).mockClear()
+    vi.mocked(NextResponse.next).mockReset()
     vi.mocked(NextResponse.redirect).mockClear()
     vi.mocked(resolveSessionTokens).mockReset()
     vi.mocked(clearSessionCookies).mockReset()
@@ -74,8 +84,8 @@ describe('proxy', () => {
     vi.unstubAllEnvs()
   })
 
-  it('allows public legal pages without resolving a session', async () => {
-    for (const path of ['/terms', '/privacy', '/delete-account']) {
+  it('allows public legal pages and unknown paths beneath them without resolving a session', async () => {
+    for (const path of ['/terms', '/terms/x', '/privacy', '/privacy/x', '/delete-account', '/about']) {
       const response = await proxy(createRequest(path))
 
       expect(response).toMatchObject({ type: 'next' })
@@ -213,12 +223,12 @@ describe('proxy', () => {
     const response = await proxy(createRequest('/terms'))
     const connectSource = response.headers.get('Content-Security-Policy')?.split('; ')
       .find((directive) => directive.startsWith('connect-src '))?.split(' ')
-    expect(apiBase).toBe('http://localhost:5000')
+    expect(apiBase).toBe(process.env.API_BASE)
     expect(connectSource).toContain(new URL(apiBase).origin)
   })
 
   it('uses the public event origin for the stream and connect-src when the API is internal', async () => {
-    vi.stubEnv('API_BASE', 'http://api.internal:5000')
+    vi.stubEnv('API_BASE', 'http://localhost:5000')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://events.example.test')
     vi.mocked(serverAuthMutate).mockResolvedValue({ ticket: 'ticket' })
     const ticketResponse = await issueEventTicket()
@@ -229,7 +239,7 @@ describe('proxy', () => {
 
     expect(apiBase).toBe('https://events.example.test')
     expect(connectSource).toContain(new URL(apiBase).origin)
-    expect(connectSource).not.toContain('http://api.internal:5000')
+    expect(connectSource).not.toContain(process.env.API_BASE)
   })
 
   it('keeps the production API origin for tickets and streams', async () => {
@@ -284,6 +294,67 @@ describe('proxy', () => {
     expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 
+  it.each([
+    '/manifest.webmanifest',
+    ...manifest().icons!.map(({ src }) => src),
+  ])('keeps the public install asset %s outside the auth proxy', (path) => {
+    expect(unstable_doesMiddlewareMatch({
+      config,
+      url: `http://localhost:3000${path}?v=1`,
+    })).toBe(false)
+  })
+
+  it.each([
+    '/profile',
+    '/profile/account',
+    '/profile/preferences',
+    '/profile/astra',
+    '/profile/notifications',
+    '/manifest.webmanifest/private',
+    '/manifest.webmanifest.json',
+    ...manifest().icons!.map(({ src }) => `${src}/private`),
+  ])('keeps %s protected when install assets are public', async (path) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    expect(unstable_doesMiddlewareMatch({
+      config,
+      url: `http://localhost:3000${path}`,
+    })).toBe(true)
+
+    await proxy(createRequest(path))
+
+    const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.pathname).toBe('/login')
+    expect(redirectUrl.searchParams.get('returnUrl')).toBe(path)
+  })
+
+  it.each(['account', 'preferences', 'astra', 'notifications'])(
+    'allows the signed-in Perfil %s submenu and redirects after session rejection', async (submenu) => {
+      const path = `/profile/${submenu}`
+      vi.mocked(resolveSessionTokens).mockResolvedValueOnce({
+        token: 'valid-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: false,
+        refreshFailed: false,
+      }).mockResolvedValueOnce({
+        token: null,
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: true,
+      })
+
+      expect(await proxy(createRequest(path))).toMatchObject({ type: 'next' })
+      expect(await proxy(createRequest(path))).toMatchObject({ type: 'redirect' })
+      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+      expect(redirectUrl.pathname).toBe('/login')
+      expect(redirectUrl.searchParams.get('returnUrl')).toBe(path)
+    },
+  )
+
   it('permanently redirects the service host to the public site before resolving a session', async () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://staging.useorbit.org')
     vi.mocked(resolveSessionTokens).mockResolvedValue({
@@ -293,7 +364,7 @@ describe('proxy', () => {
       refreshFailed: false,
     })
 
-    await proxy(createRequest('http://0.0.0.0:10000/login?x=1', {
+    await proxy(createRequest('https://0.0.0.0:10000/login?x=1', {
       host: 'orbit-web-staging-eakn.onrender.com',
     }))
 
@@ -304,13 +375,88 @@ describe('proxy', () => {
     expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['/login', 'GET', null],
+    ['/', 'GET', 'valid-token'],
+    ['/', 'POST', 'valid-token'],
+  ])('serves the Worker-forwarded %s application route with %s', async (path, method, token) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const actual = await vi.importActual<typeof import('next/server')>('next/server')
+    vi.mocked(NextResponse.next).mockImplementationOnce(actual.NextResponse.next)
+
+    const response = await proxy(createRequest(`https://0.0.0.0:10000${path}`, {
+      host: 'orbit-web-staging-eakn.onrender.com',
+      method,
+      headers: {
+        'x-forwarded-host': 'app.useorbit.org',
+        'x-forwarded-proto': 'https',
+        origin: 'https://app.useorbit.org',
+      },
+    }))
+
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+    expect(response.headers.get('x-middleware-next')).toBe('1')
+    const forwardedHeaders = vi.mocked(NextResponse.next).mock.calls[0]![0]?.request?.headers as Headers
+    expect(forwardedHeaders.get('x-forwarded-host')).toBe('app.useorbit.org')
+    expect(forwardedHeaders.get('x-forwarded-proto')).toBe('https')
+    expect(forwardedHeaders.get('origin')).toBe('https://app.useorbit.org')
+  })
+
+  it.each([
+    undefined,
+    'other.example.test',
+    'app.useorbit.org.other.example.test',
+    'app.useorbit.org:8443',
+    'app.useorbit.org, other.example.test',
+    'other.example.test, app.useorbit.org',
+  ])('redirects the service host when the forwarded host is %s', async (forwardedHost) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    await proxy(createRequest('https://0.0.0.0:10000/login?source=notification', {
+      host: 'orbit-web-staging-eakn.onrender.com',
+      headers: forwardedHost === undefined ? {} : { 'x-forwarded-host': forwardedHost },
+    }))
+
+    expect(NextResponse.redirect).toHaveBeenCalledWith(
+      new URL('https://app.useorbit.org/login?source=notification'),
+      308,
+    )
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['/profile?source=notification', null, 'https://app.useorbit.org/login?returnUrl=%2Fprofile%3Fsource%3Dnotification'],
+    ['/login', 'valid-token', 'https://app.useorbit.org/'],
+  ])('uses the public origin for the Worker-forwarded %s session redirect', async (path, token, destination) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    await proxy(createRequest(`https://0.0.0.0:10000${path}`, {
+      host: 'orbit-web-staging-eakn.onrender.com',
+      headers: { 'x-forwarded-host': 'app.useorbit.org', 'x-forwarded-proto': 'https' },
+    }))
+
+    expect(NextResponse.redirect).toHaveBeenCalledWith(new URL(destination))
+  })
+
   it('passes through the public site host and the service health route', async () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://staging.useorbit.org')
 
-    const siteResponse = await proxy(createRequest('http://0.0.0.0:10000/terms', {
+    const siteResponse = await proxy(createRequest('https://0.0.0.0:10000/terms', {
       host: 'staging.useorbit.org',
     }))
-    const healthResponse = await proxy(createRequest('http://0.0.0.0:10000/api/health', {
+    const healthResponse = await proxy(createRequest('https://0.0.0.0:10000/api/health', {
       host: 'orbit-web-staging-eakn.onrender.com',
     }))
 
@@ -324,7 +470,7 @@ describe('proxy', () => {
     async (siteUrl) => {
       vi.stubEnv('NEXT_PUBLIC_SITE_URL', siteUrl)
 
-      const response = await proxy(createRequest('http://0.0.0.0:10000/terms', {
+      const response = await proxy(createRequest('https://0.0.0.0:10000/terms', {
         host: 'orbit-web-staging-eakn.onrender.com',
       }))
 
@@ -414,7 +560,7 @@ describe('proxy', () => {
       refreshFailed: false,
     })
 
-    await proxy(createRequest('http://0.0.0.0:10000/profile?source=notification'))
+    await proxy(createRequest('https://0.0.0.0:10000/profile?source=notification'))
 
     expect(NextResponse.redirect).toHaveBeenCalled()
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
@@ -504,6 +650,19 @@ describe('proxy', () => {
     expect(clearSessionCookies).not.toHaveBeenCalled()
   })
 
+  it('carries the Astra launch query to login from anonymous onboarding', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    await proxy(createRequest('/?astra=open'))
+    const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.pathname).toBe('/login')
+    expect([...redirectUrl.searchParams.entries()]).toEqual([['returnUrl', '/?astra=open']])
+  })
+
   it('redirects authenticated users away from login', async () => {
     vi.mocked(resolveSessionTokens).mockResolvedValue({
       token: 'valid-token',
@@ -512,7 +671,7 @@ describe('proxy', () => {
       refreshFailed: false,
     })
 
-    await proxy(createRequest('http://0.0.0.0:10000/login', {
+    await proxy(createRequest('https://0.0.0.0:10000/login', {
       cookies: { auth_token: 'valid-token' },
     }))
 

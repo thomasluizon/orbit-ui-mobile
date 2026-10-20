@@ -1,0 +1,41 @@
+{
+  "pull": {
+    "base": {
+      "ref": "redesign/main"
+    },
+    "body": "Recorded source description",
+    "html_url": "https://github.com/example/repository/item/1",
+    "merge_commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "merged_at": "2026-10-02T11:22:27Z",
+    "number": 1,
+    "title": "Recorded source title"
+  },
+  "run": {
+    "id": 1,
+    "display_title": "Release web staging from redesign/main",
+    "head_branch": "main",
+    "conclusion": "success",
+    "status": "completed",
+    "created_at": "2026-10-02T11:42:31Z",
+    "updated_at": "2026-10-02T11:46:31Z",
+    "html_url": "https://github.com/example/repository/item/1"
+  },
+  "android": {
+    "id": 2,
+    "display_title": "Android Release 1.3.59 (118) to internal on redesign/main",
+    "head_branch": "redesign/main",
+    "conclusion": "success",
+    "status": "completed",
+    "created_at": "2026-10-02T11:47:00Z",
+    "updated_at": "2026-10-02T12:03:44Z",
+    "html_url": "https://github.com/example/repository/item/1"
+  },
+  "ticket": {
+    "body": "Recorded source description",
+    "closed_at": "2026-10-02T05:55:11Z",
+    "html_url": "https://github.com/example/repository/item/1",
+    "number": 1,
+    "state_reason": "completed",
+    "title": "Recorded source title"
+  }
+}

@@ -7,6 +7,7 @@ import noDoubleAssertion from "../../eslint-rules/no-double-assertion.cjs"
 import noOvershootEasing from "../../eslint-rules/no-overshoot-easing.cjs"
 import noRawFontFeatureTag from "../../eslint-rules/no-raw-font-feature-tag.cjs"
 import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
+import noOklch from "../../eslint-rules/no-oklch-outside-web-tokens.cjs"
 import noUnjustifiedDisable from "../../eslint-rules/no-unjustified-disable.cjs"
 import spacingScale from "../../eslint-rules/spacing-scale.cjs"
 
@@ -14,6 +15,7 @@ const SHARED_IMPORT_BOUNDARY =
   "packages/shared/CLAUDE.md: put pure logic in a *-core module like tag-selection-core.ts and hooks in each app."
 
 export default [
+  { linterOptions: { reportUnusedDisableDirectives: "error" } },
   ...tseslint.configs.recommendedTypeChecked,
   {
     languageOptions: {
@@ -28,6 +30,14 @@ export default [
     plugins: { sonarjs },
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "error",
+      ...Object.fromEntries(
+        Object.keys(sonarjs.configs.recommended.rules ?? {})
+          .filter((full) => {
+            const rule = sonarjs.rules[full.replace("sonarjs/", "")]
+            return rule?.meta?.type === "problem" && rule?.meta?.docs?.recommended === true
+          })
+          .map((full) => [full, "error"]),
+      ),
       "sonarjs/cognitive-complexity": ["error", 15],
     },
   },
@@ -48,6 +58,7 @@ export default [
           "no-overshoot-easing": noOvershootEasing,
           "no-raw-font-feature-tag": noRawFontFeatureTag,
           "no-raw-gradient": noRawGradient,
+          "no-oklch-outside-web-tokens": noOklch,
           "no-unjustified-disable": noUnjustifiedDisable,
           "spacing-scale": spacingScale,
         },
@@ -98,6 +109,7 @@ export default [
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",
       "local/no-raw-gradient": "error",
+      "local/no-oklch-outside-web-tokens": "error",
 
       // Staged at `warn`: 6 exported functions lack an explicit return type (query/keys.ts,
       // tour/tour-mock-data.ts, types/habit.ts, utils/{google-calendar-auth,
@@ -122,7 +134,7 @@ export default [
     },
   },
   {
-    files: ["src/__tests__/**/*.{ts,tsx}", "**/*.{test,spec}.{ts,tsx}"],
+    files: ["src/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
     rules: {
       "no-restricted-imports": "off",
       "no-restricted-syntax": "off",

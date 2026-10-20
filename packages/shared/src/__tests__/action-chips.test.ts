@@ -1,0 +1,175 @@
+import { describe, expect, it } from 'vitest'
+import { makeActionResult } from '../test-support/chat-fixtures'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
+import { buildActionChipsModel } from '../chat/action-chips'
+import { aiActionTypeSchema, type AiActionType } from '../types/chat'
+
+const EXPECTED_ACTION_LABEL_KEYS = {
+  CreateHabit: { success: 'chat.action.created', failed: 'chat.action.createFailed' },
+  LogHabit: { success: 'chat.action.logged', failed: 'chat.action.logFailed' },
+  UpdateHabit: { success: 'chat.action.updated', failed: 'chat.action.updateFailed' },
+  DeleteHabit: { success: 'chat.action.deleted', failed: 'chat.action.deleteFailed' },
+  SkipHabit: { success: 'chat.action.skipped', failed: 'chat.action.skipFailed' },
+  BulkLogHabits: { success: 'chat.action.logged', failed: 'chat.action.logFailed' },
+  BulkSkipHabits: { success: 'chat.action.skipped', failed: 'chat.action.skipFailed' },
+  CreateSubHabit: {
+    success: 'chat.action.createdSubHabit',
+    failed: 'chat.action.createSubHabitFailed',
+  },
+  SuggestBreakdown: { success: 'chat.action.breakdown', failed: 'chat.action.breakdownFailed' },
+  AssignTags: { success: 'chat.action.tagsUpdated', failed: 'chat.action.tagsUpdateFailed' },
+  DuplicateHabit: { success: 'chat.action.duplicated', failed: 'chat.action.duplicateFailed' },
+  MoveHabit: { success: 'chat.action.moved', failed: 'chat.action.moveFailed' },
+  CreateGoal: { success: 'chat.action.createdGoal', failed: 'chat.action.createGoalFailed' },
+  UpdateGoal: { success: 'chat.action.updatedGoal', failed: 'chat.action.updateGoalFailed' },
+  DeleteGoal: { success: 'chat.action.deletedGoal', failed: 'chat.action.deleteGoalFailed' },
+  UpdateGoalProgress: {
+    success: 'chat.action.updatedGoalProgress',
+    failed: 'chat.action.updateGoalProgressFailed',
+  },
+  UpdateGoalStatus: {
+    success: 'chat.action.updatedGoalStatus',
+    failed: 'chat.action.updateGoalStatusFailed',
+  },
+  LinkHabitsToGoal: {
+    success: 'chat.action.linkedGoalHabits',
+    failed: 'chat.action.linkGoalHabitsFailed',
+  },
+  CreateTag: { success: 'chat.action.createdTag', failed: 'chat.action.createTagFailed' },
+  UpdateTag: { success: 'chat.action.updatedTag', failed: 'chat.action.updateTagFailed' },
+  DeleteTag: { success: 'chat.action.deletedTag', failed: 'chat.action.deleteTagFailed' },
+  ReorderGoals: {
+    success: 'chat.action.reorderedGoals',
+    failed: 'chat.action.reorderGoalsFailed',
+  },
+  ReorderHabits: {
+    success: 'chat.action.reorderedHabits',
+    failed: 'chat.action.reorderHabitsFailed',
+  },
+  UnlogHabit: { success: undefined, failed: 'chat.action.failedNamed' },
+} as const satisfies Readonly<Record<AiActionType, Readonly<{
+  success: string | undefined
+  failed: string
+}>>>
+
+describe('buildActionChipsModel', () => {
+  it('omits suggestions and describes visible result state', () => {
+    const model = buildActionChipsModel([
+      makeActionResult(),
+      makeActionResult({ status: 'Suggestion' }),
+      makeActionResult({ status: 'Failed', entityId: 'habit-2' }),
+    ], true)
+
+    expect(model.state).toBe('partiallyFailed')
+    expect(model.rows).toHaveLength(2)
+    expect(model.rows.map((row) => row.status)).toEqual(['done', 'failed'])
+  })
+
+  it('exposes navigation only for successful safe results with a target', () => {
+    const model = buildActionChipsModel([
+      makeActionResult(),
+      makeActionResult({ type: 'DeleteHabit' }),
+      makeActionResult({ entityId: null }),
+    ], true)
+
+    expect(model.rows.map((row) => row.navigation.navigable)).toEqual([true, false, false])
+  })
+
+  it('uses a non-success label for every failed action type', () => {
+    for (const type of aiActionTypeSchema.options) {
+      const expectedKeys = EXPECTED_ACTION_LABEL_KEYS[type]
+      const [successfulRow, failedRow] = buildActionChipsModel([
+        makeActionResult({ type, status: 'Success', entityName: 'Named attempt' }),
+        makeActionResult({ type, status: 'Failed', entityName: 'Named attempt' }),
+      ], false)
+        .rows
+
+      expect(successfulRow?.labelKey, `${type} success label`).toBe(expectedKeys.success)
+      expect(failedRow?.labelKey, `${type} failure label`).toBe(expectedKeys.failed)
+      expect(failedRow?.labelKey).not.toBe(expectedKeys.success)
+    }
+  })
+
+  it('uses generic failure labels for nameless and unknown failed actions', () => {
+    const model = buildActionChipsModel([
+      makeActionResult({ type: 'create_habit', status: 'Failed', entityName: null }),
+      makeActionResult({ type: 'UnexpectedServerSymbol', status: 'Failed', entityName: 'Named attempt' }),
+    ], false)
+
+    expect(model.rows.map((row) => row.labelKey)).toEqual([
+      'chat.action.failed',
+      'chat.action.failedNamed',
+    ])
+  })
+
+  it('preserves successful legacy row content and navigation', () => {
+    const model = buildActionChipsModel([makeActionResult()], true)
+
+    expect(model.rows[0]).toEqual({
+      id: 'action-habit-1-0',
+      labelKey: 'chat.action.logged',
+      hasLegacyText: true,
+      messageKey: undefined,
+      params: undefined,
+      entityName: 'Meditate',
+      status: 'done',
+      navigation: {
+        navigable: true,
+        entityId: 'habit-1',
+        actionType: 'LogHabit',
+      },
+    })
+  })
+
+  it('keeps three failed attempts distinguishable by name', () => {
+    const entityNames = ['Morning walk', 'Read ten pages', 'Drink water']
+    const model = buildActionChipsModel(entityNames.map((entityName) => makeActionResult({
+      type: 'create_habit',
+      status: 'Failed',
+      entityId: null,
+      entityName,
+    })), false)
+
+    expect(model.rows.map((row) => row.entityName)).toEqual(entityNames)
+  })
+
+  it('provides equivalent failed create wording in both locales', () => {
+    expect(en.chat.action.createFailed.replace('{name}', 'Morning walk')).toBe(
+      'Could not create Morning walk',
+    )
+    expect(ptBR.chat.action.createFailed.replace('{name}', 'Caminhada matinal')).toBe(
+      'Não foi possível criar Caminhada matinal',
+    )
+  })
+
+  it('keeps unknown symbols out of the translation key and collects conflicts', () => {
+    const model = buildActionChipsModel([
+      makeActionResult({
+        type: 'UnexpectedServerSymbol',
+        conflictWarning: {
+          hasConflict: true,
+          conflictingHabits: [],
+          severity: 'LOW',
+        },
+      }),
+    ], false)
+
+    expect(model.rows[0]?.labelKey).toBeUndefined()
+    expect(model.conflicts).toHaveLength(1)
+  })
+})
+
+it.each([
+  ['UpdateChecklist', 'updatedChecklist', 'updateChecklistFailed'],
+  ['update_checklist', 'updatedChecklist', 'updateChecklistFailed'],
+  ['MoveHabitParent', 'changedHabitParent', 'changeHabitParentFailed'],
+  ['move_habit_parent', 'changedHabitParent', 'changeHabitParentFailed'],
+  ['LinkGoalsToHabit', 'linkedHabitGoals', 'linkHabitGoalsFailed'],
+  ['link_goals_to_habit', 'linkedHabitGoals', 'linkHabitGoalsFailed'],
+])('localizes folded action labels for %s in both states', (type, success, failed) => {
+  expect(buildActionChipsModel([
+    makeActionResult({ type, entityName: 'Leitura' }),
+    makeActionResult({ type, status: 'Failed', entityName: 'Leitura' }),
+  ], false).rows.map(row => row.labelKey)).toEqual([`chat.action.${success}`, `chat.action.${failed}`])
+})

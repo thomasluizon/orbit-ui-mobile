@@ -1,0 +1,67 @@
+import { describe, expect, it, vi } from 'vitest'
+import { resolveShellChrome, resolveShellDestination } from '../utils/shell-destinations'
+
+describe('resolveShellDestination', () => {
+  it.each([
+    ['/', 'hoje'],
+    ['/habits/123', 'hoje'],
+    ['/calendar', 'calendario'],
+    ['/goals/123', 'progresso'],
+    ['/wrapped', 'progresso'],
+    ['/profile/security', 'perfil'],
+    ['/notifications', 'hoje'],
+    ['/account/billing', 'perfil'],
+    ['/upgrade', 'perfil'],
+  ] as const)('maps %s to %s', (pathname, destination) => {
+    expect(resolveShellDestination(pathname)).toBe(destination)
+  })
+
+  it('leaves navigation-free and unknown routes without a selected destination', () => {
+    expect(resolveShellDestination('/streak')).toBeNull()
+    expect(resolveShellDestination('/unknown')).toBeNull()
+    expect(resolveShellDestination('/retrospective')).toBeNull()
+    expect(resolveShellDestination('/calendarized')).toBeNull()
+  })
+
+  it('normalizes trailing slashes without a regular expression', () => {
+    const replace = vi.spyOn(String.prototype, 'replace')
+    try {
+      const results = [
+        resolveShellDestination('/'),
+        resolveShellDestination('/calendar/'),
+        resolveShellDestination('//'),
+        resolveShellDestination('/calendar'),
+        resolveShellDestination('/'.repeat(10_000) + 'unknown'),
+      ]
+      const usesRegularExpression = replace.mock.calls.some(([pattern]) => pattern instanceof RegExp)
+      expect(results).toEqual(['hoje', 'calendario', null, 'calendario', null])
+      expect(usesRegularExpression).toBe(false)
+    } finally {
+      replace.mockRestore()
+    }
+  })
+})
+
+describe('resolveShellChrome', () => {
+  it('keeps the last destination for search and falls back to Hoje', () => {
+    expect(resolveShellChrome('/search', 'calendario').activeId).toBe('calendario')
+    expect(resolveShellChrome('/search').activeId).toBe('hoje')
+    expect(resolveShellChrome('/upgrade').activeId).toBe('perfil')
+  })
+
+  it('shows the composer only on Hoje and habit detail', () => {
+    for (const route of ['/', '/habits/h1']) {
+      expect(resolveShellChrome(route).composer).toBe(true)
+    }
+    for (const route of ['/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
+      expect(resolveShellChrome(route).composer).toBe(false)
+    }
+  })
+})
+
+it('keeps Hoje composer compact and habit detail composer at every width', () => {
+  expect(resolveShellChrome('/', 'hoje', false).composer).toBe(false)
+  expect(resolveShellChrome('/', 'hoje', true).composer).toBe(true)
+  expect(resolveShellChrome('/habits/h1', 'hoje', false).composer).toBe(true)
+  expect(resolveShellChrome('/habits/h1', 'hoje', true).composer).toBe(true)
+})

@@ -38,7 +38,7 @@ describe('offline sync store', () => {
     storage.getItem.mockReset()
     storage.getItem.mockResolvedValue(null)
     storage.setItem.mockClear()
-    useOfflineSyncStore.setState({ drops: [], isFlushing: false, isRetrying: false })
+    useOfflineSyncStore.setState({ drops: [] })
   })
 
   it('deduplicates drops and dismisses only the selected recovery', () => {

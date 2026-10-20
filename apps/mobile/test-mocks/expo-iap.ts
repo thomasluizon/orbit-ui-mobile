@@ -11,15 +11,15 @@ export enum ErrorCode {
 
 export async function finishTransaction(): Promise<void> {}
 
-export async function getAvailablePurchases(): Promise<unknown[]> {
-  return []
+export function getAvailablePurchases(): Promise<unknown[]> {
+  return Promise.resolve([])
 }
 
 export function useIAP() {
   return {
     connected: false,
     subscriptions: [],
-    fetchProducts: async () => undefined,
-    requestPurchase: async () => null,
+    fetchProducts: () => Promise.resolve(undefined),
+    requestPurchase: () => Promise.resolve(null),
   }
 }

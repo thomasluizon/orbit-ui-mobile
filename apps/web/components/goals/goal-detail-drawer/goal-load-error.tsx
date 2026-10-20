@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useTranslations } from 'next-intl'
 
 interface GoalLoadErrorProps {
@@ -12,11 +14,11 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
   const t = useTranslations()
 
   return (
-    <div style={{ padding: '10px 20px 0' }}>
+    <div style={{ padding: "var(--orbit-space-12) var(--orbit-space-16) var(--orbit-space-0)" }}>
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 13,
+          fontSize: 14,
           color: 'var(--status-overdue-text)',
         }}
       >
@@ -25,11 +27,11 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex appearance-none cursor-pointer items-center border-0 bg-transparent p-0 text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary)]"
+        className="inline-flex appearance-none cursor-pointer items-center border-0 bg-transparent p-0 text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
         style={{
-          minHeight: 44,
+          minHeight: TOUCH_TARGET_MIN,
           fontFamily: 'var(--font-sans)',
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: 500,
         }}
       >

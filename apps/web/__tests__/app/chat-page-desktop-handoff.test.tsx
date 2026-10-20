@@ -1,48 +1,51 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
-import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
+import type { ReactNode } from 'react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { CHAT_GOAL_ACTION_TYPES, createChatThreadScroll } from '@orbit/shared/hooks'
 
 type ActionChipHandler = (entityId: string, actionType: string) => void
 
 const mocks = vi.hoisted(() => ({
-  replace: vi.fn(),
   push: vi.fn(),
-  isDesktop: false,
+  setOpen: vi.fn(),
   goBack: vi.fn(),
   onActionChipClick: null as ActionChipHandler | null,
   composer: {
+    threadScroll: null as ReturnType<typeof createChatThreadScroll> | null,
     chatContainerRef: { current: null },
-    textareaRef: { current: null },
     fileInputRef: { current: null },
-    textFileInputRef: { current: null },
     messages: [] as { id: string }[],
+    activeSteps: [] as { domain: string; access: string }[],
+    canShowFollowUps: false,
     isTyping: false,
+    streamingMessageId: null,
     hasProAccess: false,
     atMessageLimit: false,
     showSuggestions: false,
     isOnline: true,
     input: '',
     setInput: vi.fn(),
-    sendError: null,
+    sendError: null as string | null,
     imagePreview: null,
     isRecording: false,
     isTranscribing: false,
     speechSupported: false,
     toggleRecording: vi.fn(),
     recordingTime: '0:00',
-    starterChips: [],
     aiMessagesUsed: 0,
     aiMessagesLimit: 20,
     canSend: false,
     openFilePicker: vi.fn(),
     handleFileSelect: vi.fn(),
-    handlePaste: vi.fn(),
-    handleKeyDown: vi.fn(),
     removeImage: vi.fn(),
-    selectedTextFileName: null,
-    openTextFilePicker: vi.fn(),
-    handleTextFileSelect: vi.fn(),
-    removeTextFile: vi.fn(),
+    composerProps: {
+      words: { placeholder: 'placeholder', send: 'send', clear: 'clear', actions: 'actions', suggestionsLabel: 'live suggestions' },
+      state: 'idle' as const, value: '', onChangeValue: vi.fn(), onSend: vi.fn(),
+      suggestions: [] as { id: string; label: string; onSelect: () => void }[],
+    },
     sendMessage: vi.fn(),
     retryLastSend: vi.fn(),
     canRetryLastSend: false,
@@ -52,72 +55,148 @@ const mocks = vi.hoisted(() => ({
     verifyStepUpForBubble: vi.fn(),
     scrollToBottom: vi.fn(),
   },
+  goal: {
+    id: 'goal-9',
+    title: 'Goal nine',
+    status: 'Active',
+    targetValue: 10,
+    unit: 'pages',
+    linkedHabits: [{ id: 'linked-habit', title: 'linked habit sentinel' }],
+    progressHistory: [],
+  },
 }))
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mocks.replace, push: mocks.push }) }))
-vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }))
-vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
-vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: undefined }) }))
-vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
+}))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setOpen }) => unknown) =>
+    selector({ setAstraConversationOpen: mocks.setOpen }),
+}))
+vi.mock('@/components/ui/app-bar', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/app-bar')>()),
+  AppBar: ({ action }: { action?: ReactNode }) => <div data-testid="app-bar">{action}</div>,
+}))
 vi.mock('@/components/chat/message-bubble', () => ({
   MessageBubble: ({ onActionChipClick }: { onActionChipClick: ActionChipHandler }) => {
     mocks.onActionChipClick = onActionChipClick
     return null
   },
 }))
-vi.mock('@/app/(chat)/chat/chat-empty-state', () => ({
-  ChatEmptyState: () => <div data-testid="empty-state" />,
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/hooks/use-goals', () => ({
+  useGoals: () => ({ data: { goalsById: new Map([[mocks.goal.id, mocks.goal]]) } }),
+  useGoalDetail: (goalId: string | null) => ({
+    data: goalId ? {
+      goal: mocks.goal,
+      metrics: {
+        trackingStatus: 'no_deadline',
+        habitAdherence: [{ habitId: 'linked-habit', currentStreak: 4 }],
+      },
+    } : null,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useDeleteGoal: () => ({ mutateAsync: vi.fn() }),
 }))
-vi.mock('@/components/goals/goal-detail-drawer', () => ({
-  GoalDetailDrawer: ({ goalId }: { goalId: string }) => <div data-testid="goal-drawer">{goalId}</div>,
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
+vi.mock('@/components/goals/edit-goal-modal', () => ({ EditGoalModal: () => null }))
+vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer/goal-progress-block', () => ({ GoalProgressBlock: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer/goal-action-footer', () => ({ GoalActionFooter: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer/use-goal-status-actions', () => ({
+  useGoalStatusActions: () => ({
+    isUpdatingStatus: false,
+    markCompleted: vi.fn(),
+    markAbandoned: vi.fn(),
+    reactivate: vi.fn(),
+  }),
 }))
-vi.mock('@/components/habits/habit-detail-drawer', () => ({
-  HabitDetailDrawer: ({ open }: { open: boolean }) => (open ? <div data-testid="habit-drawer" /> : null),
+vi.mock('@/components/goals/goal-detail-drawer/use-goal-drawer-initial-action', () => ({
+  useGoalDrawerInitialAction: vi.fn(),
 }))
-vi.mock('@/app/(chat)/chat/chat-composer-bar', () => ({ ChatComposerBar: () => null }))
+vi.mock('@/components/chat/typing-indicator', () => ({
+  TypingIndicator: () => <div data-testid="typing-indicator" />,
+}))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 
-import ChatPage from '@/app/(chat)/chat/page'
-import { useShellStore } from '@/stores/shell-store'
+import { AstraConversation } from '@/components/chat/conversation'
+import { useChatComposer } from '@/hooks/use-chat-composer'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
+function ChatPage() {
+  return <AstraConversation chat={useChatComposer()} />
+}
 const goalActionType = [...CHAT_GOAL_ACTION_TYPES][0] as string
 
-describe('ChatPage desktop handoff', () => {
+describe('ChatPage', () => {
   beforeEach(() => {
-    mocks.replace.mockClear()
     mocks.push.mockClear()
-    mocks.goBack.mockClear()
-    mocks.isDesktop = false
+    mocks.setOpen.mockClear()
     mocks.onActionChipClick = null
     mocks.composer.messages = []
+    mocks.composer.threadScroll = createChatThreadScroll()
+    mocks.composer.composerProps.suggestions = []
     mocks.composer.hasProAccess = false
     mocks.composer.showSuggestions = false
-    useShellStore.setState({ astraOpen: false, astraMaximized: false })
+    mocks.composer.isTyping = false
+    mocks.composer.isOnline = true
+    mocks.composer.sendError = null
+    sheetTestControls.defer(false)
   })
 
-  it('hands off to the maximized Astra rail at the desktop breakpoint', () => {
-    mocks.isDesktop = true
+  it('renders as shell conversation content without route navigation', () => {
     render(<ChatPage />)
 
-    expect(mocks.replace).toHaveBeenCalledWith('/')
-    expect(useShellStore.getState().astraOpen).toBe(true)
-    expect(useShellStore.getState().astraMaximized).toBe(true)
-  })
-
-  it('keeps the full-page chat below the desktop breakpoint', () => {
-    mocks.isDesktop = false
-    render(<ChatPage />)
-
-    expect(mocks.replace).not.toHaveBeenCalled()
-    expect(useShellStore.getState().astraOpen).toBe(false)
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('renders the empty state when suggestions are shown', () => {
     mocks.composer.showSuggestions = true
     render(<ChatPage />)
 
-    expect(screen.getByTestId('empty-state')).toBeInTheDocument()
+    expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
+    expect(within(screen.getByRole('feed')).getAllByRole('button')).toEqual([
+      within(screen.getByRole('feed')).getByRole('button', { name: 'chat.templates.browse' }),
+    ])
+  })
+
+  it('sends the selected live suggestion', () => {
+    mocks.composer.showSuggestions = true
+    const chips = buildComposerChips({ surface: 'today', status: 'success',
+      habits: [createMockHabit()], totalHabitCount: 1, profile: createMockProfile() })
+    mocks.composer.composerProps.suggestions = [...toComposerSuggestions(chips.map(chip => ({
+      id: chip.id, label: chip.label ?? chip.key,
+      onSelect: () => mocks.composer.sendMessage(chip.prompt ?? chip.promptKey ?? chip.key),
+    })))]
+    render(<ChatPage />)
+
+    expect(within(screen.getByRole('feed')).getAllByRole('button')).toEqual([
+      within(screen.getByRole('feed')).getByRole('button', { name: 'chat.templates.browse' }),
+    ])
+    fireEvent.click(within(screen.getByRole('group', { name: 'live suggestions' })).getAllByRole('button')[0]!)
+
+    expect(mocks.composer.sendMessage).toHaveBeenCalledWith(chips[0]!.prompt ?? chips[0]!.promptKey ?? chips[0]!.key)
+  })
+
+  it('closes from the app-bar trailing control', () => {
+    render(<ChatPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.closeConversation' }))
+
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
+  })
+
+  it('marks the feed busy without adding a typing animation', () => {
+    mocks.composer.isTyping = true
+
+    render(<ChatPage />)
+
+    expect(screen.getByRole('feed', { name: 'chat.title' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByTestId('typing-indicator')).not.toBeInTheDocument()
   })
 
   it('goes back on Escape when no text is being edited', () => {
@@ -127,7 +206,7 @@ describe('ChatPage desktop handoff', () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     })
 
-    expect(mocks.goBack).toHaveBeenCalledWith('/')
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
   })
 
   it('does not go back on Escape while a textarea holds text', () => {
@@ -140,19 +219,49 @@ describe('ChatPage desktop handoff', () => {
       textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     })
 
-    expect(mocks.goBack).not.toHaveBeenCalled()
+    expect(mocks.setOpen).not.toHaveBeenCalled()
     textarea.remove()
   })
 
-  it('routes a goal action chip to upgrade when the user lacks pro access', () => {
+  it('does not go back on Escape while an input holds text', () => {
+    render(<ChatPage />)
+    const input = document.createElement('input')
+    input.value = 'draft in progress'
+    document.body.appendChild(input)
+
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+
+    expect(mocks.setOpen).not.toHaveBeenCalled()
+    input.remove()
+  })
+
+  it('does not go back on Escape while editable content holds text', () => {
+    render(<ChatPage />)
+    const editor = document.createElement('div')
+    editor.contentEditable = 'true'
+    Object.defineProperty(editor, 'isContentEditable', { value: true })
+    editor.textContent = 'draft in progress'
+    document.body.appendChild(editor)
+
+    act(() => {
+      editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+
+    expect(mocks.setOpen).not.toHaveBeenCalled()
+    editor.remove()
+  })
+
+  it('opens a goal action without an Astra paywall route', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     mocks.composer.hasProAccess = false
     render(<ChatPage />)
 
     act(() => mocks.onActionChipClick?.('goal-1', goalActionType))
 
-    expect(mocks.push).toHaveBeenCalledWith('/upgrade')
-    expect(screen.queryByTestId('goal-drawer')).not.toBeInTheDocument()
+    expect(mocks.push).not.toHaveBeenCalledWith('/upgrade')
+    expect(screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
   })
 
   it('opens the goal drawer for a goal action chip when pro', () => {
@@ -162,15 +271,59 @@ describe('ChatPage desktop handoff', () => {
 
     act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
 
-    expect(screen.getByTestId('goal-drawer')).toHaveTextContent('goal-9')
+    expect(screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
+    expect(screen.queryByRole('dialog', { name: 'progressScreen.sections.goals' })).not.toBeInTheDocument()
   })
 
-  it('opens the habit drawer for a non-goal action chip', () => {
+  it('waits for the goal sheet dismissal before closing owners and navigating', () => {
+    mocks.composer.messages = [{ id: 'm1' }]
+    sheetTestControls.defer(true)
+    render(<ChatPage />)
+
+    act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
+    const browserHandlesNavigation = fireEvent.click(screen.getByRole('link', { name: /linked habit sentinel/ }))
+
+    expect(browserHandlesNavigation).toBe(false)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+    expect(mocks.setOpen).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    act(() => sheetTestControls.completeDismissal())
+
+    expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
+    expect(mocks.push).toHaveBeenCalledOnce()
+    expect(mocks.push).toHaveBeenCalledWith('/habits/linked-habit')
+    expect(mocks.setOpen.mock.invocationCallOrder[0]!).toBeLessThan(mocks.push.mock.invocationCallOrder[0]!)
+  })
+
+  it('leaves modified linked habit clicks to the browser', () => {
+    mocks.composer.messages = [{ id: 'm1' }]
+    render(<ChatPage />)
+
+    act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
+    const browserHandlesNavigation = fireEvent.click(
+      screen.getByRole('link', { name: /linked habit sentinel/ }),
+      { metaKey: true },
+    )
+
+    expect(browserHandlesNavigation).toBe(true)
+    expect(screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+    expect(sheetTestControls.isDismissPending).toBe(false)
+    expect(mocks.setOpen).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('closes the conversation before routing a habit action chip', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     render(<ChatPage />)
 
     act(() => mocks.onActionChipClick?.('habit-3', 'view_habit'))
 
-    expect(screen.getByTestId('habit-drawer')).toBeInTheDocument()
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
+    expect(mocks.push).toHaveBeenCalledWith('/habits/habit-3')
+    expect(mocks.setOpen.mock.invocationCallOrder[0]!).toBeLessThan(mocks.push.mock.invocationCallOrder[0]!)
   })
 })

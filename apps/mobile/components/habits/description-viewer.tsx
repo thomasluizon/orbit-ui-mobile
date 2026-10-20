@@ -1,11 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import * as Clipboard from "expo-clipboard";
-import { Check, Copy } from "lucide-react-native";
-import { useTranslation } from "react-i18next";
-import { captureError } from "@/lib/sentry";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
-import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
+import { SPACING } from "@orbit/shared/theme";
+import { useMemo } from "react";
+import { StyleSheet, View } from "react-native";
+import { DescriptionCopyButton } from "./description-copy-button";
+import { Sheet } from '@/components/ui/sheet';
 import { Markdown } from "@/components/ui/markdown";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -23,60 +20,19 @@ export function DescriptionViewer({
   title,
   description,
 }: Readonly<DescriptionViewerProps>) {
-  const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   );
-  const [copied, setCopied] = useState(false);
-  const handleClose = useCallback(() => {
-    setCopied(false);
-    onClose();
-  }, [onClose]);
-
-  const copyDescription = useCallback(() => {
-    void Clipboard.setStringAsync(description).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(captureError);
-  }, [description]);
-
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={handleClose}
+    open ? (<Sheet
+      open
+      onClose={onClose}
       title={title}
-      snapPoints={["70%", "90%"]}
-      contentManagesScroll
     >
-      <ScrollView
-        style={styles.scrollContainer}
-        contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.copyRow}>
-          <Pressable
-            onPress={copyDescription}
-            accessibilityRole="button"
-            accessibilityLabel={t("habits.detail.copyDescription")}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.copyButton,
-              {
-                backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                borderColor: tokens.hairline,
-              },
-              pressed ? styles.copyButtonPressed : null,
-            ]}
-          >
-            {copied ? (
-              <Check size={18} color={tokens.statusDone} strokeWidth={1.8} />
-            ) : (
-              <Copy size={18} color={tokens.fg2} strokeWidth={1.8} />
-            )}
-          </Pressable>
-        </View>
+      <View>
+        <DescriptionCopyButton key={description} description={description} />
         <View
           style={[
             styles.card,
@@ -85,40 +41,17 @@ export function DescriptionViewer({
         >
           <Markdown>{description}</Markdown>
         </View>
-      </ScrollView>
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-  copyRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingBottom: 10,
-  },
-  copyButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  copyButtonPressed: {
-    transform: [{ scale: 0.96 }],
-  },
   card: {
     minWidth: 0,
     borderRadius: 18,
     borderWidth: 1,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+      paddingVertical: SPACING.s16,
+      paddingHorizontal: SPACING.s16,
   },
 });

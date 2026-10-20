@@ -2,8 +2,18 @@ import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import { withSentryConfig } from '@sentry/nextjs'
 import path from 'node:path'
+import { LEGACY_PROFILE_ROUTES } from '../../packages/shared/src/utils/profile-routes'
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
+
+export function getLegacyRedirects() {
+  return [
+    { source: '/streak', destination: '/progress/streak', permanent: true },
+    { source: '/achievements', destination: '/progress/achievements', permanent: true },
+    { source: '/goals', destination: '/progress/goals', permanent: true },
+    ...LEGACY_PROFILE_ROUTES.map(({ source, destination }) => ({ source, destination, permanent: true })),
+  ]
+}
 
 const nextConfig: NextConfig = {
   output: 'standalone',
@@ -11,6 +21,7 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   skipTrailingSlashRedirect: true,
   transpilePackages: ['@orbit/shared'],
+  redirects: getLegacyRedirects,
   async rewrites() {
     return [
       { source: '/ingest/static/:path*', destination: 'https://us-assets.i.posthog.com/static/:path*' },

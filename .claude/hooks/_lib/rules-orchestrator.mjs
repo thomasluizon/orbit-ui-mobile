@@ -1,18 +1,18 @@
-
 import { lstatSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { resolve } from "node:path"
 
-import { stripHeredocBodies } from "./rules-git.mjs"
+import { stripHeredocBodies, unquotedHeredocRunsCommand } from "./rules-git.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
 
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). */
 const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
 const ENGINE_BINARIES = new Set(["claude", "codex"])
-/** Subcommands that start no model session, so refusing them protects no budget and only breaks
- * ordinary preflight. `codex --version` was refused by the previous revision, which keyed on the
- * binary alone. */
 const ZERO_COST_FLAGS = new Set(["--version", "-v", "--help", "-h", "help", "whoami", "--list", "login", "logout"])
+/** These cloud subcommands only inspect tasks that already exist. */
+const CLOUD_READ_SUBCOMMANDS = new Set(["list", "status", "diff"])
+const SAFE_ENGINE_BINARY = /^(?:claude|codex)(?:\.(?:exe|cmd|bat|ps1))?$/i
+const SAFE_ENGINE_ARGUMENT = /^[A-Za-z0-9_./:+=-]+$/
 const LEADING_ENV_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
@@ -82,13 +82,94 @@ function withoutLeadingAssignments(segment) {
   return rest
 }
 
+const redirectionOperatorEnd = (source, start) => {
+  let cursor = start
+  if (source[cursor] === "*" && source[cursor + 1] === ">") cursor++
+  if (source[cursor] === "&" && source[cursor + 1] === ">") cursor++
+  if (source[cursor] !== "<" && source[cursor] !== ">") return start
+  const direction = source[cursor++]
+  while (source[cursor] === direction && cursor < start + 3) cursor++
+  if (["&", "|", direction === "<" ? ">" : ""].includes(source[cursor])) cursor++
+  return cursor
+}
+
+const redirectionTargetEnd = (source, start) => {
+  let cursor = start
+  let quote = ""
+  while (cursor < source.length) {
+    const character = source[cursor]
+    if (!quote && /\s/.test(character)) break
+    if (character === "\\" && quote !== "'") {
+      cursor += 2
+      continue
+    }
+    if (quote) {
+      if (character === quote) quote = ""
+    } else if (character === '"' || character === "'") {
+      quote = character
+    }
+    const processSubstitution = !quote && cursor === start && character === "("
+    if (quote !== "'" && (character === "$" || character === "`" || processSubstitution)) {
+      return { end: source.length, classifiable: false }
+    }
+    cursor++
+  }
+  return { end: cursor, classifiable: cursor > start }
+}
+
+/** Remove shell redirections before finding and validating the invoked command. Redirection
+ * targets are data, not argv, and a redirection may legally precede the executable. A dynamic
+ * target makes the whole segment unclassifiable; callers refuse it instead of guessing where the
+ * executable begins. */
+function withoutRedirections(segment) {
+  let cleaned = ""
+  let quote = ""
+  for (let cursor = 0; cursor < segment.length;) {
+    const character = segment[cursor]
+    if (character === "\\" && quote !== "'") {
+      cleaned += segment.slice(cursor, cursor + 2)
+      cursor += 2
+      continue
+    }
+    if (quote) {
+      if (character === quote) quote = ""
+      cleaned += character
+      cursor++
+      continue
+    }
+    if (character === '"' || character === "'") {
+      quote = character
+      cleaned += character
+      cursor++
+      continue
+    }
+    const operatorEnd = redirectionOperatorEnd(segment, cursor)
+    if (operatorEnd === cursor) {
+      cleaned += character
+      cursor++
+      continue
+    }
+    const descriptor = /(?:^|\s)(\d+)$/.exec(cleaned)
+    if (descriptor) cleaned = cleaned.slice(0, -descriptor[1].length)
+    cursor = operatorEnd
+    while (/\s/.test(segment[cursor] ?? "")) cursor++
+    const target = redirectionTargetEnd(segment, cursor)
+    if (!target.classifiable) return null
+    cleaned += " "
+    cursor = target.end
+  }
+  return cleaned
+}
+
 /**
  * The binary a segment actually invokes, lowercased and stripped of directory and Windows
  * extension. Matching HERE and not against the whole string is the point: `.claude/skills/...` is
  * a path, not the `claude` binary, and a commit message naming a command is data.
  */
 export function invokedBinary(segment) {
-  const token = LEADING_TOKEN.exec(withoutLeadingAssignments(segment))
+  const withoutRedirects = withoutRedirections(segment)
+  if (withoutRedirects === null) return null
+  const token = LEADING_TOKEN.exec(withoutLeadingAssignments(withoutRedirects))
   if (!token) return ""
   return token[1]
     .replace(/^["']|["']$/g, "")
@@ -99,18 +180,13 @@ export function invokedBinary(segment) {
     .toLowerCase()
 }
 
-/**
- * Split on shell operators that are NOT inside quotes. Quote-awareness is the whole fix: the
- * previous revision split on a bare /[&|;\n]/, so `grep -rnE 'claude|codex' .` produced a phantom
- * second segment beginning `codex' .`, whose invoked binary resolved to `codex` and blocked a
- * read-only search. A search PATTERN is data, never an invocation.
- */
 export function segmentsOf(command) {
   const source = stripHeredocBodies(command)
   const segments = []
   let current = ""
   let quote = ""
-  for (const character of source) {
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index]
     if (quote) {
       if (character === quote) quote = ""
       current += character
@@ -121,7 +197,10 @@ export function segmentsOf(command) {
       current += character
       continue
     }
-    if (character === "&" || character === "|" || character === ";" || character === "\n") {
+    const partOfRedirection =
+      (character === "&" && (current.endsWith(">") || current.endsWith("<") || source[index + 1] === ">")) ||
+      (character === "|" && current.endsWith(">"))
+    if (!partOfRedirection && (character === "&" || character === "|" || character === ";" || character === "\n")) {
       segments.push(current)
       current = ""
       continue
@@ -132,7 +211,26 @@ export function segmentsOf(command) {
   return segments
 }
 
+const safeEngineWords = (segment) => {
+  const withoutRedirects = withoutRedirections(segment)
+  if (withoutRedirects === null) return null
+  const words = withoutRedirects.trim().split(/\s+/)
+  return SAFE_ENGINE_BINARY.test(words[0] ?? "") && words.every((word) => SAFE_ENGINE_ARGUMENT.test(word))
+    ? words
+    : null
+}
+
+const isSafeCloudRead = (words) => words?.[0]?.replace(/\.(?:exe|cmd|bat|ps1)$/i, "").toLowerCase() === "codex" &&
+  words[1]?.toLowerCase() === "cloud" && CLOUD_READ_SUBCOMMANDS.has(words[2]?.toLowerCase())
+
+const isSafeZeroCostInvocation = (words) => words?.slice(1).some((word) => ZERO_COST_FLAGS.has(word.toLowerCase()))
+
 const blocked = (command, why) => ({ block: true, message: `BLOCKED (Orbit orchestration guardrail):\n  ${command}\n\n${why}\n` })
+const unclassifiableRedirect = (command) => blocked(
+  command,
+  "A redirect target containing shell evaluation cannot be classified safely. Use a static file\n" +
+    "or stream target, then run the command again.",
+)
 
 /**
  * Refuse a raw engine invocation from an ORCHESTRATING session. It keys on WHO is calling, never
@@ -145,18 +243,34 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
   if (env[LAUNCHER_MARKER]) return null
   if (cwd && insideLinkedWorktree(cwd, repoRoots)) return null
 
+  const heredocRunsCommand = unquotedHeredocRunsCommand(command)
   for (const segment of segmentsOf(command)) {
-    if (!ENGINE_BINARIES.has(invokedBinary(segment))) continue
-    const words = withoutLeadingAssignments(segment).trim().split(/\s+/).slice(1)
-    if (words.some((word) => ZERO_COST_FLAGS.has(word.toLowerCase()))) continue
+    const binary = invokedBinary(segment)
+    if (binary === null) return unclassifiableRedirect(command)
+    if (["orca", "orca-dev", "orca-ide"].includes(binary) && /\bterminal\s+create\b/.test(segment)) {
+      const commandArgument = /--command(?:\s+|=)(?:"([^"]*)"|'([^']*)'|(\S+))/.exec(segment)
+      const terminalCommand = commandArgument?.[1] ?? commandArgument?.[2] ?? commandArgument?.[3] ?? ""
+      if (ENGINE_BINARIES.has(invokedBinary(terminalCommand))) {
+        return blocked(command, "Fresh orchestrator sessions must start through `node tools/relay-session.mjs`. Worker sessions must start through `node tools/launch-worker.mjs`.")
+      }
+    }
+    if (!ENGINE_BINARIES.has(binary)) continue
+    const safeWords = safeEngineWords(segment)
+    if (isSafeCloudRead(safeWords) && !heredocRunsCommand) continue
+    if (isSafeZeroCostInvocation(safeWords) && !heredocRunsCommand) continue
     return blocked(
       command,
       "An orchestrating session may not start a model session outside the launcher. Every worker\n" +
         "starts through `node tools/launch-worker.mjs`, which creates the worktree, composes the\n" +
         "work order, supervises the two clocks and records the worker PID. None of that happens\n" +
         "for a raw `codex` or `claude` invocation, so its worker is unsupervised.\n" +
+        "Research starts through `node tools/launch-worker.mjs --research --order <file>\n" +
+        "--out <scratchpad file>`, without a ticket worktree or finishing contract.\n" +
         "The refusal is scoped to the CALLER, not the flag: the launcher itself, any command run\n" +
-        "from inside a launcher-created worktree, and version or help queries are permitted.",
+        "from inside a launcher-created worktree, version or help queries, and the read-only\n" +
+        "`codex cloud list|status|diff` subcommands are permitted. Submit cloud work through\n" +
+        "`node tools/submit-cloud-worker.mjs`, and land its diff only through\n" +
+        "`node tools/materialize-cloud-result.mjs` inside the ticket worktree.",
     )
   }
   return null
@@ -170,7 +284,9 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
   if (!env[LAUNCHER_MARKER] && !(cwd && insideLinkedWorktree(cwd, repoRoots))) return null
   for (const segment of segmentsOf(command)) {
     const source = withoutLeadingAssignments(segment)
-    if (invokedBinary(source) !== "git") continue
+    const binary = invokedBinary(source)
+    if (binary === null) return unclassifiableRedirect(command)
+    if (binary !== "git") continue
     const words = (source.match(SHELL_WORD) ?? []).map((word) => word.replace(/^["']|["']$/g, ""))
     const commitIndex = words.findIndex((word, index) => index > 0 && word.toLowerCase() === "commit")
     if (commitIndex >= 0) {
@@ -224,8 +340,6 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
           /^-[^-]*[Au][^-]*$/.test(argument) ||
           (argument.startsWith("--") && BROAD_ADD_LONG_FLAGS.some((flag) => flag.startsWith(argument)))
         ) broad = true
-        // Git accepts unambiguous long-option abbreviations (measured: --pathspec-from-f), so
-        // matching only the documented full spelling leaves the same indirect staging bypass.
         if (argument.startsWith("--pathspec")) broad = true
         continue
       }
@@ -251,6 +365,7 @@ export function checkAdminMerge(command) {
   if (typeof command !== "string") return null
   for (const segment of segmentsOf(command)) {
     const binary = invokedBinary(segment)
+    if (binary === null) return unclassifiableRedirect(command)
     if (binary === "gh" && PR_MERGE.test(segment) && ADMIN_FLAG.test(segment)) {
       if (SANCTIONED_ADMIN_MERGE.test(segment) && MATCH_HEAD_COMMIT.test(segment)) continue
       return blocked(command, adminMergeReason("`gh pr merge --admin` without `--squash --match-head-commit <sha>`"))
@@ -270,8 +385,8 @@ export function checkAdminMerge(command) {
 function adminMergeReason(shape) {
   return (
     `${shape} performs an administrator merge, which bypasses the required checks.\n` +
-    "The override exists for the owner alone. If a merge genuinely needs one, STOP and ask him to\n" +
-    "merge it himself; never perform the override yourself.\n" +
+    "The override exists for the owner alone. If a merge genuinely needs one, STOP and ask the owner to\n" +
+    "merge it; never perform the override yourself.\n" +
     "See the git conventions in CLAUDE.md and the guardrails in AGENTS.md."
   )
 }
