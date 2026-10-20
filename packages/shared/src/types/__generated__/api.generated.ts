@@ -1555,7 +1555,7 @@ export const GetApiHabitsResponse = zod.object({
   "reminderEnabled": zod.boolean(),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemReminderTimesItemRegExpTwo)])),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })),
   "slipAlertEnabled": zod.boolean(),
@@ -1621,12 +1621,12 @@ export const GetApiHabitsResponse = zod.object({
   "reminderEnabled": zod.boolean().nullish(),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemChildrenItemReminderTimesItemRegExpTwo)])).nullish(),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "slipAlertEnabled": zod.boolean().nullish()
@@ -1648,7 +1648,7 @@ export const GetApiHabitsResponse = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemIntervalWeeksRegExpTwo)]).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
@@ -1690,7 +1690,7 @@ export const PostApiHabitsBody = zod.object({
   "reminderEnabled": zod.boolean().default(postApiHabitsBodyReminderEnabledDefault),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBodyReminderTimesItemRegExpTwo)])).nullish(),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })).nullish(),
   "slipAlertEnabled": zod.boolean().default(postApiHabitsBodySlipAlertEnabledDefault),
@@ -1707,9 +1707,10 @@ export const PostApiHabitsBody = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBodyIntervalWeeksRegExpTwo)]).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBodyRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
-})).nullish()
+})).nullish(),
+  "startDate": zod.iso.date().nullish()
 })
 
 export const PostApiHabitsResponse = zod.void()
@@ -1764,7 +1765,7 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "reminderEnabled": zod.boolean(),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemReminderTimesItemRegExpTwo)])),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })),
   "slipAlertEnabled": zod.boolean(),
@@ -1830,12 +1831,12 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "reminderEnabled": zod.boolean().nullish(),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemChildrenItemReminderTimesItemRegExpTwo)])).nullish(),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "slipAlertEnabled": zod.boolean().nullish()
@@ -1857,7 +1858,7 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemIntervalWeeksRegExpTwo)]).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
@@ -1953,7 +1954,7 @@ export const GetApiHabitsIdResponse = zod.object({
   "reminderEnabled": zod.boolean(),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseReminderTimesItemRegExpTwo)])),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })),
   "checklistItems": zod.array(zod.object({
@@ -1996,12 +1997,12 @@ export const GetApiHabitsIdResponse = zod.object({
   "reminderEnabled": zod.boolean().nullish(),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseChildrenItemReminderTimesItemRegExpTwo)])).nullish(),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "slipAlertEnabled": zod.boolean().nullish()
@@ -2015,7 +2016,7 @@ export const GetApiHabitsIdResponse = zod.object({
   "slipAlertEnabled": zod.boolean().nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
@@ -2058,7 +2059,7 @@ export const PutApiHabitsIdBody = zod.object({
   "reminderEnabled": zod.boolean().nullish(),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', putApiHabitsIdBodyReminderTimesItemRegExpTwo)])).nullish(),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })).nullish(),
   "slipAlertEnabled": zod.boolean().nullish(),
@@ -2075,9 +2076,10 @@ export const PutApiHabitsIdBody = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', putApiHabitsIdBodyIntervalWeeksRegExpTwo)]).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', putApiHabitsIdBodyRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
-})).nullish()
+})).nullish(),
+  "startDate": zod.iso.date().nullish()
 })
 
 export const PutApiHabitsIdResponse = zod.void()
@@ -2141,7 +2143,7 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "reminderEnabled": zod.boolean(),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitReminderTimesItemRegExpTwo)])),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })),
   "checklistItems": zod.array(zod.object({
@@ -2184,12 +2186,12 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "reminderEnabled": zod.boolean().nullish(),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitChildrenItemReminderTimesItemRegExpTwo)])).nullish(),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "slipAlertEnabled": zod.boolean().nullish()
@@ -2203,7 +2205,7 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "slipAlertEnabled": zod.boolean().nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
@@ -2250,6 +2252,21 @@ export const GetApiHabitsIdRescheduleSuggestionHeader = zod.object({
 })
 
 export const GetApiHabitsIdRescheduleSuggestionResponse = zod.unknown()
+
+
+export const PostApiHabitsInterpretDateHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiHabitsInterpretDateBody = zod.object({
+  "phrase": zod.string(),
+  "language": zod.string()
+})
+
+export const PostApiHabitsInterpretDateResponse = zod.object({
+  "date": zod.iso.date().nullable(),
+  "referenceDate": zod.iso.date()
+})
 
 
 export const PostApiHabitsSuggestSetupHeader = zod.object({
@@ -2413,7 +2430,7 @@ export const PostApiHabitsBulkBody = zod.object({
   "reminderEnabled": zod.boolean().default(postApiHabitsBulkBodyHabitsItemReminderEnabledDefault),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBulkBodyHabitsItemReminderTimesItemRegExpTwo)])).nullish(),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })).nullish(),
   "subHabits": zod.array(zod.unknown()).nullish(),
@@ -2430,7 +2447,7 @@ export const PostApiHabitsBulkBody = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBulkBodyHabitsItemIntervalWeeksRegExpTwo)]).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBulkBodyHabitsItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish()
 })),
@@ -2591,7 +2608,7 @@ export const PostApiHabitsParentIdSubHabitsBody = zod.object({
   "reminderEnabled": zod.boolean().default(postApiHabitsParentIdSubHabitsBodyReminderEnabledDefault),
   "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsParentIdSubHabitsBodyReminderTimesItemRegExpTwo)])).nullish(),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })).nullish(),
   "slipAlertEnabled": zod.boolean().default(postApiHabitsParentIdSubHabitsBodySlipAlertEnabledDefault),
@@ -2605,7 +2622,7 @@ export const PostApiHabitsParentIdSubHabitsBody = zod.object({
   "emoji": zod.string().nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsParentIdSubHabitsBodyRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish()
 })
@@ -3541,7 +3558,7 @@ export const GetApiSyncV2ChangesResponse = zod.object({
   "isChecked": zod.boolean()
 })),
   "scheduledReminders": zod.array(zod.object({
-  "when": zod.enum(['same_day', 'day_before']),
+  "when": zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.'),
   "time": zod.iso.time({})
 })),
   "endDate": zod.iso.date().nullable(),
@@ -3553,7 +3570,7 @@ export const GetApiSyncV2ChangesResponse = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiSyncV2ChangesResponseHabitsUpdatedItemIntervalWeeksRegExpTwo)]).nullish(),
   "relativeReminders": zod.array(zod.object({
   "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiSyncV2ChangesResponseHabitsUpdatedItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
-  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before']).describe('MVC responses emit SameDay or DayBefore. MVC inputs also accept same_day and day_before, case-insensitive enum names and numeric enum forms. Reminder validation still applies. This component\'s enum retains the domain snake_case annotation and does not describe MVC response casing.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
