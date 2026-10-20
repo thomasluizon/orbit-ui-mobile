@@ -1,4 +1,5 @@
 import { SPACING } from '@orbit/shared/theme'
+import { X } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
@@ -169,11 +170,18 @@ interface EndDateEditorProps {
 }
 
 function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
+  const [focusRequest, setFocusRequest] = useState(0)
   if (!visible) return null
   return (
     <View style={{ gap: 8 }}>
       <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
-      <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
+      <DateField label={t('habits.form.endDate')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} focusRequest={focusRequest} />
+      {value ? <View style={{ alignItems: 'flex-end' }}>
+        <PillButton variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
+          onChange('')
+          setFocusRequest((request) => request + 1)
+        }}><X size={20} /></PillButton>
+      </View> : null}
     </View>
   )
 }

@@ -19,7 +19,7 @@ import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selecti
 
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
 const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
-const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false }))
+const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false, realDates: false }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
 const setupPatch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Week', frequencyQuantity: 3, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
@@ -90,7 +90,10 @@ vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importO
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false }) }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: (props: { onSetScheduledReminders: (items: { when: string; time: string }[]) => void; nested?: boolean; offsetReminderCount?: number }) => <button type="button" data-nested={String(props.nested)} data-offset-count={props.offsetReminderCount} onClick={() => props.onSetScheduledReminders([{ when: 'day_before', time: '18:00' }])}>scheduled-reminders</button> }))
 vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => <div>slip-alert</div> }))
-vi.mock('@/components/ui/date-field', () => ({ DateField: () => <div>date-field</div> }))
+vi.mock('@/components/ui/date-field', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/date-field')>()
+  return { DateField: (props: React.ComponentProps<typeof actual.DateField>) => formLocale.realDates ? <actual.DateField {...props} /> : <div>date-field</div> }
+})
 
 type TestHabitFormHelpers = HabitFormHelpers & { testValues: Record<string, unknown> }
 
@@ -1241,5 +1244,31 @@ describe('habit end time', () => {
     fireEvent.click(screen.getByRole('button', { name: 'remove start elsewhere' }))
     await waitFor(() => expect(end).toHaveValue(''))
     expect(end).toBeDisabled()
+  })
+})
+
+describe('restored end-date control', () => {
+  it.each([false, true])('clears the selected end date through the existing update request, flexible: %s', (isFlexible) => {
+    formLocale.realDates = true
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Run', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible, endDate: '2026-11-01' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const view = render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.removeEndDate' }))
+    const request = buildUpdateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), false, '2026-11-01', [], [])
+    expect(request.clearEndDate).toBe(true)
+    expect(request.endDate).toBeUndefined()
+    expect(screen.queryByRole('button', { name: 'habits.form.removeEndDate' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.endDate, common.selectDate' })).toHaveFocus()
+    view.unmount()
+    formLocale.realDates = false
+  })
+
+  it('keeps the remove action absent until an end date is selected', () => {
+    renderForm(createFormHelpers(), undefined, true)
+    expect(screen.queryByRole('button', { name: 'habits.form.removeEndDate' })).toBeNull()
   })
 })

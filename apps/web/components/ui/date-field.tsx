@@ -2,7 +2,7 @@
 
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
-import { useState, useId, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useId, useRef, useCallback, useMemo } from 'react'
 import {
   addMonths,
   subMonths,
@@ -28,6 +28,7 @@ interface DateFieldProps {
   onChange: (value: string) => void
   placeholder?: string
   label?: string
+  focusRequest?: number
 }
 
 export function DateField({
@@ -35,6 +36,7 @@ export function DateField({
   onChange,
   placeholder,
   label,
+  focusRequest,
 }: Readonly<DateFieldProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -48,6 +50,8 @@ export function DateField({
     setLastSyncedValue(value)
     if (value) setViewDate(parseISO(value))
   }
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => { if (focusRequest) triggerRef.current?.focus() }, [focusRequest])
   const dialogLabelId = useId()
   const gridRef = useRef<HTMLTableElement>(null)
   const initialFocusRef = useRef<HTMLButtonElement>(null)
@@ -153,6 +157,7 @@ export function DateField({
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         aria-label={label ? `${label}, ${selectionLabel}` : selectionLabel}
         aria-expanded={isOpen}

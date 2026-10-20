@@ -1,12 +1,13 @@
 'use client'
 
+import { X } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 
-import { useCallback, useEffect, useId, useMemo, useRef, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useState, useId, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useController } from 'react-hook-form'
@@ -157,11 +158,18 @@ interface EndDateEditorProps {
 }
 
 function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
+  const [focusRequest, setFocusRequest] = useState(0)
   if (!visible) return null
   return (
     <section className="flex flex-col gap-2">
       <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
-      <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
+      <DateField label={t('habits.form.endDate')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} focusRequest={focusRequest} />
+      {value ? <div className="flex justify-end">
+        <PillButton variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
+          onChange('')
+          setFocusRequest((request) => request + 1)
+        }}><X size={20} aria-hidden="true" /></PillButton>
+      </div> : null}
     </section>
   )
 }

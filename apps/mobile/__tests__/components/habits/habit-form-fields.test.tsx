@@ -1309,3 +1309,28 @@ it('edits end times, reports ordering errors, and disables the field after clear
   expect(field('habits.form.dueEndTime').props.disabled).toBe(true)
   await TestRenderer.act(() => tree.unmount())
 })
+
+describe('restored end-date control', () => {
+  it.each([false, true])('clears the selected end date through the update request and returns focus to its date control, flexible: %s', async (isFlexible) => {
+    const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+    useWatchMock.mockImplementation(useWatch)
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Run', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible, endDate: '2026-11-01' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
+    const action = () => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.removeEndDate')
+    expect(action()).toHaveLength(1)
+    await TestRenderer.act(() => { action()[0]!.props.onPress() })
+    const request = buildUpdateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), false, '2026-11-01', [], [])
+    expect(request.clearEndDate).toBe(true)
+    expect(request.endDate).toBeUndefined()
+    expect(action()).toHaveLength(0)
+    const date = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.endDate')[0]!
+    expect(date.props.value).toBe('')
+    expect(date.props.focusRequest).toBe(1)
+    await TestRenderer.act(() => { tree.unmount() })
+  })
+})
