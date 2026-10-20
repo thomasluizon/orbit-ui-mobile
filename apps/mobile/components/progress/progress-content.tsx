@@ -264,6 +264,20 @@ function StreakFreezeDetails({ freeze, timeZone, longestStreak, currentStreak, t
   )
 }
 
+function StreakFreezeEntry({ loading, banked, ceiling, detailsOpen, tokens, onClick }: Readonly<{
+  loading: boolean
+  banked: number
+  ceiling: number
+  detailsOpen: boolean
+  tokens: AppTokensV2
+  onClick: () => void
+}>) {
+  const { t } = useTranslation()
+  return (
+    <ListRow placement="column" textMode="label" title={t('progressScreen.streak.freezes')} accessibilityLabel={t('progressScreen.streak.freezes')} expanded={detailsOpen} disabled={loading} valueHidden={loading} value={`${banked} / ${ceiling}`} chevron={false} trailing={<ChevronRight size={24} strokeWidth={1.5} color={loading ? tokens.fg1 : tokens.fg3} />} onClick={onClick} />
+  )
+}
+
 function StreakSection({ accountProfile, canView, gamificationProfile, tokens }: Readonly<{
   accountProfile: ReturnType<typeof useProfile>['profile']; canView: boolean; gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']; tokens: AppTokensV2
 }>) {
@@ -293,7 +307,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
         {loading ? <View pointerEvents="none" style={StyleSheet.absoluteFill}><Skeleton variant="fill" grouped /></View> : null}
       </View>
       {canView ? <>
-        <ListRow placement="column" textMode="label" title={t('progressScreen.streak.freezes')} accessibilityLabel={t('progressScreen.streak.freezes')} expanded={detailsOpen} disabled={loading} trailing={<ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} />} onClick={() => setDetailsOpen(true)} />
+        <StreakFreezeEntry loading={loading} banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} detailsOpen={detailsOpen} tokens={tokens} onClick={() => setDetailsOpen(true)} />
         {detailsOpen ? <Sheet ref={sheetRef} open title={t('progressScreen.streak.freezes')} onClose={() => setDetailsOpen(false)}>
           <View style={styles.streakSection}>
             <StreakFreezeDetails freeze={freeze} timeZone={timeZone} longestStreak={longestStreak} currentStreak={currentStreak} tokens={tokens} />

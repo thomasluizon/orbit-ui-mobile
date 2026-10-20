@@ -22,6 +22,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEventHandler,
   type ReactNode,
 } from 'react'
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
@@ -301,6 +302,20 @@ function StreakFreezeDetails({ freeze, timeZone, longestStreak, currentStreak }:
   )
 }
 
+function StreakFreezeEntry({ loading, banked, ceiling, detailsOpen, controls, onClick }: Readonly<{
+  loading: boolean
+  banked: number
+  ceiling: number
+  detailsOpen: boolean
+  controls?: string
+  onClick: MouseEventHandler<HTMLElement>
+}>) {
+  const t = useTranslations()
+  return (
+    <ListRow placement="column" textMode="label" title={t('progressScreen.streak.freezes')} accessibilityLabel={t('progressScreen.streak.freezes')} expanded={detailsOpen} controls={controls} disabled={loading} valueHidden={loading} value={`${banked} / ${ceiling}`} chevron={false} trailing={<ChevronRight size={24} strokeWidth={1.5} color={loading ? 'var(--fg-1)' : 'var(--fg-3)'} aria-hidden="true" focusable="false" />} onClick={onClick} />
+  )
+}
+
 function StreakSection({ accountProfile, canView, gamificationProfile }: Readonly<{
   accountProfile: ReturnType<typeof useProfile>['profile']
   canView: boolean
@@ -354,7 +369,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
         {loading ? <div className="pointer-events-none absolute inset-0"><Skeleton variant="fill" grouped /></div> : null}
       </div>
       {canView ? <>
-        <ListRow placement="column" textMode="label" title={t('progressScreen.streak.freezes')} accessibilityLabel={t('progressScreen.streak.freezes')} expanded={detailsOpen} controls={detailsOpen ? detailsId : undefined} disabled={loading} trailing={<ChevronRight size={24} strokeWidth={1.5} aria-hidden="true" />} onClick={(event) => { entryRef.current = event.currentTarget; setDetailsOpen(true) }} />
+        <StreakFreezeEntry loading={loading} banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} detailsOpen={detailsOpen} controls={detailsOpen ? detailsId : undefined} onClick={(event) => { entryRef.current = event.currentTarget; setDetailsOpen(true) }} />
         {detailsOpen ? <Sheet ref={sheetRef} finalFocus={entryRef} open title={t('progressScreen.streak.freezes')} onClose={() => setDetailsOpen(false)}>
           <div id={detailsId} className="flex flex-col gap-4">
             <StreakFreezeDetails freeze={freeze} timeZone={timeZone} longestStreak={longestStreak} currentStreak={currentStreak} />

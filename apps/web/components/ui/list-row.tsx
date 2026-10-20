@@ -76,11 +76,12 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
   </span>
 }
 
-function RowValue({ value, textMode, wrapValue, valueTextMode, personalExpanded }: Readonly<Pick<WebListRowProps, 'value' | 'textMode' | 'wrapValue' | 'valueTextMode' | 'personalExpanded'>>) {
+function RowValue({ value, valueHidden, textMode, wrapValue, valueTextMode, personalExpanded }: Readonly<Pick<WebListRowProps, 'value' | 'valueHidden' | 'textMode' | 'wrapValue' | 'valueTextMode' | 'personalExpanded'>>) {
   if (!value) return null
-  if (typeof value !== 'string') return <span className="orbit-list-row-value-line flex min-w-0 max-w-full items-center" data-slot="list-row-value">{value}</span>
-  if (valueTextMode === 'personal') return <PersonalText expanded={personalExpanded} data-slot="list-row-value" className="t-meta min-w-0" style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</PersonalText>
-  const text = <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'min-w-0 max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: textMode === 'label' ? 23.8 / 12 : 1.4 }}>{value}</span>
+  const visibility = valueHidden ? 'hidden' : undefined
+  if (typeof value !== 'string') return <span aria-hidden={valueHidden || undefined} style={{ visibility }} className="orbit-list-row-value-line flex min-w-0 max-w-full items-center" data-slot="list-row-value">{value}</span>
+  if (valueTextMode === 'personal') return <PersonalText aria-hidden={valueHidden || undefined} expanded={personalExpanded} data-slot="list-row-value" className="t-meta min-w-0" style={{ visibility, color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</PersonalText>
+  const text = <span aria-hidden={valueHidden || undefined} data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'min-w-0 max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ visibility, color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: textMode === 'label' ? 23.8 / 12 : 1.4 }}>{value}</span>
   return textMode === 'label' ? <span className="orbit-list-row-value-line flex min-w-0 max-w-full items-center">{text}</span> : text
 }
 

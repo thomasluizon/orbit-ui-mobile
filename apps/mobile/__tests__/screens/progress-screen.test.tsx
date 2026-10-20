@@ -9,7 +9,7 @@ import * as ReactNative from 'react-native'
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/factories'
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
@@ -20,6 +20,7 @@ import StreakPage from '@/app/progress/streak'
 import GoalsPage from '@/app/progress/goals'
 import AchievementsPage from '@/app/progress/achievements'
 import { ListRow } from '@/components/ui/list-row'
+import { ChevronRight } from '@/components/ui/icons'
 import type { ProgressSubmenuId } from '@orbit/shared/utils/progress-navigation'
 import { FreezeBank } from '@/components/ui/freeze-bank'
 import { PillButton } from '@/components/ui/pill-button'
@@ -1404,6 +1405,9 @@ describe('mobile ProgressContent', () => {
 
     expect(text).toContain('progressScreen.streak.bankFull:{"count":3}')
     expect(text).not.toContain('progressScreen.streak.next')
+    const sheet = tree.root.findAll((node) => node.type === 'Sheet')[0]!
+    expect(sheet.findAll((node) => node.props.testID === 'capacity-notice-action')).toHaveLength(0)
+    expect(sheet.findAll((node) => node.type === ListRow && node.props.href === '/upgrade')).toHaveLength(0)
   })
 
   it.each([
@@ -1514,12 +1518,32 @@ describe('mobile ProgressContent', () => {
         return typeof node.type === 'string' ? [{ type: node.type, style: StyleSheet.flatten(node.props.style ?? {}) }] : node.children.flatMap(hosts)
       })
       const before = blocks()
+      const rowHost = () => {
+        const hosts = tree.toJSON()!
+        function find(host: HabitRowHost): HabitRowHost | undefined {
+          if (host.type === 'Pressable' && host.props.accessibilityLabel === (locale === 'en' ? en : ptBR).progressScreen.streak.freezes) return host
+          for (const child of host.children ?? []) {
+            if (typeof child !== 'string') { const found = find(child); if (found) return found }
+          }
+        }
+        return (Array.isArray(hosts) ? hosts : [hosts]).map(find).find(Boolean)!
+      }
+      const beforeHeight = measureProfileRow(rowHost(), Math.min(width, 740) - 32, fontScale).height
       expect(section.findAll((node) => node.props.testID === 'freeze-bank')).toHaveLength(0)
       Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
       await TestRenderer.act(() => tree.update(<StreakPage />))
       expect(blocks()).toEqual(before)
       const label = (locale === 'en' ? en : ptBR).progressScreen.streak.freezes
       const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!
+      const expected = `${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`
+      expect(entry.findAll((node) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1)
+      const measured = measureProfileRow(rowHost(), Math.min(width, 740) - 32, fontScale)
+      expect(measured.height).toBe(beforeHeight)
+      const value = measured.texts.find((text) => text.label === expected)!
+      expect(value.lines).toBe(1)
+      expect(value.clipped).toBe(false)
+      expect(value.right).toBeLessThanOrEqual(Math.min(width, 740) - 32)
+      expect(entry.findAll((node) => node.type === ChevronRight)).toHaveLength(1)
       await TestRenderer.act(() => (entry.props.onPress as () => void)())
       const sheet = tree.root.findAll((node) => node.type === 'Sheet')[0]!
       const bank = sheet.findAll((node) => node.type === FreezeBank)[0]!
@@ -1532,6 +1556,40 @@ describe('mobile ProgressContent', () => {
       dimensions.mockRestore()
       mocks.usePortugueseCatalog = false
       await i18n.changeLanguage('en')
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the disabled freeze chevron above the non-text contrast floor in %s', async (mode) => {
+    theme.mode = mode
+    const previous = mocks.freeze.streakInfo
+    mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo
+    try {
+      const tree = await renderProgress(undefined, 'streak', false)
+      const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.freezes')[0]!
+      expect(entry.props.disabled).toBe(true)
+      const icons = entry.findAll((node) => node.type === ChevronRight)
+      expect(icons).toHaveLength(1)
+      let opacity = 1
+      for (let node: TestNode | null = icons[0]!; node; node = node.parent) {
+        if (typeof node.type === 'string') opacity *= Number(StyleSheet.flatten(node.props.style as ViewStyle).opacity ?? 1)
+      }
+      const tokens = createTokensV2('purple', mode)
+      expect(controlContrast(icons[0]!.props.color as string, 'rgba(0,0,0,0)', [tokens.bg], opacity).graphic).toBeGreaterThanOrEqual(3)
+    } finally {
+      mocks.freeze.streakInfo = previous
+    }
+  })
+
+  it('keeps the loaded freeze count legible during light focus and press', async () => {
+    theme.mode = 'light'
+    const tree = await renderProgress(undefined, 'streak', false)
+    const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.freezes')[0]!
+    const tokens = createTokensV2('purple', 'light')
+    for (const interaction of ['onFocus', 'onPressIn'] as const) {
+      await TestRenderer.act(() => (entry.props[interaction] as () => void)())
+      const value = entry.findAll((node) => node.type === 'Text' && node.props.children === '2 / 3')[0]!
+      const foreground = StyleSheet.flatten(value.props.style as TextStyle).color as string
+      expect(contrastOnSurface(foreground, [tokens.bg, tokens.bgHover])).toBeGreaterThanOrEqual(4.5)
     }
   })
 

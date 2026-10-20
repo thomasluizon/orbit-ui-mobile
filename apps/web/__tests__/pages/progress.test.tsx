@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/factories'
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
@@ -1505,6 +1505,7 @@ describe('ProgressContent', () => {
 
     expect(screen.getByText('progressScreen.streak.bankFull:{"count":3}')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.next')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog').querySelector('a[href="/upgrade"]')).toBeNull()
   })
 
   it.each([
@@ -1606,17 +1607,99 @@ describe('ProgressContent', () => {
         const measure = async () => {
           await page.setContent(`<style>${stylesheet}</style><div style="padding:16px;max-width:740px">${section.outerHTML}<h2 id="following">${words.progressScreen.sections.goals}</h2></div>`)
           await loadAppFonts(page)
-          return page.locator('#following').evaluate((element) => element.getBoundingClientRect().top)
+          return page.locator('[data-progress-streak-summary]').evaluate((summary) => {
+            const entry = summary.querySelector('button')!
+            const value = entry.querySelector('[data-slot="list-row-value"]')!
+            const range = document.createRange()
+            range.selectNodeContents(value)
+            return {
+              followingTop: summary.nextElementSibling!.getBoundingClientRect().top,
+              rowHeight: entry.getBoundingClientRect().height,
+              valueLines: new Set(Array.from(range.getClientRects(), (rect) => Math.round(rect.top))).size,
+              valueInside: value.getBoundingClientRect().right <= entry.getBoundingClientRect().right,
+            }
+          })
         }
+        expect(section.querySelector('[data-slot="list-row-value"]')).not.toBeNull()
         const before = await measure()
         Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
         rerender(<StreakPage />)
         await act(async () => { await Promise.resolve() })
-        expect.soft(await measure(), name).toBe(before)
+        const entry = within(section).getByRole('button', { name: words.progressScreen.streak.freezes })
+        expect(entry).toHaveTextContent(`${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`)
+        const after = await measure()
+        expect.soft(after, name).toEqual(before)
+        expect.soft(after.valueLines, name).toBe(1)
+        expect.soft(after.valueInside, name).toBe(true)
         unmount()
       }
     } finally {
       Object.assign(mocks.freeze, original)
+      await page.close()
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the disabled freeze chevron above the non-text contrast floor in %s', async (mode) => {
+    const previous = mocks.freeze.streakInfo
+    mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo
+    render(<StreakPage />)
+    const section = screen.getByRole('region', { name: 'progressScreen.sections.streak' })
+    const tokens = resolveWebThemeVariables('purple', mode)
+    const variables = Object.entries(tokens).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}:root{${variables}}</style>${section.outerHTML}`)
+      const rendered = await page.locator('[data-progress-streak-summary] button').evaluate((entry) => {
+        const icon = entry.querySelector('svg')!
+        let opacity = 1
+        for (let node: Element | null = icon; node; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity)
+        return { stroke: getComputedStyle(icon).stroke, opacity, icons: entry.querySelectorAll('svg').length }
+      })
+      expect(rendered.icons).toBe(1)
+      expect(controlContrast(rendered.stroke, 'rgba(0,0,0,0)', [tokens['--bg']!], rendered.opacity).graphic).toBeGreaterThanOrEqual(3)
+    } finally {
+      mocks.freeze.streakInfo = previous
+      await page.close()
+    }
+  })
+
+  it('keeps the loaded freeze count legible during light focus and hover', async () => {
+    render(<StreakPage />)
+    const section = screen.getByRole('region', { name: 'progressScreen.sections.streak' })
+    const tokens = resolveWebThemeVariables('purple', 'light')
+    const variables = Object.entries(tokens).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}:root{${variables}}</style><div class="light">${section.outerHTML}</div>`)
+      const entry = page.locator('[data-progress-streak-summary] button')
+      for (const action of [() => entry.focus(), () => entry.hover()]) {
+        await action()
+        const foreground = await entry.locator('[data-slot="list-row-value"]').evaluate((value) => getComputedStyle(value.firstElementChild ?? value).color)
+        expect(contrastOnSurface(foreground, [tokens['--bg']!, tokens['--bg-hover']!])).toBeGreaterThanOrEqual(4.5)
+      }
+    } finally {
+      await page.close()
+    }
+  })
+
+  it('retains the repair count when existing repair labels exceed the compact trailing slot', async () => {
+    mocks.usePortugueseCatalog = true
+    render(<StreakPage />)
+    const section = screen.getByRole('region', { name: ptBR.progressScreen.sections.streak })
+    const page = await browser.newPage({ viewport: { width: 320, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div style="padding:16px">${section.outerHTML}</div>`)
+      await loadAppFonts(page)
+      const widths = await page.locator('[data-slot="list-row-value"]').evaluate((value, labels) => {
+        const entry = value.closest('button')!
+        const title = entry.querySelector('[data-slot="list-row-title"]')!
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d')!
+        context.font = getComputedStyle(value).font
+        return { available: entry.getBoundingClientRect().width - title.getBoundingClientRect().width - 24 - 24, labels: labels.map((label) => context.measureText(label).width) }
+      }, [ptBR.progressScreen.streak.repairConfirmAction, createTranslator({ locale: 'pt-BR', messages: ptBR })('progressScreen.streak.repairAction', { dates: 'quarta-feira, 9 de set.' })])
+      for (const labelWidth of widths.labels) expect(labelWidth).toBeGreaterThan(widths.available)
+    } finally {
       await page.close()
     }
   })

@@ -11,6 +11,7 @@ const ordinary = streakInfoSchema.parse({
 
 const states: { name: string; overrides: Partial<StreakInfo> }[] = [
   { name: 'ordinary', overrides: {} },
+  { name: 'empty bank', overrides: { streakFreezesAccumulated: 0, freezesAvailableToUse: 0 } },
   { name: 'one protected day', overrides: { recentFreezeDates: ['2026-09-08'] } },
   { name: 'many protected days', overrides: { recentFreezeDates: Array.from({ length: 28 }, (_, index) => `2026-08-${String(index + 1).padStart(2, '0')}`) } },
   { name: 'full bank', overrides: { streakFreezesAccumulated: 3, freezesAvailableToUse: 3, canEarnMore: false } },

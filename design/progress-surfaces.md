@@ -55,7 +55,10 @@ the overview, so each geometry case mounts the composition that actually owns it
 
 The current streak figure, fourteen-day strip and one labelled Freezes or Congelamentos row
 occupy the same blocks while history loads and after every freeze-bank response. The entry is
-disabled while the history is unavailable. Both platforms place the longest streak, tier, inline named legend,
+disabled while the history is unavailable. Its single-line trailing value uses the bank’s
+count / capacity format in every loaded state, including repair. Loading hides the value
+without removing its geometry. The value uses the row’s secondary foreground, including
+its focus, hover and press promotion; the disabled chevron keeps the non-text contrast floor. Both platforms place the longest streak, tier, inline named legend,
 bank figures, earning bar, protected dates and frozen, covered-day, capacity and repair notices
 inside the shared sheet. The bank may omit its earning row at capacity inside that sheet.
 The existing repair confirmation, read-back, retry and account replacement behavior is retained.
@@ -66,3 +69,10 @@ streak owner and measures a following heading at its bottom across the freeze-st
 locales. Android checks identical summary block styles and sheet ownership for the same responses.
 The existing streak loading layout case measures the actual summary bottom and header; its
 execution remains with the layout workflow. Metas is a separate route with no streak response dependency.
+
+| Summary surface | States verified on web and Android |
+|---|---|
+| Disabled entry and reserved trailing value | Loading, both themes, disabled chevron contrast |
+| Loaded bank count | Ordinary, empty, full, one or many protected days, frozen today, manual and automatic coverage |
+| Repair count and details entry | Available, empty, partial, capped and unavailable repair; repair confirmation remains in the sheet |
+| Capacity sheet | Full bank, no earning row and no upgrade action |
