@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
-import { DailyStreakMoment } from '@/components/gamification/daily-streak-moment'
+import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
 import { API } from '@orbit/shared/api'
 import { QueryClient, QueryObserver } from '@tanstack/query-core'
@@ -262,7 +262,7 @@ vi.mock('@/lib/orbit-widget', () => ({
 
 vi.mock('@/stores/ui-store', async () => {
   const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
-  return { useUIStore: {
+  return { useUIStore: Object.assign((selector: (state: ReturnType<typeof actual.useUIStore.getState>) => unknown) => actual.useUIStore(selector), {
     getState: () => mocks.useRealUIStore ? actual.useUIStore.getState() : ({
       activeFilters: {},
       showStreakMoment: actual.useUIStore.getState().showStreakMoment,
@@ -270,7 +270,7 @@ vi.mock('@/stores/ui-store', async () => {
       setStreakCelebration: mocks.setStreakCelebration,
       setLastCreatedHabitId: mocks.setLastCreatedHabitId,
     }),
-  }}
+  })}
 })
 
 vi.mock('@/lib/habit-mutation-helpers', async () => {
@@ -3371,10 +3371,10 @@ describe('bulk streak and all-done ordering regressions', () => {
       expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['all-done'])
       if (active.kind === 'daily-streak') {
         vi.useFakeTimers()
-        TestRenderer.act(() => { moment = TestRenderer.create(React.createElement(DailyStreakMoment, { id: active.id, streak, reducedMotion: true, onDismiss: () => store.getState().completeActiveCelebration(active.id) })) })
-        TestRenderer.act(() => vi.advanceTimersByTime(DAILY_STREAK_MOMENT_DURATION - 1))
+        TestRenderer.act(() => { moment = TestRenderer.create(React.createElement(CelebrationPanel)) })
+        TestRenderer.act(() => { vi.advanceTimersByTime(DAILY_STREAK_MOMENT_DURATION - 1) })
         expect(store.getState().activeCelebration?.kind).toBe('daily-streak')
-        TestRenderer.act(() => vi.advanceTimersByTime(1))
+        TestRenderer.act(() => { vi.advanceTimersByTime(1) })
       } else {
         store.getState().completeActiveCelebration(active.id)
       }

@@ -2326,19 +2326,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     background: color-mix(in srgb, var(--fg-1) 90%, var(--bg));
   }
 }
-@keyframes celebration-rise {
-  from { transform: translateY(12px); }
-  to { transform: translateY(0); }
-}
-
-@keyframes celebration-ring-sweep {
-  from { stroke: var(--primary); stroke-dashoffset: 100; }
-  99% { stroke: var(--primary); }
-  to { stroke: var(--fg-1); stroke-dashoffset: 0; }
-}
-
-.celebration-ring { animation: celebration-ring-sweep 280ms var(--ease-out) both; }
-
 .orbit-streak-badge {
   isolation: isolate;
 }
@@ -2624,13 +2611,15 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   outline-offset: 2px;
 }
 
+.celebration-copy { min-width: min(100%, 7em); }
+.daily-streak-clip > span { grid-area: 1 / 1; }
 .daily-streak-previous { opacity: 0; }
-@keyframes daily-streak-ring {
-  from { stroke-dashoffset: 100; }
+@keyframes celebration-ring-sweep {
+  from { stroke-dashoffset: var(--celebration-ring-length); }
   to { stroke-dashoffset: 0; }
 }
 @keyframes daily-streak-previous {
-  from { opacity: 1; }
+  from { transform: translateY(0); opacity: 1; }
   to { transform: translateY(-12px); opacity: 0; }
 }
 @keyframes daily-streak-number {
@@ -2638,9 +2627,9 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   to { transform: translateY(0); opacity: 1; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .daily-streak-ring { animation: daily-streak-ring var(--dur-3) var(--ease-out) both; }
-  .daily-streak-previous { animation: daily-streak-previous var(--dur-3) var(--ease-out) both; }
-  .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out) both; }
+  [data-entering] .celebration-ring { animation: celebration-ring-sweep var(--dur-3) var(--ease-out); }
+  [data-entering] .daily-streak-previous { animation: daily-streak-previous var(--dur-3) var(--ease-out); }
+  [data-entering] .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out); }
 }
 
 @keyframes astra-pending-pulse {

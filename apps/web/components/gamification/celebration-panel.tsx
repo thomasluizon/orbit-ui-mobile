@@ -1,15 +1,28 @@
 'use client'
 
-import { DailyStreakMoment } from './daily-streak-moment'
-
-import { useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
-import { useReducedMotion } from 'motion/react'
+import { animate, motion, useMotionValue } from 'motion/react'
+import { motionDurations, motionEasings, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { isStreakCelebrationMilestone, type CelebrationQueueItem } from '@orbit/shared/stores'
 import { X } from '@/components/ui/icons'
+import { Button } from '@/components/ui/pill-button'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { plural } from '@/lib/plural'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
+import { DailyStreakMoment } from './daily-streak-moment'
+import { useCelebrationPresentation } from './use-celebration-presentation'
 
-const STREAK_MILESTONES = new Set([7, 14, 30, 90, 100, 365])
+const reduceQuery = '(prefers-reduced-motion: reduce)'
+function subscribeReducedMotion(listener: () => void) {
+  const query = window.matchMedia(reduceQuery)
+  query.addEventListener('change', listener)
+  return () => query.removeEventListener('change', listener)
+}
+function readReducedMotion() { return window.matchMedia(reduceQuery).matches }
+function serverReducedMotion() { return true }
 
 function getCelebrationCopy(
   active: NonNullable<ReturnType<typeof useUIStore.getState>['activeCelebration']>,
@@ -54,67 +67,132 @@ function getCelebrationCopy(
 }
 
 export function CelebrationPanel() {
-  const t = useTranslations('celebration')
-  const reducedMotion = Boolean(useReducedMotion())
   const active = useUIStore((state) => state.activeCelebration)
-  const complete = useUIStore((state) => state.completeActiveCelebration)
-  const closeButtonRef = useRef<HTMLButtonElement>(null)
-  const restoreCloseFocus = useRef(false)
-
-  useLayoutEffect(() => {
-    if (!restoreCloseFocus.current) return
-    restoreCloseFocus.current = false
-    closeButtonRef.current?.focus()
-  }, [active?.id])
-
-  if (!active) return null
-  if (active.kind === 'streak' && !STREAK_MILESTONES.has(active.payload.streak)) return null
-
-  const activeId = active.id
-  if (active.kind === 'daily-streak') return <DailyStreakMoment key={active.id} id={active.id} streak={active.payload.streak} reducedMotion={reducedMotion} onDismiss={dismiss} closeRef={closeButtonRef} />
-  const { eyebrowKey, lineKey, values, pluralCount } = getCelebrationCopy(active)
-  const translatedLine = t(lineKey, values)
-  const line = pluralCount === undefined
-    ? translatedLine
-    : plural(translatedLine, pluralCount)
-
-  function dismiss() {
-    restoreCloseFocus.current = document.activeElement === closeButtonRef.current
-    complete(activeId)
+  const generation = useAccountGeneration()
+  const [observed, setObserved] = useState({ id: active?.id, generation })
+  if (observed.id !== active?.id) setObserved({ id: active?.id, generation })
+  const reduced = useSyncExternalStore(subscribeReducedMotion, readReducedMotion, serverReducedMotion)
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const originRef = useRef<HTMLElement | null>(null)
+  const transferFocus = useRef(false)
+  const pendingFocus = useRef(false)
+  useEffect(() => {
+    const relinquish = (event: Event) => {
+      if (event.target !== closeRef.current) pendingFocus.current = false
+    }
+    document.addEventListener('pointerdown', relinquish, true)
+    document.addEventListener('focusin', relinquish, true)
+    return () => {
+      document.removeEventListener('pointerdown', relinquish, true)
+      document.removeEventListener('focusin', relinquish, true)
+    }
+  }, [])
+  const complete = () => {
+    const shouldTransfer = pendingFocus.current && generation === getAccountGeneration()
+      && (document.activeElement === closeRef.current || document.activeElement === document.body)
+    transferFocus.current = false
+    pendingFocus.current = false
+    if (!active) return
+    useUIStore.getState().completeActiveCelebration(active.id)
+    if (!shouldTransfer) return
+    if (useUIStore.getState().activeCelebration) transferFocus.current = true
+    else if (originRef.current?.isConnected) originRef.current.focus({ preventScroll: true })
+    else {
+      const main = document.querySelector<HTMLElement>('main')
+      if (main) { main.tabIndex = -1; main.focus({ preventScroll: true }) }
+    }
   }
+  useLayoutEffect(() => {
+    if (generation !== observed.generation) { pendingFocus.current = false; transferFocus.current = false; originRef.current = null; return }
+    if (transferFocus.current) { transferFocus.current = false; closeRef.current?.focus({ preventScroll: true }); return }
+    pendingFocus.current = false
+    if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) originRef.current = document.activeElement
+  }, [active?.id, generation, observed.generation])
+  if (!active || observed.generation !== generation) return null
+  if (active.kind === 'streak' && !isStreakCelebrationMilestone(active.payload.streak)) return null
+  return <CelebrationItem key={active.id} active={active} reduced={reduced} closeRef={closeRef} complete={complete}
+    beforeDismiss={() => { pendingFocus.current = document.activeElement === closeRef.current }} />
+}
 
+function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss }: {
+  active: CelebrationQueueItem
+  reduced: boolean
+  closeRef: React.RefObject<HTMLButtonElement | null>
+  complete: () => void
+  beforeDismiss: () => void
+}) {
+  const t = useTranslations()
+  const daily = active.kind === 'daily-streak'
+  const { eyebrowKey, lineKey, values, pluralCount } = getCelebrationCopy(active)
+  const translatedLine = t(`celebration.${lineKey}`, values)
+  const line = pluralCount === undefined ? translatedLine : plural(translatedLine, pluralCount)
+  const label = daily ? plural(t('streakDisplay.badge.tooltip', { count: active.payload.streak }), active.payload.streak) : line
+  const [announcement, setAnnouncement] = useState('')
+  const announced = useRef(false)
+  const { presentation, snapshot } = useCelebrationPresentation(active.id, daily, reduced, complete)
+  const { phase, revision, hidden } = snapshot
+  const exiting = phase === 'manual-exit' || phase === 'automatic-exit'
+  const entering = phase === 'enter' && !reduced && !hidden
+  const y = useMotionValue(0)
+  const opacity = useMotionValue(1)
+  useEffect(() => {
+    if (announced.current) return
+    const timeout = setTimeout(() => { announced.current = true; setAnnouncement(label) }, 0)
+    return () => clearTimeout(timeout)
+  }, [label])
+  useLayoutEffect(() => {
+    if (reduced || hidden) { y.set(0); opacity.set(1); return }
+    if (phase === 'hold') { y.set(0); opacity.set(1); return }
+    if (phase === 'enter') y.set(12)
+    const transition = { duration: (exiting ? motionDurations.base : motionDurations.slow) / 1000,
+      ease: [...(exiting ? motionEasings.exit : motionEasings.enter)] as [number, number, number, number] }
+    const movement = animate(y, exiting ? 12 : 0, transition)
+    const fade = exiting ? animate(opacity, 0, { ...transition, onComplete: () => presentation.finishExit(revision) }) : null
+    return () => { movement.stop(); fade?.stop() }
+  }, [exiting, hidden, opacity, phase, presentation, reduced, revision, y])
+  const dismiss = () => { if (phase === 'manual-exit') return; beforeDismiss(); presentation.dismiss() }
   return (
-    <section
-      key={active.id}
-      aria-atomic="true"
-      aria-live="polite"
-      data-celebration-panel=""
-      className="flex items-center gap-4 rounded-[20px] bg-[var(--bg-elev)] p-6 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]"
-      style={reducedMotion ? undefined : { animation: 'celebration-rise 280ms var(--ease-out) both' }}
-    >
-      <svg aria-hidden="true" className="size-11 shrink-0" viewBox="0 0 44 44">
-        <circle cx="22" cy="22" r="18" fill="none" stroke="var(--status-empty)" strokeWidth="2" />
-        <circle
-          className={reducedMotion ? undefined : 'celebration-ring'}
-          cx="22"
-          cy="22"
-          r="18"
-          fill="none"
-          pathLength="100"
-          stroke="var(--fg-1)"
-          strokeDasharray="100"
-          strokeLinecap="round"
-          strokeWidth="3"
-          transform="rotate(-90 22 22)"
-        />
-      </svg>
-      <div className="min-w-0 flex-1">
-        <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(eyebrowKey)}</p>
-        <p className="text-[17px] leading-[1.45] text-[var(--fg-1)]">{line}</p>
-      </div>
-      <button ref={closeButtonRef} type="button" aria-label={t('close')} className="flex size-[var(--touch-min)] shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-well)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={dismiss}>
+    <motion.section aria-label={label} data-celebration-panel={daily ? undefined : ''}
+      data-daily-streak-moment={daily ? '' : undefined} data-phase={phase} data-motion={reduced ? 'static' : 'animated'}
+      data-entering={entering || undefined} style={{ y, opacity }}
+      onFocusCapture={() => presentation.pause('focus', true)}
+      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) presentation.pause('focus', false) }}
+      onPointerEnter={(event) => { if (event.pointerType === 'mouse') presentation.pause('hover', true) }}
+      onPointerLeave={() => presentation.pause('hover', false)}
+      className={daily
+        ? 'celebration-notice flex flex-wrap items-center gap-[12px] rounded-[20px] bg-[var(--bg-elev)] p-4 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]'
+        : 'celebration-notice flex flex-wrap items-center gap-4 rounded-[20px] bg-[var(--bg-elev)] p-6 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]'}>
+      <span role="status" aria-atomic="true" className="sr-only">{announcement}</span>
+      <CelebrationRing />
+      {daily ? <DailyStreakMoment streak={active.payload.streak} entering={entering} /> : (
+        <div className="celebration-copy min-w-0 flex-1" aria-hidden="true">
+          <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(`celebration.${eyebrowKey}`)}</p>
+          <p className="text-[17px] leading-[1.45] text-[var(--fg-1)]">{line}</p>
+        </div>
+      )}
+      <Button buttonRef={closeRef} variant="ghost" quiet iconOnly minimumHeight={TOUCH_TARGET_MIN}
+        label={t('celebration.close')} disabled={phase === 'manual-exit'} onClick={dismiss}>
         <X aria-hidden="true" size={20} />
-      </button>
-    </section>
+      </Button>
+    </motion.section>
+  )
+}
+
+function CelebrationRing() {
+  const [length, setLength] = useState(0)
+  const measure = useCallback((circle: SVGCircleElement | null) => {
+    const measured = circle && typeof circle.getTotalLength === 'function' ? circle.getTotalLength() : undefined
+    if (measured !== undefined && Number.isFinite(measured) && measured > 0) setLength(measured)
+  }, [])
+  return (
+    <div aria-hidden="true" className="relative size-[44px] shrink-0">
+      <svg className="size-[44px]" viewBox="0 0 44 44">
+        <circle cx="22" cy="22" r="18" fill="none" stroke="var(--status-empty)" strokeWidth="2" />
+        <circle ref={measure} className={length ? 'celebration-ring' : undefined} cx="22" cy="22" r="18" fill="none"
+          stroke="var(--fg-1)" strokeWidth="3" strokeLinecap="round" strokeDasharray={length || undefined}
+          style={{ '--celebration-ring-length': length } as React.CSSProperties} transform="rotate(-90 22 22)" />
+      </svg>
+      <span className="pointer-events-none absolute inset-0 flex items-center justify-center"><OrbitMark size={16} accent={false} /></span>
+    </div>
   )
 }
