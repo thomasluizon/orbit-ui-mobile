@@ -578,6 +578,7 @@ it('withholds key details while access is locked or the list is loading', () => 
   management.loading = true
   view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
   expect(screen.getByRole('status')).toHaveTextContent(en.common.loading)
+  expect(screen.getByRole('status')).toBeInstanceOf(HTMLOutputElement)
   expect(screen.queryByText('habits:read, goals:read')).not.toBeInTheDocument()
 })
 
