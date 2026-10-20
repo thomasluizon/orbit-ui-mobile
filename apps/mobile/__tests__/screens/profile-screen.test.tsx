@@ -162,7 +162,9 @@ vi.mock('expo-sharing', () => {
   return { isAvailableAsync: vi.fn().mockResolvedValue(true), shareAsync: mockShareAsync }
 })
 
-vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn() }))
+vi.mock('expo-clipboard', () => ({
+  setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn(),
+}))
 
 vi.mock('expo-device', () => ({
   __esModule: true,
@@ -1367,7 +1369,7 @@ describe('ProfileScreen', () => {
     const endpoint = getMcpEndpointUrl(API_BASE)
     const endpointText = tree.root.findAll((node: { type: unknown; children: unknown[] }) => node.type === 'Text' && node.children.includes(endpoint))[0]
     expect(endpointText.props.selectable).toBe(true)
-    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.copy').props.onPress())
+    await TestRenderer.act(async () => { findButtonByText(tree, 'orbitMcp.copy').props.onPress(); await Promise.resolve() })
     expect(Clipboard.setStringAsync).toHaveBeenCalledWith(endpoint)
     const pendingCopy = findButtonByText(tree, 'orbitMcp.copy')
     expect(pendingCopy.props.accessibilityState.disabled).toBe(true)

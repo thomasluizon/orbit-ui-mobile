@@ -253,6 +253,16 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
   const [copied, setCopied] = useState(false)
 
+  async function copyKey() {
+    try {
+      await Clipboard.setStringAsync(createdKey.key)
+      setCopied(true)
+    } catch (error) {
+      captureError(error)
+      setCopied(false)
+    }
+  }
+
   return (
     <Sheet
       ref={sheetRef}
@@ -267,11 +277,7 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
           <PillButton
             size="sm"
             variant="ghost"
-            onClick={() => {
-              void Clipboard.setStringAsync(createdKey.key).then(() => {
-                setCopied(true)
-              }).catch(captureError)
-            }}
+            onClick={() => { void copyKey() }}
           >
             {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
           </PillButton>

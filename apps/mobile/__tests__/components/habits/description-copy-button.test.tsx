@@ -6,8 +6,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DescriptionCopyButton } from '@/components/habits/description-copy-button'
 
-const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn(), getStringAsync: vi.fn() }))
-vi.mock('expo-clipboard', () => (clipboard))
+const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn() }))
+vi.mock('expo-clipboard', () => ({ ...clipboard }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 let tree: ReactTestRenderer
 const description = '  **Original**\n\n' + 'A complete note. '.repeat(100)

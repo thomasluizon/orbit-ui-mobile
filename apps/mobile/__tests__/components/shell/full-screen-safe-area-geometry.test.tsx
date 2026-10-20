@@ -35,7 +35,7 @@ await vi.hoisted(async () => {
   svgModule.exports = await import('react-native-svg')
   load.cache[svgPath] = svgModule
 })
-vi.mock('expo-clipboard', () => ({}))
+vi.mock('expo-clipboard', () => ({ }))
 
 vi.mock('@/hooks/use-habits', () => ({}))
 vi.mock('@/hooks/use-push-subscriptions', () => ({}))

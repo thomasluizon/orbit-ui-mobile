@@ -38,8 +38,8 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
-const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn(), getStringAsync: vi.fn() }))
-vi.mock('expo-clipboard', () => (clipboard))
+const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn() }))
+vi.mock('expo-clipboard', () => ({ ...clipboard }))
 
 const TestRenderer = require('react-test-renderer')
 

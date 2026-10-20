@@ -15,7 +15,7 @@ import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-are
 
 vi.unmock('react-i18next')
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('expo-clipboard', () => ({}))
+vi.mock('expo-clipboard', () => ({ }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
   useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),

@@ -229,7 +229,7 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
             copyFailed={failedAction === 'copy'}
             tokens={tokens}
             styles={styles}
-            onCopy={() => void copyLink()}
+            onCopy={() => { void copyLink() }}
           />
         ) : null}
       </View>

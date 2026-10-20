@@ -419,7 +419,7 @@ describe('Astra block copying', () => {
       const buttons = () => tree!.root.findAllByType('Pressable').filter((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'button')
       expect(buttons()).toHaveLength(blocks.length)
       for (const [index, text] of blocks.entries()) {
-        await TestRenderer.act(async () => { buttons()[index].props.onPress(); await Promise.resolve() })
+        await TestRenderer.act(async () => { await buttons()[index].props.onPress() })
         expect(setStringAsync).toHaveBeenLastCalledWith(text)
         expect(buttons()[index].props.accessibilityLabel).toBe('chat.blockCopy.copied')
         const liveRegions = tree!.root.findAllByType('Text').filter((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')
@@ -448,7 +448,7 @@ describe('Astra block copying', () => {
       TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
       const button = tree!.root.findAllByType('Pressable')[0]
       const region = tree!.root.findAllByType('Text').find((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')
-      await TestRenderer.act(async () => { button.props.onPress(); await Promise.resolve() })
+      await TestRenderer.act(async () => { await button.props.onPress() })
       TestRenderer.act(() => { tree!.update(<MessageBubble message={{ ...message }} />) })
       expect(tree!.root.findAllByType('Pressable')[0]).toBe(button)
       TestRenderer.act(() => { tree!.update(<MessageBubble message={{ ...message, content: `${content} that continues.` }} />) })
@@ -476,7 +476,7 @@ describe('Astra block copying', () => {
       TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
       const button = tree!.root.findAllByType('Pressable')[0]
       const region = tree!.root.findAllByType('Text').find((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')
-      await TestRenderer.act(async () => { button.props.onPress(); button.props.onFocus(); button.props.onHoverIn(); await Promise.resolve() })
+      await TestRenderer.act(async () => { await button.props.onPress(); button.props.onFocus(); button.props.onHoverIn() })
       TestRenderer.act(() => { tree!.update(<MessageBubble message={{ ...message, content: content + appended }} />) })
       const updatedButton = tree!.root.findAllByType('Pressable')[0]
       expect(updatedButton.props.accessibilityLabel).toBe('chat.blockCopy.copied')
@@ -505,7 +505,7 @@ describe('Astra block copying', () => {
     try {
       TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage({ role: 'ai', content: '```\nkeep me\n```', pendingOperations: [] })} />) })
       const button = tree!.root.findAllByType('Pressable')[0]
-      await TestRenderer.act(async () => { button.props.onPress(); await Promise.resolve() })
+      await TestRenderer.act(async () => { await button.props.onPress() })
       TestRenderer.act(() => { if (attention === 'focus') button.props.onFocus(); else button.props.onHoverIn() })
       TestRenderer.act(() => { vi.advanceTimersByTime(6000) })
       expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copied')

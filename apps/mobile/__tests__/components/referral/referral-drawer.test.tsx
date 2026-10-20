@@ -19,7 +19,7 @@ const stats: ReferralStats = {
 const mocks = vi.hoisted(() => ({
   referral: {} as { stats: ReferralStats | null; isLoading: boolean; isError: boolean; error: Error | null },
   share: vi.fn(),
-  setStringAsync: vi.fn(),
+  setStringAsync: vi.fn().mockResolvedValue(true),
 }))
 
 vi.mock('react-native', async (importOriginal) => ({

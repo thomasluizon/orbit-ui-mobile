@@ -8,7 +8,7 @@ import { AccountRowsCard } from '@/components/chat/account-rows-card'
 import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
-const mocks = vi.hoisted(() => ({ push: vi.fn(), setStringAsync: vi.fn(), share: vi.fn(), locale: 'en' }))
+const mocks = vi.hoisted(() => ({ push: vi.fn(), setStringAsync: vi.fn().mockResolvedValue(true), share: vi.fn(), locale: 'en' }))
 vi.mock('react-native', async () => {
   const reactNative = await import('../../../test-mocks/react-native')
   return { ...reactNative, Share: { share: mocks.share } }
@@ -73,7 +73,7 @@ describe('Astra account rows on mobile', () => {
     const code = tree.root.findAll((node: any) => node.type === Text && node.props.children === 'ORBIT123')[0]
     expect(code.props.numberOfLines).toBeUndefined()
     const copy = tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' })
-    await TestRenderer.act(async () => { copy.props.onPress(); await Promise.resolve() })
+    await TestRenderer.act(async () => { await copy.props.onPress() })
     expect(mocks.setStringAsync).toHaveBeenCalledWith('ORBIT123')
     expect(renderedText(tree.toJSON())).toContain('chat.account.copied')
     const openShare = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.account.share'))[0]

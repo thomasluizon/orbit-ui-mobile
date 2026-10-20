@@ -34,7 +34,7 @@ export function BlockCopyControl({ text }: Readonly<{ text: string }>) {
 
   const label = t(status === 'copied' ? 'chat.blockCopy.copied' : 'chat.blockCopy.copy')
   return <View style={{ alignItems: 'flex-end', gap: SPACING.s8, padding: SPACING.s8 }}>
-    <Button variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} accessibleName={label} leadingIcon={<Copy size={16} color={tokens.fg1} />} onClick={() => void copyBlock()} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}>{label}</Button>
+    <Button variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} accessibleName={label} leadingIcon={<Copy size={16} color={tokens.fg1} />} onClick={() => { void copyBlock() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}>{label}</Button>
     <Text accessibilityLiveRegion="polite" style={status === 'error' ? { color: tokens.statusBadText, fontSize: 14 } : styles.announcement}>
       {status === 'idle' ? '' : t(status === 'error' ? 'chat.blockCopy.copyError' : 'chat.blockCopy.copied')}
     </Text>

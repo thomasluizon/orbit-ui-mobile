@@ -18,7 +18,7 @@ vi.unmock('react-i18next')
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true) }))
 const preferences = vi.hoisted(() => ({ consent: false }))
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}), useMutation: () => ({ isPending: false, mutate: vi.fn() }) }))
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
