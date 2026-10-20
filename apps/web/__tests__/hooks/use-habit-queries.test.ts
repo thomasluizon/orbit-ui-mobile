@@ -655,21 +655,26 @@ describe('serialized reminder reads through the web queries', () => {
         : url.includes('?') ? reminderWire['PaginatedResponse`1'] : reminderWire.HabitDetailResponse,
     ))
     const wrapper = createWrapper()
-    const list = renderHook(() => useHabits({}), { wrapper })
-    const detail = renderHook(() => useHabitDetail('reminder'), { wrapper })
-    const full = renderHook(() => useHabitFullDetail('reminder'), { wrapper })
+    const { result, unmount } = renderHook(() => {
+      const list = useHabits({})
+      const detail = useHabitDetail('reminder')
+      const full = useHabitFullDetail('reminder')
+      return {
+        list: { data: list.data, isSuccess: list.isSuccess },
+        detail: { data: detail.data, isSuccess: detail.isSuccess },
+        full: { data: full.data, isSuccess: full.isSuccess },
+      }
+    }, { wrapper })
     await waitFor(() => {
-      expect(list.result.current.isSuccess).toBe(true)
-      expect(detail.result.current.isSuccess).toBe(true)
-      expect(full.result.current.isSuccess).toBe(true)
+      expect(result.current.list.isSuccess).toBe(true)
+      expect(result.current.detail.isSuccess).toBe(true)
+      expect(result.current.full.isSuccess).toBe(true)
     })
     const reminders = { scheduledReminders: [{ when: 'same_day' }, { when: 'day_before' }], relativeReminders: [{ when: 'same_day' }, { when: 'day_before' }] }
-    expect(list.result.current.data?.topLevelHabits[0]).toMatchObject(reminders)
-    expect(detail.result.current.data).toMatchObject(reminders)
-    expect(full.result.current.data?.habit).toMatchObject(reminders)
+    expect(result.current.list.data?.topLevelHabits[0]).toMatchObject(reminders)
+    expect(result.current.detail.data).toMatchObject(reminders)
+    expect(result.current.full.data?.habit).toMatchObject(reminders)
     expect(mockFetch).toHaveBeenCalledTimes(3)
-    list.unmount()
-    detail.unmount()
-    full.unmount()
+    unmount()
   })
 })

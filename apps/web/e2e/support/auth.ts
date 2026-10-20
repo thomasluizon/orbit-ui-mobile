@@ -1,8 +1,9 @@
 import { expect, type Page } from '@playwright/test'
 import { smokeEnv } from './env'
+import { openSignIn } from './sign-in-entry'
 
 export async function authenticate(page: Page): Promise<void> {
-  await page.goto('/login')
+  await openSignIn(page)
 
   await page.locator('input[name="email"]').fill(smokeEnv.testEmail)
   await page.locator('form:has(input[name="email"])').locator('button[type="submit"]').click()
