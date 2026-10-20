@@ -2,12 +2,12 @@
 
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useMemo } from 'react'
-import { useQuery, useQueries } from '@tanstack/react-query'
+import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query'
 import {
   startOfMonth,
   endOfMonth,
 } from 'date-fns'
-import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { habitKeys, QUERY_STALE_TIMES, getCachedCalendarDayMap } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
   ApiClientError,
@@ -32,6 +32,7 @@ async function fetchCalendarMonth(
 }
 
 function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = true) {
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: habitKeys.calendar(rangeStart, rangeEnd),
     queryFn: () => fetchCalendarMonth(rangeStart, rangeEnd),
@@ -40,9 +41,9 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
   })
 
   const dayMap = useMemo<Map<string, CalendarDayEntry[]>>(() => {
-    if (!query.data) return new Map()
+    if (!query.data) return getCachedCalendarDayMap(queryClient, rangeStart, rangeEnd)
     return buildCalendarDayMap(query.data, { from: rangeStart, to: rangeEnd })
-  }, [query.data, rangeStart, rangeEnd])
+  }, [query.data, queryClient, rangeStart, rangeEnd])
 
   return {
     dayMap,

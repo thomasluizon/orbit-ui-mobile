@@ -3,6 +3,8 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useCalendarData, useCalendarRangeChunked } from '@/hooks/use-calendar-data'
+import { habitKeys } from '@orbit/shared/query'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { emptyCalendarMonth } from '../../e2e/layout/calendar-month-fixture'
 
 const mockFetch = vi.fn()
@@ -455,5 +457,26 @@ describe('useCalendarRangeChunked', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.error).not.toBeNull()
+  })
+})
+
+describe('calendar loading from the complete day cache', () => {
+  it.each([0, 1, 2, 4])('reserves %i cached habits before the delayed month response', async (count) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const day = '2026-09-04'
+    const habits = Array.from({ length: count }, (_, index) => makeHabitScheduleItem({ id: `habit-${index}`, title: index === 3 ? 'Caminhar pelo bairro depois do trabalho e conversar com amigos' : `Habit ${index}`, children: [], hasSubHabits: false, dueDate: day, scheduledDates: [day], instances: [] }))
+    client.setQueryData(habitKeys.list({ dateFrom: day, dateTo: day, completeDay: true, includeOverdue: true }), habits)
+    let release!: (response: Response) => void
+    mockFetch.mockReturnValueOnce(new Promise<Response>((resolve) => { release = resolve }))
+    const wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(QueryClientProvider, { client }, children)
+    const { result, unmount } = renderHook(() => useCalendarData(new Date(2026, 8, 1)), { wrapper })
+    expect(result.current.isLoading).toBe(true)
+    const loading = result.current.dayMap.get(day)!.map(({ habitId, title, dueTime }) => ({ habitId, title, dueTime }))
+    expect(loading.map((entry) => entry.title)).toEqual(habits.map((habit) => habit.title))
+    await act(async () => { release(new Response(JSON.stringify({ habits, logs: {} }))) })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect((result.current.dayMap.get(day) ?? []).map(({ habitId, title, dueTime }) => ({ habitId, title, dueTime }))).toEqual(loading)
+    unmount()
+    client.clear()
   })
 })

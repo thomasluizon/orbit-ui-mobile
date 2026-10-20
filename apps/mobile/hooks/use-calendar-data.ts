@@ -2,8 +2,8 @@
 
 import { useMemo } from 'react'
 import { endOfMonth, startOfMonth } from 'date-fns'
-import { useQuery } from '@tanstack/react-query'
-import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { habitKeys, QUERY_STALE_TIMES, getCachedCalendarDayMap } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { buildCalendarDayMap, formatAPIDate } from '@orbit/shared/utils'
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
@@ -11,6 +11,7 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { apiClient } from '@/lib/api-client'
 
 function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = true) {
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: habitKeys.calendar(rangeStart, rangeEnd),
     queryFn: async () => calendarMonthResponseSchema.parse(await apiClient<unknown>(
@@ -21,9 +22,9 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
   })
 
   const dayMap = useMemo<Map<string, CalendarDayEntry[]>>(() => {
-    if (!query.data) return new Map()
+    if (!query.data) return getCachedCalendarDayMap(queryClient, rangeStart, rangeEnd)
     return buildCalendarDayMap(query.data, { from: rangeStart, to: rangeEnd })
-  }, [query.data, rangeStart, rangeEnd])
+  }, [query.data, queryClient, rangeStart, rangeEnd])
 
   return {
     dayMap,
