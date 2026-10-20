@@ -125,8 +125,11 @@ describe('interaction fill guard with the mounted conversation owners', () => {
       try {
         const heading = await page.getByRole('heading', { name: 'Destination' }).elementHandle()
         const create = route === '/habits/habit-1' ? null : await page.locator('[data-shell-fab] button').elementHandle()
-        const controls = page.locator('[data-shell-pinned-slot] textarea, [data-shell-tab-bar] a[href], [data-shell-fab] button')
-        const counts = await inspectControls(page, controls, `${route}, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE)
+        const context = `${route}, ${width}px, ${locale}`
+        const counts = await inspectControls(page, page.locator('[data-shell-pinned-slot] textarea'), context, INTERACTION_FILL_CLEARANCE)
+        if (create) await page.locator('[data-shell-fab] button').waitFor({ state: 'visible' })
+        await page.locator('[data-interaction-fill-probe]').evaluateAll(elements => elements.forEach(element => element.removeAttribute('data-interaction-fill-probe')))
+        await inspectControls(page, page.locator('[data-shell-tab-bar] a[href], [data-shell-fab] button'), context, INTERACTION_FILL_CLEARANCE, counts)
         expect(counts).toEqual({ inspectedControls: route === '/habits/habit-1' ? 5 : 6, skippedSentinels: 0 })
         expect(await heading!.evaluate(element => element.isConnected)).toBe(true)
         if (create) expect(await create.evaluate(element => element.isConnected)).toBe(false)

@@ -93,8 +93,10 @@ describe.each([412, 840, 1200, 1352, 1600])('sub-screen start edges at %ipx', (w
       const content = tree.root.findAll((node) => node.props.testID === 'about-content')[0]!
       const identity = tree.root.findAll((node) => node.props.testID === 'about-identity')[0]!
       const [box, body] = layout(width, [styleOf(content), styleOf(identity)])
-      expect(body!.left).toBe(16)
+      // WHY: #1570 centres the column while retaining its child inset. https://github.com/thomasluizon/orbit-tickets/issues/1570
+      expect(body!.left).toBe(box!.left + 16)
       expect(box!.width).toBe(width < 1024 ? width : 652)
+      expect(box!.left).toBe((width - box!.width) / 2)
       expect(body!.width).toBe(box!.width - 32)
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
@@ -106,8 +108,10 @@ describe.each([412, 840, 1200, 1352, 1600])('sub-screen start edges at %ipx', (w
       const scroll = tree.root.findAll((node) => node.type === ScrollView)[0]!
       const form = firstView(scroll)
       const [box, body] = layout(width, [StyleSheet.flatten(scroll.props.contentContainerStyle) as ViewStyle, styleOf(form)])
-      expect(body!.left).toBe(16)
+      // WHY: #1570 centres the column while retaining its child inset. https://github.com/thomasluizon/orbit-tickets/issues/1570
+      expect(body!.left).toBe(box!.left + 16)
       expect(box!.width).toBe(Math.min(width, 620))
+      expect(box!.left).toBe((width - box!.width) / 2)
       expect(body!.width).toBe(Math.min(width - 32, 520))
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
@@ -135,8 +139,9 @@ describe.each([412, 840, 1200, 1352, 1600])('sub-screen start edges at %ipx', (w
         const [box, , body] = layout(width, [
           StyleSheet.flatten(scroll.props.contentContainerStyle) as ViewStyle, styleOf(success), styleOf(child),
         ])
-        expect.soft(body!.left).toBe(16)
+        expect.soft(body!.left).toBe(box!.left + 16)
         expect.soft(box!.width).toBe(Math.min(width, 620))
+        expect.soft(box!.left).toBe((width - box!.width) / 2)
       }
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
@@ -158,8 +163,9 @@ describe.each([412, 840, 1200, 1352, 1600])('sub-screen start edges at %ipx', (w
         const content = root.findAll((node) => node.type === View)[1]!
         const [box, body] = layout(width, [styleOf(root), styleOf(content)])
         const frameWidth = width < 1024 ? width : (pitch ? 620 : 560) + 32
-        expect.soft(body!.left).toBe(16)
-        expect.soft(box!.left).toBe(0)
+        expect.soft(body!.left).toBe(box!.left + 16)
+        // WHY: #1570 centres the capped column, including every subscription state. https://github.com/thomasluizon/orbit-tickets/issues/1570
+        expect.soft(box!.left).toBe((width - frameWidth) / 2)
         expect.soft(box!.width).toBe(frameWidth)
         expect.soft(body!.width).toBe(frameWidth - 32)
       } finally { await TestRenderer.act(() => tree.update(<></>)) }

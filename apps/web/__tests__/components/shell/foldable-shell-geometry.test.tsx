@@ -60,7 +60,7 @@ describe('Foldable shell geometry', () => {
     } finally { await page.close() }
   })
 
-  it.each([412, 1200, 1600])('starts the shared destination frame with its drawn cap at %ipx', async (width) => {
+  it.each([412, 480, 840, 1100, 1200, 1352, 1600])('centres the shared destination frame with its drawn cap at %ipx', async (width) => {
     const { container } = render(<ShellWide nav={false}><ProfileSettingsFrame isLoading={false} loadingLabel="Loading" labels={{}} rows={{}} /></ShellWide>)
     const page = await browser.newPage({ viewport: { width, height: 900 } })
     try {
@@ -73,7 +73,7 @@ describe('Foldable shell geometry', () => {
           frameLeft: frame.left, frameWidth: frame.width, sectionWidth: section.width }
       })
       expect(geometry.frameWidth).toBe(width < 1024 ? geometry.available : 592)
-      expect(geometry.frameLeft).toBe(geometry.left)
+      expect(geometry.frameLeft).toBe(geometry.left + (geometry.available - geometry.frameWidth) / 2)
       expect(geometry.sectionWidth).toBe(geometry.frameWidth - 32)
     } finally { await page.close() }
   })
@@ -403,7 +403,8 @@ describe('Foldable shell geometry', () => {
         scroller.scrollTop = scroller.scrollHeight
         const bottom = document.querySelector('[data-shell-bottom]')!.getBoundingClientRect()
         const last = scroller.lastElementChild!.getBoundingClientRect()
-        const pinned = document.querySelector('[data-shell-pinned-slot]')!.getBoundingClientRect()
+        const viewport = document.querySelector('[data-shell-bottom-viewport]')!
+        const pinned = (getComputedStyle(viewport).display === 'contents' ? document.querySelector('[data-shell-pinned-slot]')! : viewport).getBoundingClientRect()
         return {
           availableWidth: available.width, width: content.width,
           leftGap: content.left - available.left, rightGap: available.right - content.right,

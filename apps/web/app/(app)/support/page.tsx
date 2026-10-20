@@ -173,7 +173,7 @@ export default function SupportPage() {
   const disabled = isSending || !isOnline
 
   return (
-    <div className="min-w-0 md:w-full md:max-w-[620px]">
+    <div className="mx-auto min-w-0 w-full md:max-w-[620px]">
       <div className="flex flex-col">
         <PageHeader
           backLabel={backLabel}

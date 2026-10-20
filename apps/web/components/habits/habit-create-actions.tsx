@@ -16,7 +16,7 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onl
 }>) {
   const t = useTranslations()
   const screen = presentation === 'screen'
-  const buttonLabel = subHabit ? t('common.create') : t('habits.createHabit')
+  const label = subHabit ? t('common.create') : t('habits.createHabit')
   const descriptionId = empty ? `${formId}-create-reason` : undefined
   const reason = empty ? <p id={`${formId}-create-reason`} className={`text-sm text-[var(--fg-3)]${screen ? ' text-center sm:text-start' : ''}`}>{t('habits.form.createWhy')}</p> : null
   return <div className={online ? 'flex w-full flex-col' : 'flex w-full flex-col gap-4'}>
@@ -26,14 +26,14 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onl
       {screen ? (
         <PillButton size="md" formId={formId} disabled={empty}
           descriptionId={descriptionId} loading={pending}>
-          {buttonLabel}
+          {label}
         </PillButton>
       ) : (
         <ActionRow>
           <PillButton variant="ghost" disabled={pending} onClick={onCancel}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" formId={formId}
           descriptionId={descriptionId} loading={pending}>
-          {buttonLabel}
+          {label}
         </PillButton>
         </ActionRow>
       )}
