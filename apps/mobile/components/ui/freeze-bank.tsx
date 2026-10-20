@@ -18,7 +18,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
 
   return (
     <View testID="freeze-bank" accessible={loading} accessibilityState={{ busy: loading }} accessibilityLabel={props.loadingLabel} style={styles.root}>
-      <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} pointerEvents={loading ? 'none' : 'auto'} style={loading && styles.hidden}><StreakLegend words={props.words} /></View>
+      <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} pointerEvents={loading ? 'none' : 'auto'} style={loading && styles.hidden}><StreakLegend inSheet={props.inSheet} words={props.words} /></View>
       <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={[styles.figureRow, width / fontScale < 360 && styles.stacked, loading && styles.hidden]}>
         <View style={styles.figureBlock}><StatTile value={props.longestValue} label={props.longestLabel} /></View>
         <View style={styles.figureBlock}><StatTile value={props.tierValue} label={props.tierLabel} /></View>

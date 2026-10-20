@@ -998,7 +998,7 @@ describe('mobile ProgressContent', () => {
     expect(mocks.router.push).not.toHaveBeenCalled()
   })
 
-  it('discloses the streak legend and keeps the top habit outside the figures', async () => {
+  it('opens and dismisses freeze details while keeping the top habit outside the figures', async () => {
     const tree = await renderProgress()
     const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
     expect(figures).toHaveLength(3)
@@ -1007,25 +1007,16 @@ describe('mobile ProgressContent', () => {
     expect(habit.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'Read')).toHaveLength(1)
     expect(habit.props.accessibilityRole).toBe('button')
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'progressScreen.streak.active')).toHaveLength(0)
-    const streakTree = await renderProgress(undefined, 'streak')
-    const entry = streakTree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.legend')[0]!
-    const pill = streakTree.root.findAll((node) => node.type === PillButton && node.props.label === 'progressScreen.streak.legend')[0]!
-    expect(pill.props).toMatchObject({ variant: 'ghost', size: 'sm', iconOnly: true })
-    const tokens = createTokensV2('purple', theme.mode)
-    const entryStyle = (pressed = false) => StyleSheet.flatten((entry.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed }))
-    expect(entryStyle()).toMatchObject({ width: 48, height: 48, borderWidth: 1.5, borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' })
-    expect(entryStyle().borderRadius).toBeGreaterThanOrEqual(24)
-    expect(entryStyle(true).backgroundColor).toBe(tokens.bgHover)
-    expect(entry.props.onHoverIn).toBeTypeOf('function')
-    await TestRenderer.act(() => { (entry.props.onHoverIn as () => void)() })
-    expect(entryStyle().backgroundColor).toBe(tokens.bgHover)
-    expect(entryStyle().transform).toBeUndefined()
-    await TestRenderer.act(() => { (entry.props.onHoverOut as () => void)() })
-    expect(entryStyle().backgroundColor).toBe('transparent')
+    const streakTree = await renderProgress(undefined, 'streak', false)
+    const entry = streakTree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.freezes')[0]!
     expect(entry.props.accessibilityState).toMatchObject({ expanded: false })
     await TestRenderer.act(() => { (entry.props.onPress as () => void)() })
     expect(entry.props.accessibilityState).toMatchObject({ expanded: true })
-    expect(streakTree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'progressScreen.streak.active')).toHaveLength(1)
+    const sheet = streakTree.root.findAll((node) => node.type === 'Sheet')[0]!
+    const close = sheet.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!
+    await TestRenderer.act(() => { (close.props.onPress as () => void)() })
+    expect(streakTree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+    expect(entry.props.accessibilityState).toMatchObject({ expanded: false })
   })
 
   it.each(['overview', 'streak', 'achievements'] as const)('keeps the %s Pro boundary in its own screen', async (destination) => {
@@ -1496,6 +1487,16 @@ describe('mobile ProgressContent', () => {
     } finally {
       mocks.retrospective.data = retrospectiveData
     }
+  })
+
+  it('keeps the freeze legend inside one sheet', async () => {
+    const tree = await renderProgress(undefined, 'streak')
+    const sheets = tree.root.findAll((node) => node.type === 'Sheet')
+    expect(sheets).toHaveLength(1)
+    for (const state of ['active', 'frozen', 'missed']) {
+      expect(sheets[0]!.findAll((node) => node.type === 'Text' && node.props.children === `progressScreen.streak.${state}`)).toHaveLength(1)
+    }
+    expect(tree.root.findAll((node) => node.type === PillButton && node.props.label === 'progressScreen.streak.legend')).toHaveLength(0)
   })
 
   it.each(progressStreakStates.flatMap((state) => [412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => (['en', 'pt-BR'] as const).map((locale) => ({ ...state, width, fontScale, locale }))))))('keeps loading and loaded streak blocks identical for $name at $width with scale $fontScale in $locale', async ({ streak, width, fontScale, locale }) => {

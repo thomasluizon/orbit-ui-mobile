@@ -6,7 +6,7 @@ and Android. The Progresso amendment in `DESIGN.md` and `design/canvas/README.md
 | Surface | Web owner | Android owner | Retained content and actions |
 |---|---|---|---|
 | Overview, `/progress` | `apps/web/app/(app)/progress/page.tsx` | `apps/mobile/app/(tabs)/progress.tsx` | One neutral completion chart, completion rate, active days, best weekday, most consistent habit and its destination or full-name disclosure; three sub-menu rows; Avisos |
-| Sequência, `/progress/streak` | `apps/web/app/(app)/progress/streak/page.tsx` | `apps/mobile/app/progress/streak.tsx` | Current and longest streak, fourteen days, tier, frozen and covered-day notices, legend sheet, freeze bank and ceiling, monthly usage, next-freeze bar, protected dates, gap and repair confirmation, repair failures and capacity notice |
+| Sequência, `/progress/streak` | `apps/web/app/(app)/progress/streak/page.tsx` | `apps/mobile/app/progress/streak.tsx` | Current and longest streak, fourteen days, tier, frozen and covered-day notices, named legend, freeze bank and ceiling, monthly usage, next-freeze bar, protected dates, gap and repair confirmation, repair failures and capacity notice |
 | Metas, `/progress/goals` | `apps/web/app/(app)/progress/goals/page.tsx` | `apps/mobile/app/progress/goals.tsx` | Create sheet, status filter, clear filter, drag and accessible reordering, goal status and progress, inline detail, linked habits, history, editing, manual progress, completion, reopening, abandonment and deletion |
 | Conquistas, `/progress/achievements` | `apps/web/app/(app)/progress/achievements/page.tsx` | `apps/mobile/app/progress/achievements.tsx` | Level, title, XP and next-level bar, visible achievement categories, earned states and individual progress; social categories remain hidden |
 
@@ -55,7 +55,7 @@ the overview, so each geometry case mounts the composition that actually owns it
 
 The current streak figure, fourteen-day strip and one labelled Freezes or Congelamentos row
 occupy the same blocks while history loads and after every freeze-bank response. The entry is
-disabled while the history is unavailable. Both platforms place the longest streak, tier, legend,
+disabled while the history is unavailable. Both platforms place the longest streak, tier, inline named legend,
 bank figures, earning bar, protected dates and frozen, covered-day, capacity and repair notices
 inside the shared sheet. The bank may omit its earning row at capacity inside that sheet.
 The existing repair confirmation, read-back, retry and account replacement behavior is retained.

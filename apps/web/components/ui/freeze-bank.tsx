@@ -12,7 +12,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
 
   return (
     <div data-component="freeze-bank" role="group" aria-busy={loading} aria-label={props.loadingLabel} data-bank-state={atCeiling ? 'at-ceiling' : 'banked'} data-progress-state={atCeiling ? 'resting' : 'earning'} data-protected-state={protectedEmpty ? 'empty' : 'protected'} className="relative flex flex-col gap-4">
-      <div inert={loading || undefined} aria-hidden={loading || undefined} className={loading ? 'invisible' : undefined}><StreakLegend words={props.words} /></div>
+      <div inert={loading || undefined} aria-hidden={loading || undefined} className={loading ? 'invisible' : undefined}><StreakLegend inSheet={props.inSheet} words={props.words} /></div>
       <div inert={loading || undefined} aria-hidden={loading || undefined} className={`flex flex-wrap gap-4${loading ? ' invisible' : ''}`}>
         <StatTile value={props.longestValue} label={props.longestLabel} />
         <StatTile value={props.tierValue} label={props.tierLabel} />

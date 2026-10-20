@@ -35,7 +35,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           expect(await summary.evaluate((element) => element.getBoundingClientRect().bottom)).toBe(before)
           await expect(entry).toBeEnabled()
           expect(await heading.evaluate((element) => element.getBoundingClientRect().top)).toBe(headerTop)
-      })
+        })
       }
     })
   }
