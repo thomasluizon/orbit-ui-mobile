@@ -36,15 +36,15 @@ function getCelebrationCopy(
     case 'daily-streak':
     case 'streak':
       return {
-        eyebrowKey: 'streak.eyebrow',
-        lineKey: 'streak.line',
+        eyebrowKey: 'celebration.streak.eyebrow',
+        lineKey: 'celebration.streak.line',
         values: { count: active.payload.streak },
       }
     case 'goal-completed': {
       const unit = active.payload.unit.trim()
       return {
-        eyebrowKey: 'goal.eyebrow',
-        lineKey: unit ? 'goal.line' : 'goal.lineWithoutUnit',
+        eyebrowKey: 'celebration.goal.eyebrow',
+        lineKey: unit ? 'celebration.goal.line' : 'celebration.goal.lineWithoutUnit',
         values: unit
           ? { name: active.payload.name, count: active.payload.count, unit }
           : { name: active.payload.name, count: active.payload.count },
@@ -52,14 +52,14 @@ function getCelebrationCopy(
     }
     case 'level-up':
       return {
-        eyebrowKey: 'level.eyebrow',
-        lineKey: 'level.line',
+        eyebrowKey: 'celebration.level.eyebrow',
+        lineKey: 'celebration.level.line',
         values: { level: active.payload.level },
       }
     case 'all-done':
       return {
-        eyebrowKey: 'day.eyebrow',
-        lineKey: 'day.line',
+        eyebrowKey: 'celebration.day.eyebrow',
+        lineKey: 'celebration.day.line',
         values: { count: active.payload.count },
         pluralCount: active.payload.count,
       }
@@ -124,7 +124,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss }:
   const t = useTranslations()
   const daily = active.kind === 'daily-streak'
   const { eyebrowKey, lineKey, values, pluralCount } = getCelebrationCopy(active)
-  const translatedLine = t(`celebration.${lineKey}`, values)
+  const translatedLine = t(lineKey, values)
   const line = pluralCount === undefined ? translatedLine : plural(translatedLine, pluralCount)
   const label = daily ? plural(t('streakDisplay.badge.tooltip', { count: active.payload.streak }), active.payload.streak) : line
   const [announcement, setAnnouncement] = useState('')
@@ -166,7 +166,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss }:
       <CelebrationRing />
       {daily ? <DailyStreakMoment streak={active.payload.streak} entering={entering} /> : (
         <div className="celebration-copy min-w-0 flex-1" aria-hidden="true">
-          <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(`celebration.${eyebrowKey}`)}</p>
+          <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(eyebrowKey)}</p>
           <p className="text-[17px] leading-[1.45] text-[var(--fg-1)]">{line}</p>
         </div>
       )}

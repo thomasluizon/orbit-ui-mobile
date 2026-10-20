@@ -322,6 +322,13 @@ export const cases = () => {
     const originalCelebration = files[celebration]
     files[celebration] = originalCelebration.split('\n').filter((line) => !line.includes('{line}</p>') && !line.includes('{line}</Text>')).join('\n')
     T(`${platform} mutation deletes only the actual celebration output`, files[celebration] !== originalCelebration && files[celebration].includes('plural(translatedLine, pluralCount)'))
+    const accessibleCelebration = compare(titles, scan(current, platform), rules)
+    T(`${platform} the remaining accessible final fact retains both celebration titles`, accessibleCelebration.every((entry) => entry.disposition === 'retained'))
+    files[celebration] = files[celebration]
+      .replace(/ (?:aria-label|accessibilityLabel)=\{label\}/g, '')
+      .replace(/<span role="status"[^>]*>\{announcement\}<\/span>/, '')
+      .replace(/<Text testID=\{daily \? 'daily-streak-announcement' : 'celebration-announcement'\} accessibilityLiveRegion="polite"\s+style=\{styles\.announcement\}>\{announcement\}<\/Text>/, '')
+    T(`${platform} mutation removes the accessible final fact and announcement consumers`, !files[celebration].includes('{announcement}</') && !/(?:aria-label|accessibilityLabel)=\{label\}/.test(files[celebration]) && files[celebration].includes('setAnnouncement(label)'))
     const afterCelebration = compare(titles, scan(current, platform), rules)
     T(`${platform} unrelated plural consumers cannot retain either deleted celebration title`, afterCelebration.every((entry) => entry.disposition === 'missing'))
     T(`${platform} deleting the celebration output blocks both mapped titles`, newLosses(afterCelebration, beforeCelebration).length === 2)
