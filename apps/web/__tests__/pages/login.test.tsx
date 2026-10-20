@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import type { Page } from '@playwright/test'
+
+const { smokeLocale } = vi.hoisted(() => ({ smokeLocale: { value: null as 'en' | 'pt-BR' | null } }))
 
 const { mockResolveMotionPreset, mockUseReducedMotion } = vi.hoisted(() => ({
   mockUseReducedMotion: vi.fn(() => true),
@@ -24,11 +28,13 @@ vi.mock('next-intl', async (importActual) => {
   const actual = await importActual<typeof import('next-intl')>()
   return {
     ...actual,
-    useTranslations: () => Object.assign(
+    useTranslations: () => smokeLocale.value
+      ? actual.createTranslator({ locale: smokeLocale.value, messages: smokeLocale.value === 'en' ? en : ptBR })
+      : Object.assign(
       (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
       { rich: actual.createTranslator({ locale: 'en', messages: en }).rich },
     ),
-    useLocale: () => 'en',
+    useLocale: () => smokeLocale.value ?? 'en',
   }
 })
 
@@ -212,5 +218,143 @@ describe('LoginPage', () => {
     expect(screen.getByText('auth.errors.offline')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'auth.signInWithGoogle' })).toBeDisabled()
+  })
+})
+
+
+const { authRequests } = vi.hoisted(() => ({ authRequests: vi.fn() }))
+vi.mock('@/app/(auth)/login/login-form-helpers', async (importActual) => ({
+  ...(await importActual<typeof import('@/app/(auth)/login/login-form-helpers')>()),
+  fetchAuthEndpoint: authRequests,
+}))
+
+vi.mock('@playwright/test', () => ({
+  expect: (locator: SmokeDomLocator) => ({ toBeVisible: () => locator.assertVisible() }),
+}))
+
+import { authenticate } from '@/e2e/support/auth'
+
+class SmokeDomLocator {
+  constructor(readonly selector: string, readonly root: () => ParentNode = () => document) {}
+
+  element(): HTMLElement {
+    const elements = this.root().querySelectorAll(this.selector)
+    if (elements.length !== 1) throw new Error(`Actual rendered DOM has ${elements.length} matches for ${this.selector}`)
+    return elements[0] as HTMLElement
+  }
+
+  locator(selector: string) {
+    return new SmokeDomLocator(selector, () => this.element())
+  }
+
+  async fill(value: string) {
+    const element = this.element()
+    if (!(element instanceof HTMLInputElement)) throw new Error('fill requires an actual input')
+    expect(element).toBeEnabled()
+    if (element.name === 'verificationCode') {
+      expect(value).toBe('123456')
+      expect(element.value).toBe('')
+    }
+    await act(async () => { fireEvent.input(element, { target: { value } }) })
+  }
+
+  async click() {
+    const element = this.element()
+    expect(element).toBeEnabled()
+    await act(async () => { fireEvent.click(element) })
+  }
+
+  async assertVisible() {
+    await waitFor(() => {
+      const element = this.element()
+      expect(element).toBeInTheDocument()
+      expect(element.closest('[hidden]')).toBeNull()
+      expect(getComputedStyle(element).display).not.toBe('none')
+      expect(getComputedStyle(element).visibility).not.toBe('hidden')
+    })
+  }
+}
+
+const verificationRequestBoundary = new Error('Real verification request started; session response remains pending')
+
+class SmokeDomPage {
+  async goto(path: string) {
+    expect(path).toBe('/login')
+    render(<><form aria-label="Unrelated form"><button type="submit">Unrelated submit</button></form><LoginPage /></>)
+  }
+
+  locator(selector: string) { return new SmokeDomLocator(selector) }
+
+  async waitForURL(predicate: (url: URL) => boolean, options: { timeout: number }) {
+    expect(predicate(new URL('https://example.test/login'))).toBe(false)
+    expect(predicate(new URL('https://example.test/'))).toBe(true)
+    expect(options).toEqual({ timeout: 30_000 })
+    await waitFor(() => expect(authRequests).toHaveBeenCalledTimes(2))
+    throw verificationRequestBoundary
+  }
+}
+
+describe('production smoke helper against LoginPage', () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs()
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', '')
+    vi.stubEnv('SMOKE_TEST_EMAIL', 'smoke@example.test')
+    vi.stubEnv('SMOKE_TEST_CODE', '123456')
+    mockIsOnline.value = true
+    mockPush.mockClear()
+    searchParamValues = { email: null, code: null, returnUrl: '/' }
+    authRequests.mockReset()
+    authRequests.mockImplementation(async (endpoint: string) => {
+      if (endpoint === '/api/auth/send-code') return
+      if (endpoint === '/api/auth/verify-code') return new Promise(() => {})
+      throw new Error(`Unexpected auth endpoint ${endpoint}`)
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    smokeLocale.value = null
+  })
+
+  it.each([
+    ['en', null], ['pt-BR', null], ['en', 'onboarding'], ['pt-BR', 'onboarding'],
+  ] as const)('submits one complete code through the actual %s form with origin %s', async (locale, from) => {
+    smokeLocale.value = locale
+    searchParamValues.from = from
+
+    await expect(authenticate(new SmokeDomPage() as unknown as Page)).rejects.toBe(verificationRequestBoundary)
+
+    expect(authRequests.mock.calls).toEqual([
+      ['/api/auth/send-code', { email: 'smoke@example.test', language: locale }],
+      ['/api/auth/verify-code', { email: 'smoke@example.test', code: '123456', language: locale }],
+    ])
+    const label = (locale === 'en' ? en : ptBR).auth.verificationCode
+    const input = screen.getByRole('textbox', { name: label })
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
+    expect(input).toHaveAttribute('name', 'verificationCode')
+    expect(input).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(input).toHaveAttribute('inputmode', 'numeric')
+    expect(document.querySelectorAll('[data-otp-cell][aria-hidden="true"]')).toHaveLength(6)
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('preserves the configured security gate instead of forcing a disabled submit', async () => {
+    smokeLocale.value = 'en'
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+
+    await expect(authenticate(new SmokeDomPage() as unknown as Page)).rejects.toThrow(/enabled/)
+
+    expect(authRequests).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: en.auth.sendCode })).toBeDisabled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('stops at the existing configuration boundary when the email secret is missing', async () => {
+    vi.stubEnv('SMOKE_TEST_EMAIL', '')
+
+    await expect(authenticate(new SmokeDomPage() as unknown as Page)).rejects.toThrow('SMOKE_TEST_EMAIL is required')
+
+    expect(authRequests).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
   })
 })
