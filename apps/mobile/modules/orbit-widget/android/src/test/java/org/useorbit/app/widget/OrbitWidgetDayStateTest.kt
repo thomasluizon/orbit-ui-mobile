@@ -21,134 +21,63 @@ class OrbitWidgetDayStateTest {
     }
 
     @Test
-    fun `legacy widget body follows collection capacity at every resize`() {
-        for (layout in listOf("widget_layout", "widget_layout_narrow")) {
-            val source = java.io.File("src/main/res/layout/$layout.xml").readText()
-            val content = Regex("""android:id="@\+id/widget_content"[\s\S]*?android:layout_height="([^"]+)"""")
-                .find(source)?.groupValues?.get(1)
-            assertEquals(layout, "wrap_content", content)
+    fun `all sizes share a header with progress below the day and streak beside it`() {
+        val views = listOf("widget_layout", "widget_header", "widget_body").flatMap { layout ->
             val document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
                 .newDocumentBuilder().parse(java.io.File("src/main/res/layout/$layout.xml"))
             val elements = document.getElementsByTagName("*")
-            val views = (0 until elements.length).map { elements.item(it) as org.w3c.dom.Element }
-                .associateBy { it.getAttribute("android:id") }
-            assertEquals("wrap_content", views.getValue("@+id/widget_content_height")
-                .getAttribute("android:layout_height"))
-            for (child in listOf("widget_list", "widget_empty", "widget_loading")) {
-                for (edge in listOf("android:layout_alignTop", "android:layout_alignBottom")) {
-                    assertEquals(layout, "@id/widget_content_height", views.getValue("@+id/$child").getAttribute(edge))
-                }
-            }
-        }
-        val narrow = calculateWidgetGeometry(288f, 3, narrowSpacing)
-        assertEquals(144f, narrow.contentHeightDp)
-        assertEquals(true, narrow.canStateRemainder)
-        val wide = calculateWidgetGeometry(384f, 5, cardSpacing)
-        assertEquals(220f, wide.contentHeightDp)
-        assertEquals(true, wide.canStateRemainder)
-    }
-
-    @Test
-    fun `short header places the day above the complete count and streak`() {
-        val document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
-            .newDocumentBuilder().parse(java.io.File("src/main/res/layout/widget_layout_compact.xml"))
-        val elements = document.getElementsByTagName("*")
-        val views = (0 until elements.length).map { elements.item(it) as org.w3c.dom.Element }
-            .associateBy { it.getAttribute("android:id") }
+            (0 until elements.length).map { elements.item(it) as org.w3c.dom.Element }
+        }.associateBy { it.getAttribute("android:id") }
         val day = views.getValue("@+id/widget_header")
         val count = views.getValue("@+id/widget_subtitle")
         val streak = views.getValue("@+id/widget_streak_group")
-        assertEquals(false, day.parentNode === count.parentNode)
-        assertEquals(count.parentNode, streak.parentNode)
-    }
-
-    @Test
-    fun `initial layout leaves room for the smallest widget before the provider renders`() {
-        val provider = java.io.File("src/main/res/xml/orbit_widget_info.xml").readText()
-        val layout = Regex("""android:initialLayout="@layout/(\w+)"""").find(provider)!!.groupValues[1]
-        val source = java.io.File("src/main/res/layout/$layout.xml").readText()
-        val content = Regex("""<RelativeLayout\b[^>]*android:id="@\+id/widget_content"[^>]*>""")
-            .find(source)!!.value
-        assertEquals(true, content.contains("""android:visibility="gone""""))
-        val header = Regex("""<LinearLayout\b[^>]*android:id="@\+id/widget_header_left"[^>]*>""")
-            .find(source)!!.value
-        assertEquals(false, header.contains("android:layout_marginStart"))
-    }
-
-    @Test
-    fun `compact and narrow headers reserve the refresh slot before sizing their text`() {
-        for (layout in listOf("widget_layout_compact", "widget_layout_narrow")) {
-            val document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder().parse(java.io.File("src/main/res/layout/$layout.xml"))
-            val elements = document.getElementsByTagName("*")
-            val views = (0 until elements.length).map { elements.item(it) as org.w3c.dom.Element }
-                .associateBy { it.getAttribute("android:id") }
-            val actions = views.getValue("@+id/widget_header_right")
-            for (dimension in listOf("android:layout_width", "android:layout_height")) {
-                assertEquals(layout, "@dimen/widget_touch_target", actions.getAttribute(dimension))
-            }
-            assertEquals(layout, "true", actions.getAttribute("android:layout_alignParentEnd"))
-            val summary = views.getValue("@+id/widget_header_left")
-            assertEquals(layout, "@id/widget_header_right", summary.getAttribute("android:layout_toStartOf"))
-            for (control in listOf("widget_refresh", "widget_refresh_loading")) {
-                assertEquals(layout, actions, views.getValue("@+id/$control").parentNode)
+        assertEquals(day.parentNode, count.parentNode)
+        assertEquals(views.getValue("@+id/widget_header_right"), streak.parentNode)
+        for (child in listOf("widget_list", "widget_empty", "widget_loading")) {
+            for (edge in listOf("android:layout_alignTop", "android:layout_alignBottom")) {
+                assertEquals("@id/widget_content_height", views.getValue("@+id/$child").getAttribute(edge))
             }
         }
-    }
-
-    private val cardSpacing = WidgetSpacing(24f, 48f, 68f, 8f, 16f, 96f)
-    private val narrowSpacing = cardSpacing.copy(insetDp = 12f, headerHeightDp = 72f)
-
-    @Test
-    fun `reserves card insets and whole padded rows at every declared size`() {
-        val fourByOne = calculateWidgetGeometry(96f, 7, cardSpacing)
-        assertEquals(true, fourByOne.compact)
-        assertEquals(0, fourByOne.visibleRowCount)
-        assertEquals(0f, fourByOne.contentHeightDp)
-        assertEquals(96f, fourByOne.cardHeightDp)
-
-        val fourByTwo = calculateWidgetGeometry(192f, 7, cardSpacing)
-        assertEquals(1, fourByTwo.visibleRowCount)
-        assertEquals(68f, fourByTwo.contentHeightDp)
-        assertEquals(180f, fourByTwo.cardHeightDp)
-
-        val fourByThree = calculateWidgetGeometry(288f, 7, cardSpacing)
-        assertEquals(1, fourByThree.visibleRowCount)
-        assertEquals(6, fourByThree.remainderCount)
-        assertEquals(true, fourByThree.canStateRemainder)
-        assertEquals(144f, fourByThree.contentHeightDp)
-        assertEquals(256f, fourByThree.cardHeightDp)
-
-        val twoByTwo = calculateWidgetGeometry(192f, 4, narrowSpacing)
-        assertEquals(1, twoByTwo.visibleRowCount)
-        assertEquals(180f, twoByTwo.cardHeightDp)
+        assertEquals("visible", views.getValue("@+id/widget_content").getAttribute("android:visibility"))
+        assertEquals("visible", views.getValue("@+id/widget_loading").getAttribute("android:visibility"))
     }
 
     @Test
-    fun `empty and single habit cards keep padded body space in the tall variants`() {
-        for (height in listOf(192f, 288f)) {
-            for (count in listOf(0, 1)) {
-                val geometry = calculateWidgetGeometry(height, count, cardSpacing)
-                assertEquals(count, geometry.visibleRowCount)
-                assertEquals(0, geometry.remainderCount)
-                assertEquals(false, geometry.canStateRemainder)
-                assertEquals(68f, geometry.contentHeightDp)
-                assertEquals(180f, geometry.cardHeightDp)
+    fun `stacked header and list reserve the same space at larger font scales`() {
+        for (scale in listOf(1f, 1.3f, 1.5f, 2f)) {
+            val header = widgetHeaderHeightDp(160f, 192f, scale)
+            check(header == if (scale == 1f) 48f else 72f * scale)
+            for (count in listOf(0, 1, 3, 20)) {
+                val geometry = calculateWidgetGeometry(192f, count, headerHeightDp = header)
+                val rendered = geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0
+                check(rendered * 48f <= geometry.contentHeightDp)
+                check(geometry.cardHeightDp == 192f)
+                check(geometry.contentHeightDp == 192f - header)
             }
+            check(widgetHeaderHeightDp(336f, 192f, scale) == 48f)
+            check(widgetHeaderHeightDp(200f, 96f, scale) == 48f)
         }
     }
 
     @Test
-    fun `intermediate heights fit every inset and gap without partial rows`() {
-        for (spacing in listOf(cardSpacing, narrowSpacing)) {
-            for (height in 96..400) {
-                val geometry = calculateWidgetGeometry(height.toFloat(), 20, spacing)
-                if (!geometry.compact) {
-                    assertEquals(0f, (geometry.contentHeightDp + spacing.rowGapDp) %
-                        (spacing.rowHeightDp + spacing.rowGapDp))
-                }
-                assertEquals(true, geometry.cardHeightDp <= height)
+    fun `every supported height fits complete rows and keeps a body before sync`() {
+        for ((height, fit) in listOf(96f to 1, 192f to 3, 288f to 5)) {
+            for (count in listOf(0, 1, fit, fit + 1, 20)) {
+                val geometry = calculateWidgetGeometry(height, count)
+                val remainder = count > fit && fit >= 2
+                assertEquals(if (remainder) fit - 1 else minOf(fit, count), geometry.visibleRowCount)
+                assertEquals(count - geometry.visibleRowCount, geometry.remainderCount)
+                assertEquals(remainder, geometry.canStateRemainder)
+                assertEquals(height - 48f, geometry.contentHeightDp)
+                assertEquals(height, geometry.cardHeightDp)
             }
+        }
+        for (height in 96..400) {
+            val geometry = calculateWidgetGeometry(height.toFloat(), 20)
+            val rows = geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0
+            assertEquals(true, rows * 48f <= geometry.contentHeightDp)
+            assertEquals(true, geometry.contentHeightDp >= 48f)
+            assertEquals(height.toFloat(), geometry.cardHeightDp)
         }
     }
 

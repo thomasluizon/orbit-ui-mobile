@@ -208,7 +208,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
       {canRenderActions && frameProps.actions != null ? (
         <View
           accessibilityState={{ disabled: frameProps.state === 'acting' }}
-          importantForAccessibility={frameProps.state === 'acting' ? 'no-hide-descendants' : 'auto'}
+          importantForAccessibility={frameProps.state === 'acting' && frameProps.items.length > 0 ? 'no-hide-descendants' : 'auto'}
           pointerEvents={frameProps.state === 'acting' ? 'none' : 'auto'}
           style={styles.actionGuard}
         >
@@ -256,10 +256,11 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         styles.frame,
         { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
       ]}
+      accessibilityState={props.state === 'acting' ? { busy: true } : undefined}
       testID={`block-frame-${props.state}`}
     >
       <FrameHeader props={props} tokens={tokens} />
-      <Text accessibilityLiveRegion={props.items.length || props.state === 'stale' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }]}>
+      <Text accessibilityLiveRegion={props.items.length || props.state === 'stale' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }, props.state !== 'stale' && styles.hiddenMessage]}>
         {props.state === 'stale' ? props.staleMessage : ''}
       </Text>
       {props.state === 'loading' ? (
@@ -271,14 +272,15 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       ) : (
         <>
           {props.body}
-          <ScrollView
-            accessibilityLiveRegion={props.items.length ? 'polite' : undefined}
+          {props.items.length > 0 ? <ScrollView
+            accessibilityLiveRegion="polite"
+            accessibilityState={props.state === 'acting' ? { busy: true } : undefined}
             contentContainerStyle={styles.rows}
             style={styles.body}
             testID="block-frame-body"
           >
             <FrameRows frameProps={props} tokens={tokens} />
-          </ScrollView>
+          </ScrollView> : null}
           <FrameFooter
             canRenderActions={canRenderActions}
             frameProps={props}
@@ -302,8 +304,8 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 16 },
-  count: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'] },
-  body: { flex: 1, minHeight: 0 },
+  count: { fontFamily: 'Geist_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
+  body: { flexShrink: 1, minHeight: 0 },
   rows: { gap: 8 },
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.s12 },
   rowWords: { flex: 1, minWidth: 0 },
@@ -321,7 +323,8 @@ const styles = StyleSheet.create({
   iconSkeleton: { height: 20, width: 20, borderRadius: 8 },
   actionSkeleton: { height: TOUCH_TARGET_MIN, borderRadius: 8 },
   staleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  staleMessage: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14 },
+  hiddenMessage: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
+  staleMessage: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   refreshButton: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: SPACING.s12 },
   refreshLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   actionRow: { gap: 12, padding: actionHitPadding, margin: -actionHitPadding },

@@ -81,7 +81,7 @@ function CardConversation({ operations }: { operations: CardOperation[] }) {
   const tracked = usePendingOperationExecution({ handleExecutedOperation: onExecuted })
   const [threadScroll] = useState(createChatThreadScroll)
   const [flatListRef] = useState(() => ({ current: null }))
-  const chat = { flatListRef, threadScroll, messages: messagesFor(operations),
+  const chat = { flatListRef, threadScroll, messages: messagesFor(operations).flatMap(message => [{ id: `${message.id}-user`, role: 'user' as const, content: 'My request', timestamp: message.timestamp, imageUrl: null }, { ...message, toolSteps: [{ domain: 'habits', access: 'write' }] }]),
     activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: false,
     canShowFollowUps: false, composerProps: { suggestions: [] }, scrollToBottom: () => scrollToEnd(), handleBreakdownConfirmed: vi.fn(), ...tracked,
   } as unknown as ChatController
@@ -200,4 +200,11 @@ it.each(['following', 'before keyboard', 'while queued'])('keeps following reply
   expect(scrollToOffset).not.toHaveBeenCalled()
   if (reading) expect(scrollToEnd).not.toHaveBeenCalled()
   else expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
+})
+
+it('keeps the completed trace above its own reply blocks and after its request', async () => {
+  await act(() => { tree = create(<CardConversation operations={['revise']} />) as unknown as TestTree })
+  const nodes = tree.root.findAll(node => ((node.type as unknown) === 'View' && ['thinking-trace-completed', 'block-frame-resting'].includes(String(node.props.testID)))
+    || ((node.type as unknown) === 'Markdown' && node.props.children === 'My request'))
+  expect(nodes.map(node => node.props.testID ?? 'request')).toEqual(['request', 'thinking-trace-completed', 'block-frame-resting'])
 })

@@ -20,7 +20,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 import java.text.DateFormatSymbols
-import kotlin.math.floor
 
 class OrbitWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
@@ -34,66 +33,6 @@ class OrbitWidgetService : RemoteViewsService() {
             intent.getFloatExtra(OrbitWidgetProvider.EXTRA_WIDGET_WIDTH_DP, 336f)
         )
     }
-}
-
-internal data class WidgetSpacing(
-    val insetDp: Float,
-    val headerHeightDp: Float,
-    val rowHeightDp: Float,
-    val rowGapDp: Float,
-    val headerGapDp: Float,
-    val compactHeightDp: Float
-) {
-    companion object {
-        fun read(context: Context, widthDp: Float, heightDp: Float): WidgetSpacing {
-            val resources = context.resources
-            val density = resources.displayMetrics.density
-            fun dp(resource: Int) = resources.getDimension(resource) / density
-            val headerHeight = dp(if (widthDp <= OrbitWidgetProvider.STREAK_UNIT_BREAKPOINT_DP) {
-                R.dimen.widget_header_height_narrow
-            } else R.dimen.widget_touch_target)
-            val minimumWidth = dp(R.dimen.widget_header_min_width)
-            val inset = listOf(
-                R.dimen.widget_inset_card,
-                R.dimen.widget_inset_medium,
-                R.dimen.widget_inset_compact
-            ).map(::dp).first { widthDp >= minimumWidth + 2 * it && heightDp >= headerHeight + 2 * it }
-            return WidgetSpacing(
-                inset, headerHeight, dp(R.dimen.widget_row_height), dp(R.dimen.widget_row_gap),
-                dp(R.dimen.widget_header_list_gap), dp(R.dimen.widget_compact_height)
-            )
-        }
-    }
-}
-
-internal data class WidgetGeometry(
-    val visibleRowCount: Int,
-    val remainderCount: Int,
-    val canStateRemainder: Boolean,
-    val contentHeightDp: Float,
-    val cardHeightDp: Float,
-    val compact: Boolean
-)
-
-internal fun calculateWidgetGeometry(
-    heightDp: Float,
-    totalRows: Int,
-    spacing: WidgetSpacing
-): WidgetGeometry {
-    val compact = heightDp <= spacing.compactHeightDp ||
-        heightDp < 2 * spacing.insetDp + spacing.headerHeightDp + spacing.headerGapDp + spacing.rowHeightDp
-    val availableHeightDp = heightDp - 2 * spacing.insetDp - spacing.headerHeightDp - spacing.headerGapDp
-    val stride = spacing.rowHeightDp + spacing.rowGapDp
-    val fit = if (compact) 0 else maxOf(0, floor((availableHeightDp + spacing.rowGapDp) / stride).toInt())
-    val canStateRemainder = totalRows > fit && fit >= 2
-    val visibleRowCount = if (canStateRemainder) fit - 1 else minOf(fit, totalRows)
-    val bodyRows = if (compact) 0 else maxOf(1, visibleRowCount + if (canStateRemainder) 1 else 0)
-    val contentHeight = if (bodyRows == 0) 0f else bodyRows * stride - spacing.rowGapDp
-    return WidgetGeometry(
-        visibleRowCount, totalRows - visibleRowCount, canStateRemainder, contentHeight,
-        2 * spacing.insetDp + spacing.headerHeightDp + if (compact) 0f else spacing.headerGapDp + contentHeight,
-        compact
-    )
 }
 
 data class HabitItem(
@@ -579,7 +518,6 @@ class OrbitWidgetFactory(
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             prefs.edit()
                 .putString("header_label", headerLabel)
-                .putString("next_habit_title", habits.firstOrNull()?.title)
                 .putInt("row_count", habits.size)
                 .putInt("habit_count", dayState.totalCount)
                 .putInt("completed_count", dayState.completedCount)
@@ -686,7 +624,8 @@ class OrbitWidgetFactory(
             return@runCatching 0
         }
         val geometry = calculateWidgetGeometry(
-            widgetHeightDp, habits.size, WidgetSpacing.read(context, widgetWidthDp, widgetHeightDp)
+            widgetHeightDp, habits.size,
+            headerHeightDp = widgetHeaderHeightDp(widgetWidthDp, widgetHeightDp, context.resources.configuration.fontScale)
         )
         geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0
     }.getOrDefault(0)
@@ -704,7 +643,8 @@ class OrbitWidgetFactory(
             return RemoteViews(context.packageName, R.layout.widget_item)
         }
         val geometry = calculateWidgetGeometry(
-            widgetHeightDp, habits.size, WidgetSpacing.read(context, widgetWidthDp, widgetHeightDp)
+            widgetHeightDp, habits.size,
+            headerHeightDp = widgetHeaderHeightDp(widgetWidthDp, widgetHeightDp, context.resources.configuration.fontScale)
         )
         if (geometry.canStateRemainder && position == geometry.visibleRowCount) {
             return buildRemainderView(geometry.remainderCount)
@@ -714,7 +654,6 @@ class OrbitWidgetFactory(
 
         val habit = habits[position]
         val isChild = habit.depth > 0
-        applyItemBackground(views, habit, isChild)
         applyItemTitle(views, habit, isChild)
         applyStatusMark(views, habit)
         applyDueTime(views, habit)
@@ -742,46 +681,6 @@ class OrbitWidgetFactory(
         ) { it.textMuted }
         views.setOnClickFillInIntent(R.id.widget_remainder, Intent())
         return views
-    }
-
-    private fun applyItemBackground(views: RemoteViews, habit: HabitItem, isChild: Boolean) {
-        val width = (context.resources.displayMetrics.widthPixels * 0.9f).toInt()
-        val height = context.resources.getDimensionPixelSize(R.dimen.widget_row_height)
-        val lightBackground = createItemBackground(habit, isChild, colorModes.light, width, height)
-        val darkBackground = createItemBackground(habit, isChild, colorModes.dark, width, height)
-        views.setModeAwareBitmap(R.id.item_bg, lightBackground, darkBackground)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            val backgroundResource = when {
-                isChild -> R.drawable.widget_item_bg_child
-                habit.isCompleted -> R.drawable.widget_item_bg_completed
-                else -> R.drawable.widget_item_bg_fallback
-            }
-            views.setImageViewResource(R.id.item_bg, backgroundResource)
-        }
-    }
-
-    private fun createItemBackground(
-        habit: HabitItem,
-        isChild: Boolean,
-        modeColors: WidgetColors,
-        width: Int,
-        height: Int
-    ): Bitmap {
-        val density = context.resources.displayMetrics.density
-        if (isChild) {
-            return createRoundedBitmap(width, height, modeColors.surfaceGround, 12f * density)
-        }
-        if (habit.isCompleted) {
-            return createRoundedBitmap(width, height, modeColors.surface, 16f * density)
-        }
-        return createRoundedBitmap(
-            width,
-            height,
-            modeColors.surface,
-            16f * density,
-            1f * density,
-            modeColors.borderMuted
-        )
     }
 
     private fun applyItemTitle(views: RemoteViews, habit: HabitItem, isChild: Boolean) {
@@ -867,7 +766,7 @@ class OrbitWidgetFactory(
 
     private fun applyDueTime(views: RemoteViews, habit: HabitItem) {
         val dueTime = habit.dueTime
-        if (dueTime.isNullOrEmpty()) {
+        if (widgetWidthDp <= OrbitWidgetProvider.STREAK_UNIT_BREAKPOINT_DP || dueTime.isNullOrEmpty()) {
             views.setViewVisibility(R.id.item_time, android.view.View.GONE)
             views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
             return

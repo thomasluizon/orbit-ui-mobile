@@ -266,7 +266,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
 
 const labels: PendingOperationCardLabels = {
   formatTime: (value) => value,
-  approve: () => 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
+  empty: 'No changes to approve.', approve: () => 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
   rejected: (count) => `The ${count} changes were rejected. Nothing was saved.`,
   summarize: buildPendingOperationCardLabels(makePendingAgentOperation(), translateEnglish, (value) => value).summarize, save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
@@ -398,6 +398,36 @@ function createRenderers() {
 }
 
 describe('pending operation card view', () => {
+  it.each(['done', 'failed'] as const)('retains a settled empty operation with status %s', status => {
+    const card = { ...createCard(), status, canRetry: status === 'failed' }
+    const { record, render } = createRenderers()
+    const result = renderPendingOperationCard({ card, labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: { ...makeCreateHabitsPreview(0), changeTargetCount: null, changes: [] } })
+    expect(result).not.toBe(labels.empty)
+    expect(record.frame?.items[0]?.status).toBe(status === 'done' ? 'done' : undefined)
+    if (status === 'failed') {
+      expect(record.frame?.body).toBe(labels.failed)
+      record.buttons.find(button => button.label === labels.retry)!.onClick()
+      expect(card.execute).toHaveBeenCalledOnce()
+    }
+  })
+
+  it.each([undefined, 'revision', 'refresh'] as const)('renders one stale sentence for error source %s', errorSource => {
+    const error = errorSource ? 'network_error' : undefined
+    const operation = makeCreateHabitsPreview(1)
+    const card = createCard()
+    card.revision = {
+      operation, canRevise: true, items: operation.items!, editingItem: undefined,
+      draft: {}, editedItemIds: [], busy: false, stale: true, canRefresh: true, refresh: vi.fn(), rejected: false, error, errorSource,
+      setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(), saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(),
+    }
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card, labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame).toMatchObject({ state: 'stale', staleMessage: errorSource === 'refresh' ? labels.refreshFailed : labels.stale })
+    expect(record.frame?.body).toBeUndefined()
+    expect(record.frame?.actions).toBeUndefined()
+  })
+
   it('keeps the complete capability title visible in a narrow preview', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({

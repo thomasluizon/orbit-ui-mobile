@@ -102,10 +102,42 @@ describe('Pending preview geometry in Chromium', () => {
     }).join('\n')
     const displayFont = readFileSync(require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')).toString('base64')
     const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-    stylesheet = `${compiled.css}\n${fonts}\n@font-face { font-family: TestSpaceGrotesk; font-weight: 500; src: url(data:font/ttf;base64,${displayFont}); }\n:root { ${variables}; --font-sans: TestGeist; --font-display: TestSpaceGrotesk; }`
+    stylesheet = `${compiled.css}\n${fonts}\n@font-face { font-family: TestSpaceGrotesk; font-weight: 500; src: url(data:font/ttf;base64,${displayFont}); }\n:root { ${variables}; --font-sans: TestGeist; --font-mono: TestMono; --font-display: TestSpaceGrotesk; }`
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([390, 840, 1352].flatMap(width => locales.flatMap(locale => ['dark', 'light'].flatMap(mode => ['pending', 'done', 'failed', 'stale'].map(state => ({ width, locale, mode, state }))))))('keeps drawn block spacing and sans count at $width in $locale $mode while $state', async ({ width, locale, mode, state }) => {
+    const messages = locale === 'en' ? en : pt
+    const operation = makeCreateHabitsPreview(2)
+    const savedState = state === 'stale' ? { stale: true } : state === 'pending' ? undefined : { status: state as 'done' | 'failed', canRetry: true }
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}>
+      <PendingOperationCard pendingOperation={operation} savedState={savedState} onRefresh={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+    </div></NextIntlClientProvider>)
+    const variables = Object.entries(resolveWebThemeVariables('orange', mode as 'dark' | 'light')).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage({ viewport: { width, height: 1200 } })
+    try {
+      await page.setContent(`<style>${stylesheet} :root { ${variables}; }</style><div class="${mode}">${container.innerHTML}</div>`)
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await page.evaluate(() => {
+        const frame = document.querySelector<HTMLElement>('section[data-state]')!
+        const header = frame.querySelector('header')!
+        const next = [...frame.querySelectorAll('[role="status"], div[aria-live="polite"]')]
+          .find(region => region.textContent.trim())!
+        const row = frame.querySelector<HTMLElement>('[data-proposed] > div, [data-status]') ?? frame.querySelector<HTMLElement>('div[aria-live="polite"] > div')!
+        const style = getComputedStyle(frame)
+        return { inset: parseFloat(style.paddingLeft), gap: next.getBoundingClientRect().top - header.getBoundingClientRect().bottom,
+          rowInset: parseFloat(getComputedStyle(row).paddingLeft), countFont: getComputedStyle(header.querySelector('span')!).fontFamily,
+          overflow: frame.scrollWidth - frame.clientWidth }
+      })
+      expect(geometry.inset).toBe(24)
+      expect(geometry.gap).toBeCloseTo(24, 1)
+      expect(geometry.rowInset).toBe(12)
+      expect(geometry.countFont).toContain('TestGeist')
+      expect(geometry.countFont).not.toMatch(/mono/i)
+      expect(geometry.overflow).toBeLessThanOrEqual(1)
+    } finally { await page.close() }
+  })
 
   it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].flatMap(textScale => ['pending', 'done', 'acting', 'failed'].map(state => ({ width, locale, textScale, state }))))))('keeps typed item actions beside the first line at $width in $locale at text scale $textScale while $state', async ({ width, locale, textScale, state }) => {
     const messages = locale === 'en' ? en : pt

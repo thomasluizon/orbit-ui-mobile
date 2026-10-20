@@ -92,7 +92,7 @@ describe('Astra block layout in Chromium', () => {
       makeHeldHabitMessage({ id: 'first', content: 'First paragraph.\n\nSecond paragraph.', pendingOperations: [] }),
       makeChatBlockLayoutMessage(scenario, false),
       makeHeldHabitMessage({ id: 'person', role: 'user', content: 'My reply.', pendingOperations: [] }),
-      { ...makeChatBlockLayoutMessage(scenario, false), id: 'next-turn' },
+      makeChatBlockLayoutMessage(scenario, false, 'next-turn'),
       makeHeldHabitMessage({ id: 'continuation', content: 'Another reply.', pendingOperations: [] }),
     ]
     const chat = {
@@ -109,6 +109,7 @@ describe('Astra block layout in Chromium', () => {
     </NextIntlClientProvider>)
     const turns = [...container.querySelectorAll('article')]
     expect(turns.map(turn => turn.querySelectorAll('[data-astra-avatar]').length)).toEqual([1, 0, 0, 1, 0])
+    expect(turns.map(turn => turn.querySelectorAll('section[data-state]').length)).toEqual([0, 2, 0, 2, 0])
     for (const turn of [turns[0]!, turns[3]!]) {
       expect(turn.querySelector('[data-astra-avatar]')).toHaveAttribute('aria-hidden', 'true')
       expect(turn.querySelector('[data-astra-avatar] svg')).toHaveAttribute('data-asset', 'astra-mark')

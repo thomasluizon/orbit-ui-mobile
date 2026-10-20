@@ -30,11 +30,12 @@ export function usePendingOperationRevision(
   const [staleFingerprint, setStaleFingerprint] = useState<string | undefined>(savedState?.stale ? initialOperation.previewFingerprint ?? undefined : undefined)
   const [refreshUnavailableFingerprint, setRefreshUnavailableFingerprint] = useState<string | undefined>(savedState?.refreshUnavailable ? initialOperation.previewFingerprint ?? undefined : undefined)
   const [rejectedFingerprint, setRejectedFingerprint] = useState<string | undefined>(savedState?.rejected ? initialOperation.previewFingerprint ?? undefined : undefined)
-  const [revisionError, setRevisionError] = useState<{ fingerprint: string; message: string }>()
+  const [revisionError, setRevisionError] = useState<{ fingerprint: string; message: string; source: 'revision' | 'refresh' }>()
   const stale = Boolean(staleFingerprint && staleFingerprint === operation.previewFingerprint)
   const refreshUnavailable = refreshUnavailableFingerprint === operation.previewFingerprint
   const rejected = Boolean(rejectedFingerprint && rejectedFingerprint === operation.previewFingerprint)
-  const error = revisionError && revisionError.fingerprint === operation.previewFingerprint ? revisionError.message : undefined
+  const currentError = revisionError && revisionError.fingerprint === operation.previewFingerprint ? revisionError : undefined
+  const error = currentError?.message
   const items = useMemo(() => operation.items ?? [], [operation.items])
   const editingItem = items.find((item) => item.itemId === editingItemId)
   const canRevise = Boolean(onRevise && operation.previewFingerprint && operation.items)
@@ -49,7 +50,7 @@ export function usePendingOperationRevision(
       if (!response.ok) {
         setStaleFingerprint(response.stale ? requestFingerprint : undefined)
         if (response.stale) onSettled?.({ stale: true })
-        setRevisionError(response.stale ? undefined : { fingerprint: requestFingerprint, message: response.error })
+        setRevisionError(response.stale ? undefined : { fingerprint: requestFingerprint, message: response.error, source: 'revision' })
         return false
       } else if (response.result.cancelled) {
         setRejectedFingerprint(requestFingerprint)
@@ -65,10 +66,10 @@ export function usePendingOperationRevision(
         onSettled?.({ operation: next.operation, editedItemIds: [...next.editedItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
         return true
       }
-      setRevisionError({ fingerprint: requestFingerprint, message: 'invalid' })
+      setRevisionError({ fingerprint: requestFingerprint, message: 'invalid', source: 'revision' })
       return false
     } catch {
-      setRevisionError({ fingerprint: requestFingerprint, message: 'invalid' })
+      setRevisionError({ fingerprint: requestFingerprint, message: 'invalid', source: 'revision' })
       return false
     } finally {
       setBusy(false)
@@ -84,7 +85,7 @@ export function usePendingOperationRevision(
       const response = await onRefresh(operation.id)
       if (!response.ok) {
         if (response.stale) { setRefreshUnavailableFingerprint(requestFingerprint); onSettled?.({ refreshUnavailable: true }) }
-        else setRevisionError({ fingerprint: requestFingerprint, message: response.error })
+        else setRevisionError({ fingerprint: requestFingerprint, message: response.error, source: 'refresh' })
       } else if (response.result.preview) {
         const preview = response.result.preview
         setRevision((current) => current.operation.previewFingerprint === requestFingerprint
@@ -96,7 +97,7 @@ export function usePendingOperationRevision(
         onSettled?.({ operation: { ...operation, ...preview }, editedItemIds: [], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
       }
     } catch {
-      setRevisionError({ fingerprint: requestFingerprint, message: 'invalid' })
+      setRevisionError({ fingerprint: requestFingerprint, message: 'invalid', source: 'refresh' })
     } finally {
       setBusy(false)
     }
@@ -116,16 +117,19 @@ export function usePendingOperationRevision(
       }
       return await revise(items, { itemId: editingItem.itemId, values })
     } catch {
-      if (operation.previewFingerprint) setRevisionError({ fingerprint: operation.previewFingerprint, message: 'invalid' })
+      if (operation.previewFingerprint) setRevisionError({ fingerprint: operation.previewFingerprint, message: 'invalid', source: 'revision' })
       return false
     }
   }, [draft, editingItem, items, operation.previewFingerprint, revise])
 
   return {
     operation, items, canRevise, editingItem, draft, editedItemIds, authorizationVersion: synchronized.authorizationVersion,
-    busy, stale, rejected, error,
+    busy, stale, rejected, error, errorSource: currentError?.source,
     canRefresh: Boolean(onRefresh && !refreshUnavailable), refresh,
-    markStale: () => { if (operation.previewFingerprint) setStaleFingerprint(operation.previewFingerprint) },
+    markStale: () => {
+      setRevisionError(undefined)
+      if (operation.previewFingerprint) setStaleFingerprint(operation.previewFingerprint)
+    },
     setDraftField: (field: string, value: string) => setRevision((current) => changePendingOperationRevisionDraft(current, field, value)),
     closeEdit: () => setRevision((current) => ({ ...current, editingItemId: undefined })),
     startEdit,
