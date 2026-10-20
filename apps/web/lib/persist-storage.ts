@@ -8,8 +8,12 @@ const noopStorage: StateStorage = {
 
 /**
  * Storage factory for zustand `persist`: returns `localStorage` in the browser
- * and a no-op store during server render, where `localStorage` is undefined.
+ * and a no-op store when storage is absent or access is denied.
  */
 export function getPersistStorage(): StateStorage {
-  return typeof localStorage === 'undefined' ? noopStorage : localStorage
+  try {
+    return typeof localStorage === 'undefined' ? noopStorage : localStorage
+  } catch {
+    return noopStorage
+  }
 }

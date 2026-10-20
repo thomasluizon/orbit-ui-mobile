@@ -148,15 +148,14 @@ describe('Menu', () => {
     render(
       <>
         <button ref={anchorRef} type="button">More</button>
-        <Menu open title="Habit actions" items={items} anchorRef={anchorRef} />
+        <Menu open title="Habit actions" items={items} anchorRef={anchorRef} onClose={vi.fn()} />
       </>,
     )
 
     const menu = await screen.findByRole('menu')
     const edit = screen.getByRole('menuitem', { name: 'Edit' })
     const remove = screen.getByRole('menuitem', { name: 'Delete' })
-    if (wide) await waitFor(() => expect(edit).toHaveFocus())
-    else edit.focus()
+    await waitFor(() => expect(edit).toHaveFocus())
 
     fireEvent.keyDown(menu, { key: 'ArrowDown' })
     expect(remove).toHaveFocus()

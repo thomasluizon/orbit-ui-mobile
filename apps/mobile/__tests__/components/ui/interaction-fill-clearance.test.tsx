@@ -24,7 +24,7 @@ import type { GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
 vi.unmock('@/components/ui/icons')
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn(), getString: vi.fn().mockResolvedValue('') } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn().mockResolvedValue('') }))
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({
@@ -73,6 +73,30 @@ async function setInteraction(tree: GeometryTree, label: string, state: 'pressed
 }
 
 describe('Android interaction fill clearance', () => {
+  it.each([320, 412, 600, 1024, 1352].flatMap(width => [en, ptBR].flatMap(messages =>
+    (['pressed', 'focused'] as const).flatMap(state => ['', 'Oi'].map(value => ({ width, messages, state, value }))))))(
+    'clears the composer text control fill at $width while $state with text $value', async ({ width, messages, state, value }) => {
+      let tree!: GeometryTree
+      await act(() => { tree = create(<Composer state="idle" value={value} suggestions={[]} words={messages.shell.composer}
+        onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
+        attachWords={{ ...messages.shell.composer.attach, remove: name => name }} />) as GeometryTree })
+      try {
+        const label = value ? messages.shell.composer.clear : messages.shell.composer.paste
+        await setInteraction(tree, label, state)
+        const parts = measureInteractionFills(tree.toJSON(), Math.min(width, 740), state === 'pressed')
+        const clear = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)!
+        const actions = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.actions)!
+        const send = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.send)!
+        const fill = fillBox(parts, clear)
+        expect(clear.width).toBe(48)
+        expect(clear.bottom - clear.top).toBe(48)
+        expect(actions.left - fill.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        expect(new Set([clear.top, actions.top, send.top]).size).toBe(1)
+        const field = parts.find(part => part.host.props.testID === 'composer-field')!
+        expect(field.bottom - field.top).toBe(56)
+      } finally { await act(() => tree.unmount()) }
+    })
+
   it.each([320, 412, 600, 1024, 1352].flatMap(width => [en, ptBR].flatMap(messages =>
     (['pressed', 'focused'] as const).map(state => ({ width, messages, state })))))(
     'insets the habit detail composer at $width while $state', async ({ width, messages, state }) => {
