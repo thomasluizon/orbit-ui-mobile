@@ -1,5 +1,7 @@
 import assert from "node:assert/strict"
-import { existsSync, readFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
@@ -11,6 +13,42 @@ const workflow = loadWorkflow("guards")
 const testWorkflow = loadWorkflow("test")
 const guardSteps = () => workflow.jobs.guards.steps
 const stepById = (id) => guardSteps().find((step) => step.id === id)
+
+test("Astra eval exports temporary paths before evaluation without job-level runner expressions", () => {
+  const astra = loadWorkflow("astra-eval")
+  assert.deepEqual(Object.keys(astra.on), ["workflow_dispatch"])
+  const job = astra.jobs.evaluate
+  assert.doesNotMatch(JSON.stringify(job.env), /runner\.temp/)
+  const setup = job.steps[0]
+  assert.equal(setup["working-directory"], "${{ runner.temp }}")
+  const directory = mkdtempSync(join(tmpdir(), "astra eval paths "))
+  try {
+    const environmentFile = join(directory, "environment")
+    const result = spawnSync("bash", ["-e", "-c", setup.run], {
+      cwd: directory,
+      env: { ...process.env, RUNNER_TEMP: directory, GITHUB_ENV: environmentFile },
+      encoding: "utf8",
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(readFileSync(environmentFile, "utf8").trim().split("\n"), [
+      `ORBIT_EVAL_RESET_SCRIPT=${directory}/astra-reset.sh`,
+      `PROMPTFOO_CONFIG_DIR=${directory}/astra-promptfoo`,
+    ])
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test("Guards checks every workflow with a checksum-pinned actionlint and no baseline", () => {
+  const step = stepById("workflow-syntax__1")
+  assert.ok(step, "workflow syntax must have a guard")
+  assert.equal(step.if, "${{ !cancelled() }}")
+  assert.match(step.run, /releases\/download\/v1\.7\.12\/actionlint_1\.7\.12_linux_amd64\.tar\.gz/)
+  assert.match(step.run, /8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8/)
+  assert.ok(step.run.indexOf("sha256sum --check") < step.run.indexOf("tar -xzf"))
+  assert.match(step.run, /actionlint" -shellcheck= -pyflakes= \.github\/workflows\/\*\.yml/)
+  assert.doesNotMatch(step.run, /-ignore|\|\| true/)
+})
 
 test("script guards share one checkout and install and keep independent failure conditions", () => {
   assert.deepEqual(Object.keys(workflow.jobs), ["guards"])
