@@ -203,6 +203,7 @@ export function buildHabitDetailChildDateModel(
   scopedChild: NormalizedHabit | undefined,
   dateStr: string,
   todayStr: string,
+  source?: HabitDetailChild,
 ): HabitDetailChildDateModel {
   const completed = scopedChild
     ? scopedChild.isGeneral
@@ -214,6 +215,12 @@ export function buildHabitDetailChildDateModel(
   const habit = {
     ...detailChild,
     ...scopedChild,
+    tags: source?.tags ?? scopedChild?.tags ?? detailChild.tags,
+    reminderEnabled: source?.reminderEnabled ?? scopedChild?.reminderEnabled ?? detailChild.reminderEnabled,
+    reminderTimes: source?.reminderTimes ?? scopedChild?.reminderTimes ?? detailChild.reminderTimes,
+    scheduledReminders: source?.scheduledReminders ?? scopedChild?.scheduledReminders ?? detailChild.scheduledReminders,
+    relativeReminders: source?.relativeReminders ?? scopedChild?.relativeReminders ?? detailChild.relativeReminders,
+    slipAlertEnabled: source?.slipAlertEnabled ?? scopedChild?.slipAlertEnabled ?? detailChild.slipAlertEnabled,
     isCompleted: completed,
     isLoggedInRange: completed,
   }
@@ -607,11 +614,12 @@ function getHabitListEnrichmentSource(
 }
 
 export function hasAuthoritativeHabitRelationshipState(
-  detail: Pick<HabitDetail, 'isGeneral'>,
+  detail: Pick<HabitDetail, 'isGeneral' | 'linkedGoals' | 'slipAlertEnabled'>,
   listHabit: NormalizedHabit | undefined,
   scopedHabit: NormalizedHabit | undefined,
 ): boolean {
-  return getHabitRelationshipAuthority(detail, listHabit, scopedHabit) !== undefined
+  return (detail.linkedGoals != null && detail.slipAlertEnabled != null)
+    || getHabitRelationshipAuthority(detail, listHabit, scopedHabit) !== undefined
 }
 
 export function mergeHabitDetailWithScopedHabit(
@@ -628,9 +636,9 @@ export function mergeHabitDetailWithScopedHabit(
     ...listEnrichmentSource,
     ...normalized,
     parentId: listEnrichmentSource.parentId,
-    tags: listEnrichmentSource.tags,
-    linkedGoals: relationshipAuthority?.linkedGoals ?? normalized.linkedGoals,
-    slipAlertEnabled: relationshipAuthority?.slipAlertEnabled ?? normalized.slipAlertEnabled,
+    tags: detail.tags ?? listEnrichmentSource.tags,
+    linkedGoals: detail.linkedGoals ?? relationshipAuthority?.linkedGoals ?? normalized.linkedGoals,
+    slipAlertEnabled: detail.slipAlertEnabled ?? relationshipAuthority?.slipAlertEnabled ?? normalized.slipAlertEnabled,
     flexibleTarget: scopedHabit?.flexibleTarget ?? listEnrichmentSource.flexibleTarget,
     flexibleCompleted: scopedHabit?.flexibleCompleted ?? listEnrichmentSource.flexibleCompleted,
     instances: scopedHabit?.instances ?? listEnrichmentSource.instances,

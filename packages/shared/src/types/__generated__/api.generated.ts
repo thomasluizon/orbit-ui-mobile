@@ -704,6 +704,25 @@ export const PostApiChatResponse = zod.object({
   "value": zod.string(),
   "description": zod.string().nullish()
 }))
+})]).optional(),
+  "messageKey": zod.string().nullish(),
+  "params": zod.union([zod.null(),zod.object({
+  "entityName": zod.string().nullish(),
+  "count": zod.int().nullish(),
+  "totalCount": zod.int().nullish(),
+  "skippedCount": zod.int().nullish(),
+  "partial": zod.boolean().nullish(),
+  "weekStartDay": zod.int().nullish(),
+  "hours": zod.int().nullish(),
+  "toolName": zod.string().nullish(),
+  "bulkTool": zod.string().nullish(),
+  "policyReason": zod.string().nullish(),
+  "timeZone": zod.string().nullish(),
+  "language": zod.string().nullish(),
+  "referralCode": zod.string().nullish(),
+  "fieldName": zod.string().nullish(),
+  "actionName": zod.string().nullish(),
+  "entityId": zod.string().nullish()
 })]).optional()
 })),
   "operations": zod.array(zod.object({
@@ -1489,6 +1508,8 @@ export const getApiHabitsResponseItemsItemChildrenItemPositionRegExpTwo = new Re
 export const getApiHabitsResponseItemsItemChildrenItemFlexibleTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponseItemsItemChildrenItemFlexibleCompletedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponseItemsItemChildrenItemIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsResponseItemsItemChildrenItemReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsResponseItemsItemChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponseItemsItemFlexibleTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponseItemsItemFlexibleCompletedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponseItemsItemIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
@@ -1584,7 +1605,19 @@ export const GetApiHabitsResponse = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemChildrenItemIntervalWeeksRegExpTwo)]).nullish(),
   "createdAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "reminderEnabled": zod.boolean().nullish(),
+  "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemChildrenItemReminderTimesItemRegExpTwo)])).nullish(),
+  "scheduledReminders": zod.array(zod.object({
+  "when": zod.enum(['same_day', 'day_before']),
+  "time": zod.iso.time({})
+})).nullish(),
+  "relativeReminders": zod.array(zod.object({
+  "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "time": zod.iso.time({}).nullish()
+})).nullish(),
+  "slipAlertEnabled": zod.boolean().nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -1687,6 +1720,8 @@ export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemPositionRegE
 export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemFlexibleTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemFlexibleCompletedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsCalendarMonthResponseHabitsItemFlexibleTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsCalendarMonthResponseHabitsItemFlexibleCompletedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsCalendarMonthResponseHabitsItemIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
@@ -1779,7 +1814,19 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemChildrenItemIntervalWeeksRegExpTwo)]).nullish(),
   "createdAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "reminderEnabled": zod.boolean().nullish(),
+  "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemChildrenItemReminderTimesItemRegExpTwo)])).nullish(),
+  "scheduledReminders": zod.array(zod.object({
+  "when": zod.enum(['same_day', 'day_before']),
+  "time": zod.iso.time({})
+})).nullish(),
+  "relativeReminders": zod.array(zod.object({
+  "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "time": zod.iso.time({}).nullish()
+})).nullish(),
+  "slipAlertEnabled": zod.boolean().nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -1868,6 +1915,8 @@ export const getApiHabitsIdResponseReminderTimesItemRegExpTwo = new RegExp('^-?(
 export const getApiHabitsIdResponseChildrenItemFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseChildrenItemPositionRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseChildrenItemIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdResponseChildrenItemReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdResponseChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 
@@ -1925,7 +1974,24 @@ export const GetApiHabitsIdResponse = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseChildrenItemIntervalWeeksRegExpTwo)]).nullish(),
   "createdAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "tags": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "color": zod.string()
+})).nullish(),
+  "reminderEnabled": zod.boolean().nullish(),
+  "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseChildrenItemReminderTimesItemRegExpTwo)])).nullish(),
+  "scheduledReminders": zod.array(zod.object({
+  "when": zod.enum(['same_day', 'day_before']),
+  "time": zod.iso.time({})
+})).nullish(),
+  "relativeReminders": zod.array(zod.object({
+  "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "time": zod.iso.time({}).nullish()
+})).nullish(),
+  "slipAlertEnabled": zod.boolean().nullish()
 })),
   "emoji": zod.string().nullish(),
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseIntervalWeeksRegExpTwo)]).nullish(),
@@ -1940,7 +2006,12 @@ export const GetApiHabitsIdResponse = zod.object({
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "tags": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "color": zod.string()
+})).nullish()
 })
 
 
@@ -2022,6 +2093,8 @@ export const getApiHabitsIdDetailResponseHabitReminderTimesItemRegExpTwo = new R
 export const getApiHabitsIdDetailResponseHabitChildrenItemFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitChildrenItemPositionRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitChildrenItemIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdDetailResponseHabitChildrenItemReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdDetailResponseHabitChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
@@ -2086,7 +2159,24 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitChildrenItemIntervalWeeksRegExpTwo)]).nullish(),
   "createdAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "tags": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "color": zod.string()
+})).nullish(),
+  "reminderEnabled": zod.boolean().nullish(),
+  "reminderTimes": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitChildrenItemReminderTimesItemRegExpTwo)])).nullish(),
+  "scheduledReminders": zod.array(zod.object({
+  "when": zod.enum(['same_day', 'day_before']),
+  "time": zod.iso.time({})
+})).nullish(),
+  "relativeReminders": zod.array(zod.object({
+  "minutesBefore": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo)]).nullish(),
+  "when": zod.union([zod.null(),zod.enum(['same_day', 'day_before'])]).optional(),
+  "time": zod.iso.time({}).nullish()
+})).nullish(),
+  "slipAlertEnabled": zod.boolean().nullish()
 })),
   "emoji": zod.string().nullish(),
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitIntervalWeeksRegExpTwo)]).nullish(),
@@ -2101,7 +2191,12 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "tags": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "color": zod.string()
+})).nullish()
 }),
   "metrics": zod.object({
   "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo)]),
@@ -2165,7 +2260,27 @@ export const PostApiHabitsIdLogBody = zod.union([zod.null(),zod.object({
   "date": zod.iso.date().nullish()
 })])
 
-export const PostApiHabitsIdLogResponse = zod.unknown()
+export const postApiHabitsIdLogResponseCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiHabitsIdLogResponseLinkedGoalUpdatesItemNewProgressRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
+export const postApiHabitsIdLogResponseLinkedGoalUpdatesItemTargetValueRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
+export const postApiHabitsIdLogResponseXpEarnedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiHabitsIdLogResponsePreviousStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const PostApiHabitsIdLogResponse = zod.object({
+  "logId": zod.uuid(),
+  "isFirstCompletionToday": zod.boolean(),
+  "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsIdLogResponseCurrentStreakRegExpTwo)]),
+  "linkedGoalUpdates": zod.array(zod.object({
+  "goalId": zod.uuid(),
+  "title": zod.string(),
+  "newProgress": zod.union([zod.number(),zod.stringFormat('double', postApiHabitsIdLogResponseLinkedGoalUpdatesItemNewProgressRegExpTwo)]),
+  "targetValue": zod.union([zod.number(),zod.stringFormat('double', postApiHabitsIdLogResponseLinkedGoalUpdatesItemTargetValueRegExpTwo)])
+})).nullish(),
+  "xpEarned": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsIdLogResponseXpEarnedRegExpTwo)]).nullish(),
+  "newAchievementIds": zod.array(zod.string()).nullish(),
+  "previousStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsIdLogResponsePreviousStreakRegExpTwo)]).nullish()
+})
 
 
 export const PostApiHabitsIdSkipParams = zod.object({
@@ -2324,7 +2439,23 @@ export const PostApiHabitsBulkLogBody = zod.object({
 }))
 })
 
-export const PostApiHabitsBulkLogResponse = zod.unknown()
+export const postApiHabitsBulkLogResponseResultsItemIndexRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiHabitsBulkLogResponsePreviousStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiHabitsBulkLogResponseCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const PostApiHabitsBulkLogResponse = zod.object({
+  "results": zod.array(zod.object({
+  "index": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBulkLogResponseResultsItemIndexRegExpTwo)]),
+  "status": zod.int(),
+  "habitId": zod.uuid(),
+  "logId": zod.uuid().nullish(),
+  "error": zod.string().nullish(),
+  "errorCode": zod.string().nullish()
+})),
+  "previousStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBulkLogResponsePreviousStreakRegExpTwo)]).nullish(),
+  "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBulkLogResponseCurrentStreakRegExpTwo)]).nullish()
+})
 
 
 export const PostApiHabitsBulkSkipHeader = zod.object({
@@ -2590,7 +2721,8 @@ export const GetOauthAuthorizeQueryParams = zod.object({
   "code_challenge": zod.string().optional(),
   "code_challenge_method": zod.string().optional(),
   "nonce": zod.string().optional(),
-  "google_error": zod.string().optional()
+  "google_error": zod.string().optional(),
+  "scope": zod.string().optional()
 })
 
 export const GetOauthAuthorizeHeader = zod.object({
@@ -2649,7 +2781,8 @@ export const GetOauthGoogleStartQueryParams = zod.object({
   "state": zod.string().optional(),
   "code_challenge": zod.string().optional(),
   "code_challenge_method": zod.string().optional(),
-  "nonce": zod.string().optional()
+  "nonce": zod.string().optional(),
+  "scope": zod.string().optional()
 })
 
 export const GetOauthGoogleStartHeader = zod.object({
@@ -2684,9 +2817,35 @@ export const PostOauthTokenBody = zod.object({
   "code_verifier": zod.string().optional()
 })).and(zod.object({
   "redirect_uri": zod.string().optional()
+})).and(zod.object({
+  "refresh_token": zod.string().optional()
 }))
 
 export const PostOauthTokenResponse = zod.unknown()
+
+
+export const GetOauthConsentQueryParams = zod.object({
+  "ticket": zod.string().optional()
+})
+
+export const GetOauthConsentHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const GetOauthConsentResponse = zod.unknown()
+
+
+export const PostOauthConsentHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostOauthConsentBody = zod.object({
+  "ticket": zod.string().optional()
+}).and(zod.object({
+  "access": zod.string().optional()
+}))
+
+export const PostOauthConsentResponse = zod.unknown()
 
 
 export const GetApiAiProactiveCurrentHeader = zod.object({

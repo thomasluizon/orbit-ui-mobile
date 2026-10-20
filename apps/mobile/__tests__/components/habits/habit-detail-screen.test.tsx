@@ -16,6 +16,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import {
   makeHabitDetail as makeDetail,
+  makeEnrichedHabitDetail,
   makeHabitScheduleItem,
   makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedChild as makeScopedChild,
@@ -95,6 +96,8 @@ const mocks = vi.hoisted(() => ({
   detailError: false,
   refetch: vi.fn(),
   allHabitsError: false,
+  allHabitsLoading: false,
+  allHabitsEnabled: undefined as boolean | undefined,
   allHabitsRefetch: vi.fn(),
   scopedLoading: false,
   scopedError: false,
@@ -165,12 +168,13 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
     useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
     useHabitLogs: () => ({ data: mocks.logs }),
     useHabitMetrics: (id: string) => mocks.realMetrics ? actual.useHabitMetrics(id) : ({ data: mocks.metrics, isLoading: false, isError: mocks.metricsError }),
-    useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, options?: { completeDay?: boolean }) => {
+    useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, options?: { completeDay?: boolean; enabled?: boolean }) => {
+      if (!filters.dateFrom) mocks.allHabitsEnabled = options?.enabled
       if (filters.dateFrom) {
         mocks.scopedCompleteDay = options?.completeDay ?? false
         mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
       }
-      return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+      return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: filters.dateFrom ? mocks.scopedLoading : mocks.allHabitsLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
     },
   }
 })
@@ -385,7 +389,7 @@ vi.mock('@/components/dates/month-grid', () => ({
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: ({ open }: { open: boolean }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit' }) : null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
-  GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => React.createElement('GoalLinkingField', { testID: 'goal-linking-field', atGoalLimit, onToggleGoal: () => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2') }),
+  GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => React.createElement('GoalLinkingField', { testID: 'goal-linking-field', selectedGoalIds, atGoalLimit, onToggleGoal: () => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2') }),
 }))
 vi.mock('@/hooks/use-reminder-permission', () => ({
   useReminderPermission: (_enabled: boolean, onToggleReminder: () => void) => ({ toggleReminder: onToggleReminder, showNotice: false, openSettings: vi.fn() }),
@@ -421,6 +425,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/habits/habit-row')>()
   const mockRow = ({ habit, selectedDate, today, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; selectedDate: Date; today: string; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void } }) => React.createElement('HabitRow', {
     testID: `child-${habit.id}`,
+    habit,
     state: habit.isCompleted ? 'done' : 'empty',
     action: habit.isCompleted ? 'unlog' : 'log',
     selectedDate: formatAPIDate(selectedDate),
@@ -669,6 +674,8 @@ describe('HabitDetailScreen', () => {
     mocks.detailLoading = false
     mocks.detailError = false
     mocks.allHabitsError = false
+    mocks.allHabitsLoading = false
+    mocks.allHabitsEnabled = undefined
     mocks.logs = [
       { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
       { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
@@ -1192,17 +1199,53 @@ describe('HabitDetailScreen', () => {
     expect(child().props.completionReason).toBeUndefined()
   })
 
-  it('retries a list-only load failure', () => {
-    mocks.allHabitsError = true
+  it('renders detail while the unrelated list is pending and then rejected', () => {
+    mocks.allHabits.clear()
+    mocks.allHabitsLoading = true
     let tree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />)
-    })
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(textsOf(tree!.root)).toContain(mocks.detail!.title)
+    mocks.allHabitsLoading = false
+    mocks.allHabitsError = true
+    TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" />))
+    expect(textsOf(tree!.root)).toContain(mocks.detail!.title)
+    expect(textsOf(tree!.root)).not.toContain('habits.detail.loadError')
+    expect(mocks.allHabitsEnabled).toBe(false)
+    expect(mocks.allHabitsRefetch).not.toHaveBeenCalled()
+  })
 
-    TestRenderer.act(() => tree!.root.findByType('PillButton').props.onClick())
+  it.each([false, true])('uses own detail controls with a warm list=%s', (warm) => {
+    mocks.detail = makeEnrichedHabitDetail()
+    mocks.allHabits = warm ? new Map([['habit-1', makeScopedParent()]]) : new Map()
+    mocks.scopedHabits.clear()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(textsOf(tree!.root)).toContain('Focus')
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    expect(tree!.root.findByProps({ testID: 'slip-alert-switch' }).props.checked).toBe(true)
+    expect(tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.value).toBe('1')
+    TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick())
+    expect(tree!.root.findByProps({ testID: 'goal-linking-field' }).props.selectedGoalIds).toEqual(['goal-1'])
+    const child = tree!.root.findByProps({ testID: 'child-child-1' }).props.habit
+    expect(child.tags).toEqual([{ id: 'tag-2', name: 'Health', color: '#123456' }])
+    expect(child.reminderEnabled).toBe(true)
+    expect(child.reminderTimes).toEqual([15])
+    expect(child.scheduledReminders).toEqual([{ when: 'same_day', time: '08:00:00' }])
+    expect(child.relativeReminders).toEqual([{ minutesBefore: 30 }])
+    expect(child.slipAlertEnabled).toBe(true)
+  })
 
-    expect(mocks.allHabitsRefetch).toHaveBeenCalledOnce()
-    expect(mocks.refetch).not.toHaveBeenCalled()
+  it('renders an older detail without a warm list using existing empty states', () => {
+    mocks.allHabits.clear()
+    mocks.scopedHabits.clear()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(textsOf(tree!.root)).toContain(mocks.detail!.title)
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    expect(tree!.root.findAllByProps({ title: 'habits.detail.linkedGoals' })).toHaveLength(0)
+    expect(tree!.root.findAllByProps({ testID: 'slip-alert-switch' })).toHaveLength(0)
   })
 
   it.each(['UnbrokenToken'.repeat(24), 'A tag name with many words describing the people and activities I enjoy'])('discloses the full habit detail tag %s', async (name) => {

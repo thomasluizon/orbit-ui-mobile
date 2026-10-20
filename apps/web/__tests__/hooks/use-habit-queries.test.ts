@@ -116,6 +116,18 @@ describe('useHabits (query hook)', () => {
     mockFetch.mockReset()
   })
 
+  it.each([false, true])('observes cached habits without fetching with a warm list=%s', async (warm) => {
+    const wrapper = createWrapper()
+    const habit = makeScheduleItem()
+    if (warm) queryClient.setQueryData(habitKeys.list({}), [habit])
+    const { result, unmount } = renderHook(() => useHabits({}, undefined, { enabled: false }), { wrapper })
+    expect(result.current.data?.habitsById.get(habit.id)?.title).toBe(warm ? habit.title : undefined)
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: habitKeys.lists() }) })
+    expect(mockFetch).not.toHaveBeenCalled()
+    unmount()
+    queryClient.clear()
+  })
+
   it('enriches undated Todos membership with dated overdue and schedule facts', async () => {
     const today = '2026-09-12'
     mockFetch.mockImplementation(async (url: string) => Response.json(makePaginatedResponse(
