@@ -11,6 +11,7 @@ import {
   isHabitDoneForRange,
   resolveHabitAccessibleStatus,
   stripInlineMarkdown,
+  type TodayBoundary,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
@@ -205,6 +206,15 @@ function resolveBodyPressAction(
   return selectMode ? actions.onToggleSelection : actions.onDetail
 }
 
+function resolveBoundaryCompletionReason(
+  boundary: TodayBoundary,
+  t: (key: string) => string,
+): string | undefined {
+  if (boundary === 'read-only') return t('habits.todayBoundary.readOnly')
+  if (boundary === 'future') return t('habits.todayBoundary.future')
+  return undefined
+}
+
 function useBodyPressFeedback(
   tokens: ReturnType<typeof createTokensV2>,
 ) {
@@ -233,9 +243,12 @@ function buildRowStyle({
   active: boolean
   tokens: ReturnType<typeof createTokensV2>
 }>): ViewStyle {
+  let backgroundColor = tokens.bgCard
+  if (active) backgroundColor = tokens.bgHover
+  else if (selected) backgroundColor = tokens.selectionBg
   return {
     minHeight: child ? 52 : 68,
-    backgroundColor: active ? tokens.bgHover : selected ? tokens.selectionBg : tokens.bgCard,
+    backgroundColor,
     borderRadius: 20,
   }
 }
@@ -291,9 +304,7 @@ export const HabitRow = memo(function HabitRow({
   const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
   const boundary = getTodayBoundary(selectedDateStr, todayStr)
   const completionReadOnly = completionReadOnlyOverride ?? (boundary === 'read-only' || (boundary === 'future' && !canLog))
-  const completionReason = completionReasonOverride ?? (boundary === 'read-only'
-    ? t('habits.todayBoundary.readOnly')
-    : boundary === 'future' ? t('habits.todayBoundary.future') : undefined)
+  const completionReason = completionReasonOverride ?? resolveBoundaryCompletionReason(boundary, t)
 
   const metaParts = buildHabitRowMetaParts({
     habit,
@@ -516,7 +527,12 @@ function HabitRowLayout({ descriptionPresent, largeText, isChild, supportingMeta
 }
 
 function habitRowBodyLayout(isChild: boolean, largeText: boolean): ViewStyle {
-  return { paddingVertical: largeText ? SPACING.s0 : (isChild ? SPACING.s4 : SPACING.s8), paddingLeft: isChild ? SPACING.s24 : SPACING.s8, alignItems: largeText ? 'flex-start' : 'center' }
+  const defaultPaddingVertical = isChild ? SPACING.s4 : SPACING.s8
+  return {
+    paddingVertical: largeText ? SPACING.s0 : defaultPaddingVertical,
+    paddingLeft: isChild ? SPACING.s24 : SPACING.s8,
+    alignItems: largeText ? 'flex-start' : 'center',
+  }
 }
 
 function showSupportingMeta(largeText: boolean, childrenTotal: number): boolean {

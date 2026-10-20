@@ -303,11 +303,14 @@ vi.mock('react-i18next', async (importOriginal) => {
   return {
   ...actual,
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => key === 'habits.deleteListConfirmMessage'
-      ? messages.habits.deleteListConfirmMessage
-        .replaceAll('{name}', String(params?.name))
-        .replaceAll('{count}', String(params?.count))
-      : params ? `${key}(${JSON.stringify(params)})` : key,
+    t: (key: string, params?: Record<string, unknown>) => {
+      if (key === 'habits.deleteListConfirmMessage') {
+        return messages.habits.deleteListConfirmMessage
+          .replaceAll('{name}', String(params?.name))
+          .replaceAll('{count}', String(params?.count))
+      }
+      return params ? `${key}(${JSON.stringify(params)})` : key
+    },
     i18n: { language: 'en' },
   }),
   }
@@ -604,6 +607,56 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  beforeEach(() => {
+    listQueryState.isLoading = false
+    listQueryState.isError = false
+    replaySelection.selectedHabitIds = new Set()
+    replaySelection.isSelectMode = true
+    replayDelivery.listener = null
+    accountDate.timeZone = undefined
+    capturedDrillOptions = undefined
+    vi.clearAllMocks()
+    sheetTestControls.defer(false)
+    clearOfflineQueue()
+    offlineMocks.appliedHabitIds.length = 0
+    offlineMocks.loggedHabits.clear()
+    offlineMocks.setOnline(false)
+    offlineMocks.apiClient.mockImplementation((endpoint: string) => Promise.resolve(offlineMocks.receiveHabitToggle(endpoint)))
+    skipFlow.active = false
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    mockHabitsDataUpdatedAt = 1
+    useActualHabitVisibility = false
+    habitListRefetch.mockReset()
+    habitListRefetch.mockResolvedValue(undefined)
+    logMutateAsync.mockReset()
+    skipMutateAsync.mockReset()
+    skipMutateAsync.mockResolvedValue(undefined)
+    bulkDeleteMutateAsync.mockReset()
+    bulkLogMutateAsync.mockReset()
+    bulkSkipMutateAsync.mockReset()
+    logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
+      const habit = mockHabitsData.habitsById.get(habitId)
+      if (!habit) return
+
+      mockHabitsData.habitsById.set(habitId, {
+        ...habit,
+        isCompleted: true,
+      })
+    })
+    mockDrillState.currentParentId = null
+    mockDrillState.currentParent = null
+    mockDrillState.drillChildren = []
+    mockDrillState.hasUnfilteredChildren = false
+    mockDrillState.canRevealCompletedChildren = false
+    mockDrillState.drillStack = []
+    mockDrillState.drillLoading = false
+    mockDrillState.drillError = null
+    mockHabitsData.totalCount = 0
+    accountHabitCount.count = 1
+    accountHabitCount.isLoaded = true
+    seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
   it.each([false, true])('scopes Hoje search with appended general habits, matching descendant=%s', (matchesDescendant) => {
     useActualHabitVisibility = true
     Object.assign(mockHabitsData, normalizeHabitQueryData(createAppendedGeneralSearchItems(matchesDescendant)))
@@ -713,56 +766,6 @@ describe('HabitList', () => {
       tree = createTestTree(<HabitList view={view} filters={view === 'general' ? { isGeneral: true } : {}} selectedDate={new Date(`${TODAY}T00:00:00`)} showCompleted={false} onCreatePress={vi.fn()} />)
     })
     expect(tree!.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toEqual(HABIT_VIEW_ROW_ORDER[view])
-  })
-
-  beforeEach(() => {
-    listQueryState.isLoading = false
-    listQueryState.isError = false
-    replaySelection.selectedHabitIds = new Set()
-    replaySelection.isSelectMode = true
-    replayDelivery.listener = null
-    accountDate.timeZone = undefined
-    capturedDrillOptions = undefined
-    vi.clearAllMocks()
-    sheetTestControls.defer(false)
-    clearOfflineQueue()
-    offlineMocks.appliedHabitIds.length = 0
-    offlineMocks.loggedHabits.clear()
-    offlineMocks.setOnline(false)
-    offlineMocks.apiClient.mockImplementation((endpoint: string) => Promise.resolve(offlineMocks.receiveHabitToggle(endpoint)))
-    skipFlow.active = false
-    useAppToastStore.setState({ currentToast: null, queue: [] })
-    mockHabitsDataUpdatedAt = 1
-    useActualHabitVisibility = false
-    habitListRefetch.mockReset()
-    habitListRefetch.mockResolvedValue(undefined)
-    logMutateAsync.mockReset()
-    skipMutateAsync.mockReset()
-    skipMutateAsync.mockResolvedValue(undefined)
-    bulkDeleteMutateAsync.mockReset()
-    bulkLogMutateAsync.mockReset()
-    bulkSkipMutateAsync.mockReset()
-    logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
-      const habit = mockHabitsData.habitsById.get(habitId)
-      if (!habit) return
-
-      mockHabitsData.habitsById.set(habitId, {
-        ...habit,
-        isCompleted: true,
-      })
-    })
-    mockDrillState.currentParentId = null
-    mockDrillState.currentParent = null
-    mockDrillState.drillChildren = []
-    mockDrillState.hasUnfilteredChildren = false
-    mockDrillState.canRevealCompletedChildren = false
-    mockDrillState.drillStack = []
-    mockDrillState.drillLoading = false
-    mockDrillState.drillError = null
-    mockHabitsData.totalCount = 0
-    accountHabitCount.count = 1
-    accountHabitCount.isLoaded = true
-    seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
   })
 
   it.each([412, 840, 1352])('renders the padding contract on Android Hoje at %ipx', async (width) => {
@@ -1408,9 +1411,10 @@ describe('HabitList', () => {
     expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(1)
     expect(tree!.root.findAll((node) => node.type === HabitRow)
       .map((node) => (node.props.habit as NormalizedHabit).id)).toContain('anytime')
-    const geometry = measureSafeArea((tree! as GeometryTree).toJSON(), (host) =>
-      host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('habits.allDoneToday'))
-        ? 'banner' : host.props.testID === 'habit-row' ? 'row' : undefined)
+    const geometry = measureSafeArea((tree! as GeometryTree).toJSON(), (host) => {
+      if (host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('habits.allDoneToday'))) return 'banner'
+      return host.props.testID === 'habit-row' ? 'row' : undefined
+    })
     expect(geometry.get('row')!.top - geometry.get('banner')!.bottom).toBe(24)
   })
 
