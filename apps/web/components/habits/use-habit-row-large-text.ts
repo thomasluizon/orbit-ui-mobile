@@ -7,12 +7,23 @@ function hasLargeText() {
 }
 
 function subscribe(onChange: () => void) {
-  const observer = new MutationObserver(onChange)
+  let frame: number | undefined
+  let active = true
+  const scheduleChange = () => {
+    if (!active || frame !== undefined) return
+    frame = requestAnimationFrame(() => {
+      frame = undefined
+      if (active) onChange()
+    })
+  }
+  const observer = new MutationObserver(scheduleChange)
   observer.observe(document.documentElement, { attributes: true })
-  window.addEventListener('resize', onChange)
+  window.addEventListener('resize', scheduleChange)
   return () => {
+    active = false
     observer.disconnect()
-    window.removeEventListener('resize', onChange)
+    window.removeEventListener('resize', scheduleChange)
+    if (frame !== undefined) cancelAnimationFrame(frame)
   }
 }
 
