@@ -160,6 +160,7 @@ describe('offline queue across the real API and auth boundary', () => {
       ...auth.getSessionGeneration(),
     })
     await login('account-b')
+    const accountBToken = mocks.token
     queue.enqueue({
       id: 'account-b-name', timestamp: 2, type: 'setName', endpoint: API.profile.name,
       method: 'PUT', payload: { name: 'Account B name' },
@@ -171,7 +172,7 @@ describe('offline queue across the real API and auth boundary', () => {
     expect(mocks.fetch).toHaveBeenCalledOnce()
     expect(mocks.fetch.mock.calls[0]?.[1]).toMatchObject({
       body: JSON.stringify({ name: 'Account B name' }),
-      headers: { Authorization: `Bearer ${accountToken('account-b')}` },
+      headers: { Authorization: `Bearer ${accountBToken}` },
     })
     expect(mocks.fetch.mock.calls.some(([, request]) =>
       request?.body?.includes('Account A private name'))).toBe(false)
