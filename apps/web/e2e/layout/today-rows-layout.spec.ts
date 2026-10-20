@@ -330,7 +330,7 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
   function assertPreviewControls() {
     expect(geometry.titleSize).toBe(`${(geometry.depth ? 14 : 17) * scale}px`)
     expect(geometry.well.left - geometry.row.left).toBe(geometry.depth ? 24 : 8)
-    expect(geometry.supporting).toBe(scale === 2 && geometry.parent)
+    expect(geometry.supporting).toBe(scale === 2)
     expect(geometry.target.width).toBe(48)
     expect(geometry.target.height).toBeGreaterThanOrEqual(48)
     expect(geometry.check.width).toBe(28)
