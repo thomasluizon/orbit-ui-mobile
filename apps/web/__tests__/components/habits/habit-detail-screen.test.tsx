@@ -1112,7 +1112,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
       createdAtUtc: `${example.origin.slice(0, 7)}-01T12:00:00Z`,
       frequencyUnit: example.unit, frequencyQuantity: 1, dueDate: example.origin,
-      scheduledStartDate: example.origin, originalDayOfMonth: example.originalDay })
+      scheduledStartDate: example.origin })
     const view = render(<HabitDetailScreen habitId="habit-1" date={example.origin} />)
     expect(screen.getByTestId(`history-day-${example.originalDay}-inside`)).toHaveTextContent('none')
     expect(screen.getByTestId(`history-day-${example.rejectedDay}-inside`)).toHaveTextContent('not-scheduled')

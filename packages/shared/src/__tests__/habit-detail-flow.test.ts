@@ -772,8 +772,8 @@ describe('habit detail flow model', () => {
   })
 
   it.each([
-    { unit: 'Month', origin: '2026-01-31', dueDate: '2026-02-28', originalDay: 31, month: '2026-01-01', scheduled: '2026-01-31', rejected: '2026-01-28', today: '2026-02-01' },
-    { unit: 'Year', origin: '2024-02-29', dueDate: '2025-02-28', originalDay: 29, month: '2024-02-01', scheduled: '2024-02-29', rejected: '2024-02-28', today: '2024-03-01' },
+    { unit: 'Month', origin: '2026-01-31', dueDate: '2026-02-28', month: '2026-01-01', scheduled: '2026-01-31', rejected: '2026-01-28', today: '2026-02-01' },
+    { unit: 'Year', origin: '2024-02-29', dueDate: '2025-02-28', month: '2024-02-01', scheduled: '2024-02-29', rejected: '2024-02-28', today: '2024-03-01' },
   ])('preserves $unit history and strip after the due date advances', (example) => {
     const detail = habitDetailSchema.parse({
       ...makeHabitDetail(),
@@ -783,12 +783,10 @@ describe('habit detail flow model', () => {
       frequencyQuantity: 1,
       dueDate: example.dueDate,
       scheduledStartDate: example.origin,
-      originalDayOfMonth: example.originalDay,
     })
     const habit = mergeHabitDetailWithScopedHabit(detail, makeHabitDetailScopedParent(), example.today)
     expect(normalizedHabitSchema.parse(habit)).toMatchObject({
       scheduledStartDate: example.origin,
-      originalDayOfMonth: example.originalDay,
     })
     const before = { ...habit, dueDate: example.origin }
     const history = (source: typeof habit, logs: HabitLog[] = []) => buildHabitHistoryMonth(
@@ -829,7 +827,7 @@ describe('habit detail flow model', () => {
     }
   })
 
-  it.each([{}, { scheduledStartDate: null, originalDayOfMonth: null }, { originalDayOfMonth: 31 }])('keeps the legacy fallback without a stable date: %j', (origin) => {
+  it.each([{}, { scheduledStartDate: null }])('keeps the legacy fallback without a stable date: %j', (origin) => {
     const habit = habitDetailSchema.parse({ ...makeHabitDetail(), ...origin, createdAtUtc: '2026-01-01T12:00:00Z', days: [], frequencyUnit: 'Month', dueDate: '2026-02-28' })
     const history = buildHabitHistoryMonth(habit, [], parseAPIDate('2026-01-01'), parseAPIDate('2026-02-01'), 1)
     expect(history.filter((day) => day.outcome === 'none')).toHaveLength(0)
@@ -837,11 +835,11 @@ describe('habit detail flow model', () => {
   })
 
   it('accepts nullable origins in both detail contracts and rejects malformed origins', () => {
-    const detail = { ...makeHabitDetail(), scheduledStartDate: '2026-01-31', originalDayOfMonth: 31 }
+    const detail = { ...makeHabitDetail(), scheduledStartDate: '2026-01-31' }
     expect(habitDetailSchema.parse(detail)).toMatchObject(detail)
     expect(habitFullDetailSchema.parse({ habit: detail, metrics: { currentStreak: 0, longestStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 0, totalCompletions: 0, lastCompletedDate: null }, logs: [] }).habit).toMatchObject(detail)
-    expect(habitDetailSchema.parse({ ...detail, scheduledStartDate: null, originalDayOfMonth: null })).toMatchObject({ scheduledStartDate: null, originalDayOfMonth: null })
-    for (const origin of [{ scheduledStartDate: '2026-02-30' }, { scheduledStartDate: '2026-01-31T00:00:00Z' }, { originalDayOfMonth: 0 }, { originalDayOfMonth: 32 }, { originalDayOfMonth: 1.5 }, { originalDayOfMonth: '31' }]) {
+    expect(habitDetailSchema.parse({ ...detail, scheduledStartDate: null })).toMatchObject({ scheduledStartDate: null })
+    for (const origin of [{ scheduledStartDate: '2026-02-30' }, { scheduledStartDate: '2026-01-31T00:00:00Z' }]) {
       expect(habitDetailSchema.safeParse({ ...detail, ...origin }).success).toBe(false)
     }
   })

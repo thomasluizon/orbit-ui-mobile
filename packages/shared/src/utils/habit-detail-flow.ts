@@ -167,6 +167,7 @@ function isScheduled(
     if (dateStr < source.dueDate) return false
     return !isFlexibleTargetMet(source, logs, date, weekStartsOn)
   }
+  // WHY: Only Month/Year lose their original day to calendar clamps; Day/Week retain cadence and flexible schedules use the current window. https://github.com/thomasluizon/orbit-tickets/issues/395
   const isCalendarFrequency = source.frequencyUnit === 'Month' || source.frequencyUnit === 'Year'
   const anchor = isCalendarFrequency ? source.scheduledStartDate ?? source.dueDate : source.dueDate
   if (isCalendarFrequency && dateStr < anchor) return false

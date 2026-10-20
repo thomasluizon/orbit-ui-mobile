@@ -234,7 +234,6 @@ export const habitDetailSchema = baseHabitFieldsSchema.extend({
   relativeReminders: z.array(relativeReminderTimeSchema).nullable().optional(),
   children: z.array(habitDetailChildSchema),
   scheduledStartDate: z.iso.date().nullish(),
-  originalDayOfMonth: z.number().int().min(1).max(31).nullish(),
 })
 
 export type HabitDetail = z.infer<typeof habitDetailSchema>
@@ -260,7 +259,6 @@ export const normalizedHabitSchema = baseHabitFieldsSchema.extend({
   instances: z.array(habitInstanceSchema),
   searchMatches: z.array(searchMatchFieldSchema).nullable().optional(),
   scheduledStartDate: z.iso.date().nullish(),
-  originalDayOfMonth: z.number().int().min(1).max(31).nullish(),
 })
 
 export type NormalizedHabit = z.infer<typeof normalizedHabitSchema>

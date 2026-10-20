@@ -1326,7 +1326,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
       createdAtUtc: `${example.origin.slice(0, 7)}-01T12:00:00Z`,
       frequencyUnit: example.unit, frequencyQuantity: 1, dueDate: example.origin,
-      scheduledStartDate: example.origin, originalDayOfMonth: example.originalDay })
+      scheduledStartDate: example.origin })
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date={example.origin} />) })
     expect(tree!.root.findByProps({ testID: `history-day-${example.originalDay}-inside` }).props.outcome).toBe('none')
