@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import Clipboard from "@react-native-clipboard/clipboard";
+import * as Clipboard from "expo-clipboard";
 import { Check, Copy } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { captureError } from "@/lib/sentry";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
 import { Markdown } from "@/components/ui/markdown";
@@ -35,9 +36,10 @@ export function DescriptionViewer({
   }, [onClose]);
 
   const copyDescription = useCallback(() => {
-    Clipboard.setString(description);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void Clipboard.setStringAsync(description).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(captureError);
   }, [description]);
 
   return (

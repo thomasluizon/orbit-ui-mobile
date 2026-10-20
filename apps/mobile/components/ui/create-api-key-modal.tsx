@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { useTranslation } from 'react-i18next'
 import type {
   ApiKeyCreateRequest,
@@ -11,6 +11,7 @@ import {
   MAX_API_KEY_NAME_LENGTH,
   parseApiKeyExpiryUtc,
 } from '@orbit/shared/validation'
+import { captureError } from '@/lib/sentry'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
@@ -381,9 +382,10 @@ export function CreateApiKeyModal({
 
   function copyKey() {
     if (!createdKey) return
-    Clipboard.setString(createdKey.key)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    void Clipboard.setStringAsync(createdKey.key).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(captureError)
   }
 
   return (
@@ -410,9 +412,7 @@ export function CreateApiKeyModal({
             styles={styles}
             createdKey={createdKey}
             copied={copied}
-            onCopy={() => {
-              copyKey()
-            }}
+            onCopy={copyKey}
             onClose={() => onOpenChange(false)}
           />
         ) : (

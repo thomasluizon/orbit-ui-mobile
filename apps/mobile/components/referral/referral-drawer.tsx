@@ -9,11 +9,12 @@ import {
   Text,
   View,
 } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { Check, Copy, Gift, Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { useReferral } from '@/hooks/use-referral'
+import { captureError } from '@/lib/sentry'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { InfoCard } from '@/components/ui/info-card'
@@ -108,10 +109,11 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
 
   const copyLink = useCallback(() => {
     if (!referralUrl) return
-    Clipboard.setString(referralUrl)
-    AccessibilityInfo.announceForAccessibility(t('referral.drawer.linkCopied'))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    void Clipboard.setStringAsync(referralUrl).then(() => {
+      AccessibilityInfo.announceForAccessibility(t('referral.drawer.linkCopied'))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(captureError)
   }, [referralUrl, t])
 
   return (

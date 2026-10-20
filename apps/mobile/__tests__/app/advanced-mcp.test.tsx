@@ -1,10 +1,11 @@
+import { captureException } from '@sentry/react-native'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Tokens } from '@/app/advanced-styles'
 
-const clipboard = vi.hoisted(() => ({ setString: vi.fn() }))
+const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true) }))
 
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
+vi.mock('expo-clipboard', () => clipboard)
 vi.mock('lucide-react-native', () => {
   const Icon = () => React.createElement('Icon')
   return {
@@ -41,13 +42,14 @@ interface TestTree {
 
 const TestRenderer: {
   create(element: React.ReactNode): TestTree
-  act(callback: () => void): void
+  act(callback: () => void | Promise<void>): void | Promise<void>
 } = require('react-test-renderer')
 
 describe('MCP connection instructions', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
-    clipboard.setString.mockClear()
+    clipboard.setStringAsync.mockClear()
+    vi.mocked(captureException).mockClear()
   })
 
   it('requires an explicit API base in production builds', async () => {
@@ -58,31 +60,58 @@ describe('MCP connection instructions', () => {
     await expect(import('@/lib/api-base')).rejects.toThrow('EXPO_PUBLIC_API_BASE')
   })
 
-  it('shows and copies the selected API endpoint in both tabs', async () => {
+  it.each(['success', 'failure'])('writes the selected MCP text before confirming: %s', async (outcome) => {
     vi.stubEnv('EXPO_PUBLIC_API_BASE', 'https://api-staging.useorbit.org/')
     vi.resetModules()
     const { McpConnectionInstructions } = await import('@/app/advanced-sections')
     let tree!: TestTree
-    TestRenderer.act(() => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <McpConnectionInstructions t={(key) => key} tokens={{} as Tokens} />,
       )
     })
 
-    const press = (node: TestNode) => {
-      TestRenderer.act(() => {
+    const press = async (node: TestNode) => {
+      await TestRenderer.act(() => {
         node.props.onPress?.()
       })
     }
-    press(tree.root.find((node) => node.props.accessibilityState?.expanded === false))
+    async function copySelected() {
+      let finishWrite!: (value: boolean) => void
+      let rejectWrite!: (reason: Error) => void
+      const write = new Promise<boolean>((resolve, reject) => {
+        finishWrite = resolve
+        rejectWrite = reject
+      })
+      clipboard.setStringAsync.mockReturnValueOnce(write)
+      await TestRenderer.act(() => {
+        tree.root.findByProps({ accessibilityLabel: 'orbitMcp.copy' }).props.onPress?.()
+      })
+      expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.copy' })).toBeDefined()
+      await TestRenderer.act(async () => {
+        if (outcome === 'success') {
+          finishWrite(true)
+          await write
+        } else {
+          const rejected = expect(write).rejects.toThrow('Clipboard unavailable')
+          rejectWrite(new Error('Clipboard unavailable'))
+          await rejected
+        }
+      })
+      expect(captureException).toHaveBeenCalledTimes(outcome === 'failure' ? clipboard.setStringAsync.mock.calls.length : 0)
+      expect(tree.root.findByProps({
+        accessibilityLabel: outcome === 'success' ? 'orbitMcp.copied' : 'orbitMcp.copy',
+      })).toBeDefined()
+    }
+    await press(tree.root.find((node) => node.props.accessibilityState?.expanded === false))
     expect(JSON.stringify(tree.toJSON())).toContain('https://api-staging.useorbit.org/mcp')
-    press(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.copy' }))
-    expect(clipboard.setString).toHaveBeenCalledWith('https://api-staging.useorbit.org/mcp')
+    await copySelected()
+    expect(clipboard.setStringAsync).toHaveBeenCalledWith('https://api-staging.useorbit.org/mcp')
 
-    press(tree.root.find((node) => node.props.children === 'orbitMcp.claudeCode' && !!node.props.onPress))
+    await press(tree.root.find((node) => node.props.children === 'orbitMcp.claudeCode' && !!node.props.onPress))
     expect(JSON.stringify(tree.toJSON())).toContain('https://api-staging.useorbit.org/mcp')
-    press(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.copy' }))
-    expect(JSON.parse(clipboard.setString.mock.lastCall![0]).mcpServers.orbit.url).toBe(
+    await copySelected()
+    expect(JSON.parse(clipboard.setStringAsync.mock.lastCall![0]).mcpServers.orbit.url).toBe(
       'https://api-staging.useorbit.org/mcp',
     )
   })
