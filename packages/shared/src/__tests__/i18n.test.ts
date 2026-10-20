@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import {
   isLiteralElement,
+  isNumberElement,
   isPluralElement,
   isPoundElement,
   isSelectElement,
@@ -69,6 +70,18 @@ describe('Portuguese ICU zero plurals', () => {
     ['wrapped.slides.streak.caption', 'Seu próximo registro começa uma nova sequência.'],
     ['progressScreen.streak.covered', 'Um congelamento cobriu date. Não resta nenhum.'],
     ['progressScreen.streak.automaticCovered', 'O Orbit cobriu date automaticamente com um congelamento. Não resta nenhum.'],
+    ['chat.toolResult.deletedHabits', 'Apaguei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.deletedHabitsPartial', 'Apaguei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.loggedHabits', 'Registrei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.loggedHabitsPartial', 'Registrei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.rescheduledHabits', 'Reagendei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.rescheduledHabitsPartial', 'Reagendei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.skippedHabits', 'Pulei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.skippedHabitsPartial', 'Pulei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedEmojis', 'Atualizei os emojis de 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedEmojisPartial', 'Atualizei os emojis de 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedHabits', 'Atualizei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedHabitsPartial', 'Atualizei 0 de 0 hábitos. Nenhum ficou de fora.'],
   ])
 
   it('requires an explicit zero arm in every Portuguese plural, including nested arguments', () => {
@@ -84,7 +97,7 @@ describe('Portuguese ICU zero plurals', () => {
   it.each(messages)('renders $key with zero using plural copy or its custom zero message', ({ key, message, elements }) => {
     const values = Object.fromEntries(allMessageElements(elements)
       .filter((element) => !isLiteralElement(element) && !isPoundElement(element))
-      .map((element) => [element.value, isPluralElement(element) ? 0 : element.value]))
+      .map((element) => [element.value, isPluralElement(element) || isNumberElement(element) ? 0 : element.value]))
     const expected = customZeroMessages.get(key)
       ?? new IntlMessageFormat(pluralAtZero(elements), 'pt-BR').format(values)
 

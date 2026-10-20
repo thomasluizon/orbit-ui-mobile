@@ -102,12 +102,15 @@ describe('buildActionChipsModel', () => {
     ])
   })
 
-  it('keeps successful rows byte-identical', () => {
+  it('preserves successful legacy row content and navigation', () => {
     const model = buildActionChipsModel([makeActionResult()], true)
 
     expect(model.rows[0]).toEqual({
       id: 'action-habit-1-0',
       labelKey: 'chat.action.logged',
+      hasLegacyText: true,
+      messageKey: undefined,
+      params: undefined,
       entityName: 'Meditate',
       status: 'done',
       navigation: {
