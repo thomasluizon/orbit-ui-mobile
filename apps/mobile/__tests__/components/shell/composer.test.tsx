@@ -23,8 +23,8 @@ import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
-const clipboard = vi.hoisted(() => ({ getString: vi.fn().mockResolvedValue('') }))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
+const clipboard = vi.hoisted(() => ({ getStringAsync: vi.fn().mockResolvedValue(''), hasStringAsync: vi.fn().mockResolvedValue(true) }))
+vi.mock('expo-clipboard', () => ({ ...clipboard }))
 
 const motionState = vi.hoisted(() => ({ reducedMotion: false }))
 vi.mock('@/lib/motion', async (importOriginal) => ({
@@ -123,7 +123,7 @@ function renderComposer(composerProps: ComposerProps) {
 
 describe('clipboard composer control', () => {
   beforeEach(() => { authSession.isAuthenticated = true; authSession.user = { userId: 'account-a' } })
-  afterEach(() => { clipboard.getString.mockReset().mockResolvedValue(''); useAppToastStore.getState().dismissAllToasts() })
+  afterEach(() => { clipboard.hasStringAsync.mockReset().mockResolvedValue(true); clipboard.getStringAsync.mockReset().mockResolvedValue(''); useAppToastStore.getState().dismissAllToasts() })
 
   it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
     'moves text actions only when the whole placeholder needs their slot at $width', ({ width, messages }) => {
@@ -187,7 +187,7 @@ describe('clipboard composer control', () => {
   )
 
   it.each([en, ptBR].flatMap(messages => [false, true].map(inMenu => ({ messages, inMenu }))))('pastes text, preserves attachments and focuses the end with menu $inMenu', async ({ messages, inMenu }) => {
-    clipboard.getString.mockResolvedValue('Pasted\nmessage')
+    clipboard.getStringAsync.mockResolvedValue('Pasted\nmessage')
     const onChangeValue = vi.fn()
     const onAttachRemove = vi.fn()
     function ControlledComposer() {
@@ -199,7 +199,7 @@ describe('clipboard composer control', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<ControlledComposer />) })
     try {
-      expect(clipboard.getString).not.toHaveBeenCalled()
+      expect(clipboard.getStringAsync).not.toHaveBeenCalled()
       expect(byLabel(tree.root, messages.shell.composer.clear)).toHaveLength(0)
       if (inMenu) {
         const line = { x: 0, y: 0, width: 80, height: 24, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: messages.shell.composer.placeholder }
@@ -242,9 +242,21 @@ describe('clipboard composer control', () => {
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
-  it('allows a fresh paste after clearing a draft while an older read is pending', async () => {
-    let resolveFirst!: (text: string) => void
-    clipboard.getString.mockImplementationOnce(() => new Promise<string>(resolve => { resolveFirst = resolve })).mockResolvedValue('New clipboard')
+  it('rejects a URI-only Android clipboard item without changing the draft', async () => {
+    clipboard.hasStringAsync.mockResolvedValue(false)
+    clipboard.getStringAsync.mockResolvedValue('null')
+    const onChangeValue = vi.fn()
+    const tree = renderComposer(props({ onChangeValue }))
+    try {
+      await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
+      expect(onChangeValue).not.toHaveBeenCalled()
+      expect(tree.root.findByType('TextInput').props.value).toBe('')
+      expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({ kind: 'neutral', message: words.nothingToPaste })
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('pastes the literal plain-text null and focuses the end', async () => {
+    clipboard.getStringAsync.mockResolvedValue('null')
     function ControlledComposer() {
       const [value, setValue] = React.useState('')
       return <Composer {...props({ value, onChangeValue: setValue })} />
@@ -252,12 +264,29 @@ describe('clipboard composer control', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<ControlledComposer />) })
     try {
-      TestRenderer.act(() => byLabel(tree.root, words.paste)[0].props.onPress())
+      await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
+      expect(tree.root.findByType('TextInput').props.value).toBe('null')
+      expect(__getFocusedInputSelection()).toEqual({ start: 4, end: 4 })
+      expect(useAppToastStore.getState().currentToast).toBeNull()
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('allows a fresh paste after clearing a draft while an older read is pending', async () => {
+    let resolveFirst!: (text: string) => void
+    clipboard.getStringAsync.mockImplementationOnce(() => new Promise<string>(resolve => { resolveFirst = resolve })).mockResolvedValue('New clipboard')
+    function ControlledComposer() {
+      const [value, setValue] = React.useState('')
+      return <Composer {...props({ value, onChangeValue: setValue })} />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ControlledComposer />) })
+    try {
+      await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
       TestRenderer.act(() => tree.root.findByType('TextInput').props.onChangeText('New draft'))
       TestRenderer.act(() => byLabel(tree.root, words.clear)[0].props.onPress())
       await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
       expect(tree.root.findByType('TextInput').props.value).toBe('New clipboard')
-      expect(clipboard.getString).toHaveBeenCalledTimes(2)
+      expect(clipboard.getStringAsync).toHaveBeenCalledTimes(2)
       await TestRenderer.act(async () => { resolveFirst('Old clipboard'); await Promise.resolve() })
       expect(tree.root.findByType('TextInput').props.value).toBe('New clipboard')
     } finally { await TestRenderer.act(() => tree.unmount()) }
@@ -271,29 +300,29 @@ describe('clipboard composer control', () => {
 
   it.each(['text', 'empty'])('discards a pending %s read across account transitions and permits a fresh paste', async result => {
     let resolve!: (text: string) => void
-    clipboard.getString.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete })).mockResolvedValue('New account text')
+    clipboard.getStringAsync.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete })).mockResolvedValue('New account text')
     const onChangeValue = vi.fn()
     const tree = renderComposer(props({ onChangeValue }))
     try {
-      TestRenderer.act(() => byLabel(tree.root, words.paste)[0].props.onPress())
+      await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
       TestRenderer.act(() => { advanceAccountGeneration(); advanceAccountGeneration() })
       await TestRenderer.act(async () => { resolve(result === 'text' ? 'Previous account text' : ''); await Promise.resolve() })
       expect(onChangeValue).not.toHaveBeenCalled()
       expect(useAppToastStore.getState().currentToast).toBeNull()
       await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
       expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('New account text')
-      expect(clipboard.getString).toHaveBeenCalledTimes(2)
+      expect(clipboard.getStringAsync).toHaveBeenCalledTimes(2)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
   it.each(['signed-out', 'account-b'].flatMap(account => ['text', 'empty'].map(result => ({ account, result }))))(
     'discards pending $result when auth becomes $account before account cleanup', async ({ account, result }) => {
       let resolve!: (text: string) => void
-      clipboard.getString.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete }))
+      clipboard.getStringAsync.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete }))
       const onChangeValue = vi.fn()
       const tree = renderComposer(props({ onChangeValue }))
       try {
-        TestRenderer.act(() => byLabel(tree.root, words.paste)[0].props.onPress())
+        await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
         authSession.isAuthenticated = account !== 'signed-out'
         authSession.user = { userId: account === 'signed-out' ? 'account-a' : account }
         await TestRenderer.act(async () => { resolve(result === 'text' ? 'Previous account text' : ''); await Promise.resolve() })
@@ -305,11 +334,11 @@ describe('clipboard composer control', () => {
 
   it('keeps a pending paste through a credential refresh in the same account', async () => {
     let resolve!: (text: string) => void
-    clipboard.getString.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete }))
+    clipboard.getStringAsync.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete }))
     const onChangeValue = vi.fn()
     const tree = renderComposer(props({ onChangeValue }))
     try {
-      TestRenderer.act(() => byLabel(tree.root, words.paste)[0].props.onPress())
+      await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
       TestRenderer.act(() => advanceSessionEpoch())
       await TestRenderer.act(async () => { resolve('Same account text'); await Promise.resolve() })
       expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Same account text')
@@ -318,11 +347,11 @@ describe('clipboard composer control', () => {
 
   it('does not replace a newer draft with a pending clipboard read', async () => {
     let resolve!: (text: string) => void
-    clipboard.getString.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete }))
+    clipboard.getStringAsync.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete }))
     const onChangeValue = vi.fn()
     const tree = renderComposer(props({ onChangeValue }))
     try {
-      TestRenderer.act(() => { void byLabel(tree.root, words.paste)[0]!.props.onPress() })
+      await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0]!.props.onPress(); await Promise.resolve() })
       TestRenderer.act(() => tree.update(<Composer {...props({ value: 'new draft', onChangeValue })} />))
       await TestRenderer.act(async () => { resolve('old clipboard'); await Promise.resolve() })
       expect(onChangeValue).not.toHaveBeenCalled()

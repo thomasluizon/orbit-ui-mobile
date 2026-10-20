@@ -12,7 +12,7 @@ import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, View, useWindowDimensions } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { captureError } from '@/lib/sentry'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useAuthStore } from '@/stores/auth-store'
@@ -378,7 +378,8 @@ function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear }: R
     if (scope.pending) return
     scope.pending = true
     try {
-      const text = await Clipboard.getString()
+      const hasText = await Clipboard.hasStringAsync()
+      const text = hasText ? await Clipboard.getStringAsync() : ''
       const session = useAuthStore.getState()
       if (!scope.active || accountGeneration !== getAccountGeneration()
         || session.isAuthenticated !== isAuthenticated || session.user?.userId !== accountId) return

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { useTranslation } from 'react-i18next'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
@@ -20,8 +20,8 @@ export function DescriptionCopyButton({ description }: Readonly<{ description: s
     if (disabled) return
     setStatus('pending')
     try {
-      Clipboard.setString(description)
-      const copiedDescription = await Clipboard.getString()
+      await Clipboard.setStringAsync(description)
+      const copiedDescription = await Clipboard.getStringAsync()
       setStatus(copiedDescription === description ? 'copied' : 'error')
     } catch {
       setStatus('error')
