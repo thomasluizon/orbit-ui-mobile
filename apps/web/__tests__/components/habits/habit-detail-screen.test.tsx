@@ -2133,6 +2133,7 @@ describe('HabitDetailScreen', () => {
 
     it.each(['light', 'dark'] as const)('leaves the child row group without a second surface in %s', async (mode) => {
       vi.useRealTimers()
+      mocks.realChildRows = true
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
       const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
       try {
@@ -2143,6 +2144,11 @@ describe('HabitDetailScreen', () => {
           return { background: paint.backgroundColor, shadow: paint.boxShadow, border: paint.borderWidth, gap: paint.rowGap }
         })
         expect(group).toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', border: '0px', gap: '12px' })
+        const inset = await page.getByTestId('detail-children').getByTestId('habit-row').evaluate((row) => {
+          const well = Array.from(row.querySelectorAll('span')).find((element) => getComputedStyle(element).width === '32px')!
+          return well.getBoundingClientRect().left - row.getBoundingClientRect().left
+        })
+        expect(inset).toBe(24)
       } finally { await page.close() }
     })
 

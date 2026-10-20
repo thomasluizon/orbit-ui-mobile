@@ -3,7 +3,7 @@
 import { SPACING } from '@orbit/shared/theme'
 
 
-import { useId, type KeyboardEvent, type ReactNode } from 'react'
+import { useId, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { isHabitDoneForRange } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
@@ -282,7 +282,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   supportingMeta: boolean
   largeText: boolean
   isChild: boolean
-  rowPadding: number
+  rowPadding: CSSProperties
   meta: HabitRowMetaToken[]
   onReorder?: (direction: -1 | 1) => void
   reorderInstructionsId?: string
@@ -292,7 +292,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   const contentId = useId()
   const accessibleLabel = [label, meta.map((token) => typeof token === 'string' ? token : token.label).join('·')].filter(Boolean).join(' ')
   const layoutClass = supportingMeta ? 'grid grid-cols-subgrid grid-rows-subgrid' : 'flex'
-  const paddingStyle = { gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: SPACING.s8, alignItems: largeText ? 'flex-start' : undefined }
+  const paddingStyle = { ...rowPadding, gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, alignItems: largeText ? 'flex-start' : undefined }
   const control = (
       <button
         type="button"
@@ -357,7 +357,9 @@ function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefin
   }
 }
 
-function habitRowPadding(isChild: boolean, largeText: boolean): number {
-  if (largeText) return SPACING.s0
-  return isChild ? SPACING.s4 : SPACING.s8
+function habitRowPadding(isChild: boolean, largeText: boolean): CSSProperties {
+  return {
+    paddingBlock: largeText ? SPACING.s0 : isChild ? SPACING.s4 : SPACING.s8,
+    paddingInlineStart: isChild ? SPACING.s24 : SPACING.s8,
+  }
 }

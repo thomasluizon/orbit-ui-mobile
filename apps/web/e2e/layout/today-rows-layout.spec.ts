@@ -73,19 +73,19 @@ async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width:
     const dates = Array.from(document.querySelectorAll('[data-today-date-row] [title] p'))
     const dateRow = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
     const sentence = document.querySelector('.today-astra-sentence')
-    const titles = rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div') ?? row.querySelector('[data-personal-text-content] > div'))!)
+    const titles = rows.map((row) => ({ element: (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div') ?? row.querySelector('[data-personal-text-content] > div'))!, depth: Number(row.getAttribute('data-depth')) }))
     return {
       dateCenters: dates.map((element) => {
         const bounds = element.getBoundingClientRect()
         return (bounds.left + bounds.right) / 2
       }),
       columnCenter: (dateRow.left + dateRow.right) / 2,
-      edges: [...titles, ...(includeSentence && sentence ? [sentence] : [])].map((element) => element.getBoundingClientRect().left),
+      edges: [...titles, ...(includeSentence && sentence ? [{ element: sentence, depth: 0 }] : [])].map(({ element, depth }) => ({ left: element.getBoundingClientRect().left, depth })),
       insets: rows.map((row) => {
         const body = row.querySelector('[data-habit-row-body]')!
         const content = body.children.length ? body : body.parentElement!.querySelector('[data-personal-text-content]')!
         const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
-        return well.getBoundingClientRect().left - body.getBoundingClientRect().left
+        return { inset: well.getBoundingClientRect().left - body.getBoundingClientRect().left, depth: Number(row.getAttribute('data-depth')) }
       }),
       targets: rows.flatMap((row) => Array.from(row.querySelectorAll('button')).map((button) => {
         const bounds = button.getBoundingClientRect()
@@ -97,9 +97,9 @@ async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width:
   expect(geometry.dateCenters).toHaveLength(2)
   for (const center of geometry.dateCenters) expect(Math.abs(center - geometry.columnCenter)).toBeLessThanOrEqual(1)
   expect(geometry.edges).toHaveLength(sentenceVisible ? 4 : 3)
-  for (const edge of geometry.edges) expect(Math.abs(edge - 84)).toBeLessThanOrEqual(1)
+  for (const edge of geometry.edges) expect(Math.abs(edge.left - (edge.depth === 1 ? 100 : 84))).toBeLessThanOrEqual(1)
   expect(geometry.insets).toHaveLength(3)
-  for (const inset of geometry.insets) expect(inset).toBeGreaterThanOrEqual(8)
+  for (const { inset, depth } of geometry.insets) expect(inset).toBe(depth === 1 ? 24 : 8)
   expect(geometry.overflow).toBeLessThanOrEqual(width)
   for (const target of geometry.targets) {
     expect(target.left).toBeGreaterThanOrEqual(16)
@@ -151,7 +151,9 @@ for (const width of [320, 600]) {
           for (const body of await page.locator('[data-habit-row-body]').all()) {
             await body.hover()
             await expect(body).toHaveCSS('border-radius', '20px')
-            await expect(body).toHaveCSS('padding-inline-start', '8px')
+            const depth = await body.evaluate((element) => element.closest('[data-depth]')!.getAttribute('data-depth'))
+            const expectedInset = depth === '1' ? 24 : 8
+            await expect(body).toHaveCSS('padding-inline-start', `${expectedInset}px`)
             await page.mouse.down()
             const pressedInset = await body.evaluate((element) => {
               const content = element.children.length ? element : element.parentElement!.querySelector('[data-personal-text-content]')!
@@ -160,7 +162,7 @@ for (const width of [320, 600]) {
               const scale = Number.parseFloat(getComputedStyle(element).scale) || 1
               return (well.getBoundingClientRect().left - bounds.left) / scale
             })
-            expect(pressedInset).toBeCloseTo(8, 2)
+            expect(pressedInset).toBeCloseTo(expectedInset, 2)
             await page.mouse.move(width - 1, 914)
             await page.mouse.up()
             // Wait for dnd-kit's click capture cleanup: https://github.com/clauderic/dnd-kit/blob/@dnd-kit/core@6.3.1/packages/core/src/sensors/pointer/AbstractPointerSensor.ts#L159
