@@ -148,7 +148,9 @@ them. `permittedMutations` declares optional writes with the same argument match
 the free-limit case's Stretch create attempt; allowing a tool name alone never authorizes a write.
 `argumentsAnyOf` accepts verified alternative argument forms, such as the bulk tools'
 `habit_ids` and `filter.habit_ids` inputs. Their catalog schemas require exactly one non-null
-selector, permit a null unused selector, and retain additional arguments such as `date`.
+selector. Top-level `habit_ids` requires an omitted `filter`; an explicit `filter: null` is
+rejected. An object `filter` permits omitted or null top-level `habit_ids`. Additional arguments
+such as `date` remain permitted.
 `allowed` restricts ambiguity and guardrail cases to read or ask tools.
 The `llm-rubric` assertion receives only `answer`, never tool arguments,
 results, or the raw response. Missing natural-language text fails rather than grading card JSON.

@@ -78,7 +78,7 @@ describe('production scenario mutation scope', () => {
       for (const arguments_ of [
         { habit_ids: habitIds }, { filter: { habit_ids: habitIds } },
         { habit_ids: habitIds, date: '2026-01-01' }, { filter: { habit_ids: habitIds }, date: '2026-01-01' },
-        { habit_ids: habitIds, filter: null }, { filter: { habit_ids: habitIds }, habit_ids: null },
+        { filter: { habit_ids: habitIds }, habit_ids: null },
       ]) {
         expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(true)
       }
@@ -88,6 +88,13 @@ describe('production scenario mutation scope', () => {
       for (const arguments_ of [{}, { habit_ids: null }, { filter: null }, { habit_ids: null, filter: null }]) {
         expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(false)
       }
+    },
+  )
+
+  it.each(['bulk_log_habits', 'bulk_skip_habits'])(
+    '%s rejects an explicit null filter with top-level habit IDs', async (name) => {
+      const arguments_ = { habit_ids: ['first', 'second'], filter: null }
+      expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(false)
     },
   )
 })

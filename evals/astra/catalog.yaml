@@ -59,9 +59,9 @@
       type: object
       oneOf:
         - required: [habit_ids]
+          not: { required: [filter] }
           properties:
             habit_ids: { type: array }
-            filter: { type: 'null' }
         - required: [filter]
           properties:
             filter: { type: object }
