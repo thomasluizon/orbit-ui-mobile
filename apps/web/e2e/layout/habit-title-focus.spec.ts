@@ -43,7 +43,7 @@ async function expectClearTitleIndicator(page: Page, heading: Locator, target: L
   const paint = await target.evaluate(readControlPaint)
   const clearance = await target.evaluate((element, bounds) => {
     const heading = element.closest('h1')!
-    const summary = heading.nextElementSibling!.getBoundingClientRect()
+    const type = heading.parentElement!.querySelector('[data-habit-detail-type]')!.getBoundingClientRect()
     const style = getComputedStyle(element, '::before')
     const offset = Number.parseFloat(style.outlineOffset)
     const outerEdge = offset + Number.parseFloat(style.outlineWidth)
@@ -52,11 +52,11 @@ async function expectClearTitleIndicator(page: Page, heading: Locator, target: L
     const text = range.getBoundingClientRect()
     return {
       glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
-      summaryGap: summary.top - bounds.bottom - outerEdge,
+      typeGap: type.top - bounds.bottom - outerEdge,
     }
   }, paint.bounds)
   expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
-  expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
+  expect(clearance.typeGap).toBeGreaterThanOrEqual(0)
 }
 
 for (const width of [412, 1100]) {
@@ -95,7 +95,8 @@ for (const width of [412, 1100]) {
       expect(hit.edgeHits).toEqual([true, true, true, true])
       const geometry = await heading.evaluate((heading, hit) => {
         const button = heading.querySelector('button')!
-        const summary = heading.nextElementSibling!
+        const type = heading.parentElement!.querySelector('[data-habit-detail-type]')!
+        const summary = type.nextElementSibling
         const row = heading.closest('[data-habit-detail-header-row]')!
         const controls = row.firstElementChild!
         const range = document.createRange()
@@ -108,20 +109,32 @@ for (const width of [412, 1100]) {
           for (const rect of range.getClientRects()) if (rect.width > 0) lineTops.add(Math.round(rect.top))
         }
         const lines = lineTops.size
-        range.selectNodeContents(summary)
-        const summaryText = range.getBoundingClientRect()
+        range.selectNodeContents(type)
+        const typeText = range.getBoundingClientRect()
+        const typeRect = type.getBoundingClientRect()
+        const summaryRect = summary?.getBoundingClientRect()
+        if (summary) range.selectNodeContents(summary)
+        const summaryText = summary ? range.getBoundingClientRect() : null
         const lineHeight = Number.parseFloat(getComputedStyle(button).lineHeight)
         return {
           titleX: text.left,
-          summaryX: summaryText.left,
+          typeX: typeText.left,
+          summaryX: summaryText?.left ?? null,
           controlsX: controls.getBoundingClientRect().left,
+          controlsGap: heading.getBoundingClientRect().top - controls.getBoundingClientRect().bottom,
+          typeGap: typeRect.top - heading.getBoundingClientRect().bottom,
+          summaryGap: summaryRect ? summaryRect.top - typeRect.bottom : null,
           hitHeight: hit.height,
           rowHeight: row.getBoundingClientRect().height,
-          baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 4 + summary.getBoundingClientRect().height,
+          baseHeight: controls.getBoundingClientRect().height + 8 + Math.max(48, lines * lineHeight + 16) - 16 + 8 + typeRect.height + (summaryRect ? 8 + summaryRect.height : 0),
         }
       }, hit)
-      expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)
+      expect(Math.abs(geometry.titleX - geometry.typeX)).toBeLessThanOrEqual(1)
+      if (geometry.summaryX !== null) expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)
       expect(Math.abs(geometry.titleX - geometry.controlsX)).toBeLessThanOrEqual(1)
+      expect(geometry.controlsGap).toBeCloseTo(8, 1)
+      expect(geometry.typeGap).toBeCloseTo(8, 1)
+      if (geometry.summaryGap !== null) expect(geometry.summaryGap).toBeCloseTo(8, 1)
       expect(geometry.hitHeight).toBeGreaterThanOrEqual(48)
       expect(geometry.rowHeight).toBeCloseTo(geometry.baseHeight, 1)
     })

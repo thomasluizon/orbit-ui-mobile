@@ -1629,16 +1629,17 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
   })
 
   if (owner === 'create') it.each((['en', 'pt-BR'] as const).flatMap((locale) =>
-    (['title-before-type', 'habit-to-task', 'general', 'recurring'] as const).map((transition) => ({ locale, transition })),
+    (['title-before-type', 'task-before-title', 'habit-to-task', 'general', 'recurring'] as const).map((transition) => ({ locale, transition })),
   ))('saves the owned title for $locale after $transition', async ({ locale, transition }) => {
     formLocale.language = locale
-    await mount(transition === 'title-before-type' ? null : 'habit')
+    await mount(transition === 'title-before-type' ? null : transition === 'task-before-title' ? 'task' : 'habit')
+    if (transition === 'task-before-title') expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toBeChecked()
     const title = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
     fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: title } })
     if (transition === 'general') {
       fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
       fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
-    } else if (transition !== 'recurring') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    } else if (transition !== 'recurring' && transition !== 'task-before-title') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
     await submit()
     await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
     const request = modalFeedback.create.mock.calls[0]![0]
@@ -1651,6 +1652,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
       expect(request.days ?? []).toEqual([])
       if (transition !== 'general') expect(request.dueDate).toBe('2026-10-20')
     }
+    expect(dateRequests.request).not.toHaveBeenCalled()
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 

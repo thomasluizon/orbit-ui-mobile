@@ -1720,16 +1720,17 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
   })
 
   if (owner === 'create') it.each((['en', 'pt-BR'] as const).flatMap((locale) =>
-    (['title-before-type', 'habit-to-task', 'general', 'recurring'] as const).map((transition) => ({ locale, transition })),
+    (['title-before-type', 'task-before-title', 'habit-to-task', 'general', 'recurring'] as const).map((transition) => ({ locale, transition })),
   ))('saves the owned title for $locale after $transition', async ({ locale, transition }) => {
     formLocale.language = locale
-    await mount(transition === 'title-before-type' ? null : 'habit')
+    await mount(transition === 'title-before-type' ? null : transition === 'task-before-title' ? 'task' : 'habit')
+    if (transition === 'task-before-title') expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeTask')[0]!.props.accessibilityState.checked).toBe(true)
     const title = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
     await TestRenderer.act(() => input('habits.form.describe').props.onChangeText(title))
     if (transition === 'general') {
       await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
       await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && String(node.props.accessibilityLabel).startsWith('habits.form.noSchedule'))[0]!.props.onPress())
-    } else if (transition !== 'recurring') await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeTask')[0]!.props.onPress())
+    } else if (transition !== 'recurring' && transition !== 'task-before-title') await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeTask')[0]!.props.onPress())
     await submit()
     expect(mutation()).toHaveBeenCalledOnce()
     const request = modalFeedback.create.mock.calls[0]![0]
@@ -1742,6 +1743,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
       expect(request.days ?? []).toEqual([])
       if (transition !== 'general') expect(request.dueDate).toBe('2026-10-20')
     }
+    expect(dateRequests.request).not.toHaveBeenCalled()
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
