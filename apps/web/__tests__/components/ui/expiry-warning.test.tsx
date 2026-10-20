@@ -47,6 +47,14 @@ describe('ExpiryWarning', () => {
     expect(screen.queryByText('auth.refresh')).not.toBeInTheDocument()
   })
 
+  it('uses the shared small ghost pill for recovery', () => {
+    mockSessionRefreshFailed = true
+    render(<ExpiryWarning />)
+    const action = screen.getByRole('button', { name: 'auth.login' })
+    expect(action).toHaveAttribute('data-size', 'sm')
+    expect(action).toHaveAttribute('data-variant', 'ghost')
+  })
+
   it('navigates through logout when sign in is clicked', () => {
     mockSessionRefreshFailed = true
     render(<ExpiryWarning />)

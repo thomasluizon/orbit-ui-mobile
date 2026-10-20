@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
-import { AppState, ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { AppState, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { SPACING, TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
+import { SPACING, zLayers } from '@orbit/shared/theme'
 import { getSessionGeneration, refreshSession, useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
 import { createTokensV2, radius, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { PillButton } from '@/components/ui/pill-button'
 
 const WARN_AT_MINUTES = 5
 
@@ -54,8 +55,6 @@ export function ExpiryWarning() {
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
   const [refreshState, setRefreshState] = useState<RefreshState>('ready')
-  const [actionHovered, setActionHovered] = useState(false)
-  const [actionFocused, setActionFocused] = useState(false)
   const refreshInFlight = useRef(false)
 
   const [prevExpiresAt, setPrevExpiresAt] = useState(expiresAt)
@@ -189,30 +188,15 @@ export function ExpiryWarning() {
             t('auth.sessionExpiring', { minutes: minutesLeft ?? 0 })
           )}
         </Text>
-        <Pressable
-          onPress={() => void handleAction()}
+        <PillButton
+          variant="ghost"
+          size="sm"
+          onClick={() => void handleAction()}
           disabled={isRefreshing}
-          onHoverIn={() => setActionHovered(true)}
-          onHoverOut={() => setActionHovered(false)}
-          onFocus={() => setActionFocused(true)}
-          onBlur={() => setActionFocused(false)}
-          style={({ pressed }) => [
-            styles.actionPress,
-            { backgroundColor: !isRefreshing && (pressed || actionHovered || actionFocused) ? tokens.bgHover : 'transparent' },
-          ]}
-          accessibilityRole="button"
-          accessibilityState={{
-            busy: isRefreshing,
-            disabled: isRefreshing,
-          }}
+          loading={isRefreshing}
         >
-          {isRefreshing ? (
-            <ActivityIndicator size={14} color={tokens.fg1} />
-          ) : null}
-          <Text style={styles.actionText}>
-            {isTerminal ? t('auth.login') : t('auth.refresh')}
-          </Text>
-        </Pressable>
+          {isTerminal ? t('auth.login') : t('auth.refresh')}
+        </PillButton>
       </View>
     </View>
   )
@@ -251,23 +235,6 @@ function createStyles(tokens: AppTokensV2) {
     },
     urgent: {
       color: tokens.statusOverdueText,
-    },
-    actionPress: {
-      borderRadius: radius.sm,
-      overflow: 'hidden',
-      minWidth: TOUCH_TARGET_MIN,
-      minHeight: TOUCH_TARGET_MIN,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingVertical: SPACING.s8,
-      paddingHorizontal: SPACING.s8,
-    },
-    actionText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg1,
-      textDecorationLine: 'underline',
     },
   })
 }

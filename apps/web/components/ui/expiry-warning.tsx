@@ -1,24 +1,9 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-
 import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
-
-const EXPIRY_ACTION_STYLE = {
-  minHeight: TOUCH_TARGET_MIN,
-  margin: "calc(-1 * var(--orbit-space-12)) var(--orbit-space-0)",
-  fontFamily: 'var(--font-sans)',
-  fontSize: 14,
-  fontWeight: 500,
-  color: 'var(--fg-1)',
-  padding: "var(--orbit-space-0) var(--orbit-space-8)",
-  transitionDuration: 'var(--dur-hover-control), 150ms',
-  transitionTimingFunction: 'var(--ease-standard), var(--ease-out)',
-  textDecoration: 'underline',
-  textUnderlineOffset: 3,
-} as const
+import { PillButton } from '@/components/ui/pill-button'
 
 export function ExpiryWarning() {
   const t = useTranslations()
@@ -63,14 +48,9 @@ export function ExpiryWarning() {
             {t('auth.sessionSignedOut')}
           </span>
         </span>
-        <button
-          type="button"
-          className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer rounded-full overflow-hidden transition-[background-color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]"
-          onClick={handleSignIn}
-          style={EXPIRY_ACTION_STYLE}
-        >
+        <PillButton variant="ghost" size="sm" onClick={handleSignIn}>
           {t('auth.login')}
-        </button>
+        </PillButton>
       </div>
     </div>
   )

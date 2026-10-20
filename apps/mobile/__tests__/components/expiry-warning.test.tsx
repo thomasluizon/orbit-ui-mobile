@@ -4,10 +4,11 @@ import { AppState, StyleSheet, type AppStateStatus, type PressableProps } from '
 import { I18nextProvider } from 'react-i18next'
 
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
+import { PillButton } from '@/components/ui/pill-button'
 import { i18n } from '@/lib/i18n'
 import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2, radius } from '@/lib/theme'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { BUTTON_SIZES, SMALL_PILL_VISIBLE_MIN, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 vi.unmock('react-i18next')
 
@@ -224,22 +225,29 @@ describe('ExpiryWarning', () => {
     mocks.theme.currentTheme = mode
     const instance = await renderExpiredWarning()
     const tokens = createTokensV2('orange', mode)
+    const pills = instance.root.findAll((node) => node.type === PillButton)
+    expect(pills).toHaveLength(1)
+    expect(pills[0]!.props).toMatchObject({ size: 'sm', variant: 'ghost' })
+    const recoveryAction = action(instance, i18n.t('auth.refresh'))
+    expect(recoveryAction.props.testID).toBe('button-ghost-sm')
     expect(actionStyle(instance)).toMatchObject({
-      borderRadius: radius.sm,
+      borderRadius: radius.full,
       overflow: 'hidden',
-      minHeight: TOUCH_TARGET_MIN,
-      minWidth: TOUCH_TARGET_MIN,
-      paddingVertical: SPACING.s8,
-      paddingHorizontal: SPACING.s8,
+      height: SMALL_PILL_VISIBLE_MIN,
+      minHeight: SMALL_PILL_VISIBLE_MIN,
+      minWidth: SMALL_PILL_VISIBLE_MIN,
+      paddingVertical: SPACING.s4,
+      paddingHorizontal: BUTTON_SIZES.sm.paddingX,
       backgroundColor: 'transparent',
     })
+    expect(Number(actionStyle(instance).height) + 2 * (recoveryAction.props.hitSlop as number)).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
     expect(actionStyle(instance, true)).toMatchObject({ backgroundColor: tokens.bgHover })
     await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onHoverIn as () => void)() })
     expect(actionStyle(instance)).toMatchObject({ backgroundColor: tokens.bgHover })
     await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onHoverOut as () => void)() })
     expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent' })
     await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onFocus as () => void)() })
-    expect(actionStyle(instance)).toMatchObject({ backgroundColor: tokens.bgHover })
+    expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent', outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: 2 })
     await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onBlur as () => void)() })
     expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent' })
   })
@@ -490,9 +498,10 @@ describe('ExpiryWarning', () => {
     )
     const instance = await renderExpiredWarning()
     let refreshPromise!: Promise<void>
+    const press = action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>
 
     await TestRenderer.act(async () => {
-      refreshPromise = (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+      refreshPromise = press()
       await Promise.resolve()
     })
 
@@ -501,8 +510,9 @@ describe('ExpiryWarning', () => {
     expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
 
     await TestRenderer.act(async () => {
-      await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+      await press()
     })
+    expect(action(instance, i18n.t('auth.refresh')).props.onPress).toBeUndefined()
     expect(mocks.refreshSession).toHaveBeenCalledOnce()
     expect(action(instance, i18n.t('auth.refresh')).props.accessibilityState).toEqual({ busy: true, disabled: true })
     expect(actionStyle(instance, true)).toMatchObject({ backgroundColor: 'transparent' })
