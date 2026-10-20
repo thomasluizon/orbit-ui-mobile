@@ -4,6 +4,7 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'light' | 'dark' } => ({ mode: 'dark' }))
@@ -37,6 +38,9 @@ describe('habit row standard on Android', () => {
     expect(StyleSheet.flatten(type.props.style)).toMatchObject({ fontSize: 12 })
     const tokens = createTokensV2('orange', mode)
     const row = tree!.root.findByProps({ testID: 'habit-row' })
+    const geometry = measureInteractionFills(tree!.toJSON(), width, false, fontScale)
+    const well = geometry.find((part) => part.style.borderRadius === 12 && part.style.width === (depth === 1 ? 32 : 46))!
+    expect(well.left).toBe(depth === 1 ? 24 : 8)
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgCard })
     expect(StyleSheet.flatten(row.props.style).borderWidth ?? 0).toBe(0)
     const outline = tree!.root.findByProps({ testID: 'habit-row-outline' })

@@ -99,7 +99,7 @@ const toggleSelectionSpy = vi.fn()
 const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
 const routerPush = vi.fn()
-const getDrillChildrenMock = vi.fn(() => [])
+const getDrillChildrenMock = vi.fn<(id: string) => NormalizedHabit[]>(() => [])
 let mockHabitsDataUpdatedAt = 1
 let useActualHabitVisibility = false
 const mockDrillState = {
@@ -447,6 +447,57 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  beforeEach(() => {
+    dragLocale.portuguese = false
+    dragLocale.english = false
+    skipFlow.active = false
+    skipFlow.retryRead = false
+    skipFlow.scheduleItems = null
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    rowImplementation.actual = false
+    accountDate.timeZone = undefined
+    capturedDrillOptions = undefined
+    vi.clearAllMocks()
+    sheetTestControls.defer(false)
+    mockHabitsDataUpdatedAt = 1
+    useActualHabitVisibility = false
+    drillRefreshCurrent.mockReset()
+    drillInto.mockReset()
+    getDrillChildrenMock.mockReset()
+    getDrillChildrenMock.mockReturnValue([])
+    mockDrillState.drillStack = []
+    mockDrillState.currentParentId = null
+    mockDrillState.currentParent = null
+    mockDrillState.drillChildren = []
+    mockDrillState.completedCount = 0
+    mockDrillState.hasUnfilteredChildren = false
+    mockDrillState.canRevealCompletedChildren = false
+    mockDrillState.drillLoading = false
+    mockDrillState.drillError = null
+    skipHabitMutateAsync.mockReset()
+    skipHabitMutateAsync.mockResolvedValue(undefined)
+    deleteHabitMutateAsync.mockReset()
+    duplicateHabitMutateAsync.mockReset()
+    toggleSelectionSpy.mockReset()
+    habitListRefetch.mockReset()
+    habitListRefetch.mockResolvedValue(undefined)
+    logHabitMutateAsync.mockReset()
+    logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
+      const habit = mockHabitsData.habitsById.get(habitId)
+      if (!habit) return
+      mockHabitsData.habitsById.set(habitId, {
+        ...habit,
+        isCompleted: true,
+      })
+    })
+    mockHabitsData.habitsById.clear()
+    mockHabitsData.childrenByParent.clear()
+    mockHabitsData.topLevelHabits = []
+    mockHabitsData.totalCount = 0
+    accountHabitCount.count = 0
+    accountHabitCount.isLoaded = true
+  })
+
   it.each(['today', 'all', 'general'] as const)('offers search recovery instead of first run in %s', (view) => {
     dragLocale.english = true
     const clearSearch = vi.fn()
@@ -625,23 +676,32 @@ describe('HabitList', () => {
     }
   })
 
-  it('keeps the Hoje list inset and content edge fixed at enlarged text in both selection modes', async () => {
+  it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].map((drilling) => ({ view, drilling }))))(
+    'keeps the list inset and content edges per depth in $view, drilling=$drilling', async ({ view, drilling }) => {
     rowImplementation.actual = true
-    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
-    const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY] })
-    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', scheduledDates: [TODAY] })
-    for (const habit of [parent, child, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
-    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY], isGeneral: view === 'general' })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY], isGeneral: parent.isGeneral })
+    const branch = createMockHabit({ ...child, id: 'branch', title: 'Branch', hasSubHabits: true })
+    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', scheduledDates: [TODAY], isGeneral: parent.isGeneral })
+    for (const habit of [parent, child, branch, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id, branch.id])
     mockHabitsData.topLevelHabits = [parent, leaf]
+    if (drilling) {
+      mockDrillState.currentParent = parent
+      mockDrillState.currentParentId = parent.id
+      mockDrillState.drillStack = [parent.id]
+      mockDrillState.drillChildren = [child, branch]
+      getDrillChildrenMock.mockImplementation((id) => id === branch.id ? [createMockHabit({ ...child, id: 'grandchild', parentId: branch.id })] : [])
+    }
     const cssPath = resolve(process.cwd(), 'app/globals.css')
     const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
     const launch = launchChrome()
     try {
       const browser = await launch
-      const cases = [320, 600].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode }))))
+      const cases = [320, 412, 1352].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode }))))
       for (const { width, textScale, selectMode } of cases) {
         document.documentElement.style.fontSize = `${16 * textScale}px`
-        const { container, unmount } = renderWithProviders(<HabitList view="today" isSelectMode={selectMode}
+        const { container, unmount } = renderWithProviders(<HabitList view={view} isSelectMode={selectMode} selectedHabitIds={new Set([child.id])}
           filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
         const markup = container.innerHTML
         unmount()
@@ -654,6 +714,7 @@ describe('HabitList', () => {
             const title = (row.querySelector('[data-habit-row-heading] > div') ?? content.querySelector(':scope > div'))!
             const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
             return {
+              depth: Number(row.getAttribute('data-depth')),
               inset: row.getBoundingClientRect().left,
               textEdge: title.getBoundingClientRect().left,
               wellInset: well.getBoundingClientRect().left - body.getBoundingClientRect().left,
@@ -663,11 +724,11 @@ describe('HabitList', () => {
               }),
             }
           }))
-          expect(geometry).toHaveLength(3)
+          expect(geometry).toHaveLength(drilling ? 2 : 4)
           for (const row of geometry) {
             expect(row.inset).toBe(16)
-            expect(row.textEdge).toBe(84)
-            expect(row.wellInset).toBeGreaterThanOrEqual(8)
+            expect(row.textEdge).toBe(84 + 16 * row.depth)
+            expect(row.wellInset).toBe(8 + 16 * row.depth)
             for (const target of row.targets) {
               expect(target.left).toBeGreaterThanOrEqual(16)
               expect(target.right).toBeLessThanOrEqual(width - 16)
@@ -1090,57 +1151,6 @@ describe('HabitList', () => {
       Reflect.deleteProperty(navigator, 'onLine')
     }
   })
-  beforeEach(() => {
-    dragLocale.portuguese = false
-    dragLocale.english = false
-    skipFlow.active = false
-    skipFlow.retryRead = false
-    skipFlow.scheduleItems = null
-    useAppToastStore.setState({ currentToast: null, queue: [] })
-    rowImplementation.actual = false
-    accountDate.timeZone = undefined
-    capturedDrillOptions = undefined
-    vi.clearAllMocks()
-    sheetTestControls.defer(false)
-    mockHabitsDataUpdatedAt = 1
-    useActualHabitVisibility = false
-    drillRefreshCurrent.mockReset()
-    drillInto.mockReset()
-    getDrillChildrenMock.mockReset()
-    getDrillChildrenMock.mockReturnValue([])
-    mockDrillState.drillStack = []
-    mockDrillState.currentParentId = null
-    mockDrillState.currentParent = null
-    mockDrillState.drillChildren = []
-    mockDrillState.completedCount = 0
-    mockDrillState.hasUnfilteredChildren = false
-    mockDrillState.canRevealCompletedChildren = false
-    mockDrillState.drillLoading = false
-    mockDrillState.drillError = null
-    skipHabitMutateAsync.mockReset()
-    skipHabitMutateAsync.mockResolvedValue(undefined)
-    deleteHabitMutateAsync.mockReset()
-    duplicateHabitMutateAsync.mockReset()
-    toggleSelectionSpy.mockReset()
-    habitListRefetch.mockReset()
-    habitListRefetch.mockResolvedValue(undefined)
-    logHabitMutateAsync.mockReset()
-    logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
-      const habit = mockHabitsData.habitsById.get(habitId)
-      if (!habit) return
-      mockHabitsData.habitsById.set(habitId, {
-        ...habit,
-        isCompleted: true,
-      })
-    })
-    mockHabitsData.habitsById.clear()
-    mockHabitsData.childrenByParent.clear()
-    mockHabitsData.topLevelHabits = []
-    mockHabitsData.totalCount = 0
-    accountHabitCount.count = 0
-    accountHabitCount.isLoaded = true
-  })
-
   it.each([false, true])('links disclosure panels through keyboard expansion without changing selection (select mode: %s)', async (selectMode) => {
     rowImplementation.actual = true
     const user = userEvent.setup()

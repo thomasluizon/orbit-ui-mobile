@@ -85,6 +85,14 @@ describe('habit row standard in Chromium', () => {
         expect(type.height).toBeGreaterThan(0)
       }
       expect(rows).toHaveLength(10)
+      const wellEdges = await page.locator('[data-testid="habit-row"]').evaluateAll((elements) => elements.map((row) => {
+        const well = Array.from(row.querySelectorAll('span')).find((element) => {
+          const style = getComputedStyle(element)
+          return ['32px', '46px'].includes(style.width) && style.borderRadius === '12px'
+        })!
+        return well.getBoundingClientRect().left - row.getBoundingClientRect().left
+      }))
+      expect(wellEdges).toEqual([8, 8, 8, 8, 24, 8, 8, 8, 8, 8])
       for (const row of rows) {
         expect(row.check).toMatchObject({ width: 28, height: 28, radius: '12px' })
         expect(row.radius).toBe('20px')

@@ -36,6 +36,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
@@ -689,6 +690,10 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ backgroundColor: tokens.bg }}><HabitDetailScreen habitId="habit-1" /></View>) })
     const group = tree.root.findByProps({ testID: 'detail-children' })
     const row = group.findByProps({ testID: 'habit-row' })
+    const geometry = measureInteractionFills(tree.toJSON(), 320, false)
+    const rowBounds = geometry.find((part) => part.host.props.testID === 'habit-row')!
+    const wellBounds = geometry.find((part) => part.style.width === 32 && part.style.borderRadius === 12 && part.ancestors.includes(rowBounds.slot))!
+    expect(wellBounds.left - rowBounds.left).toBe(24)
     expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgCard, borderRadius: 20 })
     expect(StyleSheet.flatten(row.props.style as ViewStyle).borderWidth ?? 0).toBe(0)
     const outline = row.findByProps({ testID: 'habit-row-outline' })
