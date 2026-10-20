@@ -24,6 +24,7 @@ import {
 } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import { updateHabitRequestSchema } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { Sheet } from '@/components/ui/sheet'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -1304,6 +1305,38 @@ describe('HabitDetailScreen', () => {
     },
   )
 
+  describe.each(['absent', 'pending', 'failed'])('nullable rename with %s unrelated lists', (listState) => {
+    it.each([
+      { dueTime: null, dueEndTime: null, oneTime: false },
+      { dueTime: '08:00:00', dueEndTime: null, oneTime: false },
+      { dueTime: '08:00', dueEndTime: '09:00:00', oneTime: false },
+      { dueTime: null, dueEndTime: null, oneTime: true },
+    ])('saves and reloads normalized detail %j', async ({ dueTime, dueEndTime, oneTime }) => {
+      mocks.allHabits.clear()
+      mocks.allHabitsLoading = mocks.scopedLoading = listState === 'pending'
+      mocks.allHabitsError = mocks.scopedError = listState === 'failed'
+      mocks.detail = { ...makeDetail(), dueTime, dueEndTime, ...(oneTime ? { id: 'child-1', frequencyUnit: null, frequencyQuantity: null, days: [], children: [] } : {}) }
+      mocks.update.mockResolvedValue(undefined)
+      const view = render(<HabitDetailScreen habitId={mocks.detail.id} date="2026-08-28" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Read' }))
+      const input = screen.getByRole('textbox', { name: 'rename' })
+      fireEvent.change(input, { target: { value: '  Read daily  ' } })
+      if (oneTime) fireEvent.blur(input)
+      else fireEvent.keyDown(input, { key: 'Enter' })
+      await act(async () => { await Promise.resolve() })
+
+      expect(mocks.update).toHaveBeenCalledOnce()
+      const outgoing = updateHabitRequestSchema.parse(mocks.update.mock.calls[0]![0].data)
+      expect(outgoing).toMatchObject({ title: 'Read daily', dueTime, dueEndTime, endDate: null, scheduledReminders: [] })
+      expect(outgoing).not.toHaveProperty('clearEndDate')
+      expect(screen.queryByRole('textbox', { name: 'rename' })).not.toBeInTheDocument()
+      expect(mocks.showError).not.toHaveBeenCalled()
+      mocks.detail = { ...mocks.detail, title: outgoing.title }
+      view.rerender(<HabitDetailScreen habitId={mocks.detail.id} date="2026-08-28" />)
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Read daily')
+    })
+  })
+
   it('renames an unscoped habit without sending Pro or goal state', () => {
     mocks.hasProAccess = false
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -1819,7 +1852,10 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls[0]![0].data).not.toHaveProperty('goalIds')
   })
 
-  it('keeps the title editor open and reports an update failure', async () => {
+  it.each(['en', 'pt-BR'])('keeps the title editor open and reports an update failure in %s', async (language) => {
+    mocks.language = language
+    mocks.allHabits.clear()
+    mocks.allHabitsError = true
     mocks.update.mockRejectedValueOnce(new Error('update failed'))
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
@@ -1829,6 +1865,8 @@ describe('HabitDetailScreen', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
 
     await act(async () => { await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ dueTime: null, dueEndTime: null })
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.updateError')
     expect(screen.getByRole('textbox', { name: 'rename' })).toHaveValue('Read daily')
   })
