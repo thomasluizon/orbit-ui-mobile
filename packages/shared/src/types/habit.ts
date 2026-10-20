@@ -63,20 +63,45 @@ export const checklistItemSchema = z.object({
 
 export type ChecklistItem = z.infer<typeof checklistItemSchema>
 
-export const scheduledReminderTimeSchema = z.object({
+export const scheduledReminderTimeRequestSchema = z.object({
   when: scheduledReminderWhenSchema,
   time: z.string(),
 })
 
-export type ScheduledReminderTime = z.infer<typeof scheduledReminderTimeSchema>
+export type ScheduledReminderTime = z.infer<typeof scheduledReminderTimeRequestSchema>
 
-export const relativeReminderTimeSchema = z.object({
+export const relativeReminderTimeRequestSchema = z.object({
   minutesBefore: z.number().int().nullable().optional(),
   when: scheduledReminderWhenSchema.nullable().optional(),
   time: z.string().nullable().optional(),
 })
 
-export type RelativeReminderTime = z.infer<typeof relativeReminderTimeSchema>
+export type RelativeReminderTime = z.infer<typeof relativeReminderTimeRequestSchema>
+
+const reminderWhenResponseSchema = z.enum(['same_day', 'day_before', 'SameDay', 'DayBefore'])
+  .transform((when): ScheduledReminderWhen => {
+    if (when === 'SameDay') return 'same_day'
+    if (when === 'DayBefore') return 'day_before'
+    return when
+  })
+
+export const scheduledReminderTimeSchema = scheduledReminderTimeRequestSchema.extend({
+  when: reminderWhenResponseSchema,
+})
+
+export const relativeReminderTimeSchema = relativeReminderTimeRequestSchema.extend({
+  when: reminderWhenResponseSchema.nullable().optional(),
+})
+
+const childReminderFieldsSchema = z.object({
+  reminderEnabled: z.boolean().nullable().optional(),
+  reminderTimes: z.array(z.number()).nullable().optional(),
+  scheduledReminders: z.array(scheduledReminderTimeSchema).nullable().optional(),
+  relativeReminders: z.array(relativeReminderTimeSchema).nullable().optional(),
+  slipAlertEnabled: z.boolean().nullable().optional(),
+})
+
+type ChildReminderFields = z.infer<typeof childReminderFieldsSchema>
 
 const linkedGoalInfoSchema = z.object({
   id: z.string(),
@@ -106,7 +131,7 @@ const baseHabitFieldsSchema = z.object({
   checklistItems: z.array(checklistItemSchema),
 })
 
-export const habitScheduleChildSchema: z.ZodType<{
+export const habitScheduleChildSchema: z.ZodType<ChildReminderFields & {
   id: string
   createdAtUtc?: string
   startDate?: string
@@ -139,6 +164,7 @@ export const habitScheduleChildSchema: z.ZodType<{
   instances: HabitInstance[]
   searchMatches?: SearchMatchField[] | null
 }> = baseHabitFieldsSchema.extend({
+  ...childReminderFieldsSchema.shape,
   createdAtUtc: z.string().optional(),
   scheduledDates: z.array(z.string()).optional(),
   isOverdue: z.boolean().optional(),
@@ -194,7 +220,7 @@ export type PaginatedResponse<T> = {
   totalPages: number
 }
 
-export const habitDetailChildSchema: z.ZodType<{
+export const habitDetailChildSchema: z.ZodType<ChildReminderFields & {
   id: string
   createdAtUtc?: string
   startDate?: string
@@ -218,21 +244,12 @@ export const habitDetailChildSchema: z.ZodType<{
   position: number | null
   checklistItems: ChecklistItem[]
   tags?: HabitTag[] | null
-  reminderEnabled?: boolean | null
-  reminderTimes?: number[] | null
-  scheduledReminders?: ScheduledReminderTime[] | null
-  relativeReminders?: RelativeReminderTime[] | null
-  slipAlertEnabled?: boolean | null
   children: HabitDetailChild[]
 }> = baseHabitFieldsSchema.extend({
+  ...childReminderFieldsSchema.shape,
   createdAtUtc: z.string().optional(),
   isOverdue: z.boolean().optional(),
   tags: z.array(habitTagSchema).nullable().optional(),
-  reminderEnabled: z.boolean().nullable().optional(),
-  reminderTimes: z.array(z.number()).nullable().optional(),
-  scheduledReminders: z.array(scheduledReminderTimeSchema).nullable().optional(),
-  relativeReminders: z.array(relativeReminderTimeSchema).nullable().optional(),
-  slipAlertEnabled: z.boolean().nullable().optional(),
   children: z.lazy(() => z.array(habitDetailChildSchema)),
 })
 
@@ -260,8 +277,8 @@ export const normalizedHabitSchema = baseHabitFieldsSchema.extend({
   isOverdue: z.boolean(),
   reminderEnabled: z.boolean(),
   reminderTimes: z.array(z.number()),
-  scheduledReminders: z.array(scheduledReminderTimeSchema),
-  relativeReminders: z.array(relativeReminderTimeSchema).nullable().optional(),
+  scheduledReminders: z.array(scheduledReminderTimeRequestSchema),
+  relativeReminders: z.array(relativeReminderTimeRequestSchema).nullable().optional(),
   slipAlertEnabled: z.boolean(),
   tags: z.array(habitTagSchema),
   hasSubHabits: z.boolean(),
@@ -293,8 +310,8 @@ export const createHabitRequestSchema = z.object({
   dueEndTime: z.string().optional(),
   reminderEnabled: z.boolean().optional(),
   reminderTimes: z.array(z.number()).optional(),
-  scheduledReminders: z.array(scheduledReminderTimeSchema).optional(),
-  relativeReminders: z.array(relativeReminderTimeSchema).optional(),
+  scheduledReminders: z.array(scheduledReminderTimeRequestSchema).optional(),
+  relativeReminders: z.array(relativeReminderTimeRequestSchema).optional(),
   slipAlertEnabled: z.boolean().optional(),
   tagIds: z.array(z.string()).optional(),
   goalIds: z.array(z.string()).optional(),
@@ -341,8 +358,8 @@ export const updateHabitRequestSchema = z.object({
   dueEndTime: z.string().nullable().optional(),
   reminderEnabled: z.boolean().optional(),
   reminderTimes: z.array(z.number()).optional(),
-  scheduledReminders: z.array(scheduledReminderTimeSchema).optional(),
-  relativeReminders: z.array(relativeReminderTimeSchema).optional(),
+  scheduledReminders: z.array(scheduledReminderTimeRequestSchema).optional(),
+  relativeReminders: z.array(relativeReminderTimeRequestSchema).optional(),
   slipAlertEnabled: z.boolean().optional(),
   checklistItems: z.array(checklistItemSchema).optional(),
   goalIds: z.array(z.string()).optional(),
@@ -468,8 +485,8 @@ export const bulkHabitItemSchema: z.ZodType<{
   dueEndTime: z.string().nullable().optional(),
   reminderEnabled: z.boolean().optional(),
   reminderTimes: z.array(z.number()).nullable().optional(),
-  scheduledReminders: z.array(scheduledReminderTimeSchema).nullable().optional(),
-  relativeReminders: z.array(relativeReminderTimeSchema).nullable().optional(),
+  scheduledReminders: z.array(scheduledReminderTimeRequestSchema).nullable().optional(),
+  relativeReminders: z.array(relativeReminderTimeRequestSchema).nullable().optional(),
   checklistItems: z.array(checklistItemSchema).nullable().optional(),
   subHabits: z.lazy(() => z.array(bulkHabitItemSchema).nullable().optional()),
   endDate: z.string().nullable().optional(),
@@ -566,8 +583,8 @@ export const createSubHabitRequestSchema = z.object({
   dueEndTime: z.string().optional(),
   reminderEnabled: z.boolean().optional(),
   reminderTimes: z.array(z.number()).optional(),
-  scheduledReminders: z.array(scheduledReminderTimeSchema).optional(),
-  relativeReminders: z.array(relativeReminderTimeSchema).optional(),
+  scheduledReminders: z.array(scheduledReminderTimeRequestSchema).optional(),
+  relativeReminders: z.array(relativeReminderTimeRequestSchema).optional(),
   slipAlertEnabled: z.boolean().optional(),
   checklistItems: z.array(checklistItemSchema).optional(),
   tagIds: z.array(z.string()).optional(),

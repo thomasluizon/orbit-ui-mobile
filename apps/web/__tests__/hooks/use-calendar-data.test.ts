@@ -1,3 +1,4 @@
+import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -503,4 +504,16 @@ describe('calendar loading from the complete day cache', () => {
       client.clear()
     }
   })
+})
+
+
+it('decodes source-serialized clock reminders in the calendar query', async () => {
+  mockFetch.mockReset()
+  mockFetch.mockResolvedValue(Response.json(reminderWire.CalendarMonthResponse))
+  const wrapper = createWrapper()
+  const { result, unmount } = renderHook(() => useCalendarData(new Date(2026, 9, 1)), { wrapper })
+  await waitFor(() => expect(result.current.isLoading).toBe(false))
+  expect(result.current.error).toBeNull()
+  expect(mockFetch).toHaveBeenCalledTimes(1)
+  unmount()
 })

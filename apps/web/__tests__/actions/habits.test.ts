@@ -1,3 +1,5 @@
+import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
+import { habitDetailSchema } from '@orbit/shared/types/habit'
 import en from '@orbit/shared/i18n/en.json'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createAccountScopedHabitDetailWriteQueue, mergeHabitDetailWithScopedHabit } from '@orbit/shared/utils'
@@ -59,6 +61,30 @@ describe('habit server actions', () => {
     })
   }
 
+
+  it('preserves canonical reminder bytes through create, update, bulk and sub-habit saves', async () => {
+    const parsed = habitDetailSchema.parse(reminderWire.HabitDetailResponse)
+    const request = { title: 'Reminder', isBadHabit: false, reminderEnabled: false,
+      scheduledReminders: parsed.scheduledReminders, relativeReminders: parsed.relativeReminders ?? [] }
+    mockApiResponse({ id: 'new-habit' })
+    await createHabit(request, 'account-a')
+    mock204()
+    await updateHabit('habit', request, 'account-a')
+    mockApiResponse({ results: [] })
+    const bulk = { habits: [{ ...request, subHabits: [request] }] }
+    await bulkCreateHabits(bulk, 'account-a')
+    mockApiResponse({ id: 'child' })
+    await bindServerAction(habitServerActions.createSubHabit)('parent', request, 'account-a')
+    const writes = mockFetch.mock.calls.map(([, init]) => init.body as string)
+    expect(writes).toEqual([JSON.stringify(request), JSON.stringify(request), JSON.stringify(bulk), JSON.stringify(request)])
+    for (const bytes of writes) {
+      expect(bytes).toContain('"same_day"')
+      expect(bytes).toContain('"day_before"')
+      expect(bytes).not.toContain('SameDay')
+      expect(bytes).not.toContain('DayBefore')
+    }
+    expect(habitDetailSchema.parse(reminderWire.HabitDetailResponse).scheduledReminders).toEqual(request.scheduledReminders)
+  })
 
   describe('createHabit', () => {
     it('returns a serializable refresh rejection for the client boundary', async () => {

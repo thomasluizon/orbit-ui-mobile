@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { frequencyUnitSchema, MAX_HABIT_INTERVAL_WEEKS, scheduledReminderTimeSchema, checklistItemSchema } from '../types/habit'
+import { frequencyUnitSchema, MAX_HABIT_INTERVAL_WEEKS, scheduledReminderTimeRequestSchema, checklistItemSchema } from '../types/habit'
 import {
   MAX_CHECKLIST_ITEM_LENGTH,
   MAX_CHECKLIST_ITEMS,
@@ -40,7 +40,7 @@ export const habitFormSchema = z.object({
   dueEndTime: z.string().default(''),
   endDate: z.string().default(''),
   reminderEnabled: z.boolean().default(false),
-  scheduledReminders: z.array(scheduledReminderTimeSchema).default([]),
+  scheduledReminders: z.array(scheduledReminderTimeRequestSchema).default([]),
   slipAlertEnabled: z.boolean().default(false),
   checklistItems: z.array(checklistItemSchema).default([]),
 })
