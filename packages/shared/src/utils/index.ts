@@ -815,3 +815,4 @@ export { loadHabitListSchedule, mergeHabitListSchedule } from './habit-list-sche
 export { getSetupChecklist } from './setup-checklist'
 
 export { getSummaryFirstSentence } from './summary-sentence'
+export { deriveBulkLogStreakTransition } from './bulk-log-streak'
