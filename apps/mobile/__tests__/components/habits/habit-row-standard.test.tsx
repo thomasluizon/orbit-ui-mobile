@@ -89,3 +89,70 @@ describe('habit row standard on Android', () => {
     }
   })
 })
+
+
+it.each([320, 412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [0, 1].flatMap((depth) =>
+  [false, true].flatMap((parent) => [false, true].map((described) => ({ width, fontScale, depth: depth as 0 | 1, parent, described }))),
+))))(
+  'measures native feedback at $width/$fontScale, depth=$depth parent=$parent description=$described', ({ width, fontScale, depth, parent, described }) => {
+    __setWindowDimensions({ width, height: 892, scale: 1, fontScale })
+    const tokens = createTokensV2('orange', 'dark')
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read ten minutes', description: described ? 'Read two pages before breakfast. '.repeat(12) : null, dueTime: '08:00' })}
+      today="2025-01-01" selectedDate={new Date(2025, 0, 1)} depth={depth} hasChildren={parent} childrenDone={parent ? 1 : 0} childrenTotal={parent ? 3 : 0}
+      structuralColumn actions={{ onEdit: vi.fn(), onDetail: vi.fn() }} />) })
+    const body = tree!.root.findAllByType('Pressable').find((node: { props: { delayLongPress?: number } }) => node.props.delayLongPress === 500)!
+    const measure = () => measureInteractionFills(tree!.toJSON(), width, false, fontScale)
+    const geometry = measure()
+    const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
+    const check = geometry.find((part) => part.host.props.testID === 'habit-check')!
+    const target = geometry.find((part) => part.host.type === 'Pressable' && part.host.props.accessibilityLabel?.includes('habits.logHabit:'))!
+    expect(Math.abs((check.left + check.right) / 2 - (target.left + target.right) / 2)).toBeLessThanOrEqual(1)
+    expect(Math.abs((check.top + check.bottom) / 2 - (target.top + target.bottom) / 2)).toBeLessThanOrEqual(1)
+    if (fontScale === 1) expect(Math.abs((target.top + target.bottom) / 2 - (row.top + row.bottom) / 2)).toBeLessThanOrEqual(1)
+    else expect(target.top - row.top).toBe(depth ? 4 : 8)
+    expect(target.width).toBe(48)
+    const title = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes('Read ten minutes') && part.style.opacity !== 0)!
+    expect((title.style as import('react-native').TextStyle).fontSize).toBe(depth ? 14 : 17)
+    const preview = geometry.find((part) => part.host.props.testID === 'habit-row-description')
+    expect(Boolean(preview)).toBe(described)
+    if (preview) {
+      expect((preview.style as import('react-native').TextStyle).color).toBe(tokens.fg3)
+      const meta = geometry.find((part) => part.host.props.testID === 'habit-row-meta')!
+      expect(preview.top - title.bottom).toBeCloseTo(4, 1)
+      expect(row.bottom - meta.bottom).toBeGreaterThanOrEqual(3.99)
+      expect(meta.top - preview.bottom).toBeGreaterThanOrEqual(4)
+      expect(meta.left).toBe(title.left)
+      expect(preview.height).toBeLessThanOrEqual(21.7 * fontScale * (fontScale > 1.3 ? 2 : 1) + 1)
+      if (fontScale === 2) expect(preview.height).toBeGreaterThan(21.7 * fontScale + 1)
+      expect(preview.right).toBeLessThanOrEqual(row.right - 8)
+      expect(row.bottom - preview.bottom).toBeGreaterThanOrEqual(4)
+    }
+    function assertFeedback() {
+      for (const event of ['onPressIn', 'onHoverIn']) {
+        TestRenderer.act(() => body.props[event]())
+        const paints = measure().filter((part) => part.style.backgroundColor === tokens.bgHover)
+        expect(paints).toHaveLength(1)
+        expect(paints[0]).toMatchObject({ left: row.left, right: row.right, top: row.top, bottom: row.bottom })
+        expect(paints[0]!.style.borderRadius).toBe(20)
+        const preview = measure().find((part) => part.host.props.testID === 'habit-row-description')
+        if (preview) expect((preview.style as import('react-native').TextStyle).color).toBe(tokens.fg2)
+        TestRenderer.act(() => body.props[event === 'onPressIn' ? 'onPressOut' : 'onHoverOut']())
+        expect(measure().filter((part) => part.style.backgroundColor === tokens.bgHover)).toHaveLength(0)
+      }
+    }
+    assertFeedback()
+    const controls = tree!.root.findAllByType('Pressable').filter((node: { props: { onHoverIn?: unknown; delayLongPress?: number } }) => node.props.onHoverIn && node.props.delayLongPress !== 500)
+    for (const control of controls) {
+      TestRenderer.act(() => control.props.onHoverIn())
+      const paints = measure().filter((part) => part.style.backgroundColor === tokens.bgHover)
+      expect(paints).toHaveLength(1)
+      expect(paints[0]!.host.type).toBe('Pressable')
+      expect(paints[0]!.style.transform ?? []).not.toContainEqual({ scale: 0.96 })
+      expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row' }).props.style).backgroundColor).toBe(tokens.bgCard)
+      TestRenderer.act(() => control.props.onHoverOut())
+      expect(measure().filter((part) => part.style.backgroundColor === tokens.bgHover)).toHaveLength(0)
+    }
+    TestRenderer.act(() => tree.unmount())
+  },
+)

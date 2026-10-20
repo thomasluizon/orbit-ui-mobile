@@ -1,5 +1,5 @@
 import { openTodayListOptions } from './hydration-guard'
-import { expect, type Page } from '@playwright/test'
+import { expect, type Page, type Locator } from '@playwright/test'
 import { test } from './layout-test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
@@ -177,5 +177,65 @@ for (const width of [320, 600]) {
         }
       })
     }
+  }
+}
+
+for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'light'] as const) {
+  for (const width of [320, 412, 1352]) {
+    test(`Habit previews and full-row feedback at ${width}px in ${mode} ${language}`, async ({ page, context }) => {
+      await page.setViewportSize({ width, height: 1200 })
+      const description = language === 'en' ? 'Read two pages before breakfast.' : 'Leia duas páginas antes do café.'
+      const describedItems = items.map((item, index) => ({ ...item, description: index === 2 ? null : `**${description}** `.repeat(12) }))
+      const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language })
+      await setLayoutProfileSession(context, profile)
+      await setLayoutFixtureSession(context, [
+        { path: API.profile.get, body: profile },
+        { path: API.habits.list, body: { ...emptyHabitsPageFixture, items: describedItems, totalCount: describedItems.length } },
+      ])
+      await page.goto('/')
+      const parent = page.getByTestId('habit-row').filter({ hasText: 'Parent' })
+      const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
+      await expect(disclosure).toBeVisible()
+      if (await disclosure.getAttribute('aria-expanded') === 'true') await disclosure.click()
+      await expect(page.locator('[data-habit-row-description]')).toHaveCount(2)
+      for (const scale of [1, 2]) {
+        await page.evaluate((size) => { document.documentElement.style.fontSize = `${16 * size}px`; window.dispatchEvent(new Event('resize')) }, scale)
+        await expect(parent.locator('[data-habit-row-description]')).toHaveCSS('font-size', `${14 * scale}px`)
+        await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+        for (const row of await page.getByTestId('habit-row').all()) {
+          await assertHabitPreviewRow(row, scale, mode)
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+      }
+    })
+  }
+}
+
+async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' | 'dark') {
+  const geometry = await row.evaluate((element) => {
+    const bounds = (node: Element) => { const box = node.getBoundingClientRect(); return { top: box.top, bottom: box.bottom, x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height } }
+    const title = element.querySelector('[data-personal-text]')!
+    const preview = element.querySelector('[data-habit-row-description]')
+    return { row: bounds(element), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
+      preview: preview && { ...bounds(preview), lineHeight: Number.parseFloat(getComputedStyle(preview).lineHeight) },
+      check: bounds(element.querySelector('[data-habit-check]')!), target: bounds(element.querySelector('[data-habit-row-control="check"]')!) }
+  })
+  expect(geometry.titleSize).toBe(`${17 * scale}px`)
+  expect(geometry.target.width).toBe(48)
+  expect(Math.abs(geometry.check.x - geometry.target.x)).toBeLessThanOrEqual(1)
+  expect(Math.abs(geometry.check.y - geometry.target.y)).toBeLessThanOrEqual(1)
+  if (scale === 1) expect(Math.abs(geometry.target.y - geometry.row.y)).toBeLessThanOrEqual(1)
+  if (geometry.preview) {
+    expect(geometry.preview.top - geometry.title.bottom).toBeCloseTo(4, 1)
+    expect(geometry.preview.height).toBeLessThanOrEqual(geometry.preview.lineHeight * (scale === 1 ? 1 : 2) + 1)
+  }
+  const body = row.locator('[data-habit-row-body]')
+  await body.hover({ position: { x: 12, y: 12 } })
+  await expect(row).toHaveCSS('background-color', mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.11)')
+  await expect(row).toHaveCSS('border-radius', '20px')
+  await expect(body).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  for (const control of await row.locator('[data-habit-row-control]').all()) {
+    await control.hover()
+    await expect(row).not.toHaveCSS('background-color', mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.11)')
   }
 }

@@ -628,8 +628,8 @@ describe('HabitList', () => {
   it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].map((drilling) => ({ view, drilling }))))(
     'keeps the list inset and content edges per depth in $view, drilling=$drilling', async ({ view, drilling }) => {
     rowImplementation.actual = true
-    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY], isGeneral: view === 'general' })
-    const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY], isGeneral: parent.isGeneral })
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', description: '**Read** two pages before breakfast.', hasSubHabits: true, scheduledDates: [TODAY], isGeneral: view === 'general' })
+    const child = createMockHabit({ id: 'child', title: 'Child', description: '**Read** two pages before breakfast.', parentId: parent.id, scheduledDates: [TODAY], isGeneral: parent.isGeneral })
     const branch = createMockHabit({ ...child, id: 'branch', title: 'Branch', hasSubHabits: true })
     const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', scheduledDates: [TODAY], isGeneral: parent.isGeneral })
     for (const habit of [parent, child, branch, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
@@ -673,6 +673,7 @@ describe('HabitList', () => {
               }),
             }
           }))
+          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: drilling ? 2 : 3 }, () => 'Read two pages before breakfast.'))
           expect(geometry).toHaveLength(drilling ? 2 : 4)
           for (const row of geometry) {
             expect(row.inset).toBe(16)

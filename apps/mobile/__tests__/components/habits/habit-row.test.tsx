@@ -111,7 +111,7 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
       expect(foreground).toBe(pressed ? tokens.fg2 : tokens.fg3)
       expect(contrastOnSurface(foreground, layers), `${label}, pressed=${pressed}`).toBeGreaterThanOrEqual(4.5)
       if (pressed && mode === 'dark') {
-        expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.029, 3)
+        expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.567, 3)
       }
       for (const separator of metadata.findAllByType('Text').filter(
         (node: { children: unknown[] }) => node.children.includes(' · '),
@@ -226,7 +226,7 @@ describe('HabitRow canonical content (mobile)', () => {
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
     expect(row.children[0].children[0].props.delayLongPress).toBe(500)
     expect(StyleSheet.flatten(row.props.style).paddingLeft).toBeUndefined()
-    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(8)
+    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(24)
   })
 
   it('keeps separate selection and structural columns with a neutral checkbox', () => {
@@ -268,7 +268,7 @@ describe('HabitRow canonical content (mobile)', () => {
     expect(body.props.delayLongPress).toBe(500)
     expect(renderer!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
   })
-  it('omits descriptions and tags from the canonical row', () => {
+  it('restores descriptions while omitting retired tags from the canonical row', () => {
     const texts = renderRowText(
       createMockHabit({
         title: 'Read',
@@ -281,7 +281,7 @@ describe('HabitRow canonical content (mobile)', () => {
     )
 
     expect(texts).toContain('Read')
-    expect(texts).not.toContain('A long preview')
+    expect(texts).toContain('A long preview')
     expect(texts).not.toContain('Learning')
     expect(texts).not.toContain('Evening')
   })
@@ -442,15 +442,15 @@ describe('HabitRow status control names (mobile)', () => {
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     ) as Record<string, unknown>
     const restingRing = StyleSheet.flatten(ring.props.style({ pressed: false })) as Record<string, unknown>
-    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.13)')
     expect(pressedCard.borderWidth ?? 0).toBe(0)
     const outline = renderer!.root.findByProps({ testID: 'habit-row-outline' })
     expect(StyleSheet.flatten(outline.props.style)).toMatchObject({ position: 'absolute', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' })
     expect(StyleSheet.flatten(body.props.style({ pressed: true }))).toMatchObject({
-      backgroundColor: 'rgba(250,250,250,0.13)',
       borderRadius: 20,
       overflow: 'hidden',
     })
+    expect(StyleSheet.flatten(body.props.style({ pressed: true })).backgroundColor).toBeUndefined()
     expect(restingRing.backgroundColor).toBeUndefined()
 
     TestRenderer.act(() => body.props.onPressOut())

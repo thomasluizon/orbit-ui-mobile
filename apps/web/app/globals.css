@@ -1674,18 +1674,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: -10px;
 }
 
-[data-habit-row-body] {
+.habit-row {
   --habit-row-meta-color: var(--fg-3);
 }
 
-.habit-row-meta {
+.habit-row-meta,
+.habit-row-description {
   color: var(--habit-row-meta-color);
   transition: color var(--dur-hover) var(--ease-standard);
 }
 
-[data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):active {
+.habit-row:has([data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):active):not(:has([data-habit-row-control]:is(:hover,:active))) {
   background: var(--bg-hover);
   --habit-row-meta-color: var(--fg-2);
+}
+
+[data-habit-row-control]:not(:disabled):not([aria-disabled="true"]):active {
+  background: var(--bg-hover);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1715,7 +1720,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     background: var(--primary-hover);
   }
 
-  [data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):hover {
+  .habit-row:has([data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):hover):not(:has([data-habit-row-control]:is(:hover,:active))) {
     background: var(--bg-hover);
     --habit-row-meta-color: var(--fg-2);
   }
