@@ -115,12 +115,17 @@ describe('PendingOperationCard', () => {
     expect(confirm).toHaveBeenCalledOnce()
   })
 
-  it('replaces the stale explanation with one refresh failure sentence', async () => {
+  it('clears a failed removal on stale approval before reporting an actual refresh failure', async () => {
     confirm.mockResolvedValue({ ok: false, stale: true, error: 'stale_preview' })
     const refresh = vi.fn().mockResolvedValue({ ok: false, error: 'network_error' })
-    render(<PendingOperationCard pendingOperation={preview} onRefresh={refresh} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    revise.mockResolvedValue({ ok: false, error: 'network_error' })
+    render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onRefresh={refresh} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.remove Run' }))
+    await screen.findByText('chat.operation.invalid')
+    expect(confirm).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     await screen.findByRole('button', { name: 'chat.operation.refresh' })
+    expect(refresh).not.toHaveBeenCalled()
     expect(screen.getAllByText('chat.operation.stale')).toHaveLength(1)
     expect(screen.queryByText('chat.operation.refreshFailed')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.refresh' }))

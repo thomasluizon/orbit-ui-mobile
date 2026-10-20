@@ -412,17 +412,18 @@ describe('pending operation card view', () => {
     }
   })
 
-  it.each([undefined, 'network_error'])('renders one stale sentence with refresh error %s', error => {
+  it.each([undefined, 'revision', 'refresh'] as const)('renders one stale sentence for error source %s', errorSource => {
+    const error = errorSource ? 'network_error' : undefined
     const operation = makeCreateHabitsPreview(1)
     const card = createCard()
     card.revision = {
       operation, canRevise: true, items: operation.items!, editingItem: undefined,
-      draft: {}, editedItemIds: [], busy: false, stale: true, canRefresh: true, refresh: vi.fn(), rejected: false, error,
+      draft: {}, editedItemIds: [], busy: false, stale: true, canRefresh: true, refresh: vi.fn(), rejected: false, error, errorSource,
       setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(), saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(),
     }
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card, labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-    expect(record.frame).toMatchObject({ state: 'stale', staleMessage: error ? labels.refreshFailed : labels.stale })
+    expect(record.frame).toMatchObject({ state: 'stale', staleMessage: errorSource === 'refresh' ? labels.refreshFailed : labels.stale })
     expect(record.frame?.body).toBeUndefined()
     expect(record.frame?.actions).toBeUndefined()
   })

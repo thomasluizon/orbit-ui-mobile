@@ -131,6 +131,7 @@ export interface PendingOperationCardActions {
     refresh: () => Promise<void>
     rejected: boolean
     error: string | undefined
+    errorSource?: 'revision' | 'refresh'
     setDraftField: (field: string, value: string) => void
     closeEdit: () => void
     startEdit: (itemId: string) => void
@@ -347,7 +348,7 @@ function previewFrame<Node>(
   }
   if (revision?.stale && !revision.busy) return render.blockFrame({
     ...frameBase, state: 'stale',
-    staleMessage: revision.error ? labels.refreshFailed : revision.canRefresh ? labels.stale : labels.staleUnavailable,
+    staleMessage: revision.errorSource === 'refresh' ? labels.refreshFailed : revision.canRefresh ? labels.stale : labels.staleUnavailable,
     refreshLabel: labels.refresh,
     onRefresh: revision.canRefresh ? () => void revision.refresh() : undefined,
   })

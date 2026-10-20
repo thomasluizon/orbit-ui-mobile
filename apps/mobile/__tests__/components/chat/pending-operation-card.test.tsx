@@ -123,11 +123,16 @@ describe('PendingOperationCard (mobile)', () => {
     expect(handlers.onConfirmExecute).toHaveBeenCalledOnce()
   })
 
-  it('replaces the stale explanation with one refresh failure sentence', async () => {
+  it('clears a failed removal on stale approval before reporting an actual refresh failure', async () => {
     const refresh = vi.fn().mockResolvedValue({ ok: false, error: 'network_error' })
-    const { tree, handlers } = renderCard(preview, undefined, refresh)
+    const revise = vi.fn().mockResolvedValue({ ok: false, error: 'network_error' })
+    const { tree, handlers } = renderCard(preview, revise, refresh)
     handlers.onConfirmExecute.mockResolvedValue({ ok: false, stale: true, error: 'stale_preview' })
+    await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.operation.remove Run' }).props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.invalid')
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
     await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    expect(refresh).not.toHaveBeenCalled()
     expect(tree.root.findAllByType(Text).filter((node: ReactTestInstance) => node.props.children === 'chat.operation.stale')).toHaveLength(1)
     expect(renderedText(tree.toJSON())).not.toContain('chat.operation.refreshFailed')
     await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.operation.refresh' }).props.onPress(); await Promise.resolve() })

@@ -461,6 +461,14 @@ describe('BlockFrame on mobile', () => {
     expect(textValues(tree).filter((value) => value === 'In progress')).toHaveLength(items.length)
   })
 
+  it('keeps an itemless acting block busy without adding an empty announcement', () => {
+    const tree = render(<BlockFrame {...frame({ state: 'acting', items: [] })} body={<Text accessibilityLiveRegion="polite">Preparing preview</Text>} />)
+    expect(prop(tree.root.findByProps({ testID: 'block-frame-acting' }), 'accessibilityState')).toEqual({ busy: true })
+    const live = tree.root.findAll(node => typeof node.type === 'string' && prop(node, 'accessibilityLiveRegion') === 'polite')
+    expect(live).toHaveLength(1)
+    expect(prop(live[0]!, 'children')).toBe('Preparing preview')
+  })
+
   it('removes acting actions from touch and TalkBack navigation', () => {
     const tree = render(
       <BlockFrame

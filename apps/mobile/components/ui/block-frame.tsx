@@ -208,7 +208,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
       {canRenderActions && frameProps.actions != null ? (
         <View
           accessibilityState={{ disabled: frameProps.state === 'acting' }}
-          importantForAccessibility={frameProps.state === 'acting' ? 'no-hide-descendants' : 'auto'}
+          importantForAccessibility={frameProps.state === 'acting' && frameProps.items.length > 0 ? 'no-hide-descendants' : 'auto'}
           pointerEvents={frameProps.state === 'acting' ? 'none' : 'auto'}
           style={styles.actionGuard}
         >
@@ -256,10 +256,11 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         styles.frame,
         { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
       ]}
+      accessibilityState={props.state === 'acting' ? { busy: true } : undefined}
       testID={`block-frame-${props.state}`}
     >
       <FrameHeader props={props} tokens={tokens} />
-      <Text accessibilityState={!props.items.length && props.state === 'acting' ? { busy: true } : undefined} accessibilityLiveRegion={props.items.length || props.state === 'stale' || props.state === 'acting' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }, props.state !== 'stale' && styles.hiddenMessage]}>
+      <Text accessibilityLiveRegion={props.items.length || props.state === 'stale' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }, props.state !== 'stale' && styles.hiddenMessage]}>
         {props.state === 'stale' ? props.staleMessage : ''}
       </Text>
       {props.state === 'loading' ? (
