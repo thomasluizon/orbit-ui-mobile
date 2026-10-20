@@ -129,6 +129,7 @@ for (const width of [412, 1100]) {
           baseHeight: controls.getBoundingClientRect().height + 8 + Math.max(48, lines * lineHeight + 16) - 16 + 8 + typeRect.height + (summaryRect ? 8 + summaryRect.height : 0),
         }
       }, hit)
+      expect(geometry.summaryX).not.toBeNull()
       expect(Math.abs(geometry.titleX - geometry.typeX)).toBeLessThanOrEqual(1)
       if (geometry.summaryX !== null) expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)
       expect(Math.abs(geometry.titleX - geometry.controlsX)).toBeLessThanOrEqual(1)
