@@ -43,8 +43,8 @@ describe('habit detail fields state', () => {
   it('selects a newly linked goal once without another save', async () => {
     const onPatch = vi.fn().mockResolvedValue(true)
     const fields = await renderFieldsState(onPatch)
-    await act(() => { fields.current().selectCreatedGoal('created-goal') })
-    await act(() => { fields.current().selectCreatedGoal('created-goal') })
+    await act(() => { fields.current().goalLinking.onGoalCreated('created-goal') })
+    await act(() => { fields.current().goalLinking.onGoalCreated('created-goal') })
     expect(fields.current().goalIds).toEqual(['goal-1', 'created-goal'])
     expect(onPatch).not.toHaveBeenCalled()
     await act(() => { fields.renderer.update(React.createElement(React.Fragment)) })
@@ -54,11 +54,11 @@ describe('habit detail fields state', () => {
     const onPatch = vi.fn().mockResolvedValue(true)
     const fields = await renderFieldsState(onPatch)
 
-    await act(() => fields.current().toggleGoal('goal-1'))
+    await act(() => fields.current().goalLinking.onToggleGoal('goal-1'))
     expect(fields.current().goalIds).toEqual([])
     expect(onPatch).toHaveBeenLastCalledWith({ goalIds: [] })
 
-    await act(() => fields.current().toggleGoal('goal-2'))
+    await act(() => fields.current().goalLinking.onToggleGoal('goal-2'))
     expect(fields.current().goalIds).toEqual(['goal-2'])
     expect(onPatch).toHaveBeenLastCalledWith({ goalIds: ['goal-2'] })
 

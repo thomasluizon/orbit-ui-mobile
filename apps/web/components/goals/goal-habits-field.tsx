@@ -1,11 +1,12 @@
 'use client'
 
+import { lazy, Suspense } from 'react'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { lazy, Suspense } from 'react'
 import { Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import type { GoalType } from '@orbit/shared/types/goal'
+import { GoalHabitsSelectionNote } from './goal-habits-selection-note'
+import { createGoalHabitPicker, type GoalHabitsPickerProps } from '@orbit/shared/hooks'
 import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
 import { toggleSelectedId } from '@orbit/shared/utils'
 import { useHabits } from '@/hooks/use-habit-queries'
@@ -17,42 +18,15 @@ import { PickerRow } from '@/components/ui/picker-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 
-const loadHabitForm = () => import('@/components/habits/create-habit-modal').then((module) => ({ default: module.CreateHabitModal }))
-const CreateHabitModal = lazy(loadHabitForm)
+const { CreateHabitModal, useGoalHabitCreation } = createGoalHabitPicker({
+  useState: useAccountScopedState, getAccountGeneration, useHabits: () => useHabits({}),
+  loadModule: () => import('@/components/habits/create-habit-modal'), lazy,
+})
 
-interface GoalHabitsFieldProps {
-  selectedIds: string[]
-  onChange: (ids: string[]) => void
-  disabled: boolean
-}
-
-export function GoalHabitsSelectionNote({ selectedIds, goalType }: Readonly<{ selectedIds: string[]; goalType: GoalType }>) {
-  const t = useTranslations()
-  const habits = useHabits({})
-  const hasAvoidedHabit = selectedIds.some((id) => habits.data?.habitsById.get(id)?.isBadHabit)
-  return hasAvoidedHabit ? <p className="max-w-prose text-sm leading-[1.55] text-pretty text-[var(--fg-2)]">{t(goalType === 'Streak' ? 'goals.form.avoidedDays' : 'goals.form.loggedSlips')}</p> : null
-}
-
-export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, onClose }: Readonly<GoalHabitsFieldProps & { goalType: GoalType; onClose: () => void }>) {
+export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, onClose }: Readonly<GoalHabitsPickerProps>) {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
-  const [creatingHabit, setCreatingHabit] = useAccountScopedState(false)
-  const [habitFormState, setHabitFormState] = useAccountScopedState<'idle' | 'loading' | 'error'>('idle')
-  const openHabitForm = async () => {
-    const generation = getAccountGeneration()
-    setHabitFormState('loading')
-    try {
-      await loadHabitForm()
-      if (getAccountGeneration() !== generation) return
-      setHabitFormState('idle')
-      closeSheet(() => { if (getAccountGeneration() === generation) setCreatingHabit(true) })
-    } catch {
-      if (getAccountGeneration() !== generation) return
-      setHabitFormState('error')
-    }
-  }
-  const habits = useHabits({})
-  const items = Array.from(habits.data?.habitsById.values() ?? [])
+  const { creatingHabit, setCreatingHabit, habitFormState, openHabitForm, habits, items } = useGoalHabitCreation(closeSheet)
   const atLimit = selectedIds.length >= MAX_HABITS_PER_GOAL
   if (creatingHabit) return <Suspense fallback={null}><CreateHabitModal open onOpenChange={(open) => { if (!open) setCreatingHabit(false) }} /></Suspense>
   return <Sheet ref={sheetRef} open actions={<PillButton onClick={() => closeSheet()}>{t('common.done')}</PillButton>} title={t('goals.linkedHabits')} onClose={onClose} virtualizedBody={items.length >= 21}>

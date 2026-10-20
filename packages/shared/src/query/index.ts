@@ -52,3 +52,5 @@ export { dailySummaryQueryOptions } from './daily-summary'
 export type { DailySummaryOptions } from './daily-summary'
 export { createConfigCache } from './config-cache'
 export type { ConfigCache, ConfigSnapshot } from './config-cache'
+
+export * from './goal-cache'

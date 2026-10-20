@@ -21,7 +21,6 @@ import { toTime24,
   toggleHabitDaySelection,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { MAX_GOALS_PER_HABIT } from '@orbit/shared/validation'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { TimeField } from '@/components/ui/time-field'
@@ -121,13 +120,7 @@ function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ ha
 export function HabitDetailFields({ open = true, habit, hasProAccess, relationshipControlsAvailable, onItemsChange, onPatch, onUpgrade }: Readonly<HabitDetailFieldsProps>) {
   const t = useTranslations()
   const { showError } = useAppToast()
-  const { goalIds, openField, reminderHabit, toggleField, toggleGoal, selectCreatedGoal, updateReminders } = useHabitDetailFieldsState(habit, onPatch)
-  const [description, setDescription] = useState(habit.description ?? '')
-  const [savedDescription, setSavedDescription] = useState(habit.description ?? '')
-  if ((habit.description ?? '') !== savedDescription) {
-    setSavedDescription(habit.description ?? '')
-    if (description === savedDescription) setDescription(habit.description ?? '')
-  }
+  const { goalIds, openField, reminderHabit, toggleField, goalLinking, updateReminders, description, setDescription } = useHabitDetailFieldsState(habit, onPatch)
 
   if (!open) return null
 
@@ -155,7 +148,7 @@ export function HabitDetailFields({ open = true, habit, hasProAccess, relationsh
       </section> : null}
       {relationshipControlsAvailable ? <SlipAlertRow habit={habit} hasProAccess={hasProAccess} onPatch={onPatch} onUpgrade={onUpgrade} /> : null}
       {relationshipControlsAvailable ? <HabitDetailTags habit={habit} /> : null}
-      {relationshipControlsAvailable ? <><ListRow placement="column" title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField onGoalCreated={selectCreatedGoal} habitId={habit.id} selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
+      {relationshipControlsAvailable ? <><ListRow placement="column" title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField {...goalLinking} /></FieldWell> : null}</> : null}
       <section className="flex flex-col gap-2">
         <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
         <DateField label={t('habits.form.endDate')} value={habit.endDate ?? ''} placeholder={t('habits.form.endDatePlaceholder')} onChange={(endDate) => { void onPatch({ endDate: endDate || null }) }} />

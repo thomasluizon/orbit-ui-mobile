@@ -6,7 +6,8 @@ import { Plus } from '@/components/ui/icons'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import type { GoalType } from '@orbit/shared/types/goal'
+import { GoalHabitsSelectionNote } from './goal-habits-selection-note'
+import { createGoalHabitPicker, type GoalHabitsFieldProps, type GoalHabitsPickerProps } from '@orbit/shared/hooks'
 import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
 import { toggleSelectedId } from '@orbit/shared/utils'
 import { useHabits } from '@/hooks/use-habit-queries'
@@ -20,22 +21,10 @@ import { KeyboardAwareFlatList } from '@/components/ui/keyboard-aware-scroll-vie
 import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 
-const loadHabitForm = () => import('@/components/habits/create-habit-modal').then((module) => ({ default: module.CreateHabitModal }))
-const CreateHabitModal = lazy(loadHabitForm)
-
-interface GoalHabitsFieldProps {
-  selectedIds: string[]
-  onChange: (ids: string[]) => void
-  disabled: boolean
-}
-
-export function GoalHabitsSelectionNote({ selectedIds, goalType }: Readonly<{ selectedIds: string[]; goalType: GoalType }>) {
-  const { t } = useTranslation()
-  const tokens = useThemeTokens()
-  const habits = useHabits({})
-  const hasAvoidedHabit = selectedIds.some((id) => habits.data?.habitsById.get(id)?.isBadHabit)
-  return hasAvoidedHabit ? <Text style={[styles.note, { color: tokens.fg2 }]}>{t(goalType === 'Streak' ? 'goals.form.avoidedDays' : 'goals.form.loggedSlips')}</Text> : null
-}
+const { CreateHabitModal, useGoalHabitCreation } = createGoalHabitPicker({
+  useState: useAccountScopedState, getAccountGeneration, useHabits: () => useHabits({}),
+  loadModule: () => import('@/components/habits/create-habit-modal'), lazy,
+})
 
 function GoalHabitRow({ habit, selectedIds, onChange, disabled }: Readonly<GoalHabitsFieldProps & { habit: NormalizedHabit }>) {
   const tokens = useThemeTokens()
@@ -58,27 +47,11 @@ function GoalHabitList({ items, selectedIds, onChange, disabled, onClose, onCrea
   </View>
 }
 
-export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, onClose }: Readonly<GoalHabitsFieldProps & { goalType: GoalType; onClose: () => void }>) {
+export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, onClose }: Readonly<GoalHabitsPickerProps>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const { sheetRef, closeSheet } = useSheetHost()
-  const [creatingHabit, setCreatingHabit] = useAccountScopedState(false)
-  const [habitFormState, setHabitFormState] = useAccountScopedState<'idle' | 'loading' | 'error'>('idle')
-  const openHabitForm = async () => {
-    const generation = getAccountGeneration()
-    setHabitFormState('loading')
-    try {
-      await loadHabitForm()
-      if (getAccountGeneration() !== generation) return
-      setHabitFormState('idle')
-      closeSheet(() => { if (getAccountGeneration() === generation) setCreatingHabit(true) })
-    } catch {
-      if (getAccountGeneration() !== generation) return
-      setHabitFormState('error')
-    }
-  }
-  const habits = useHabits({})
-  const items = Array.from(habits.data?.habitsById.values() ?? [])
+  const { creatingHabit, setCreatingHabit, habitFormState, openHabitForm, habits, items } = useGoalHabitCreation(closeSheet)
   if (creatingHabit) return <Suspense fallback={null}><CreateHabitModal open onClose={() => setCreatingHabit(false)} /></Suspense>
   return <Sheet ref={sheetRef} open actions={<PillButton onClick={() => closeSheet()}>{t('common.done')}</PillButton>} title={t('goals.linkedHabits')} onClose={onClose} virtualizedBody={items.length >= 21}>
     {habits.isLoading ? <Skeleton variant="settings" rows={3} label={t('common.loading')} /> : habits.isError ? <View accessibilityRole="alert"><Text style={{ color: tokens.fg2 }}>{t('goals.form.habitsError')}</Text><PillButton variant="ghost" onClick={() => void habits.refetch()}>{t('common.retry')}</PillButton></View> : <GoalHabitList items={items} selectedIds={selectedIds} onChange={onChange} disabled={disabled} onClose={() => closeSheet()} openingHabitForm={habitFormState === 'loading'} onCreateHabit={() => void openHabitForm()} />}
@@ -88,9 +61,7 @@ export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, on
   </Sheet>
 }
 
-
 const styles = StyleSheet.create({
-  note: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
   list: { flexShrink: 1, gap: 4 },
   count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: SPACING.s8 },
   virtualList: { maxHeight: 320 },

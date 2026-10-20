@@ -199,3 +199,7 @@ export function buildEditHabitFormState(
     selectedTagIds: habit.tags.map((tag) => tag.id),
   }
 }
+
+export function selectHabitGoal(goalIds: string[], goalId: string): string[] {
+  return goalIds.includes(goalId) ? goalIds : [...goalIds, goalId]
+}
