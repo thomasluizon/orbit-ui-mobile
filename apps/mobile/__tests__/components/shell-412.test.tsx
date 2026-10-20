@@ -43,11 +43,17 @@ describe('Shell412 mobile', () => {
   })
 
   it.each([[412, 915], [480, 915], [840, 900], [1100, 900], [1352, 915], [1200, 1600], [1600, 1200], [740, 240]])(
-    'preserves composer input focus and its expanded menu across FAB changes at %i by %i', async (width, height) => {
+    'preserves composer input focus, its clear action and expanded menu across FAB changes at %i by %i', async (width, height) => {
       __setWindowDimensions({ width, height, scale: 1, fontScale: 1 })
-      const composer = <Composer state="idle" value="Keep this draft" onChangeValue={vi.fn()} onSend={vi.fn()} suggestions={[]}
-        words={{ placeholder: 'Ask Astra', send: 'Send', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
-        onAttachFile={vi.fn()} attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }} />
+      const onChangeValue = vi.fn()
+      const onSend = vi.fn()
+      function DraftComposer() {
+        const [draft, setDraft] = useState('Keep this draft')
+        return <Composer state="idle" value={draft} onChangeValue={value => { onChangeValue(value); setDraft(value) }} onSend={onSend} suggestions={[]}
+          words={{ placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
+          onAttachFile={vi.fn()} attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }} />
+      }
+      const composer = <DraftComposer />
       const shell = (floating: boolean) => <Shell412 composer={composer} tabBar={React.createElement('TabBar')}
         fab={floating ? React.createElement('Fab') : undefined} />
       let tree!: ReactTestRenderer
@@ -59,12 +65,21 @@ describe('Shell412 mobile', () => {
         const actions = () => tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'Attach')[0]!
         const expanded = () => (actions().props.accessibilityState as { expanded: boolean }).expanded
         await TestRenderer.act(() => __focusHost(nativeTag))
+        const clear = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'Clear message')
+        expect(clear).toHaveLength(1)
+        await TestRenderer.act(() => (clear[0]!.props.onPress as () => void)())
+        expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('')
+        expect(textInput().props.value).toBe('')
+        expect(__getFocusedNativeTag()).toBe(nativeTag)
+        expect(onSend).not.toHaveBeenCalled()
+        await TestRenderer.act(() => (textInput().props.onChangeText as (value: string) => void)('Keep this draft'))
         await TestRenderer.act(() => (actions().props.onPress as () => void)())
         expect(__getFocusedNativeTag()).toBe(nativeTag)
         expect(expanded()).toBe(true)
         for (const floating of [false, true]) {
           await TestRenderer.act(() => tree.update(shell(floating)))
           expect.soft(textInput() === input, 'same mounted input').toBe(true)
+          expect.soft(textInput().props.value, 'draft survives FAB changes').toBe('Keep this draft')
           expect.soft(__getFocusedNativeTag(), 'input keeps native focus').toBe(nativeTag)
           expect.soft(expanded(), 'menu stays expanded').toBe(true)
         }
