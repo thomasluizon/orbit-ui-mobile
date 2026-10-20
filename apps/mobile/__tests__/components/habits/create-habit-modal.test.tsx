@@ -16,6 +16,7 @@ import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { PillButton } from '@/components/ui/pill-button'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
+import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
@@ -207,6 +208,7 @@ function renderModal(ui: React.ReactElement) {
   })
   let tree: {
     root: { findAll: (predicate: (node: any) => boolean) => any[] }
+    toJSON: () => GeometryHost
     update: (nextUi: React.ReactElement) => void
     unmount: () => void
   }
@@ -227,7 +229,7 @@ function renderModal(ui: React.ReactElement) {
       tree.unmount()
     })
   }
-  return { root: tree!.root, updateModal, unmount }
+  return { root: tree!.root, toJSON: () => tree.toJSON(), updateModal, unmount }
 }
 
 function hasText(root: { findAll: (predicate: (node: any) => boolean) => any[] }, value: string) {
@@ -956,9 +958,50 @@ await Promise.resolve()
     expect(mockPush).not.toHaveBeenCalled()
     expect(close).not.toHaveBeenCalled()
     expect(findSubmit(tree.root).props.disabled).not.toBe(true)
+    expect(tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.upgrade')).toHaveLength(legacySubHabit ? 1 : 0)
     await TestRenderer.act(async () => { findSubmit(tree.root).props.onPress(); await Promise.resolve() })
     expect(create).toHaveBeenCalledTimes(2)
     expect(close).toHaveBeenCalledOnce()
+  })
+
+  it.each([false, true])('opens Upgrade from a real Pro boundary after guarded sheet dismissal (dirty=%s)', async (dirty) => {
+    mockFormStatus.dirty = dirty
+    mockCreateMutateAsync.mockRejectedValueOnce(new ApiClientError(403, 'Boundary', { code: 'PAY_GATE' }))
+    const close = vi.fn()
+    const tree = renderModal(<CreateHabitModal open onClose={close} />)
+    await TestRenderer.act(async () => { findSubmit(tree.root).props.onPress(); await Promise.resolve() })
+    const upgrade = tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.upgrade')
+    expect(upgrade).toHaveLength(1)
+    sheetTestControls.defer(true)
+    await TestRenderer.act(async () => { upgrade[0]!.props.onClick(); await Promise.resolve() })
+    if (dirty) {
+      expect(sheetTestControls.isDismissPending).toBe(false)
+      expect(mockPush).not.toHaveBeenCalled()
+      await TestRenderer.act(async () => {
+        tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.discardChangesAction')[0].props.onClick()
+        await Promise.resolve()
+      })
+      await TestRenderer.act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
+    }
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(close).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/upgrade')
+    expect(close).toHaveBeenCalledOnce()
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('keeps the Pro recovery action narrower than its notice', async () => {
+    mockCreateMutateAsync.mockRejectedValueOnce(new ApiClientError(403, 'Boundary', { code: 'PAY_GATE' }))
+    const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={vi.fn()} />)
+    await TestRenderer.act(async () => { findSubmit(tree.root).props.onPress(); await Promise.resolve() })
+    const geometry = measureSafeArea(tree.toJSON(), host => {
+      if (host.props.testID === 'capacity-notice') return 'notice'
+      if (host.type === 'Pressable' && host.children?.some(child => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('common.upgrade'))) return 'upgrade'
+    })
+    expect(geometry.get('upgrade')!.width).toBeGreaterThan(0)
+    expect(geometry.get('upgrade')!.width).toBeLessThan(geometry.get('notice')!.width - 32)
   })
 
   it('surfaces the validation error and does not create when the form is invalid', async () => {

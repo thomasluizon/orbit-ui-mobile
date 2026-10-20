@@ -3,6 +3,8 @@ import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
+import { AI_MESSAGE_COUNTER_THRESHOLD } from '@orbit/shared/chat'
+import { SPACING } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
@@ -15,11 +17,17 @@ interface Host {
 
 type Tree = ReturnType<typeof renderer.create> & { toJSON: () => Host; unmount: () => void }
 
-function applyStyle(node: YogaNode, style: ViewStyle) {
+function applyDimensions(node: YogaNode, style: ViewStyle) {
   if (typeof style.width === 'number') node.setWidth(style.width)
   if (typeof style.height === 'number') node.setHeight(style.height)
   if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
   if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
+}
+
+function applyStyle(node: YogaNode, style: ViewStyle) {
+  applyDimensions(node, style)
+  if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
+  if (typeof style.borderTopWidth === 'number') node.setBorder(Yoga.EDGE_TOP, style.borderTopWidth)
   if (style.flex !== undefined) node.setFlex(style.flex)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.alignItems === 'flex-end') node.setAlignItems(Yoga.ALIGN_FLEX_END)
@@ -83,4 +91,31 @@ it.each([320, 412].flatMap(width => [false, true].flatMap(withGlyph =>
     expect(input.getComputedPadding(Yoga.EDGE_RIGHT)).toBe(8)
     expect(placeholder.right - placeholder.left).toBe(inputBox.right - inputBox.left - 16)
   } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()) }
+})
+
+it.each([320, 412])('keeps Hoje compact far from the daily limit at %s', async (width) => {
+  const measured: number[] = []
+  for (const used of [0, 3, 5]) {
+    const nearLimit = 5 - used <= AI_MESSAGE_COUNTER_THRESHOLD
+    let tree!: Tree
+    await renderer.act(() => {
+      tree = renderer.create(<Composer value="" suggestions={[]}
+        words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()}
+        usageMessage={nearLimit ? en.shell.composer.usage.replace('{used}', String(used)).replace('{limit}', '5') : undefined}
+        renewalHint={nearLimit ? en.shell.composer.limit.renewal : undefined}
+        {...used === 5 ? { state: 'atLimit', limitReason: en.shell.composer.limit.reason.replace('{allowance}', '5') } : { state: 'idle' }} />) as Tree
+    })
+    const nodes = new Map<string, YogaNode>()
+    const layout = build(tree.toJSON(), nodes)
+    try {
+      layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+      measured.push(layout.getComputedHeight())
+      const status = nodes.get('composer-status-slot')
+      expect(Boolean(status)).toBe(nearLimit)
+      expect(nodes.has('composer-usage')).toBe(nearLimit)
+      if (!nearLimit) expect(nodes.get('composer-field')!.getComputedTop()).toBe(SPACING.s16 + StyleSheet.hairlineWidth)
+    } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()) }
+  }
+  expect(measured[0]).toBeLessThan(measured[1]!)
+  expect(measured[1]).toBe(measured[2])
 })

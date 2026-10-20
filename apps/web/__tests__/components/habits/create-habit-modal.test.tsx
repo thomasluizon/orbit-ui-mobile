@@ -888,9 +888,35 @@ describe('CreateHabitModal', () => {
     expect(mockPush).not.toHaveBeenCalled()
     expect(close).not.toHaveBeenCalled()
     expect(submit).not.toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'common.upgrade' }) !== null).toBe(legacySubHabit)
     fireEvent.click(submit)
     await waitFor(() => expect(create).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+  })
+
+  it.each([false, true])('opens Upgrade from a real Pro boundary after guarded sheet dismissal (dirty=%s)', async (dirty) => {
+    mockFormStatus.dirty = dirty
+    mockCreateMutateAsync.mockRejectedValueOnce(new ApiClientError(403, 'Boundary', { code: 'PAY_GATE' }))
+    const close = vi.fn()
+    renderWithProviders(<CreateHabitModal open onOpenChange={close} />)
+    await waitFor(() => expect(mockFormReset).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    const upgrade = await screen.findByRole('button', { name: 'common.upgrade' })
+    sheetTestControls.defer(true)
+    fireEvent.click(upgrade)
+    if (dirty) {
+      expect(sheetTestControls.isDismissPending).toBe(false)
+      expect(mockPush).not.toHaveBeenCalled()
+      fireEvent.click(await screen.findByRole('button', { name: 'common.discardChangesAction' }))
+      act(() => sheetTestControls.completeDismissal())
+    }
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(close).not.toHaveBeenCalled()
+    act(() => sheetTestControls.completeDismissal())
+    await waitFor(() => expect(mockPush).toHaveBeenCalledExactlyOnceWith('/upgrade'))
+    expect(close).toHaveBeenCalledWith(false)
+    expect(mockShowError).not.toHaveBeenCalled()
   })
 
   it('preserves nested sub-habits in a Free create request', async () => {

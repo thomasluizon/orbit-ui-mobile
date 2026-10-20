@@ -17,7 +17,12 @@ with matching web and Android behavior and verification boundaries.
 The habit ceiling uses the existing neutral `CapacityNotice` beside submit. An Astra refusal
 belongs beside its own control. Neither refusal clears the form. A retry remains available.
 Sub-habits keep the existing count and nesting validation; their availability does not depend on
-Pro. Other Pro actions retain their own gates.
+Pro. Other Pro actions retain their own gates. A Pro refusal offers one small Upgrade action;
+its form keeps the discard guard and completes sheet dismissal before navigation.
+
+The composer counter and reserved allowance space appear only with two or fewer messages left.
+Below that threshold, the composer keeps its compact inset. Near capacity and exhausted states
+share the reservation; exhaustion states the boundary and renewal together once.
 
 The Pro pitch, tier cards, onboarding paywall and annual billing retain their compositions.
 Retrospective has no route; its former annual entitlement is removed from shared utilities.

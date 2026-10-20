@@ -155,7 +155,6 @@ function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: Compos
     return (
       <View style={styles.limitStatus}>
         <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.limitReason}</Text>
-        {props.state === 'atLimit' && props.renewalHint ? <Text style={[styles.renewalHint, { color: tokens.fg2 }]}>{props.renewalHint}</Text> : null}
         {props.limitRecovery}
       </View>
     )
@@ -471,7 +470,7 @@ export function Composer(props: Readonly<MobileComposerProps>) {
         </View>
       ) : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />}
       <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} />
-      {props.renewalHint ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
+      {props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
       <RetryControl props={props} tokens={tokens} />
     </View>
   )
@@ -568,8 +567,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },
-  usage: { minHeight: 34, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'] },
-  renewalHint: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  usage: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'] },
   limitReason: {
     minHeight: 48,
     fontFamily: 'Geist_400Regular',

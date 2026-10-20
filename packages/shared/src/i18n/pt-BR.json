@@ -248,10 +248,10 @@
         "image": "Foto"
       },
       "limit": {
-        "renewal": "As mensagens voltam à meia-noite, no seu horário.",
+        "renewal": "As mensagens voltam à meia-noite, no seu fuso.",
         "exhausted": "Você usou as mensagens de hoje com a Astra.",
         "placeholder": "Sem mensagens hoje",
-        "reason": "Você usou as {allowance} mensagens de hoje com a Astra."
+        "reason": "Você usou as {allowance} mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso."
       },
       "busy": {
         "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
@@ -681,8 +681,8 @@
     },
     "frequencyLabel": "Frequência",
     "form": {
-      "capacityTitle": "Limite de hábitos",
-      "capacityBody": "A conta pode ter até {limit} hábitos ativos. Apague um para adicionar outro. Sub-hábitos não entram nessa conta.",
+      "capacityTitle": "Limite de hábitos atingido",
+      "capacityBody": "A conta pode ter até {limit} hábitos ativos. Apague um para adicionar outro. Sub-hábitos não contam para o limite.",
       "emojiSuggest": "Sugerir emoji",
       "emojiSuggesting": "Buscando emoji…",
       "aiSuggest": "Sugerir com IA",
@@ -690,7 +690,7 @@
       "aiSuggestApplied": "Sugestão de IA aplicada",
       "aiSuggestError": "Não foi possível gerar uma sugestão. Tente novamente.",
       "aiSuggestEmpty": "Sem sugestão para este hábito. Preencha os detalhes por conta própria.",
-      "aiSuggestLimitReached": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu horário.",
+      "aiSuggestLimitReached": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso.",
       "title": "Título",
       "newHabit": "Novo hábito",
       "fromConversation": "Veio da sua conversa com a Astra.",
@@ -1497,7 +1497,7 @@
     "fileAttached": "Arquivo anexado \"{name}\":",
     "sendError": "Não foi possível enviar a mensagem. Tente de novo.",
     "timeoutError": "A resposta demorou demais. Tente de novo.",
-    "limitReachedError": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu horário.",
+    "limitReachedError": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso.",
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
@@ -2334,7 +2334,7 @@
     "allowance": {
       "title": "Mensagens hoje",
       "usage": "{used} de {limit} usadas",
-      "spent": "As mensagens de hoje acabaram. Elas voltam à meia-noite, no seu horário. A sua lista de hábitos continua funcionando.",
+      "spent": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso.",
       "plan": "Plano",
       "free": "Grátis",
       "pro": "Pro",
@@ -2861,7 +2861,7 @@
         "daysLabel": "Dias da semana",
         "timeLabel": "Hora",
         "timeHint": "Deixe vazio para qualquer hora do dia",
-        "limit": "As {allowance} mensagens de hoje acabaram. Ler a frase também usa essa cota.",
+        "limit": "Você usou as {allowance} mensagens de hoje com a Astra. Ler a frase também usa essa cota.",
         "days": {
           "sunday": "D", "monday": "S", "tuesday": "T", "wednesday": "Q", "thursday": "Q", "friday": "S", "saturday": "S"
         },
@@ -3271,9 +3271,9 @@
       "appUpdated": "O Orbit foi atualizado. Recarregue a página e tente de novo. O texto não salvo será perdido.",
       "edgeBlocked": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Mude o texto e tente de novo.",
       "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
-      "habitLimit": "Você pode ter até 1.000 hábitos ativos, sem contar sub-hábitos. Apague um hábito para adicionar outro.",
+      "habitLimit": "Você pode ter até {limit, number} hábitos ativos, sem contar sub-hábitos. Apague um hábito para adicionar outro.",
       "calendarPro": "A sincronização do calendário precisa do Orbit Pro. Veja a tela de upgrade para ativar.",
-      "astraLimit": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu horário.",
+      "astraLimit": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso.",
       "payGate": "Este recurso precisa do Orbit Pro. Veja suas opções na tela de upgrade.",
       "reload": "Recarregar",
       "noPermission": "Você não tem permissão para isso.",

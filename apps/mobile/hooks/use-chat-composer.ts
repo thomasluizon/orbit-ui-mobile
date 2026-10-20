@@ -840,6 +840,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     }));
   }, [surface, chipStatus, habitsQuery.data, detailQuery.data, contextualSuggestion, totalHabitCount, profile, date, today, sendMessage, t]);
 
+  const renewalHint = aiMessagesLimit - aiMessagesUsed <= AI_MESSAGE_COUNTER_THRESHOLD
+    ? t("shell.composer.limit.renewal") : undefined
+
   const composerProps = useMemo(() => {
     const words = {
       placeholder: t(isOnline ? "shell.composer.placeholder" : "shell.composer.offline.placeholder"),
@@ -859,7 +862,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     const common = {
       usageMessage: aiMessagesLimit - aiMessagesUsed <= AI_MESSAGE_COUNTER_THRESHOLD
         ? t("shell.composer.usage", { used: aiMessagesUsed, limit: aiMessagesLimit }) : undefined,
-      renewalHint: t("shell.composer.limit.renewal"),
+      renewalHint,
       words,
       value: input,
       errorMessage: speechError ?? sendError ?? undefined,
@@ -908,6 +911,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       ? { ...common, state, onVoice: toggleRecording, voiceWords }
       : { ...common, state };
   }, [
+    renewalHint,
     aiMessagesLimit,
     aiMessagesUsed,
     attachments,

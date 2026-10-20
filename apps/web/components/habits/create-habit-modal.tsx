@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { completeHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
+import { ActionRow } from '@/components/ui/action-row'
+import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { HabitCreateActions } from './habit-create-actions'
 import { HabitCreateFrame } from './habit-create-frame'
@@ -49,20 +52,24 @@ import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildSubHabitRequest, buildCreateHabitRequest } from '@/lib/habit-request-builders'
 import {
+  MAX_ACTIVE_HABITS,
   MAX_GOALS_PER_HABIT,
   habitFormSchema,
 } from '@orbit/shared/validation'
 import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
 
-function CreateBoundaryNotice({ boundary }: Readonly<{ boundary: 'habit' | 'pro' | null }>) {
+function CreateBoundaryNotice({ boundary, onUpgrade }: Readonly<{ boundary: 'habit' | 'pro' | null; onUpgrade: () => void }>) {
   const t = useTranslations()
   const locale = useLocale()
   if (!boundary) return null
-  if (boundary === 'pro') return <CapacityNotice message={t('errors.api.payGate')} />
+  if (boundary === 'pro') return <CapacityNotice
+    message={t('errors.api.payGate')}
+    action={<ActionRow><PillButton size="sm" variant="ghost" onClick={onUpgrade}>{t('common.upgrade')}</PillButton></ActionRow>}
+  />
   return (
     <CapacityNotice
       message={t('habits.form.capacityTitle')}
-      body={t('habits.form.capacityBody', { limit: new Intl.NumberFormat(locale).format(1000) })}
+      body={t('habits.form.capacityBody', { limit: new Intl.NumberFormat(locale).format(MAX_ACTIVE_HABITS) })}
     />
   )
 }
@@ -189,6 +196,7 @@ export function CreateHabitModal({
   )
   const { sheetRef, closeSheet } = useSheetHost()
   const [leaveAction, setLeaveAction] = useState<(() => void) | null>(null)
+  const router = useRouter()
   const pendingNavigation = useRef<(() => void) | null>(null)
   useEffect(() => { if (leaveAction) completeHabitCreateNavigation(leaveAction) }, [leaveAction])
   const finishClose = useCallback((action: () => void) => {
@@ -199,6 +207,13 @@ export function CreateHabitModal({
     isDirty,
     onDismiss: () => finishClose(pendingNavigation.current ?? (() => onOpenChange(false))),
   })
+  const navigateToUpgrade = useCallback(() => {
+    pendingNavigation.current = () => {
+      onOpenChange(false)
+      router.push('/upgrade')
+    }
+    dismissGuard.requestDismiss()
+  }, [dismissGuard, onOpenChange, router])
   const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
   const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
   const suggestionSessionId = open ? (parentHabit?.id ?? 'root') : null
@@ -509,7 +524,7 @@ export function CreateHabitModal({
         title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.form.newHabit')}
         actions={<>
           <div role="status" className={createBoundary ? 'pb-3' : undefined}>
-            <CreateBoundaryNotice boundary={createBoundary} />
+            <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
           </div>
           <HabitCreateActions presentation={presentation} pending={isPending}
             empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}

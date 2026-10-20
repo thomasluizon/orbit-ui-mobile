@@ -5,6 +5,8 @@ import { useIsFocused, useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { useSheetHost } from '@/components/ui/sheet'
+import { ActionRow } from '@/components/ui/action-row'
+import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { HabitCreateActions } from './habit-create-actions'
 import { HabitCreateFrame } from './habit-create-frame'
@@ -50,20 +52,23 @@ import {
   buildSubHabitRequest,
   buildCreateHabitRequest,
 } from '@/lib/habit-request-builders'
-import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
+import { MAX_ACTIVE_HABITS, MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
 import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 let subHabitCounter = 0
-function CreateBoundaryNotice({ boundary }: Readonly<{ boundary: 'habit' | 'pro' | null }>) {
+function CreateBoundaryNotice({ boundary, onUpgrade }: Readonly<{ boundary: 'habit' | 'pro' | null; onUpgrade: () => void }>) {
   const { t, i18n } = useTranslation()
   if (!boundary) return null
-  if (boundary === 'pro') return <CapacityNotice message={t('errors.api.payGate')} />
+  if (boundary === 'pro') return <CapacityNotice
+    message={t('errors.api.payGate')}
+    action={<ActionRow><PillButton size="sm" variant="ghost" onClick={onUpgrade}>{t('common.upgrade')}</PillButton></ActionRow>}
+  />
   return (
     <CapacityNotice
       message={t('habits.form.capacityTitle')}
-      body={t('habits.form.capacityBody', { limit: new Intl.NumberFormat(i18n.language).format(1000) })}
+      body={t('habits.form.capacityBody', { limit: new Intl.NumberFormat(i18n.language).format(MAX_ACTIVE_HABITS) })}
     />
   )
 }
@@ -262,11 +267,13 @@ export function CreateHabitModal({
       dismissGuard.requestDismiss()
       return
     }
-    finishClose(() => {
+    pendingNavigation.current = () => {
+      pendingNavigation.current = null
       onClose()
       router.push('/upgrade')
-    })
-  }, [dismissGuard, finishClose, onClose, presentation, router])
+    }
+    dismissGuard.requestDismiss()
+  }, [dismissGuard, onClose, presentation, router])
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -600,7 +607,7 @@ export function CreateHabitModal({
         title={sheetTitle}
         actions={<>
           <View accessibilityLiveRegion="polite" style={createBoundary ? { paddingBottom: 12 } : undefined}>
-            <CreateBoundaryNotice boundary={createBoundary} />
+            <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
           </View>
           <HabitCreateActions presentation={presentation} pending={isPending}
             empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}

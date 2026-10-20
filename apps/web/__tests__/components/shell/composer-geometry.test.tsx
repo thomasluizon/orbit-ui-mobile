@@ -17,6 +17,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Composer } from '@/components/shell/composer'
+import { AI_MESSAGE_COUNTER_THRESHOLD } from '@orbit/shared/chat'
+import { MAX_ACTIVE_HABITS } from '@orbit/shared/validation'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { Menu } from '@/components/ui/menu'
 import { measureFieldInset } from '@/e2e/layout/field-inset-geometry'
@@ -202,7 +204,7 @@ describe('Composer compact geometry in Chromium', () => {
     } finally { view.unmount(); await page.close() }
   })
 
-  it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => (['light', 'dark'] as const).map((mode) => ({ width, locale, mode })))))('keeps daily allowance geometry stable at $width in $locale $mode', async ({ width, locale, mode }) => {
+  it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => (['light', 'dark'] as const).map((mode) => ({ width, locale, mode })))))('keeps Hoje compact below the daily threshold and stable near capacity at $width in $locale $mode', async ({ width, locale, mode }) => {
     const messages = locale === 'en' ? en : ptBR
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -212,8 +214,8 @@ describe('Composer compact geometry in Chromium', () => {
         const configuration = {
           ...geometryProps(used === 5 ? 'atLimit' : 'idle', messages, false),
           value: 'Keep this draft',
-          usageMessage: used >= 3 ? messages.shell.composer.usage.replace('{used}', String(used)).replace('{limit}', '5') : undefined,
-          renewalHint: messages.shell.composer.limit.renewal,
+          usageMessage: 5 - used <= AI_MESSAGE_COUNTER_THRESHOLD ? messages.shell.composer.usage.replace('{used}', String(used)).replace('{limit}', '5') : undefined,
+          renewalHint: 5 - used <= AI_MESSAGE_COUNTER_THRESHOLD ? messages.shell.composer.limit.renewal : undefined,
           ...(used === 5 ? { state: 'atLimit', limitReason: messages.shell.composer.limit.reason.replace('{allowance}', '5') } : {}),
         } as ComposerProps
         const view = render(<Composer {...configuration} />)
@@ -222,24 +224,33 @@ describe('Composer compact geometry in Chromium', () => {
           await loadAppFonts(page)
           const geometry = await page.locator('[data-composer-root]').evaluate((root) => {
             const input = root.querySelector('[data-composer-input]')!
-            const usage = root.querySelector('[data-composer-usage]')!
+            const usage = root.querySelector('[data-composer-usage]')
+            const row = root.querySelector('[data-composer-input-row]')!
+            const style = getComputedStyle(root)
             return { top: input.getBoundingClientRect().top, height: root.getBoundingClientRect().height,
-              overflow: root.scrollWidth > root.clientWidth, numeric: getComputedStyle(usage).fontVariantNumeric }
+              overflow: root.scrollWidth > root.clientWidth, numeric: usage ? getComputedStyle(usage).fontVariantNumeric : null,
+              reserved: Boolean(root.querySelector('[data-composer-status-slot]')),
+              inset: row.getBoundingClientRect().top - root.getBoundingClientRect().top,
+              expected: parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop) }
           })
           expect(geometry.overflow).toBe(false)
-          expect(geometry.numeric).toContain('tabular-nums')
+          if (used === 0) {
+            expect(geometry.reserved).toBe(false)
+            expect(geometry.numeric).toBeNull()
+            expect(geometry.inset).toBe(geometry.expected)
+          } else expect(geometry.numeric).toContain('tabular-nums')
           measured.push(geometry)
         } finally { view.unmount() }
       }
-      expect(new Set(measured.map(({ top }) => top)).size).toBe(1)
-      expect(new Set(measured.map(({ height }) => height)).size).toBe(1)
+      expect(measured[0]!.height).toBeLessThan(measured[1]!.height)
+      expect(measured[1]).toEqual(measured[2])
     } finally { await page.close() }
   })
 
   it.each((['en', 'pt-BR'] as const).flatMap((locale) => (['light', 'dark'] as const).map((mode) => ({ locale, mode }))))('keeps the habit capacity message neutral and contained in $locale $mode', async ({ locale, mode }) => {
     const messages = locale === 'en' ? en : ptBR
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-    const body = messages.habits.form.capacityBody.replace('{limit}', new Intl.NumberFormat(locale).format(1000))
+    const body = messages.habits.form.capacityBody.replace('{limit}', new Intl.NumberFormat(locale).format(MAX_ACTIVE_HABITS))
     const view = render(<main style={{ padding: 16 }}><input aria-label="Draft" defaultValue="Morning walk" /><CapacityNotice message={messages.habits.form.capacityTitle} body={body} /></main>)
     const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
     try {
