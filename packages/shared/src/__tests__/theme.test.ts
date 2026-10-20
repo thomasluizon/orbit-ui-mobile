@@ -1,198 +1,798 @@
-import { describe, it, expect } from 'vitest'
-import { schemes, colorSchemeOptions } from '../theme/color-schemes'
+import { readdirSync, readFileSync } from 'node:fs'
+import { relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
+import { describe, expect, it } from 'vitest'
+import { contrastOnSurface, withAlpha } from './contrast'
+import { lightHoverTextSurfaces } from './light-hover-surfaces'
+import { schemes } from '../theme/color-schemes'
 import {
-  alphaSurfaces,
-  resolveDarkNeutrals,
-  resolveLightNeutrals,
+  neutralColors,
   selectionAlpha,
   statusConstants,
 } from '../theme/neutral-ramp'
-import { typeRoles } from '../theme/type-roles'
-import type { ColorScheme } from '../theme/types'
+import { resolveResponsiveTypeRole, responsiveTypeRoles, typeRoles } from '../theme/type-roles'
+const REPOSITORY_ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
 
-const ALL_SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
+const BAD_TEXT_SOURCE_SITES = [
+  {
+    name: 'web destructive menu label',
+    path: 'apps/web/app/globals.css',
+    pattern: /\.orbit-menu-item\[data-destructive\] \.orbit-menu-label \{\s+color: var\(--status-bad-text\);/,
+  },
+  {
+    name: 'web support subject error',
+    path: 'apps/web/app/(app)/support/_components/support-form.tsx',
+    pattern: /id="support-subject-error"[\s\S]*?text-\[var\(--status-bad-text\)\]/,
+  },
+  {
+    name: 'web streak repair error',
+    path: 'apps/web/app/(app)/progress/_components/progress-content.tsx',
+    pattern: /repair\.isError[\s\S]*?text-\[var\(--status-bad-text\)\]/,
+  },
+  {
+    name: 'web failed block status label',
+    path: 'apps/web/components/ui/block-frame.tsx',
+    pattern: /const labelColor = status === 'failed' \? 'var\(--status-bad-text\)'/,
+  },
+  {
+    name: 'web milestone share error',
+    path: 'apps/web/components/milestone-share/milestone-share-prompt.tsx',
+    pattern: /hasError[\s\S]*?fontSize: 14, color: 'var\(--status-bad-text\)'/,
+  },
+  {
+    name: 'web settings row title',
+    path: 'apps/web/components/ui/list-row.tsx',
+    pattern: /const titleColor = danger \? 'var\(--status-bad-text\)'/,
+  },
+  {
+    name: 'web API-key list load error',
+    path: 'apps/web/components/profile/profile-api-keys.tsx',
+    pattern: /if \(loadError\)[\s\S]*?text-\[var\(--status-bad-text\)\][\s\S]*?\{t\('orbitMcp\.apiKeysError'\)\}/,
+  },
+  {
+    name: 'web API-key create request error',
+    path: 'apps/web/components/profile/profile-api-keys.tsx',
+    pattern: /\{management\.createKeyError && !creationMode \? \(\s*<p role="alert" className="text-sm text-\[var\(--status-bad-text\)\]">\{management\.createKeyError\}<\/p>/,
+  },
+  {
+    name: 'web list row title',
+    path: 'apps/web/components/ui/list-row.tsx',
+    pattern: /const titleColor = danger \? 'var\(--status-bad-text\)'/,
+  },
+  {
+    name: 'web habit understanding error',
+    path: 'apps/web/components/habits/habit-form-fields/habit-understanding.tsx',
+    pattern: /habit-phrase-error[\s\S]*?text-\[var\(--status-bad-text\)\]/,
+  },
+  {
+    name: 'web goal delete row',
+    path: 'apps/web/components/goals/goal-detail-drawer/goal-action-footer.tsx',
+    pattern: /title=\{t\('goals\.detail\.delete'\)\}[\s\S]*?\bdanger\b/,
+  },
+  {
+    name: 'web clarification error',
+    path: 'apps/web/components/chat/clarification-card.tsx',
+    pattern: /errorKey[\s\S]*?text-\[var\(--status-bad-text\)\]/,
+  },
+  {
+    name: 'web composer error',
+    path: 'apps/web/components/shell/composer.tsx',
+    pattern: /props\.errorMessage[\s\S]*?text-\[var\(--status-bad-text\)\]/,
+  },
+  {
+    name: 'mobile composer error',
+    path: 'apps/mobile/components/shell/composer.tsx',
+    pattern: /props\.errorMessage[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile clarification error',
+    path: 'apps/mobile/components/chat/clarification-card.tsx',
+    pattern: /errorKey[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile notification status error',
+    path: 'apps/mobile/components/profile/push-devices-row.tsx',
+    pattern: /tone === 'critical' \? tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile checkout error',
+    path: 'apps/mobile/components/upgrade/plan-selection.tsx',
+    pattern: /checkoutError[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile goal delete row',
+    path: 'apps/mobile/components/goals/goal-detail-drawer/goal-action-footer.tsx',
+    pattern: /title=\{t\('goals\.detail\.delete'\)\}[\s\S]*?\bdanger\b/,
+  },
+  {
+    name: 'mobile milestone share error',
+    path: 'apps/mobile/components/milestone-share/milestone-share-prompt.tsx',
+    pattern: /errorText[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile habit form error',
+    path: 'apps/mobile/components/habits/habit-form-fields/styles.ts',
+    pattern: /fieldError[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile API-key create request error',
+    path: 'apps/mobile/components/profile/profile-api-keys.tsx',
+    pattern: /\{management\.createKeyError && !creationMode \? \(\s*<Text accessibilityRole="alert" style=\{\[styles\.message, \{ color: tokens\.statusBadText \}\]\}>\{management\.createKeyError\}<\/Text>/,
+  },
+  {
+    name: 'mobile habit understanding error',
+    path: 'apps/mobile/components/habits/habit-form-fields/habit-understanding.tsx',
+    pattern: /error: \{ color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile failed block status label',
+    path: 'apps/mobile/components/ui/block-frame.tsx',
+    pattern: /const labelColor = status === 'failed' \? tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile list row title',
+    path: 'apps/mobile/components/ui/list-row.tsx',
+    pattern: /const titleColor = danger \? tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile streak repair error',
+    path: 'apps/mobile/components/progress/progress-content.tsx',
+    pattern: /repair\.isError[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile settings row title',
+    path: 'apps/mobile/components/ui/list-row.tsx',
+    pattern: /const titleColor = danger \? tokens\.statusBadText/,
+  },
+] as const
 
-const HEX = /^#[0-9a-f]{6}$/
+const BAD_GRAPHIC_SOURCE_SITES = [
+  {
+    name: 'web conflict warning glyph',
+    path: 'apps/web/components/chat/conflict-warning.tsx',
+    rolePattern: /case 'HIGH':[\s\S]*?graphicClassName: 'text-\[var\(--status-bad\)\]'/,
+    applicationPattern: /<AlertTriangle className=\{`size-4 \$\{severity\.graphicClassName\}`\} \/>/,
+  },
+  {
+    name: 'mobile conflict warning glyph',
+    path: 'apps/mobile/components/chat/conflict-warning.tsx',
+    rolePattern: /case "HIGH":[\s\S]*?graphic: tokens\.statusBad/,
+    applicationPattern: /<AlertTriangle size=\{16\} color=\{sColors\.graphic\} \/>/,
+  },
+] as const
+
+const DIRECT_BAD_FILL_PATTERN = /\btokens\.statusBad\b|var\(--status-bad\)/g
+const GRAPHIC_ROLE_NAMES = new Set([
+  '--color-status-bad',
+  '--icon-color',
+  'background',
+  'backgroundColor',
+  'bg',
+  'border',
+  'borderColor',
+  'boxShadow',
+  'fill',
+  'graphic',
+  'graphicClassName',
+  'iconColor',
+  'ring',
+  'shadow',
+  'stroke',
+  'tintColor',
+  'trackColor',
+])
+interface DirectBadFillReference {
+  column: number
+  line: number
+  offset: number
+  path: string
+  source: string
+}
+
+interface BadFillInventory {
+  keys: string[]
+  referenceCount: number
+}
+
+function directBadFillReferencesInSource(path: string, source: string): DirectBadFillReference[] {
+  return [...source.matchAll(DIRECT_BAD_FILL_PATTERN)].map((match) => {
+    const offset = match.index
+    const precedingSource = source.slice(0, offset)
+    const lineStart = precedingSource.lastIndexOf('\n') + 1
+    return {
+      column: offset - lineStart + 1,
+      line: precedingSource.match(/\n/g)?.length ?? 0,
+      offset,
+      path,
+      source,
+    }
+  })
+}
+
+function productionSourceFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name === '__tests__' || entry.name === 'node_modules' || entry.name === '.next') return []
+    const path = `${directory}/${entry.name}`
+    if (entry.isDirectory()) return productionSourceFiles(path)
+    return /\.(?:css|ts|tsx)$/.test(entry.name) && !/\.(?:spec|test)\.[^.]+$/.test(entry.name)
+      ? [path]
+      : []
+  })
+}
+
+function directBadFillReferences(): DirectBadFillReference[] {
+  const sourceFiles = [
+    ...productionSourceFiles(`${REPOSITORY_ROOT}apps/mobile`),
+    ...productionSourceFiles(`${REPOSITORY_ROOT}apps/web`),
+  ]
+  return sourceFiles.flatMap((path) => {
+    const source = readFileSync(path, 'utf8')
+    const repositoryPath = relative(REPOSITORY_ROOT, path).replaceAll('\\', '/')
+    return directBadFillReferencesInSource(repositoryPath, source)
+  })
+}
+
+function jsxTagEnd(source: string, tagStart: number): number {
+  let braceDepth = 0
+  let quote: string | null = null
+  for (let index = tagStart; index < source.length; index += 1) {
+    const character = source[index]!
+    if (quote !== null) {
+      if (character === quote && source[index - 1] !== '\\') quote = null
+      continue
+    }
+    if (character === "'" || character === '"' || character === '`') {
+      quote = character
+    } else if (character === '{') {
+      braceDepth += 1
+    } else if (character === '}') {
+      braceDepth -= 1
+    } else if (character === '>' && braceDepth === 0) {
+      return index
+    }
+  }
+  return -1
+}
+
+function openingTagAt(reference: DirectBadFillReference): string | null {
+  const tagStart = reference.source.lastIndexOf('<', reference.offset)
+  const priorTagEnd = reference.source.lastIndexOf('>', reference.offset)
+  if (tagStart < 0 || tagStart < priorTagEnd) return null
+  const tagEnd = jsxTagEnd(reference.source, tagStart)
+  if (tagEnd < reference.offset) return null
+  return reference.source.slice(tagStart, tagEnd + 1)
+}
+
+function importedGraphicNames(source: string): Set<string> {
+  const names = new Set<string>()
+  const imports = source.matchAll(
+    /import\s*\{([^}]*)\}\s*from\s*['"]@\/components\/ui\/icons?['"]/g,
+  )
+  for (const match of imports) {
+    for (const specifier of match[1]!.split(',')) {
+      const importedName = specifier.trim().replace(/^type\s+/, '')
+      if (importedName === '') continue
+      names.add(importedName.split(/\s+as\s+/).at(-1)!)
+    }
+  }
+  return names
+}
+
+function openingTagIsImportedGraphic(openingTag: string, source: string): boolean {
+  const names = importedGraphicNames(source)
+  const componentName = openingTag.match(/^<([A-Z][\w]*)\b/)?.[1]
+  return componentName !== undefined && names.has(componentName)
+}
+
+function cssPropertyNameAt(reference: DirectBadFillReference): string | null {
+  if (!reference.path.endsWith('.css')) return null
+  const before = reference.source.slice(0, reference.offset)
+  const declarationStart = Math.max(before.lastIndexOf(';'), before.lastIndexOf('{')) + 1
+  return before.slice(declarationStart).match(/^\s*([\w-]+)\s*:/)?.[1] ?? null
+}
+
+function containingNodesAt(sourceFile: ts.SourceFile, offset: number): ts.Node[] {
+  const nodes: ts.Node[] = []
+  function visit(node: ts.Node): void {
+    if (node.getFullStart() > offset || node.getEnd() <= offset) return
+    nodes.push(node)
+    node.forEachChild(visit)
+  }
+  visit(sourceFile)
+  return nodes
+}
+
+function syntaxRoleNameAt(reference: DirectBadFillReference): string | null {
+  const sourceFile = ts.createSourceFile(
+    reference.path,
+    reference.source,
+    ts.ScriptTarget.Latest,
+    true,
+    reference.path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  )
+  for (const node of containingNodesAt(sourceFile, reference.offset).reverse()) {
+    if (ts.isJsxAttribute(node)) return node.name.getText(sourceFile)
+    if (ts.isPropertyAssignment(node)) return node.name.getText(sourceFile)
+  }
+  return null
+}
+
+function tailwindRoleNameAt(reference: DirectBadFillReference): string | null {
+  const utility = [...reference.source.matchAll(/\S+/g)].find((match) => {
+    const utilityStart = match.index
+    return utilityStart <= reference.offset
+      && reference.offset < utilityStart + match[0].length
+  })
+  if (utility === undefined) return null
+  const offsetInUtility = reference.offset - utility.index
+  const arbitraryValueStart = utility[0].lastIndexOf('-[', offsetInUtility)
+  const arbitraryValueEnd = utility[0].indexOf(']', offsetInUtility)
+  if (arbitraryValueStart < 0 || arbitraryValueEnd < offsetInUtility) return null
+  return utility[0].slice(0, arbitraryValueStart).match(/([\w-]+)$/)?.[1] ?? null
+}
+
+function hasDeclaredGraphicRole(reference: DirectBadFillReference): boolean {
+  const openingTag = openingTagAt(reference)
+  if (openingTag !== null && openingTagIsImportedGraphic(openingTag, reference.source)) return true
+  const syntaxRoleName = cssPropertyNameAt(reference) ?? syntaxRoleNameAt(reference)
+  if (syntaxRoleName !== null && GRAPHIC_ROLE_NAMES.has(syntaxRoleName)) return true
+  const tailwindRoleName = tailwindRoleNameAt(reference)
+  return tailwindRoleName !== null && GRAPHIC_ROLE_NAMES.has(tailwindRoleName)
+}
+
+function unreviewedBadFillReferences(
+  references = directBadFillReferences(),
+): string[] {
+  return references.flatMap((reference) => {
+    if (hasDeclaredGraphicRole(reference)) return []
+    const lineSource = reference.source.split('\n')[reference.line]?.trim() ?? ''
+    return [`${reference.path}:${reference.line + 1}:${reference.column} ${lineSource}`]
+  })
+}
+
+function unreviewedBadFillInventory(
+  references = directBadFillReferences(),
+): BadFillInventory {
+  const countsByPath = new Map<string, number>()
+  for (const reference of references) {
+    if (hasDeclaredGraphicRole(reference)) continue
+    countsByPath.set(reference.path, (countsByPath.get(reference.path) ?? 0) + 1)
+  }
+  return {
+    keys: [...countsByPath.entries()]
+      .sort(([leftPath], [rightPath]) => leftPath.localeCompare(rightPath))
+      .map(([path, count]) => `${path}:${count}`),
+    referenceCount: [...countsByPath.values()].reduce((total, count) => total + count, 0),
+  }
+}
+
+/** WHY: both ExpiryWarning mirrors paint their text on the overdue token at this alpha over --bg. */
+const EXPIRY_TINT_ALPHA = 0.1
+/** WHY: the native high-conflict warning paints bad status text on this status-bad tint inside a card. */
+const BAD_WARNING_TINT_ALPHA = 0x1A / 0xFF
+
+const GRANTED_ACCENTS = {
+  dark: {
+    primary: '#C4530F',
+    primaryHover: '#B74E12',
+    primaryPressed: '#A24716',
+    primarySoft: '#C85716',
+    primaryText: '#ED773E',
+    primaryDim: '#261611',
+    primaryRgb: '196,83,15',
+  },
+  light: {
+    primary: '#C4530F',
+    primaryHover: '#B74E12',
+    primaryPressed: '#A24716',
+    primarySoft: '#C15109',
+    primaryText: '#A63A00',
+    primaryDim: '#F4DDD3',
+    primaryRgb: '196,83,15',
+  },
+} as const
+
+const EMPTY_TRACK_SURFACES = {
+  dark: [
+    { name: 'canvas', layers: [neutralColors.dark.bg] },
+    { name: 'card', layers: [neutralColors.dark.bg, neutralColors.dark.bgCard] },
+    { name: 'well or overlay', layers: [neutralColors.dark.bg, neutralColors.dark.bgWell] },
+    { name: 'card replacement hover', layers: [neutralColors.dark.bg, neutralColors.dark.bgHover] },
+    { name: 'card child hover', layers: [neutralColors.dark.bg, neutralColors.dark.bgCard, neutralColors.dark.bgHover] },
+    {
+      name: 'canvas selection',
+      layers: [
+        neutralColors.dark.bg,
+        withAlpha(schemes.orange.accent.dark.primary, selectionAlpha.dark),
+      ],
+    },
+    {
+      name: 'card selection',
+      layers: [
+        neutralColors.dark.bg,
+        neutralColors.dark.bgCard,
+        withAlpha(schemes.orange.accent.dark.primary, selectionAlpha.dark),
+      ],
+    },
+  ],
+  light: [
+    { name: 'canvas', layers: [neutralColors.light.bg] },
+    { name: 'card or overlay', layers: [neutralColors.light.bg, neutralColors.light.bgCard] },
+    { name: 'well', layers: [neutralColors.light.bg, neutralColors.light.bgWell] },
+    { name: 'card replacement hover', layers: [neutralColors.light.bg, neutralColors.light.bgHover] },
+    { name: 'card child hover', layers: [neutralColors.light.bg, neutralColors.light.bgCard, neutralColors.light.bgHover] },
+    { name: 'widget card', layers: ['#FFFFFF'] },
+    { name: 'widget well', layers: ['#F1F1F2'] },
+    {
+      name: 'canvas selection',
+      layers: [
+        neutralColors.light.bg,
+        withAlpha(schemes.orange.accent.light.primary, selectionAlpha.light),
+      ],
+    },
+    {
+      name: 'card selection',
+      layers: [
+        neutralColors.light.bg,
+        neutralColors.light.bgCard,
+        withAlpha(schemes.orange.accent.light.primary, selectionAlpha.light),
+      ],
+    },
+  ],
+} as const
+
+const BAD_TEXT_SURFACES = {
+  dark: [
+    { name: 'canvas', layers: [neutralColors.dark.bg] },
+    { name: 'card', layers: [neutralColors.dark.bg, neutralColors.dark.bgCard] },
+    { name: 'field', layers: [neutralColors.dark.bg, neutralColors.dark.bgField] },
+    { name: 'well', layers: [neutralColors.dark.bg, neutralColors.dark.bgWell] },
+    { name: 'elevated sheet', layers: [neutralColors.dark.bg, neutralColors.dark.bgElev] },
+    { name: 'elevated inline step', layers: [neutralColors.dark.bg, neutralColors.dark.bgElev2] },
+    { name: 'canvas hover', layers: [neutralColors.dark.bg, neutralColors.dark.bgHover] },
+    {
+      name: 'elevated menu item hover',
+      layers: [neutralColors.dark.bg, neutralColors.dark.bgElev, neutralColors.dark.bgHover],
+    },
+    {
+      name: 'bad warning tint inside a card',
+      layers: [
+        neutralColors.dark.bg,
+        neutralColors.dark.bgCard,
+        withAlpha(statusConstants.dark.bad, BAD_WARNING_TINT_ALPHA),
+      ],
+    },
+  ],
+  light: [
+    { name: 'canvas', layers: [neutralColors.light.bg] },
+    {
+      name: 'card, field, or elevated sheet',
+      layers: [neutralColors.light.bg, neutralColors.light.bgCard],
+    },
+    { name: 'well', layers: [neutralColors.light.bg, neutralColors.light.bgWell] },
+    { name: 'canvas hover', layers: [neutralColors.light.bg, neutralColors.light.bgHover] },
+    {
+      name: 'elevated menu item hover',
+      layers: [neutralColors.light.bg, neutralColors.light.bgElev, neutralColors.light.bgHover],
+    },
+    {
+      name: 'bad warning tint inside a card',
+      layers: [
+        neutralColors.light.bg,
+        neutralColors.light.bgCard,
+        withAlpha(statusConstants.light.bad, BAD_WARNING_TINT_ALPHA),
+      ],
+    },
+  ],
+} as const
 
 describe('color schemes', () => {
-  it('has all 6 color schemes', () => {
-    expect(Object.keys(schemes)).toHaveLength(6)
-    for (const name of ALL_SCHEMES) {
-      expect(schemes[name]).toBeDefined()
-    }
+  it('defines only the granted accent in light and dark', () => {
+    expect(Object.keys(schemes)).toEqual(['orange'])
+    expect(schemes.orange.accent).toEqual(GRANTED_ACCENTS)
+    expect(schemes.orange.fgOnPrimary).toEqual({ dark: '#FFFFFF', light: '#FFFFFF' })
   })
 
-  it('has the handoff accent literals (dark)', () => {
-    expect(schemes.purple.accent.dark).toEqual({
-      primary: '#7f46f7', primaryPressed: '#631df2', primaryRgb: '127, 70, 247',
-    })
-    expect(schemes.blue.accent.dark.primary).toBe('#2b7fff')
-    expect(schemes.green.accent.dark.primary).toBe('#00c950')
-    expect(schemes.rose.accent.dark.primary).toBe('#ff2056')
-    expect(schemes.orange.accent.dark.primary).toBe('#ff6900')
-    expect(schemes.cyan.accent.dark.primary).toBe('#00b8db')
-  })
-
-  it('has the handoff accent literals (light)', () => {
-    expect(schemes.purple.accent.light).toEqual({
-      primary: '#631df2', primaryPressed: '#510fd3', primaryRgb: '99, 29, 242',
-    })
-    expect(schemes.blue.accent.light.primary).toBe('#155dfc')
-    expect(schemes.green.accent.light.primary).toBe('#00a63e')
-    expect(schemes.rose.accent.light.primary).toBe('#ec003f')
-    expect(schemes.orange.accent.light.primary).toBe('#f54900')
-    expect(schemes.cyan.accent.light.primary).toBe('#0092b8')
-  })
-
-  for (const name of ALL_SCHEMES) {
-    it(`${name}: primaryRgb matches the primary hex per mode`, () => {
-      for (const mode of ['dark', 'light'] as const) {
-        const { primary, primaryRgb } = schemes[name].accent[mode]
-        const fromRgb = primaryRgb
-          .split(',')
-          .map(part => Number(part.trim()).toString(16).padStart(2, '0'))
-          .join('')
-        expect(`#${fromRgb}`).toBe(primary)
-      }
-    })
-
-  }
-})
-
-describe('fg-on-primary (scheme x mode AA resolution)', () => {
-  const WHITE = '#ffffff'
-  const INK = '#020618'
-
-  it('keeps white where white passes 4.5:1 on the accent', () => {
-    expect(schemes.purple.fgOnPrimary).toEqual({ dark: WHITE, light: WHITE })
-    expect(schemes.blue.fgOnPrimary.light).toBe(WHITE)
-    expect(schemes.rose.fgOnPrimary.light).toBe(WHITE)
-  })
-
-  it('flips to the locked canvas ink where white fails AA', () => {
-    expect(schemes.blue.fgOnPrimary.dark).toBe(INK)
-    expect(schemes.rose.fgOnPrimary.dark).toBe(INK)
-    expect(schemes.green.fgOnPrimary).toEqual({ dark: INK, light: INK })
-    expect(schemes.orange.fgOnPrimary).toEqual({ dark: INK, light: INK })
-    expect(schemes.cyan.fgOnPrimary).toEqual({ dark: INK, light: INK })
-  })
-
-  it('every resolved value passes 4.5:1 WCAG AA on its accent', () => {
-    const channel = (hexColor: string, offset: number) =>
-      Number.parseInt(hexColor.slice(offset, offset + 2), 16) / 255
-    const linear = (value: number) =>
-      value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
-    const luminance = (hexColor: string) =>
-      0.2126 * linear(channel(hexColor, 1)) +
-      0.7152 * linear(channel(hexColor, 3)) +
-      0.0722 * linear(channel(hexColor, 5))
-    const contrast = (a: string, b: string) => {
-      const first = luminance(a)
-      const second = luminance(b)
-      return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)
-    }
-
-    for (const name of ALL_SCHEMES) {
-      for (const mode of ['dark', 'light'] as const) {
-        const ratio = contrast(
-          schemes[name].fgOnPrimary[mode],
-          schemes[name].accent[mode].primary,
-        )
-        expect(ratio).toBeGreaterThanOrEqual(4.5)
-      }
-    }
-  })
-})
-
-describe('neutral ramp resolution', () => {
-  it('purple dark resolves byte-exact to the handoff slate palette', () => {
-    expect(resolveDarkNeutrals('purple')).toEqual({
-      bg: '#020618',
-      fg1: '#f8fafc',
-      fg2: '#cad5e2',
-      fg3: '#90a1b9',
-      fg4: '#62748e',
-    })
-  })
-
-  it('purple light resolves byte-exact to the handoff light palette', () => {
-    expect(resolveLightNeutrals('purple')).toEqual({
-      bg: '#f8fafc',
-      bgSunk: '#f1f5f9',
-      fg1: '#0f172b',
-      fg2: '#314158',
-      fg3: '#62748e',
-      fg4: '#90a1b9',
-    })
-  })
-
-  for (const name of ALL_SCHEMES) {
-    it(`${name}: all neutrals resolve to valid hexes in both modes`, () => {
-      const dark = resolveDarkNeutrals(name)
-      const light = resolveLightNeutrals(name)
-      for (const value of [...Object.values(dark), ...Object.values(light)]) {
-        expect(value).toMatch(HEX)
-      }
-      expect(dark.bg).not.toBe(light.bg)
+  for (const mode of ['dark', 'light'] as const) {
+    it(`${mode} meets every accent floor and keeps done neutral`, () => {
+      const accent = schemes.orange.accent[mode]
+      const canvas = neutralColors[mode].bg
+      expect(contrastOnSurface('#FFFFFF', [accent.primary])).toBeGreaterThanOrEqual(4.5)
+      expect(contrastOnSurface(accent.primary, [canvas])).toBeGreaterThanOrEqual(3)
+      expect(contrastOnSurface(accent.primarySoft, [canvas])).toBeGreaterThanOrEqual(4.5)
+      expect(neutralColors[mode].fg1).not.toBe(accent.primary)
     })
   }
 })
 
-describe('alpha surfaces and status constants', () => {
-  it('dark alpha surfaces are the handoff white-alpha constants', () => {
-    expect(alphaSurfaces.dark).toEqual({
-      bgCard: 'rgba(248, 250, 252, 0.04)',
-      bgField: 'rgba(248, 250, 252, 0.05)',
-      bgElev: 'rgba(248, 250, 252, 0.06)',
-      bgElev2: 'rgba(248, 250, 252, 0.10)',
-      bgSunk: 'rgba(0, 0, 0, 0.28)',
-      hairline: 'rgba(248, 250, 252, 0.10)',
-      hairlineStrong: 'rgba(248, 250, 252, 0.18)',
-      statusEmpty: 'rgba(248, 250, 252, 0.22)',
+describe('byte-exact mode colors', () => {
+  it('matches the dark DESIGN.md table', () => {
+    expect(neutralColors.dark).toEqual({
+      bg: '#09090B',
+      bgCard: 'rgba(250,250,250,0.04)',
+      bgField: 'rgba(250,250,250,0.06)',
+      bgWell: 'rgba(250,250,250,0.08)',
+      bgElev: '#1C1C1E',
+      bgElev2: 'rgba(250,250,250,0.12)',
+      bgHover: 'rgba(250,250,250,0.13)',
+      bgHoverOpaque: 'rgba(250,250,250,0.13)',
+      bgSunk: 'rgba(0,0,0,0.28)',
+      hairline: 'rgba(255,255,255,0.08)',
+      borderControl: 'rgba(255,255,255,0.08)',
+      hairlineGhost: 'rgba(255,255,255,0.10)',
+      hairlineStrong: 'rgba(255,255,255,0.16)',
+      fg1: '#F4F4F6',
+      fg2: '#C9C9CC',
+      fg3: '#8F8F93',
+      fg4: '#5D5D60',
+      trackEmpty: '#8B8B8E',
+      scrim: 'rgba(0,0,0,0.55)',
     })
   })
 
-  it('light cards are opaque white with ink-alpha hairlines', () => {
-    expect(alphaSurfaces.light.bgCard).toBe('rgb(255, 255, 255)')
-    expect(alphaSurfaces.light.bgElev).toBe('rgb(255, 255, 255)')
-    expect(alphaSurfaces.light.bgElev2).toBe('rgb(255, 255, 255)')
-    expect(alphaSurfaces.light.hairline).toBe('rgba(2, 6, 24, 0.08)')
-    expect(alphaSurfaces.light.hairlineStrong).toBe('rgba(2, 6, 24, 0.16)')
-    expect(alphaSurfaces.light.statusEmpty).toBe('rgba(2, 6, 24, 0.18)')
+  it('matches the light DESIGN.md table', () => {
+    expect(neutralColors.light).toEqual({
+      bg: '#FAFAFA',
+      bgCard: '#FFFFFF',
+      bgField: '#FFFFFF',
+      bgWell: 'rgba(9,9,11,0.04)',
+      bgElev: '#FFFFFF',
+      bgElev2: '#FFFFFF',
+      bgHover: 'rgba(9,9,11,0.11)',
+      bgHoverOpaque: 'rgba(9,9,11,0.11)',
+      bgSunk: 'rgba(9,9,11,0.04)',
+      hairline: 'rgba(9,9,11,0.08)',
+      borderControl: 'rgba(9,9,11,0.08)',
+      hairlineGhost: 'rgba(9,9,11,0.10)',
+      hairlineStrong: 'rgba(9,9,11,0.16)',
+      fg1: '#1A1A1D',
+      fg2: '#424247',
+      fg3: '#68686D',
+      fg4: '#89898D',
+      trackEmpty: '#7E7E82',
+      scrim: 'rgba(0,0,0,0.55)',
+    })
   })
 
-  it('status constants match the handoff per mode', () => {
+  it('keeps the documented status and selection values', () => {
     expect(statusConstants.dark).toEqual({
-      overdue: '#fe9a00',
-      bad: '#fb2c36',
-      frozen: '#00d3f3',
-      overdueText: '#fe9a00',
-      badText: '#ff7970',
-      fgOnBad: '#020618',
+      overdue: '#FE9A00', bad: '#FB2C36', overdueText: '#FE9A00',
+      badText: '#FF7970', fgOnBad: '#020618', fgOnOverdue: '#020618',
     })
     expect(statusConstants.light).toEqual({
-      overdue: '#e17100',
-      bad: '#e7000b',
-      frozen: '#0092b8',
-      overdueText: '#b45b00',
-      badText: '#d70009',
-      fgOnBad: '#ffffff',
+      overdue: '#7D5700', bad: '#E7000B', overdueText: '#7D5700',
+      badText: '#C00000', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
     })
-  })
-
-  it('keeps bad text distinct from the fill role in both modes', () => {
-    expect(statusConstants.dark.overdueText).toBe(statusConstants.dark.overdue)
-    expect(statusConstants.dark.badText).not.toBe(statusConstants.dark.bad)
-    expect(statusConstants.light.badText).not.toBe(statusConstants.light.bad)
-    expect(statusConstants.light.overdueText).not.toBe(statusConstants.light.overdue)
-  })
-
-  it('selection alphas match the handoff', () => {
     expect(selectionAlpha).toEqual({ dark: 0.32, light: 0.18 })
   })
+
+  for (const { name, layers } of lightHoverTextSurfaces) {
+    it.each([
+      ['primaryText', schemes.orange.accent.light.primaryText],
+      ['overdueText', statusConstants.light.overdueText],
+      ['badText', statusConstants.light.badText],
+    ])('keeps light %s AA on ' + name, (_role, color) => {
+      expect(contrastOnSurface(color, layers)).toBeGreaterThanOrEqual(4.5)
+    })
+  }
+
+  it('keeps dark accent text AA on the pressed calendar card', () => {
+    const neutral = neutralColors.dark
+    expect(contrastOnSurface(schemes.orange.accent.dark.primaryText, [neutral.bg, neutral.bgCard, neutral.bgHover]))
+      .toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('keeps the dark empty track visible on the calendar card inside a sheet', () => {
+    const neutral = neutralColors.dark
+    expect(contrastOnSurface(neutral.trackEmpty, [neutral.bg, neutral.bgElev, neutral.bgCard, neutral.bgHover]))
+      .toBeGreaterThanOrEqual(3)
+  })
+
+  for (const mode of ['dark', 'light'] as const) {
+    for (const surface of BAD_TEXT_SURFACES[mode]) {
+      it(`keeps the ${mode} bad status text at the text floor on ${surface.name}`, () => {
+        expect(contrastOnSurface(statusConstants[mode].badText, surface.layers))
+          .toBeGreaterThanOrEqual(4.5)
+      })
+    }
+  }
+
+  it.each([
+    ['dark', '#FB2C36', '#020618'],
+    ['light', '#E7000B', '#FFFFFF'],
+  ] as const)('keeps the %s destructive fill and its foreground unchanged', (mode, fill, foreground) => {
+    expect(statusConstants[mode].bad).toBe(fill)
+    expect(statusConstants[mode].fgOnBad).toBe(foreground)
+    expect(contrastOnSurface(foreground, [fill])).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each([
+    ['canvas', [neutralColors.light.bg]],
+    ['card', [neutralColors.light.bg, neutralColors.light.bgCard]],
+    ['well', [neutralColors.light.bg, neutralColors.light.bgWell]],
+    ['hover', [neutralColors.light.bg, neutralColors.light.bgHover]],
+    ['session-expiry warning tint', [
+      neutralColors.light.bg,
+      withAlpha(statusConstants.light.overdue, EXPIRY_TINT_ALPHA),
+    ]],
+  ] as const)('keeps light overdue text AA on the %s surface', (_surface, layers) => {
+    expect(contrastOnSurface(statusConstants.light.overdueText, layers))
+      .toBeGreaterThanOrEqual(4.5)
+  })
+
+  for (const mode of ['dark', 'light'] as const) {
+    for (const surface of EMPTY_TRACK_SURFACES[mode]) {
+      it(`keeps the ${mode} empty track at the non-text floor on ${surface.name}`, () => {
+        expect(contrastOnSurface(neutralColors[mode].trackEmpty, surface.layers))
+          .toBeGreaterThanOrEqual(3)
+      })
+    }
+
+    it(`keeps the ${mode} card neutral ramp ordered around the empty track`, () => {
+      const colors = neutralColors[mode]
+      const card = [colors.bg, colors.bgCard]
+      const ratios = [colors.fg1, colors.fg2, colors.fg3, colors.trackEmpty, colors.fg4]
+        .map((color) => contrastOnSurface(color, card))
+
+      for (let index = 1; index < ratios.length; index += 1) {
+        expect(ratios[index - 1]).toBeGreaterThan(ratios[index]!)
+      }
+    })
+  }
+})
+
+describe('bad status source roles', () => {
+  it.each(BAD_TEXT_SOURCE_SITES)('$name uses the text token', ({ path, pattern }) => {
+    const source = readFileSync(`${REPOSITORY_ROOT}${path}`, 'utf8')
+    expect(source).toMatch(pattern)
+  })
+
+  it('derives direct fill-token references and rejects unreviewed text-role syntax', () => {
+    const inventory = unreviewedBadFillInventory()
+    expect(inventory).toEqual({ keys: [], referenceCount: 0 })
+  })
+
+  it('keeps inventory keys stable when source lines are inserted above a reference', () => {
+    const path = 'apps/web/components/ui/title-probe.tsx'
+    const fillSource = '<TitleText color="var(--status-bad)" />'
+    const shiftedSource = `// Unrelated source line.\n${fillSource}`
+
+    expect(unreviewedBadFillInventory(directBadFillReferencesInSource(path, shiftedSource)))
+      .toEqual(unreviewedBadFillInventory(directBadFillReferencesInSource(path, fillSource)))
+  })
+
+  it('rejects a closed graphic utility before a token-bearing text-color prop', () => {
+    const path = 'apps/web/components/ui/title-probe.tsx'
+    const fillSource = '<TitleText className="bg-[white]" color="var(--status-bad)" />'
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([
+      `${path}:1:42 ${fillSource}`,
+    ])
+  })
+
+  it('accepts a status token inside a graphic arbitrary-value utility', () => {
+    const path = 'apps/web/components/ui/surface-probe.tsx'
+    const fillSource = '<Surface className="bg-[var(--status-bad)]" />'
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([])
+  })
+
+  it('accepts an explicit icon custom property and rejects generic CSS color', () => {
+    const path = 'apps/web/app/globals.css'
+    const graphicSource = '.icon { --icon-color: var(--status-bad); color: var(--icon-color); }'
+    const textSource = '.label { color: var(--status-bad); }'
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, graphicSource)))
+      .toEqual([])
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, textSource)))
+      .toEqual([`${path}:1:17 ${textSource}`])
+  })
+
+  it('rejects a text-color prop even when the component also receives an imported icon', () => {
+    const path = 'apps/web/components/ui/settings-row-probe.tsx'
+    const fillSource = [
+      "import { Mail } from '@/components/ui/icons'",
+      'return (',
+      '  <SettingsRow icon={Mail} value="Failed" valueColor="var(--status-bad)" />',
+      ')',
+    ].join('\n')
+    const fillReferences = directBadFillReferencesInSource(path, fillSource)
+    expect(unreviewedBadFillReferences(fillReferences)).toEqual([
+      `${path}:3:55 <SettingsRow icon={Mail} value="Failed" valueColor="var(--status-bad)" />`,
+    ])
+
+    const textSource = fillSource.replace('var(--status-bad)', 'var(--status-bad-text)')
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, textSource))).toEqual([])
+  })
+
+  it('rejects an icon button whose text comes from a self-closing child component', () => {
+    const path = 'apps/web/components/ui/destructive-action.tsx'
+    const fillSource = [
+      "import { Trash2 } from '@/components/ui/icons'",
+      'return (',
+      '  <button aria-label={label} className="text-[var(--status-bad)]">',
+      '    <Trash2 size={16} aria-hidden="true" /><TitleText title={label} />',
+      '  </button>',
+      ')',
+    ].join('\n')
+    const fillReferences = directBadFillReferencesInSource(path, fillSource)
+    expect(unreviewedBadFillReferences(fillReferences)).toEqual([
+      `${path}:3:47 <button aria-label={label} className="text-[var(--status-bad)]">`,
+    ])
+
+    const textSource = fillSource.replace('var(--status-bad)', 'var(--status-bad-text)')
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, textSource))).toEqual([])
+  })
+
+  it('rejects a graphic-looking variable without proof at the applying prop', () => {
+    const path = 'apps/web/components/ui/title-probe.tsx'
+    const fillSource = [
+      "const iconColor = 'var(--status-bad)'",
+      'return <TitleText title="Failed" color={iconColor} />',
+    ].join('\n')
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([
+      `${path}:1:20 const iconColor = 'var(--status-bad)'`,
+    ])
+  })
+
+  it('accepts a graphic-role prop and a token on an imported icon element', () => {
+    const path = 'apps/web/components/ui/status-icon.tsx'
+    const fillSource = [
+      "import { AlertTriangle } from '@/components/ui/icons'",
+      'return (',
+      '  <><Surface backgroundColor="var(--status-bad)" /><AlertTriangle color="var(--status-bad)" /></>',
+      ')',
+    ].join('\n')
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([])
+  })
+
+  it.each(BAD_GRAPHIC_SOURCE_SITES)(
+    '$name explicitly uses the fill role instead of inheriting the text role',
+    ({ path, rolePattern, applicationPattern }) => {
+      const source = readFileSync(`${REPOSITORY_ROOT}${path}`, 'utf8')
+      expect(source).toMatch(rolePattern)
+      expect(source).toMatch(applicationPattern)
+    },
+  )
 })
 
 describe('type roles', () => {
+  it('encodes the habit title and Pro drawing type pairs', () => {
+    expect(responsiveTypeRoles).toEqual({
+      habitTitle: {
+        family: 'display', weight: 500, letterSpacingEm: -0.02, colorToken: 'fg1',
+        compact: { size: 22, lineHeight: 1.2 },
+        wide: { size: 28, lineHeight: 1.15 },
+      },
+      displayHeading: {
+        family: 'display', weight: 500, letterSpacingEm: -0.02, colorToken: 'fg1',
+        compact: { size: 28, lineHeight: 1.18 }, wide: { size: 34, lineHeight: 1.15 },
+      },
+      allowance: {
+        family: 'display', weight: 600, letterSpacingEm: -0.02, colorToken: 'fg1', tabularNums: true,
+        compact: { size: 34, lineHeight: 1.05 }, wide: { size: 44, lineHeight: 1.02 },
+      },
+    })
+  })
+
+  it.each([320, 412, 639.99, 640, 1416])('resolves both pairs at width %s', (width) => {
+    const wide = width >= 640
+    expect(resolveResponsiveTypeRole('displayHeading', width)).toEqual({
+      family: 'display', weight: 500, letterSpacingEm: -0.02, colorToken: 'fg1',
+      size: wide ? 34 : 28, lineHeight: wide ? 1.15 : 1.18,
+    })
+    expect(resolveResponsiveTypeRole('allowance', width)).toEqual({
+      family: 'display', weight: 600, letterSpacingEm: -0.02, colorToken: 'fg1', tabularNums: true,
+      size: wide ? 44 : 34, lineHeight: wide ? 1.02 : 1.05,
+    })
+  })
+
   it('defines the 11 semantic roles', () => {
     expect(Object.keys(typeRoles)).toEqual([
       'eyebrow', 'display', 'hero', 'h1', 'h2', 'row',
@@ -200,36 +800,30 @@ describe('type roles', () => {
     ])
   })
 
-  it('families follow the handoff assignments', () => {
+  it('keeps the documented family assignments', () => {
     expect(typeRoles.hero.family).toBe('display')
     expect(typeRoles.numXl.family).toBe('display')
     expect(typeRoles.meta.family).toBe('mono')
     expect(typeRoles.num.family).toBe('mono')
     expect(typeRoles.body.family).toBe('sans')
   })
+})
 
-  it('weight scale is squashed to 400-700', () => {
-    for (const role of Object.values(typeRoles)) {
-      expect([400, 500, 600, 700]).toContain(role.weight)
-    }
+
+describe('transparent light hover role', () => {
+  it.each(['bg', 'bgCard', 'bgField', 'bgElev'] as const)('clears the step over %s', (surface) => {
+    const neutral = neutralColors.light
+    expect(contrastOnSurface(neutral[surface], [neutral[surface], neutral.bgHover]))
+      .toBeGreaterThanOrEqual(1.25)
   })
 })
 
-describe('colorSchemeOptions', () => {
-  it('has 6 options in canonical order with the new dark primaries', () => {
-    expect(colorSchemeOptions).toEqual([
-      { value: 'purple', color: '#7f46f7' },
-      { value: 'blue', color: '#2b7fff' },
-      { value: 'green', color: '#00c950' },
-      { value: 'rose', color: '#ff2056' },
-      { value: 'orange', color: '#ff6900' },
-      { value: 'cyan', color: '#00b8db' },
-    ])
-  })
-
-  it('option colors match scheme dark primaries', () => {
-    for (const option of colorSchemeOptions) {
-      expect(option.color).toBe(schemes[option.value].accent.dark.primary)
-    }
+describe('opaque control hover role', () => {
+  it.each(['dark', 'light'] as const)('clears the hover and foreground floors over elevation in %s', (mode) => {
+    const neutral = neutralColors[mode]
+    const layers = [neutral.bgElev, neutral.bgHoverOpaque]
+    expect(contrastOnSurface(neutral.bgElev, layers)).toBeGreaterThanOrEqual(1.25)
+    expect(contrastOnSurface(neutral.fg2, layers)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastOnSurface(neutral.fg2, layers)).toBeGreaterThanOrEqual(3)
   })
 })

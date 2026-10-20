@@ -1,18 +1,53 @@
+import { ListRow } from '@/components/ui/list-row'
+import { toTime24 } from '@orbit/shared/utils'
+import { ReminderPermissionNotice } from './reminder-permission-notice'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { PillButton } from "@/components/ui/pill-button";
+import { useTimeFormat } from '@/hooks/use-time-format'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
-import { X, Plus, Bell } from "lucide-react-native";
+import { View, Text, } from "react-native";
+import { X, Plus } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
-import { formatLocaleTime } from "@orbit/shared/utils";
 import {
   MAX_SCHEDULED_REMINDERS,
   validateScheduledReminders,
 } from "@orbit/shared/validation";
-import { AppTimePicker } from "@/components/ui/app-time-picker";
-import { Switch } from "@/components/ui/settings-row";
+import { TimeField } from "@/components/ui/time-field";
+import type { Time24 } from "@orbit/shared/contracts/forms";
+import { useReminderPermission } from "@/hooks/use-reminder-permission";
+import { RadioGroup, useRadioGroupItem } from "@/components/ui/radio-row";
 import { type AppTokens, createSectionStyles } from "./styles";
 
+function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
+  label: string;
+  selected: boolean;
+  onSelect: () => void;
+  styles: ReturnType<typeof createSectionStyles>;
+}>) {
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled: false, onSelect, selected });
+  return (
+    <Pressable focusInset selectionRingWidth={1}
+      {...navigationProps}
+      ref={elementRef}
+      style={({ pressed }) => [
+        styles.whenButton,
+        selected && styles.whenButtonActive,
+        pressed && { transform: [{ scale: 0.96 }] },
+      ]}
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: selected }}
+      onPress={onActivate}
+    >
+      <Text style={[styles.whenButtonText, selected && styles.whenButtonTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 interface ScheduledReminderSectionProps {
+  inline?: boolean;
   tokens: AppTokens;
   reminderEnabled: boolean;
   scheduledReminders:
@@ -30,6 +65,7 @@ interface ScheduledReminderSectionProps {
 
 export function ScheduledReminderSection({
   tokens,
+  inline = false,
   reminderEnabled,
   scheduledReminders,
   onToggleReminder,
@@ -38,12 +74,13 @@ export function ScheduledReminderSection({
   nested = false,
   offsetReminderCount = 0,
 }: Readonly<ScheduledReminderSectionProps>) {
-  const { t, i18n } = useTranslation();
-  const deviceLocale = i18n.language;
+  const { t } = useTranslation();
+  const { displayTime } = useTimeFormat();
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
   const [showForm, setShowForm] = useState(false);
   const [when, setWhen] = useState<ScheduledReminderWhen>("same_day");
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState<Time24 | "">("");
+  const permission = useReminderPermission(reminderEnabled, onToggleReminder);
 
   const atScheduledLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
   const atRelativeLimit = (scheduledReminders?.length ?? 0) + offsetReminderCount >= 15;
@@ -81,7 +118,7 @@ export function ScheduledReminderSection({
     when: ScheduledReminderWhen;
     time: string;
   }): string {
-    const timeDisplay = formatLocaleTime(sr.time, deviceLocale);
+    const timeDisplay = displayTime(sr.time);
     if (sr.when === "day_before") {
       return t("habits.form.scheduledReminderDayBeforeAt", {
         time: timeDisplay,
@@ -91,20 +128,10 @@ export function ScheduledReminderSection({
   }
 
   return (
-    <View style={nested ? sectionStyles.body : sectionStyles.container}>
-      {!nested && <View style={sectionStyles.headerRow}>
-        <View style={sectionStyles.headerLeft}>
-          <Bell size={20} color={tokens.fg2} strokeWidth={1.8} />
-          <Text style={sectionStyles.headerLabel}>
-            {t("habits.form.scheduledReminder")}
-          </Text>
-        </View>
-        <Switch
-          on={reminderEnabled}
-          onToggle={onToggleReminder}
-          accessibilityLabel={t("habits.form.scheduledReminder")}
-        />
-      </View>}
+    <View style={nested ? sectionStyles.body : inline ? { gap: 12 } : sectionStyles.container}>
+      {nested ? <Text style={sectionStyles.hintText}>{t("habits.form.scheduledReminderFixedTimes")}</Text> : null}
+      {!nested && <ListRow placement={inline ? "column" : undefined} icon={'bell'} title={t('habits.form.scheduledReminder')} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />}
+      {!nested && <ReminderPermissionNotice visible={permission.showNotice} tokens={tokens} onPress={permission.openSettings} />}
       {reminderEnabled && (
         <View style={sectionStyles.body}>
           {(scheduledReminders?.length ?? 0) > 0 && (
@@ -115,15 +142,12 @@ export function ScheduledReminderSection({
                     {scheduledReminderLabel(sr)}
                   </Text>
                   <Pressable
-                    style={({ pressed }) =>
-                      pressed ? { transform: [{ scale: 0.96 }] } : null
-                    }
-                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                    style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}
                     accessibilityRole="button"
                     accessibilityLabel={t("habits.form.removeScheduledReminder")}
                     onPress={() => removeScheduledReminder(idx)}
                   >
-                    <X size={13} color={tokens.primary} strokeWidth={2.2} />
+                    <X size={16} color={tokens.primary} strokeWidth={2.2} />
                   </Pressable>
                 </View>
               ))}
@@ -140,7 +164,7 @@ export function ScheduledReminderSection({
               accessibilityRole="button"
               onPress={() => setShowForm(true)}
             >
-              <Plus size={14} color={tokens.fg2} strokeWidth={2} />
+              <Plus size={16} color={tokens.fg2} strokeWidth={2} />
               <Text style={sectionStyles.addButtonText}>
                 {t(nested ? "habits.form.reminderAddTime" : "habits.form.scheduledReminderAdd")}
               </Text>
@@ -155,92 +179,28 @@ export function ScheduledReminderSection({
 
           {showForm && (
             <View style={sectionStyles.formBody}>
-              <View style={sectionStyles.whenRow}>
-                <Pressable
-                  style={({ pressed }) => [
-                    sectionStyles.whenButton,
-                    when === "day_before" && sectionStyles.whenButtonActive,
-                    pressed && { transform: [{ scale: 0.96 }] },
-                  ]}
-                  hitSlop={{ top: 3, bottom: 3 }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: when === "day_before" }}
-                  onPress={() => setWhen("day_before")}
-                >
-                  <Text
-                    style={[
-                      sectionStyles.whenButtonText,
-                      when === "day_before" &&
-                        sectionStyles.whenButtonTextActive,
-                    ]}
-                  >
-                    {t("habits.form.scheduledReminderDayBefore")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    sectionStyles.whenButton,
-                    when === "same_day" && sectionStyles.whenButtonActive,
-                    pressed && { transform: [{ scale: 0.96 }] },
-                  ]}
-                  hitSlop={{ top: 3, bottom: 3 }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: when === "same_day" }}
-                  onPress={() => setWhen("same_day")}
-                >
-                  <Text
-                    style={[
-                      sectionStyles.whenButtonText,
-                      when === "same_day" && sectionStyles.whenButtonTextActive,
-                    ]}
-                  >
-                    {t("habits.form.scheduledReminderSameDay")}
-                  </Text>
-                </Pressable>
-              </View>
+              <RadioGroup accessibilityLabel={t("habits.form.scheduledReminder")} style={sectionStyles.whenRow}>
+                <ReminderWhenOption label={t("habits.form.scheduledReminderDayBefore")} selected={when === "day_before"} onSelect={() => setWhen("day_before")} styles={sectionStyles} />
+                <ReminderWhenOption label={t("habits.form.scheduledReminderSameDay")} selected={when === "same_day"} onSelect={() => setWhen("same_day")} styles={sectionStyles} />
+              </RadioGroup>
 
               <View style={sectionStyles.timeRow}>
-                <AppTimePicker
-                  value={time}
-                  containerStyle={{ flex: 1 }}
-                  accessibilityLabel={t(
-                    "habits.form.scheduledReminderTimePlaceholder",
-                  )}
-                  placeholder={t(
-                    "habits.form.scheduledReminderTimePlaceholder",
-                  )}
+                <TimeField
+                  label={t("habits.form.scheduledReminderTimePlaceholder")}
+                  value={toTime24(time)}
                   onChange={setTime}
+                  onClear={() => setTime("")}
                 />
-                <Pressable
-                  style={({ pressed }) => [
-                    sectionStyles.timeAddButton,
-                    !time && { opacity: 0.45 },
-                    pressed && { transform: [{ scale: 0.96 }] },
-                  ]}
-                  hitSlop={{ top: 3, bottom: 3 }}
-                  disabled={!time}
-                  accessibilityRole="button"
-                  onPress={addScheduledReminder}
-                >
-                  <Text style={sectionStyles.timeAddButtonText}>
-                    {t("common.add")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    sectionStyles.timeCancelButton,
-                    pressed && { transform: [{ scale: 0.96 }] },
-                  ]}
-                  hitSlop={2}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.cancel")}
-                  onPress={() => {
-                    setShowForm(false);
-                    setTime("");
-                  }}
-                >
-                  <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-                </Pressable>
+                <View style={sectionStyles.timeControls}>
+                  {inline ? <PillButton variant="ghost" size="sm" disabled={!time} onClick={addScheduledReminder}>{t("common.add")}</PillButton> : (
+                  <Pressable style={({ pressed }) => [sectionStyles.timeAddButton, !time && { opacity: 0.45 }, pressed && { transform: [{ scale: 0.96 }] }]} disabled={!time} accessibilityRole="button" onPress={addScheduledReminder}>
+                    <Text style={sectionStyles.timeAddButtonText}>{t("common.add")}</Text>
+                  </Pressable>
+                  )}
+                  <Pressable style={({ pressed }) => [sectionStyles.timeCancelButton, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={t("common.cancel")} onPress={() => { setShowForm(false); setTime(""); }}>
+                    <X size={16} color={tokens.fg3} strokeWidth={1.8} />
+                  </Pressable>
+                </View>
               </View>
             </View>
           )}

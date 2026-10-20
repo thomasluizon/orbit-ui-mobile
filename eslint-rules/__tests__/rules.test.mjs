@@ -1,10 +1,13 @@
-
 import { RuleTester } from 'eslint'
 import tsParser from '@typescript-eslint/parser'
 import { afterAll, describe, it } from 'vitest'
 import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import webEslintConfig from '../../apps/web/eslint.config.mjs'
 
 const require = createRequire(import.meta.url)
+const mobileEslintConfig = require('../../apps/mobile/eslint.config.js')
 
 RuleTester.describe = describe
 RuleTester.it = it
@@ -15,11 +18,38 @@ const ruleTester = new RuleTester({
     parser: tsParser,
     ecmaVersion: 2022,
     sourceType: 'module',
-    parserOptions: { ecmaFeatures: { jsx: true } },
+    parserOptions: {
+      ecmaFeatures: { jsx: true },
+      tsconfigRootDir: dirname(fileURLToPath(import.meta.url)),
+    },
   },
 })
 
 const rule = (name) => require(`../${name}.cjs`)
+
+const maxButtonWordsOptionsFrom = (config, platform) => {
+  const registration = config
+    .flat()
+    .map((entry) => entry?.rules?.['local/max-button-words'])
+    .find((configuredRule) => Array.isArray(configuredRule) && configuredRule[0] === 'error')
+  if (!registration?.[1]) throw new Error(`${platform} must register local/max-button-words at error`)
+  return [{
+    ...registration[1],
+    localePaths: {
+      en: join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'button-words-en.json'),
+      'pt-BR': join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'button-words-pt-BR.json'),
+    },
+  }]
+}
+
+const webMaxButtonWordsOptions = maxButtonWordsOptionsFrom(webEslintConfig, 'web')
+const mobileMaxButtonWordsOptions = maxButtonWordsOptionsFrom(mobileEslintConfig, 'mobile')
+const maxButtonWordsOptions = webMaxButtonWordsOptions
+
+const maxWordsError = (control, label, locale, count) => ({
+  messageId: 'tooManyWords',
+  data: { control, label, locale, count: String(count), limit: '2' },
+})
 
 ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
   valid: [
@@ -46,8 +76,6 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
       code: '<div className="shadow-[0_8px_28px_rgba(var(--primary-rgb),0.45)]" />',
       errors: [{ messageId: 'noHandRolledGlow' }],
     },
-    // The exact glow that shipped in PR #560, the PR that bans glow. It escaped
-    // because the old test looked for `--primary-rgb` and this is `--status-frozen`.
     {
       code: '<div style={{ boxShadow: "0 0 60px color-mix(in srgb, var(--status-frozen) 40%, transparent)" }} />',
       errors: [{ messageId: 'noHandRolledGlow' }],
@@ -58,8 +86,6 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
       code: 'const styles = StyleSheet.create({ orb: { boxShadow: "0 0 40px rgba(134,89,234,0.5)" } })',
       errors: [{ messageId: 'noHandRolledGlow' }],
     },
-    // CSS also permits the COLOR-FIRST form; truncating at the first paren used
-    // to read zero lengths here and silently accept the glow (#577 review).
     {
       code: 'const s = { boxShadow: "rgba(134,89,234,0.5) 0 0 40px" }',
       errors: [{ messageId: 'noHandRolledGlow' }],
@@ -83,13 +109,18 @@ ruleTester.run('no-raw-gradient', rule('no-raw-gradient'), {
   valid: [
     '<div className="bg-[var(--bg-elev)]" />',
     'const mask = { maskImage: "radial-gradient(transparent 58%, black 60%)" }',
+    'const pane = { backgroundColor: "var(--bg)", backgroundImage: "linear-gradient(var(--bg-card), var(--bg-card))" }',
     '<div className="from-left to-right" />',
   ],
   invalid: [
     { code: 'const c = "var(--gradient-header)"', errors: [{ messageId: 'noGradientToken' }] },
     { code: 'const s = { background: "linear-gradient(180deg, #22094f, transparent)" }', errors: [{ messageId: 'noGradientFunction' }] },
+    { code: 'const pane = { backgroundImage: "linear-gradient(var(--bg-card), var(--bg-card))" }', errors: [{ messageId: 'noGradientFunction' }] },
+    { code: 'const pane = { backgroundColor: "var(--bg-card)", backgroundImage: "linear-gradient(var(--bg-card), var(--bg-card))" }', errors: [{ messageId: 'noGradientFunction' }] },
     { code: '<div className="bg-gradient-to-b from-black" />', errors: [{ messageId: 'noGradientClass' }] },
     { code: '<LinearGradient colors={c} />', errors: [{ messageId: 'noGradientElement' }] },
+    { code: '<linearGradient id="wash" />', errors: [{ messageId: 'noGradientElement' }] },
+    { code: '<radialGradient id="wash" />', errors: [{ messageId: 'noGradientElement' }] },
     { code: 'import { LinearGradient } from "expo-linear-gradient"', errors: [{ messageId: 'noGradientImport' }] },
   ],
 })
@@ -148,14 +179,49 @@ ruleTester.run('no-overshoot-easing', rule('no-overshoot-easing'), {
   valid: [
     'const e = "cubic-bezier(0.2, 0, 0, 1)"',
     'const e = "cubic-bezier(0.4, 0, 0.2, 1)"',
-    'const icon = { bounce: 0 }',
+    'const e = [0.2, 0, 0, 1] as MotionBezier',
     'const e = [0.2, 0, 0, 1]',
-    'const calendarCell = [2026, 9, 15, 1.2]',
+    'const days = [16, 17, 18, 19]',
+    'const values = [-0.1, 1.56, 0.64, 1]',
+    'const values = [1.1, 1.56, 0.64, 1]',
+    'const values = [0.34, 1.56, -0.1, 1]',
+    'const values = [0.34, 1.56, 1.1, 1]',
+    'const values = [16, 17, 18, 19] as const',
+    'const values = [16, 17, 18, 19] as CalendarDays',
+    'const e = [-1, 0, 2, 1] as MotionBezier',
+    '<motion.div transition={{ ease: [0.16, 1, 0.3, 1] }} />',
+    'Easing.bezier(0.4, 0, 1, 1)',
+    'Easing.bezier(...easings.smooth)',
+    'const e = [0.2, y1, 0, 1]',
+    'const e = [0.2, , 0, 1]',
+    'const e = [0.2, 2, 0]',
+    'const e = [0.2, 2, 0, 1, 0]',
+    'const e = ["0.2", "2", "0", "1"]',
+    'const e = [0.2, ...controls, 0, 1]',
+    'const e = [-1, 0, 2, 1]',
+    'Animated.spring(value, { toValue: 1, damping: 26 })',
+    '<motion.div initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }} animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} transition={{ bounce: 0 }} />',
   ],
   invalid: [
+    { code: 'const emphasize = [0.34, 1.56, 0.64, 1] as MotionBezier', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = [0.34, 1.56, 0.64, 1]', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = [0, 1.56, 1, 1]', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = [1, 0, 0, -0.5]', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = [-1, 1.56, 2, 1] as MotionBezier', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = [2, 0, -1, -0.5] as MotionBezier', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = "cubic-bezier(-1, 1.56, 2, 1)"', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'Easing.bezier(-1, 1.56, 2, 1)', errors: [{ messageId: 'noOvershoot' }] },
+    { code: '<motion.div transition={{ ease: [0.34, 1.56, 0.64, 1] }} />', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = [0.5, -0.5, 0.5, 1] as const', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = [0.5, 0, 0.5, -0.5]', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = [0.5, 0, 0.5, +1.5]', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'Easing.bezier(0.34, 1.56, 0.64, 1)', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'Easing.bezier(0.5, 0, 0.5, -0.5)', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'Easing.bezier(...[0.34, 1.56, 0.64, 1])', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = `cubic-bezier(0.5, 0, 0.5, 1.5)`', errors: [{ messageId: 'noOvershoot' }] },
+    { code: '<div className="ease-[cubic-bezier(0.34,_1.56,_0.64,_1)]" />', errors: [{ messageId: 'noOvershoot' }] },
     { code: 'const e = "cubic-bezier(0.34, 1.56, 0.64, 1)"', errors: [{ messageId: 'noOvershoot' }] },
     { code: 'const e = "cubic-bezier(0.5, -0.5, 0.5, 1)"', errors: [{ messageId: 'noOvershoot' }] },
-    { code: 'const e = [0.34, 1.56, 0.64, 1]', errors: [{ messageId: 'noOvershoot' }] },
   ],
 })
 
@@ -381,27 +447,63 @@ ruleTester.run('no-draggable-onscroll', rule('no-draggable-onscroll'), {
 })
 
 ruleTester.run('react19-api', rule('react19-api'), {
-  valid: ['const v = use(ThemeContext)', 'function Row({ ref }) { return <li ref={ref} /> }'],
+  valid: [
+    'const v = use(ThemeContext)',
+    'function Row({ ref }) { return <li ref={ref} /> }',
+    'const v = useContext(ThemeContext)',
+    'const v = React.useContext(ThemeContext)',
+  ],
   invalid: [
     { code: 'const C = forwardRef((props, ref) => <div ref={ref} />)', errors: [{ messageId: 'forwardRefRemoved' }] },
-    { code: 'const v = useContext(ThemeContext)', errors: [{ messageId: 'useContextReplaced' }] },
-    { code: 'const v = React.useContext(ThemeContext)', errors: [{ messageId: 'useContextReplaced' }] },
+    { code: 'const C = React.forwardRef((props, ref) => <div ref={ref} />)', errors: [{ messageId: 'forwardRefRemoved' }] },
   ],
 })
 
 ruleTester.run('spacing-scale', rule('spacing-scale'), {
   valid: [
+    '<div style={{ padding: "max(16px, env(safe-area-inset-left))", margin: "16px auto" }} />',
+    '<div className="md:!p-4 px-[max(var(--orbit-space-16),env(safe-area-inset-left))] [padding:var(--orbit-space-24)]" />',
+    'const row = { gap: 12 } as const; <div style={row} />',
+    'const row = { gap: 12 } satisfies React.CSSProperties; <div style={row!} />',
+    'const row = { gap: 12 }; <div style={(row as React.CSSProperties)} />',
+    'const row = { gap: 14, ...runtimeStyle }; <div style={row} />',
+    'const base = { gap: 14 }; <div style={{ ...base, gap: 12 }} />',
+    'const base = { gap: 14 }; <div style={{ ...base, ...props.style }} />',
+    'const base = { gap: 14 }; <View style={[{ ...base }, { gap: 12 }]} />',
+    'const base = { gap: 12 }; <div style={{ gap: 14, ...base }} />',
+    'const base = { gap: 12, ...runtimeStyle }; <div style={{ gap: 14, ...base }} />',
+    'const base = { ...runtimeStyle, gap: spacing }; <div style={{ gap: 14, ...base }} />',
+    'export const row = { gap: 14 }; <div style={row} />',
+    'const base = { gap: 14 }; const row = { ...base, get gap() { return 12 } }; <div style={row} />',
+    'const base = { gap: 14 }; const row = { ...base, gap: 12 }; <div style={row} />',
+    'const base = { gap: 14 }; const escaped = { ...base }; consume(escaped); <div style={base} />',
+    'const row = { gap: 14 }; row.gap = 12; <div style={row} />',
+    'const row = { gap: 12 }; row.gap = 14; <div style={row} />',
+    'const disabled = false; const row = disabled && { gap: 14 }; <div style={row} />',
+    'const disabled = false; <div style={disabled && { gap: 14 }} />',
+    'const { disabled } = { disabled: false }; <div style={disabled && { gap: 14 }} />',
+    'const { disabled } = { disabled: false }; const row = disabled && { gap: 14 }; <div style={row} />',
+    'const row = { gap: 14 }; delete row.gap; <div style={row} />',
+    'const row = { gap: 14 }; Object.assign(row, { gap: 12 }); <div style={row} />',
+    'const row = { gap: 14 }; consume(row); <div style={row} />',
+    'const row = { gap: 14 }; ({ gap: row.gap } = source); <div style={row} />',
+    'const row = { gap: 14 }; const alias = row; <div style={row} />',
+    'const row = { gap: 14 }; returnStyle(row); <div style={row} />',
+    'let row = { gap: 14 }; <div style={row} />',
+    'const row = getStyle(); <div style={row} />',
+    'const a = { ...b }; const b = { ...a }; <div style={a} />',
     '<div style={{ gap: 12, paddingInline: 16 }} />',
     '<div style={{ marginTop: 0, marginBottom: -8 }} />',
     '<div style={{ padding: "24px" }} />',
     '<div style={{ width: 34, height: 220, fontSize: 13 }} />',
     '<div style={{ gap: tokens.gap, padding: spacing.md }} />',
-    '<div className="flex gap-3 px-4 pb-10" />',
+    '<div style={{ gap: 96, padding: 64 }} />',
+    '<div className="flex gap-3 px-4 pb-12" />',
     '<div className="absolute inset-0 top-0 md:mt-6" />',
-    '<div className="p-px w-4 z-40 rounded-2xl grid-cols-2 space-y-2 translate-y-2 top-1/2" />',
+    '<div className="w-4 z-40 rounded-2xl grid-cols-2 space-y-2 translate-y-2 top-1/2" />',
     '<div className="gap-[16px] mt-[1.5rem]" />',
     '<div style={{ top: 1, right: -1 }} />',
-    'const s = StyleSheet.create({ row: { gap: 8, paddingVertical: 20 } })',
+    'const s = StyleSheet.create({ row: { gap: 8, paddingVertical: 24 } })',
     {
       code: 'const s = StyleSheet.create({ row: { gap: 9, paddingX: 26 } })',
       filename: 'packages/shared/src/theme/button.ts',
@@ -410,6 +512,61 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
   ],
   invalid: [
+    { code: 'const row = { padding: `20px` }', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const row = { padding: `20px ${safeInset}px` }', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ padding: "0.15em 0.4em" }} />', output: null, errors: [{ messageId: 'relativeSpacing' }, { messageId: 'relativeSpacing' }] },
+    { code: '<div className="p-[0.15em]" />', output: null, errors: [{ messageId: 'relativeSpacing' }] },
+    { code: '<div style={{ padding: "15px auto" }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const classes = `[margin:20px]`; <div className={classes} />', output: null, errors: [{ messageId: 'offScaleClass' }] },
+    { code: 'export function styles() { return { marginVertical: 6 } }', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<ScrollView contentContainerStyle={{ padding: wide ? 20 : 16 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const sheet = { padding: "8px 20px 24px" }; consume(sheet)', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div className="p-px" />', output: null, errors: [{ messageId: 'offScaleClass' }] },
+    { code: 'const cardClass = "p-5"; <div className={cardClass} />', output: null, errors: [{ messageId: 'offScaleClass' }] },
+    { code: '<div style={{ padding: "20px var(--safe-bottom)" }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ margin: "20px auto" }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ padding: "calc(20px + env(safe-area-inset-bottom))" }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ padding: 20 as const }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div className="p-[20px]!" />', output: null, errors: [{ messageId: 'offScaleClass' }] },
+    { code: '<div className="[padding:20px]" />', output: null, errors: [{ messageId: 'offScaleClass' }] },
+    { code: '<div className="px-[max(20px,env(safe-area-inset-left))]" />', output: null, errors: [{ messageId: 'offScaleClass' }] },
+    { code: 'const row = runtimeFlag && { gap: 14 }; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={runtimeFlag && { gap: 14 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const { fallback } = { fallback: null }; <div style={fallback ?? { gap: 14 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const { fallback } = { fallback: null }; const row = fallback ?? { gap: 14 }; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const { fallback = null } = { fallback: null }; <div style={fallback ?? { gap: 14 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const { fallback } = { ...defaults, fallback: null }; <div style={fallback ?? { gap: 14 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const [fallback] = [null]; <div style={fallback ?? { gap: 14 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const row = ({ gap: 14 } || { gap: 12 }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 14 } || { gap: 12 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const row = ({ gap: 14 } ?? { gap: 12 }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 14 } ?? { gap: 12 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; const row = base || { gap: 12 }; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <div style={base ?? { gap: 12 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const SETTINGS_ROW_STYLE: React.CSSProperties = { padding: "20px", gap: 14 }; <div style={SETTINGS_ROW_STYLE} />', output: null, errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }] },
+    { code: 'const PRO_BADGE_STYLE = { padding: "2px 6px" }; <span style={PRO_BADGE_STYLE} />', output: null, errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }] },
+    { code: 'function Row() { const style = { gap: 14 } as const; return <div style={style} /> }', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const style = { gap: 14 } satisfies React.CSSProperties; <div style={style!} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; const row = { ...base }; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const CONTROL_STYLE = { padding: "15px 16px" } as const; <input style={{ ...CONTROL_STYLE, minHeight: 54 }} />; <textarea style={{ ...CONTROL_STYLE, minHeight: 54 }} />', output: 'const CONTROL_STYLE = { padding: "16px 16px" } as const; <input style={{ ...CONTROL_STYLE, minHeight: 54 }} />; <textarea style={{ ...CONTROL_STYLE, minHeight: 54 }} />', errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const SETTINGS_ROW_STYLE: React.CSSProperties = { padding: "20px", gap: 14 }; <button style={{ ...SETTINGS_ROW_STYLE, border: 0 }} />; <div style={SETTINGS_ROW_STYLE} />', output: null, errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <div style={{ ...base, padding: 15 }} />', output: 'const base = { gap: 14 }; <div style={{ ...base, padding: 16 }} />', errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <div style={active ? { ...base } : undefined} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <div style={{ ...base } as React.CSSProperties} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <div style={{ ...base } satisfies React.CSSProperties} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <div style={active ? ({ ...base } as React.CSSProperties) : undefined} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 14 } as React.CSSProperties} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <View style={[{ ...base }, { gap: 12 }]} />; <View style={base} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { padding: 12 }; <div style={{ gap: 14, ...base }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 14, ...props.style }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const row = { ...runtimeStyle, gap: 14 }; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const row = { gap: 14 }; <><div style={row} /><span style={row} /></>', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    // DESIGN.md drops 20, 28, 40 and 56. Each is EXACTLY midway between two surviving
+    // steps, so isUnambiguous() refuses to autofix and a human picks the direction.
+    { code: '<div style={{ gap: 20 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 28 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 40 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 56 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     {
       code: '<div style={{ gap: 13 }} />',
       output: '<div style={{ gap: 12 }} />',
@@ -487,6 +644,512 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
       code: '<div style={{ top: 3 }} />',
       output: '<div style={{ top: 4 }} />',
       errors: [{ messageId: 'offScaleStyle' }],
+    },
+  ],
+})
+
+ruleTester.run('no-oklch-outside-web-tokens', rule('no-oklch-outside-web-tokens'), {
+  valid: [
+    'const c = "#C4530F"',
+    'const c = "rgb(196 83 15)"',
+    'const label = "oklchophobia"',
+  ],
+  invalid: [
+    { code: 'const c = "oklch(0.6 0.15 45)"', errors: [{ messageId: 'noOklch' }] },
+    { code: 'const c = `oklch(${l} 0.15 45)`', errors: [{ messageId: 'noOklch' }] },
+  ],
+})
+
+ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
+  valid: [
+    "import { AstraGlyph } from '@/components/ui/astra-glyph'",
+    '<AstraGlyph size={16} />',
+    '<span>Ask Astra</span>',
+  ],
+  invalid: [
+    { code: "import { Sparkles } from '@/components/ui/icons'", errors: [{ messageId: 'noSparkle' }] },
+    { code: '<Sparkles size={16} />', errors: [{ messageId: 'noSparkle' }] },
+    { code: '<span>✨ Astra</span>', errors: [{ messageId: 'noSparkle' }] },
+  ],
+})
+
+const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'type-fixtures')
+const SUBJECT = join(FIXTURES, 'subject.tsx')
+
+process.env.CI = 'true'
+
+const typedTester = new RuleTester({
+  languageOptions: {
+    parser: tsParser,
+    ecmaVersion: 2022,
+    sourceType: 'module',
+    parserOptions: {
+      ecmaFeatures: { jsx: true },
+      project: './tsconfig.json',
+      tsconfigRootDir: FIXTURES,
+      disallowAutomaticSingleRunInference: true,
+    },
+  },
+})
+
+const inSubject = (cases) =>
+  cases.map((entry) => (typeof entry === 'string' ? { code: entry, filename: SUBJECT } : { ...entry, filename: SUBJECT }))
+
+typedTester.run('icon-size-grid', rule('icon-size-grid'), {
+  valid: inSubject([
+    ...[16, 20, 24].flatMap((size) => [
+      `import { Check } from './icons'; export const a = <Check className="size-[${size}px]" />`,
+      `import { Check } from './icons'; export const a = <Check className="w-[${size}px] h-[${size}px]" />`,
+    ]),
+    'import { Check } from \'./icons\'; export const a = <Check className="size-6 min-w-[22px] max-h-[22px]" />',
+    'import { Check } from \'./icons\'; export const a = <Check className="size-[1.5rem] size-[var(--icon-size)]" />',
+    'import { Check } from \'./icons\'; declare const classes: string; export const a = <Check className={classes} />',
+    'import { Check } from \'./icons\'; export const a = <Check className="[&_path]:w-[22px]" />',
+    '<div className="size-[22px] w-[18px] h-[18px]" />',
+    'declare const Card: (props: { className?: string }) => unknown; export const a = <Card className="size-[22px]" />',
+    ...['OrbitMark', 'AstraGlyph'].map((name) =>
+      `declare const ${name}: (props: { className?: string }) => unknown; export const a = <${name} className="size-[96px] w-[48px] h-[48px]" />`,
+    ),
+    "import { Check } from './icons'; export const a = <Check size={16} />",
+    "import { Check } from './icons'; export const a = <Check size={20} />",
+    "import { Check } from './icons'; export const a = <Check size={24} />",
+    // Tabler accepts a string size, and an on-grid one is still on the grid
+    "import { Check } from './icons'; export const a = <Check size=\"16\" />",
+    "import { Check } from './icons'; export const a = <Check size={\"24\"} />",
+    // a unit or a percentage is not a value this rule can place on the grid
+    "import { Check } from './icons'; export const a = <Check size=\"1.5rem\" />",
+    "import { Check } from './icons'; export const a = <Check size=\"100%\" />",
+    // a runtime value is not a literal, and a rule cannot read one
+    "import { Check } from './icons'; declare const iconSize: number; export const a = <Check size={iconSize} />",
+    // the marks answer to neither the type scale nor the icon grid, and they are excluded
+    // because their props are declared locally, not because they were named in a list
+    "import { OrbitMark } from './icons'; export const a = <OrbitMark size={96} />",
+    // a local component that merely has a size prop is not an icon
+    'declare const Card: (props: { size?: number }) => unknown; export const a = <Card size={13} />',
+    // no import at all, so the checker has no icon to attribute it to
+    'declare const Check: (props: { size?: number }) => unknown; export const a = <Check size={13} />',
+  ]),
+  invalid: inSubject([
+    // Each regression also renders a control that must stay silent. One diagnostic proves
+    // that conditions on the icon are checked without treating another node as the icon.
+    ...[
+      ['sm:size-[22px]', 'sm:size-[24px]'],
+      ['hover:w-[22px]', 'hover:w-[16px]'],
+      ['focus:h-[22px]', 'focus:h-[20px]'],
+      ['dark:size-[22px]', '[&_path]:w-[22px]'],
+      ['size-[22px]!', 'before:size-[22px]'],
+      ['group-hover:size-[22px]', 'after:h-[22px]'],
+      ['md:dark:hover:size-[22px]!', 'sm:before:w-[22px]!'],
+      ['peer-focus:w-[22px]', 'hover:[&_path]:w-[22px]!'],
+      ['data-[state=open]:h-[22px]', '[&:hover_path]:h-[22px]'],
+      ['supports-[display:grid]:size-[22px]', '*:w-[22px]'],
+      ['min-[500px]:size-[22px]', '**:h-[22px]'],
+      ['[@media(min-width:500px)]:size-[22px]', 'first-letter:w-[22px]'],
+      ['has-[:focus]:size-[22px]', 'first-line:h-[22px]'],
+      ['group-[:nth-of-type(3)_&]:w-[22px]', 'marker:w-[22px]'],
+      ['@sm/card:h-[22px]', 'selection:h-[22px]'],
+      ['not-hover:w-[22px]', 'file:w-[22px]'],
+      ['aria-checked:h-[22px]!', 'placeholder:h-[22px]'],
+      ['motion-safe:size-[22px]', 'backdrop:w-[22px]'],
+      ['sm:w-[22px]!', 'details-content:h-[22px]'],
+      ['focus:h-[22px]!', 'sm:w-[16px]! hover:h-[20px]! dark:size-[24px]!'],
+    ].map(([offGrid, control]) => ({
+      code: `import { Check } from './icons'; export const a = <><Check className="${offGrid}" /><Check className="${control}" /></>`,
+      errors: [{ messageId: 'offGridIconSize', data: { size: '22' }, type: 'JSXAttribute', column: 60 }],
+    })),
+    ...[
+      'className="size-[22px]"',
+      'className="w-[22px] h-[22px]"',
+      'className="h-[22px] shrink-0 w-[22px]"',
+      'className={"size-[22px]"}',
+      'className={`size-[22px]`}',
+      'className={`size-[22px] ${tone}`}',
+      'className={active ? "size-[22px]" : "size-[24px]"}',
+      'className={["w-[22px]", "h-[22px]", tone].filter(Boolean).join(" ")}',
+      'className="w-[22px] h-[24px]"',
+      'className="w-[24px] h-[22px]"',
+      'size={24} className="size-[22px]"',
+    ].map((attributes) => ({
+      code: `import { Check } from './icons'; declare const tone: string; declare const active: boolean; export const a = <Check ${attributes} />`,
+      errors: [{ messageId: 'offGridIconSize', data: { size: '22' }, type: 'JSXAttribute' }],
+    })),
+    {
+      code: 'import { Check } from \'./icons\'; export const a = <Check className="size-[22.5px]" />',
+      errors: [{ messageId: 'offGridIconSize', data: { size: '22.5' } }],
+    },
+    {
+      code: 'import { Check } from \'./icons\'; export const a = <Check className="w-[18px] h-[22px]" />',
+      errors: [{ messageId: 'offGridIconSize', data: { size: '18' } }, { messageId: 'offGridIconSize', data: { size: '22' } }],
+    },
+    {
+      code: 'import { Check } from \'./icons\'; const Icon = Check; export const a = <Icon className="size-[22px]" />',
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: 'import { Check, Trash2 } from \'./icons\'; declare const key: "a" | "b"; const icons = { a: Check, b: Trash2 } as const; const Icon = icons[key]; export const a = <Icon className="w-[22px] h-[22px]" />',
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: 'import { Check } from \'./icons\'; const cards = [{ icon: Check }]; export const a = cards.map((card) => <card.icon className="size-[22px]" />)',
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: "import { Check } from './icons'; export const a = <Check size={22} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: "import { Trash2, Receipt } from './icons'; export const a = <><Trash2 size={12} /><Receipt size={28} /></>",
+      errors: [{ messageId: 'offGridIconSize' }, { messageId: 'offGridIconSize' }],
+    },
+    // `size="22"` reaches the SVG as width and height 22 and renders exactly as softly
+    {
+      code: "import { Check } from './icons'; export const a = <Check size=\"22\" />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: "import { Check } from './icons'; export const a = <Check size={\"18\"} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 2: the barrel alias
+    {
+      code: "import { Check } from './icons'; const Icon = Check; export const a = <Icon size={22} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 5: a lookup map indexed at render time
+    {
+      code: "import { Check, Trash2 } from './icons'; declare const key: 'a' | 'b'; const map = { a: Check, b: Trash2 }; const Icon = map[key]; export const el = <Icon size={18} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 8: `as const` wraps the initializer in a TSAsExpression
+    {
+      code: "import { Check } from './icons'; declare const k: 'a'; const M = { a: Check } as const; const Icon = M[k]; export const el = <Icon size={22} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 9: a descriptor array carrying the icon under a key
+    {
+      code: "import { Check } from './icons'; const CARDS = [{ key: 'a', icon: Check }]; const Icon = CARDS[0].icon; export const el = <Icon size={18} />",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    // round 10: the root identifier is the callback parameter, not the array. This is the hop
+    // that stopped the AST revision converging, and it needs no rule of its own here.
+    {
+      code: "import { Check } from './icons'; const CARDS = [{ key: 'a', icon: Check }]; export const el = CARDS.map((card) => { const Row = card.icon; return <Row key={card.key} size={28} /> })",
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+  ]),
+})
+
+ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
+  valid: [
+    '<PillButton className="rounded-full" />',
+    '<button className="rounded-full" />',
+    '<div className="rounded-full" onClick={go} />',
+    '<Avatar className="rounded-full" />',
+    '<ProgressRing className="rounded-full" />',
+    '<div className="rounded-2xl" />',
+    '<Pressable style={{ borderRadius: 999 }} />',
+    '<div className="rounded-full bg-surface" />',
+    '<div className="animate-pulse rounded-full">{label}</div>',
+    '<div style={{ borderRadius: 999, height: 7 }} />',
+    // an avatar sized from one variable is a circle at every value of that variable
+    "const a = <div className={['rounded-full', c].filter(Boolean).join(' ')} style={{ width: size, height: size }}>{initials}</div>",
+    "const s = StyleSheet.create({ chip: { borderRadius: radius.full } }); const a = <Pressable style={s.chip}><Text>Go</Text></Pressable>",
+    // a resolved style whose radius is not a pill
+    "const s = StyleSheet.create({ card: { borderRadius: radius.md } }); const a = <View style={s.card}><Text>Card</Text></View>",
+    // a resolved circle: equal absolute width and height
+    "const s = StyleSheet.create({ avatar: { borderRadius: radius.full, width: 40, height: 40 } }); const a = <View style={s.avatar}><Text>TL</Text></View>",
+    // an activation handler proves the control even on a plain View
+    "const s = StyleSheet.create({ chip: { borderRadius: radius.full } }); const a = <View style={s.chip} onTouchEnd={go}><Text>Go</Text></View>",
+    // a style built by a call is not a literal this rule can read, and it says so rather than guessing
+    "const a = <View style={toneStyles(tone).container}><Text>Pro</Text></View>",
+    // An icon-valued child is a round wrapper, not a chip. Counting every expression container as
+    // text reported these, which is the false positive the text discriminator exists to prevent.
+    '<div className="rounded-full bg-surface">{icon}</div>',
+    '<div className="rounded-full bg-surface">{ready && <Icon />}</div>',
+    "const a = <View style={{ borderRadius: 999 }}>{icon}</View>",
+    // a still-ambiguous conditional stays silent, because one branch is not text
+    "const a = <div className=\"rounded-full\">{ok ? 'Pro' : <Icon />}</div>",
+  ],
+  invalid: [
+    { code: '<div className="rounded-full bg-surface">Pro</div>', errors: [{ messageId: 'pillOnStatic' }] },
+    // the canonical class builder in this repository, previously invisible to the scan
+    {
+      code: "const a = <div className={['rounded-full', tone].filter(Boolean).join(' ')}>Pro</div>",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
+    { code: '<View style={{ borderRadius: 999 }}><Text>Pro</Text></View>', errors: [{ messageId: 'pillOnStatic' }] },
+    // a provably text expression still reads as a chip
+    { code: "<div className=\"rounded-full bg-surface\">{'Pro'}</div>", errors: [{ messageId: 'pillOnStatic' }] },
+    { code: '<div className="rounded-full bg-surface">{`${count} left`}</div>', errors: [{ messageId: 'pillOnStatic' }] },
+    {
+      code: "const s = StyleSheet.create({ badge: { borderRadius: radius.full } }); const a = <View style={s.badge}><Text>Pro</Text></View>",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
+    // the same reference reached through the array form the kit actually writes
+    {
+      code: "const s = StyleSheet.create({ badge: { borderRadius: radius.full } }); const a = <View style={[s.badge, extra]}><Text>Pro</Text></View>",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
+    // a plain object binding, not StyleSheet.create
+    {
+      code: "const base = { borderRadius: 9999 }; const a = <View style={base}><Text>Pro</Text></View>",
+      errors: [{ messageId: 'pillOnStatic' }],
+    },
+  ],
+})
+
+ruleTester.run('max-button-words', rule('max-button-words'), {
+  valid: [
+    { code: '<PillButton>Log all</PillButton>', options: maxButtonWordsOptions },
+    { code: '<PillButton>Set-up now</PillButton>', options: maxButtonWordsOptions },
+    { code: '<button aria-label="Open menu" />', options: maxButtonWordsOptions },
+    { code: '<Pressable accessibilityRole="button" accessibilityLabel="Open menu" />', options: maxButtonWordsOptions },
+    { code: '<PillButton label="Open navigation menu" iconOnly />', options: webMaxButtonWordsOptions },
+    { code: '<Button label="Open navigation menu" iconOnly={true} />', options: mobileMaxButtonWordsOptions },
+    { code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />', options: webMaxButtonWordsOptions },
+    { code: '<ListRow key="mobile" title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />', options: mobileMaxButtonWordsOptions },
+    { code: "function InvoiceRow({ t }) { return <ListRow action={{ icon: 'download', label: t('upgrade.billing.invoices.downloadDated'), onPress }} /> }", options: webMaxButtonWordsOptions },
+    { code: '<PillButton label="Open navigation menu" iconOnly={true} />', options: webMaxButtonWordsOptions },
+    { code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />', options: webMaxButtonWordsOptions },
+    { code: '<ListRow key="mobile" title="Settings" accessibilityLabel="Open account settings" />', options: mobileMaxButtonWordsOptions },
+    { code: '<PillButton accessibleName="Open payment settings">Change</PillButton>', options: webMaxButtonWordsOptions },
+    { code: '<PillButton key="mobile" accessibleName="Open payment settings">Change</PillButton>', options: mobileMaxButtonWordsOptions },
+    { code: '<Button accessibleName="Open payment settings">Change</Button>', options: webMaxButtonWordsOptions },
+    { code: '<Button key="mobile" accessibleName="Open payment settings">Change</Button>', options: mobileMaxButtonWordsOptions },
+    { code: '<Chip ariaLabel="Open filter options">Filters</Chip>', options: webMaxButtonWordsOptions },
+    { code: '<Chip accessibilityLabel="Open filter options">Filters</Chip>', options: mobileMaxButtonWordsOptions },
+    { code: '<button aria-label="Open navigation menu" />', options: webMaxButtonWordsOptions },
+    { code: '<Pressable accessibilityRole="button" accessibilityLabel="Open navigation menu" />', options: mobileMaxButtonWordsOptions },
+    { code: '<EmptyState description="This sentence belongs in empty state body copy" />', options: maxButtonWordsOptions },
+    { code: '<Dialog><p>This sentence belongs in the dialog body</p></Dialog>', options: maxButtonWordsOptions },
+    { code: 'toast("This sentence belongs in toast body copy")', options: maxButtonWordsOptions },
+    { code: '<h2>This heading may use several useful words</h2>', options: maxButtonWordsOptions },
+    {
+      code: "const { t } = useTranslation(); const tab = <button role=\"tab\">{t('nav.progress')}</button>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: 'const { t } = useTranslation(); const key = getKey(); const button = <PillButton>{t(key)}</PillButton>',
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('missing.locale.key')}</PillButton>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('habits.detail.log')}</PillButton>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('habits.search.count')}</PillButton>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const tabs = <BottomTabBar items={[{ id: 'today', label: t('nav.today') }]} />",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: '<div>\n{/* eslint-disable-next-line rule-to-test/max-button-words -- D69 deletes this surface. */}\n<PillButton>Open all insights</PillButton>\n</div>',
+      options: maxButtonWordsOptions,
+    },
+  ],
+  invalid: [
+    {
+      code: '<PillButton>Open all insights</PillButton>',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Open all insights', 'source', 3)],
+    },
+    {
+      code: '<Button label="Open navigation menu" />',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('Button', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: '<Button label="Open navigation menu" iconOnly={false} />',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('Button', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: '<Button label="Open navigation menu" iconOnly={isIconOnly} />',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('Button', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: '<Button>Open navigation menu</Button>',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('Button', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: "const t = useTranslations(); const chip = <Chip>{t('chat.suggestion.exercise')}</Chip>",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('Chip', 'Create a habit to exercise every morning', 'en', 7),
+        maxWordsError('Chip', 'Criar um h\u00e1bito de exerc\u00edcio toda manh\u00e3', 'pt-BR', 7),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('auth.signInWithGoogle')}</PillButton>",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
+    },
+    {
+      code: "const t = useTranslations(); const suggestions = useMemo(() => [t('chat.suggestion.exercise')], [t]); const view = suggestions.map((suggestion) => <button>{suggestion}</button>)",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('button', 'Create a habit to exercise every morning', 'en', 7),
+        maxWordsError('button', 'Criar um h\u00e1bito de exerc\u00edcio toda manh\u00e3', 'pt-BR', 7),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const suggestions = [t('chat.suggestion.exercise')]; const view = suggestions.map((suggestion) => <Pressable accessibilityRole=\"button\"><Text>{suggestion}</Text></Pressable>)",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('Pressable', 'Create a habit to exercise every morning', 'en', 7),
+        maxWordsError('Pressable', 'Criar um h\u00e1bito de exerc\u00edcio toda manh\u00e3', 'pt-BR', 7),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const control = <SegmentedControl options={[{ value: 'google', label: t('auth.signInWithGoogle') }]} />",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('SegmentedControl', 'Continue with Google', 'en', 3),
+        maxWordsError('SegmentedControl', 'Continuar com o Google', 'pt-BR', 4),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const row = <ListRow title={t('auth.signInWithGoogle')} />",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('ListRow', 'Continue with Google', 'en', 3),
+        maxWordsError('ListRow', 'Continuar com o Google', 'pt-BR', 4),
+      ],
+    },
+    {
+      code: '<ListRow title="Settings" action={{ label: "Remove this account", onPress }} />',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Remove this account', 'source', 3)],
+    },
+    {
+      code: "const t = useTranslations('auth'); const sharedView = { t }; function GoogleSignIn({ t }) { return <PillButton>{t('signInWithGoogle')}</PillButton> } const view = <GoogleSignIn {...sharedView} />",
+      options: webMaxButtonWordsOptions,
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
+    },
+    {
+      code: "const t = useTranslations('auth'); const GoogleSignIn = ({ t }) => <PillButton>{t('signInWithGoogle')}</PillButton>; const view = <GoogleSignIn t={t} />",
+      options: webMaxButtonWordsOptions,
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
+    },
+    {
+      code: "const t = useTranslations('auth'); const GoogleSignIn = function ({ t }) { return <PillButton>{t('signInWithGoogle')}</PillButton> }; const view = <GoogleSignIn t={t} />",
+      options: webMaxButtonWordsOptions,
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
+    },
+    {
+      code: "const t = useTranslations('auth'); const GoogleSignIn = function GoogleSignInImpl({ t }) { return <PillButton>{t('signInWithGoogle')}</PillButton> }; const view = <GoogleSignIn t={t} />",
+      options: webMaxButtonWordsOptions,
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
+    },
+    {
+      code: "const rootT = useTranslations('nav'); const t = useTranslations('auth'); const sharedView = { t }; function GoogleSignIn({ t }) { return <PillButton>{t('signInWithGoogle')}</PillButton> } const view = <GoogleSignIn t={rootT} {...sharedView} />",
+      options: webMaxButtonWordsOptions,
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
+    },
+  ],
+})
+
+ruleTester.run('no-unjustified-disable', rule('no-unjustified-disable'), {
+  valid: [
+    '// eslint-disable-next-line no-console -- CLI output is required.\nconsole.log("ready")',
+  ],
+  invalid: [
+    {
+      code: '// eslint-disable-next-line no-console\nconsole.log("ready")',
+      errors: [{ messageId: 'missingReason' }],
+    },
+  ],
+})
+
+ruleTester.run('no-mutating-server-auth-fetch', rule('no-mutating-server-auth-fetch'), {
+  valid: [
+    "serverAuthFetch(API.tags.list, { method: 'GET' })",
+    "serverAuthFetch(API.checklistTemplates.list)",
+    "serverAuthMutate(API.goals.delete(goalId), { method: 'DELETE' }, intendedAccountId)",
+    "serverAuthFetch(API.profile.export, init)",
+    "serverAuthFetch(API.profile.export, { method })",
+    "serverAuthFetch(API.profile.export, { method: `${verb}` })",
+    "serverPublicFetch('/api/u/ada', { method: 'POST' })",
+    // KNOWN LIMIT, not intended behaviour: the rule resolves a namespace import, so
+    // `serverFetch.serverAuthFetch(...)` is reported below, but it cannot tell an arbitrary
+    // object's same-named method from the real one without type information. The narrowed
+    // `serverAuthFetch` init type refuses a mutating method here, so the compiler catches it.
+    "client.serverAuthFetch(API.goals.create, { method: 'POST' })",
+  ],
+  invalid: [
+    {
+      code: "serverAuthFetch(API.goals.delete(goalId), { method: 'DELETE' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.create, { method: 'POST', body: JSON.stringify(data) })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'POST' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.reorder, { 'method': 'PUT' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'PUT' } }],
+    },
+    {
+      code: "serverAuthFetch(API.profile.name, { method: 'patch' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'PATCH' } }],
+    },
+    {
+      code: "serverAuthFetch<ApiKeyCreateResponse>(API.apiKeys.create, { method: 'POST' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'POST' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.delete(goalId), { method: 'DELETE' } as RequestInit)",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.delete(goalId), { method: 'DELETE' } satisfies RequestInit)",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code: 'serverAuthFetch(API.goals.delete(goalId), { method: `DELETE` })',
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code: "serverAuthFetch(API.profile.name, { method: 'PATCH' as string })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'PATCH' } }],
+    },
+    {
+      code:
+        "import { serverAuthFetch as sf } from '@/lib/server-fetch'\n" +
+        "sf(API.goals.delete(goalId), { method: 'DELETE' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code:
+        "import * as serverFetch from '@/lib/server-fetch'\n" +
+        "serverFetch.serverAuthFetch(API.goals.create, { method: 'POST' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'POST' } }],
     },
   ],
 })

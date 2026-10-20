@@ -1,4 +1,3 @@
-
 const { getAttribute, getElementName } = require('./_jsx-strings.cjs')
 
 const PRESENCE_ELEMENTS = new Set(['AnimatePresence'])

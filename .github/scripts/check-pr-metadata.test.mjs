@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -81,34 +81,12 @@ test("parity checks reject removed exemptions and require a specific justificati
   const justified = "## Parity\n\nPlatform adapter: BFF cookie handling.\n\n## Test evidence\nChecked."
   check(justified, ["parity:exempt"], web, 0)
   check(justified, [], web, 1)
-  check("## Parity\n\nNativeWind adapter.", ["parity:exempt"], web, 0)
-  check("## Parity\n\nDesktop stats rail.", ["parity:exempt"], web, 0)
 })
 
 test("a workflow-only PR can carry a label at creation without a UI exemption", () => {
   check("## Parity\n\nWorkflow-only change, no app code.", ["parity:exempt"], [
     ".github/workflows/test.yml", ".github/workflows/pr-metadata.yml",
   ], 0)
-})
-
-test("ratchet labels refresh the lightweight check without replacing Guards", () => {
-  const directory = mkdtempSync(join(tmpdir(), "pr-metadata-ratchet-"))
-  try {
-    mkdirSync(join(directory, "tools"))
-    writeFileSync(join(directory, "tools/check-suppressions-ratchet.mjs"), "process.exit(1)\n")
-    const step = metadata.jobs.metadata.steps.find((candidate) => candidate.name === "Check suppressions ratchet with current labels")
-    assert.equal(step.if, "${{ !cancelled() }}")
-    assert.doesNotMatch(JSON.stringify(load("guards")), /ratchet:reseed|check-suppressions-ratchet/)
-    for (const [labels, expected] of [[[], 1], [["feature"], 1], [["ratchet:reseed"], 0], [[], 1]]) {
-      writeFileSync(join(directory, "pr-metadata.json"), JSON.stringify({ title: "Ratchet fixture", body: "", labels }))
-      const result = spawnSync("bash", ["-e", "-c", step.run], {
-        cwd: directory, env: { ...process.env, RUNNER_TEMP: directory }, encoding: "utf8",
-      })
-      assert.equal(result.status, expected, result.stderr)
-    }
-  } finally {
-    rmSync(directory, { recursive: true, force: true })
-  }
 })
 
 test("the API reader derives the PR number from the merge ref", () => {

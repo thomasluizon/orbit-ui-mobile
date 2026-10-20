@@ -1,127 +1,65 @@
 'use client'
 
+import { useId } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, X } from 'lucide-react'
-import type { Profile } from '@orbit/shared/types'
+import { getSetupChecklist } from '@orbit/shared/utils'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useProfile } from '@/hooks/use-profile'
-import { useUIStore } from '@/stores/ui-store'
+import { useUIPreferencesReadiness, useUIStore } from '@/stores/ui-store'
+import { PillButton } from '@/components/ui/pill-button'
+import { Check, Circle, X } from '@/components/ui/icons'
 
-const CHECKLIST_ITEMS: readonly { key: string; flag: keyof Profile }[] = [
-  { key: 'createHabit', flag: 'hasCreatedFirstHabit' },
-  { key: 'logHabit', flag: 'hasLoggedFirstHabit' },
-  { key: 'tryAstra', flag: 'hasTriedAstra' },
-]
-
-/** Auto-tracked first-run setup checklist on Today; renders unconditionally, visibility is arbitrated by useEngagementSlot. */
 export function SetupChecklistCard() {
   const t = useTranslations()
+  const titleId = useId()
+  const errorId = useId()
   const { profile } = useProfile()
+  const dismissed = useUIStore((state) => state.setupChecklistDismissed)
   const setDismissed = useUIStore((state) => state.setSetupChecklistDismissed)
+  const preferencesReady = useUIPreferencesReadiness((state) => state.ready)
+  const [pending, setPending] = useAccountScopedState(false)
+  const [failed, setFailed] = useAccountScopedState(false)
+  const checklist = getSetupChecklist(profile)
 
-  const states = CHECKLIST_ITEMS.map((item) => Boolean(profile?.[item.flag]))
-  const doneCount = states.filter(Boolean).length
-  const total = CHECKLIST_ITEMS.length
-  const allDone = doneCount === total
+  async function dismiss() {
+    if (pending) return
+    setPending(true)
+    setFailed(false)
+    try {
+      await setDismissed(true)
+    } catch {
+      setFailed(true)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  if (!preferencesReady || !checklist || (dismissed && !pending)) return null
 
   return (
-    <div style={{ padding: '6px 20px' }}>
-      <section
-        data-testid="setup-checklist-card"
-        aria-label={t('today.setupChecklist.title')}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-          padding: 16,
-          borderRadius: 18,
-          background: 'var(--bg-card)',
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
-        }}
-      >
-        <div className="flex items-start justify-between" style={{ gap: 12 }}>
-          <div className="flex min-w-0 flex-col" style={{ gap: 3 }}>
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 18,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-              }}
-            >
-              {t('today.setupChecklist.title')}
-            </span>
-            <span
-              style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}
-            >
-              {allDone
-                ? t('today.setupChecklist.complete')
-                : t('today.setupChecklist.subtitle')}
-            </span>
+    <div className="px-screen-gutter">
+      <section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-6 rounded-[var(--r-card)] bg-[var(--bg-card)] p-card-inset">
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <h2 id={titleId} className="min-w-0 text-balance text-[20px] font-medium leading-[1.3] text-[var(--fg-1)]">{t('today.setupChecklist.title')}</h2>
+            <p className="t-secondary text-pretty">{checklist.done === checklist.items.length ? t('today.setupChecklist.complete') : t('today.setupChecklist.subtitle')}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setDismissed(true)}
-            aria-label={t('today.setupChecklist.dismiss')}
-            className="icon-btn touch-target shrink-0"
-            style={{ width: 36, height: 36 }}
-          >
-            <X size={18} strokeWidth={1.8} color="var(--fg-4)" />
-          </button>
+          <PillButton variant="ghost" iconOnly label={t('today.setupChecklist.dismiss')} loading={pending} descriptionId={failed ? errorId : undefined} onClick={() => void dismiss()}>
+            <X size={20} strokeWidth={1.5} aria-hidden="true" focusable="false" />
+          </PillButton>
         </div>
-
-        <ul
-          className="flex flex-col"
-          style={{ gap: 10, margin: 0, padding: 0, listStyle: 'none' }}
-        >
-          {CHECKLIST_ITEMS.map((item, index) => {
-            const done = states[index]
-            return (
-              <li
-                key={item.key}
-                data-done={done}
-                className="flex items-center"
-                style={{ gap: 12 }}
-              >
-                <span
-                  aria-hidden="true"
-                  className="flex shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    width: 24,
-                    height: 24,
-                    background: done ? 'var(--primary)' : 'transparent',
-                    boxShadow: done ? 'none' : 'inset 0 0 0 2px var(--hairline-strong)',
-                  }}
-                >
-                  {done ? (
-                    <Check size={14} strokeWidth={2.4} color="var(--fg-on-primary)" />
-                  ) : null}
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 15,
-                    color: done ? 'var(--fg-3)' : 'var(--fg-1)',
-                    textDecoration: done ? 'line-through' : 'none',
-                  }}
-                >
-                  {t(`today.setupChecklist.items.${item.key}`)}
-                </span>
-              </li>
-            )
+        <ul className="flex min-w-0 flex-col gap-3">
+          {checklist.items.map((item) => {
+            return <li key={item.key} className="flex items-start gap-3 text-[14px] leading-[1.5] text-[var(--fg-2)]">
+              <span aria-hidden="true" className={`flex size-5 shrink-0 items-center justify-center ${item.done ? 'rounded-full bg-[var(--fg-1)] text-[var(--bg)]' : 'text-[var(--track-empty)]'}`}>
+                {item.done ? <Check size={16} strokeWidth={2} focusable="false" /> : <Circle size={20} strokeWidth={1.5} focusable="false" />}
+              </span>
+              <span className="min-w-0">{t(`today.setupChecklist.items.${item.key}`)}{item.done ? <span className="sr-only">{`, ${t('habits.completed')}`}</span> : null}</span>
+            </li>
           })}
         </ul>
-
-        <span
-          data-testid="setup-checklist-progress"
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12,
-            color: 'var(--fg-3)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {t('today.setupChecklist.progress', { done: doneCount, total })}
-        </span>
+        <p role="status" className="font-mono text-[12px] tabular-nums text-[var(--fg-3)]">{t('today.setupChecklist.progress', { done: checklist.done, total: checklist.items.length })}</p>
+        <p id={errorId} role="alert" className={failed ? "text-[14px] leading-[1.5] text-[var(--status-bad-text)]" : "sr-only"}>{failed ? t('today.setupChecklist.dismissError') : null}</p>
       </section>
     </div>
   )

@@ -10,7 +10,7 @@ import { validateTagForm } from '../validation/tag-form'
  */
 
 export const TAG_COLORS = [
-  '#7f46f7',
+  '#C4530F',
   '#dc2626',
   '#b45309',
   '#047857',

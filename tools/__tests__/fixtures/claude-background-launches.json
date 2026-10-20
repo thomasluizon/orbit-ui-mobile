@@ -1,0 +1,22 @@
+{
+  "workflow": {
+    "status": "async_launched",
+    "taskId": "workflow-task",
+    "taskType": "local_workflow",
+    "workflowName": "<value>",
+    "runId": "wf_fixture",
+    "summary": "<value>",
+    "transcriptDir": "/session/predecessor/subagents/workflows/wf_fixture",
+    "scriptPath": "<value>"
+  },
+  "subagent": {
+    "isAsync": true,
+    "status": "async_launched",
+    "agentId": "agent-task",
+    "description": "<value>",
+    "resolvedModel": "<value>",
+    "prompt": "<value>",
+    "outputFile": "<value>",
+    "canReadOutputFile": true
+  }
+}

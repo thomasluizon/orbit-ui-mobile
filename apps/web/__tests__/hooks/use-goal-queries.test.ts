@@ -1,14 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useGoals, useGoalDetail, useGoalMetrics } from '@/hooks/use-goal-queries'
+import { resetAuthStore } from '@/__tests__/support/account-change'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { Goal, GoalDetailWithMetrics, GoalMetrics, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import './session-query-setup'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+
+beforeEach(async () => {
+  await resetAuthStore()
+  mockFetch.mockReset()
+})
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -33,10 +39,6 @@ function makePaginatedGoalResponse(items: Goal[]): PaginatedGoalResponse {
 }
 
 describe('useGoals', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
   it('fetches and normalizes goals', async () => {
     const goals = [
       createMockGoal({ id: 'g-1', title: 'Read Books', position: 1 }),
@@ -51,6 +53,8 @@ describe('useGoals', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data?.allGoals).toEqual([goals[1], goals[0]])
@@ -65,11 +69,13 @@ describe('useGoals', () => {
       json: () => Promise.resolve(makePaginatedGoalResponse(goals)),
     })
 
-    renderHook(() => useGoals('Active'), {
+    const { result } = renderHook(() => useGoals('Active'), {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string
     expect(calledUrl).toContain('status=Active')
@@ -81,28 +87,30 @@ describe('useGoals', () => {
       json: () => Promise.resolve(makePaginatedGoalResponse([])),
     })
 
-    renderHook(() => useGoals(), {
+    const { result } = renderHook(() => useGoals(), {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string
     expect(calledUrl).not.toContain('status=')
   })
 
   it('handles fetch error', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: 'Server error' }),
-    })
+    mockFetch.mockImplementation(async () => Response.json({ error: 'Server error' }, { status: 500 }))
 
     const { result } = renderHook(() => useGoals(), {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 500, message: 'Server error' }) })
     await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toMatchObject({ status: 500, message: 'Server error' })
+    expect(result.current.data).toBeUndefined()
   })
 
   it('handles empty goal list', async () => {
@@ -115,16 +123,14 @@ describe('useGoals', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toBeDefined()
+    expect(result.current.data).toMatchObject({ allGoals: [], goalsById: new Map(), totalCount: 0 })
   })
 })
 
 describe('useGoalDetail', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
   it('fetches goal detail when id is provided', async () => {
     const detail: GoalDetailWithMetrics = {
       goal: {
@@ -161,6 +167,8 @@ describe('useGoalDetail', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.goal.title).toBe('Read Books')
   })
@@ -176,10 +184,6 @@ describe('useGoalDetail', () => {
 })
 
 describe('useGoalMetrics', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
   it('fetches goal metrics when id is provided', async () => {
     const metrics: GoalMetrics = {
       progressPercentage: 25,
@@ -198,6 +202,8 @@ describe('useGoalMetrics', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.trackingStatus).toBe('OnTrack')
   })

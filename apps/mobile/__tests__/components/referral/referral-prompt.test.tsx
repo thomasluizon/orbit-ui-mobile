@@ -1,6 +1,11 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ReferralPrompt } from '@/components/referral/referral-prompt'
+import { useUIStore } from '@/stores/ui-store'
+import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -12,16 +17,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ getQueryData: () => undefined }),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
-    open,
-    children,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    onClose?: () => void
-  }) => (open ? React.createElement('BottomSheetOpen', {}, children) : null),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/referral/referral-drawer', () => ({
   ReferralDrawer: ({ open }: { open: boolean; onClose?: () => void }) =>
@@ -29,18 +25,9 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 }))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onPress,
-  }: {
-    children: React.ReactNode
-    onPress?: () => void
-  }) => React.createElement('PillButtonStub', { onPress }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButtonStub', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
-
-import { ReferralPrompt } from '@/components/referral/referral-prompt'
-import { useUIStore } from '@/stores/ui-store'
-import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -69,7 +56,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 describe('ReferralPrompt (mobile)', () => {
@@ -106,21 +93,33 @@ describe('ReferralPrompt (mobile)', () => {
 
   it('renders nothing when no milestone is armed', async () => {
     const tree = await render()
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('shows the prompt after the settle delay and marks it prompted', async () => {
     const tree = await renderArmed('streak-7')
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
 
     await TestRenderer.act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(1)
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
     expect(useReferralPromptStore.getState().promptedMilestoneKeys).toContain(
       'streak-7',
     )
+  })
+
+  it('pins the invite and Later actions in the sheet footer, never in the scrolling body', async () => {
+    const tree = await renderArmed('streak-7')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['referral.prompt.later', 'referral.prompt.cta'])
+    expectSmallSheetActions(tree.root)
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('stays hidden while a celebration is in flight', async () => {
@@ -131,7 +130,21 @@ describe('ReferralPrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
+  })
+
+  it('waits for another sheet to close before offering a referral', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
+    const tree = await renderArmed('streak-7')
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      useUIStore.getState().unregisterOpenOverlay('already-open')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
   })
 
   it('stays hidden and clears the arm when the milestone was already prompted', async () => {
@@ -142,7 +155,7 @@ describe('ReferralPrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
     expect(useReferralPromptStore.getState().armedPrompt).toBeNull()
   })
 
@@ -157,7 +170,7 @@ describe('ReferralPrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(500)
     })
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('opens the drawer from the CTA', async () => {
@@ -166,13 +179,13 @@ describe('ReferralPrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(500)
     })
 
-    const [cta] = findByType(tree, 'PillButtonStub')
+    const cta = findByType(tree, 'PillButtonStub').find((node) => node.props.variant !== 'ghost')
     await TestRenderer.act(async () => {
-      cta!.props.onPress?.()
+      ;(cta!.props.onClick as (() => void) | undefined)?.()
       await Promise.resolve()
     })
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
     expect(findByType(tree, 'ReferralDrawerOpen')).toHaveLength(1)
   })
 
@@ -190,7 +203,7 @@ describe('ReferralPrompt (mobile)', () => {
       await Promise.resolve()
     })
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
     expect(findByType(tree, 'ReferralDrawerOpen')).toHaveLength(0)
   })
 })

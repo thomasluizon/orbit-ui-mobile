@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
-  getNotificationDestination,
   getNotificationDetailActionVisibility,
-  getNotificationGlyph,
+  getNotificationDestination,
+  getNotificationInboxState,
   isRetiredNotification,
+  getNotificationTargetKey,
   isViewableNotificationUrl,
   resolveNotificationUrl,
+  shouldShowTodayAstraSurface,
 } from '../utils/notification-actions'
+import { createMockNotification } from './factories'
 
 describe('notification-actions', () => {
   it.each(['/social?tab=buddies', '/social', '/public-profile/123', '/u/thomas'])(
@@ -18,17 +21,20 @@ describe('notification-actions', () => {
   )
 
   it.each([
-    { url: '/streak', habitId: null, glyph: 'streak' },
-    { url: '/chat', habitId: null, glyph: 'astra' },
-    { url: '/calendar-sync?mode=review', habitId: null, glyph: 'astra' },
-    { url: '/profile', habitId: null, glyph: 'celebration' },
-    { url: null, habitId: null, glyph: 'celebration' },
-    { url: null, habitId: 'habit-1', glyph: 'reminder' },
-    { url: '/unknown', habitId: 'habit-1', glyph: 'reminder' },
-  ])('keeps $url with $habitId and its $glyph glyph', ({ url, habitId, glyph }) => {
+    { url: '/streak', habitId: null },
+    { url: '/chat', habitId: null },
+    { url: '/calendar-sync?mode=review', habitId: null },
+    { url: '/profile', habitId: null },
+    { url: null, habitId: null },
+    { url: null, habitId: 'habit-1' },
+    { url: '/unknown', habitId: 'habit-1' },
+  ])('keeps $url with $habitId and its destination', ({ url, habitId }) => {
     const notification = { url, habitId }
     expect(isRetiredNotification(notification)).toBe(false)
-    expect(getNotificationGlyph(notification)).toBe(glyph)
+    expect(getNotificationTargetKey(url, habitId)).toBe(
+      url === '/streak' ? 'nav.progress' : url === '/chat' ? 'nav.today'
+        : url?.startsWith('/calendar-sync') ? 'nav.calendar' : url === '/profile' ? 'nav.profile' : null,
+    )
   })
 
   it.each([undefined, '', 'https://orbit.app', '//evil.com'])(
@@ -36,32 +42,63 @@ describe('notification-actions', () => {
     (url) => { expect(isRetiredNotification({ url })).toBe(false) },
   )
 
+
   it.each([
-    ['/progress', '/streak'],
-    ['/progress?wrapped=month&year=2026&month=8', '/wrapped?wrapped=month&year=2026&month=8'],
-    ['/progress?', '/streak'],
-    ['/progress?other=value', '/streak'],
-    ['/', '/'],
-    ['/chat', '/chat'],
-    ['/profile', '/profile'],
-    ['/calendar-sync', '/calendar-sync'],
-    ['/calendar-sync?mode=review', '/calendar-sync?mode=review'],
-    ['/streak', '/streak'],
-    ['//evil.example', null],
-    ['https://evil.example', null],
-    ['/social/x', null],
-    ['/public-profile/x', null],
-    ['/u/example', null],
-  ])('resolves %s to %s', (url, expected) => {
-    expect(resolveNotificationUrl(url)).toBe(expected)
-    expect(getNotificationDestination(url)).toEqual(expected ? { url: expected } : null)
-    expect(getNotificationDetailActionVisibility({ url, isRead: false }).canView)
-      .toBe(expected !== null)
+    ['/', 'nav.today'],
+    ['/calendar', 'nav.calendar'],
+    ['/progress', 'nav.progress'],
+    ['/progress?wrapped=month&year=2026&month=8', 'profile.wrappedTitle'],
+    ['/profile', 'nav.profile'],
+    ['/streak', 'nav.progress'],
+    ['/goals?status=Active', 'nav.progress'],
+    ['/chat', 'nav.today'],
+    ['/calendar-sync?mode=review', 'nav.calendar'],
+  ])('labels the existing target %s', (url, label) => {
+    expect(getNotificationTargetKey(url)).toBe(label)
+    expect(isViewableNotificationUrl(url)).toBe(true)
   })
 
-  it('does not provide a destination for a missing URL', () => {
-    expect(getNotificationDestination(null)).toBeNull()
-    expect(getNotificationDetailActionVisibility({ url: null, isRead: false }).canView).toBe(false)
+  it('labels the scheduler reminder as a habit target', () => {
+    const notification = createMockNotification({ url: '/', habitId: 'a12b34cd-1234-4567-89ab-123456789abc' })
+    expect(getNotificationTargetKey(notification.url, notification.habitId)).toBe('notifications.habit')
+    expect(getNotificationDetailActionVisibility(notification).canView).toBe(true)
+    expect(getNotificationDestination(notification.url, notification.habitId)).toEqual({
+      url: '/habits/a12b34cd-1234-4567-89ab-123456789abc', opensAstra: false,
+    })
+  })
+
+  it.each(['/unknown', '/social', '/habits/../login', '/habits/%2e%2e', '/habits/one/edit', '//evil.com', '/profile/unknown'])(
+    'never offers a view to the unsupported destination %s', (url) => {
+      expect(getNotificationTargetKey(url)).toBeNull()
+      expect(getNotificationDestination(url, 'a12b34cd-1234-4567-89ab-123456789abc')).toBeNull()
+      expect(getNotificationDetailActionVisibility({ url, isRead: false, habitId: null }).canView).toBe(false)
+    },
+  )
+
+  it.each(['', '../profile', 'one?next=/profile', 'one#fragment', '%2e%2e'])('rejects a malformed habit target %s', (habitId) => {
+    const notification = createMockNotification({ url: '/', habitId })
+    expect(getNotificationDestination(notification.url, habitId)).toBeNull()
+    expect(getNotificationTargetKey(notification.url, habitId)).toBeNull()
+    expect(getNotificationDetailActionVisibility(notification).canView).toBe(false)
+  })
+
+  it('subtracts hidden unread rows once while retaining the endpoint total', () => {
+    const retired = createMockNotification({ id: 'retired', url: '/social', isRead: false })
+    const read = createMockNotification({ id: 'read', url: '/u/example', isRead: true })
+    const pending = createMockNotification({ id: 'pending', url: '/streak', isRead: false })
+    const active = createMockNotification({ id: 'active', url: '/unknown', isRead: false })
+    expect(getNotificationInboxState([retired, read, pending, active], 20, ['retired', 'pending']))
+      .toEqual({ visibleNotifications: [active], visibleUnreadCount: 18 })
+    expect(getNotificationInboxState([retired], 0, []).visibleUnreadCount).toBe(0)
+  })
+
+  it('uses the endpoint total and subtracts only pending unread items', () => {
+    const unread = createMockNotification({ id: 'unread', isRead: false })
+    const read = createMockNotification({ id: 'read', isRead: true })
+    expect(getNotificationInboxState([unread, read], 20, ['unread', 'read'])).toEqual({
+      visibleNotifications: [], visibleUnreadCount: 19,
+    })
+    expect(getNotificationInboxState([], 20, []).visibleUnreadCount).toBe(20)
   })
 
   it('accepts safe internal URLs', () => {
@@ -81,11 +118,50 @@ describe('notification-actions', () => {
     expect(isViewableNotificationUrl('/u/example')).toBe(false)
   })
 
+  it.each([
+    ['/progress', '/progress'],
+    ['/progress?source=push#bank', '/progress?source=push#bank'],
+    ['/progress/streak', '/progress/streak'],
+    ['/progress/goals?status=Active', '/progress/goals?status=Active'],
+    ['/progress/achievements?earned=latest', '/progress/achievements?earned=latest'],
+    ['/streak?source=push#bank', '/progress/streak?source=push#bank'],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
+    ['/insights?range=year', '/progress?range=year'],
+    ['/goals/legacy-detail?status=Active#goal-1', '/progress/goals?status=Active#goal-1'],
+    ['/retrospective/year', '/progress'],
+  ])('resolves the progress route %s to its owning screen', (url, expected) => {
+    expect(resolveNotificationUrl(url)).toBe(expected)
+  })
+
+  it('preserves current notification routes', () => {
+    expect(resolveNotificationUrl('/habits/1?date=2026-08-28')).toBe(
+      '/habits/1?date=2026-08-28',
+    )
+  })
+
+  it('resolves legacy conversation and calendar links into the four destinations', () => {
+    expect(resolveNotificationUrl('/chat')).toBe('/')
+    expect(resolveNotificationUrl('/calendar-sync?mode=review')).toBe('/calendar?mode=review')
+  })
+
+  it('routes a closed-month notification to the Wrapped cover with its carried month', () => {
+    expect(resolveNotificationUrl('/progress?wrapped=month&year=2026&month=8')).toBe(
+      '/wrapped?period=month&year=2026&month=8',
+    )
+    expect(
+      getNotificationDestination('/progress?wrapped=month&year=2026&month=8'),
+    ).toEqual({
+      url: '/wrapped?period=month&year=2026&month=8',
+      opensAstra: false,
+    })
+  })
+
   it('derives notification detail action visibility', () => {
     expect(
       getNotificationDetailActionVisibility({
         isRead: false,
         url: '/profile',
+        habitId: null,
       }),
     ).toEqual({ canView: true, canMarkAsRead: true })
 
@@ -93,30 +169,15 @@ describe('notification-actions', () => {
       getNotificationDetailActionVisibility({
         isRead: true,
         url: null,
+        habitId: null,
       }),
     ).toEqual({ canView: false, canMarkAsRead: false })
   })
 
-  it('maps streak notifications to the flame glyph', () => {
-    expect(getNotificationGlyph({ url: '/streak', habitId: null })).toBe('streak')
-    expect(getNotificationGlyph({ url: '/progress', habitId: null })).toBe('streak')
-    expect(getNotificationGlyph({ url: '/progress?other=value', habitId: null })).toBe('streak')
-  })
-
-  it('maps Astra-produced notifications to the sparkles glyph', () => {
-    expect(getNotificationGlyph({ url: '/chat', habitId: null })).toBe('astra')
-    expect(
-      getNotificationGlyph({ url: '/calendar-sync?mode=review', habitId: null }),
-    ).toBe('astra')
-  })
-
-  it('maps gamification and referral notifications to the celebration glyph', () => {
-    expect(getNotificationGlyph({ url: null, habitId: null })).toBe('celebration')
-    expect(getNotificationGlyph({ url: '/profile', habitId: null })).toBe('celebration')
-  })
-
-  it('falls back to the reminder glyph for habit notifications', () => {
-    expect(getNotificationGlyph({ url: '/', habitId: 'habit-1' })).toBe('reminder')
-    expect(getNotificationGlyph({ url: '/calendar-sync', habitId: null })).toBe('reminder')
+  it('shows the line only on the unobstructed current day', () => {
+    const visible = { isTodaySelected: true, inDrillOrSurface: false }
+    expect(shouldShowTodayAstraSurface(visible)).toBe(true)
+    expect(shouldShowTodayAstraSurface({ ...visible, isTodaySelected: false })).toBe(false)
+    expect(shouldShowTodayAstraSurface({ ...visible, inDrillOrSurface: true })).toBe(false)
   })
 })

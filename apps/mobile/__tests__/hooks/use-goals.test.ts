@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { goalKeys, habitKeys } from '@orbit/shared/query'
 import type { CreateGoalRequest, Goal, GoalDetailWithMetrics } from '@orbit/shared/types/goal'
@@ -6,6 +6,7 @@ import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 
 import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
+import type { queueOrExecute } from '@/lib/offline-mutations'
 import {
   useCreateGoal,
   useDeleteGoal,
@@ -16,6 +17,11 @@ import {
   useUpdateGoalProgress,
   useUpdateGoalStatus,
 } from '@/hooks/use-goals'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 
 const mocks = vi.hoisted(() => {
@@ -321,11 +327,13 @@ describe('mobile goal hooks', () => {
       title: 'Workout',
       targetValue: 4,
       unit: 'sessions',
+      habitIds: ['habit-1'],
     }
 
     mocks.queueOrExecute.mockResolvedValue({ id: 'goal-2' })
 
     const context = await mutation.onMutate?.(request)
+    expect(mocks.state.lists[0]?.value.at(-1)?.linkedHabits).toEqual([{ id: 'habit-1', title: 'Workout' }])
     const result = await mutation.mutationFn(request)
     mutation.onSuccess?.(result, request, context)
     mutation.onSettled?.(result, null, request, context)
@@ -334,7 +342,36 @@ describe('mobile goal hooks', () => {
       'goal-1',
       'goal-2',
     ])
+    expect(mocks.state.lists[0]?.value.at(-1)?.linkedHabits).toEqual([{ id: 'habit-1', title: 'Workout' }])
+    expect(mocks.state.lists[0]?.value.at(-1)?.isProgressDerived).toBe(true)
     expect(mocks.invalidateGoalQueries).toHaveBeenCalledTimes(1)
+    expect(mocks.invalidateGoalQueries).toHaveBeenCalledWith(mocks.queryClient, { includeHabits: true })
+  })
+
+  it('posts resolved habit ids when a selected offline habit syncs before goal creation', async () => {
+    const mutation = useCreateGoal() as unknown as MutationConfig<
+      { id: string }, CreateGoalRequest, unknown
+    >
+    const request: CreateGoalRequest = {
+      title: 'Workout',
+      targetValue: 4,
+      unit: 'sessions',
+      habitIds: ['offline-habit-1'],
+    }
+    const serverHabitId = '12345678-1234-4234-8234-123456789abc'
+    mocks.queueOrExecute.mockImplementationOnce(
+      async ({ mutation: queuedMutation, execute }: Parameters<typeof queueOrExecute>[0]) =>
+        execute({ ...queuedMutation, payload: { ...request, habitIds: [serverHabitId] } }),
+    )
+    vi.mocked(apiClient).mockResolvedValueOnce({ id: 'goal-2' })
+
+    await expect(mutation.mutationFn(request)).resolves.toEqual({ id: 'goal-2' })
+
+    expect(apiClient).toHaveBeenLastCalledWith(API.goals.create, {
+      method: 'POST',
+      body: JSON.stringify({ ...request, habitIds: [serverHabitId] }),
+    })
+    expect(request.habitIds).toEqual(['offline-habit-1'])
   })
 
   it('restores optimistic goal progress updates when the mutation fails', async () => {
@@ -360,6 +397,85 @@ describe('mobile goal hooks', () => {
 
     expect(mocks.state.lists[0]?.value[0]?.currentValue).toBe(3)
     expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.currentValue).toBe(3)
+  })
+
+  it('queues a manual target update offline with a completed optimistic detail', async () => {
+    const manualGoal = createMockGoal({
+      id: 'goal-1',
+      currentValue: 11,
+      targetValue: 12,
+      progressPercentage: 92,
+      status: 'Active',
+      isProgressDerived: false,
+    })
+    mocks.state.lists = [{ key: goalKeys.lists(), value: [manualGoal] }]
+    mocks.state.details = new Map([
+      [
+        JSON.stringify(goalKeys.detail('goal-1')),
+        {
+          goal: { ...manualGoal, progressHistory: [] },
+          metrics: {
+            progressPercentage: 92,
+            velocityPerDay: 0,
+            projectedCompletionDate: null,
+            daysToDeadline: null,
+            trackingStatus: 'on_track',
+            habitAdherence: [],
+          },
+        },
+      ],
+    ])
+    mocks.queueOrExecute.mockResolvedValue({
+      queued: true,
+      queuedMutationId: 'mutation-1',
+    })
+    const mutation = useUpdateGoalProgress() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      { goalId: string; data: { currentValue: number } },
+      unknown
+    >
+    const variables = { goalId: 'goal-1', data: { currentValue: 12 } }
+
+    await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(result, variables, undefined)
+    mutation.onSettled?.(result, null, variables, undefined)
+
+    expect(result).toEqual({ queued: true, queuedMutationId: 'mutation-1' })
+    expect(mocks.state.lists[0]?.value[0]?.status).toBe('Completed')
+    expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.status).toBe('Completed')
+    expect(mocks.setGoalCompletedCelebration).not.toHaveBeenCalled()
+    expect(mocks.invalidateGoalQueries).not.toHaveBeenCalled()
+  })
+
+  it('enqueues one named online progress completion at the target', () => {
+    const mutation = useUpdateGoalProgress() as unknown as MutationConfig<
+      undefined | { queued: true; queuedMutationId: string },
+      {
+        goalId: string
+        data: { currentValue: number }
+        goalName?: string
+        goalCount?: number
+        goalUnit?: string
+      },
+      unknown
+    >
+    const variables = {
+      goalId: 'goal-1',
+      data: { currentValue: 12 },
+      goalName: 'Read 12 Books',
+      goalCount: 12,
+      goalUnit: 'books',
+    }
+
+    mutation.onSuccess?.(undefined, variables, undefined)
+
+    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledWith({
+      name: 'Read 12 Books',
+      count: 12,
+      unit: 'books',
+    })
+    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledTimes(1)
   })
 
   it('optimistically links habits to a goal and restores the snapshot on failure', async () => {
@@ -510,14 +626,14 @@ describe('mobile goal hooks', () => {
   it('marks a goal completed optimistically and celebrates only a named online completion', async () => {
     const mutation = useUpdateGoalStatus() as unknown as MutationConfig<
       undefined | { queued: true; queuedMutationId: string },
-      { goalId: string; data: { status: string }; goalName?: string },
+      { goalId: string; data: { status: string }; goalName?: string; goalCount?: number; goalUnit?: string },
       {
         previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
         previousDetail: GoalDetailWithMetrics | undefined
       }
     >
 
-    const variables = { goalId: 'goal-1', data: { status: 'Completed' }, goalName: 'Read 12 Books' }
+    const variables = { goalId: 'goal-1', data: { status: 'Completed' }, goalName: 'Read 12 Books', goalCount: 12, goalUnit: 'books' }
     const context = await mutation.onMutate?.(variables)
 
     expect(mocks.state.lists[0]?.value[0]?.status).toBe('Completed')
@@ -525,7 +641,7 @@ describe('mobile goal hooks', () => {
     expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.status).toBe('Completed')
 
     mutation.onSuccess?.(undefined, variables, context)
-    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledWith({ name: 'Read 12 Books' })
+    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledWith({ name: 'Read 12 Books', count: 12, unit: 'books' })
 
     mutation.onSuccess?.(
       { queued: true, queuedMutationId: 'mutation-1' },
@@ -654,7 +770,7 @@ describe('mobile goal hooks online execute closures', () => {
   beforeEach(() => {
     mocks.queueOrExecute.mockReset()
     mocks.queueOrExecute.mockImplementation(
-      async ({ execute }: { execute: () => Promise<unknown> }) => execute(),
+      async ({ mutation, execute }: Parameters<typeof queueOrExecute>[0]) => execute(mutation),
     )
     vi.mocked(apiClient).mockReset().mockResolvedValue(undefined)
   })

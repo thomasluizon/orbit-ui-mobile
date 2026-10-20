@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { SPACING } from '@orbit/shared/theme'
+import { PersonalText } from '@/components/ui/personal-text'
+import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { ActionRow } from '@/components/ui/action-row'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -26,16 +29,16 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
 
   const [name, setName] = useState(() => profile?.name ?? '')
   const [error, setError] = useState('')
-  const previousOpen = useRef(open)
-  useEffect(() => {
-    const wasOpen = previousOpen.current
-    previousOpen.current = open
-    if (!open || wasOpen) return
-    void Promise.resolve().then(() => {
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
       setName(profile?.name ?? '')
       setError('')
-    })
-  }, [open, profile?.name])
+    }
+  }
+
+  const { sheetRef, closeSheet } = useSheetHost()
 
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- Deliberate optimistic update: patchProfile() in onMutate writes the exact submitted name to the profile cache and rolls back on error; the server stores it verbatim, so no post-success refetch is needed. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const mutation = useMutation<unknown, Error, string, { previous: string | undefined }>({
@@ -54,7 +57,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       return { previous }
     },
     onSuccess: () => {
-      onClose()
+      closeSheet()
     },
     onError: (err, _nextName, context) => {
       if (context?.previous !== undefined) {
@@ -83,11 +86,21 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
   }
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={onClose}
       title={t('profile.editName.title')}
-      snapPoints={['55%']}
+      actions={(
+        <ActionRow>
+          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton size="sm" onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
+            {t('common.save')}
+          </PillButton>
+        </ActionRow>
+      )}
     >
       <View style={styles.body}>
         <Text style={[styles.label, { color: tokens.fg2 }]}>
@@ -96,7 +109,6 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
         <AppTextInput
           value={name}
           onChangeText={handleNameChange}
-          placeholder={t('profile.editName.placeholder')}
           autoComplete="name"
           autoFocus
           returnKeyType="done"
@@ -104,6 +116,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
           accessibilityLabel={t('profile.editName.label')}
           testID="edit-name-input"
         />
+        {profile?.email ? <PersonalText expanded selectable style={[styles.label, { color: tokens.fg2 }]}>{profile.email}</PersonalText> : null}
         {error ? (
           <Text
             accessibilityRole="alert"
@@ -113,39 +126,23 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
             {error}
           </Text>
         ) : null}
-        <View style={styles.actions}>
-          <PillButton
-            fullWidth
-            onPress={handleSave}
-            disabled={mutation.isPending}
-            busy={mutation.isPending}
-            accessibilityLabel={t('common.save')}
-          >
-            {t('common.save')}
-          </PillButton>
-        </View>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: 22,
-    paddingTop: 8,
+    paddingTop: SPACING.s8,
     gap: 16,
   },
   label: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },
   error: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  actions: {
-    gap: 12,
-    paddingTop: 8,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 19.6,
   },
 })

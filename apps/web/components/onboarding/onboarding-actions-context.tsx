@@ -1,40 +1,46 @@
 'use client'
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react'
+import { completeOnboardingOrQueue } from '@/hooks/use-onboarding-completion-queue'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { formatAPIDate } from '@orbit/shared/utils'
-import { profileKeys } from '@orbit/shared/query'
+import { profileKeys, resetAccountQueries } from '@orbit/shared/query'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import type { BulkHabitItem, CreateHabitRequest } from '@orbit/shared/types/habit'
 import type { CreateGoalRequest } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
+import { getOnboardingLoginUrl } from '@/lib/onboarding-login-route'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { useBulkCreateHabits, useCreateHabit, useLogHabit } from '@/hooks/use-habits'
+import { useBulkCreateHabits, useCreateHabit, useLogHabit, useUpdateHabit } from '@/hooks/use-habits'
 import { useCreateGoal } from '@/hooks/use-goals'
 import {
-  completeOnboarding,
-  updateColorScheme as updateColorSchemeAction,
   updateWeekStartDay as updateWeekStartDayAction,
 } from '@/lib/actions/profile'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
+
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 /** Canonical mode-blind action surface consumed by every onboarding step. */
 export interface OnboardingActions {
   createHabit: (input: CreateHabitRequest) => Promise<{ id: string; title: string }>
+  updateHabit: (habitId: string, input: CreateHabitRequest) => Promise<void>
   createHabitsBulk: (items: BulkHabitItem[]) => Promise<void>
   logHabit: (habitId: string) => Promise<void>
   createGoal: (input: CreateGoalRequest) => Promise<void>
   setWeekStartDay: (day: OnboardingWeekStartDay) => Promise<void>
-  setColorScheme: (scheme: string) => Promise<void>
+  deferPushRegistration: () => void
+  recordCompletion: () => Promise<void>
   finishOnboarding: () => Promise<void>
   onImport?: () => void
 }
 
 interface OnboardingActionsContextValue {
   actions: OnboardingActions
-  hasProAccess: boolean
   isLive: boolean
 }
 
@@ -43,18 +49,16 @@ const OnboardingActionsContext = createContext<OnboardingActionsContextValue | n
 /** Provides the active onboarding action surface (pre-auth buffering or post-auth live). */
 export function OnboardingActionsProvider({
   actions,
-  hasProAccess,
   isLive,
   children,
 }: Readonly<{
   actions: OnboardingActions
-  hasProAccess: boolean
   isLive: boolean
   children: ReactNode
 }>) {
   const value = useMemo(
-    () => ({ actions, hasProAccess, isLive }),
-    [actions, hasProAccess, isLive],
+    () => ({ actions, isLive }),
+    [actions, isLive],
   )
   return (
     <OnboardingActionsContext.Provider value={value}>
@@ -76,11 +80,6 @@ export function useOnboardingActions(): OnboardingActions {
   return useOnboardingActionsContext().actions
 }
 
-/** Whether the current onboarding mode grants Pro-gated steps (goal step, color scheme). */
-export function useOnboardingHasProAccess(): boolean {
-  return useOnboardingActionsContext().hasProAccess
-}
-
 /** Whether onboarding is running post-auth (live). False in the pre-auth buffering flow. */
 export function useOnboardingIsLive(): boolean {
   return useOnboardingActionsContext().isLive
@@ -89,6 +88,7 @@ export function useOnboardingIsLive(): boolean {
 /** Pre-auth actions: buffer every answer into the local draft store, then route to signup. */
 export function useBufferOnboardingActions(): OnboardingActions {
   const router = useRouter()
+  const loginUrl = getOnboardingLoginUrl(useSearchParams().toString(), true)
 
   return useMemo(
     () => ({
@@ -96,46 +96,39 @@ export function useBufferOnboardingActions(): OnboardingActions {
         const index = useOnboardingDraftStore.getState().bufferHabit(input)
         return Promise.resolve({ id: String(index), title: input.title })
       },
+      updateHabit: (habitId, input) => {
+        useOnboardingDraftStore.getState().replaceHabit(Number(habitId), input)
+        return Promise.resolve()
+      },
       createHabitsBulk: (items) => {
         const store = useOnboardingDraftStore.getState()
-        for (const item of items) {
-          store.bufferHabit({
-            title: item.title,
-            ...(item.emoji != null ? { emoji: item.emoji } : {}),
-            ...(item.frequencyUnit != null ? { frequencyUnit: item.frequencyUnit } : {}),
-            ...(item.frequencyQuantity != null
-              ? { frequencyQuantity: item.frequencyQuantity }
-              : {}),
-            ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
-          })
-        }
+        for (const item of items) store.bufferHabit({
+          title: item.title,
+          ...(item.emoji != null ? { emoji: item.emoji } : {}),
+          ...(item.frequencyUnit != null ? { frequencyUnit: item.frequencyUnit } : {}),
+          ...(item.frequencyQuantity != null ? { frequencyQuantity: item.frequencyQuantity } : {}),
+          ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
+        })
         return Promise.resolve()
       },
       logHabit: (habitId) => {
-        useOnboardingDraftStore
-          .getState()
-          .bufferFirstLog(Number(habitId), formatAPIDate(new Date()))
+        useOnboardingDraftStore.getState().bufferFirstLog(Number(habitId), formatAPIDate(new Date()))
         return Promise.resolve()
       },
-      createGoal: (input) => {
-        useOnboardingDraftStore.getState().bufferGoal(input)
-        return Promise.resolve()
-      },
-      setWeekStartDay: (day) => {
-        useOnboardingDraftStore.getState().bufferWeekStartDay(day)
-        return Promise.resolve()
-      },
-      setColorScheme: (scheme) => {
-        useOnboardingDraftStore.getState().bufferColorScheme(scheme)
+      createGoal: (input) => { useOnboardingDraftStore.getState().bufferGoal(input); return Promise.resolve() },
+      setWeekStartDay: (day) => { useOnboardingDraftStore.getState().bufferWeekStartDay(day); return Promise.resolve() },
+      deferPushRegistration: () => useOnboardingDraftStore.getState().markPushPermissionGranted(),
+      recordCompletion: () => {
+        useOnboardingDraftStore.getState().markOnboardingLocallyDone()
         return Promise.resolve()
       },
       finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
-        router.push('/login?from=onboarding')
+        router.push(loginUrl)
         return Promise.resolve()
       },
     }),
-    [router],
+    [loginUrl, router],
   )
 }
 
@@ -144,10 +137,28 @@ export function useLiveOnboardingActions(): OnboardingActions {
   const router = useRouter()
   const queryClient = useQueryClient()
   const t = useTranslations()
+  const { showPersistentError } = useAppToast()
   const createHabit = useCreateHabit()
+  const updateHabit = useUpdateHabit()
   const bulkCreateHabits = useBulkCreateHabits()
   const logHabit = useLogHabit()
   const createGoal = useCreateGoal()
+
+  const recordCompletion = useCallback(async () => {
+    const intendedAccountId = getHeldAccountId()
+
+    const accountGeneration = getAccountGeneration()
+    try {
+      await completeOnboardingOrQueue(intendedAccountId)
+    } catch (error) {
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+      throw error
+    }
+    if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+      showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+      throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 })
+    }
+  }, [showPersistentError, t])
 
   return useMemo(
     () => ({
@@ -155,31 +166,42 @@ export function useLiveOnboardingActions(): OnboardingActions {
         const result = await createHabit.mutateAsync(input)
         return { id: result.id, title: input.title }
       },
-      createHabitsBulk: async (items) => {
-        await bulkCreateHabits.mutateAsync({ habits: items })
+      updateHabit: async (habitId, input) => {
+        await updateHabit.mutateAsync({
+          habitId,
+          data: { ...input, isBadHabit: false, isGeneral: input.isGeneral ?? false, isFlexible: input.isFlexible ?? false, dueTime: input.dueTime ?? null },
+        })
       },
-      logHabit: async (habitId) => {
-        await logHabit.mutateAsync({ habitId })
-      },
-      createGoal: async (input) => {
-        await createGoal.mutateAsync(input)
-      },
+      createHabitsBulk: async (items) => { await bulkCreateHabits.mutateAsync({ habits: items }) },
+      logHabit: async (habitId) => { await logHabit.mutateAsync({ habitId, intent: 'log' }) },
+      createGoal: async (input) => { await createGoal.mutateAsync(input) },
       setWeekStartDay: async (day) => {
-        queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-          old ? { ...old, weekStartDay: day } : old,
-        )
-        await updateWeekStartDayAction({ weekStartDay: day })
-        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
-      },
-      setColorScheme: async (scheme) => {
-        await updateColorSchemeAction({ colorScheme: scheme })
-      },
-      finishOnboarding: async () => {
+        const intendedAccountId = getHeldAccountId()
+        const accountGeneration = getAccountGeneration()
+        queryClient.setQueryData<Profile>(profileKeys.detail(), (old) => old ? { ...old, weekStartDay: day } : old)
         try {
-          await completeOnboarding()
-        } catch {
-          void 0
+          await updateWeekStartDayAction({ weekStartDay: day }, intendedAccountId)
+          if (getHeldAccountId() === intendedAccountId && getAccountGeneration() === accountGeneration) {
+            void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+          }
+        } catch (error) {
+          if (reportsAccountChanged(error)) {
+            if (getHeldAccountId() === intendedAccountId && getAccountGeneration() === accountGeneration) {
+              void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
+            }
+            showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+          }
+          throw error
+
         }
+      },
+      deferPushRegistration: () => undefined,
+      recordCompletion,
+      finishOnboarding: async () => {
+        const intendedAccountId = getHeldAccountId()
+        const accountGeneration = getAccountGeneration()
+        await recordCompletion()
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )
@@ -192,9 +214,9 @@ export function useLiveOnboardingActions(): OnboardingActions {
             t('onboarding.flow.meetAstra.importPrompt'),
           )
         }
-        router.push('/chat')
+        router.push('/?astra=open')
       },
     }),
-    [bulkCreateHabits, createHabit, logHabit, createGoal, queryClient, router, t],
+    [bulkCreateHabits, createGoal, createHabit, logHabit, queryClient, recordCompletion, router, showPersistentError, t, updateHabit],
   )
 }

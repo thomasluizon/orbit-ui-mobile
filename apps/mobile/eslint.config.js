@@ -1,3 +1,4 @@
+const actionRows = require("../../eslint-rules/action-rows.cjs")
 // https://docs.expo.dev/guides/using-eslint/
 const { defineConfig } = require("eslint/config")
 const expoConfig = require("eslint-config-expo/flat")
@@ -6,7 +7,16 @@ const sonarjs = require("eslint-plugin-sonarjs")
 const reactHooks = require("eslint-plugin-react-hooks")
 const noComments = require("../../eslint-rules/no-comments.cjs")
 const noGorhomSheet = require("../../eslint-rules/no-gorhom-sheet.cjs")
+const noDynamicTailwindClass = require("../../eslint-rules/no-dynamic-tailwind-class.cjs")
+const noSpaceXY = require("../../eslint-rules/no-space-x-y.cjs")
+const requireFocusReplacement = require("../../eslint-rules/require-focus-replacement.cjs")
+const willChangeDiscipline = require("../../eslint-rules/will-change-discipline.cjs")
+const noSparkleAiMarker = require("../../eslint-rules/no-sparkle-ai-marker.cjs")
+const iconSizeGrid = require("../../eslint-rules/icon-size-grid.cjs")
+const noPillRadiusOnStatic = require("../../eslint-rules/no-pill-radius-on-static.cjs")
+const noOklch = require("../../eslint-rules/no-oklch-outside-web-tokens.cjs")
 const noFullbleedButton = require("../../eslint-rules/no-fullbleed-button.cjs")
+const maxButtonWords = require("../../eslint-rules/max-button-words.cjs")
 const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cjs")
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
 const noArbitraryZindex = require("../../eslint-rules/no-arbitrary-zindex.cjs")
@@ -21,6 +31,17 @@ const noScrollListenerMotion = require("../../eslint-rules/no-scroll-listener-mo
 const noSideStripeBorder = require("../../eslint-rules/no-side-stripe-border.cjs")
 const spacingScale = require("../../eslint-rules/spacing-scale.cjs")
 const noUnjustifiedDisable = require("../../eslint-rules/no-unjustified-disable.cjs")
+
+const maxButtonWordControls = [
+  { name: "button", labelProps: ["children"] },
+  { name: "PillButton", labelProps: ["children", "label"], iconOnly: true },
+  { name: "Button", labelProps: ["children", "label"], iconOnly: true },
+  { name: "Chip", labelProps: ["children"] },
+  { name: "Pressable", labelProps: ["children"], roles: ["button", "tab", "menuitem"] },
+  { name: "SegmentedControl", collectionProps: ["options"] },
+  { name: "BottomTabBar", collectionProps: ["items"] },
+  { name: "ListRow", labelProps: ["title", "action.label"], iconAction: true },
+]
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and
 // turns on its full recommended set (refs, immutability, purity, …) at error. This project owns
@@ -45,6 +66,7 @@ const patchedExpoConfig = expoConfigArray.map((c) => {
 })
 
 module.exports = defineConfig([
+  { linterOptions: { reportUnusedDisableDirectives: "error" } },
   ...patchedExpoConfig,
   ...tseslint.configs.recommendedTypeChecked,
   {
@@ -60,6 +82,14 @@ module.exports = defineConfig([
     plugins: { sonarjs },
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "error",
+      ...Object.fromEntries(
+        Object.keys(sonarjs.configs.recommended.rules ?? {})
+          .filter((full) => {
+            const rule = sonarjs.rules[full.replace("sonarjs/", "")]
+            return rule?.meta?.type === "problem" && rule?.meta?.docs?.recommended === true
+          })
+          .map((full) => [full, "error"]),
+      ),
       "sonarjs/cognitive-complexity": ["error", 15],
     },
   },
@@ -73,6 +103,7 @@ module.exports = defineConfig([
     plugins: {
       local: {
         rules: {
+          "action-rows": actionRows,
           "no-comments": noComments,
           "no-gorhom-sheet": noGorhomSheet,
           "no-fullbleed-button": noFullbleedButton,
@@ -90,38 +121,85 @@ module.exports = defineConfig([
           "no-side-stripe-border": noSideStripeBorder,
           "spacing-scale": spacingScale,
           "no-unjustified-disable": noUnjustifiedDisable,
+          "no-dynamic-tailwind-class": noDynamicTailwindClass,
+          "no-space-x-y": noSpaceXY,
+          "require-focus-replacement": requireFocusReplacement,
+          "will-change-discipline": willChangeDiscipline,
+          "no-sparkle-ai-marker": noSparkleAiMarker,
+          "icon-size-grid": iconSizeGrid,
+          "no-pill-radius-on-static": noPillRadiusOnStatic,
+          "no-oklch-outside-web-tokens": noOklch,
+          "max-button-words": maxButtonWords,
         },
       },
     },
     rules: {
+      "local/action-rows": "error",
       "local/no-comments": "error",
       // DESIGN.md's spacing scale is cross-platform, but this rule was registered
       // ONLY in apps/web, so mobile spacing was completely ungated while CLAUDE.md
       // described the gate without any platform qualifier. `error` from the start;
       // pre-existing mobile violations ride the committed suppressions baseline
+      // so only new or changed code fails.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
       "local/spacing-scale": "error",
       "local/no-gorhom-sheet": "error",
       "local/no-fullbleed-button": ["error", { flagFullWidthProp: true }],
       "no-console": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "lucide-react-native",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "@tabler/icons-react",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "@tabler/icons-react-native",
+              message: "Import icons from @/components/ui/icons.",
+            },
+          ],
+        },
+      ],
 
+      // CSS-specific rules have no React Native StyleSheet surface.
+      // `local/react19-api` remains scoped to web under #539.
       "local/animate-presence-exit": "error",
       "local/animate-presence-stable-key": "error",
       "local/no-arbitrary-zindex": "error",
       "local/no-double-assertion": "error",
       "local/no-draggable-onscroll": "error",
       "local/no-jsx-logical-and": "error",
+      "local/no-dynamic-tailwind-class": "error",
+      "local/no-space-x-y": "error",
+      "local/require-focus-replacement": "error",
+      "local/will-change-discipline": "error",
+      "local/no-sparkle-ai-marker": "error",
+      "local/icon-size-grid": "error",
+      "local/no-pill-radius-on-static": "error",
+      "local/no-oklch-outside-web-tokens": "error",
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",
       "local/no-scroll-listener-motion": "error",
       "local/no-side-stripe-border": "error",
       "local/no-unjustified-disable": "error",
 
-      // Decorative glow remains staged for #539. Ticket #381 removed gradients and closed its gate.
-      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      "local/no-decorative-glow": "warn",
+      "local/no-decorative-glow": "error",
       "local/no-raw-gradient": "error",
+      "local/max-button-words": ["error", { controls: maxButtonWordControls }],
     },
+  },
+  {
+    files: ["components/ui/icons.ts"],
+    rules: { "no-restricted-imports": "off" },
   },
   {
     files: [
@@ -146,13 +224,6 @@ module.exports = defineConfig([
       "**/*-no-data-state.tsx",
     ],
     rules: { "local/no-fullbleed-button": "off" },
-  },
-  {
-    files: ["app/(tabs)/calendar/_components/calendar-loading-bar.tsx"],
-    rules: {
-      // A moving progress indicator is the explicit non-decorative exception in #381.
-      "local/no-raw-gradient": "off",
-    },
   },
   {
     plugins: { "react-hooks": reactHooks },
@@ -182,6 +253,7 @@ module.exports = defineConfig([
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
     rules: {
       "local/no-fullbleed-button": "off",
+      "local/max-button-words": "off",
       "local/no-double-assertion": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-explicit-any": "off",
@@ -196,13 +268,7 @@ module.exports = defineConfig([
     },
   },
   {
-    files: [
-      "scripts/**/*.js",
-      "plugins/**/*.js",
-      "app.config.js",
-      "metro.config.js",
-      "babel.config.js",
-    ],
+    files: ["scripts/**/*.js", "plugins/**/*.js", "app.config.js", "metro.config.js", "babel.config.js"],
     languageOptions: {
       globals: {
         __dirname: "readonly",
@@ -221,6 +287,13 @@ module.exports = defineConfig([
     },
   },
   {
-    ignores: ["dist/*", ".expo/*", "eslint.config.js"],
+    ignores: [
+      "dist/**",
+      ".expo/**",
+      "android/**",
+      "ios/**",
+      "modules/*/android/build/**",
+      "eslint.config.js",
+    ],
   },
 ])

@@ -10,7 +10,7 @@ function habit(title: string): CreateHabitRequest {
 
 describe('onboarding draft store', () => {
   beforeEach(() => {
-    useOnboardingDraftStore.getState().reset()
+    useOnboardingDraftStore.setState(useOnboardingDraftStore.getInitialState())
     globalThis.localStorage.removeItem(STORAGE_KEY)
   })
 
@@ -33,14 +33,13 @@ describe('onboarding draft store', () => {
     store.bufferFirstLog(index, '2026-07-05')
     store.bufferGoal({ title: 'Run 100km', targetValue: 100, unit: 'km' })
     store.bufferWeekStartDay(1)
-    store.bufferColorScheme('blue')
 
     const payload = useOnboardingDraftStore.getState().buildApplyPayload()
     expect(payload.habits).toHaveLength(1)
     expect(payload.firstLog).toEqual({ habitIndex: 0, date: '2026-07-05' })
     expect(payload.goal?.title).toBe('Run 100km')
     expect(payload.weekStartDay).toBe(1)
-    expect(payload.colorScheme).toBe('blue')
+    expect(payload).not.toHaveProperty('colorScheme')
   })
 
   it('persists buffered answers to localStorage', () => {
@@ -83,7 +82,7 @@ describe('onboarding draft store', () => {
 
     const state = useOnboardingDraftStore.getState()
     expect(state.habits).toHaveLength(0)
-    expect(state.onboardingLocallyDone).toBe(false)
+    expect(state.onboardingLocallyDone).toBe(true)
     expect(state.hasPendingAnswers()).toBe(false)
   })
 })

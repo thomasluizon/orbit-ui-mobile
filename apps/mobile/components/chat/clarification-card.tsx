@@ -1,210 +1,72 @@
-import { useMemo, useState } from 'react'
-import {
-  View,
-  Text,
-  Pressable,
-  ActivityIndicator,
-  StyleSheet,
-} from 'react-native'
-import { Check } from 'lucide-react-native'
+import { useEffect, useState } from 'react'
+import { AccessibilityInfo, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import type { ClarificationRequest } from '@orbit/shared/types'
+import type { ClarificationRequest, PendingAgentOperation } from '@orbit/shared/types'
+import type { MessageBubbleProps, PendingOperationMessageState } from '@orbit/shared/chat'
+import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { ActionRow } from '@/components/ui/action-row'
+import { Button } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { PendingOperationCard } from './pending-operation-card'
 
-type AppTokens = ReturnType<typeof createTokensV2>
+type ClarificationCardProps = Readonly<{ clarificationRequest: ClarificationRequest; entityName?: string | null; pendingOperation?: PendingAgentOperation; savedState?: PendingOperationMessageState; onPreview?: (operation: PendingAgentOperation) => void; onStateChange?: (operationId: string, patch: PendingOperationMessageState) => void } & Pick<MessageBubbleProps,
+  'onPendingOperationRevise' | 'onPendingOperationRefresh' | 'onPendingOperationConfirmExecute' | 'onPendingOperationPrepareStepUp' | 'onPendingOperationVerifyStepUp' | 'onActionChipClick'>>
 
-interface ClarificationCardProps {
-  clarificationRequest: ClarificationRequest
-  entityName?: string | null
-}
-
-export function ClarificationCard({
-  clarificationRequest,
-  entityName,
-}: Readonly<ClarificationCardProps>) {
+export function ClarificationCard({ clarificationRequest, entityName, pendingOperation: savedPreview, savedState, onPreview, onStateChange, onPendingOperationRevise, onPendingOperationRefresh, onPendingOperationConfirmExecute, onPendingOperationPrepareStepUp, onPendingOperationVerifyStepUp, onActionChipClick }: ClarificationCardProps) {
   const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
   const resolve = useResolveClarification()
-  const styles = useMemo(() => createStyles(tokens), [tokens])
-
-  const [activeValue, setActiveValue] = useState<string | null>(null)
-  const [resolved, setResolved] = useState(false)
+  const trackCardOperation = useChatCardOperation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const [resolvedLabel, setResolvedLabel] = useState<string | null>(null)
   const [errorKey, setErrorKey] = useState<string | null>(null)
-
-  async function handleSelect(label: string, value: string) {
-    if (resolve.isPending || resolved) return
-    setActiveValue(value)
+  const [localPreview, setLocalPreview] = useState<PendingAgentOperation | null>(null)
+  const pendingOperation = savedPreview ?? localPreview
+  useEffect(() => {
+    if (pendingOperation) AccessibilityInfo.announceForAccessibility(t('chat.operation.pendingTitle'))
+  }, [pendingOperation, t])
+  const choose = async (label: string, value: string) => {
     setErrorKey(null)
-
     try {
-      const response = await resolve.mutateAsync({
-        operationId: clarificationRequest.operationId,
-        value,
-      })
-      if (response.operation.status !== 'Succeeded') {
-        setErrorKey('habits.clarification.errorGeneric')
-        return
+      const result = await trackCardOperation(() => resolve.mutateAsync({ operationId: clarificationRequest.operationId, value }))
+      if (result.operation.status === 'PendingConfirmation' && result.pendingOperation) {
+        setLocalPreview(result.pendingOperation)
+        onPreview?.(result.pendingOperation)
       }
-      setResolved(true)
-      setResolvedLabel(label)
-    } catch (err: unknown) {
-      const status =
-        typeof err === 'object' &&
-        err !== null &&
-        'status' in err &&
-        typeof (err as { status?: unknown }).status === 'number'
-          ? (err as { status: number }).status
-          : 0
-      setErrorKey(mapStatusToErrorKey(status))
-    } finally {
-      setActiveValue(null)
+      else if (result.operation.status !== 'Succeeded') setErrorKey('habits.clarification.errorGeneric')
+      else setResolvedLabel(label)
+    } catch (error: unknown) {
+      setErrorKey(errorKeyForStatus(errorStatus(error)))
     }
   }
-
-  if (resolved) {
-    return (
-      <View style={styles.card}>
-        <View style={styles.successRow}>
-          <View style={styles.successIcon}>
-            <Check size={14} color={tokens.statusDone} />
-          </View>
-          <Text style={styles.successText}>
-            {t('habits.clarification.successCreated', {
-              name: entityName ?? resolvedLabel ?? '',
-            })}
-          </Text>
-        </View>
-      </View>
-    )
-  }
-
+  if (pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp) return (
+    <PendingOperationCard pendingOperation={pendingOperation} savedState={savedState} onStateChange={(patch) => onStateChange?.(pendingOperation.id, patch)} focusTitleOnMount onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} />
+  )
   return (
-    <View style={styles.card}>
-      <Text style={styles.questionText}>
-        {t(clarificationRequest.question, {
-          defaultValue: clarificationRequest.question,
-        })}
-      </Text>
-
-      <View style={styles.actionsRow}>
-        {clarificationRequest.quickActions.map((action) => {
-          const label = t(action.label, { defaultValue: action.label })
-          const isActive = activeValue === action.value
-          const disabled = resolve.isPending
-
-          return (
-            <Pressable
-              key={action.value}
-              style={({ pressed }) => [
-                styles.chip,
-                isActive && styles.chipActive,
-                disabled && styles.chipDisabled,
-                pressed && !disabled && styles.chipPressed,
-              ]}
-              disabled={disabled}
-              onPress={() => void handleSelect(label, action.value)}
-              accessibilityRole="button"
-              accessibilityState={{ disabled }}
-            >
-              {isActive && <ActivityIndicator size="small" color={tokens.primary} />}
-              <Text style={styles.chipText}>{label}</Text>
-            </Pressable>
-          )
-        })}
+    <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={t(clarificationRequest.question, { defaultValue: clarificationRequest.question })} items={[]} actions={(
+      <View style={{ alignItems: 'flex-start', gap: 12 }}>
+        {resolvedLabel ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel })}</Text> : (
+          <ActionRow>{clarificationRequest.quickActions.map((action) => {
+            const label = t(action.label, { defaultValue: action.label })
+            return <Button key={action.value} variant="ghost" size="sm" disabled={resolve.isPending} onClick={() => void choose(label, action.value)}>{label}</Button>
+          })}</ActionRow>
+        )}
+        {errorKey ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{t(errorKey)}</Text> : null}
       </View>
-
-      {errorKey && (
-        <Text style={styles.errorText} accessibilityLiveRegion="polite" accessibilityRole="alert">
-          {t(errorKey)}
-        </Text>
-      )}
-    </View>
+    )} />
   )
 }
 
-function mapStatusToErrorKey(status: number): string {
+function errorStatus(error: unknown): number {
+  if (typeof error !== 'object' || error === null || !('status' in error)) return 0
+  return typeof error.status === 'number' ? error.status : 0
+}
+
+function errorKeyForStatus(status: number): string {
   if (status === 404 || status === 410) return 'habits.clarification.errorExpired'
   if (status === 409) return 'habits.clarification.errorAlreadyResolved'
   return 'habits.clarification.errorGeneric'
-}
-
-function createStyles(tokens: AppTokens) {
-  return StyleSheet.create({
-    card: {
-      backgroundColor: tokens.bgCard,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      borderRadius: 16,
-      padding: 16,
-      gap: 12,
-    },
-    questionText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.fg1,
-    },
-    actionsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-    },
-    chip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      minHeight: 44,
-      paddingHorizontal: 14,
-      borderRadius: 999,
-      backgroundColor: tokens.bgElev,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-    },
-    chipActive: {
-      borderColor: tokens.hairlineStrong,
-      backgroundColor: tokens.bgElev,
-    },
-    chipPressed: {
-      transform: [{ scale: 0.96 }],
-      backgroundColor: tokens.bgElev2,
-    },
-    chipDisabled: {
-      opacity: 0.5,
-    },
-    chipText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg1,
-    },
-    errorText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 12,
-      color: tokens.statusBadText,
-    },
-    successRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 4,
-    },
-    successIcon: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: `${tokens.statusDone}33`,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    successText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.statusDone,
-    },
-  })
 }

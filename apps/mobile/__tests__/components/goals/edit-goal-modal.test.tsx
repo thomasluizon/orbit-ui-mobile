@@ -1,11 +1,85 @@
-import { describe, expect, it } from 'vitest'
+import { createApiClientError } from '@orbit/shared/utils'
+import React, { useImperativeHandle } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import {
   buildGoalTitle,
   isGoalDeadlinePast,
   parseGoalTargetValue,
 } from '@orbit/shared/utils/goal-form'
+import { EditGoalDeadlineField } from '@/components/goals/edit-goal-modal/edit-goal-deadline-field'
+import { EditGoalModal } from '@/components/goals/edit-goal-modal'
+import { createStyles } from '@/components/goals/edit-goal-modal/styles'
+import { createTokensV2 } from '@/lib/theme'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+
+const TestRenderer = require('react-test-renderer')
+
+const mocks = vi.hoisted(() => ({
+  focus: vi.fn(),
+  mutateAsync: vi.fn(),
+  showError: vi.fn(),
+}))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}))
+vi.mock('@/components/ui/date-field', () => ({
+  DateField: () => React.createElement('DateField'),
+}))
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
+  BottomSheetAppTextInput: React.forwardRef(function Input(props: Record<string, unknown>, ref) {
+    useImperativeHandle(ref, () => ({ focus: () => mocks.focus(props.accessibilityLabel, props.accessibilityHint) }))
+    return React.createElement('BottomSheetAppTextInput', props)
+  }),
+}))
+vi.mock('@/hooks/use-goals', () => ({
+  useUpdateGoal: () => ({ mutateAsync: mocks.mutateAsync, isPending: false, error: null }),
+}))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: mocks.showError }),
+}))
+
+const goal = {
+  id: 'g1',
+  title: 'Run 100km',
+  targetValue: 100,
+  unit: 'km',
+  deadline: '2026-12-31',
+  type: 'Standard',
+}
+
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) return flattenText((node as { props: { children?: unknown } }).props.children)
+  return ''
+}
+
+function renderModal(onClose = vi.fn()) {
+  let tree: any
+  TestRenderer.act(() => { tree = TestRenderer.create(<EditGoalModal open onClose={onClose} goal={goal} />) })
+  const input = (label: string) => tree.root.findAll((node: any) => node.type === 'BottomSheetAppTextInput' && node.props.accessibilityLabel === label)[0]
+  const save = () => tree.root.findAll((node: any) => typeof node.props.onPress === 'function' && flattenText(node) === 'common.save')[0]
+  return { tree, input, save }
+}
+
+beforeEach(() => {
+  mocks.focus.mockReset()
+  mocks.mutateAsync.mockReset()
+  mocks.showError.mockReset()
+})
 
 describe('EditGoalModal helpers', () => {
+
   it('keeps the written description when editing a goal', () => {
     expect(buildGoalTitle('Run daily', '12', 'km')).toBe('Run daily')
   })
@@ -18,4 +92,118 @@ describe('EditGoalModal helpers', () => {
   it('treats future deadlines as valid', () => {
     expect(isGoalDeadlinePast('2025-06-16', '2025-06-15')).toBe(false)
   })
+
+  it.each(['dark', 'light'] as const)('keeps the remove-deadline graphic visible on the sheet in %s', (mode) => {
+    const tokens = createTokensV2('purple', mode)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <EditGoalDeadlineField
+          tokens={tokens}
+          styles={createStyles(tokens)}
+          deadline="2026-10-01"
+          onChangeDeadline={vi.fn()}
+        />,
+      )
+    })
+    const removeIcon = tree!.root.findByType('X')
+
+    expect(contrastOnSurface(removeIcon.props.color as string, [tokens.bgElev]))
+      .toBeGreaterThanOrEqual(3)
+  })
+
+  it('pins Cancel and Save in the sheet footer, never in the scrolling body', () => {
+    const { tree } = renderModal()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'common.save'])
+    expectSmallSheetActions(tree.root)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.cancel')
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.save')
+  })
+
+  it('announces required fields without marking the optional description required', () => {
+    const { input } = renderModal()
+
+    expect(input('goals.form.description').props.accessibilityHint).toBeUndefined()
+    expect(input('goals.form.targetValue').props.accessibilityHint).toBe('common.required')
+    expect(input('goals.form.unit').props.accessibilityHint).toBe('common.required')
+  })
+
+  it('associates every inline error and focuses each first remaining invalid field', async () => {
+    const { tree, input, save } = renderModal()
+    await TestRenderer.act(() => {
+      input('goals.form.description').props.onChangeText('')
+      input('goals.form.targetValue').props.onChangeText('')
+      input('goals.form.unit').props.onChangeText('')
+    })
+
+    await TestRenderer.act(() => save().props.onPress())
+
+    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.targetValue', 'common.required. goals.form.targetValueRequired')
+    expect(mocks.showError).toHaveBeenLastCalledWith('goals.form.targetValueRequired')
+    expect(input('goals.form.description').props.accessibilityHint).toBeUndefined()
+    expect(input('goals.form.targetValue').props.accessibilityHint).toContain('goals.form.targetValueRequired')
+    expect(input('goals.form.unit').props.accessibilityHint).toContain('goals.form.unitRequired')
+    expect(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')).toHaveLength(0)
+
+    await TestRenderer.act(() => {
+      input('goals.form.targetValue').props.onChangeText('10')
+    })
+    await TestRenderer.act(() => save().props.onPress())
+
+    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.unit', 'common.required. goals.form.unitRequired')
+    mocks.mutateAsync.mockResolvedValueOnce(undefined)
+    await TestRenderer.act(() => {
+      input('goals.form.unit').props.onChangeText('km')
+    })
+    await TestRenderer.act(async () => {
+      save().props.onPress()
+      await Promise.resolve()
+    })
+    expect(mocks.mutateAsync).toHaveBeenCalledOnce()
+  })
+})
+
+
+it('places legacy server validation beside each edited goal field and clears only an edited field', async () => {
+  mocks.showError.mockClear()
+  mocks.mutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Title: ['Server title failure'], Unit: ['Server unit failure'] } }, 'Fallback'))
+  const { tree, input, save } = renderModal()
+  await TestRenderer.act(async () => { await save().props.onPress() })
+  expect(input('goals.form.description').props.accessibilityHint).toBe('Server title failure')
+  expect(input('goals.form.unit').props.accessibilityHint).toContain('Server unit failure')
+  expect(mocks.focus).toHaveBeenCalledWith('goals.form.description', 'Server title failure')
+  expect(mocks.showError).not.toHaveBeenCalled()
+  TestRenderer.act(() => input('goals.form.description').props.onChangeText('Updated title'))
+  expect(input('goals.form.description').props.accessibilityHint).toBeUndefined()
+  expect(input('goals.form.unit').props.accessibilityHint).toContain('Server unit failure')
+  TestRenderer.act(() => tree.unmount())
+})
+
+
+it('focuses the mapped goal field while retaining general failures in a mixed response', async () => {
+  mocks.mutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Unit: ['Server unit failure'], HabitIds: ['Server linked habit failure'] } }, 'Fallback'))
+  const onClose = vi.fn()
+  const { tree, input, save } = renderModal(onClose)
+  try {
+    await TestRenderer.act(async () => { await save().props.onPress() })
+    expect(input('goals.form.unit').props.value).toBe('km')
+    expect(input('goals.form.unit').props.accessibilityHint).toBe('common.required. Server unit failure')
+    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.unit', 'common.required. Server unit failure')
+    expect(mocks.showError).toHaveBeenCalledWith(expect.stringContaining('Server linked habit failure'))
+    expect(tree.root.findByType('Sheet').props.open).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    mocks.focus.mockClear()
+    await TestRenderer.act(async () => { await save().props.onPress() })
+    expect(mocks.mutateAsync).toHaveBeenCalledTimes(2)
+    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.unit', 'common.required. Server unit failure')
+    await TestRenderer.act(() => input('goals.form.unit').props.onChangeText('miles'))
+    expect(input('goals.form.unit').props.accessibilityHint).toBe('common.required')
+    mocks.mutateAsync.mockResolvedValueOnce(undefined)
+    await TestRenderer.act(async () => { await save().props.onPress() })
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(mocks.mutateAsync).toHaveBeenLastCalledWith({ goalId: 'g1', data: expect.objectContaining({ unit: 'miles' }) })
+  } finally {
+    await TestRenderer.act(() => tree.unmount())
+  }
 })

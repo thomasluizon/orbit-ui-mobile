@@ -29,11 +29,12 @@ jobs:
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: git diff --name-only --diff-filter=ACMRD "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/changed-paths.txt"
+        run: bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"
 
       - name: Read current pull request text
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
         env:
+          CHECK_DASHES: ${{ github.event.pull_request.user.type != 'Bot' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -42,26 +43,8 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" \
             --jq '{title,body,labels:[.labels[].name]}' > "$RUNNER_TEMP/pr-metadata.json"
 
-      - name: Validate current pull request text
-        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
-        env:
-          CHECK_DASHES: ${{ github.event.pull_request.user.type != 'Bot' }}
-        run: |
           node .github/scripts/check-pr-metadata.mjs "$RUNNER_TEMP/pr-metadata.json" "$RUNNER_TEMP/pr-body.md" \
             --changed-files-file "$RUNNER_TEMP/changed-paths.txt"
-
-      - name: Check suppressions ratchet with current labels
-        if: ${{ !cancelled() }}
-        run: |
-          node --input-type=module - "$RUNNER_TEMP/pr-metadata.json" <<'NODE'
-          import { readFileSync } from "node:fs"
-          import { spawnSync } from "node:child_process"
-          const { labels } = JSON.parse(readFileSync(process.argv[2], "utf8"))
-          if (!labels.includes("ratchet:reseed")) {
-            const result = spawnSync(process.execPath, ["tools/check-suppressions-ratchet.mjs"], { stdio: "inherit" })
-            process.exit(result.status ?? 1)
-          }
-          NODE
 
       - name: Check UI review evidence
         if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}

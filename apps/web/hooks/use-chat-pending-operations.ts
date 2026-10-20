@@ -1,85 +1,151 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import type { RevisePendingOperationRequest } from '@orbit/shared/types/ai'
+import type { ServerActionResult } from '@/app/actions/action-result'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import {
   confirmPendingOperation,
   executePendingOperation,
   issuePendingOperationStepUp,
+  revisePendingOperation,
+  refreshPendingOperation,
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
 import { accountIntentWithOrigin, runServerActionResult } from '@/lib/client-action'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 type PendingExecutionResult =
   | { ok: true; response: AgentExecuteOperationResponse }
-  | { ok: false; error: string }
+  | { ok: false; error: string; stale?: boolean }
 
-function accountRefusalResult(error: unknown, t: (key: string) => string): PendingExecutionResult {
-  if (!reportsAccountChanged(error)) throw error
-  return { ok: false, error: t('errors.api.accountChanged') }
+function pendingOperationError(
+  failure: { error: string; code?: string },
+  t: ReturnType<typeof useTranslations>,
+): string {
+  return reportsAccountChanged(failure)
+    ? t('errors.api.accountChanged')
+    : getFriendlyErrorMessage(failure.error, t, 'chat.sendError', 'generic')
+}
+
+function isStalePreviewFailure(failure: { status?: number; error: string; code?: string }): boolean {
+  return failure.status === 409 && !reportsAccountChanged(failure)
+}
+
+function accountChanged(id: string | null, generation: number): boolean {
+  return getHeldAccountId() !== id || getAccountGeneration() !== generation
+}
+
+function accountChangedResult(t: ReturnType<typeof useTranslations>) {
+  return { ok: false as const, error: t('errors.api.accountChanged') }
+}
+
+async function runChatAction<T>(action: Promise<ServerActionResult<T>>): Promise<ServerActionResult<T> | null> {
+  try {
+    return await runServerActionResult(action)
+  } catch (error) {
+    if (!reportsAccountChanged(error)) throw error
+    return null
+  }
 }
 
 /**
  * Confirm/execute and step-up verification flows for chat pending operations.
  * Routes through the chat Server Actions and forwards a successful execution to
- * `onExecuted` so the composer can append the resulting message + invalidate.
+ * `onExecuted` so the composer can invalidate affected queries.
  */
 export function useChatPendingOperations(
   onExecuted: (response: AgentExecuteOperationResponse) => Promise<void>,
 ) {
   const t = useTranslations()
   const locale = useLocale()
+  const [batchCount, setBatchCount] = useState(0)
+  const trackBatch = useCallback(async <Result,>(operation: () => Promise<Result>) => {
+    setBatchCount((count) => count + 1)
+    try { return await operation() }
+    finally { setBatchCount((count) => count - 1) }
+  }, [])
+
+  const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
+    const response = await runChatAction(revisePendingOperation(id, request, accountIntentWithOrigin(intendedAccountId)))
+    if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
+    if (!response) return accountChangedResult(t)
+    if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
+    return response.ok
+      ? { ok: true as const, result: response.data }
+      : { ok: false as const, error: pendingOperationError(response, t), stale: isStalePreviewFailure(response) }
+  }, [t])
+
+  const refreshPendingOperationForBubble = useCallback(async (id: string) => {
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
+    const response = await runChatAction(refreshPendingOperation(id, accountIntentWithOrigin(intendedAccountId)))
+    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+    if (!response) return accountChangedResult(t)
+    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+    return response.ok
+      ? { ok: true as const, result: response.data }
+      : { ok: false as const, error: pendingOperationError(response, t), stale: isStalePreviewFailure(response) }
+  }, [t])
 
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
-    try {
-    const intendedAccountId = accountIntentWithOrigin(getHeldAccountId())
-    const confirmation = await runServerActionResult(confirmPendingOperation(pendingOperationId, intendedAccountId))
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
+    const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId)))
+    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+    if (!confirmation) return accountChangedResult(t)
+    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
     if (!confirmation.ok) {
-      return { ok: false, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
+      return { ok: false, error: pendingOperationError(confirmation, t), ...(isStalePreviewFailure(confirmation) ? { stale: true } : {}) }
     }
 
-    const execution = await runServerActionResult(executePendingOperation(
+    const execution = await runChatAction(executePendingOperation(
       pendingOperationId,
       confirmation.data.confirmationToken,
-      intendedAccountId,
+      accountIntentWithOrigin(intendedAccountId),
     ))
+    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+    if (!execution) return accountChangedResult(t)
+    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
 
     if (!execution.ok) {
-      return { ok: false, error: getFriendlyErrorMessage(execution.error, t, 'chat.sendError', 'generic') }
+      return { ok: false, error: pendingOperationError(execution, t), ...(isStalePreviewFailure(execution) ? { stale: true } : {}) }
     }
 
     await onExecuted(execution.data)
     return { ok: true, response: execution.data }
-    } catch (error) {
-      return accountRefusalResult(error, t)
-    }
   }, [onExecuted, t])
 
   const prepareStepUpForBubble = useCallback(
     async (pendingOperationId: string) => {
-      try {
-      const intendedAccountId = accountIntentWithOrigin(getHeldAccountId())
-      const confirmation = await runServerActionResult(confirmPendingOperation(pendingOperationId, intendedAccountId))
+      const intendedAccountId = getHeldAccountId()
+      const accountGeneration = getAccountGeneration()
+      const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId)))
+      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+      if (!confirmation) return accountChangedResult(t)
+      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
       if (!confirmation.ok) {
-        return { ok: false as const, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
+        return { ok: false as const, error: pendingOperationError(confirmation, t), stale: isStalePreviewFailure(confirmation) }
       }
 
-      const challenge = await runServerActionResult(issuePendingOperationStepUp(pendingOperationId, locale, intendedAccountId))
+      const challenge = await runChatAction(issuePendingOperationStepUp(pendingOperationId, locale, accountIntentWithOrigin(intendedAccountId)))
+      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+      if (!challenge) return accountChangedResult(t)
+      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
       if (!challenge.ok) {
-        return { ok: false as const, error: getFriendlyErrorMessage(challenge.error, t, 'chat.sendError', 'generic') }
+        return { ok: false as const, error: pendingOperationError(challenge, t), stale: isStalePreviewFailure(challenge) }
       }
 
       return {
         ok: true as const,
         challengeId: challenge.data.challengeId,
         confirmationToken: confirmation.data.confirmationToken,
-      }
-      } catch (error) {
-        return accountRefusalResult(error, t)
       }
     },
     [locale, t],
@@ -92,36 +158,58 @@ export function useChatPendingOperations(
       code: string,
       confirmationToken: string,
     ) => {
-      try {
-      const intendedAccountId = accountIntentWithOrigin(getHeldAccountId())
-      const verification = await runServerActionResult(verifyPendingOperationStepUp(
+      const intendedAccountId = getHeldAccountId()
+      const accountGeneration = getAccountGeneration()
+      const verification = await runChatAction(verifyPendingOperationStepUp(
         pendingOperationId,
         challengeId,
         code,
-        intendedAccountId,
+        accountIntentWithOrigin(intendedAccountId),
       ))
+      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+      if (!verification) return accountChangedResult(t)
+      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
 
       if (!verification.ok) {
-        return { ok: false as const, error: getFriendlyErrorMessage(verification.error, t, 'chat.sendError', 'generic') }
+        return { ok: false as const, error: pendingOperationError(verification, t), stale: isStalePreviewFailure(verification) }
       }
 
-      const execution = await runServerActionResult(executePendingOperation(pendingOperationId, confirmationToken, intendedAccountId))
+      const execution = await runChatAction(executePendingOperation(
+        pendingOperationId,
+        confirmationToken,
+        accountIntentWithOrigin(intendedAccountId),
+      ))
+      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+      if (!execution) return accountChangedResult(t)
+      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
       if (!execution.ok) {
-        return { ok: false as const, error: getFriendlyErrorMessage(execution.error, t, 'chat.sendError', 'generic') }
+        return { ok: false as const, error: pendingOperationError(execution, t), stale: isStalePreviewFailure(execution) }
       }
 
       await onExecuted(execution.data)
       return { ok: true as const, response: execution.data }
-      } catch (error) {
-        return accountRefusalResult(error, t)
-      }
     },
     [onExecuted, t],
   )
 
+  const trackedRevise = useCallback((...args: Parameters<typeof revisePendingOperationForBubble>) =>
+    trackBatch(() => revisePendingOperationForBubble(...args)), [revisePendingOperationForBubble, trackBatch])
+  const trackedRefresh = useCallback((...args: Parameters<typeof refreshPendingOperationForBubble>) =>
+    trackBatch(() => refreshPendingOperationForBubble(...args)), [refreshPendingOperationForBubble, trackBatch])
+  const trackedExecute = useCallback((...args: Parameters<typeof confirmAndExecutePendingOperation>) =>
+    trackBatch(() => confirmAndExecutePendingOperation(...args)), [confirmAndExecutePendingOperation, trackBatch])
+  const trackedPrepare = useCallback((...args: Parameters<typeof prepareStepUpForBubble>) =>
+    trackBatch(() => prepareStepUpForBubble(...args)), [prepareStepUpForBubble, trackBatch])
+  const trackedVerify = useCallback((...args: Parameters<typeof verifyStepUpForBubble>) =>
+    trackBatch(() => verifyStepUpForBubble(...args)), [verifyStepUpForBubble, trackBatch])
+
   return {
-    confirmAndExecutePendingOperation,
-    prepareStepUpForBubble,
-    verifyStepUpForBubble,
+    isPendingOperationBusy: batchCount > 0,
+    trackCardOperation: trackBatch,
+    revisePendingOperationForBubble: trackedRevise,
+    refreshPendingOperationForBubble: trackedRefresh,
+    confirmAndExecutePendingOperation: trackedExecute,
+    prepareStepUpForBubble: trackedPrepare,
+    verifyStepUpForBubble: trackedVerify,
   }
 }

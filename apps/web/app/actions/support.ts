@@ -6,7 +6,8 @@ import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export async function sendSupportMessage(
-  payload: SupportRequestBody, intendedAccountId: string | null
+  payload: SupportRequestBody,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.support.send, {
     method: 'POST',

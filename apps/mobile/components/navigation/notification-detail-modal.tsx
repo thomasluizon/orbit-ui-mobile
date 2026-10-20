@@ -1,16 +1,20 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
   formatNotificationRelativeTime,
-  getNotificationDestination,
   getNotificationDetailActionVisibility,
+  getNotificationTargetKey,
+  getNotificationDestination,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { Button } from '@/components/ui/pill-button'
+import { useQueryClient } from '@tanstack/react-query'
+import { openCurrentProactiveItem } from '@/lib/proactive-item'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface NotificationDetailModalProps {
@@ -21,7 +25,6 @@ interface NotificationDetailModalProps {
   onDelete: (id: string) => void
 }
 
-/** Sheet chrome with a mono timestamp eyebrow, body copy, and quiet text-button actions. */
 export function NotificationDetailModal({
   open,
   onClose,
@@ -30,38 +33,62 @@ export function NotificationDetailModal({
   onDelete,
 }: Readonly<NotificationDetailModalProps>) {
   const { t } = useTranslation()
+  const { width } = useWindowDimensions()
+  const targetKey = getNotificationTargetKey(notification.url, notification.habitId)
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(
     notification,
   )
 
   function handleView() {
     const destination = getNotificationDestination(notification.url, notification.habitId)
-    if (destination) {
-      scheduleExitAction(() => router.push(destination.url))
+    if (!destination) return
+    closeSheet(() => {
       onClose()
-    }
+      router.push(destination.url)
+      if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
+    })
   }
 
   function handleDelete() {
     onDelete(notification.id)
-    onClose()
+    closeSheet()
   }
 
   return (
-    <BottomSheetModal
-      open={open}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={onClose}
-      onDidDismiss={runExitAction}
       title={notification.title}
-      snapPoints={['50%', '92%']}
+      titleMode="typed"
+      actions={
+        <>
+          {canMarkAsRead ? (
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:213 (D42) */
+            <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
+              {t('notifications.markAsRead')}
+            </Button>
+          ) : null}
+          {canView ? (
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:209 (D42) */
+            <Button variant={width >= 1024 ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
+              {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
+            </Button>
+          ) : null}
+          <Button variant="destructive" size="sm" onClick={handleDelete}>
+            {t('notifications.delete')}
+          </Button>
+        </>
+      }
     >
       <View style={styles.container}>
         <Text style={styles.timestamp}>
@@ -69,125 +96,31 @@ export function NotificationDetailModal({
             notification.createdAtUtc,
             (key, values) => t(`notifications.${key}`, values),
           )}
+          {targetKey ? ` · ${t(targetKey)}` : null}
         </Text>
         <Text style={styles.bodyText}>{notification.body}</Text>
-
-        <View style={styles.actions}>
-          {canView ? (
-            <QuietAction
-              label={t('notifications.view')}
-              color={tokens.primary}
-              onPress={handleView}
-              primary
-            />
-          ) : null}
-          {canMarkAsRead ? (
-            <QuietAction
-              label={t('notifications.markAsRead')}
-              color={tokens.fg2}
-              onPress={() => onMarkAsRead(notification.id)}
-            />
-          ) : null}
-          <QuietAction
-            label={t('notifications.delete')}
-            color={tokens.statusBad}
-            onPress={handleDelete}
-          />
-        </View>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
-
-function QuietAction({
-  label,
-  color,
-  onPress,
-  primary = false,
-}: Readonly<{ label: string; color: string; onPress: () => void; primary?: boolean }>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
-  const surface = {
-    rest: primary ? tintFromPrimary(tokens, 0.1) : tokens.bgElev,
-    pressed: primary ? tintFromPrimary(tokens, 0.16) : tokens.bgElev2,
-    border: primary ? tintFromPrimary(tokens, 0.28) : tokens.hairline,
-  }
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={{ top: 4, bottom: 4 }}
-      style={({ pressed }) => [
-        quietActionStyles.chip,
-        {
-          backgroundColor: pressed ? surface.pressed : surface.rest,
-          borderColor: surface.border,
-        },
-        pressed && quietActionStyles.pressed,
-      ]}
-    >
-      <Text style={[quietActionStyles.label, { color }]}>{label}</Text>
-    </Pressable>
-  )
-}
-
-const quietActionStyles = StyleSheet.create({
-  chip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    transform: [{ scale: 0.96 }],
-  },
-  label: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-  },
-})
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     container: {
-      flex: 1,
-      paddingBottom: 24,
+      paddingBottom: SPACING.s8,
+      gap: 12,
     },
     timestamp: {
-      paddingHorizontal: 20,
-      paddingTop: 4,
-      paddingBottom: 10,
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
-      color: tokens.fg3,
-      letterSpacing: 0.24,
+      color: tokens.fg2,
       fontVariant: ['tabular-nums'],
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
     },
     bodyText: {
-      paddingHorizontal: 20,
-      paddingTop: 14,
-      paddingBottom: 16,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 17,
       color: tokens.fg2,
-      lineHeight: 23,
-    },
-    actions: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      gap: 10,
-      paddingHorizontal: 20,
-      paddingTop: 4,
+      lineHeight: 26.35,
     },
   })
 }

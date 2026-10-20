@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 2 · hábito, detalhe</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Hábito, detalhe · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" sheets="{{ sheetsEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:8px 16px 0">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px" aria-busy="true">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,72px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="stat-tile" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,180px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ tLoading }}" hint-size="100%,240px"></x-import>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showBody }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:32px;padding-bottom:8px">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;align-items:center;gap:16px">
+                  <div aria-hidden="true" style="width:56px;height:56px;flex:0 0 auto;display:grid;place-items:center;background:var(--bg-well);border-radius:var(--r-well);font-size:28px">💧</div>
+                  <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                    <h1 style="font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tName }}</h1>
+                    <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums"><span data-mock="true">08:00</span> · {{ tFreq }}<sc-if value="{{ isFrozen }}" hint-placeholder-val="{{ false }}"> · {{ tFrozen }}</sc-if></p>
+                  </div>
+                </div>
+                <sc-if value="{{ hasLogs }}" hint-placeholder-val="{{ true }}">
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--fg-2);font-variant-numeric:tabular-nums">{{ tSeqPre }} <span data-mock="true">12</span> {{ tDays }} · <span data-mock="true">83%</span> {{ tLastLower }} <span data-mock="true">30</span> {{ tDays }}</p>
+                </sc-if>
+              </div>
+              <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,240px"></x-import>
+              </sc-if>
+              <sc-if value="{{ hasLogs }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tHistPre }} <span data-mock="true">30</span> {{ tDays }}</p>
+                  <div role="img" aria-label="{{ tGridLabel }}" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;justify-items:center">
+                    <sc-for list="{{ wdays }}" as="w" hint-placeholder-count="7">
+                      <span aria-hidden="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);text-transform:uppercase;letter-spacing:var(--track-label)">{{ w }}</span>
+                    </sc-for>
+                    <sc-for list="{{ cells }}" as="c" hint-placeholder-count="34">
+                      <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:24px;height:24px"></span></sc-if>
+                      <sc-if value="{{ c.show }}" hint-placeholder-val="{{ true }}">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatusRing" status="{{ c.st }}" size="{{ n24 }}" label="{{ c.label }}" hint-size="24px,24px"></x-import>
+                      </sc-if>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tGoals }}</x-import>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="target" title="{{ tGoal1 }}" value="{{ goal1Val }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="target" title="{{ tGoal2 }}" value="{{ goal2Val }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tDescTitle }}</x-import>
+                <p style="max-width:65ch;font-size:var(--fs-md);line-height:1.65;color:var(--fg-2);text-wrap:pretty">{{ tDescBody }}</p>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="pencil" title="{{ tEdit }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="calendar-time" title="{{ tResched }}" value="{{ schedVal }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="snowflake" title="{{ tFreezeRow }}" description="{{ tFreezeDesc }}" chevron="{{ false }}" on-click="{{ toggleFreeze }}" hint-size="100%,64px"></x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="archive" title="{{ tArchive }}" description="{{ tArchDesc }}" chevron="{{ false }}" on-click="{{ openArch }}" hint-size="100%,64px"></x-import>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Hábito, detalhe · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="hoje" on-create="{{ noop }}" create-label="{{ tCreate }}" account="Thomas" rail="{{ railEl }}" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px" aria-busy="true">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,72px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="stat-tile" rows="{{ n1 }}" label="{{ tLoading }}" hint-size="100%,180px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ tLoading }}" hint-size="100%,240px"></x-import>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showBody }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:32px">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;align-items:center;gap:16px">
+                  <div aria-hidden="true" style="width:56px;height:56px;flex:0 0 auto;display:grid;place-items:center;background:var(--bg-well);border-radius:var(--r-well);font-size:28px">💧</div>
+                  <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                    <h1 style="font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tName }}</h1>
+                    <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums"><span data-mock="true">08:00</span> · {{ tFreq }}<sc-if value="{{ isFrozen }}" hint-placeholder-val="{{ false }}"> · {{ tFrozen }}</sc-if></p>
+                  </div>
+                </div>
+                <sc-if value="{{ hasLogs }}" hint-placeholder-val="{{ true }}">
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--fg-2);font-variant-numeric:tabular-nums">{{ tSeqPre }} <span data-mock="true">12</span> {{ tDays }} · <span data-mock="true">83%</span> {{ tLastLower }} <span data-mock="true">30</span> {{ tDays }}</p>
+                </sc-if>
+              </div>
+              <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyActionWide }}" hint-size="100%,240px"></x-import>
+              </sc-if>
+              <sc-if value="{{ hasLogs }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tHistPre }} <span data-mock="true">30</span> {{ tDays }}</p>
+                  <div role="img" aria-label="{{ tGridLabel }}" style="display:grid;grid-template-columns:repeat(7,44px);gap:12px;justify-items:center;justify-content:start">
+                    <sc-for list="{{ wdays }}" as="w" hint-placeholder-count="7">
+                      <span aria-hidden="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);text-transform:uppercase;letter-spacing:var(--track-label)">{{ w }}</span>
+                    </sc-for>
+                    <sc-for list="{{ cells }}" as="c" hint-placeholder-count="34">
+                      <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:24px;height:24px"></span></sc-if>
+                      <sc-if value="{{ c.show }}" hint-placeholder-val="{{ true }}">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatusRing" status="{{ c.st }}" size="{{ n24 }}" label="{{ c.label }}" hint-size="24px,24px"></x-import>
+                      </sc-if>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tGoals }}</x-import>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="target" title="{{ tGoal1 }}" value="{{ goal1Val }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="target" title="{{ tGoal2 }}" value="{{ goal2Val }}" on-click="{{ noop }}" hint-size="100%,56px"></x-import>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ tDescTitle }}</x-import>
+                <p style="max-width:65ch;font-size:var(--fs-md);line-height:1.65;color:var(--fg-2);text-wrap:pretty">{{ tDescBody }}</p>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+      {{ sheetsEl }}
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    isFrozen: false, archOpen: false,
+    cv: {mode:'dark', width:'412', state:'default', locale:'pt-BR'}
+  };
+  componentDidMount(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  componentDidUpdate(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  history = ['done','done','skip','done','done','done','empty','done','done','done','done','skip','done','done','done','done','empty','done','done','done','done','done','done','done','done','done','done','done','done','empty'];
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      nav:'Habit', name:'Morning water', freq:'every day', frozen:'frozen',
+      seqPre:'streak of', days:'days', lastLower:'in the last', histPre:'last',
+      gridLabel:'History of the last 30 days: 25 done, 2 skipped, 3 without a log',
+      goals:'Linked goals', goal1:'Drink more water', goal2:'Calmer mornings',
+      descTitle:'Description',
+      descBody:'A tall glass of water right after waking, before coffee and before the phone. The bottle goes on the nightstand the night before, so the morning holds no decision at all. On days that start away from home any glass counts; the point is the gesture, not the exact measure.',
+      edit:'Edit', resched:'Reschedule', freeze:'Freeze', unfreeze:'Unfreeze',
+      freezeDesc:'Pauses the habit without losing history.',
+      archive:'Archive', archDesc:'You can restore it at any time.',
+      archTitle:'Archive habit',
+      archBody:'Morning water leaves Today and its stats. You can restore it at any time.',
+      cancel:'Cancel', emptyTitle:'No log yet', logToday:'Log today',
+      errMsg:'Could not load this habit. Check your connection and try again.',
+      retry:'Try again', loading:'Loading', create:'Create habit',
+      wdays:['m','t','w','t','f','s','s'], tabs:['Today','Goals','Astra','Profile']
+    } : {
+      nav:'Hábito', name:'Água da manhã', freq:'todos os dias', frozen:'congelado',
+      seqPre:'sequência de', days:'dias', lastLower:'nos últimos', histPre:'últimos',
+      gridLabel:'Histórico dos últimos 30 dias: 25 feitos, 2 pulados, 3 sem registro',
+      goals:'Metas vinculadas', goal1:'Beber mais água', goal2:'Manhãs sem pressa',
+      descTitle:'Descrição',
+      descBody:'Um copo grande de água logo depois de acordar, antes do café e antes do celular. A garrafa fica na mesa de cabeceira na noite anterior, então de manhã não existe decisão nenhuma a tomar. Se o dia começar fora de casa, qualquer copo conta; o objetivo é o gesto, não a medida exata.',
+      edit:'Editar', resched:'Reagendar', freeze:'Congelar', unfreeze:'Descongelar',
+      freezeDesc:'Pausa o hábito sem perder o histórico.',
+      archive:'Arquivar', archDesc:'Você pode restaurar a qualquer momento.',
+      archTitle:'Arquivar hábito',
+      archBody:'Água da manhã sai de Hoje e das estatísticas. Você pode restaurar a qualquer momento.',
+      cancel:'Cancelar', emptyTitle:'Nenhum registro ainda', logToday:'Registrar hoje',
+      errMsg:'Não foi possível carregar este hábito. Verifique sua conexão e tente de novo.',
+      retry:'Tentar de novo', loading:'Carregando', create:'Criar hábito',
+      wdays:['s','t','q','q','s','s','d'], tabs:['Hoje','Metas','Astra','Perfil']
+    };
+    const cstate = cv.state;
+    const isLoading = cstate==='loading', isEmpty = cstate==='empty', isError = cstate==='error';
+    const isWide = cv.width==='wide';
+    const showBody = !isLoading && !isError;
+    const hasLogs = showBody && !isEmpty;
+    const mockEl = t => E('span', {'data-mock':'true'}, t);
+    const noop = () => {};
+    const hist = st.isFrozen ? this.history.slice(0,29).concat(['frozen']) : this.history;
+    const cells = [{pad:true,show:false},{pad:true,show:false},{pad:true,show:false},{pad:true,show:false}]
+      .concat(hist.map(s => ({pad:false, show:true, st:s})));
+    const tabs = [
+      {id:'hoje',label:T.tabs[0],icon:'home'},
+      {id:'metas',label:T.tabs[1],icon:'target'},
+      {id:'astra',label:T.tabs[2],astra:true},
+      {id:'perfil',label:T.tabs[3],icon:'user'}];
+    const tabBarEl = DS.TabBar ? E(DS.TabBar,{items:tabs,activeId:'hoje'}) : null;
+    const openArch = () => this.setState({archOpen:true});
+    const closeArch = () => this.setState({archOpen:false});
+    const archSheet = (DS.Sheet && DS.Button) ? E(DS.Sheet, {open:st.archOpen, title:T.archTitle, onClose:closeArch,
+      actions:E(React.Fragment,null,
+        E(DS.Button,{variant:'ghost',size:'sm',onClick:closeArch},T.cancel),
+        E(DS.Button,{size:'sm',onClick:closeArch},T.archive))},
+      E('p',{style:{fontSize:'var(--fs-base)',color:'var(--fg-2)',lineHeight:1.5,paddingBottom:8,maxWidth:'65ch'}}, T.archBody)) : null;
+    const errAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>{
+      this.setState(s=>({cv:{...s.cv,state:'loading'}}));
+      setTimeout(()=>this.setState(s=>s.cv.state==='loading'?{cv:{...s.cv,state:'default'}}:null), 900);
+    }}, T.retry) : null;
+    const emptyAction = DS.Button ? E(DS.Button,{size:'sm',onClick:noop}, T.logToday) : null;
+    const emptyActionWide = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:noop}, T.logToday) : null;
+    const rail = (isWide && hasLogs) ? E('div',{style:{background:'var(--bg-card)',borderRadius:'var(--r-card)',boxShadow:'inset 0 0 0 1px var(--hairline-ghost)',overflow:'hidden'}},
+      E(DS.ListRow,{icon:'pencil',title:T.edit,onClick:noop}),
+      E(DS.ListRow,{icon:'calendar-time',title:T.resched,value:mockEl('08:00'),onClick:noop}),
+      E(DS.ListRow,{icon:'snowflake',title:st.isFrozen?T.unfreeze:T.freeze,description:T.freezeDesc,chevron:false,onClick:()=>this.setState(s=>({isFrozen:!s.isFrozen}))}),
+      E(DS.ListRow,{icon:'archive',title:T.archive,description:T.archDesc,chevron:false,onClick:openArch})) : null;
+    return {
+      mode:cv.mode, cv,
+      setCv:next=>this.setState({cv:next, archOpen:false}),
+      cvStates:['default','loading','empty','error'],
+      is412:!isWide, isWide, tabs, tabBarEl, railEl:rail,
+      noop, sheetsEl:archSheet,
+      isLoading, isError, isEmpty, showBody, hasLogs, isFrozen:st.isFrozen,
+      tNav:T.nav, tName:T.name, tFreq:T.freq, tFrozen:T.frozen,
+      tSeqPre:T.seqPre, tDays:T.days, tLastLower:T.lastLower, tHistPre:T.histPre, tGridLabel:T.gridLabel,
+      wdays:T.wdays, cells,
+      tGoals:T.goals, tGoal1:T.goal1, tGoal2:T.goal2,
+      goal1Val:mockEl(en?'12 of 30':'12 de 30'), goal2Val:mockEl(en?'3 of 21':'3 de 21'),
+      schedVal:mockEl('08:00'),
+      tDescTitle:T.descTitle, tDescBody:T.descBody,
+      tEdit:T.edit, tResched:T.resched,
+      tFreezeRow:st.isFrozen?T.unfreeze:T.freeze, tFreezeDesc:T.freezeDesc,
+      tArchive:T.archive, tArchDesc:T.archDesc,
+      tEmptyTitle:T.emptyTitle, tErrMsg:T.errMsg, tLoading:T.loading, tCreate:T.create,
+      emptyAction, emptyActionWide, errAction, openArch,
+      toggleFreeze:()=>this.setState(s=>({isFrozen:!s.isFrozen})),
+      n1:1, n4:4, n24:24
+    };
+  }
+}
+</script>
+</body>
+</html>

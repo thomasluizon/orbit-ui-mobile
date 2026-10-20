@@ -1,222 +1,122 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
-import { Check, Plus, Loader2 } from 'lucide-react'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+
 import { useTranslations } from 'next-intl'
-import { plural } from '@/lib/plural'
-import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import {
-  buildBreakdownCreateRequest,
-  filterValidBreakdownHabits,
-} from '@orbit/shared/utils'
+import { useCallback, useId, useRef, useState, type RefObject } from 'react'
+import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
+import type { BulkCreateRequest } from '@orbit/shared/types/habit'
+import { useBreakdownSuggestionState } from '@/hooks/use-breakdown-suggestion-state'
+import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
+import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
+import { getBreakdownCadenceKey } from '@orbit/shared/utils'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { Button } from '@/components/ui/pill-button'
+import { Menu } from '@/components/ui/menu'
+import { AlertTriangle, MoreVertical, Plus, Trash2 } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
-import { PillButton } from '@/components/ui/pill-button'
-import {
-  BreakdownHabitRow,
-  type EditableHabit,
-} from './breakdown-habit-row'
 
-interface BreakdownSuggestionProps {
-  parentName: string
-  subHabits: SuggestedSubHabit[]
-  onConfirmed: () => void
-  onCancelled: () => void
+function buildBreakdownRows({ card, t, editingDisabled }: Readonly<{ card: ReturnType<typeof useBreakdownSuggestionState>; t: ReturnType<typeof useTranslations>; editingDisabled: boolean }>) {
+  const visibleHabits = card.completed ? card.habits.filter((habit) => card.results[habit.id] === 'done') : card.habits
+  return visibleHabits.map((habit) => ({
+    id: habit.id,
+    wrapLabel: true,
+    editable: !editingDisabled,
+    label: card.editingId === habit.id || habit.title.trim() === '' ? (
+      <input disabled={editingDisabled} autoFocus={card.editingId === habit.id} placeholder={t('habits.form.newHabit')} onFocus={() => card.setEditingId(habit.id)} data-focus-perimeter="" aria-label={t('chat.preview.editName', { name: habit.title.trim() || t('habits.form.newHabit') })} className="min-h-[var(--touch-min)] w-full rounded-[8px] border-0 bg-[var(--bg-field)] px-3 text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight] sm:text-sm" value={habit.title} onBlur={() => card.setEditingId(null)} onChange={(event) => card.editTitle(habit.id, event.target.value)} />
+    ) : <PersonalTextDetails outset proposed={habit.proposed && card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
+    meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
+    status: card.results[habit.id],
+    proposed: habit.proposed && card.results[habit.id] == null,
+    irreversible: card.results[habit.id] == null,
+    control: card.results[habit.id] == null ? (
+      <><button type="button" disabled={editingDisabled} aria-label={t('chat.breakdown.frequency', { name: habit.title.trim() || t('habits.form.newHabit') })} className="min-h-[var(--touch-min)] rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => card.cycleCadence(habit.id)}>
+        {t(getBreakdownCadenceKey(habit.frequencyUnit))}
+      </button>
+      {!card.hasSubmitted ? <Button variant="ghost" quiet iconOnly minimumHeight={TOUCH_TARGET_MIN} disabled={editingDisabled} label={t('habits.breakdown.removeHabit', { name: habit.title.trim() || t('chat.breakdown.unnamedHabit') })} onClick={() => card.setRemovalId(habit.id)}>
+        <Trash2 aria-hidden="true" size={20} strokeWidth={1.5} />
+      </Button> : null}</>
+    ) : undefined,
+  }))
 }
 
-type IdentifiedHabit = EditableHabit & { id: string }
-
-function emptyHabit(id: string): IdentifiedHabit {
-  return {
-    id,
-    title: '',
-    description: '',
-    frequencyUnit: null,
-    frequencyQuantity: null,
-    days: null,
-    isBadHabit: false,
-    dueDate: null,
-    checklistItems: null,
-  }
-}
-
-function RichBoldPrimary(chunks: React.ReactNode): React.ReactNode {
-  return <span className="text-[var(--primary)] font-semibold">{chunks}</span>
-}
-
-export function BreakdownSuggestion({
-  parentName,
-  subHabits,
-  onConfirmed,
-  onCancelled,
-}: Readonly<BreakdownSuggestionProps>) {
+function BreakdownActions({ card, isPending, editingDisabled, warning, parentName, actionsRef }: Readonly<{ actionsRef: RefObject<HTMLButtonElement | null>; card: ReturnType<typeof useBreakdownSuggestionState>; isPending: boolean; editingDisabled: boolean; warning?: ConflictWarning | null; parentName: string }>) {
   const t = useTranslations()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuId = useId()
+  const createErrorKey = card.hasSubmitted ? 'habits.breakdown.retryError' : 'habits.breakdown.createError'
+  const isEmpty = card.habits.length === 0
+  const addVariant = isEmpty ? 'primary' : 'ghost'
+  const approveVariant = isEmpty ? 'secondary' : 'primary'
+  return (
+<>
+    <p role="status" className={card.capacityDenied ? 'basis-full text-sm text-[var(--fg-2)]' : 'sr-only'}>{card.capacityDenied ? t('habits.breakdown.capacityDenied') : ''}</p>
+        <p role="status" className={card.atCapacity && !card.hasSubmitted ? 'basis-full text-sm text-[var(--fg-2)]' : 'sr-only'}>{card.atCapacity && !card.hasSubmitted ? t('habits.breakdown.limit', { limit: MAX_BULK_OPERATION_SIZE }) : ''}</p>
+        <p role="alert" className={card.createError ? 'basis-full text-sm text-[var(--status-bad-text)]' : 'sr-only'}>{card.createError ? t(createErrorKey) : ''}</p>
+        {warning?.hasConflict ? <p className="flex basis-full items-center gap-2 text-sm text-[var(--fg-2)]"><AlertTriangle aria-hidden="true" size={16} className="text-[var(--status-overdue)]" />{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</p> : null}
+        {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
+        {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : (
+          <>
+            <Button size="sm" variant={addVariant} leadingIcon={<Plus aria-hidden="true" size={16} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button>
+            <Button buttonRef={actionsRef} size="sm" variant="ghost" iconOnly label={t('habits.actions.more')} controlsId={menuId} hasPopup="menu" expanded={menuOpen && !editingDisabled} disabled={editingDisabled} onClick={() => setMenuOpen(!menuOpen)}>
+              <MoreVertical aria-hidden="true" size={20} />
+            </Button>
+            <Menu id={menuId} open={menuOpen && !editingDisabled} anchorRef={actionsRef} title={t('habits.actions.more')} restoreFocusOnSelect={false}
+              items={[
+                { id: 'edit', label: t('chat.preview.edit'), icon: 'pencil', disabled: editingDisabled || isEmpty },
+                { id: 'reject', label: t('chat.preview.reject'), disabled: editingDisabled },
+              ]}
+              onClose={() => setMenuOpen(false)}
+              onSelect={(id) => { if (id === 'edit') card.setEditingId(card.habits[0]?.id ?? null); else if (id === 'reject') card.reject() }} />
+            <Button size="sm" variant={approveVariant} disabled={editingDisabled || card.habits.length === 0} loading={isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button>
+          </>
+        )}
+    </>
+  )
+}
+
+export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
+  const t = useTranslations()
+  const actionsRef = useRef<HTMLButtonElement>(null)
   const bulkCreate = useBulkCreateHabits()
+  const trackCardOperation = useChatCardOperation()
+  const { mutateAsync } = bulkCreate
+  const createHabits = useCallback((request: BulkCreateRequest) =>
+    trackCardOperation(() => mutateAsync(request)), [mutateAsync, trackCardOperation])
+  const card = useBreakdownSuggestionState({
+    subHabits,
+    parentName,
+    onBulkCreate: createHabits,
+    onConfirmed,
+  })
 
-  const [habits, setHabits] = useState<IdentifiedHabit[]>(() =>
-    subHabits.map((h, index) => ({
-      id: `sub-${index}`,
-      title: h.title,
-      description: h.description ?? '',
-      frequencyUnit: h.frequencyUnit ?? null,
-      frequencyQuantity: h.frequencyQuantity ?? null,
-      days: h.days ?? null,
-      isBadHabit: h.isBadHabit ?? false,
-      dueDate: h.dueDate ?? null,
-      checklistItems: h.checklistItems ?? null,
-    })),
-  )
-  const nextHabitIdRef = useRef(subHabits.length)
+  const removalHabit = card.habits.find((habit) => habit.id === card.removalId)
+  const isPending = bulkCreate.isPending || card.isSubmitting
+  const editingDisabled = isPending || card.groupingLocked
 
-  const [isCreated, setIsCreated] = useState(false)
-  const [createdCount, setCreatedCount] = useState(0)
-  const [createAsParent, setCreateAsParent] = useState(false)
-  const [createError, setCreateError] = useState('')
+  if (card.rejected) return <p role="status" className="rounded-[12px] bg-[var(--bg-well)] p-3 text-sm text-[var(--fg-2)]">{t('chat.preview.rejected', { name: parentName })}</p>
 
-  const frequencyOptions = useMemo(() => [
-    { value: '', label: t('habits.filter.oneTime') },
-    { value: 'Day', label: t('habits.filter.daily') },
-    { value: 'Week', label: t('habits.filter.weekly') },
-    { value: 'Month', label: t('habits.filter.monthly') },
-    { value: 'Year', label: t('habits.filter.yearly') },
-  ], [t])
-
-  const validHabits = useMemo(
-    () => filterValidBreakdownHabits(habits),
-    [habits],
-  )
-
-  function updateHabit(index: number, patch: Partial<EditableHabit>) {
-    setHabits((prev) => prev.map((h, i) => (i === index ? { ...h, ...patch } : h)))
-  }
-
-  function removeHabit(index: number) {
-    setHabits((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  function addHabit() {
-    const id = `new-${nextHabitIdRef.current++}`
-    setHabits((prev) => [...prev, emptyHabit(id)])
-  }
-
-  async function handleConfirm() {
-    if (validHabits.length === 0) return
-    setCreateError('')
-
-    try {
-      await bulkCreate.mutateAsync(
-        buildBreakdownCreateRequest(validHabits, parentName, createAsParent),
-      )
-      setCreatedCount(validHabits.length)
-      setIsCreated(true)
-      onConfirmed()
-    } catch (err: unknown) {
-      setCreateError(
-        process.env.NODE_ENV === 'development' && err instanceof Error
-          ? err.message
-          : t('errors.bulkCreateHabits'),
-      )
-    }
-  }
-
-  const isSubmitting = bulkCreate.isPending
-
-  if (isCreated) {
-    return (
-      <div className="rounded-[16px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
-        <div className="flex items-center gap-2 py-2">
-          <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
-            <Check className="size-3.5 text-[var(--status-done)]" />
-          </div>
-          <p className="text-sm font-medium text-[var(--status-done)]">
-            {createAsParent
-              ? plural(t('habits.breakdown.createAsParentSuccess', { name: parentName, n: createdCount }), createdCount)
-              : plural(t('habits.breakdown.createdSuccess', { n: createdCount }), createdCount)}
-          </p>
-        </div>
-      </div>
-    )
-  }
+  const rows = buildBreakdownRows({ card, t, editingDisabled })
 
   return (
-    <div className="rounded-[16px] bg-[var(--bg-card)] p-4 space-y-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
-      <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontWeight: 500,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {t.rich('habits.breakdown.breakInto', {
-          name: RichBoldPrimary,
-        })}
-      </p>
-
-      <div className="space-y-3">
-        {habits.map((habit, index) => (
-          <BreakdownHabitRow
-            key={habit.id}
-            habit={habit}
-            frequencyOptions={frequencyOptions}
-            onUpdate={(patch) => updateHabit(index, patch)}
-            onRemove={() => removeHabit(index)}
-          />
-        ))}
-      </div>
-
-      <button
-        type="button"
-        className="flex min-h-[44px] items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
-        onClick={addHabit}
-      >
-        <Plus className="size-3.5" />
-        {t('habits.breakdown.addHabit')}
-      </button>
-
-      <label
-        htmlFor="breakdown-create-as-parent"
-        className="flex min-h-[44px] items-center gap-2 cursor-pointer select-none w-fit active:scale-[0.96] transition-transform duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
-      >
-        <input
-          id="breakdown-create-as-parent"
-          type="checkbox"
-          checked={createAsParent}
-          onChange={(e) => setCreateAsParent(e.target.checked)}
-          className="hidden"
-        />
-        <div
-          aria-hidden="true"
-          className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--fg-3)]'}`}
-        >
-          {createAsParent && <Check className="size-2.5 text-[var(--fg-on-primary)]" />}
-        </div>
-        <span className="text-xs text-[var(--fg-2)]">
-          {t('habits.breakdown.createAsParent')}
-        </span>
+    <>
+    <BlockFrame state={isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} titleMode="typed" items={rows} body={card.completed ? null : (
+      <div className="min-w-0 shrink-0">
+      {card.habits.length === 0 ? <div className="flex flex-col items-center gap-6 text-center text-[var(--fg-2)]"><AstraGlyph size={96} color="var(--fg-1)" /><p className="text-sm">{t('chat.breakdown.empty')}</p></div> : null}
+      <label className="flex min-h-[var(--touch-min)] w-full shrink-0 items-start gap-1 rounded-[12px] px-2 py-3 text-sm text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--fg-1)] has-[:disabled]:pointer-events-none has-[:disabled]:opacity-60">
+        <input type="checkbox" name="createAsParent" className="sr-only" checked={card.createAsParent} disabled={isPending || card.groupingLocked} onChange={(event) => card.setCreateAsParent(event.target.checked)} />
+        <Checkbox as="span" checked={card.createAsParent} onChange={card.setCreateAsParent} />
+        <span className="min-w-0 flex-1">{t('habits.breakdown.createAsParent')}</span>
       </label>
-
-      {createError && <p className="text-xs text-[var(--status-bad)]">{createError}</p>}
-
-      <div className="flex gap-2 pt-1">
-        <PillButton
-          className="flex-1 py-[11px]! text-[14px]!"
-          disabled={validHabits.length === 0 || isSubmitting}
-          onClick={() => {
-            void handleConfirm()
-          }}
-          leading={isSubmitting ? <Loader2 className="size-3.5 animate-spin" /> : undefined}
-        >
-          {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
-        </PillButton>
-        <PillButton
-          variant="ghost"
-          className="py-[11px]! text-[14px]! px-[18px]!"
-          disabled={isSubmitting}
-          onClick={onCancelled}
-        >
-          {t('common.cancel')}
-        </PillButton>
+      <div role="status">{card.groupingDenied ? <p className="text-pretty text-sm text-[var(--fg-2)]">{t('habits.breakdown.groupingDenied')}</p> : null}</div>
       </div>
-    </div>
+    )} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={card.completed ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('chat.action.completed')}</p> : <BreakdownActions actionsRef={actionsRef} card={card} isPending={isPending} editingDisabled={editingDisabled} warning={warning} parentName={parentName} />} />
+    <ConfirmSheet open={card.confirmOpen} title={t('chat.breakdown.confirmTitle')} message={t('chat.breakdown.confirmBody', { name: parentName })} confirmLabel={t('chat.breakdown.confirm')} onCancel={() => card.setConfirmOpen(false)} onConfirm={() => { card.setConfirmOpen(false); void card.submit() }} />
+      <ConfirmSheet open={removalHabit != null} title={t('chat.breakdown.removeTitle')} message={t('chat.breakdown.removeBody', { name: removalHabit?.title.trim() || t('chat.breakdown.unnamedHabit') })} confirmLabel={t('chat.operation.remove')} destructive loading={isPending} onCancel={() => card.setRemovalId(null)} onConfirm={() => { card.removeHabit(); actionsRef.current?.focus() }} />
+    </>
   )
 }

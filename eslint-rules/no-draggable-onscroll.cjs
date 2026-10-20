@@ -1,4 +1,3 @@
-
 const { getAttribute, getElementName } = require('./_jsx-strings.cjs')
 
 const DRAGGABLE_ELEMENT = 'DraggableFlatList'

@@ -1,21 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { calendarKeys } from '@orbit/shared/query'
 import React from 'react'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
+import { useCalendarEvents } from '@/hooks/use-calendar-events'
+import { setAccountId } from '@/lib/account-scope'
 
-const mockPush = vi.fn()
 const mockPatchProfile = vi.fn()
-const mockApplyScheme = vi.fn()
 const mockApplyTheme = vi.fn()
+const mockFetch = vi.fn()
+
+vi.stubGlobal('fetch', mockFetch)
 
 const profileRef = vi.hoisted(() => ({
-  value: {} as { hasProAccess: boolean; weekStartDay: 0 | 1; colorScheme: string } | undefined,
+  value: {} as { hasProAccess: boolean; weekStartDay: 0 | 1; colorScheme: string; timeZone: string; uses24HourClock: boolean } | undefined,
 }))
 const authRef = vi.hoisted(() => ({ isAuthenticated: true }))
+const heldAccount = vi.hoisted(() => ({ id: null as string | null }))
+const showPersistentError = vi.hoisted(() => vi.fn())
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
-vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
+vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
+  useTranslations: () => (key: string) => key,
+}))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError }) }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: profileRef.value, patchProfile: mockPatchProfile }),
 }))
@@ -23,20 +32,28 @@ vi.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: () => ({
     currentScheme: 'purple',
     currentTheme: 'dark',
-    applyScheme: mockApplyScheme,
     applyTheme: mockApplyTheme,
   }),
 }))
-vi.mock('@/stores/auth-store', () => ({
-  getHeldAccountId: () => null,
-  getAccountGeneration: () => 0,
-  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) =>
-    selector({ isAuthenticated: authRef.isAuthenticated }),
-}))
+vi.mock('@/stores/auth-store', () => {
+  const getState = () => ({
+    isAuthenticated: authRef.isAuthenticated,
+    confirmSessionRefreshFailure: vi.fn(),
+    recoverSessionRefreshFailure: vi.fn(),
+  })
+  return {
+    getHeldAccountId: () => heldAccount.id,
+    useAuthStore: Object.assign(
+      (selector: (state: { isAuthenticated: boolean }) => unknown) => selector(getState()),
+      { getState },
+    ),
+  }
+})
 vi.mock('@/lib/actions/profile', () => ({
   updateWeekStartDay: vi.fn(),
-  updateColorScheme: vi.fn(),
+  updateClockFormat: vi.fn(),
   updateLanguage: vi.fn(),
+  updateTimezone: vi.fn(),
 }))
 
 const reloadMock = vi.fn()
@@ -49,12 +66,36 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(QueryClientProvider, { client: queryClient }, children)
 }
 
+function wrapperFor(queryClient: QueryClient) {
+  return function QueryWrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+  }
+}
+
+function calendarEvent(startDate: string) {
+  return {
+    id: 'meeting',
+    title: 'Meeting',
+    description: null,
+    startDate,
+    startTime: '00:30',
+    endTime: '01:00',
+    isRecurring: false,
+    recurrenceRule: null,
+    reminders: [],
+  }
+}
+
 describe('usePreferenceControls', () => {
   beforeEach(() => {
+    setAccountId(null)
     vi.clearAllMocks()
+    mockFetch.mockReset()
+    mockPatchProfile.mockReset()
     localStorage.clear()
-    profileRef.value = { hasProAccess: true, weekStartDay: 0, colorScheme: 'purple' }
+    profileRef.value = { hasProAccess: true, weekStartDay: 0, colorScheme: 'purple', timeZone: 'UTC', uses24HourClock: true }
     authRef.isAuthenticated = true
+    heldAccount.id = 'account-a'
     Object.defineProperty(globalThis, 'location', {
       configurable: true,
       value: { reload: reloadMock, href: 'http://localhost/', pathname: '/' },
@@ -83,7 +124,7 @@ describe('usePreferenceControls', () => {
       await result.current.handleLanguageChange('pt-BR')
     })
 
-    expect(updateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' })
+    expect(updateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' }, 'account-a')
     expect(document.cookie).toContain('i18n_locale=pt-BR')
     expect(reloadMock).toHaveBeenCalledTimes(1)
     expect(result.current.selectedLanguage).toBe('pt-BR')
@@ -100,6 +141,27 @@ describe('usePreferenceControls', () => {
 
     expect(reloadMock).not.toHaveBeenCalled()
     await waitFor(() => expect(result.current.selectedLanguage).toBe('en'))
+  })
+
+  it('keeps the next account locale after an account switch refusal', async () => {
+    const { updateLanguage } = await import('@/lib/actions/profile')
+    let rejectUpdate: ((error: unknown) => void) | undefined
+    vi.mocked(updateLanguage).mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectUpdate = reject
+    }))
+    heldAccount.id = 'account-a'
+    const { result } = renderHook(() => usePreferenceControls(), { wrapper })
+
+    let change: Promise<void> | undefined
+    act(() => { change = result.current.handleLanguageChange('pt-BR') })
+    heldAccount.id = 'account-b'
+    await act(async () => {
+      rejectUpdate?.({ code: 'ACCOUNT_CHANGED', status: 409 })
+      await change
+    })
+
+    expect(document.cookie).toContain('i18n_locale=pt-BR')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'errorScreen.reload')
   })
 
   it('skips the backend call but still reloads when unauthenticated', async () => {
@@ -125,7 +187,7 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenCalledWith({ weekStartDay: 1 })
-    expect(updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 1 })
+    expect(updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 1 }, 'account-a')
   })
 
   it('rolls the week-start day back on error', async () => {
@@ -140,19 +202,94 @@ describe('usePreferenceControls', () => {
     expect(mockPatchProfile).toHaveBeenLastCalledWith({ weekStartDay: 0 })
   })
 
-  it('applies and persists a scheme the user is entitled to', () => {
+  it('writes and rolls back the profile clock choice', async () => {
+    const { updateClockFormat } = await import('@/lib/actions/profile')
+    vi.mocked(updateClockFormat).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('offline'))
     const { result } = renderHook(() => usePreferenceControls(), { wrapper })
-    act(() => result.current.handleSchemeChange('blue'))
-    expect(mockApplyScheme).toHaveBeenCalledWith('blue')
-    expect(mockPatchProfile).toHaveBeenCalledWith({ colorScheme: 'blue' })
+
+    await act(async () => { await result.current.clockFormatMutation.mutateAsync(false) })
+    expect(mockPatchProfile).toHaveBeenCalledWith({ uses24HourClock: false })
+    expect(updateClockFormat).toHaveBeenCalledWith({ uses24HourClock: false }, 'account-a')
+
+    await act(async () => { await result.current.clockFormatMutation.mutateAsync(false).catch(() => undefined) })
+    expect(mockPatchProfile).toHaveBeenLastCalledWith({ uses24HourClock: true })
   })
 
-  it('routes a free user to upgrade instead of applying a locked scheme', () => {
-    profileRef.value = { hasProAccess: false, weekStartDay: 0, colorScheme: 'purple' }
+  it('writes the selected timezone and updates the profile optimistically', async () => {
+    const { updateTimezone } = await import('@/lib/actions/profile')
+    vi.mocked(updateTimezone).mockResolvedValue(undefined)
     const { result } = renderHook(() => usePreferenceControls(), { wrapper })
-    act(() => result.current.handleSchemeChange('blue'))
-    expect(mockPush).toHaveBeenCalledWith('/upgrade')
-    expect(mockApplyScheme).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await result.current.timeZoneMutation.mutateAsync('America/Sao_Paulo')
+    })
+
+    expect(mockPatchProfile).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' }, 'account-a')
+  })
+
+  it('refetches every calendar event timezone after the timezone write settles', async () => {
+    const { updateTimezone } = await import('@/lib/actions/profile')
+    let settleTimezoneWrite!: () => void
+    vi.mocked(updateTimezone).mockReturnValue(
+      new Promise((resolve) => {
+        settleTimezoneWrite = () => resolve(undefined)
+      }),
+    )
+    mockPatchProfile.mockImplementation((patch: { timeZone: string }) => {
+      profileRef.value = { ...profileRef.value!, ...patch }
+    })
+    let resolveOptimisticRequest!: (response: Response) => void
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([calendarEvent('2026-09-13')]),
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOptimisticRequest = resolve
+        }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([calendarEvent('2026-09-12')]),
+      })
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    })
+    const { result, rerender } = renderHook(
+      () => ({
+        controls: usePreferenceControls(),
+        events: useCalendarEvents({ timeZone: profileRef.value?.timeZone ?? null }),
+      }),
+      { wrapper: wrapperFor(queryClient) },
+    )
+    await waitFor(() => expect(result.current.events.data?.status).toBe('connected'))
+
+    act(() => result.current.controls.timeZoneMutation.mutate('America/Los_Angeles'))
+    await waitFor(() => expect(profileRef.value?.timeZone).toBe('America/Los_Angeles'))
+    rerender()
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+
+    settleTimezoneWrite()
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(3))
+    await act(async () => {
+      resolveOptimisticRequest({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([calendarEvent('2026-09-13')]),
+      } as Response)
+    })
+    await waitFor(() => expect(result.current.events.data).toEqual({
+      status: 'connected',
+      events: [calendarEvent('2026-09-12')],
+    }))
+    expect(
+      queryClient.getQueryState([...calendarKeys.all, 'manual-fetch', 'UTC'])?.isInvalidated,
+    ).toBe(true)
   })
 
   it('ignores a theme change to the already-active mode', () => {
@@ -169,5 +306,15 @@ describe('usePreferenceControls', () => {
     act(() => result.current.toggleShowGeneral())
     expect(result.current.showGeneralOnToday).toBe(true)
     expect(localStorage.getItem('orbit_show_general_on_today:signed-out')).toBe('true')
+  })
+
+  it('shows the next account preference in a mounted panel', () => {
+    setAccountId('account-a')
+    localStorage.setItem('orbit_show_general_on_today:account-a', 'true')
+    const { result } = renderHook(() => usePreferenceControls(), { wrapper })
+    expect(result.current.showGeneralOnToday).toBe(true)
+
+    act(() => setAccountId('account-b'))
+    expect(result.current.showGeneralOnToday).toBe(false)
   })
 })

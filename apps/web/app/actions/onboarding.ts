@@ -9,15 +9,20 @@ import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export async function applyOnboarding(
-  payload: ApplyOnboardingRequest, intendedAccountId: string | null
+  payload: ApplyOnboardingRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<ApplyOnboardingResponse>> {
-  return wrapServerAction(() => serverAuthMutate<ApplyOnboardingResponse>(API.profile.onboardingApply, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }, intendedAccountId))
+  return wrapServerAction(
+    () => serverAuthMutate<ApplyOnboardingResponse>(API.profile.onboardingApply, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, intendedAccountId),
+  )
 }
 
-export async function dismissImportPrompt(intendedAccountId: string | null): Promise<ServerActionResult<void>> {
+export async function dismissImportPrompt(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.importPromptDismiss, {
     method: 'PUT',
   }, intendedAccountId))

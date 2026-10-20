@@ -1,171 +1,124 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
-import { useReducedMotion, type Transition } from 'motion/react'
-import { resolveMotionPreset } from '@orbit/shared/theme'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import type { ActiveView } from '@orbit/shared/stores'
-import type { EngagementSlotCard } from '@orbit/shared/utils'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
-import { useReferralPromptStore } from '@/stores/referral-prompt-store'
-import { useProfile } from '@/hooks/use-profile'
-import { useEngagementSlot } from '@/hooks/use-engagement-slot'
-import { useOverlayEscape } from '@/hooks/use-overlay-escape'
-import { useTags, type Tag } from '@/hooks/use-tags'
-import { useCoachTour } from '@/hooks/use-coach-tour'
-import { useTopbarSlot } from '@/components/shell/topbar-slot'
 import type { HabitListHandle } from '@/components/habits/habit-list'
-import { TodayDateNavigation, type TodayTabItem, type TodayTabView } from './today-shell'
-import { useTodayViewSync } from './use-today-view-sync'
-import {
-  useTodayNavigation,
-  type TodayNavigation,
-  type TodayDateNavBundle,
-} from './use-today-navigation'
-import { useTodaySearch, type TodaySearch } from './use-today-search'
-import { useTodayViewState } from './use-today-view-state'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import { useTodayNavigation, type TodayNavigation } from './use-today-navigation'
 import { useTodayHabitsData, type TodayHabitsData } from './use-today-habits-data'
 import { useTodaySelection } from './use-today-selection'
+import type { TodayInitialHabits } from './today-initial-data'
 
 export interface TodayView {
+  activeView: ActiveView
+  search: ReturnType<typeof useHabitViewSearch>
+  changeView: (view: ActiveView) => void
   nav: TodayNavigation
-  search: TodaySearch
   data: TodayHabitsData
   selection: ReturnType<typeof useTodaySelection>
-  currentActiveView: ActiveView
-  hasProAccess: boolean
-  tabItems: TodayTabItem[]
-  attemptViewChange: (nextView: TodayTabView) => boolean
-  viewsLabel: string
-  streak: number
-  tags: Tag[]
-  searchQueryStore: string
-  engagementSlot: EngagementSlotCard | null
-  engagementExitTransition: Transition
-  listTransition: Transition
-  refetchShift: number
   habitListRef: React.RefObject<HabitListHandle | null>
+  setAllLoadedIds: (ids: Set<string>) => void
   habitListAllCollapsed: boolean
   setHabitListAllCollapsed: (value: boolean) => void
+  showCompleted: boolean
+  setShowCompleted: (value: boolean) => void
   isSelectMode: boolean
   selectedHabitIds: Set<string>
   toggleSelectMode: () => void
-  showCompleted: boolean
-  setShowCompleted: (value: boolean) => void
   setShowCreateModal: (value: boolean) => void
-  dismissHomeEntry: () => void
-  showReferral: boolean
-  setShowReferral: (value: boolean) => void
+  showCreateModal: boolean
+  setListSurfaceOpen: (value: boolean) => void
+  listSurfaceOpen: boolean
 }
 
-function useTodayTopbarNav(currentActiveView: ActiveView, dateNav: TodayDateNavBundle) {
-  const desktopDateNav = useMemo(
-    () =>
-      currentActiveView === 'today' ? (
-        <TodayDateNavigation compact visible {...dateNav} />
-      ) : null,
-    [currentActiveView, dateNav],
-  )
-  useTopbarSlot(desktopDateNav)
-}
-
-/**
- * Composes the Today screen's focused sub-hooks (navigation, search, view/tab
- * state, habit data, selection) into a single view model the page and its region
- * components render. Pure extraction of the former 572-line TodayPage.
- */
-export function useTodayPage(): TodayView {
-  const prefersReducedMotion = useReducedMotion()
-  const { profile } = useProfile()
-  const { tags } = useTags()
-  useCoachTour()
-
-  const searchQueryStore = useUIStore((s) => s.searchQuery)
-  const activeView = useUIStore((s) => s.activeView)
-  const setActiveView = useUIStore((s) => s.setActiveView)
-  const isSelectMode = useUIStore((s) => s.isSelectMode)
-  const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
-  const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
-  const showCompleted = useUIStore((s) => s.showCompleted)
-  const setShowCompleted = useUIStore((s) => s.setShowCompleted)
-  const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
-  const clearSelection = useUIStore((s) => s.clearSelection)
-  const dismissHomeEntry = useReferralPromptStore((s) => s.dismissHomeEntry)
-
-  const viewState = useTodayViewState()
-  const nav = useTodayNavigation()
-  const search = useTodaySearch()
-
-  const [showReferral, setShowReferral] = useState(false)
+export function useTodayPage(
+  initialToday: string,
+  initialHabits: TodayInitialHabits | null,
+): TodayView {
+  const router = useRouter()
+  const activeView = useUIStore((state) => state.activeView)
+  const setActiveView = useUIStore((state) => state.setActiveView)
+  const nav = useTodayNavigation(initialToday)
+  useEffect(() => { if (nav.pinnedDateStr) setActiveView('today') }, [nav.pinnedDateStr, setActiveView])
+  const accountGeneration = useAccountGeneration()
+  const search = useHabitViewSearch(`${accountGeneration}:${activeView}:${activeView === 'today' ? nav.dateStr : ''}`)
+  const closeSearch = search.close
+  const clearSelection = useUIStore((state) => state.clearSelection)
+  const changeView = useCallback((nextView: ActiveView) => {
+    if (nextView !== 'today' && nav.pinnedDateStr) router.replace('/')
+    clearSelection()
+    closeSearch()
+    setActiveView(nextView)
+  }, [clearSelection, closeSearch, nav.pinnedDateStr, router, setActiveView])
+  const data = useTodayHabitsData({
+    activeView,
+    searchQuery: search.query,
+    dateStr: nav.dateStr,
+    today: nav.today,
+    isTodayDate: nav.isTodaySelected,
+    initialHabits,
+  })
+  const isSelectMode = useUIStore((state) => state.isSelectMode)
+  const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
+  const toggleSelectMode = useUIStore((state) => state.toggleSelectMode)
+  const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const showCreateModal = useUIStore((state) => state.showCreateModal)
+  const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
   const habitListRef = useRef<HabitListHandle>(null)
+  const [allLoadedIds, setAllLoadedIds] = useState<Set<string> | null>(null)
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
+  const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
+
+  useEffect(() => {
+    const hidden = isSelectMode || showCreateModal || listSurfaceOpen ||
+      !data.hasFetched || data.showLoadError || data.habitsCount === 0
+    setTodayFabHidden(hidden)
+    return () => setTodayFabHidden(false)
+  }, [
+    data.hasFetched,
+    data.habitsCount,
+    data.showLoadError,
+    isSelectMode,
+    listSurfaceOpen,
+    setTodayFabHidden,
+    showCreateModal,
+  ])
 
   useOverlayEscape({ open: isSelectMode, onDismiss: toggleSelectMode })
 
-  const data = useTodayHabitsData({
-    currentActiveView: viewState.currentActiveView,
-    dateStr: nav.dateStr,
-    selectedDate: nav.selectedDate,
-  })
-
   const selection = useTodaySelection({
+    selectedDateStr: activeView === 'today' ? nav.dateStr : nav.today,
+    today: nav.today,
     habitsById: data.habitsById,
     childrenByParent: data.childrenByParent,
     habitsCount: data.habitsCount,
+    allLoadedIds,
     habitListRef,
   })
-
-  const { slot: engagementSlot } = useEngagementSlot({
-    isTodayView: viewState.currentActiveView === 'today',
-    isTodayDate: nav.isTodaySelected,
-  })
-
-  useTodayViewSync({
-    pinnedDateStr: nav.pinnedDateStr,
-    searchQueryStore,
-    activeView,
-    isSelectMode,
-    setActiveView,
-    setLocalSearchQuery: search.setLocalSearchQuery,
-    closeSearch: search.closeSearch,
-    clearSelection,
-  })
-
-  const listMotionPreset = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
-  const listTransition = {
-    duration: listMotionPreset.enterDuration / 1000,
-    ease: listMotionPreset.enterEasing,
-  } as const
-  const engagementExitTransition = {
-    duration: prefersReducedMotion ? 0 : 0.16,
-    ease: [0.2, 0, 0, 1],
-  } as const
-
-  useTodayTopbarNav(viewState.currentActiveView, nav.dateNav)
-
   return {
-    nav,
+    activeView,
     search,
+    changeView,
+    nav,
     data,
     selection,
-    ...viewState,
-    streak: profile?.currentStreak ?? 0,
-    tags,
-    searchQueryStore,
-    engagementSlot,
-    engagementExitTransition,
-    listTransition,
-    refetchShift: Math.round(listMotionPreset.shift / 2),
     habitListRef,
+    setAllLoadedIds,
     habitListAllCollapsed,
     setHabitListAllCollapsed,
+    showCompleted,
+    setShowCompleted,
     isSelectMode,
     selectedHabitIds,
     toggleSelectMode,
-    showCompleted,
-    setShowCompleted,
     setShowCreateModal,
-    dismissHomeEntry,
-    showReferral,
-    setShowReferral,
+    showCreateModal,
+    setListSurfaceOpen,
+    listSurfaceOpen,
   }
 }

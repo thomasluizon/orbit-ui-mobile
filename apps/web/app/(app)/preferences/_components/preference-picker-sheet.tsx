@@ -1,132 +1,187 @@
 'use client'
 
-import { Check } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
-import { LANGUAGE_OPTIONS } from '@orbit/shared/utils'
+import { useMemo, useRef, useState } from 'react'
+import { buildPreferencePickerModel, getTimezoneList, type PreferencePicker } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { RadioRow } from '@/components/ui/select-check'
 import { PillButton } from '@/components/ui/pill-button'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { RadioRow } from '@/components/ui/select-check'
+import { RadioGroup } from '@/components/ui/radio-row'
 
-export type PreferencePicker = 'language' | 'theme' | 'scheme' | 'weekStart'
+export type { PreferencePicker }
 
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1)
+const TIME_ZONE_OPTIONS = getTimezoneList()
+const TIME_ZONE_PAGE_SIZE = 20
+
+/** Arrow keys move the draft and only an activation commits it, so navigating never writes a preference per keypress. */
+function PickerOptions<Value extends string | number>({
+  label,
+  options,
+  selected,
+  onCommit,
+}: Readonly<{
+  label: string
+  options: readonly { value: Value; label: string }[]
+  selected: Value | null
+  onCommit: (value: Value) => void
+}>) {
+  const [draft, setDraft] = useState<Value | null>(null)
+  const draftRef = useRef<Value | null>(null)
+  /** Null until focus moves, so a profile that resolves after the first render still checks its row. */
+  const checked = draft ?? selected
+  const selectDraft = (next: Value) => {
+    draftRef.current = next
+    setDraft(next)
+  }
+  const commitDraft = () => {
+    const pending = draftRef.current ?? selected
+    if (pending !== null) onCommit(pending)
+  }
+
+  return (
+    <RadioGroup aria-label={label} onCommit={commitDraft}>
+      {options.map((option) => (
+        <RadioRow
+          key={String(option.value)}
+          label={option.label}
+          selected={checked === option.value}
+          onSelect={() => selectDraft(option.value)}
+        />
+      ))}
+    </RadioGroup>
+  )
+}
+
+function TimeZoneOptions({
+  selected,
+  searchLabel,
+  noResultsLabel,
+  showMoreLabel,
+  onCommit,
+}: Readonly<{
+  selected?: string | null
+  searchLabel: string
+  noResultsLabel: string
+  showMoreLabel: string
+  onCommit: (timeZone: string) => void
+}>) {
+  const [query, setQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase()
+    return normalized
+      ? TIME_ZONE_OPTIONS.filter((option) => option.toLocaleLowerCase().includes(normalized))
+      : TIME_ZONE_OPTIONS
+  }, [query])
+  const ordered = selected && filtered.includes(selected)
+    ? [selected, ...filtered.filter((option) => option !== selected)]
+    : filtered
+  const visible = ordered.slice(0, visibleCount)
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="flex flex-col gap-2 font-sans text-sm text-[var(--fg-2)]">
+        <span>{searchLabel}</span>
+        <input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value)
+            setVisibleCount(TIME_ZONE_PAGE_SIZE)
+          }}
+          className="form-input mb-1"
+          style={{ borderRadius: 12 }}
+          placeholder={searchLabel}
+        />
+      </label>
+      <PickerOptions
+        label={searchLabel}
+        options={visible.map((option) => ({ label: option, value: option }))}
+        selected={selected ?? null}
+        onCommit={onCommit}
+      />
+      {visible.length === 0 ? (
+        <p className="m-0 px-1 py-4 text-sm text-[var(--fg-3)]">{noResultsLabel}</p>
+      ) : null}
+      {visibleCount < ordered.length ? (
+        <div>
+          <PillButton
+            size="sm"
+            variant="ghost"
+            onClick={() => setVisibleCount((count) => count + TIME_ZONE_PAGE_SIZE)}
+          >
+            {showMoreLabel}
+          </PillButton>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 interface PreferencePickerSheetProps {
   activePicker: PreferencePicker | null
   mounted: boolean
-  selectedLanguage: string
+  selectedLanguage: SupportedLocale
   currentTheme: ThemeMode
-  currentScheme: ColorScheme
+  timeZone?: string | null
   weekStartDay?: number
+  uses24HourClock?: boolean
   themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
+  clockFormatOptions: { value: '24h' | '12h'; label: string }[]
   pickerTitles: Record<PreferencePicker, string>
   pickerDescriptions: Partial<Record<PreferencePicker, string>>
+  timeZoneSearchLabel: string
+  timeZoneNoResultsLabel: string
+  timeZoneShowMoreLabel: string
   onClose: () => void
   onLanguageChange: (locale: SupportedLocale) => void
   onThemeModeChange: (mode: ThemeMode) => void
-  onSchemeChange: (scheme: ColorScheme) => void
+  onTimeZoneChange: (timeZone: string) => void
   onWeekStartChange: (day: 0 | 1) => void
+  onClockFormatChange: (uses24HourClock: boolean) => void
 }
 
-export function PreferencePickerSheet({
-  activePicker,
-  mounted,
-  selectedLanguage,
-  currentTheme,
-  currentScheme,
-  weekStartDay,
-  themeModeOptions,
-  weekStartOptions,
-  pickerTitles,
-  pickerDescriptions,
-  onClose,
-  onLanguageChange,
-  onThemeModeChange,
-  onSchemeChange,
-  onWeekStartChange,
-}: Readonly<PreferencePickerSheetProps>) {
-  const t = useTranslations()
+function PickerContent({
+  props,
+  commitSelection,
+}: Readonly<{
+  props: PreferencePickerSheetProps
+  commitSelection: (apply: () => void) => void
+}>) {
+  if (props.activePicker === null) return null
+  const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: props.mounted })
+  if (model.kind === 'timeZone') {
+    return <TimeZoneOptions
+      selected={model.selected}
+      searchLabel={props.timeZoneSearchLabel}
+      noResultsLabel={props.timeZoneNoResultsLabel}
+      showMoreLabel={props.timeZoneShowMoreLabel}
+      onCommit={(value) => commitSelection(() => model.onCommit(value))}
+    />
+  }
+  return <PickerOptions
+    label={model.label}
+    options={model.options}
+    selected={model.selected}
+    onCommit={(value) => commitSelection(() => model.onCommit(value))}
+  />
+}
+
+export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps>) {
+  const { activePicker, pickerTitles, pickerDescriptions, onClose } = props
+  const { sheetRef, closeSheet } = useSheetHost()
+  const commitSelection = (apply: () => void) => closeSheet(() => {
+    onClose()
+    apply()
+  })
+  if (activePicker === null) return null
 
   return (
-    <AppOverlay
-      open={activePicker !== null}
-      onOpenChange={(open) => {
-        if (!open) onClose()
-      }}
-      title={activePicker ? pickerTitles[activePicker] : undefined}
-      description={activePicker ? pickerDescriptions[activePicker] : undefined}
-      footer={
-        activePicker === 'scheme' ? (
-          <PillButton
-            variant="secondary"
-            fullWidth
-            onClick={onClose}
-            leading={<Check size={18} strokeWidth={2} aria-hidden="true" />}
-          >
-            {t('common.done')}
-          </PillButton>
-        ) : undefined
-      }
-    >
-      {activePicker === 'language' &&
-        LANGUAGE_OPTIONS.map((lang, index) => (
-          <RadioRow
-            key={lang.value}
-            label={lang.label}
-            selected={mounted && selectedLanguage === lang.value}
-            divider={index < LANGUAGE_OPTIONS.length - 1}
-            onClick={() => {
-              onClose()
-              onLanguageChange(lang.value)
-            }}
-          />
-        ))}
-      {activePicker === 'theme' &&
-        themeModeOptions.map((mode, index) => (
-          <RadioRow
-            key={mode.value}
-            label={mode.label}
-            selected={mounted && currentTheme === mode.value}
-            divider={index < themeModeOptions.length - 1}
-            onClick={() => {
-              onClose()
-              onThemeModeChange(mode.value)
-            }}
-          />
-        ))}
-      {activePicker === 'scheme' &&
-        colorSchemeOptions.map((option, index) => (
-          <RadioRow
-            key={option.value}
-            label={t(
-              `preferences.color${capitalize(option.value)}`,
-            )}
-            selected={mounted && currentScheme === option.value}
-            dot={option.color}
-            divider={index < colorSchemeOptions.length - 1}
-            onClick={() => {
-              onSchemeChange(option.value)
-            }}
-          />
-        ))}
-      {activePicker === 'weekStart' &&
-        weekStartOptions.map((option, index) => (
-          <RadioRow
-            key={option.value}
-            label={option.label}
-            selected={mounted && weekStartDay === option.value}
-            divider={index < weekStartOptions.length - 1}
-            onClick={() => {
-              onClose()
-              onWeekStartChange(option.value)
-            }}
-          />
-        ))}
-    </AppOverlay>
+    <Sheet ref={sheetRef} open onClose={onClose} title={pickerTitles[activePicker]}>
+      {pickerDescriptions[activePicker] ? <p className="mb-3 text-sm text-[var(--fg-3)]">
+        {pickerDescriptions[activePicker]}
+      </p> : null}
+      <PickerContent props={props} commitSelection={commitSelection} />
+    </Sheet>
   )
 }

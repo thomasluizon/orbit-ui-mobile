@@ -1,42 +1,44 @@
 import {
-  Calendar,
-  ChartLine,
-  CircleHelp,
-  Compass,
-  Gift,
+  Bell,
+  Crown,
   Settings,
-  Sparkles,
-  Trophy,
-  Wrench,
-  type LucideIcon,
-} from 'lucide-react'
+  User,
+  CalendarPlus,
+  Gift,
+  HelpCircle,
+  Info,
+  MessageCircle,
+  Smartphone,
+  type Icon,
+} from '@/components/ui/icons'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 interface ProfileNavIconProps {
   iconKey: ProfileNavIconKey
-  /** CSS color value used for stroke. Defaults to `var(--fg-1)`. */
+  /** CSS color value used for stroke. Inherits from the parent when omitted. */
   color?: string
-  /** Pixel size. Defaults to the kit ListRow icon size, 22. */
+  /** Pixel size. Defaults to the kit ListRow icon size, 24. */
   size?: number
 }
 
-const ICON_BY_KEY: Record<ProfileNavIconKey, LucideIcon> = {
-  settings: Settings,
-  orbit: Sparkles,
-  retrospective: ChartLine,
+const ICON_BY_KEY: Record<ProfileNavIconKey, Icon> = {
+  astra: MessageCircle,
+  account: User,
+  pro: Crown,
+  preferences: Settings,
+  notifications: Bell,
   wrapped: Gift,
-  achievements: Trophy,
-  calendar: Calendar,
-  info: CircleHelp,
-  wrench: Wrench,
-  compass: Compass,
+  widget: Smartphone,
+  calendar: CalendarPlus,
+  support: HelpCircle,
+  info: Info,
 }
 
 export function ProfileNavIcon({
   iconKey,
-  color = 'var(--fg-1)',
-  size = 22,
+  color,
+  size = 24,
 }: Readonly<ProfileNavIconProps>) {
   const Icon = ICON_BY_KEY[iconKey]
-  return <Icon size={size} strokeWidth={1.8} color={color} />
+  return <Icon size={size} strokeWidth={1.5} color={color} />
 }

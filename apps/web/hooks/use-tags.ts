@@ -1,7 +1,7 @@
 'use client'
 
-import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-
+import type { HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
+import { snapshotHabitLists, restoreHabitLists } from '@/lib/habit-mutation-helpers'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { habitKeys, tagKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
@@ -14,8 +14,10 @@ import {
   resolveHabitTags,
   setHabitTags,
   updateTagInList,
+  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { assignTags, createTag, deleteTag, getTags, restoreTag, suggestTags, updateTag } from '@/lib/actions/tags'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 
@@ -24,7 +26,7 @@ export type { Tag } from '@orbit/shared/types/tag'
 type TagQueryClient = ReturnType<typeof useQueryClient>
 type TagMutationContext = {
   previousLists?: ReadonlyArray<readonly [readonly unknown[], Tag[] | undefined]>
-  previousHabitLists?: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>
+  previousHabitLists?: HabitListSnapshots
   tempId?: string
 }
 
@@ -57,13 +59,14 @@ function restoreTagMutationContext(
     restoreQueryLists(queryClient, context.previousLists)
   }
   if (context?.previousHabitLists) {
-    restoreQueryLists(queryClient, context.previousHabitLists)
+    restoreHabitLists(queryClient, context.previousHabitLists)
   }
 }
 
 async function invalidateTagMutationQueries(queryClient: TagQueryClient): Promise<void> {
   await queryClient.invalidateQueries({ queryKey: tagKeys.all })
   await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+  await queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
 }
 
 function getAvailableTags(queryClient: TagQueryClient): Tag[] {
@@ -76,7 +79,7 @@ function updateHabitTagReferences(
   queryClient: TagQueryClient,
   updater: (tags: Tag[]) => Tag[],
 ): void {
-  queryClient.setQueriesData<HabitScheduleItem[]>(
+  queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
     { queryKey: habitKeys.lists() },
     (old) => mapHabitTagReferences(old, updater),
   )
@@ -125,7 +128,7 @@ function setOptimisticAssignedTags(
   habitId: string,
   nextTags: Tag[],
 ): void {
-  queryClient.setQueriesData<HabitScheduleItem[]>(
+  queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
     { queryKey: habitKeys.lists() },
     (old) => setHabitTags(old, habitId, nextTags),
   )
@@ -149,7 +152,8 @@ export function useCreateTag() {
   const queryClient = useQueryClient()
 
   return useAccountScopedMutation({
-    mutationFn: ({ name, color }: { name: string; color: string }) => createTag(name, color),
+    mutationFn: ({ name, color }: { name: string; color: string }, intendedAccountId) =>
+      createTag(name, color, intendedAccountId),
 
     onMutate: async ({ name, color }) => {
       await queryClient.cancelQueries({ queryKey: tagKeys.all })
@@ -182,17 +186,17 @@ export function useUpdateTag() {
   const queryClient = useQueryClient()
 
   return useAccountScopedMutation({
-    mutationFn: ({ tagId, name, color }: { tagId: string; name: string; color: string }) =>
-      updateTag(tagId, name, color),
+    mutationFn: (
+      { tagId, name, color }: { tagId: string; name: string; color: string },
+      intendedAccountId,
+    ) => updateTag(tagId, name, color, intendedAccountId),
 
     onMutate: async ({ tagId, name, color }) => {
       await queryClient.cancelQueries({ queryKey: tagKeys.all })
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = queryClient.getQueriesData<Tag[]>({ queryKey: tagKeys.lists() })
-      const previousHabitLists = queryClient.getQueriesData<HabitScheduleItem[]>({
-        queryKey: habitKeys.lists(),
-      })
+      const previousHabitLists = snapshotHabitLists(queryClient)
 
       setOptimisticTagDetails(queryClient, tagId, name, color)
       updateHabitTagReferences(queryClient, renameHabitTagReferences(tagId, name, color))
@@ -216,15 +220,15 @@ export function useRestoreTag() {
   const { showSuccess, showError } = useAppToast()
 
   return useAccountScopedMutation({
-    mutationFn: (tagId: string) => restoreTag(tagId),
+    mutationFn: (tagId: string, intendedAccountId) => restoreTag(tagId, intendedAccountId),
 
     onSuccess: () => {
       void invalidateTagMutationQueries(queryClient)
       showSuccess(t('undo.restored'))
     },
 
-    onError: () => {
-      showError(t('undo.restoreFailed'))
+    onError: (error) => {
+      showError(getFriendlyErrorMessage(error, t, 'undo.restoreFailed'))
     },
   })
 }
@@ -236,7 +240,7 @@ export function useDeleteTag() {
   const showUndoToast = useUndoToast()
 
   return useAccountScopedMutation({
-    mutationFn: (tagId: string) => deleteTag(tagId),
+    mutationFn: (tagId: string, intendedAccountId) => deleteTag(tagId, intendedAccountId),
 
     onSuccess: (_data, tagId) => {
       showUndoToast(t('undo.tagDeleted'), () => restoreTagMutation.mutate(tagId))
@@ -247,9 +251,7 @@ export function useDeleteTag() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = queryClient.getQueriesData<Tag[]>({ queryKey: tagKeys.lists() })
-      const previousHabitLists = queryClient.getQueriesData<HabitScheduleItem[]>({
-        queryKey: habitKeys.lists(),
-      })
+      const previousHabitLists = snapshotHabitLists(queryClient)
 
       setOptimisticDeletedTag(queryClient, tagId)
       updateHabitTagReferences(queryClient, removeHabitTagReferences(tagId))
@@ -278,7 +280,7 @@ export function useSuggestTags() {
       title: string
       description: string | null
       language: string
-    }) => suggestTags(title, description, language),
+    }, intendedAccountId) => suggestTags(title, description, language, intendedAccountId),
   })
 }
 
@@ -286,15 +288,13 @@ export function useAssignTags() {
   const queryClient = useQueryClient()
 
   return useAccountScopedMutation({
-    mutationFn: ({ habitId, tagIds }: { habitId: string; tagIds: string[] }) =>
-      assignTags(habitId, tagIds),
+    mutationFn: ({ habitId, tagIds }: { habitId: string; tagIds: string[] }, intendedAccountId) =>
+      assignTags(habitId, tagIds, intendedAccountId),
 
     onMutate: async ({ habitId, tagIds }) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
-      const previousHabitLists = queryClient.getQueriesData<HabitScheduleItem[]>({
-        queryKey: habitKeys.lists(),
-      })
+      const previousHabitLists = snapshotHabitLists(queryClient)
       const availableTags = getAvailableTags(queryClient)
       const nextTags = resolveHabitTags(availableTags, tagIds)
 

@@ -1,81 +1,42 @@
 'use client'
 
-import { useState } from 'react'
-import { RefreshCw, X } from 'lucide-react'
+import { ActionRow } from '@/components/ui/action-row'
+
+import { useEffect, useState } from 'react'
+import { useUIStore } from '@/stores/ui-store'
 import { useTranslations } from 'next-intl'
 import { useVersionGateStore } from '@/stores/version-gate-store'
+import { PillButton } from '@/components/ui/pill-button'
 
-const REFRESH_ACTION_STYLE = {
-  gap: 4,
-  minHeight: 44,
-  margin: '-12px 0',
-  fontFamily: 'var(--font-sans)',
-  fontSize: 13,
-  fontWeight: 500,
-  color: 'var(--primary-soft)',
-  padding: '0 4px',
-} as const
-
-export function UpdateAvailableBanner() {
+export function UpdateAvailableBanner({ modalId, active = true }: Readonly<{ modalId?: string; active?: boolean }>) {
   const t = useTranslations()
-  const upgradeRequired = useVersionGateStore((s) => s.upgradeRequired)
-  const reloadReason = useVersionGateStore((s) => s.reloadReason)
-  const [dismissed, setDismissed] = useState(false)
-
-  if (!reloadReason && (!upgradeRequired || dismissed)) return null
-
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { queueMicrotask(() => setMounted(true)) }, [])
+  const { upgradeRequired, minVersion, reloadReason, updateDismissed, dismissUpdate } = useVersionGateStore()
+  const activeModalId = useUIStore((state) => [...state.openOverlayIds].reverse().find((id) => id.startsWith('modal:')))
+  const ownsNotice = modalId ? activeModalId === modalId : !activeModalId
+  const visible = mounted && active && ownsNotice && (reloadReason !== null || (upgradeRequired && !updateDismissed))
+  const reloadMessage = reloadReason === 'accountChanged'
+    ? t('errors.api.accountChanged')
+    : reloadReason === 'appUpdated' ? t('errors.api.appUpdated') : null
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      data-update-banner=""
-      className="flex items-center"
-      style={{
-        padding: '9px 14px',
-        gap: 12,
-        background: 'rgba(var(--primary-rgb), 0.08)',
-        boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.18)',
-      }}
-    >
-      <span
-        className="flex-1"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 13,
-          color: 'var(--fg-2)',
-        }}
-      >
-        {reloadReason === 'accountChanged'
-          ? t('errors.api.accountChanged')
-          : reloadReason === 'appUpdated'
-            ? t('errors.api.appUpdated')
-            : t('forceUpdate.banner')}
-      </span>
-      <button
-        type="button"
-        className="inline-flex items-center transition-opacity duration-150 ease-out hover:opacity-80"
-        style={REFRESH_ACTION_STYLE}
-        onClick={() => globalThis.location.reload()}
-      >
-        <RefreshCw size={14} strokeWidth={2.2} aria-hidden="true" />
-        {reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')}
-      </button>
-      {!reloadReason && (
-        <button
-          type="button"
-          aria-label={t('common.dismiss')}
-          className="icon-btn hover:text-[var(--fg-1)]"
-          style={{
-            width: 40,
-            height: 40,
-            margin: '-10px -8px',
-            color: 'var(--fg-3)',
-          }}
-          onClick={() => setDismissed(true)}
-        >
-          <X size={18} strokeWidth={1.8} aria-hidden="true" />
-        </button>
-      )}
+    <div role="status" data-update-live-region="" data-update-banner={visible ? '' : undefined}>
+      {visible ? (
+        <div className="flex flex-wrap items-center gap-3 bg-[var(--bg-elev)] px-6 py-3 shadow-[inset_0_-1px_0_var(--hairline)]"><ActionRow>
+          <div className="min-w-0 flex-1 basis-[240px]">
+            <p className="text-[17px] font-medium leading-[1.4]" translate={reloadMessage ? undefined : 'no'}>
+              {reloadMessage ?? t('forceUpdate.banner')}
+            </p>
+            {!reloadReason && minVersion && <p className="text-[14px] leading-[1.5] text-[var(--fg-3)]">
+              {t('forceUpdate.bannerVersion', { minVersion })}
+            </p>}
+          </div>
+          {!reloadReason && <PillButton size="sm" variant="ghost" onClick={dismissUpdate}>{t('versionUpdate.laterCta')}</PillButton>}
+          <PillButton size="sm" variant="secondary" onClick={() => globalThis.location.reload()}>
+            {reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')}
+          </PillButton>
+        </ActionRow></div>
+      ) : null}
     </div>
   )
 }

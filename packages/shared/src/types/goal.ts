@@ -80,6 +80,7 @@ export const createGoalRequestSchema = z.object({
   unit: z.string(),
   deadline: z.string().optional(),
   type: goalTypeSchema.optional(),
+  habitIds: z.array(z.string()).optional(),
 })
 
 export type CreateGoalRequest = z.infer<typeof createGoalRequestSchema>

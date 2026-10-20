@@ -1,70 +1,170 @@
 'use client'
 
-import { MoreVertical } from 'lucide-react'
+import { resolveHabitAccessibleStatus } from '@orbit/shared/utils'
+import { useId, useRef, useState } from 'react'
+import { MoreVertical } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { ParentRing } from '@/components/ui/parent-ring'
-import { Popover } from '@/components/ui/popover'
+import { HabitCheck } from './habit-check'
+import { Menu } from '@/components/ui/menu'
 import { CheckCircle } from './habit-row-check-circle'
-import { HabitRowMenu } from './habit-row-menu'
 import type { HabitRowActions } from './habit-row'
-import type { StatusDotState } from '@/components/ui/status-dot'
+import type { MenuItem } from '@orbit/shared/contracts/overlay'
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
 
-function resolveLogAction(
-  childProgress: { done: number; total: number } | undefined,
+function completionIsDisabled(completionReadOnly: boolean, canLog: boolean, isDone: boolean): boolean {
+  return completionReadOnly || (!canLog && !isDone)
+}
+
+function availableStatusLabel(unavailable: boolean, label: string): string | undefined {
+  return unavailable ? undefined : label
+}
+
+function showParentRing(hasChildren: boolean, unavailable: boolean): boolean {
+  return hasChildren && !unavailable
+}
+
+function completionReasonId(disabled: boolean, reason: string | undefined, id: string): string | undefined {
+  return disabled && reason ? id : undefined
+}
+
+function CompletionReason({ id, disabled, reason }: Readonly<{ id: string; disabled: boolean; reason?: string }>) {
+  return disabled && reason ? <span id={id} className="sr-only">{reason}</span> : null
+}
+
+function parentRingLabel(status: string | undefined, action: string, title: string, progress?: { done: number; total: number }): string {
+  const actionLabel = progress ? `${action}: ${title}, ${progress.done}/${progress.total}` : `${action}: ${title}`
+  return status ? `${status}, ${actionLabel}` : actionLabel
+}
+
+function triggerParentCompletion(event: React.MouseEvent, disabled: boolean, isDone: boolean, actions: HabitRowActions): void {
+  event.stopPropagation()
+  if (disabled) return
+  const parentAction = isDone ? actions.onUnlog : actions.onLog
+  parentAction?.()
+}
+
+function buildMenuItems(
+  t: ReturnType<typeof useTranslations>,
   actions: HabitRowActions,
-): (() => void) | undefined {
-  const childrenComplete =
-    !!childProgress && childProgress.total > 0 && childProgress.done >= childProgress.total
-  return childrenComplete ? actions.onLog : actions.onForceLogParent
-}
-
-function resolveParentRingColor(isBadHabit: boolean): string | undefined {
-  return isBadHabit ? 'var(--status-bad)' : undefined
-}
-
-function resolveParentRingTrackColor(
-  isBadHabit: boolean,
-  state: StatusDotState,
-): string | undefined {
-  if (isBadHabit) return 'color-mix(in srgb, var(--status-bad) 40%, transparent)'
-  if (state === 'overdue') return 'color-mix(in srgb, var(--status-overdue) 40%, transparent)'
-  return undefined
+  canSelect: boolean,
+  canDrillInto: boolean,
+  hasProAccess: boolean,
+  completionReadOnly: boolean,
+  state: HabitStatus,
+): MenuItem[] {
+  const items: MenuItem[] = []
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask', badge: hasProAccess ? undefined : 'Pro' })
+  if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
+  if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
+  if (actions.onReschedule && state === 'overdue' && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule'), icon: 'calendar-time' })
+  if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
+  if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
+  if (canSelect && actions.onEnterSelectMode) items.push({ id: 'select', label: t('common.select'), icon: 'checkbox' })
+  if (canDrillInto && actions.onDrillInto) {
+    items.push({ id: 'drill', label: t('habits.actions.openSubHabits'), icon: 'list-tree' })
+  }
+  if (actions.onDelete) {
+    items.push({ id: 'delete', label: t('habits.actions.delete'), icon: 'trash', destructive: true })
+  }
+  return items
 }
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
+  depth: 0 | 1
   selectMode: boolean
   hasChildren: boolean
   childProgress?: { done: number; total: number }
-  showLinkedGoalDot: boolean
-  state: StatusDotState
+  state: HabitStatus
   isDone: boolean
   canLog: boolean
   hasMenuActions: boolean
   canSelect: boolean
   canDrillInto: boolean
   actions: HabitRowActions
+  hasProAccess: boolean
   onToggleStatus: () => void
+  completionReadOnly: boolean
+  completionReason?: string
+  completionStatusUnavailable: boolean
 }
 
-/** Trailing cluster of a habit row: linked-goal dot, parent-ring or status dot, and the overflow menu. */
+function SelectionStatusGlyph({
+  hasChildren, childProgress, state, isDone, canLog,
+  completionReadOnly, completionStatusUnavailable,
+}: Readonly<HabitRowTrailingProps>) {
+  const t = useTranslations()
+  const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(state, isDone)}`)
+  const dimmed = completionIsDisabled(completionReadOnly, canLog, isDone)
+  if (showParentRing(hasChildren, completionStatusUnavailable)) {
+    return (
+      <span role="img" aria-label={`${statusName}, ${childProgress?.done ?? 0}/${childProgress?.total ?? 0}`}
+        className="flex min-h-[48px] w-[48px] items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
+        <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
+      </span>
+    )
+  }
+  return (
+    <span className="flex min-h-[48px] w-[48px] items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
+      <HabitCheck status={state} label={statusName} unavailable={completionStatusUnavailable} />
+    </span>
+  )
+}
+
+function InteractiveParentRing({
+  habit, childProgress, state, isDone, canLog, actions,
+  completionReadOnly, completionReason, completionStatusUnavailable,
+}: Readonly<HabitRowTrailingProps>) {
+  const t = useTranslations()
+  const reasonId = useId()
+  const statusLabel = availableStatusLabel(completionStatusUnavailable, t(`habits.statusDot.${resolveHabitAccessibleStatus(state, isDone)}`))
+  const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
+  const disabled = completionIsDisabled(completionReadOnly, canLog, isDone)
+  return (
+    <button type="button" data-habit-row-control="check"
+      aria-label={parentRingLabel(statusLabel, toggleLabel, habit.title, childProgress)}
+      onClick={(event) => triggerParentCompletion(event, disabled, isDone, actions)}
+      disabled={disabled && !completionReason}
+      aria-disabled={disabled && completionReason ? true : undefined}
+      aria-describedby={completionReasonId(disabled, completionReason, reasonId)}
+      title={disabled ? completionReason : undefined}
+      className={`appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-[22px] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}>
+      <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
+      <CompletionReason id={reasonId} disabled={disabled} reason={completionReason} />
+    </button>
+  )
+}
+
+function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
+  const t = useTranslations()
+  if (props.selectMode) return <SelectionStatusGlyph {...props} />
+  if (showParentRing(props.hasChildren, props.completionStatusUnavailable)) {
+    return <InteractiveParentRing {...props} />
+  }
+  const statusLabel = availableStatusLabel(props.completionStatusUnavailable, t(`habits.statusDot.${resolveHabitAccessibleStatus(props.state, props.isDone)}`))
+  const toggleLabel = props.isDone ? t('habits.actions.unlog') : t('habits.logHabit')
+  return <CheckCircle state={props.state} unavailable={props.completionStatusUnavailable}
+    onToggle={props.onToggleStatus}
+    disabled={completionIsDisabled(props.completionReadOnly, props.canLog, props.isDone)}
+    disabledReason={props.completionReason}
+    ariaLabel={parentRingLabel(statusLabel, toggleLabel, props.habit.title)} />
+}
+
+/** Trailing habit check and overflow actions. */
 // react-doctor-disable-next-line no-many-boolean-props -- these are derived per-row display flags computed once by HabitRow and passed straight through; they are not independent configuration axes and splitting the cluster adds indirection without benefit https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export function HabitRowTrailing({
+export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
+  const {
   habit,
   selectMode,
-  hasChildren,
-  childProgress,
-  showLinkedGoalDot,
   state,
-  isDone,
-  canLog,
   hasMenuActions,
   canSelect,
   canDrillInto,
   actions,
-  onToggleStatus,
-}: Readonly<HabitRowTrailingProps>) {
+  hasProAccess,
+  completionReadOnly,
+  } = props
   const t = useTranslations()
   const {
     onEdit,
@@ -77,110 +177,53 @@ export function HabitRowTrailing({
     onEnterSelectMode,
     onDrillInto,
   } = actions
-  const statusDotLabelKey = `habits.statusDot.${state}`
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuAnchorRef = useRef<HTMLButtonElement>(null)
+  const closeMenu = () => setMenuOpen(false)
+  const openMenu = () => setMenuOpen(true)
+  const menuId = useId()
+  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly, state)
 
   return (
-    <div className="flex items-center shrink-0" style={{ gap: 10 }}>
-      {showLinkedGoalDot && (
-        <span
-          role="img"
-          aria-label={t('habits.detail.linkedGoal')}
-          className="rounded-full"
-          style={{
-            width: 5,
-            height: 5,
-            background: 'var(--primary)',
-          }}
-        />
-      )}
-      {!selectMode &&
-        (hasChildren ? (
-          <>
-            {childProgress && childProgress.total > 0 && (
-              <span
-                aria-hidden="true"
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  fontVariantNumeric: 'tabular-nums',
-                  color: 'var(--fg-3)',
-                }}
-              >
-                {childProgress.done}/{childProgress.total}
-              </span>
-            )}
-            <button
-              type="button"
-              aria-label={
-                childProgress
-                  ? `${habit.title} ${childProgress.done}/${childProgress.total}`
-                  : habit.title
-              }
-              onClick={(event) => {
-                event.stopPropagation()
-                const parentAction = isDone ? actions.onUnlog : resolveLogAction(childProgress, actions)
-                parentAction?.()
-              }}
-              className="appearance-none border-0 bg-transparent flex items-center justify-center cursor-pointer"
-              style={{ padding: 7, margin: -7 }}
-            >
-              <ParentRing
-                done={childProgress?.done ?? 0}
-                total={childProgress?.total ?? 0}
-                size={30}
-                color={resolveParentRingColor(habit.isBadHabit)}
-                trackColor={resolveParentRingTrackColor(habit.isBadHabit, state)}
-              />
-            </button>
-          </>
-        ) : (
-          <CheckCircle
-            state={state}
-            tone={habit.isBadHabit ? 'bad' : 'default'}
-            onToggle={onToggleStatus}
-            disabled={!canLog && !isDone}
-            ariaLabel={`${t(statusDotLabelKey)}, ${
-              isDone ? t('habits.actions.unlog') : t('habits.logHabit')
-            }`}
-          />
-        ))}
+    <div className="flex items-center shrink-0" style={{ gap: 8 }}>
+      <HabitRowCompletion {...props} />
       {!selectMode && hasMenuActions && (
-        <Popover
-          placement="bottom-end"
-          className="min-w-[180px]"
-          trigger={
-            <button
-              type="button"
-              aria-label={t('habits.actions.more')}
-              onClick={(event) => event.stopPropagation()}
-              className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-              style={{
-                width: 34,
-                height: 34,
-                margin: '-3px',
-                cursor: 'pointer',
-              }}
-            >
-              <MoreVertical size={18} strokeWidth={1.8} />
-            </button>
-          }
-        >
-          {(close) => (
-            <HabitRowMenu
-              close={close}
-              onEdit={onEdit}
-              onDuplicate={onDuplicate}
-              onAddSubHabit={onAddSubHabit}
-              onMoveParent={onMoveParent}
-              onSkip={onSkip}
-              onReschedule={onReschedule}
-              onDelete={onDelete}
-              onEnterSelectMode={canSelect ? onEnterSelectMode : undefined}
-              onDrillInto={canDrillInto ? onDrillInto : undefined}
-              t={t}
-            />
-          )}
-        </Popover>
+        <>
+          <button
+            ref={menuAnchorRef}
+            type="button"
+            data-habit-row-control="menu"
+            aria-label={t('habits.actions.more')}
+            aria-expanded={menuOpen}
+            aria-controls={menuId}
+            onClick={(event) => {
+              event.stopPropagation()
+              if (menuOpen) closeMenu()
+              else openMenu()
+            }}
+            className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer hover:text-[var(--fg-1)] active:scale-[0.96]"
+            style={{ width: 48, minHeight: 48 }}
+          >
+            <MoreVertical size={20} strokeWidth={1.8} />
+          </button>
+          <Menu
+            id={menuId}
+            open={menuOpen}
+            anchorRef={menuAnchorRef}
+            title={habit.title || t('habits.actions.menuTitle')}
+            titleMode={habit.title ? 'typed' : 'label'}
+            items={menuItems}
+            onClose={closeMenu}
+            onSelect={(id) => {
+              const handlers: Record<string, (() => void) | undefined> = {
+                add: onAddSubHabit, move: onMoveParent, skip: onSkip, reschedule: onReschedule,
+                edit: onEdit, duplicate: onDuplicate, select: onEnterSelectMode,
+                drill: onDrillInto, delete: onDelete,
+              }
+              handlers[id]?.()
+            }}
+          />
+        </>
       )}
     </div>
   )

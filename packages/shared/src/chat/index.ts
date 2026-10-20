@@ -1,15 +1,26 @@
+export * from './composer-controls'
+export * from './reply-state'
+export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurface, resolveComposerDockSuggestions, resolveComposerStripLayout, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, type ComposerChip, type ComposerChipState, type ComposerChipSurface } from './composer-chips'
+export * from './action-chips'
+export * from './client-context'
+export * from './block-kinds'
+export * from './block-answer'
+export * from './block-answer-submission'
+export * from './answer-block-controller'
+export * from './final-message'
+export * from './message-actions'
+export * from './message-bubble'
+export * from './message-operation-blocks'
+export * from './pending-operation-card'
+export * from './pending-operation-card-view'
+export * from './pending-operation-message-state'
 export * from './related-surfaces'
 export * from './sse-stream'
-export * from './action-labels'
+export * from './trace'
+export * from './account-rows-core'
+export * from './record-list-core'
 
 export const CHAT_VISUALIZER_BAR_OFFSETS = [0, 0.08, 0.16, 0.04, 0.12, 0.2, 0.06, 0.14, 0.22] as const
-
-export const CHAT_STARTER_CHIP_KEYS = [
-  'chat.starterChips.logHabit',
-  'chat.starterChips.createRoutine',
-  'chat.starterChips.howAmIDoing',
-  'chat.starterChips.planWeek',
-] as const
 
 /**
  * Maximum silence between chat stream events before the client aborts the send
@@ -18,6 +29,11 @@ export const CHAT_STARTER_CHIP_KEYS = [
  */
 export const CHAT_STREAM_IDLE_TIMEOUT_MS = 60_000
 
+/**
+ * Voice-input auto-stop tuning shared by both platforms. Recording stops on its own after
+ * {@link VOICE_SILENCE_TIMEOUT_MS} of continuous silence, but only once speech has been
+ * heard, so an early pause before the user starts talking never cuts the recording short.
+ */
 export const VOICE_SILENCE_TIMEOUT_MS = 2000
 export const VOICE_LEVEL_POLL_MS = 150
 export const VOICE_WEB_SPEECH_RMS_THRESHOLD = 0.025
@@ -72,11 +88,9 @@ const MAX_CHAT_TEXT_FILE_SIZE_BYTES = 1024 * 1024
 
 const CHAT_TEXT_FILE_EXTENSIONS = ['.csv', '.json', '.txt', '.md'] as const
 
-/** `accept` attribute value for the web chat text-file `<input type="file">`. */
 export const CHAT_TEXT_FILE_WEB_ACCEPT =
   '.csv,.json,.txt,.md,text/csv,application/json,text/plain,text/markdown'
 
-/** MIME-type filters for the mobile `expo-document-picker` text-file picker. */
 export const CHAT_TEXT_FILE_PICKER_MIME_TYPES = ['text/*', 'application/json'] as const
 
 type ChatTextFileValidationError = 'type' | 'size'
@@ -84,7 +98,7 @@ type ChatTextFileValidationError = 'type' | 'size'
 interface ChatTextFileCandidate {
   name?: string | null
   uri?: string | null
-  fileSize?: number | null
+  fileSize: number
 }
 
 function hasAllowedChatTextFileExtension(value: string | null | undefined): boolean {
@@ -102,10 +116,7 @@ export function getChatTextFileValidationError(
     hasAllowedChatTextFileExtension(candidate.uri)
   if (!hasAllowedType) return 'type'
 
-  if (
-    typeof candidate.fileSize === 'number' &&
-    candidate.fileSize > MAX_CHAT_TEXT_FILE_SIZE_BYTES
-  ) {
+  if (candidate.fileSize > MAX_CHAT_TEXT_FILE_SIZE_BYTES) {
     return 'size'
   }
 
@@ -122,48 +133,8 @@ export function buildChatMessageWithFileContent(params: {
   return trimmedMessage ? `${trimmedMessage}\n\n${fileBlock}` : fileBlock
 }
 
-const COMPLETE_CHAT_DIRECTIVE = /\[\[orbit:[a-z:]+\]\]/gi
-
-const CHAT_DIRECTIVE_OPEN = '[[orbit:'
-
-function isChatDirectivePrefix(candidate: string): boolean {
-  const normalized = candidate.toLowerCase()
-  if (CHAT_DIRECTIVE_OPEN.startsWith(normalized)) return true
-  if (!normalized.startsWith(CHAT_DIRECTIVE_OPEN)) return false
-
-  const body = normalized.slice(CHAT_DIRECTIVE_OPEN.length)
-  const closingBracket = body.indexOf(']')
-  const directiveBody = closingBracket === -1 ? body : body.slice(0, closingBracket)
-  if (closingBracket !== -1 && closingBracket !== body.length - 1) return false
-
-  return [...directiveBody].every((character) =>
-    character === ':' || (character >= 'a' && character <= 'z'),
-  )
-}
-
-function stripTrailingChatDirectivePrefix(content: string): string {
-  const withoutTrailingWhitespace = content.trimEnd()
-  const directiveStart = withoutTrailingWhitespace.lastIndexOf('[[')
-  if (directiveStart >= 0) {
-    const candidate = withoutTrailingWhitespace.slice(directiveStart)
-    if (isChatDirectivePrefix(candidate)) {
-      return withoutTrailingWhitespace.slice(0, directiveStart).trimEnd()
-    }
-  }
-  return withoutTrailingWhitespace.endsWith('[')
-    ? withoutTrailingWhitespace.slice(0, -1).trimEnd()
-    : withoutTrailingWhitespace
-}
-
-/**
- * Removes `[[orbit:...]]` directives Astra emits to request rendered cards. The
- * server strips them from the final message, but streamed deltas still carry them
- * mid-flight. Complete directives are always removed; a partial trailing token is
- * removed only while the message is actively streaming.
- */
-export function stripChatDirectives(content: string, isStreaming = false): string {
-  const withoutCompleteDirectives = content.replace(COMPLETE_CHAT_DIRECTIVE, '')
-  return isStreaming
-    ? stripTrailingChatDirectivePrefix(withoutCompleteDirectives)
-    : withoutCompleteDirectives.trimEnd()
-}
+export { stripChatDirectives, hasChatProse } from './message-prose'
+export { getMetricsRows } from './metrics-card-core'
+export type { MetricsRow } from './metrics-card-core'
+export { getInsightPages } from './period-insight-core'
+export type { InsightPage } from './period-insight-core'

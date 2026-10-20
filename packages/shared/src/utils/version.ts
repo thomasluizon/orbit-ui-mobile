@@ -1,3 +1,7 @@
+/**
+ * Compares two semver-ish version strings by their numeric `major.minor.patch` portion.
+ * Returns `true` only when `current` can be proven strictly older than `minimum`.
+ */
 export function isVersionBelow(current: string, minimum: string): boolean {
   const currentParts = normalizeVersion(current)
   if (currentParts === null) return false

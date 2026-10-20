@@ -1,13 +1,24 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET, POST, PUT } from '@/app/api/[...path]/route'
 import { resolveServerSession } from '@/lib/auth-api'
 import { API } from '@orbit/shared/api'
 
-vi.mock('@/lib/auth-api', () => ({
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-api')>()),
   resolveServerSession: vi.fn(),
-  getAccountIdFromToken: vi.fn(() => 'account-b'),
 }))
+
+const ACCOUNT_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+function tokenFor(accountId: string): string {
+  return `e30.${Buffer.from(JSON.stringify({ [ACCOUNT_CLAIM]: accountId })).toString('base64url')}.signature`
+}
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -22,42 +33,87 @@ function createRequest(
 }
 
 describe('catch-all API proxy route', () => {
+  it.each([
+    { body: 'Too Many Requests', contentType: 'text/plain; charset=utf-8' },
+    { body: '<html>Too Many Requests</html>', contentType: 'text/html' },
+    { body: JSON.stringify({ message: 'Too Many Requests' }), contentType: 'application/json' },
+  ])('maps a non-envelope upstream 429 ($contentType) to a starting response', async ({ body, contentType }) => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: 'test-token', expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValue(new Response(body, { status: 429, headers: { 'Content-Type': contentType } }))
+    const response = await GET(createRequest('habits'), { params: Promise.resolve({ path: ['habits'] }) })
+    expect(response.status).toBe(503)
+    expect(response.headers.get('retry-after')).toBe('5')
+    expect(await response.json()).toMatchObject({ errorCode: 'UPSTREAM_STARTING' })
+  })
+
+  it('preserves the API rate-limit envelope and headers unchanged', async () => {
+    const body = JSON.stringify({ error: 'Rate limited', errorCode: 'RATE_LIMITED', requestId: 'request-reference' })
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: 'test-token', expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValue(new Response(body, { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } }))
+    const response = await GET(createRequest('habits'), { params: Promise.resolve({ path: ['habits'] }) })
+    expect(response.status).toBe(429)
+    expect(response.headers.get('retry-after')).toBe('60')
+    expect(await response.text()).toBe(body)
+  })
+
   beforeEach(() => {
     mockFetch.mockReset()
     vi.mocked(resolveServerSession).mockReset()
   })
 
-  it('refuses a chat write formed under another account before forwarding', async () => {
-    vi.mocked(resolveServerSession).mockResolvedValue({
-      token: 'other-token', expiresAt: Date.now() + 3600000,
-      refreshed: false, refreshFailed: false,
-    })
-    const request = new NextRequest('http://localhost:3000/api/chat', {
+  it.each([null, 'account-a'])('refuses transcription with missing or stale held account %s', async (heldAccountId) => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-b'), expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValue(Response.json({ text: 'wrong account' }))
+    const request = new NextRequest('http://localhost:3000/api/chat/transcribe', {
       method: 'POST',
-      headers: { 'x-orbit-held-account-id': 'account-a' },
+      ...(heldAccountId ? { headers: { 'x-orbit-held-account-id': heldAccountId } } : {}),
       body: new FormData(),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ path: ['chat'] }) })
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat', 'transcribe'] }) })
 
     expect(response.status).toBe(409)
-    expect(await response.json()).toMatchObject({ errorCode: 'ACCOUNT_CHANGED' })
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('forwards a chat write when the tab knew no account', async () => {
-    vi.mocked(resolveServerSession).mockResolvedValue({
-      token: 'other-token', expiresAt: Date.now() + 3600000,
-      refreshed: false, refreshFailed: false,
-    })
-    mockFetch.mockResolvedValue(new Response('{"ok":true}', { status: 200 }))
-    const request = new NextRequest('http://localhost:3000/api/chat', {
-      method: 'POST', body: new FormData(),
+  it('forwards transcription for the held account', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValue(Response.json({ text: 'done' }))
+    const request = new NextRequest('http://localhost:3000/api/chat/transcribe', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ path: ['chat'] }) })
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat', 'transcribe'] }) })
 
     expect(response.status).toBe(200)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not forward transcription without an authenticated session', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: true })
+    const request = new NextRequest('http://localhost:3000/api/chat/transcribe', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat', 'transcribe'] }) })
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('refuses transcription when refresh switches accounts before retry', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
+      .mockResolvedValueOnce({ token: tokenFor('account-b'), expiresAt: null, refreshed: true, refreshFailed: false })
+    mockFetch.mockResolvedValue(Response.json({ error: 'Unauthorized' }, { status: 401 }))
+    const request = new NextRequest('http://localhost:3000/api/chat/transcribe', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat', 'transcribe'] }) })
+
+    expect(response.status).toBe(409)
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
@@ -187,6 +243,7 @@ describe('catch-all API proxy route', () => {
         'cloudfront-viewer-country': 'BR',
         'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
         'x-orbit-time-zone': 'America/Sao_Paulo',
+        'api-version': '1.0',
       },
     })
 
@@ -207,12 +264,13 @@ describe('catch-all API proxy route', () => {
         method: 'GET',
         cache: 'no-store',
         headers: {
+          'api-version': '2.0',
           Authorization: 'Bearer initial-token',
           'X-Orbit-Country-Code': 'BR',
           'X-Forwarded-For': '177.55.44.33',
           'X-Real-IP': '198.51.100.7',
           'CloudFront-Viewer-Country': 'BR',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'Accept-Language': 'pt-BR',
           'X-Orbit-Time-Zone': 'America/Sao_Paulo',
         },
       }),
@@ -373,3 +431,5 @@ describe('catch-all API proxy route', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: One Linear ticket in, one reviewed PR out. Use after /ticket created the ticket.
+description: One GitHub ticket in, one reviewed PR out. Use after /ticket created the ticket.
 ---
 
 # orchestrate

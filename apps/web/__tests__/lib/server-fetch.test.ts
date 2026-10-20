@@ -1,21 +1,37 @@
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
+import en from '@orbit/shared/i18n/en.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { serverAuthFetch, serverAuthMutate, serverPublicFetch } from '@/lib/server-fetch'
 import { createHabit, updateHabit } from '@/app/actions/habits'
 import { API } from '@orbit/shared/api'
+import { confirmPendingOperation, executePendingOperation, reportProactiveOpened, reportProactiveActed } from '@/app/actions/chat'
+import { POST as eventTicket } from '@/app/api/events/ticket/route'
 
-/**
- * vi.hoisted, because vi.mock is hoisted above the static import and a plain `const` would not be
- * initialized when the factory runs. The dynamic imports this file used to carry hid that ordering.
- */
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
+/** `vi.mock` runs before static imports, so these mocks must be hoisted too. */
 const { resolveServerSessionMock, mockFetch } = vi.hoisted(() => ({
   resolveServerSessionMock: vi.fn(),
   mockFetch: vi.fn(),
 }))
 
-vi.mock('@/lib/auth-api', () => ({
+/**
+ * The real `getAccountIdFromToken` stays, because the account guard is what these tests judge and a
+ * stubbed decoder would only prove the stub. Only the session resolution is replaced.
+ */
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-api')>()),
   resolveServerSession: resolveServerSessionMock,
+}))
+
+vi.mock('next/headers', () => ({
+  headers: async () => new Headers(),
+  cookies: () => Promise.resolve({ get: vi.fn(), set: vi.fn() }),
 }))
 
 vi.stubGlobal('fetch', mockFetch)
@@ -28,16 +44,12 @@ describe('createHabit action error boundary', () => {
   })
 
   it.each([
-    [400, 'VALIDATION_ERROR', 'Title must be 200 characters or fewer'],
+    [400, 'VALIDATION_ERROR', en.habits.form.titleTooLong],
     [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!'],
     [429, 'RATE_LIMITED', 'Rate limited'],
     [500, 'INTERNAL_SERVER_ERROR', 'Server failed'],
   ])('returns upstream %i details without throwing', async (status, errorCode, message) => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status,
-      json: () => Promise.resolve({ error: message, errorCode }),
-    })
+    mockFetch.mockResolvedValue(Response.json({ error: message, errorCode }, { status }))
     await expect(createHabit({ title: 'Test' }, null)).resolves.toMatchObject({
       ok: false,
       status,
@@ -46,9 +58,47 @@ describe('createHabit action error boundary', () => {
     })
   })
 
+  it.each([reportProactiveOpened, reportProactiveActed])('never retries a proactive outcome after an unauthorized response', async (report) => {
+    mockFetch.mockImplementation(async () => Response.json({ error: 'Unauthorized' }, { status: 401 }))
+    await expect(report('11111111-1111-4111-8111-111111111111', null)).rejects.toMatchObject({ status: 401 })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(resolveServerSessionMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('carries upstream Retry-After for the event ticket boundary', async () => {
+    mockFetch.mockResolvedValue(Response.json({ error: 'Rate limited', errorCode: 'RATE_LIMITED' }, { status: 429, headers: { 'Retry-After': '60' } }))
+    await expect(serverAuthMutate('/api/events/ticket', { method: 'POST' }, null)).rejects.toMatchObject({ status: 429, retryAfter: '60' })
+  })
+
+  it.each(['authenticated', 'public', 'ticket'])('maps a plain upstream 429 in the %s server fetch', async (boundary) => {
+    mockFetch.mockResolvedValue(new Response('Too Many Requests', { status: 429, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }))
+    const request = boundary === 'public' ? serverPublicFetch('/api/config')
+      : boundary === 'ticket' ? serverAuthMutate(API.events.ticket, { method: 'POST' }, null)
+      : serverAuthFetch(API.habits.list)
+    await expect(request).rejects.toMatchObject({ status: 503, code: 'UPSTREAM_STARTING', retryAfter: '5' })
+  })
+
+  it('maps the live server-fetch ticket path from a plain refusal to a starting envelope', async () => {
+    mockFetch.mockResolvedValue(new Response('Too Many Requests', { status: 429, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }))
+    const response = await eventTicket()
+    expect(response.status).toBe(503)
+    expect(response.headers.get('retry-after')).toBe('5')
+    expect(await response.json()).toMatchObject({ errorCode: 'UPSTREAM_STARTING' })
+  })
+
+  it.each(['authenticated', 'public', 'ticket'])('preserves the rate-limit envelope in the %s server fetch', async (boundary) => {
+    const payload = { error: 'Rate limited', errorCode: 'RATE_LIMITED', requestId: 'request-reference' }
+    mockFetch.mockResolvedValue(Response.json(payload, { status: 429, headers: { 'Retry-After': '60' } }))
+    const request = boundary === 'public' ? serverPublicFetch('/api/config')
+      : boundary === 'ticket' ? serverAuthMutate(API.events.ticket, { method: 'POST' }, null)
+      : serverAuthFetch(API.habits.list)
+    await expect(request).rejects.toMatchObject({ status: 429, code: 'RATE_LIMITED', retryAfter: '60', data: payload })
+  })
+
   it('returns an uncoded edge 403 from an HTML response', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 403,
       json: () => Promise.reject(new SyntaxError('Unexpected token')),
     })
@@ -77,6 +127,18 @@ describe('serverAuthFetch', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs()
+  })
+
+  it.each(['authenticated', 'public'])('pins API v2 on a %s request despite a caller version', async (boundary) => {
+    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+    mockFetch.mockResolvedValue(Response.json({ value: 'accepted' }))
+    const init = { headers: { 'Api-Version': '1.0' } }
+    const response = boundary === 'public'
+      ? await serverPublicFetch('/api/config', init)
+      : await serverAuthFetch('/api/habits', init)
+    expect(response).toEqual({ value: 'accepted' })
+    expect(mockFetch).toHaveBeenCalledOnce()
+    expectApiVersion2Requests(mockFetch.mock.calls)
   })
 
   it('calls fetch with the resolved auth token', async () => {
@@ -120,6 +182,7 @@ describe('serverAuthFetch', () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: false,
+        headers: new Headers(),
         status: 401,
         json: () => Promise.resolve({ error: 'Unauthorized' }),
       })
@@ -147,32 +210,6 @@ describe('serverAuthFetch', () => {
     )
   })
 
-  it('does not recurse when the refresh endpoint returns 401', async () => {
-    resolveServerSessionMock
-      .mockResolvedValueOnce({
-        token: 'stale-token',
-        expiresAt: Date.now() + 30000,
-        refreshed: false,
-      })
-      .mockResolvedValueOnce({
-        token: 'unexpected-token',
-        expiresAt: Date.now() + 3600000,
-        refreshed: true,
-      })
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 401,
-      json: () => Promise.resolve({ error: 'Unauthorized' }),
-    })
-
-    await expect(serverAuthMutate(API.auth.refresh, { method: 'POST' }, null)).rejects.toMatchObject({
-      status: 401,
-    })
-
-    expect(resolveServerSessionMock).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledTimes(1)
-  })
-
   it('throws unauthorized when no session token can be resolved', async () => {
     resolveServerSessionMock.mockResolvedValue({
       token: null,
@@ -186,20 +223,10 @@ describe('serverAuthFetch', () => {
   })
 
   it('returns null for 204 responses', async () => {
-    resolveServerSessionMock.mockResolvedValue({
-      token: 'test-token',
-      expiresAt: Date.now() + 3600000,
-      refreshed: false,
-    })
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 204,
-      text: () => Promise.resolve(''),
-    })
+    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+    mockFetch.mockResolvedValue({ ok: true, status: 204 })
 
-    const result = await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, null)
-
-    expect(result).toBeNull()
+    await expect(serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, null)).resolves.toBeNull()
   })
 
   it('forwards the event origin from a bound account mutation', async () => {
@@ -296,23 +323,6 @@ describe('serverAuthFetch', () => {
     })
   })
 
-  it('skips schema validation for empty (204) responses', async () => {
-    resolveServerSessionMock.mockResolvedValue({
-      token: 'test-token',
-      expiresAt: Date.now() + 3600000,
-      refreshed: false,
-    })
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 204,
-      text: () => Promise.resolve(''),
-    })
-
-    const schema = z.object({ id: z.string() })
-    const result = await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, null, schema)
-
-    expect(result).toBeNull()
-  })
 })
 
 describe('serverPublicFetch', () => {
@@ -352,6 +362,7 @@ describe('serverPublicFetch', () => {
   it('returns null for a 404 without invoking the schema', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 404,
       json: () => Promise.resolve(null),
     })
@@ -362,3 +373,276 @@ describe('serverPublicFetch', () => {
     expect(result).toBeNull()
   })
 })
+
+/**
+ * The claim the API puts the account id under. It is the literal `auth-api.ts` reads and the one
+ * `JwtTokenServiceTests` in the orbit-api repository pins, so a token built here carries an account
+ * the real `getAccountIdFromToken` can find.
+ */
+const ACCOUNT_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+
+function encodeJwtSegment(value: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
+}
+
+function makeAccessToken(accountId: string): string {
+  return [
+    encodeJwtSegment({ alg: 'HS256', typ: 'JWT' }),
+    encodeJwtSegment({ [ACCOUNT_CLAIM]: accountId }),
+    'ZmFrZS1zaWduYXR1cmU',
+  ].join('.')
+}
+
+describe('serverAuthMutate', () => {
+  beforeEach(() => {
+    resolveServerSessionMock.mockReset()
+    mockFetch.mockReset()
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 204,
+      text: () => Promise.resolve(''),
+    })
+  })
+
+  function holdCookieForAccount(accountId: string): void {
+    resolveServerSessionMock.mockResolvedValue({
+      token: makeAccessToken(accountId),
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+  }
+
+  it('refuses a write whose account no longer holds the cookie, before any request goes out', async () => {
+    holdCookieForAccount('account-b')
+
+    await expect(
+      serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, 'account-a'),
+    ).rejects.toMatchObject({ status: 409 })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('sends a write while the cookie still holds the account that formed it', async () => {
+    holdCookieForAccount('account-a')
+
+    await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, 'account-a')
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url] = mockFetch.mock.calls[0] as [string]
+    expect(url).toContain('/api/habits/h-1')
+  })
+
+  it('sends a write that names no account because the cookie proves no mismatch', async () => {
+    holdCookieForAccount('account-b')
+
+    await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, null)
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url] = mockFetch.mock.calls[0] as [string]
+    expect(url).toContain('/api/habits/h-1')
+  })
+
+  it('sends a write whose token carries no readable account, rather than failing shut', async () => {
+    resolveServerSessionMock.mockResolvedValue({
+      token: 'not-a-jwt',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+
+    await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, 'account-a')
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses a write when a refresh swaps the account mid-flight, before the retry goes out', async () => {
+    resolveServerSessionMock
+      .mockResolvedValueOnce({
+        token: makeAccessToken('account-a'),
+        expiresAt: Date.now() + 3600000,
+        refreshed: false,
+      })
+      .mockResolvedValueOnce({
+        token: makeAccessToken('account-b'),
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+      })
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      headers: new Headers(),
+      status: 401,
+      json: () => Promise.resolve(null),
+    })
+
+    await expect(
+      serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, 'account-a'),
+    ).rejects.toMatchObject({ status: 409 })
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('validates the response body against a schema supplied after the account', async () => {
+    holdCookieForAccount('account-a')
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ id: 'h-1', extra: 'stripped' })),
+    })
+
+    const schema = z.object({ id: z.string() })
+    const result = await serverAuthMutate('/api/habits', { method: 'POST' }, 'account-a', schema)
+
+    expect(result).toEqual({ id: 'h-1' })
+  })
+
+  it('does not recurse when the refresh endpoint returns 401', async () => {
+    resolveServerSessionMock
+      .mockResolvedValueOnce({
+        token: 'stale-token',
+        expiresAt: Date.now() + 30000,
+        refreshed: false,
+      })
+      .mockResolvedValueOnce({
+        token: 'unexpected-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+      })
+    mockFetch.mockResolvedValue({
+      ok: false,
+      headers: new Headers(),
+      status: 401,
+      json: () => Promise.resolve({ error: 'Unauthorized' }),
+    })
+
+    await expect(
+      serverAuthMutate(API.auth.refresh, { method: 'POST' }, 'account-a'),
+    ).rejects.toMatchObject({ status: 401 })
+
+    expect(resolveServerSessionMock).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns null for 204 responses', async () => {
+    holdCookieForAccount('account-a')
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 204,
+      text: () => Promise.resolve(''),
+    })
+
+    const result = await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, 'account-a')
+
+    expect(result).toBeNull()
+  })
+
+  it('skips schema validation for empty (204) responses', async () => {
+    holdCookieForAccount('account-a')
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 204,
+      text: () => Promise.resolve(''),
+    })
+
+    const schema = z.object({ id: z.string() })
+    const result = await serverAuthMutate(
+      '/api/habits/h-1',
+      { method: 'DELETE' },
+      'account-a',
+      schema,
+    )
+
+    expect(result).toBeNull()
+  })
+})
+
+
+describe('Astra proxy failure logging through server actions', () => {
+  beforeEach(() => {
+    resolveServerSessionMock.mockReset()
+    mockFetch.mockReset()
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    vi.spyOn(performance, 'now').mockReturnValueOnce(10).mockReturnValue(35)
+    resolveServerSessionMock.mockResolvedValue({ token: makeAccessToken('account-a'), refreshFailed: false })
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each(['confirm', 'execute'])('logs an upstream 503 once for %s without operation ids or tokens', async (action) => {
+    mockFetch.mockResolvedValue(new Response('private upstream body', {
+      status: 503,
+      headers: { 'x-orbit-request-id': '0HNP2CCF19CBE:00000001', 'rndr-id': '38645fab-293e-4840' },
+    }))
+
+    const result = action === 'confirm'
+      ? await confirmPendingOperation('private-operation', 'account-a')
+      : await executePendingOperation('private-operation', 'private-token', 'account-a')
+
+    expect(result).toMatchObject({ ok: false, status: 503 })
+    expect(process.stderr.write).toHaveBeenCalledExactlyOnceWith(JSON.stringify({
+      path: `/api/ai/pending-operations/:id/${action}`, status: 503, upstreamStatus: 503,
+      apiRequestId: '0HNP2CCF19CBE:00000001', renderRequestId: '38645fab-293e-4840', elapsedMs: 25,
+    }) + '\n')
+  })
+
+  it.each(['confirm', 'execute'])('keeps a successful %s action silent', async (action) => {
+    mockFetch.mockResolvedValue(Response.json({ accepted: true }))
+
+    const result = action === 'confirm'
+      ? await confirmPendingOperation('private-operation', 'account-a')
+      : await executePendingOperation('private-operation', 'private-token', 'account-a')
+
+    expect(result).toEqual({ ok: true, data: { accepted: true } })
+    expect(process.stderr.write).not.toHaveBeenCalled()
+  })
+
+  it.each([401, 409])('logs a local %i refusal without an upstream response', async (status) => {
+    if (status === 401) resolveServerSessionMock.mockResolvedValue({ token: null, refreshFailed: false })
+
+    const result = await confirmPendingOperation('private-operation', status === 409 ? 'account-b' : 'account-a')
+
+    expect(result).toMatchObject({ ok: false, status })
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(process.stderr.write).toHaveBeenCalledExactlyOnceWith(JSON.stringify({
+      path: '/api/ai/pending-operations/:id/confirm', status, upstreamStatus: null,
+      apiRequestId: null, renderRequestId: null, elapsedMs: 25,
+    }) + '\n')
+  })
+
+  it.each([200, 503])('logs only the final action outcome after retry returns %i', async (status) => {
+    mockFetch.mockResolvedValueOnce(new Response('unauthorized', { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ accepted: true }, {
+        status, headers: { 'x-orbit-request-id': 'retry-request', 'rndr-id': 'retry-render' },
+      }))
+
+    const result = await executePendingOperation('private-operation', 'private-token', 'account-a')
+
+    expect(result).toMatchObject(status === 200 ? { ok: true } : { ok: false, status })
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(process.stderr.write).toHaveBeenCalledTimes(status === 200 ? 0 : 1)
+    if (status === 503) {
+      expect(JSON.parse(vi.mocked(process.stderr.write).mock.calls[0]?.[0] as string)).toMatchObject({
+        status: 503, upstreamStatus: 503, apiRequestId: 'retry-request', renderRequestId: 'retry-render',
+      })
+    }
+  })
+
+  it('logs an edge failure whose response has no correlation headers', async () => {
+    mockFetch.mockResolvedValue(new Response('private edge body', { status: 503 }))
+
+    expect(await confirmPendingOperation('private-operation', 'account-a')).toMatchObject({ ok: false, status: 503 })
+
+    expect(process.stderr.write).toHaveBeenCalledExactlyOnceWith(JSON.stringify({
+      path: '/api/ai/pending-operations/:id/confirm', status: 503, upstreamStatus: 503,
+      apiRequestId: null, renderRequestId: null, elapsedMs: 25,
+    }) + '\n')
+  })
+
+  it('leaves other authenticated mutations outside Astra logging', async () => {
+    mockFetch.mockResolvedValue(new Response('unavailable', { status: 503 }))
+
+    await expect(serverAuthMutate('/api/habits', { method: 'POST' }, 'account-a')).rejects.toMatchObject({ status: 503 })
+
+    expect(process.stderr.write).not.toHaveBeenCalled()
+  })
+
+})
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

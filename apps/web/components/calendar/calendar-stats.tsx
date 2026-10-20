@@ -1,31 +1,33 @@
-import { StatTile } from '@/components/ui/stat-tile'
-
+import { SPACING } from '@orbit/shared/theme'
 export interface CalendarStat {
   key: string
-  emoji: string
   value: string | number
   label: string
 }
 
 interface CalendarStatsProps {
-  stats: ReadonlyArray<CalendarStat>
+  stats: readonly [CalendarStat, CalendarStat, CalendarStat]
+  state?: 'default' | 'loading' | 'empty'
+  loadingLabel?: string
+  emptyLabel?: string
 }
 
-/** At-a-glance month stat tiles. Data-driven so new stats drop in as array
- *  entries; the auto-fit grid reflows them without a layout rewrite. */
-export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
+export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLabel }: Readonly<CalendarStatsProps>) {
+  const isLoading = state === 'loading'
   return (
-    <div
-      className="grid"
-      style={{
-        gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
-        gap: 10,
-        padding: '0 20px',
-      }}
-    >
-      {stats.map((stat) => (
-        <StatTile key={stat.key} emoji={stat.emoji} value={stat.value} label={stat.label} />
-      ))}
+    <div data-testid="calendar-stats" aria-hidden={isLoading || undefined}
+      style={{ containerType: 'inline-size', containerName: 'calendar-figures', paddingInline: SPACING.s16, fontSize: 14 }}>
+      <div data-testid="calendar-figures" className="orbit-calendar-figures" style={{ display: 'grid', gap: 16 }}>
+        {stats.map((stat) => (
+          <div key={stat.key} data-state={state} className="flex min-w-0 flex-col items-start gap-2 text-start">
+            {isLoading ? <div role="status" aria-label={loadingLabel} className="relative" style={{ minWidth: 64, fontSize: 22, lineHeight: '30.8px', fontFamily: 'var(--font-display)' }}>
+              <span aria-hidden="true" className="invisible">0</span><span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-6 -translate-y-1/2 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" />
+            </div>
+              : <span className="tabular-nums" style={{ fontSize: state === 'empty' ? 12 : 22, fontFamily: state === 'empty' ? 'var(--font-mono)' : 'var(--font-display)', fontWeight: state === 'empty' ? 500 : 600, lineHeight: '30.8px', color: state === 'empty' ? 'var(--fg-3)' : 'var(--fg-1)' }}>{state === 'empty' ? emptyLabel : stat.value}</span>}
+            <span className="orbit-calendar-figure-caption" style={{ fontSize: 'inherit', fontFamily: 'var(--font-sans)', fontWeight: 400, lineHeight: '20px', color: 'var(--fg-2)' }}>{stat.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

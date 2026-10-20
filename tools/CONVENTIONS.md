@@ -6,7 +6,6 @@
 > - POSIX `.sh` is the baseline; add a `.ps1` twin only when it must run in the user's PowerShell shell.
 > - Large payloads come in on stdin, never argv; secrets never appear in argv.
 > - A tool that GATES on work being done derives its verdict from artifacts on disk, never from a status field (see "Gate tools" below).
-> - Pull requests execute the complete tool and hook harnesses in `Tool and Hook Tests`.
 > - This contract is EXECUTED, not trusted: `test-tools.mjs` runs every script here and fails on a missing `--help`, a swallowed bad argument, or an uncovered new tool.
 
 A tool here is something an agent invokes without reading its source. That only works if every tool obeys the same contract.
@@ -23,7 +22,14 @@ A tool here is something an agent invokes without reading its source. That only 
 
 ## Gate tools
 
-A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** A checklist an agent can edit is not a gate, it is a suggestion, and #539 proved it (five "done" reports over ~20% of the surfaces, every lint gate green).
+A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** An editable checklist cannot prove completion.
+
+Every gate is registered in `gate-charter.json`. A pull request gate normally fails only for changed files.
+The dash and Sonar path inventories block across the whole tree so a deleted file cannot retain an exemption.
+The contract snapshot, architecture inventory and critical dependency audit retain their blocking
+whole-tree checks. Other whole-tree scans report findings without failing. A committed inventory
+declares its regeneration command, and every numeric threshold names the source that owns it. `check-gate-charter.mjs` enforces
+the closed registry across check tools, local ESLint rules, session hooks and the registered guard step groups in `guards.yml` and the separate `pr-metadata.yml` job.
 
 The pattern, as implemented by `surface-manifest.mjs` + `redesign-coverage.mjs`:
 

@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { BackHandler } from "react-native";
+import { getTodayBoundary } from "@orbit/shared/utils";
+import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import type { HabitListHandle } from "@/components/habit-list";
 import { useUIStore } from "@/stores/ui-store";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
+import { useProfile } from "@/hooks/use-profile";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 
 interface TodaySelectionInput {
   selectedDateStr: string;
+  today: string;
   habitListRef: RefObject<HabitListHandle | null>;
   habitListAllLoadedIds: Set<string> | null;
+  habitsById: Map<string, NormalizedHabit>;
   closeControlsMenu: () => void;
 }
 
@@ -22,10 +27,14 @@ const NO_LOADED_HABIT_IDS = new Set<string>();
  */
 export function useTodaySelection({
   selectedDateStr,
+  today,
   habitListRef,
   habitListAllLoadedIds,
+  habitsById,
   closeControlsMenu,
 }: TodaySelectionInput) {
+  const { profile } = useProfile();
+  const frequencyUnit = useUIStore((s) => s.activeFilters.frequencyUnit);
   const activeView = useUIStore((s) => s.activeView);
   const isSelectMode = useUIStore((s) => s.isSelectMode);
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds);
@@ -33,19 +42,21 @@ export function useTodaySelection({
   const selectAllHabits = useUIStore((s) => s.selectAllHabits);
   const clearSelection = useUIStore((s) => s.clearSelection);
 
-  const previousActiveViewRef = useRef(activeView);
+  const completionReadOnly = getTodayBoundary(selectedDateStr, today) === "read-only";
+  const previousScopeRef = useRef({ selectedDateStr, frequencyUnit, activeView });
 
   const bulkActions = useBulkActions({
     selectedHabitIds,
     selectedDateStr,
+    completionReadOnly,
+    accountTimeZone: profile?.timeZone,
+    habitsById,
     habitListRef,
     onSuccess: clearSelection,
+    onPartialFailure: selectAllHabits,
   });
-  const {
-    setShowBulkDeleteConfirm,
-    setShowBulkLogConfirm,
-    setShowBulkSkipConfirm,
-  } = bulkActions;
+  const { setShowBulkDeleteConfirm, confirmBulkLog, confirmBulkSkip } =
+    bulkActions;
 
   const allLoadedIds = habitListAllLoadedIds ?? NO_LOADED_HABIT_IDS;
 
@@ -56,19 +67,22 @@ export function useTodaySelection({
   const selectedCount = selectedHabitIds.size;
 
   useEffect(() => {
-    if (
-      !shouldResetSelectionForViewChange(
-        previousActiveViewRef.current,
-        activeView,
-      )
-    ) {
-      return;
-    }
-
-    previousActiveViewRef.current = activeView;
+    const scopeChanged = previousScopeRef.current.selectedDateStr !== selectedDateStr ||
+      previousScopeRef.current.frequencyUnit !== frequencyUnit ||
+      shouldResetSelectionForViewChange(previousScopeRef.current.activeView, activeView);
+    previousScopeRef.current = { selectedDateStr, frequencyUnit, activeView };
+    if (!scopeChanged) return;
     closeControlsMenu();
-    if (isSelectMode) clearSelection();
-  }, [activeView, clearSelection, closeControlsMenu, isSelectMode]);
+    setShowBulkDeleteConfirm(false);
+    clearSelection();
+  }, [
+    activeView,
+    clearSelection,
+    closeControlsMenu,
+    frequencyUnit,
+    selectedDateStr,
+    setShowBulkDeleteConfirm,
+  ]);
 
   useEffect(() => {
     if (!isSelectMode) return;
@@ -106,15 +120,16 @@ export function useTodaySelection({
 
   const handleOpenBulkLog = useCallback(() => {
     if (selectedHabitIds.size === 0) return;
-    setShowBulkLogConfirm(true);
-  }, [selectedHabitIds, setShowBulkLogConfirm]);
+    void confirmBulkLog();
+  }, [confirmBulkLog, selectedHabitIds]);
 
   const handleOpenBulkSkip = useCallback(() => {
     if (selectedHabitIds.size === 0) return;
-    setShowBulkSkipConfirm(true);
-  }, [selectedHabitIds, setShowBulkSkipConfirm]);
+    void confirmBulkSkip();
+  }, [confirmBulkSkip, selectedHabitIds]);
 
   return {
+    completionReadOnly,
     ...bulkActions,
     clearSelection,
     allSelected,

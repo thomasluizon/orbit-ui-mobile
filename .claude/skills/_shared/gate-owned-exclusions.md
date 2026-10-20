@@ -16,11 +16,11 @@ layer. Audits own judgement. Never both."
 | ESLint `local/*` | comment policy (`local/no-comments`), the enumerated spacing scale (`local/spacing-scale`), `console` bans, `any` bans, the animate-presence rules, and every other `local/` rule |
 | `guards.yml` Dash Ban (`tools/check-dashes.mjs`) | em/en dashes in code and copy |
 | `guards.yml` Copy Register (`tools/check-copy.mjs`) | the banned copy register |
-| `pr-metadata.yml` Suppressions Ratchet | a rising ESLint-suppression count |
+| `guards.yml` Lint Severity (`tools/check-lint-severity.mjs`) | a `local/*` rule lowered to `warn` or to `off` outside its declared scope, and any lint-suppression baseline |
 | `guards.yml` Expo SDK Pin | a drifted Expo SDK pin |
 | `pr-metadata.yml` PR Metadata parity check | a one-sided web/mobile UI change (a missing mirror) |
 | Roslyn `ORBIT0001..0005` | narration comments, redundant transaction rollbacks, a controller with no class-level `[Authorize]`/`[AllowAnonymous]`, raw `DateTime.UtcNow` for user-facing dates, a `DbSet<T>` with no `modelBuilder.Entity<T>` config |
-| `guards.yml` React Doctor | React correctness: effect cleanup, hydration/browser-global in render, impure updaters, prop-callback-in-render, plus the react-doctor a11y and perf rules. The standing full-repo backlog is mechanical debt for the ORB-46 project, not an audit finding. |
+| `react-doctor.yml` (required) | React correctness: effect cleanup, hydration/browser-global in render, impure updaters, prop-callback-in-render, plus the react-doctor a11y and perf rules. The standing full-repo backlog is mechanical debt for the ORB-46 project, not an audit finding. |
 | `perf.yml` (`apps/web/lighthouserc.json`) | the authed-Today LCP / TBT / script-bundle-size budgets on web |
 | `guards.yml` Architecture map drift | architecture-map drift |
 

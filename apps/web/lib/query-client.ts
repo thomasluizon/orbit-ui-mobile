@@ -1,5 +1,5 @@
 import { focusManager, QueryClient } from '@tanstack/react-query'
-import { configureAccountQueryDefaults } from '@orbit/shared/query'
+import { configureAccountQueryDefaults, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
 
 focusManager.setEventListener((handleFocus) => {
   if (typeof window === 'undefined') return
@@ -20,9 +20,9 @@ export function createQueryClient(): QueryClient {
         gcTime: 24 * 60 * 60 * 1000,
         retry: (failureCount, error) => {
           if (typeof navigator !== 'undefined' && !navigator.onLine) return false
-          if (error instanceof Error && error.message.includes('401')) return false
-          return failureCount < 3
+          return shouldRetryQuery(failureCount, error)
         },
+        retryDelay: queryRetryDelay,
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
       },

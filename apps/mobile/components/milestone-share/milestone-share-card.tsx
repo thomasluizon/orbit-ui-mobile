@@ -1,13 +1,12 @@
+import { SPACING } from '@orbit/shared/theme'
 import { forwardRef, useMemo } from 'react'
-// react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a static bundled logo rendered into a react-native-view-shot capture (expo-image does not reliably render in view-shot snapshots), so RN Image is the deliberate correct choice here. Adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
 import { achievementEmoji } from '@orbit/shared/utils'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-const logoSource = require('../../assets/logo-no-bg.png') as ImageSourcePropType
+import { OrbitMark } from '@/components/ui/orbit-mark'
 
 export type MilestoneShareVariant =
   | { kind: 'streak'; streak: number }
@@ -18,7 +17,7 @@ interface MilestoneShareCardProps {
   referralUrl: string
 }
 
-/** Branded navy-violet milestone card and the react-native-view-shot capture target. Streak variant shows the day count; achievement variant shows emoji, name, and rarity. */
+/** Flat token-native milestone card and the react-native-view-shot capture target. */
 export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
   function MilestoneShareCard({ variant, referralUrl }, ref) {
     const { t } = useTranslation()
@@ -34,13 +33,13 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
 
     return (
       <View ref={ref} testID="milestone-share-card" style={styles.card}>
-        <View testID="milestone-share-card-band" style={styles.band}>
+        <View style={styles.band}>
           <View style={styles.brandRow}>
-            <Image source={logoSource} style={styles.logo} resizeMode="contain" />
+            <OrbitMark size={24} accent />
             <Text style={styles.wordmark}>Orbit</Text>
           </View>
 
-          <Text style={styles.eyebrow}>{eyebrow.toUpperCase()}</Text>
+          <Text style={styles.eyebrow}>{eyebrow}</Text>
 
           {variant.kind === 'streak' ? (
             <>
@@ -60,7 +59,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
                 </Text>
                 <View style={styles.rarityPill}>
                   <Text style={styles.rarityText}>
-                    {t(`milestoneShare.rarity.${variant.rarity}`).toUpperCase()}
+                    {t(`milestoneShare.rarity.${variant.rarity}`)}
                   </Text>
                 </View>
               </View>
@@ -97,91 +96,85 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderColor: tokens.hairline,
     },
     band: {
-      paddingTop: 20,
-      paddingHorizontal: 22,
-      paddingBottom: 24,
       backgroundColor: tokens.bgCard,
+      padding: SPACING.s24,
     },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 9,
-    },
-    logo: {
-      width: 26,
-      height: 26,
+      gap: 8,
     },
     wordmark: {
-      fontFamily: 'Inter_600SemiBold',
-      fontSize: 18,
+      fontFamily: 'SpaceGrotesk_600SemiBold',
+      fontSize: 20,
       letterSpacing: -0.18,
       color: tokens.fg1,
     },
     eyebrow: {
-      marginTop: 18,
-      fontFamily: 'Rubik_500Medium',
+      marginTop: SPACING.s16,
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       color: tokens.fg3,
     },
     streakNumber: {
-      marginTop: 6,
-      fontFamily: 'Inter_700Bold',
-      fontSize: 56,
+      marginTop: SPACING.s8,
+      fontFamily: 'SpaceGrotesk_600SemiBold',
+      fontSize: 60,
       lineHeight: 60,
-      letterSpacing: -1.6,
+      letterSpacing: -1.5,
       fontVariant: ['tabular-nums'],
       color: tokens.fg1,
     },
     streakTitle: {
-      marginTop: 8,
-      fontFamily: 'Rubik_500Medium',
+      marginTop: SPACING.s8,
+      fontFamily: 'Geist_500Medium',
       fontSize: 16,
       color: tokens.fg2,
     },
     achievementRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
-      marginTop: 10,
+      gap: 16,
+      marginTop: SPACING.s12,
     },
     achievementEmoji: {
-      fontSize: 52,
+      fontSize: 44,
     },
     achievementText: {
       flex: 1,
     },
     achievementName: {
-      fontFamily: 'Inter_700Bold',
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 22,
       letterSpacing: -0.22,
       color: tokens.fg1,
     },
     rarityPill: {
       alignSelf: 'flex-start',
-      marginTop: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 3,
-      borderRadius: 999,
-      backgroundColor: tintFromPrimary(tokens, 0.16),
+      marginTop: SPACING.s8,
+      paddingHorizontal: SPACING.s8,
+      paddingVertical: SPACING.s4,
+      borderRadius: 8,
+      backgroundColor: tokens.bgField,
     },
     rarityText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 11.5,
+      fontFamily: 'GeistMono_500Medium',
+      fontSize: 12,
       letterSpacing: 0.6,
-      color: tokens.primarySoft,
+      color: tokens.fg1,
     },
     footer: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 18,
-      paddingVertical: 16,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s16,
       borderTopWidth: 1,
       borderTopColor: tokens.hairline,
     },
     qrTile: {
-      padding: 6,
+      padding: SPACING.s4,
       borderRadius: 12,
       backgroundColor: '#ffffff',
     },
@@ -189,13 +182,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flex: 1,
     },
     scanText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 14,
       color: tokens.fg1,
     },
     shortLink: {
-      marginTop: 2,
-      fontFamily: 'Roboto_400Regular',
+      marginTop: SPACING.s4,
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       color: tokens.fg3,

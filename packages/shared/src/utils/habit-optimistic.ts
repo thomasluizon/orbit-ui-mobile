@@ -1,5 +1,5 @@
 import type { HabitScheduleChild, HabitScheduleItem } from '../types/habit'
-import { formatAPIDate } from './dates'
+import { formatAPIDate, parseAPIDate } from './dates'
 
 type ChildContainer = {
   children: HabitScheduleChild[]
@@ -37,8 +37,8 @@ export function buildSuccessfulLogPatch(habit: HabitTreeNode): Partial<HabitSche
 }
 
 /** Returns tomorrow's date formatted for the API (used to postpone one-time habits). */
-export function getTomorrowDateString(): string {
-  const tomorrow = new Date()
+export function getTomorrowDateString(date = formatAPIDate(new Date())): string {
+  const tomorrow = parseAPIDate(date)
   tomorrow.setDate(tomorrow.getDate() + 1)
   return formatAPIDate(tomorrow)
 }
@@ -72,31 +72,34 @@ export function findHabitInList(
 }
 
 /**
- * Optimistic patch for skipping a habit: recurring habits leave the current view
- * (marked completed); one-time habits are postponed to tomorrow.
+ * Optimistic patch for skipping a habit: the current occurrence leaves the day
+ * without becoming completed; one-time habits are postponed to tomorrow.
  */
 export function buildOptimisticSkipPatch(
   habit: HabitTreeNode,
   skippedDate = formatAPIDate(new Date()),
-): Partial<HabitScheduleItem> & { [optimisticSkipMarker]?: string } {
+): Partial<HabitScheduleItem> & { [optimisticSkipMarker]: string } {
   if (habit.frequencyUnit !== null) {
+    const remainingDates = habit.scheduledDates?.filter((date) => date !== skippedDate)
     return {
-      isCompleted: true,
-      instances: [
-        ...habit.instances.filter((instance) => instance.date !== skippedDate),
-        { date: skippedDate, status: 'Completed', logId: null },
-      ],
+      dueDate: habit.dueDate === skippedDate
+        ? remainingDates?.filter((date) => date > skippedDate).sort()[0] ?? getTomorrowDateString(skippedDate)
+        : habit.dueDate,
+      scheduledDates: remainingDates,
+      instances: habit.instances.filter((instance) => instance.date !== skippedDate),
+      isOverdue: false,
+      ...(habit.isFlexible && habit.flexibleTarget != null ? { flexibleTarget: habit.flexibleTarget - 1 } : {}),
       [optimisticSkipMarker]: skippedDate,
     }
   }
 
-  const dueDate = getTomorrowDateString()
+  const dueDate = getTomorrowDateString(skippedDate)
   return {
-    isCompleted: false,
     dueDate,
     scheduledDates: [dueDate],
     isOverdue: false,
     instances: [{ date: dueDate, status: 'Pending', logId: null }],
+    [optimisticSkipMarker]: skippedDate,
   }
 }
 
@@ -159,4 +162,46 @@ export function optimisticPatchHabit(
       ),
     )
   })
+}
+
+export function optimisticSetDatedCompletion(
+  items: HabitScheduleItem[],
+  habitId: string,
+  date: string,
+  completed: boolean,
+  logId: string,
+): HabitScheduleItem[] {
+  const habit = findHabitInList(items, habitId)
+  if (!habit) return items
+
+  return optimisticPatchHabit(
+    items,
+    habitId,
+    buildDatedCompletionPatch(habit, date, completed, logId),
+  )
+}
+
+function buildDatedCompletionPatch(
+  habit: HabitScheduleItem | HabitScheduleChild,
+  date: string,
+  completed: boolean,
+  logId: string,
+): Partial<HabitScheduleItem> {
+  const occurrence = {
+    date,
+    status: completed ? 'Completed' as const : 'Pending' as const,
+    logId: completed ? logId : null,
+  }
+  const occurrenceIndex = habit.instances.findIndex((instance) => instance.date === date)
+  const instances = occurrenceIndex >= 0
+    ? habit.instances.map((instance, index) => index === occurrenceIndex ? occurrence : instance)
+    : completed
+      ? [...habit.instances, occurrence]
+      : habit.instances
+
+  return {
+    isCompleted: completed,
+    isLoggedInRange: instances.some((instance) => instance.status === 'Completed'),
+    instances,
+  }
 }

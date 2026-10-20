@@ -31,9 +31,9 @@ beforeEach(() => {
 describe('reconcileSessionOnForeground (mobile)', () => {
   it('routes to /login when a foreground refresh clears an authenticated session', async () => {
     mocks.isAuthenticated = true
-    mocks.checkAuth.mockImplementation(async () => {
+    mocks.checkAuth.mockImplementation(() => {
       mocks.isAuthenticated = false
-      return false
+      return Promise.resolve(false)
     })
 
     await reconcileSessionOnForeground()

@@ -1,0 +1,219 @@
+import type { ReactElement } from 'react'
+import { act, create } from 'react-test-renderer'
+import { Animated } from 'react-native'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { Columns } from '@/components/ui/columns'
+import { Fab } from '@/components/ui/fab'
+import { Icon } from '@/components/ui/icon'
+import { Lockup } from '@/components/ui/lockup'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { ParentRing } from '@/components/ui/parent-ring'
+import { ProgressRing } from '@/components/ui/progress-ring'
+import { createTokensV2 } from '@/lib/theme'
+
+const tokens = createTokensV2('purple', 'dark')
+const motionState = vi.hoisted(() => ({ reduced: false }))
+
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/motion')>()),
+  usePrefersReducedMotion: () => motionState.reduced,
+}))
+
+interface TestNode {
+  readonly type: unknown
+  readonly props: Readonly<Record<string, unknown>>
+  find(predicate: (node: TestNode) => boolean): TestNode
+  findByProps(props: Readonly<Record<string, unknown>>): TestNode
+  findAll(predicate: (node: TestNode) => boolean): TestNode[]
+  findAllByType(type: string): TestNode[]
+}
+
+interface TestTree {
+  readonly root: TestNode
+  update(element: ReactElement): void
+}
+
+type StyleArray = readonly [Readonly<Record<string, unknown>>, Readonly<Record<string, unknown>>]
+
+function render(element: ReactElement): TestTree {
+  let tree: TestTree | undefined
+  void act(() => {
+    tree = create(element) as unknown as TestTree
+  })
+  if (tree == null) throw new Error('Primitive test renderer did not mount')
+  return tree
+}
+
+function prop<T>(node: TestNode, name: string): T {
+  return node.props[name] as T
+}
+
+function byType(root: TestNode, type: string): TestNode[] {
+  return root.findAll((node) => node.type === type)
+}
+
+describe('redesign primitives on mobile', () => {
+  beforeEach(() => {
+    motionState.reduced = false
+    vi.restoreAllMocks()
+  })
+
+  it('renders a measured zero as a 2px column without using the empty words', () => {
+    const tree = render(
+      <Columns
+        columns={[
+          { id: 'zero', label: 'Zero', value: 0 },
+          { id: 'ten', label: 'Ten', value: 10 },
+        ]}
+        label="Results"
+        emptyLabel="No measurements"
+      />,
+    )
+    expect(prop(tree.root.findAllByType('View')[0]!, 'accessible')).toBe(false)
+    const zero = tree.root.find((node) => prop(node, 'accessibilityLabel') === 'Results. Zero: 0')
+    expect(prop(zero, 'accessible')).toBe(true)
+    expect(prop(zero, 'accessibilityRole')).toBe('image')
+    const fill = zero.findAllByType('View').find((node) => {
+      const style = prop<StyleArray | undefined>(node, 'style')
+      return style?.[1]?.height === 2
+    })
+    expect(prop<StyleArray>(fill!, 'style')[1].height).toBe(2)
+  })
+
+  it('uses the tallest column or a supplied shared maximum as its scale', () => {
+    const tree = render(
+      <Columns columns={[{ id: 'one', label: 'One', value: 10 }]} emptyLabel="Empty" />,
+    )
+    const findFill = () => tree.root.findAllByType('View').find((node) => {
+      const style = prop<StyleArray | undefined>(node, 'style')
+      return style?.[0]?.maxWidth === 48
+    })
+    expect(prop<StyleArray>(findFill()!, 'style')[1].height).toBe('100%')
+
+    void act(() => {
+      tree.update(
+        <Columns columns={[{ id: 'one', label: 'One', value: 10 }]} max={20} emptyLabel="Empty" />,
+      )
+    })
+    expect(prop<StyleArray>(findFill()!, 'style')[1].height).toBe('50%')
+  })
+
+  it('keeps the measured ring static on mount and interrupts later progress changes', () => {
+    const animations: {
+      reset: ReturnType<typeof vi.fn>
+      start: ReturnType<typeof vi.fn>
+      stop: ReturnType<typeof vi.fn>
+    }[] = []
+    const timing = vi.spyOn(Animated, 'timing').mockImplementation(() => {
+      const animation = { reset: vi.fn(), start: vi.fn(), stop: vi.fn() }
+      animations.push(animation)
+      return animation
+    })
+    const tree = render(<ProgressRing value={0} label="Progress" />)
+    const progressCircle = () => byType(tree.root, 'Circle')[1]!
+    const circumference = 2 * Math.PI * 30
+
+    void act(() => {
+      prop<() => void>(byType(tree.root, 'Svg')[0]!, 'onLayout')()
+    })
+
+    expect(prop(byType(tree.root, 'Circle')[0]!, 'stroke')).toBe(tokens.trackEmpty)
+    expect(prop(progressCircle(), 'opacity')).toBe(0)
+    expect(timing).not.toHaveBeenCalled()
+
+    void act(() => {
+      tree.update(<ProgressRing value={40} label="Progress" />)
+    })
+    expect(prop(progressCircle(), 'opacity')).toBe(1)
+    expect(prop(progressCircle(), 'stroke')).toBe(tokens.primary)
+    expect(timing).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ toValue: circumference * 0.6 }),
+    )
+
+    void act(() => {
+      tree.update(<ProgressRing value={70} label="Progress" />)
+    })
+    expect(animations[0]?.stop).toHaveBeenCalledOnce()
+
+    motionState.reduced = true
+    void act(() => {
+      tree.update(<ProgressRing value={99.9} label="Progress" />)
+    })
+    expect(timing).toHaveBeenCalledTimes(2)
+    expect(prop<{ value: number }>(progressCircle(), 'strokeDashoffset').value).toBeCloseTo(circumference * 0.001)
+
+    void act(() => {
+      tree.update(<ProgressRing value={100} label="Progress" />)
+    })
+    expect(tree.root.findByProps({ testID: 'progress-ring-complete' })).toBeDefined()
+    expect(prop(byType(tree.root, 'Circle')[1]!, 'stroke')).toBe(tokens.fg3)
+  })
+
+  it('paints only the parent track at zero and shows child progress afterward', () => {
+    const tree = render(<ParentRing done={0} total={2} />)
+    const circles = () => byType(tree.root, 'Circle').filter((circle) => prop(circle, 'opacity') !== 0)
+    expect(circles()).toHaveLength(1)
+    expect(prop(circles()[0]!, 'stroke')).toBe(tokens.trackEmpty)
+
+    void act(() => { tree.update(<ParentRing done={1} total={2} />) })
+    expect(circles()).toHaveLength(2)
+    expect(prop(circles()[1]!, 'stroke')).toBe(tokens.primary)
+    const circumference = 2 * Math.PI * 5.25
+    expect(prop(circles()[1]!, 'strokeDasharray')).toBe(`${circumference / 2} ${circumference}`)
+  })
+
+  it('keeps the FAB labelled and actionable', () => {
+    const onClick = vi.fn()
+    const tree = render(<Fab label="Create" onClick={onClick}>+</Fab>)
+    const button = tree.root.findByProps({ testID: 'fab' })
+    expect(prop(button, 'accessibilityLabel')).toBe('Create')
+    prop<() => void>(button, 'onPress')()
+    expect(onClick).toHaveBeenCalledOnce()
+  })
+
+  it('selects native brand redraws and limits the mark accent to its moon', () => {
+    const tree = render(<OrbitMark size={16} />)
+    expect(tree.root.findByProps({ testID: 'orbit-mark-16' })).toBeDefined()
+    expect(prop(byType(tree.root, 'Path').at(-1)!, 'fill')).toBe('currentColor')
+
+    void act(() => {
+      tree.update(<OrbitMark size={24} accent />)
+    })
+    expect(tree.root.findByProps({ testID: 'orbit-mark-accent' })).toBeDefined()
+    const paths = byType(tree.root, 'Path')
+    expect(prop(paths[0]!, 'fill')).toBe('currentColor')
+    expect(prop(paths.at(-1)!, 'fill')).toBe(tokens.primary)
+  })
+
+  it('uses the Astra native redraw and honours a color override', () => {
+    const tree = render(<AstraGlyph size={16} />)
+    expect(tree.root.findByProps({ testID: 'astra-mark-16' })).toBeDefined()
+
+    void act(() => {
+      tree.update(<AstraGlyph size={24} color="#123456" />)
+    })
+    expect(prop(tree.root.findByProps({ testID: 'astra-mark' }), 'color')).toBe('#123456')
+  })
+
+  it('centres icons at the default size and makes accessibility deliberate', () => {
+    const tree = render(<Icon name="home" />)
+    const decorative = tree.root.findByProps({ testID: 'icon-home' })
+    expect(prop(decorative, 'accessibilityElementsHidden')).toBe(true)
+    expect(prop(decorative, 'style')).toMatchObject({ height: 24, width: 24 })
+
+    void act(() => {
+      tree.update(<Icon name="home" label="Home" />)
+    })
+    expect(prop(tree.root.findByProps({ testID: 'icon-home' }), 'accessibilityLabel')).toBe('Home')
+  })
+
+  it('renders the outlined lockup with fixed geometry and no text node', () => {
+    const tree = render(<Lockup />)
+    const lockup = tree.root.findByProps({ testID: 'orbit-lockup' })
+    expect(prop(lockup, 'viewBox')).toBe('-0.000000087 0 89.395502773 17.882739221')
+    expect(byType(tree.root, 'Path')).toHaveLength(3)
+    expect(byType(tree.root, 'Text')).toHaveLength(0)
+  })
+})

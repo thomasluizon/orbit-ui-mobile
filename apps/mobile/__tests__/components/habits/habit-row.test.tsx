@@ -1,17 +1,23 @@
-import { afterEach, describe, it, expect, vi } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { neutralColors } from '@orbit/shared/theme'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import {
-  HabitRow,
-  type HabitRowActions,
-} from '@/components/habits/habit-row'
-import { styles } from '@/components/habits/habit-row-styles'
+import { HabitRow } from '@/components/habits/habit-row'
+import { Menu } from '@/components/ui/menu'
+import { Icon } from '@/components/ui/icon'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import {
-  Animated,
   __resetTestHostConfig,
   __setHostRefsNull,
   __setMeasureInWindowImpl,
 } from '@/test-mocks/react-native'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const TestRenderer = require('react-test-renderer')
 
@@ -23,8 +29,9 @@ vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
+const themeMock = vi.hoisted((): { currentTheme: 'dark' | 'light' } => ({ currentTheme: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: themeMock.currentTheme }),
 }))
 
 vi.mock('@/lib/motion', () => ({
@@ -54,11 +61,218 @@ function renderRowText(habit: ReturnType<typeof createMockHabit>): string[] {
   return collectStrings(tree!.toJSON())
 }
 
-describe('HabitRow tags (mobile)', () => {
-  it('renders the habit tag names on the row', () => {
+describe('HabitRow neutral metadata contrast (mobile)', () => {
+  afterEach(() => { themeMock.currentTheme = 'dark' })
+
+  const cases = [
+    { label: 'parent count', parent: true, exceptional: false },
+    { label: 'single time', parent: false, exceptional: false },
+    { label: 'count with state words', parent: true, exceptional: true },
+    { label: 'time with state words', parent: false, exceptional: true },
+  ]
+  const scenarios = (['dark', 'light'] as const).flatMap((mode) =>
+    cases.flatMap((row) => ([0, 1] as const).map((depth) => ({ mode, ...row, depth }))),
+  )
+
+  it.each(scenarios)('$mode $label, depth=$depth clears the text floor', ({ mode, label, parent, exceptional, depth }) => {
+    themeMock.currentTheme = mode
+    const tokens = createTokensV2('orange', mode)
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow depth={depth} hasChildren={parent}
+        childrenDone={parent ? 1 : 0} childrenTotal={parent ? 2 : 0}
+        habit={createMockHabit({ title: label, dueTime: '21:00',
+          isOverdue: exceptional, isBadHabit: exceptional, isLoggedInRange: exceptional })} />)
+    })
+    const body = renderer!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    const metadata = body.findAllByType('Text').find(
+      (node: { children: unknown[] }) => node.children.includes(parent ? 'habits.rowProgress' : '21:00'),
+    )
+    expect(metadata).toBeDefined()
+    function assertStateWords(pressed: boolean, layers: string[]) {
+      for (const [word, color] of [['habits.overdue', tokens.statusOverdueText], ['habits.statusDot.bad', tokens.statusBadText]]) {
+        const stateWord = metadata.findAllByType('Text').find(
+          (node: { children: unknown[] }) => node.children.includes(word),
+        )
+        const foreground = StyleSheet.flatten(stateWord.props.style).color
+        expect(foreground).toBe(color)
+        expect(contrastOnSurface(foreground, layers)).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+    for (const pressed of [false, true, false]) {
+      TestRenderer.act(() => pressed ? body.props.onPressIn() : body.props.onPressOut())
+      const card = renderer!.root.findByProps({ testID: 'habit-row' })
+      const layers = [tokens.bg, StyleSheet.flatten(card.props.style).backgroundColor]
+      const bodyFill = StyleSheet.flatten(body.props.style({ pressed })).backgroundColor
+      if (bodyFill) layers.push(bodyFill)
+      const foreground = StyleSheet.flatten(metadata.props.style).color
+      expect(foreground).toBe(pressed ? tokens.fg2 : tokens.fg3)
+      expect(contrastOnSurface(foreground, layers), `${label}, pressed=${pressed}`).toBeGreaterThanOrEqual(4.5)
+      if (pressed && mode === 'dark') {
+        expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.029, 3)
+      }
+      for (const separator of metadata.findAllByType('Text').filter(
+        (node: { children: unknown[] }) => node.children.includes(' · '),
+      )) {
+        expect(StyleSheet.flatten(separator.props.style).color).toBe(pressed ? tokens.fg2 : tokens.fg3)
+        expect(contrastOnSurface(StyleSheet.flatten(separator.props.style).color, layers)).toBeGreaterThanOrEqual(4.5)
+      }
+      if (exceptional) assertStateWords(pressed, layers)
+    }
+    TestRenderer.act(() => renderer.unmount())
+  })
+})
+
+describe('HabitRow canonical content (mobile)', () => {
+  it('shows time alone and omits routine meta on an untimed single row', () => {
+    const timed = renderRowText(createMockHabit({ dueTime: '21:00' }))
+    expect(timed).toContain('21:00')
+    expect(timed.some((text) => text.includes('habits.frequency'))).toBe(false)
+    const untimed = renderRowText(createMockHabit({ checklistItems: [{ text: 'One', isChecked: true }] }))
+    expect(untimed.some((text) => text.includes('habits.frequency'))).toBe(false)
+    expect(untimed).not.toContain('1/1')
+  })
+
+  it('shows child progress instead of the parent schedule', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit({ dueTime: '21:00' })}
+        hasChildren childrenDone={1} childrenTotal={2} />)
+    })
+    const text = collectStrings(tree!.toJSON())
+    expect(text).toContain('habits.rowProgress')
+    expect(text).not.toContain('21:00')
+  })
+
+  it.each([
+    { label: 'ordinary', isOverdue: false, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      words: [], state: 'empty' },
+    { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      words: ['habits.overdue'], state: 'overdue' },
+    { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
+      words: ['habits.statusDot.bad'], state: 'bad' },
+    { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
+      words: ['habits.overdue', 'habits.statusDot.bad'], state: 'bad' },
+    { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
+      words: [], state: 'empty' },
+    { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
+      words: [], state: 'done' },
+  ])('renders parent progress with applicable state words for $label', ({ label, words, state, ...flags }) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: label,
+        dueTime: '21:00', hasSubHabits: true, ...flags })}
+        hasChildren childrenDone={1} childrenTotal={2} />)
+    })
+    const text = collectStrings(tree!.toJSON())
+    expect(text.filter((part) => part.startsWith('habits.rowProgress') || words.includes(part)))
+      .toEqual(['habits.rowProgress', ...words])
+    for (const word of ['habits.overdue', 'habits.statusDot.bad']) {
+      if (!words.includes(word)) expect(text).not.toContain(word)
+    }
+    expect(text).not.toContain('21:00')
+    const body = tree!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    const supplementaryWords = state === 'bad' && flags.isOverdue ? ['habits.overdue'] : []
+    expect(body.props.accessibilityLabel).toBe(
+      [label, `habits.statusDot.${state}`, 'habits.rowProgress', ...supplementaryWords].join(', '),
+    )
+    expect(body.props.accessibilityHint).toBeUndefined()
+    expect(tree!.root.findAllByType('Pressable').some(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityLabel === `habits.statusDot.${state}, habits.${flags.isCompleted || flags.isLoggedInRange ? 'actions.unlog' : 'logHabit'}: ${label}, 1/2`,
+    )).toBe(true)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([false, true])('uses the empty track for parent selection mode %s', (isSelectMode) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit()} hasChildren
+        childrenDone={1} childrenTotal={2} isSelectMode={isSelectMode} />)
+    })
+    const check = tree!.root.findByProps({ testID: 'habit-check' })
+    expect(StyleSheet.flatten(check.props.style).borderColor).toBe(createTokensV2('purple', 'dark').trackEmpty)
+  })
+
+  it('shows a one-day habit row without an internal type label', () => {
+    const texts = renderRowText(createMockHabit({ title: 'Pay bill', frequencyUnit: null, frequencyQuantity: null, dueTime: '08:00' }))
+    expect(texts).toContain('Pay bill')
+    expect(texts).toContain('08:00')
+    expect(texts).not.toContain('habits.oneTimeTask')
+  })
+
+  it.each([false, true])('does not reserve a disclosure gutter on a leaf, selecting=%s', (isSelectMode) => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode={isSelectMode} />)
+    })
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    const body = row.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500)
+    expect(body).toBeDefined()
+    expect(row.children[0].children[0].props.delayLongPress).toBe(500)
+    expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)
+    TestRenderer.act(() => renderer.unmount())
+  })
+
+  it('keeps a child body on the shared leading edge', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Child' })} depth={1} />)
+    })
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    expect(row.children[0].children[0].props.delayLongPress).toBe(500)
+    expect(StyleSheet.flatten(row.props.style).paddingLeft).toBeUndefined()
+    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(8)
+  })
+
+  it('keeps separate selection and structural columns with a neutral checkbox', () => {
+    const onToggleExpand = vi.fn()
+    const onToggleSelection = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Parent' })}
+        structuralColumn isSelectMode isSelected hasChildren isExpanded childrenDone={1} childrenTotal={2}
+        actions={{ onToggleExpand, onToggleSelection }} />)
+    })
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    const [body, selection, disclosureColumn] = row.children[0].children
+    expect(selection.props.accessibilityState).toMatchObject({ checked: true })
+    const disclosure = disclosureColumn.findByProps({ accessibilityLabel: 'common.collapse' })
+    expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
+    expect(body.props.delayLongPress).toBe(500)
+    const checkbox = selection.findAll((node: { props: { pointerEvents?: string } }) => node.props.pointerEvents === 'none')[0]
+    const fill = checkbox.findAll((node: { props: { width?: number; height?: number; fill?: string } }) => node.props.width === 24 && node.props.height === 24 && node.props.fill !== undefined)[0]
+    expect(fill.props.fill).toBe(createTokensV2('purple', 'dark').fg1)
+    TestRenderer.act(() => disclosure.props.onPress())
+    expect(onToggleExpand).toHaveBeenCalledOnce()
+    expect(onToggleSelection).not.toHaveBeenCalled()
+    expect(renderer!.root.findAllByProps({ accessibilityLabel: 'habits.statusDot.empty, 1/2' }).length).toBeGreaterThan(0)
+    expect(renderer!.root.findAll((node: { props: { accessibilityLabel?: string; accessibilityRole?: string } }) =>
+      node.props.accessibilityLabel?.startsWith('habits.statusDot.empty') && node.props.accessibilityRole === 'button')).toHaveLength(0)
+  })
+
+  it('keeps selection and the status glyph without a leaf gutter', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode />)
+    })
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    const [body, selection, trailing] = row.children[0].children
+    expect(selection.props.accessibilityState).toMatchObject({ checked: false })
+    expect(trailing).toBeDefined()
+    expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)
+    expect(body.props.delayLongPress).toBe(500)
+    expect(renderer!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
+  })
+  it('omits descriptions and tags from the canonical row', () => {
     const texts = renderRowText(
       createMockHabit({
         title: 'Read',
+        description: 'A long preview',
         tags: [
           { id: '1', name: 'Learning', color: '#7c3aed' },
           { id: '2', name: 'Evening', color: '#10b981' },
@@ -66,73 +280,335 @@ describe('HabitRow tags (mobile)', () => {
       }),
     )
 
-    expect(texts).toContain('Learning')
-    expect(texts).toContain('Evening')
+    expect(texts).toContain('Read')
+    expect(texts).not.toContain('A long preview')
+    expect(texts).not.toContain('Learning')
+    expect(texts).not.toContain('Evening')
   })
 
-  it('caps visible tags at three and shows a +N overflow counter', () => {
+  it('uses the first uppercase letter when an emoji is missing', () => {
     const texts = renderRowText(
       createMockHabit({
-        title: 'Read',
-        tags: Array.from({ length: 10 }, (_, i) => ({
-          id: String(i),
-          name: `Tag${i}`,
-          color: '#7c3aed',
-        })),
+        title: 'read',
+        emoji: null,
       }),
     )
 
-    expect(texts).toContain('Tag0')
-    expect(texts).toContain('Tag2')
-    expect(texts).not.toContain('Tag3')
-    expect(texts.join('')).toContain('+7')
+    expect(texts).toContain('R')
+  })
+
+  it.each([
+    { depth: 0, color: createTokensV2('purple', 'dark').fg1 },
+    { depth: 1, color: createTokensV2('purple', 'dark').fg2 },
+  ] as const)('keeps done and pending titles alike at depth $depth', ({ depth, color }) => {
+    const styles: Record<string, unknown>[] = []
+    for (const isCompleted of [false, true]) {
+      let renderer: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        renderer = TestRenderer.create(
+          <HabitRow habit={createMockHabit({ title: 'Read', isCompleted })} depth={depth} />,
+        )
+      })
+      const title = renderer!.root.findAllByType('Text').find(
+        (node: { children: unknown[] }) => node.children.includes('Read'),
+      )
+      expect(title).toBeDefined()
+      styles.push(StyleSheet.flatten(title!.props.style) as Record<string, unknown>)
+      TestRenderer.act(() => renderer.unmount())
+    }
+    expect(styles[0]).toMatchObject({ color })
+    expect(styles[1]).toMatchObject({ color })
+    expect(styles[0]?.textDecorationLine).not.toBe('line-through')
+    expect(styles[1]?.textDecorationLine).not.toBe('line-through')
   })
 })
 
-function renderRowWithMenu(
-  actions: HabitRowActions = { onEdit: vi.fn() },
-) {
+describe('HabitRow status control names (mobile)', () => {
+  it('updates the body metadata while its title and primary state stay the same', () => {
+    const onDetail = vi.fn()
+    const habit = createMockHabit({ title: 'Evening routine', isBadHabit: true, isLoggedInRange: true })
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={habit} actions={{ onDetail }} />)
+    })
+    const body = () => renderer!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    expect(body().props.accessibilityLabel).toBe('Evening routine, habits.statusDot.bad')
+    TestRenderer.act(() => {
+      renderer.update(<HabitRow habit={{ ...habit, isOverdue: true }} hasChildren
+        childrenDone={1} childrenTotal={2} actions={{ onDetail }} />)
+    })
+    expect(body().props.accessibilityLabel).toBe(
+      'Evening routine, habits.statusDot.bad, habits.rowProgress, habits.overdue',
+    )
+    TestRenderer.act(() => body().props.onPress())
+    expect(onDetail).toHaveBeenCalledOnce()
+    TestRenderer.act(() => renderer.unmount())
+  })
+
+  it('includes a single row time range and keeps its future hint separate', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read',
+        dueTime: '08:00', dueEndTime: '09:00', dueDate: '2026-09-15' })} />)
+    })
+    const body = renderer!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    expect(body.props.accessibilityLabel).toBe('Read, habits.statusDot.empty, 08:00 - 09:00')
+    expect(body.props.accessibilityHint).toBe('habits.schedule.dueInDays')
+    TestRenderer.act(() => renderer.unmount())
+  })
+
+  it('reports the row overflow menu state through open and close', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />)
+    })
+    const button = () => renderer!.root.findAll((node: { props: { accessibilityLabel?: string } }) =>
+      node.props.accessibilityLabel === 'habits.actions.more')[0]
+    expect(button().props.accessibilityState).toMatchObject({ expanded: false })
+    TestRenderer.act(() => button().props.onPress())
+    expect(button().props.accessibilityState).toMatchObject({ expanded: true })
+    TestRenderer.act(() => renderer!.root.findByType(Menu).props.onClose())
+    expect(button().props.accessibilityState).toMatchObject({ expanded: false })
+  })
+  it('announces why child completion is unavailable while keeping its body openable', () => {
+    const onDetail = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow habit={createMockHabit({ title: 'Read' })} completionReadOnly completionStatusUnavailable
+          completionReason="We could not load this day's habits."
+          actions={{ onDetail }} />,
+      )
+    })
+
+    const ring = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityHint === "We could not load this day's habits." &&
+        node.props.accessibilityRole === 'button',
+    )[0]
+    expect(ring.props.accessibilityState).toEqual({ disabled: true })
+    expect(ring.props.accessibilityLabel).toBe('habits.logHabit: Read')
+    const unavailableDot = renderer!.root.findByProps({ testID: 'unavailable-status-dot' })
+    expect(StyleSheet.flatten(unavailableDot.props.style)).toMatchObject({
+      width: 28,
+      height: 28,
+      borderRadius: 12,
+      backgroundColor: neutralColors.dark.bgWell,
+    })
+    expect(renderer!.root.findAllByProps({ testID: 'habit-check' })).toHaveLength(0)
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    expect(body.props.accessibilityLabel).toBe('Read')
+    TestRenderer.act(() => body.props.onPress())
+    expect(onDetail).toHaveBeenCalledOnce()
+    TestRenderer.act(() => {
+      renderer!.update(<HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onDetail }} />)
+    })
+    expect(renderer!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
+    expect(renderer!.root.findAllByProps({ testID: 'unavailable-status-dot' })).toHaveLength(0)
+  })
+
+  it('paints the body hit area and ring independently', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          structuralColumn
+          hasChildren
+          childrenDone={0}
+          childrenTotal={1}
+          actions={{ onLog: vi.fn() }}
+        />,
+      )
+    })
+
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    const ring = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Meditate, 0/1' &&
+        typeof node.props.style === 'function',
+    )[0]
+
+    TestRenderer.act(() => body.props.onPressIn())
+    const pressedCard = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    ) as Record<string, unknown>
+    const restingRing = StyleSheet.flatten(ring.props.style({ pressed: false })) as Record<string, unknown>
+    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+    expect(pressedCard.borderWidth ?? 0).toBe(0)
+    const outline = renderer!.root.findByProps({ testID: 'habit-row-outline' })
+    expect(StyleSheet.flatten(outline.props.style)).toMatchObject({ position: 'absolute', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' })
+    expect(StyleSheet.flatten(body.props.style({ pressed: true }))).toMatchObject({
+      backgroundColor: 'rgba(250,250,250,0.13)',
+      borderRadius: 20,
+      overflow: 'hidden',
+    })
+    expect(restingRing.backgroundColor).toBeUndefined()
+
+    TestRenderer.act(() => body.props.onPressOut())
+    const restingCard = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    ) as Record<string, unknown>
+    const pressedRing = StyleSheet.flatten(ring.props.style({ pressed: true })) as Record<string, unknown>
+    expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+    expect(pressedRing.backgroundColor).toBe('rgba(250,250,250,0.13)')
+  })
+
+  it('presses the disclosure control without painting the card', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          structuralColumn
+          hasChildren
+          actions={{ onToggleExpand: vi.fn() }}
+        />,
+      )
+    })
+
+    const disclosure = renderer!.root.findByProps({ accessibilityLabel: 'common.expand' })
+    const pressedDisclosure = StyleSheet.flatten(
+      disclosure.props.style({ pressed: true }),
+    ) as Record<string, unknown>
+    const restingCard = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    ) as Record<string, unknown>
+
+    expect(pressedDisclosure.backgroundColor).toBe('rgba(250,250,250,0.13)')
+    expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+  })
+
+  it('presses the selection control without painting the card', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          structuralColumn
+          isSelectMode
+          actions={{ onToggleSelection: vi.fn() }}
+        />,
+      )
+    })
+
+    const selection = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityLabel === 'Meditate' && typeof node.props.style === 'function',
+    )[0]
+    const pressedSelection = StyleSheet.flatten(
+      selection.props.style({ pressed: true }),
+    ) as Record<string, unknown>
+    const restingCard = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    ) as Record<string, unknown>
+
+    expect(pressedSelection.backgroundColor).toBe('rgba(250,250,250,0.13)')
+    expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+  })
+
+  it('uses a 500 ms still hold for selection', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Meditate' })}
+          actions={{ onLongPressCard: vi.fn() }}
+        />,
+      )
+    })
+
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    expect(body).toBeDefined()
+  })
+
+  it('announces the habit name with the state and log action', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow habit={createMockHabit({ title: 'Meditate' })} />,
+      )
+    })
+
+    expect(
+      renderer!.root.findByProps({
+        accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Meditate',
+      }),
+    ).toBeDefined()
+  })
+
+  it('announces parent progress and the parent action', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Morning routine' })}
+          hasChildren
+          childrenDone={1}
+          childrenTotal={2}
+        />,
+      )
+    })
+
+    expect(
+      renderer!.root.findByProps({
+        accessibilityLabel:
+          'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
+      }),
+    ).toBeDefined()
+  })
+
+  it('logs a parent with open children directly from its ring', () => {
+    const onLog = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Morning routine' })}
+          hasChildren
+          childrenDone={1}
+          childrenTotal={2}
+          actions={{ onLog }}
+        />,
+      )
+    })
+
+    const ring = renderer!.root.findByProps({
+      accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
+    })
+    TestRenderer.act(() => ring.props.onPress())
+    expect(onLog).toHaveBeenCalledOnce()
+  })
+})
+
+function renderRowWithMenu() {
   let renderer: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => {
     renderer = TestRenderer.create(
       <HabitRow
         habit={createMockHabit({ title: 'Read' })}
-        actions={actions}
+        actions={{ onEdit: vi.fn() }}
       />,
     )
   })
   return renderer!
 }
 
-function getMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
-  return renderer.root.findAll(
+function pressMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
+  const moreButton = renderer.root.findAll(
     (node: { props: Record<string, unknown> }) =>
       node.props.accessibilityLabel === 'habits.actions.more',
   )[0]
-}
-
-function getRowBody(renderer: ReturnType<typeof TestRenderer.create>) {
-  return renderer.root.findAll(
-    (node: { props: Record<string, unknown> }) =>
-      node.props.delayLongPress === 300,
-  )[0]
-}
-
-function getRowCard(renderer: ReturnType<typeof TestRenderer.create>) {
-  return getRowBody(renderer).parent!
-}
-
-function resolveStyle(style: unknown): Record<string, unknown> {
-  if (Array.isArray(style)) {
-    return Object.assign({}, ...style.map(resolveStyle))
-  }
-  return style && typeof style === 'object'
-    ? (style as Record<string, unknown>)
-    : {}
-}
-
-function pressMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
-  const moreButton = getMoreButton(renderer)
   TestRenderer.act(() => {
     ;(moreButton.props.onPress as () => void)()
   })
@@ -140,245 +616,97 @@ function pressMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
 
 describe('HabitRow menu (mobile)', () => {
   afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
     __resetTestHostConfig()
   })
 
-  it.each(['open', 'exiting', 'reopened'])('replaces the first %s row menu without retaining its actions', (phase) => {
-    const completions: ((result: { finished: boolean; value: number; offset: number }) => void)[] = []
-    vi.spyOn(Animated, 'timing').mockImplementation(() => ({
-      start: (callback?: (result: { finished: boolean; value: number; offset: number }) => void) => {
-        if (callback) completions.push(callback)
-      },
-      stop: () => {},
-    }))
+  it('matches the drawn menu for an overdue parent on a free plan', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      renderer = TestRenderer.create(<>
-        <HabitRow habit={createMockHabit({ id: 'a', title: 'Read' })} actions={{ onEdit: vi.fn() }} />
-        <HabitRow habit={createMockHabit({ id: 'b', title: 'Run' })} actions={{ onDelete: vi.fn() }} />
-      </>)
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Walk', isOverdue: true, hasSubHabits: true })}
+        hasChildren hasProAccess={false} actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(),
+          onSkip: vi.fn(), onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
+          onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
     })
-    const triggers = renderer!.root.findAllByType('Pressable').filter(
-      (node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.actions.more',
-    )
-    TestRenderer.act(() => triggers[0].props.onPress())
-    expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-    if (phase !== 'open') {
-      TestRenderer.act(() => renderer!.root.findByType('Modal').props.onRequestClose())
-      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-    }
-    if (phase === 'reopened') {
-      TestRenderer.act(() => {
-        triggers[0].props.onPress()
-        completions[0]!({ finished: true, value: 0, offset: 0 })
-      })
-      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-    }
-    TestRenderer.act(() => triggers[1].props.onPress())
-    expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-    expect(collectStrings(renderer!.toJSON())).toContain('habits.deleteHabit')
-    expect(collectStrings(renderer!.toJSON())).not.toContain('common.edit')
-    TestRenderer.act(() => {
-      for (const complete of completions) complete({ finished: true, value: 0, offset: 0 })
-    })
-    expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-    TestRenderer.act(() => renderer!.unmount())
+    const menu = renderer!.root.findByType(Menu)
+    expect(menu.props.title).toBe('Walk')
+    expect(menu.props.items.map((item: { label: string }) => item.label)).toEqual([
+      'habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete',
+    ])
+    expect(menu.props.items.map((item: { icon?: string }) => item.icon)).toEqual([
+      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'copy', 'checkbox', 'list-tree', 'trash',
+    ])
+    expect(menu.props.items[0].badge).toBe('Pro')
+    expect(menu.props.items[8].destructive).toBe(true)
+    pressMoreButton(renderer)
+    const icons = renderer!.root.findAllByType(Icon)
+    expect(icons.map((icon: { props: { name: string } }) => icon.props.name)).toEqual([
+      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'copy', 'checkbox', 'list-tree', 'trash',
+    ])
+    expect(icons.every((icon: { props: { size: number; strokeWidth: number } }) =>
+      icon.props.size === 20 && icon.props.strokeWidth === 2)).toBe(true)
+    expect(icons[8].props.color).toBe(createTokensV2('purple', 'dark').statusBad)
   })
 
-  it('keeps the active row owner when an unmounted row finishes exiting', () => {
-    const completions: ((result: { finished: boolean; value: number; offset: number }) => void)[] = []
-    vi.spyOn(Animated, 'timing').mockImplementation(() => ({
-      start: (callback?: (result: { finished: boolean; value: number; offset: number }) => void) => {
-        if (callback) completions.push(callback)
-      },
-      stop: () => {},
-    }))
-    function Rows({ showFirst }: { showFirst: boolean }) {
-      return <>
-        {showFirst ? <HabitRow key="a" habit={createMockHabit({ id: 'a', title: 'Read' })} actions={{ onEdit: vi.fn() }} /> : null}
-        <HabitRow key="b" habit={createMockHabit({ id: 'b', title: 'Run' })} actions={{ onDelete: vi.fn() }} />
-        <HabitRow key="c" habit={createMockHabit({ id: 'c', title: 'Walk' })} actions={{ onDuplicate: vi.fn() }} />
-      </>
-    }
+  it('omits overdue and child actions when their row conditions do not apply', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => { renderer = TestRenderer.create(<Rows showFirst />) })
-    const menuTriggers = () => renderer!.root.findAllByType('Pressable').filter(
-      (node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.actions.more',
-    )
-    try {
-      TestRenderer.act(() => menuTriggers()[0].props.onPress())
-      TestRenderer.act(() => renderer!.root.findByType('Modal').props.onRequestClose())
-      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-      TestRenderer.act(() => renderer!.update(<Rows showFirst={false} />))
-      expect(renderer!.root.findAllByType('Modal')).toHaveLength(0)
-      TestRenderer.act(() => menuTriggers()[0].props.onPress())
-      expect(collectStrings(renderer!.toJSON())).toContain('habits.deleteHabit')
-      TestRenderer.act(() => completions[0]!({ finished: true, value: 0, offset: 0 }))
-      TestRenderer.act(() => menuTriggers()[1].props.onPress())
-      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
-      expect(collectStrings(renderer!.toJSON())).toContain('habits.actions.duplicate')
-      expect(collectStrings(renderer!.toJSON())).not.toContain('habits.deleteHabit')
-    } finally {
-      TestRenderer.act(() => renderer!.unmount())
-    }
-  })
-
-  it('keeps the card padding inside the row press target', () => {
-    const renderer = renderRowWithMenu()
-
-    expect(resolveStyle(getRowBody(renderer).props.style)).toMatchObject({
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      paddingRight: 0,
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })} hasProAccess
+        actions={{ onAddSubHabit: vi.fn(), onReschedule: vi.fn(), onDrillInto: vi.fn(), onEnterSelectMode: vi.fn() }} />)
     })
+    const menu = renderer!.root.findByType(Menu)
+    expect(menu.props.items.map((item: { id: string }) => item.id)).toEqual(['add', 'select'])
+    expect(menu.props.items[0].badge).toBeUndefined()
+    expect(menu.props.title).toBe('Read')
   })
 
-  it('keeps the menu target at the design floor without ancestor clipping', () => {
-    const renderer = renderRowWithMenu()
-    const moreButton = getMoreButton(renderer)
-    const anchorHost = renderer.root.find(
-      (node: { props: Record<string, unknown> }) =>
-        node.props.collapsable === false,
-    )
-    const anchorStyle = resolveStyle(anchorHost.props.style)
-    const rowCardStyle = resolveStyle(getRowCard(renderer).props.style)
-    const menuIcon = renderer.root.find(
-      (node: { type: unknown }) => node.type === 'MoreVertical',
-    )
-    const menuMargin = Number(resolveStyle(styles.menuButton).margin ?? 0)
-    const iconRightInset =
-      Number(rowCardStyle.paddingRight) +
-      menuMargin +
-      (styles.menuButton.width - Number(menuIcon.props.size)) / 2
-
-    expect(styles.menuButton.width).toBeGreaterThanOrEqual(44)
-    expect(styles.menuButton.height).toBeGreaterThanOrEqual(44)
-    expect(styles.menuButton).not.toHaveProperty('margin')
-    expect(moreButton.props.hitSlop).toBeUndefined()
-    expect(anchorStyle.minWidth).toBeGreaterThanOrEqual(styles.menuButton.width)
-    expect(anchorStyle.minHeight).toBeGreaterThanOrEqual(styles.menuButton.height)
-    expect(menuIcon.props.size).toBe(18)
-    expect(iconRightInset).toBe(21)
-  })
-
-  it('keeps the full select-mode card inside the selection target', () => {
-    const onToggleSelection = vi.fn()
+  it('keeps drill navigation when stored children are filtered out of the visible row', () => {
+    const onDrillInto = vi.fn()
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(
-        <HabitRow
-          habit={createMockHabit({ title: 'Read', linkedGoals: [] })}
-          isSelectMode
-          actions={{ onToggleSelection }}
-        />,
+        <HabitRow habit={createMockHabit({ title: 'Morning routine', hasSubHabits: true })}
+          hasChildren={false} actions={{ onDrillInto }} />,
       )
     })
-    const rowBody = getRowBody(renderer)
-    const rowCard = getRowCard(renderer)
 
-    expect(resolveStyle(rowBody.props.style)).toMatchObject({
-      flex: 1,
-      paddingRight: 16,
-    })
-    expect(resolveStyle(rowCard.props.style).paddingRight).toBe(0)
-    expect(rowCard.children).toHaveLength(1)
-
-    TestRenderer.act(() => {
-      ;(rowBody.props.onPress as () => void)()
-    })
-
-    expect(onToggleSelection).toHaveBeenCalledOnce()
+    const menu = renderer!.root.findByType(Menu)
+    expect(menu.props.items.map((item: { id: string }) => item.id)).toContain('drill')
+    TestRenderer.act(() => menu.props.onSelect('drill'))
+    expect(onDrillInto).toHaveBeenCalledOnce()
   })
 
-  it('keeps the menu press target outside the row press target', () => {
-    const onDetail = vi.fn()
-    const onLongPressCard = vi.fn()
-    const onLog = vi.fn()
-    const renderer = renderRowWithMenu({
-      onEdit: vi.fn(),
-      onDetail,
-      onLongPressCard,
-      onLog,
+  it('removes the menu while selecting rows', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Walk' })} isSelectMode
+        actions={{ onEnterSelectMode: vi.fn(), onEdit: vi.fn() }} />)
     })
-    const rowBody = getRowBody(renderer)
-    const moreButton = getMoreButton(renderer)
-
-    expect(
-      rowBody.findAll(
-        (node: { props: Record<string, unknown> }) =>
-          node.props.accessibilityLabel === 'habits.actions.more',
-      ),
-    ).toHaveLength(0)
-    expect(moreButton.props.accessibilityLabel).toBe('habits.actions.more')
-
-    pressMoreButton(renderer)
-
-    expect(onDetail).not.toHaveBeenCalled()
-    expect(onLongPressCard).not.toHaveBeenCalled()
-    expect(onLog).not.toHaveBeenCalled()
-    expect(collectStrings(renderer.toJSON())).toContain('common.edit')
+    expect(renderer!.root.findByType(Menu).props.open).toBe(false)
+    expect(renderer!.root.findAllByProps({ accessibilityLabel: 'habits.actions.more' })).toHaveLength(0)
   })
 
-  it('opens the row detail without opening its menu', () => {
-    const onDetail = vi.fn()
-    const onLog = vi.fn()
-    const renderer = renderRowWithMenu({ onEdit: vi.fn(), onDetail, onLog })
-    const rowBody = getRowBody(renderer)
-    const tokens = createTokensV2('purple', 'dark')
-
-    expect(resolveStyle(getRowCard(renderer).props.style)).toMatchObject({
-      backgroundColor: tokens.bgCard,
-      borderColor: tokens.hairline,
-    })
-    expect(resolveStyle(getRowCard(renderer).props.style).transform).toBeUndefined()
-
+  it('keeps only the second row menu open when another row opens', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      ;(rowBody.props.onPressIn as () => void)()
+      renderer = TestRenderer.create(<>
+        <HabitRow habit={createMockHabit({ id: 'first', title: 'Meditate' })} actions={{ onEdit: vi.fn() }} />
+        <HabitRow habit={createMockHabit({ id: 'second', title: 'Run' })} actions={{ onDelete: vi.fn() }} />
+      </>)
     })
 
-    expect(resolveStyle(getRowCard(renderer).props.style)).toMatchObject({
-      backgroundColor: tokens.bgElevPressed,
-      borderColor: tokens.hairlineStrong,
-      transform: styles.rowPressed.transform,
-    })
-    expect(collectStrings(renderer.toJSON())).not.toContain('common.edit')
-
-    TestRenderer.act(() => {
-      ;(rowBody.props.onPress as () => void)()
-    })
-    TestRenderer.act(() => {
-      ;(rowBody.props.onPressOut as () => void)()
-    })
-
-    expect(resolveStyle(getRowCard(renderer).props.style)).toMatchObject({
-      backgroundColor: tokens.bgCard,
-      borderColor: tokens.hairline,
-    })
-    expect(resolveStyle(getRowCard(renderer).props.style).transform).toBeUndefined()
-    expect(onDetail).toHaveBeenCalledOnce()
-    expect(onLog).not.toHaveBeenCalled()
-    expect(collectStrings(renderer.toJSON())).not.toContain('common.edit')
-  })
-
-  it('does not suppress a row press after the menu closes', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-15T12:00:00Z'))
-    const onDetail = vi.fn()
-    const renderer = renderRowWithMenu({ onEdit: vi.fn(), onDetail })
-
-    pressMoreButton(renderer)
-    const menuModal = renderer.root.find(
-      (node: { props: Record<string, unknown> }) =>
-        typeof node.props.onRequestClose === 'function',
+    const triggers = renderer!.root.findAllByType('Pressable').filter(
+      (node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.actions.more',
     )
-    TestRenderer.act(() => {
-      ;(menuModal.props.onRequestClose as () => void)()
-      ;(getRowBody(renderer).props.onPress as () => void)()
-    })
+    TestRenderer.act(() => (triggers[0]!.props.onPress as () => void)())
+    expect(collectStrings(renderer!.toJSON())).toContain('common.edit')
 
-    expect(onDetail).toHaveBeenCalledOnce()
+    TestRenderer.act(() => (triggers[1]!.props.onPress as () => void)())
+    expect(collectStrings(renderer!.toJSON())).toContain('habits.actions.delete')
+    expect(collectStrings(renderer!.toJSON())).not.toContain('common.edit')
   })
 
   it('opens the menu even when measureInWindow never invokes its callback', () => {
@@ -397,5 +725,62 @@ describe('HabitRow menu (mobile)', () => {
     pressMoreButton(renderer)
 
     expect(collectStrings(renderer.toJSON())).toContain('common.edit')
+  })
+
+  it('keeps a future row and its menu live while withholding completion actions', () => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const onDetail = vi.fn()
+    const onLog = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Future habit', frequencyUnit: 'Day' })}
+          selectedDate={tomorrow}
+          actions={{ onDetail, onLog, onSkip: vi.fn(), onEdit: vi.fn() }}
+        />,
+      )
+    })
+
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]!
+    const ring = renderer!.root.findByProps({
+      accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Future habit',
+    })
+    const rowStyle = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    )
+
+    expect(body.props.disabled).not.toBe(true)
+    expect(ring.props.disabled).toBe(true)
+    expect(rowStyle.opacity).not.toBe(0.5)
+    TestRenderer.act(() => body.props.onPress())
+    expect(onDetail).toHaveBeenCalledOnce()
+
+    pressMoreButton(renderer)
+    const text = collectStrings(renderer.toJSON())
+    expect(text).toContain('common.edit')
+    expect(text).not.toContain('habits.actions.skip')
+    expect(onLog).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('offline row presentation', () => {
+  it('keeps the logged row identical while recovery notices exist', () => {
+    const habit = createMockHabit({ title: 'Walk', isCompleted: true })
+    let tree: { toJSON: () => unknown; update: (element: React.ReactNode) => void; unmount: () => void }
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} />) })
+    const onlineRow = JSON.stringify(tree!.toJSON())
+    TestRenderer.act(() => {
+      useOfflineSyncStore.setState({ drops: [{ id: 'lost-log', type: 'logHabit', lastError: '500', mutation: {
+        id: 'lost-log', type: 'logHabit', timestamp: 1, retries: 3, maxRetries: 3,
+        endpoint: '/api/habits/walk/log', method: 'POST', payload: null,
+      } }] })
+      tree.update(<HabitRow habit={habit} />)
+    })
+    expect(JSON.stringify(tree!.toJSON())).toBe(onlineRow)
+    TestRenderer.act(() => { tree.unmount(); useOfflineSyncStore.setState({ drops: [] }) })
   })
 })

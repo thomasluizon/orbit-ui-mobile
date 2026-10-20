@@ -136,9 +136,6 @@ export const cases = () => {
     happy.stdout,
   )
 
-  /**
-   * The wrong DIAGNOSIS cost as much as the wrong id. GitHub answers a write it will not accept
-   */
   const denied = post("fixed in 4e6e4871", { reply: JSON.stringify({ errors: [{ message: "thomasluizon does not have the correct permissions to execute AddPullRequestReviewThreadReply" }] }) })
   const deniedPlan = parsed(denied)
   T(
@@ -176,11 +173,6 @@ export const cases = () => {
     resolveFailed.stdout || resolveFailed.stderr,
   )
 
-  /**
-   * Raised in review on this tool's own pull request (#682): the failed-resolve branch told the
-   * caller to "retry the resolve alone" and the tool had no way to do it. --resolve-only closes that
-   * gap WITHOUT weakening the rule, by asking GitHub whether a reply is really on the thread.
-   */
   const threadWithReply = threadNode({ totalCount: 2 })
   const threadNoReply = threadNode({ totalCount: 1 })
   const threadDone = threadNode({ isResolved: true, totalCount: 2 })

@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import type { Ref } from 'react'
 import { MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 import { FieldWell } from '../field-well'
 
@@ -9,6 +10,8 @@ interface EditGoalTargetFieldsProps {
   targetValue: string
   unit: string
   fieldErrors: Record<string, string>
+  targetRef: Ref<HTMLInputElement>
+  unitRef: Ref<HTMLInputElement>
   onChangeTarget: (next: string) => void
   onChangeUnit: (next: string) => void
 }
@@ -18,12 +21,14 @@ export function EditGoalTargetFields({
   targetValue,
   unit,
   fieldErrors,
+  targetRef,
+  unitRef,
   onChangeTarget,
   onChangeUnit,
 }: Readonly<EditGoalTargetFieldsProps>) {
   const t = useTranslations()
   return (
-    <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 0 0', gap: 12 }}>
+    <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-0)", gap: 12 }}>
       <FieldWell
         label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
         id="edit-goal-target"
@@ -31,6 +36,8 @@ export function EditGoalTargetFields({
         mono
         value={targetValue}
         error={fieldErrors.targetValue}
+        inputRef={targetRef}
+        required
         onChange={onChangeTarget}
       />
       {!isStreak && (
@@ -41,6 +48,8 @@ export function EditGoalTargetFields({
           value={unit}
           maxLength={MAX_GOAL_UNIT_LENGTH}
           error={fieldErrors.unit}
+          inputRef={unitRef}
+          required
           onChange={onChangeUnit}
         />
       )}

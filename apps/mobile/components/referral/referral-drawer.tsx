@@ -1,28 +1,28 @@
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { useCallback, useMemo, useState } from 'react'
 import {
   AccessibilityInfo,
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
-import * as Clipboard from 'expo-clipboard'
-import { Check, Copy, Gift, Share2 } from 'lucide-react-native'
+import Clipboard from '@react-native-clipboard/clipboard'
+import { Check, Copy } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { useReferral } from '@/hooks/use-referral'
-import { captureError } from '@/lib/sentry'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
+import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
+import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { ActionRow } from '@/components/ui/action-row'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ReferralDrawerProps {
@@ -30,281 +30,290 @@ interface ReferralDrawerProps {
   onClose: () => void
 }
 
-interface ReferralStatsSectionProps {
-  stats: ReferralStats
+interface LoadedContentProps {
+  stats: ReferralStats | null
+  referralUrl: string
+  copied: boolean
+  copyFailed: boolean
   tokens: ReturnType<typeof createTokensV2>
   styles: ReturnType<typeof createStyles>
+  onCopy: () => void
 }
 
-function ReferralStatsSection({
+function LoadedContent({
   stats,
+  referralUrl,
+  copied,
+  copyFailed,
   tokens,
   styles,
-}: Readonly<ReferralStatsSectionProps>) {
+  onCopy,
+}: Readonly<LoadedContentProps>) {
   const { t } = useTranslation()
+  const progress = stats && stats.maxReferrals > 0
+    ? stats.successfulReferrals / stats.maxReferrals
+    : 0
 
   return (
-    <View>
-      <SettingsRow
-        label={t('referral.drawer.completed')}
-        value={`${stats.successfulReferrals} / ${stats.maxReferrals}`}
-        mono
-        accessory="none"
-        valueColor={tokens.fg1}
-      />
-      {stats.pendingReferrals > 0 ? (
-        <SettingsRow
-          label={t('referral.drawer.pending')}
-          value={String(stats.pendingReferrals)}
-          mono
-          accessory="none"
-          valueColor={tokens.fg1}
-        />
-      ) : null}
-      {stats.successfulReferrals > 0 ? (
-        <SettingsRow
-          label={t('referral.drawer.couponsEarned')}
-          value={String(stats.successfulReferrals)}
-          mono
-          accessory="none"
-          valueColor={tokens.statusDone}
-        />
-      ) : null}
-      <View style={styles.progressBlock}>
-        <ProgressBar
-          progress={stats.successfulReferrals / stats.maxReferrals}
-          label={t('referral.drawer.completed')}
-        />
+    <>
+      <View>
+        <SectionLabel>
+          {t('referral.drawer.yourLink')}
+        </SectionLabel>
+        <View style={styles.linkWell}>
+          <Text style={styles.linkText} numberOfLines={1}>
+            {referralUrl}
+          </Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.copyButton,
+              pressed ? styles.copyButtonPressed : null,
+            ]}
+            onPress={onCopy}
+            accessibilityRole="button"
+            accessibilityLabel={t('referral.drawer.copyLink')}
+          >
+            {copied ? (
+              <Check size={20} color={tokens.fg2} strokeWidth={1.8} />
+            ) : (
+              <Copy size={20} color={tokens.fg2} strokeWidth={1.8} />
+            )}
+          </Pressable>
+        </View>
       </View>
-    </View>
+
+      {copyFailed ? (
+        <Text accessibilityRole="alert" style={styles.actionError}>
+          {t('referral.drawer.actionFailed')}
+        </Text>
+      ) : null}
+
+      {stats ? (
+        <View>
+          <ListRow
+            title={t('referral.drawer.completed')}
+            value={`${stats.successfulReferrals} / ${stats.maxReferrals}`}
+            readOnly
+          />
+          {stats.pendingReferrals > 0 ? (
+            <ListRow
+              title={t('referral.drawer.pending')}
+              value={String(stats.pendingReferrals)}
+              readOnly
+            />
+          ) : null}
+          {stats.successfulReferrals > 0 ? (
+            <ListRow
+              title={t('referral.drawer.couponsEarned')}
+              value={String(stats.successfulReferrals)}
+              readOnly
+            />
+          ) : null}
+          <View style={styles.progressBlock}>
+            <ProgressBar
+              value={progress}
+              max={1}
+              label={t('referral.drawer.completed')}
+            />
+          </View>
+        </View>
+      ) : null}
+
+      {stats ? (
+        <>
+          <InfoCard>
+            <Text style={styles.infoTitle}>
+              {t('referral.drawer.howItWorks')}
+            </Text>
+            <Text style={styles.infoBody}>
+              {t('referral.drawer.explanation', {
+                discount: stats.discountPercent,
+              })}
+            </Text>
+          </InfoCard>
+          <Text style={styles.disclaimer}>
+            {t('referral.drawer.disclaimer', {
+              discount: stats.discountPercent,
+            })}
+          </Text>
+        </>
+      ) : null}
+    </>
   )
 }
 
-/** Referral sheet: hero icon disc, mono link well with copy, primary share pill,
- *  progress rows, and a kit InfoCard explainer. */
-export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>) {
+function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, 'onClose'>>) {
+  const { sheetRef, closeSheet } = useSheetHost()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
-  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const [failedAction, setFailedAction] = useState<'copy' | 'share' | null>(null)
+  const isLoaded = !isLoading && !isError
 
-  useEffect(() => {
-    if (open) void Promise.resolve().then(() => setCopied(false))
-  }, [open])
-
-  const discountPercent = stats?.discountPercent ?? 10
-
-  const doShare = useCallback(async () => {
+  const shareLink = useCallback(async () => {
     if (!referralUrl) return
     try {
+      const referralMessage = stats
+        ? t('referral.share.text', { discount: stats.discountPercent })
+        : t('referral.share.title')
       await Share.share({
         title: t('referral.share.title'),
-        message: `${t('referral.share.text', { discount: stats?.discountPercent ?? 10 })} ${referralUrl}`,
+        message: `${referralMessage} ${referralUrl}`,
       })
+      setFailedAction(null)
     } catch {
+      setFailedAction('share')
     }
   }, [referralUrl, stats, t])
 
   const copyLink = useCallback(() => {
     if (!referralUrl) return
-    void Clipboard.setStringAsync(referralUrl).then(() => {
+    try {
+      Clipboard.setString(referralUrl)
       AccessibilityInfo.announceForAccessibility(t('referral.drawer.linkCopied'))
+      setFailedAction(null)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    }).catch(captureError)
+    } catch {
+      setFailedAction('copy')
+    }
   }, [referralUrl, t])
 
   return (
-    <BottomSheetModal
-      open={open}
+    <Sheet
+      ref={sheetRef}
+      open
       onClose={onClose}
       title={t('referral.drawer.title')}
-      snapPoints={['65%', '85%']}
-      contentManagesScroll
-    >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={withDrawerContentInset(styles.content)}
-        showsVerticalScrollIndicator={false}
-      >
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator color={tokens.primary} />
-          </View>
-        ) : null}
-
-        {isError ? (
-          <View
-            style={styles.errorContainer}
-            accessibilityRole="alert"
-            accessibilityLiveRegion="polite"
-          >
-            <Text style={styles.errorText}>
-              {error.message}
-            </Text>
-          </View>
-        ) : null}
-
-        {!isLoading && !isError ? (
+      actions={
+        isLoaded ? (
           <>
-            <View style={styles.heroRow}>
-              <View
-                style={[
-                  styles.heroDisc,
-                  { backgroundColor: tintFromPrimary(tokens, 0.15) },
-                ]}
+            {failedAction === 'share' ? (
+              <Text
+                accessibilityRole="alert"
+                style={[styles.shareError, { width: '100%' }]}
               >
-                <Gift size={30} strokeWidth={1.8} color={tokens.primarySoft} />
-              </View>
-            </View>
-
-            <View>
-              <SectionLabel top={0} bottom={8}>
-                {t('referral.drawer.yourLink')}
-              </SectionLabel>
-              <View style={styles.linkWell}>
-                <Text style={styles.linkText} numberOfLines={1}>
-                  {referralUrl}
-                </Text>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.copyButton,
-                    pressed
-                      ? [styles.copyButtonPressed, { backgroundColor: tokens.bgElev }]
-                      : null,
-                  ]}
-                  onPress={copyLink}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('referral.drawer.copyLink')}
-                >
-                  {copied ? (
-                    <Check size={18} color={tokens.statusDone} strokeWidth={1.8} />
-                  ) : (
-                    <Copy size={18} color={tokens.fg2} strokeWidth={1.8} />
-                  )}
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.gutter}>
-              <PillButton
-                fullWidth
-                onPress={() => void doShare()}
-                leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
-              >
+                {t('referral.drawer.actionFailed')}
+              </Text>
+            ) : null}
+            <ActionRow>
+              <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
+              <PillButton size="sm" onClick={() => void shareLink()}>
                 {t('referral.drawer.share')}
               </PillButton>
-            </View>
-
-            {stats ? (
-              <ReferralStatsSection
-                stats={stats}
-                tokens={tokens}
-                styles={styles}
-              />
-            ) : null}
-
-            <View style={styles.gutter}>
-              <InfoCard
-                title={t('referral.drawer.howItWorks')}
-                desc={t('referral.drawer.explanation', {
-                  discount: discountPercent,
-                })}
-              />
-            </View>
-
-            <Text style={styles.disclaimer}>
-              {t('referral.drawer.disclaimer', { discount: discountPercent })}
-            </Text>
+            </ActionRow>
           </>
+        ) : undefined
+      }
+    >
+      <View style={styles.content}>
+        {isLoading ? (
+          <View style={styles.loadingContainer} accessibilityRole="progressbar">
+            <ActivityIndicator color={tokens.fg3} />
+          </View>
         ) : null}
-      </ScrollView>
-    </BottomSheetModal>
+        {isError ? <ErrorState message={error.message} /> : null}
+        {isLoaded ? (
+          <LoadedContent
+            stats={stats}
+            referralUrl={referralUrl}
+            copied={copied}
+            copyFailed={failedAction === 'copy'}
+            tokens={tokens}
+            styles={styles}
+            onCopy={copyLink}
+          />
+        ) : null}
+      </View>
+    </Sheet>
   )
+}
+
+/** Referral details and sharing actions in the shared sheet composition. */
+export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>) {
+  return open ? <ReferralDrawerContent onClose={onClose} /> : null
 }
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     content: {
       gap: 16,
-      paddingBottom: 24,
-    },
-    gutter: {
-      paddingHorizontal: 20,
     },
     loadingContainer: {
-      paddingVertical: 40,
-      paddingHorizontal: 20,
+      paddingVertical: SPACING.s48,
       alignItems: 'center',
-    },
-    errorContainer: {
-      marginHorizontal: 20,
-      borderWidth: 1,
-      borderColor: tokens.hairlineStrong,
-      borderRadius: 14,
-      padding: 14,
-    },
-    errorText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      color: tokens.statusOverdueText,
-    },
-    heroRow: {
-      alignItems: 'center',
-      paddingTop: 4,
-    },
-    heroDisc: {
-      width: 64,
-      height: 64,
-      borderRadius: 999,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     linkWell: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      marginHorizontal: 20,
-      borderRadius: 14,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgField,
-      paddingLeft: 16,
-      paddingRight: 6,
-      paddingVertical: 5,
+      paddingLeft: SPACING.s16,
+      paddingRight: SPACING.s8,
+      paddingVertical: SPACING.s4,
     },
     linkText: {
       flex: 1,
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 16,
       fontVariant: ['tabular-nums'],
       color: tokens.fg1,
     },
     copyButton: {
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: radius.full,
+      overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
     },
     copyButtonPressed: {
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
+    actionError: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      color: tokens.fg2,
+    },
+    shareError: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      textAlign: 'center',
+      color: tokens.fg2,
+    },
     progressBlock: {
-      paddingHorizontal: 20,
-      paddingVertical: 14,
+      paddingVertical: SPACING.s12,
+    },
+    infoTitle: {
+      fontFamily: 'Geist_600SemiBold',
+      fontSize: 14,
+      lineHeight: 20,
+      color: tokens.fg1,
+    },
+    infoBody: {
+      marginTop: SPACING.s8,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      color: tokens.fg2,
     },
     disclaimer: {
-      paddingHorizontal: 20,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 12,
+      lineHeight: 20,
       color: tokens.fg3,
-      lineHeight: 18,
     },
   })
 }

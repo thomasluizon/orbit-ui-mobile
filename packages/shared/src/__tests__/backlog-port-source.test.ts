@@ -2,8 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
-  alphaSurfaces,
-  resolveDarkNeutrals,
+  neutralColors,
   statusConstants,
 } from '../theme/neutral-ramp'
 
@@ -57,12 +56,10 @@ function productionSources(directory: string): string[] {
 
 describe('main backlog ports', () => {
   it('keeps web bad-status text aligned with shared AA roles', () => {
-    const css = readFileSync(`${ROOT}apps/web/app/globals.css`, 'utf8')
-    const webRoles = [...css.matchAll(/--status-bad-text:\s*(#[0-9a-f]{6})/g)]
-      .map((match) => match[1])
-    expect(webRoles).toEqual([statusConstants.dark.badText, statusConstants.light.badText])
+    const themeDom = readFileSync(`${ROOT}apps/web/lib/theme-dom.ts`, 'utf8')
+    expect(themeDom).toContain("'--status-bad-text': status.badText")
 
-    const darkElevated = composite(alphaSurfaces.dark.bgElev2, resolveDarkNeutrals('purple').bg)
+    const darkElevated = composite(neutralColors.dark.bgElev2, neutralColors.dark.bg)
     expect(contrast(statusConstants.dark.badText, darkElevated)).toBeGreaterThanOrEqual(4.5)
   })
   it('uses the readable text role for the mobile remove-deadline affordance', () => {
@@ -76,7 +73,6 @@ describe('main backlog ports', () => {
   it.each([
     'apps/web/components/habits/habit-list.tsx',
     'apps/web/components/habits/habit-checklist.tsx',
-    'apps/web/components/calendar/calendar-agenda-view.tsx',
   ])('gives every server-rendered DndContext a stable React id in %s', (path) => {
     const source = readFileSync(`${ROOT}${path}`, 'utf8')
     expect(source).toMatch(/const dndContextId = useId\(\)/)
@@ -90,10 +86,6 @@ describe('main backlog ports', () => {
       ...productionSources(`${ROOT}packages/shared/src`),
     ]
     const offenders = sources.filter((path) => {
-      const normalizedPath = path.replaceAll('\\', '/')
-      if (normalizedPath.endsWith('/apps/mobile/app/(tabs)/calendar/_components/calendar-loading-bar.tsx')) {
-        return false
-      }
       return /GradientTop|gradient-header|gradientHeader(?:From|To)|(?:linear|radial|conic)-gradient|(?:Linear|Radial)Gradient/.test(
         readFileSync(path, 'utf8'),
       )

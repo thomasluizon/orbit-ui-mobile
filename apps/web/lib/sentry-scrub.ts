@@ -1,11 +1,14 @@
 import type { ErrorEvent, EventHint } from '@sentry/nextjs'
-import { ApiClientError } from '@orbit/shared'
+import { ApiClientError } from '@orbit/shared/utils/error-utils'
 
 const SENSITIVE_HEADERS = new Set(['authorization', 'cookie', 'set-cookie'])
 
 const TRANSIENT_GATEWAY_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524])
 const EXPECTED_API_ERROR_CODES = new Set(['AI_UNAVAILABLE', 'CONCURRENT_UPDATE_CONFLICT'])
 
+/**
+ * Matched by status/error code, never by localized message.
+ */
 export function isExpectedApiClientError(error: unknown): boolean {
   if (!(error instanceof ApiClientError)) return false
   if (TRANSIENT_GATEWAY_STATUSES.has(error.status)) return true

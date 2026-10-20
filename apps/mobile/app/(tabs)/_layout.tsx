@@ -1,5 +1,4 @@
 import { Tabs } from 'expo-router'
-import { SceneStyleInterpolators, TransitionSpecs } from 'expo-router/js-tabs'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export default function TabLayout() {
@@ -10,9 +9,7 @@ export default function TabLayout() {
       backBehavior="history"
       screenOptions={{
         headerShown: false,
-        animation: 'shift',
-        sceneStyleInterpolator: SceneStyleInterpolators.forShift,
-        transitionSpec: TransitionSpecs.ShiftSpec,
+        animation: 'none',
         sceneStyle: { backgroundColor: surfaces.screen.backgroundColor },
         tabBarStyle: {
           backgroundColor: surfaces.screen.backgroundColor,
@@ -22,6 +19,7 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="calendar" />
+      <Tabs.Screen name="progress" />
       <Tabs.Screen name="profile" />
     </Tabs>
   )

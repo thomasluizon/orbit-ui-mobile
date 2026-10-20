@@ -2,6 +2,9 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
+import { EditNameSheet } from '@/app/(tabs)/profile/_components/edit-name-sheet'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+
 interface TestNode {
   type: unknown
   props: {
@@ -16,6 +19,7 @@ interface TestNode {
 }
 
 interface TestTreeRoot extends TestNode {
+  findAll(predicate: (node: TestNode) => boolean): TestNode[]
   findAllByProps(props: Record<string, unknown>): TestNode[]
 }
 
@@ -54,17 +58,7 @@ vi.mock('@/lib/queued-api-mutation', () => ({
     mockPerformQueuedApiMutation(...args),
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
-    open,
-    children,
-  }: {
-    open: boolean
-    children: React.ReactNode
-  }) => (open ? <>{children}</> : null),
-}))
-
-import { EditNameSheet } from '@/app/(tabs)/profile/_components/edit-name-sheet'
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 function findByTestId(tree: TestInstance, testID: string): TestNode {
   const node = tree.root.findAllByProps({ testID }).at(0)
@@ -72,11 +66,23 @@ function findByTestId(tree: TestInstance, testID: string): TestNode {
   return node
 }
 
-function findByLabel(tree: TestInstance, accessibilityLabel: string): TestNode {
-  const node = tree.root
-    .findAllByProps({ accessibilityLabel })
-    .find((candidate) => typeof candidate.props.onPress === 'function')
-  if (!node) throw new Error(`No pressable with label "${accessibilityLabel}"`)
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return flattenText((node as { props: { children?: unknown } }).props.children)
+  }
+  return ''
+}
+
+function findButtonByText(tree: TestInstance, text: string): TestNode {
+  const node = tree.root.findAll(
+    (candidate) =>
+      flattenText(candidate.props.children) === text &&
+      typeof candidate.props.onPress === 'function',
+  )[0]
+  if (!node) throw new Error(`No button named "${text}"`)
   return node
 }
 
@@ -85,8 +91,7 @@ async function renderSheet(onClose = vi.fn()) {
     defaultOptions: { mutations: { retry: false } },
   })
   let tree!: TestInstance
-  // eslint-disable-next-line @typescript-eslint/require-await -- The renderer act callback uses its async overload.
-  await TestRenderer.act(async () => {
+  await TestRenderer.act(() => {
     tree = TestRenderer.create(
       <QueryClientProvider client={queryClient}>
         <EditNameSheet open onClose={onClose} />
@@ -97,13 +102,11 @@ async function renderSheet(onClose = vi.fn()) {
 }
 
 async function typeAndSave(tree: TestInstance, value: string) {
-  // eslint-disable-next-line @typescript-eslint/require-await -- The renderer act callback uses its async overload.
-  await TestRenderer.act(async () => {
+  await TestRenderer.act(() => {
     findByTestId(tree, 'edit-name-input').props.onChangeText?.(value)
   })
-  // eslint-disable-next-line @typescript-eslint/require-await -- The renderer act callback uses its async overload.
-  await TestRenderer.act(async () => {
-    findByLabel(tree, 'common.save').props.onPress?.()
+  await TestRenderer.act(() => {
+    findButtonByText(tree, 'common.save').props.onPress?.()
   })
 }
 
@@ -118,6 +121,25 @@ describe('EditNameSheet', () => {
     const { tree } = await renderSheet()
 
     expect(findByTestId(tree, 'edit-name-input').props.value).toBe('Alex')
+  })
+
+  it('pins Save in the sheet footer, never in the scrolling body', async () => {
+    const { tree } = await renderSheet()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'common.save'])
+    expectSmallSheetActions(tree.root)
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('cancels through the sheet host without saving the draft', async () => {
+    const { tree, onClose } = await renderSheet()
+    await TestRenderer.act(() => {
+      findByTestId(tree, 'edit-name-input').props.onChangeText?.('Draft')
+      findButtonByText(tree, 'common.cancel').props.onPress?.()
+    })
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(mockPerformQueuedApiMutation).not.toHaveBeenCalled()
   })
 
   it('shows the required error and skips the mutation for a whitespace-only name', async () => {

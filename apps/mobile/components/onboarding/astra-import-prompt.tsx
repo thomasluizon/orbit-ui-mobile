@@ -1,17 +1,18 @@
-import { useCallback, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { usePathname, useRouter } from 'expo-router'
+import { usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useProfile } from '@/hooks/use-profile'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -24,7 +25,6 @@ import { useUIStore } from '@/stores/ui-store'
  */
 export function AstraImportPrompt() {
   const { t } = useTranslation()
-  const router = useRouter()
   const pathname = usePathname()
   const { profile, patchProfile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -34,28 +34,28 @@ export function AstraImportPrompt() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
-  const [sheetMounted, setSheetMounted] = useState(false)
-  const [promptVisible, setPromptVisible] = useState(false)
-  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+  const { sheetRef, closeSheet } = useSheetHost()
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
   )
+  const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const sheetMounted = useUIStore((state) => state.openOverlayIds.includes(promptId))
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const calendarPromptWouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
-      profile.hasCompletedTour &&
       !profile.hasImportedCalendar,
   )
 
   const shouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
-      profile.hasCompletedTour &&
       !profile.hasSeenImportPrompt &&
       !calendarPromptWouldShow &&
       !pendingOnboardingAnswers &&
-      !pathname.startsWith('/chat') &&
-      pathname !== '/calendar-sync' &&
+      !astraConversationOpen &&
+      pathname !== '/calendar' &&
       !dismissed,
   )
 
@@ -80,79 +80,71 @@ export function AstraImportPrompt() {
       CHAT_DRAFT_STORAGE_KEY,
       t('onboarding.flow.meetAstra.importPrompt'),
     )
-    scheduleExitAction(() => router.replace('/chat'))
-    await markSeen()
-  }, [markSeen, router, scheduleExitAction, t])
+    closeSheet(() => {
+      unregisterOpenOverlay(promptId)
+      void markSeen()
+      useUIStore.getState().setAstraConversationOpen(true)
+    })
+  }, [closeSheet, markSeen, promptId, t, unregisterOpenOverlay])
 
-  if (shouldShow && !sheetMounted && !anotherOverlayOpen) {
-    setSheetMounted(true)
-    setPromptVisible(true)
-  }
+  useEffect(() => {
+    if (!shouldShow) {
+      if (sheetMounted) unregisterOpenOverlay(promptId)
+      return
+    }
+    if (!sheetMounted && !anotherOverlayOpen) useUIStore.getState().tryReservePromptOverlay(promptId)
+  }, [anotherOverlayOpen, promptId, sheetMounted, shouldShow, unregisterOpenOverlay])
+  useEffect(() => {
+    return () => unregisterOpenOverlay(promptId)
+  }, [promptId, unregisterOpenOverlay])
 
   if (!sheetMounted) return null
 
   return (
-    <BottomSheetModal
-      open={shouldShow && promptVisible}
+    shouldShow ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={() => {
+        unregisterOpenOverlay(promptId)
         void markSeen()
       }}
-      onDidDismiss={() => {
-        runExitAction()
-        setSheetMounted(false)
-        setPromptVisible(false)
-      }}
       title={t('onboarding.wizard.importTitle')}
-      snapPoints={['50%']}
+      actions={(
+        <ActionRow>
+          <PromptQuietAction
+            accessibleName={t('onboarding.wizard.importNotNow')}
+            onClick={() =>
+              closeSheet(() => {
+                unregisterOpenOverlay(promptId)
+                void markSeen()
+              })
+            }
+          >
+            {t('onboarding.wizard.importNotNow')}
+          </PromptQuietAction>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
+          <PillButton size="sm" onClick={() => void handleImport()}>
+            {t('onboarding.wizard.importButton')}
+          </PillButton>
+        </ActionRow>
+      )}
     >
-      <View style={styles.content}>
+      <View>
         <Text style={styles.description}>
           {t('onboarding.wizard.importDescription')}
         </Text>
-        <View style={styles.spacer} />
-        <PillButton fullWidth onPress={() => void handleImport()}>
-          {t('onboarding.wizard.importButton')}
-        </PillButton>
-        <Pressable
-          style={styles.quietRow}
-          onPress={() => {
-            void markSeen()
-          }}
-          accessibilityRole="button"
-        >
-          <Text style={styles.quietText}>{t('onboarding.wizard.importNotNow')}</Text>
-        </Pressable>
       </View>
-    </BottomSheetModal>
+    </Sheet>) : null
   )
 }
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    content: {
-      gap: 14,
-      paddingHorizontal: 24,
-      paddingTop: 10,
-      paddingBottom: 8,
-    },
     description: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
-      color: tokens.fg2,
-    },
-    spacer: {
-      height: 16,
-    },
-    quietRow: {
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingBottom: 10,
-    },
-    quietText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
+      textAlign: 'center',
       color: tokens.fg2,
     },
   })

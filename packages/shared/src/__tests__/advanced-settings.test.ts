@@ -20,6 +20,18 @@ describe('advanced settings utils', () => {
     expect(JSON.parse(buildMcpConfigJson(endpoint)).mcpServers.orbit.url).toBe(endpoint)
   })
 
+  it.each([undefined, 'orbit_test_key'])('builds an HTTP configuration with API key %s', (apiKey) => {
+    expect(JSON.parse(buildMcpConfigJson(`${productionApiBase}/mcp`, apiKey))).toEqual({
+      mcpServers: {
+        orbit: {
+          type: 'http',
+          url: `${productionApiBase}/mcp`,
+          headers: { Authorization: `Bearer ${apiKey ?? 'YOUR_API_KEY'}` },
+        },
+      },
+    })
+  })
+
   it('trims any run of trailing slashes in linear time', () => {
     const slashes = '/'.repeat(100_000)
     expect(getMcpEndpointUrl(`https://api.useorbit.org${slashes}`)).toBe('https://api.useorbit.org/mcp')

@@ -1,4 +1,3 @@
-
 const { collectObjectProperties, collectStaticStrings, getAttribute, getAttributeValueNode, getElementName, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const VIEWPORT_CONTENT_RE = /user-scalable\s*=\s*(?:no|0)|maximum-scale\s*=\s*1(?:\.0+)?(?:\s|,|;|$)/

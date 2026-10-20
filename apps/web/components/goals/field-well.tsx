@@ -1,5 +1,7 @@
 'use client'
 
+import type { Ref } from 'react'
+
 interface FieldWellProps {
   label: string
   id: string
@@ -9,6 +11,8 @@ interface FieldWellProps {
   placeholder?: string
   maxLength?: number
   error?: string
+  inputRef?: Ref<HTMLInputElement>
+  required?: boolean
   onChange: (next: string) => void
 }
 
@@ -22,6 +26,8 @@ export function FieldWell({
   placeholder,
   maxLength,
   error,
+  inputRef,
+  required = false,
   onChange,
 }: Readonly<FieldWellProps>) {
   return (
@@ -38,7 +44,11 @@ export function FieldWell({
         {label}
       </label>
       <input
+        ref={inputRef}
         id={id}
+        name={id}
+        autoComplete="off"
+        inputMode={type === 'number' ? 'decimal' : 'text'}
         type={type}
         value={value}
         placeholder={placeholder}
@@ -46,11 +56,13 @@ export function FieldWell({
         step={type === 'number' ? 'any' : undefined}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
+        required={required}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none placeholder:text-[var(--fg-3)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
+        data-focus-perimeter=""
+        className="orbit-field-hover w-full appearance-none rounded-[12px] border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"
         style={{
           minHeight: 54,
-          padding: '0 16px',
+          padding: "var(--orbit-space-0) var(--orbit-space-16)",
           fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: 16,
           fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
@@ -59,11 +71,10 @@ export function FieldWell({
       {error && (
         <p
           id={`${id}-error`}
-          role="alert"
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 12,
-            color: 'var(--status-overdue-text)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {error}

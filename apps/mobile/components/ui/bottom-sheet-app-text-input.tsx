@@ -1,3 +1,5 @@
+import { SPACING } from '@orbit/shared/theme'
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 import {
   forwardRef,
   useCallback,
@@ -7,20 +9,22 @@ import {
   useState,
   type ComponentProps,
 } from 'react'
-import { findNodeHandle, StyleSheet, TextInput } from 'react-native'
+import { findNodeHandle, StyleSheet, type TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-type BottomSheetAppTextInputProps = ComponentProps<typeof TextInput>
+type BottomSheetAppTextInputProps = ComponentProps<typeof TextInput> & {
+  focusBorder?: boolean
+}
 
 export const BottomSheetAppTextInput = forwardRef<
-  unknown,
+  TextInput,
   BottomSheetAppTextInputProps
 >(function BottomSheetAppTextInput(
-  { onBlur, onChangeText, onFocus, placeholderTextColor, style, value, ...props },
+  { focusBorder = true, onBlur, onChangeText, onFocus, placeholderTextColor, style, value, ...props },
   ref,
 ) {
   const localRef = useRef<Parameters<typeof findNodeHandle>[0]>(null)
@@ -43,8 +47,8 @@ export const BottomSheetAppTextInput = forwardRef<
   }, [value])
 
   const assignRef = useCallback(
-    (node: unknown) => {
-      localRef.current = node as Parameters<typeof findNodeHandle>[0]
+    (node: TextInput | null) => {
+      localRef.current = node
 
       if (typeof ref === 'function') {
         ref(node)
@@ -93,11 +97,11 @@ export const BottomSheetAppTextInput = forwardRef<
   )
 
   return (
-    <TextInput
+    <TypedTextInput
       ref={assignRef}
       placeholderTextColor={placeholderTextColor ?? tokens.fg3}
       {...props}
-      style={[styles.input, focused ? styles.inputFocused : null, style]}
+      style={[styles.input, style, focused && focusBorder ? styles.inputFocused : null]}
       value={draftValue}
       onBlur={handleBlur}
       onChangeText={handleChangeText}
@@ -113,18 +117,24 @@ function createStyles(tokens: AppTokens) {
       borderRadius: 14,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
-      borderColor: tokens.hairline,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      fontFamily: 'Rubik_400Regular',
+      borderColor: tokens.borderControl,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       color: tokens.fg1,
     },
     inputFocused: {
       borderWidth: 2,
       borderColor: tokens.primary,
-      paddingHorizontal: 15,
-      paddingVertical: 13,
+      borderTopWidth: 2,
+      borderRightWidth: 2,
+      borderBottomWidth: 2,
+      borderLeftWidth: 2,
+      borderTopColor: tokens.primary,
+      borderRightColor: tokens.primary,
+      borderBottomColor: tokens.primary,
+      borderLeftColor: tokens.primary,
     },
   })
 }

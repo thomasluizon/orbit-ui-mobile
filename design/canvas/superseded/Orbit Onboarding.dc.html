@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <style>
+    @keyframes ob-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+    a{color:var(--primary-soft)} a:hover{color:var(--fg-1)}
+  </style>
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 3 · onboarding · a matriz completa</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Onboarding · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" fab="{{ fabEl }}" sheets="{{ sheetsEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:8px 16px 0">
+          <sc-if value="{{ isWizard }}" hint-placeholder-val="{{ true }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ goBack }}" hint-size="100%,56px"></x-import>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tStepLabel }}</p>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ progVal }}" max="{{ n3 }}" label="{{ tStepLabel }}" hint-size="100%,8px"></x-import>
+            </div>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display);max-width:20ch">{{ qTitle }}</h1>
+            <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tName }}" placeholder="{{ tNamePh }}" value="{{ name }}" on-change="{{ setName }}" hint-size="100%,80px"></x-import>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:var(--track-label);text-transform:uppercase">{{ tSugg }}</p>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px">
+                    <sc-for list="{{ suggs }}" as="g" hint-placeholder-count="3">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ g.pick }}" hint-size="auto,36px">{{ g.label }}</x-import>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+              <div role="radiogroup" aria-label="{{ qTitle }}" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <sc-for list="{{ periods }}" as="pd" hint-placeholder-count="4">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ pd.label }}" description="{{ pd.desc }}" selected="{{ pd.selected }}" on-select="{{ pd.pick }}" hint-size="100%,64px"></x-import>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isStep3ish }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" hint-size="100%,68px"></x-import>
+                </div>
+                <p style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tEditLater }}</p>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,160px"></x-import>
+            </sc-if>
+            <sc-if value="{{ showContinue }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ contDisabled }}" loading="{{ isSaving }}" on-click="{{ goNext }}" hint-size="auto,44px">{{ tCont }}</x-import>
+                <sc-if value="{{ contDisabled }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tReason }}</span>
+                </sc-if>
+              </div>
+            </sc-if>
+          </sc-if>
+          <sc-if value="{{ isDoneish }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;padding-top:48px;animation:ob-rise 280ms cubic-bezier(0.16,1,0.3,1) both">
+              <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display);max-width:20ch">{{ tDoneTitle }}</h1>
+              <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" hint-size="100%,68px"></x-import>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                <sc-if value="{{ hasReminder }}" hint-placeholder-val="{{ true }}">
+                  <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tAstraPre }}<span data-mock="true" style="font-variant-numeric:tabular-nums">{{ astraTime }}</span>{{ tDot }}</p>
+                </sc-if>
+                <sc-if value="{{ noReminder }}" hint-placeholder-val="{{ false }}">
+                  <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tAstraNone }}</p>
+                </sc-if>
+              </div>
+              <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ startTour }}" hint-size="auto,44px">{{ tSeeHow }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ noop }}" hint-size="auto,44px">{{ tGoToday }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isTour }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;padding-top:16px">
+              <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tHoje }}</h1>
+              <div data-tour-t="row" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" on-click="{{ noop }}" hint-size="100%,68px"></x-import>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isReplay }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tHelp }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+            <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">{{ tProposal }}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:280px">
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase">{{ tOptA }}</p>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="refresh" title="{{ tReplayRow }}" description="{{ tReplayDesc }}" on-click="{{ startTour }}" hint-size="100%,64px"></x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="book" title="{{ tGuideTitle }}" on-click="{{ openGuide }}" hint-size="100%,64px"></x-import>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase">{{ tOptB }}</p>
+                <div style="width:280px;background:var(--bg-elev);border-radius:16px;box-shadow:var(--sh-2);padding:16px;display:flex;flex-direction:column;gap:12px">
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums">{{ tStep33 }}</p>
+                  <p style="font-size:var(--fs-sm);line-height:1.45">{{ tTip3 }}</p>
+                  <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ openGuide }}" hint-size="auto,36px">{{ tSeeGuide }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tFinish }}</x-import>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Onboarding · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="{{ wideActive }}" on-create="{{ wideCreate }}" create-label="{{ tCreateSide }}" account="Thomas" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;max-width:520px">
+          <sc-if value="{{ isWizard }}" hint-placeholder-val="{{ true }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ goBack }}" hint-size="100%,56px"></x-import>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ tStepLabel }}</p>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ progVal }}" max="{{ n3 }}" label="{{ tStepLabel }}" hint-size="100%,8px"></x-import>
+            </div>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display);max-width:20ch">{{ qTitle }}</h1>
+            <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tName }}" placeholder="{{ tNamePh }}" value="{{ name }}" on-change="{{ setName }}" hint-size="100%,80px"></x-import>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:var(--track-label);text-transform:uppercase">{{ tSugg }}</p>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px">
+                    <sc-for list="{{ suggs }}" as="g" hint-placeholder-count="3">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ g.pick }}" hint-size="auto,36px">{{ g.label }}</x-import>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+              <div role="radiogroup" aria-label="{{ qTitle }}" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <sc-for list="{{ periods }}" as="pd" hint-placeholder-count="4">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.RadioRow" label="{{ pd.label }}" description="{{ pd.desc }}" selected="{{ pd.selected }}" on-select="{{ pd.pick }}" hint-size="100%,64px"></x-import>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isStep3ish }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" hint-size="100%,68px"></x-import>
+                </div>
+                <p style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tEditLater }}</p>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,160px"></x-import>
+            </sc-if>
+            <sc-if value="{{ showContinue }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ contDisabled }}" loading="{{ isSaving }}" on-click="{{ goNext }}" hint-size="auto,44px">{{ tCont }}</x-import>
+                <sc-if value="{{ contDisabled }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tReason }}</span>
+                </sc-if>
+              </div>
+            </sc-if>
+          </sc-if>
+          <sc-if value="{{ isDoneish }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;padding-top:48px;animation:ob-rise 280ms cubic-bezier(0.16,1,0.3,1) both">
+              <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display);max-width:20ch">{{ tDoneTitle }}</h1>
+              <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" hint-size="100%,68px"></x-import>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+                <sc-if value="{{ hasReminder }}" hint-placeholder-val="{{ true }}">
+                  <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tAstraPre }}<span data-mock="true" style="font-variant-numeric:tabular-nums">{{ astraTime }}</span>{{ tDot }}</p>
+                </sc-if>
+                <sc-if value="{{ noReminder }}" hint-placeholder-val="{{ false }}">
+                  <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tAstraNone }}</p>
+                </sc-if>
+              </div>
+              <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ startTour }}" hint-size="auto,44px">{{ tSeeHow }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" on-click="{{ noop }}" hint-size="auto,44px">{{ tGoToday }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isTour }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tHoje }}</h1>
+              <div data-tour-t="row" style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ prevIcon }}" title="{{ prevName }}" meta="{{ prevMeta }}" status="empty" on-click="{{ noop }}" hint-size="100%,68px"></x-import>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isReplay }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tHelp }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+            <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">{{ tProposal }}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:280px">
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase">{{ tOptA }}</p>
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="refresh" title="{{ tReplayRow }}" description="{{ tReplayDesc }}" on-click="{{ startTour }}" hint-size="100%,64px"></x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="book" title="{{ tGuideTitle }}" on-click="{{ openGuide }}" hint-size="100%,64px"></x-import>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase">{{ tOptB }}</p>
+                <div style="width:280px;background:var(--bg-elev);border-radius:16px;box-shadow:var(--sh-2);padding:16px;display:flex;flex-direction:column;gap:12px">
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums">{{ tStep33 }}</p>
+                  <p style="font-size:var(--fs-sm);line-height:1.45">{{ tTip3 }}</p>
+                  <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ openGuide }}" hint-size="auto,36px">{{ tSeeGuide }}</x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tFinish }}</x-import>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+      {{ sheetsEl }}
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { name:'', icon:'', period:null, tourStep:1, spot:null,
+    cv:{mode:'dark', width:'412', state:'step 1', locale:'pt-BR'} };
+  componentDidMount(){ this.measure(); }
+  componentDidUpdate(){ this.measure(); }
+  measure(){
+    const st = this.state, cv = st.cv;
+    if (cv.state!=='tour'){ if (st.spot) this.setState({spot:null}); return; }
+    const wide = cv.width==='wide';
+    const frame = document.getElementById(wide?'f2':'f1'); if(!frame) return;
+    const parent = wide ? frame : frame.querySelector('.ob-sh412'); if(!parent) return;
+    const sels = wide
+      ? ['[data-tour-t="row"]','.ob-shw>.side .foot','.ob-shw>.side nav']
+      : ['[data-tour-t="row"]','[data-tour-t="fab"]','[data-tour-t="tabs"]'];
+    const el = frame.querySelector(sels[st.tourStep-1]); if(!el) return;
+    const pr = parent.getBoundingClientRect(), r = el.getBoundingClientRect();
+    const next = {x:r.left-pr.left, y:r.top-pr.top, w:r.width, h:r.height, pw:pr.width, ph:pr.height};
+    const s = st.spot;
+    if (!s || Math.abs(s.x-next.x)>1 || Math.abs(s.y-next.y)>1 || Math.abs(s.w-next.w)>1 || Math.abs(s.h-next.h)>1)
+      this.setState({spot:next});
+  }
+  setStage(v, extra){ this.setState(s => Object.assign({cv:{...s.cv, state:v}, spot:null}, extra||null)); }
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      nav:'First habit', stepPre:'step', of:'of', sugg:'suggestions',
+      q1:'Which habit do you want to start?', q2:'When do you want to do it?', q3:'Review your first habit',
+      name:'Habit name', ph:'Morning water', cont:'Continue', create:'Create habit',
+      r1:'Type a name to continue.', r2:'Pick a period to continue.',
+      editLater:'You can change all of this later.',
+      err:'Could not save your habit. Check your connection and try again.', retry:'Try again',
+      done:'Your first habit is ready.', astraPre:'Astra reminds you at ', astraNone:'Astra will not send reminders.',
+      seeHow:'See how it works', goToday:'Go to today', hoje:'Today', help:'Help',
+      tips:['Tap the ring to log the habit.','Create more habits here.','Astra sits in the middle. Ask for any routine change.'],
+      tipsWide:['Tap the ring to log the habit.','Create more habits from the menu.','Astra sits in the menu. Ask for any routine change.'],
+      skip:'Skip', next:'Next', finish:'Finish', seeGuide:'See the guide', tourAria:'Tour',
+      guideTitle:'Orbit guide', close:'Close',
+      gLog:'Log', gLogD:'Tap the ring on a habit in the today list.',
+      gGoals:'Goals', gGoalsD:'Group habits under a deadline.',
+      gAstraD:'Ask for routine changes in natural language.',
+      gFreeze:'Freeze', gFreezeD:'Pause a habit without losing the streak.',
+      proposal:'proposal · where the tour re-entry lives', optA:'option a · rows in profile', optB:'option b · the last tour step opens the guide',
+      replayRow:'Replay the tour', replayDesc:'About one minute',
+      periods:[['morning','In the morning','start of the day','08:00'],['afternoon','In the afternoon','after lunch','14:00'],['evening','In the evening','end of the day','20:00'],['none','No fixed time','appears on the today list',null]],
+      noTime:'no fixed time',
+      suggs:[['Morning water','💧'],['Read 10 pages','📖'],['Walk','🚶']],
+      tabs:['Today','Goals','Astra','Profile']
+    } : {
+      nav:'Primeiro hábito', stepPre:'passo', of:'de', sugg:'sugestões',
+      q1:'Qual hábito você quer começar?', q2:'Quando você quer fazer isso?', q3:'Confira seu primeiro hábito',
+      name:'Nome do hábito', ph:'Água da manhã', cont:'Continuar', create:'Criar hábito',
+      r1:'Digite um nome para continuar.', r2:'Escolha um período para continuar.',
+      editLater:'Você pode mudar tudo isso depois.',
+      err:'Não foi possível salvar seu hábito. Verifique sua conexão e tente de novo.', retry:'Tentar de novo',
+      done:'Seu primeiro hábito está pronto.', astraPre:'Astra lembra você às ', astraNone:'Astra não vai enviar lembretes.',
+      seeHow:'Ver como funciona', goToday:'Ir para hoje', hoje:'Hoje', help:'Ajuda',
+      tips:['Toque no anel para registrar o hábito.','Crie mais hábitos por aqui.','Astra fica no centro. Peça qualquer mudança na rotina.'],
+      tipsWide:['Toque no anel para registrar o hábito.','Crie mais hábitos pelo menu.','Astra fica no menu. Peça qualquer mudança na rotina.'],
+      skip:'Pular', next:'Próximo', finish:'Concluir', seeGuide:'Ver o guia', tourAria:'Tour',
+      guideTitle:'Guia do Orbit', close:'Fechar',
+      gLog:'Registrar', gLogD:'Toque no anel do hábito na lista de hoje.',
+      gGoals:'Metas', gGoalsD:'Agrupe hábitos com um prazo.',
+      gAstraD:'Peça mudanças na rotina em linguagem natural.',
+      gFreeze:'Congelar', gFreezeD:'Pause um hábito sem perder a sequência.',
+      proposal:'proposta · onde fica a reentrada do tour', optA:'opção a · linhas no Perfil', optB:'opção b · o último passo do tour abre o guia',
+      replayRow:'Rever o tour', replayDesc:'Cerca de um minuto',
+      periods:[['morning','De manhã','no começo do dia','08:00'],['afternoon','À tarde','depois do almoço','14:00'],['evening','À noite','no fim do dia','20:00'],['none','Sem horário fixo','aparece na lista de hoje',null]],
+      noTime:'sem horário fixo',
+      suggs:[['Água da manhã','💧'],['Ler 10 páginas','📖'],['Caminhada','🚶']],
+      tabs:['Hoje','Metas','Astra','Perfil']
+    };
+    const stg = cv.state;
+    const isStep1 = stg==='step 1', isStep2 = stg==='step 2', isStep3 = stg==='step 3';
+    const isSaving = stg==='saving', isError = stg==='error';
+    const isWizard = isStep1||isStep2||isStep3||isSaving||isError;
+    const stepNum = isStep1?1:isStep2?2:3;
+    const isGuide = stg==='guide', isDoneish = stg==='done'||isGuide;
+    const isTour = stg==='tour', isReplay = stg==='replay';
+    const isWide = cv.width==='wide';
+    const mockEl = t => E('span',{'data-mock':'true',style:{fontVariantNumeric:'tabular-nums'}},t);
+    const noop = ()=>{};
+    const save = ()=>{ this.setStage('saving');
+      setTimeout(()=>this.setState(s=>s.cv.state==='saving'?{cv:{...s.cv,state:'done'}}:null), 900); };
+    const goNext = ()=>{ if(isStep1) this.setStage('step 2'); else if(isStep2) this.setStage('step 3'); else if(isStep3) save(); };
+    const goBack = ()=>{ if(stepNum>1) this.setStage('step '+(stepNum-1)); };
+    const startTour = ()=>this.setStage('tour',{tourStep:1});
+    const openGuide = ()=>this.setStage('guide');
+    const periodDef = T.periods.find(p=>p[0]===st.period) || null;
+    const effPeriod = periodDef || T.periods[0];
+    const typed = st.name.trim();
+    const prevName = typed || T.ph;
+    const prevIcon = typed ? (st.icon||undefined) : '💧';
+    const prevMeta = effPeriod[3] ? mockEl(effPeriod[3]) : T.noTime;
+    const periods = T.periods.map(p=>({label:p[1], desc:p[2], selected:st.period===p[0], pick:()=>this.setState({period:p[0]})}));
+    const suggs = T.suggs.map(g=>({label:g[0], pick:()=>this.setState({name:g[0], icon:g[1]})}));
+    const contDisabled = (isStep1 && !typed) || (isStep2 && !st.period);
+    const errAction = DS.Button ? E(DS.Button,{size:'sm',onClick:save},T.retry) : null;
+    const tabs = [
+      {id:'hoje',label:T.tabs[0],icon:'home'},
+      {id:'metas',label:T.tabs[1],icon:'target'},
+      {id:'astra',label:T.tabs[2],astra:true},
+      {id:'perfil',label:T.tabs[3],icon:'user'}];
+    const showChrome = isDoneish||isTour||isReplay;
+    const tabBarEl = (showChrome && DS.TabBar)
+      ? E('div',{'data-tour-t':'tabs'}, E(DS.TabBar,{items:tabs,activeId:isReplay?'perfil':'hoje'})) : null;
+    const fabEl = ((isDoneish||isTour) && DS.Fab)
+      ? E('div',{'data-tour-t':'fab'}, E(DS.Fab,{label:T.create,onClick:noop})) : null;
+    const astraRow = E('div',{style:{display:'flex',alignItems:'center',gap:12,minHeight:56,padding:'8px 16px'}},
+      DS.AstraGlyph ? E(DS.AstraGlyph,{size:24}) : null,
+      E('div',{style:{display:'flex',flexDirection:'column',gap:2}},
+        E('span',{style:{fontSize:17,fontWeight:400}},'Astra'),
+        E('span',{style:{fontSize:'var(--fs-sm)',color:'var(--fg-3)'}},T.gAstraD)));
+    const guideSheet = DS.Sheet ? E(DS.Sheet,{open:isGuide,title:T.guideTitle,onClose:()=>this.setStage('done'),
+      actions:E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>this.setStage('done')},T.close)},
+      E('div',{style:{display:'flex',flexDirection:'column',paddingBottom:24}},
+        E(DS.ListRow,{icon:'circle-check',title:T.gLog,description:T.gLogD,chevron:false}),
+        E(DS.ListRow,{icon:'target',title:T.gGoals,description:T.gGoalsD,chevron:false}),
+        astraRow,
+        E(DS.ListRow,{icon:'snowflake',title:T.gFreeze,description:T.gFreezeD,chevron:false}))) : null;
+    let tourOverlay = null;
+    const spot = st.spot;
+    if (isTour && spot){
+      const tips = isWide ? T.tipsWide : T.tips;
+      const radii = isWide ? [20,999,12] : [20,999,16];
+      const below = (spot.y + spot.h/2) < spot.ph*0.5;
+      const tipLeft = Math.max(16, Math.min(spot.x + spot.w/2 - 140, spot.pw - 296));
+      const tipPos = below ? {top:spot.y+spot.h+18} : {bottom:spot.ph-spot.y+18};
+      const nextTour = ()=> st.tourStep<3 ? this.setState({tourStep:st.tourStep+1, spot:null}) : this.setStage('done',{tourStep:1});
+      tourOverlay = E('div',{style:{position:'absolute',inset:0,zIndex:60,pointerEvents:'none',overflow:'hidden',borderRadius:'var(--r-sheet)'}},
+        E('div',{style:{position:'absolute',left:spot.x-6,top:spot.y-6,width:spot.w+12,height:spot.h+12,borderRadius:radii[st.tourStep-1],boxShadow:'0 0 0 2000px var(--scrim)'}}),
+        E('div',Object.assign({role:'dialog','aria-label':T.tourAria,style:Object.assign({position:'absolute',width:280,left:tipLeft,background:'var(--bg-elev)',borderRadius:16,boxShadow:'var(--sh-2)',padding:16,display:'flex',flexDirection:'column',gap:12,pointerEvents:'auto'},tipPos)}),
+          E('p',{style:{margin:0,fontFamily:'var(--font-mono)',fontSize:'var(--fs-xs)',color:'var(--fg-3)',fontVariantNumeric:'tabular-nums'}}, st.tourStep+' '+T.of+' 3'),
+          E('p',{style:{margin:0,fontSize:'var(--fs-sm)',lineHeight:1.45,color:'var(--fg-1)'}}, tips[st.tourStep-1]),
+          E('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+            st.tourStep<3
+              ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>this.setStage('done',{tourStep:1})},T.skip)
+              : E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>this.setStage('guide',{tourStep:1})},T.seeGuide),
+            E(DS.Button,{size:'sm',onClick:nextTour}, st.tourStep<3?T.next:T.finish))));
+    }
+    const sheetsEl = E(React.Fragment,null,guideSheet,tourOverlay);
+    return {
+      mode:cv.mode, cv, setCv:next=>this.setState({cv:next,spot:null,tourStep:1}),
+      cvStates:['step 1','step 2','step 3','saving','error','done','guide','tour','replay'],
+      is412:!isWide, isWide, tabs,
+      wideActive: isReplay?'perfil':(showChrome?'hoje':''),
+      wideCreate: showChrome && !isTour ? noop : (isTour ? noop : undefined),
+      tCreateSide:T.create,
+      isWizard, isStep1, isStep2, isStep3ish:stepNum===3&&isWizard, isSaving, isError,
+      isDoneish, isTour, isReplay, showContinue:isWizard&&!isError,
+      hasReminder:isDoneish&&!!effPeriod[3], noReminder:isDoneish&&!effPeriod[3],
+      tNav:T.nav, tStepLabel:T.stepPre+' '+stepNum+' '+T.of+' 3', progVal:stepNum-1, n3:3, n20:20,
+      qTitle:isStep1?T.q1:isStep2?T.q2:T.q3,
+      tName:T.name, tNamePh:T.ph, tSugg:T.sugg, name:st.name,
+      setName:e=>this.setState({name:e.target.value}),
+      suggs, periods, prevName, prevIcon, prevMeta,
+      tEditLater:T.editLater, tErrMsg:T.err, errAction,
+      contDisabled, tCont:stepNum===3?T.create:T.cont, tReason:isStep1?T.r1:T.r2,
+      goNext, goBack, noop, startTour, openGuide,
+      tDoneTitle:T.done, tAstraPre:T.astraPre, astraTime:effPeriod[3]||'', tDot:'.', tAstraNone:T.astraNone,
+      tSeeHow:T.seeHow, tGoToday:T.goToday, tHoje:T.hoje, tHelp:T.help,
+      tProposal:T.proposal, tOptA:T.optA, tOptB:T.optB,
+      tReplayRow:T.replayRow, tReplayDesc:T.replayDesc, tGuideTitle:T.guideTitle,
+      tStep33:'3 '+T.of+' 3', tTip3:(isWide?T.tipsWide:T.tips)[2], tSeeGuide:T.seeGuide, tFinish:T.finish,
+      sheetsEl, tabBarEl, fabEl
+    };
+  }
+}
+</script>
+</body>
+</html>

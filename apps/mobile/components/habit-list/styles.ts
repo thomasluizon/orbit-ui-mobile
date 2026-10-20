@@ -1,3 +1,4 @@
+import { PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -32,32 +33,31 @@ function alpha(color: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`
 }
 
-/** Builds the habit-list StyleSheet from the resolved navy+violet token bag. */
+/** Builds the habit-list StyleSheet from the active semantic token bag. */
 export function createStyles(tokens: AppTokens) {
   const skeletonBone = alpha(tokens.fg1, 0.08)
 
   return StyleSheet.create({
     skeletonContainer: {
-      paddingTop: 8,
-      paddingBottom: 100,
-      gap: 10,
+      paddingTop: SPACING.s8,
+      paddingHorizontal: PADDING.screenGutter,
+      gap: 12,
     },
     skeletonCard: {
-      marginHorizontal: 20,
       backgroundColor: tokens.bgCard,
-      borderRadius: 18,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
+      paddingVertical: SPACING.s12,
+      paddingHorizontal: SPACING.s12,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
+      gap: 12,
     },
     skeletonCircle: {
       width: 46,
       height: 46,
-      borderRadius: 14,
+      borderRadius: 12,
       backgroundColor: skeletonBone,
     },
     skeletonContent: {
@@ -83,96 +83,75 @@ export function createStyles(tokens: AppTokens) {
       backgroundColor: skeletonBone,
     },
 
+    dateGroupHeading: { fontFamily: 'GeistMono_500Medium', fontSize: 12, color: tokens.fg3, paddingTop: SPACING.s12, paddingBottom: SPACING.s12 },
     sectionInset: {},
+    allDoneHeader: { paddingBottom: PADDING.sectionGap },
     listContent: {
-      paddingBottom: 100,
+      paddingHorizontal: PADDING.screenGutter,
     },
-    listContentWithBulkBar: {
-      paddingBottom: 220,
-    },
-    groupedList: {
-      paddingBottom: 100,
-    },
-    allViewChild: {
-      gap: 6,
-    },
-
+    drillControls: { gap: 8, paddingBottom: PADDING.sectionGap },
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      marginBottom: 8,
+      paddingHorizontal: SPACING.s0,
+      paddingTop: SPACING.s8,
     },
     drillBackBtn: {
-      width: 40,
-      height: 40,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: 999,
+      overflow: 'hidden',
       borderWidth: 1.5,
       borderColor: tokens.hairlineStrong,
       alignItems: 'center',
       justifyContent: 'center',
     },
     drillBackBtnPressed: {
-      backgroundColor: tokens.bgElevPressed,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
-    drillResetRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: 6,
-      paddingVertical: 10,
-      paddingHorizontal: 20,
-    },
-    drillResetText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.primary,
-    },
+    drillHeading: { flex: 1, minWidth: 0 },
     drillSkeletons: {
-      gap: 10,
+      gap: 12,
     },
     drillErrorWrap: {
       alignItems: 'center',
-    },
-    drillRetryButton: {
-      marginTop: 16,
+      gap: 16,
+      paddingHorizontal: PADDING.screenGutter,
+      paddingVertical: SPACING.s32,
     },
     drillTitle: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 16,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 20,
       color: tokens.fg1,
+      letterSpacing: -0.2,
     },
     drillProgress: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       fontVariant: ['tabular-nums'],
       color: tokens.fg3,
-      marginTop: 2,
+      marginTop: SPACING.s0,
     },
-    drillAddBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      paddingVertical: 14,
-      marginHorizontal: 20,
-    },
-    drillAddBtnText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg3,
-    },
-    emptyText: {
-      fontFamily: 'Rubik_400Regular',
+    drillErrorText: {
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
-      color: tokens.fg3,
+      lineHeight: 21,
+      color: tokens.fg2,
       textAlign: 'center',
-      marginTop: 32,
-      paddingHorizontal: 24,
+    },
+    drillEmptyText: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 21,
+      color: tokens.fg2,
+    },
+    drillEmptyWrap: {
+      alignItems: 'flex-start',
+      gap: 8,
+      paddingVertical: SPACING.s8,
     },
   })
 }

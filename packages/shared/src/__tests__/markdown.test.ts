@@ -1,5 +1,32 @@
 import { describe, expect, it } from 'vitest'
-import { stripInlineMarkdown } from '../utils/markdown'
+import { marked, type Tokens } from 'marked'
+import { getMarkdownImageLabel, stripInlineMarkdown } from '../utils/markdown'
+
+describe('semantic image labels', () => {
+  it.each([
+    ['![outer ![](inner.png "inner title") after](outer.png)', 'outer inner title after'],
+    ['![![](inner.png)](outer.png "outer title")', 'outer title'],
+    ['![outer [inner][ref]](image.png)\n\n[ref]: https://example.com', 'outer inner'],
+    ['![](image.png "**literal**")', '**literal**'],
+  ])('preserves document context and literal titles: %s', (source, label) => {
+    const paragraph = marked.lexer(source)[0] as Tokens.Paragraph
+    const image = paragraph.tokens[0] as Tokens.Image
+    expect(getMarkdownImageLabel(image)).toBe(label)
+  })
+
+  it.each([
+    ['**bold** A &amp; B', 'bold A & B'],
+    ['a \\* b', 'a * b'],
+    ['&#42;literal&#42; &amp;amp; &#65; &#x1F680;', '*literal* &amp; A 🚀'],
+    ['***nested*** ~~removed~~ [A &amp; B](x) ![**child**](x)', 'nested removed A & B child'],
+    ['**bold** <b title="&amp;">&amp;</b>', 'bold <b title="&amp;">&</b>'],
+    ['`\\* &amp;` and \\&amp;', '\\* &amp; and &amp;'],
+    ['a  \nb &amp; c', 'a\nb & c'],
+    ['<script>literal &amp;</script> &amp;', '<script>literal &amp;</script> &'],
+  ])('flattens %s without losing literal text', (source, label) => {
+    expect(getMarkdownImageLabel({ text: source, title: null, tokens: marked.Lexer.lexInline(source) })).toBe(label)
+  })
+})
 
 describe('stripInlineMarkdown', () => {
   it('strips bold and italic markers but keeps the text', () => {

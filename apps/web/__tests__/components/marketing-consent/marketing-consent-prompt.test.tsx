@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -27,24 +28,7 @@ vi.mock('motion/react', () => {
   }
 })
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    children,
-    title,
-  }: {
-    open: boolean
-    children?: React.ReactNode
-    title?: string
-    onOpenChange?: (open: boolean) => void
-  }) =>
-    open ? (
-      <div data-testid="consent-prompt">
-        {title}
-        {children}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 const patchProfile = vi.fn()
 const invalidate = vi.fn()
@@ -65,6 +49,8 @@ import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 function renderPrompt() {
   const client = new QueryClient({
@@ -84,7 +70,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], showCreateModal: false, openOverlayIds: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 async function armConsent() {
@@ -102,24 +88,32 @@ async function settle() {
   })
 }
 
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
+})
+
 describe('MarketingConsentPrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    resetStores()
+    vi.stubGlobal('fetch', vi.fn())
     patchProfile.mockClear()
+    invalidate.mockClear()
     updateMarketingConsent.mockClear()
     profileValue = { marketingEmailConsent: null }
+    holdAccount('user-1')
+    resetStores()
   })
 
   afterEach(() => {
     cleanup()
     vi.clearAllTimers()
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('renders nothing when no consent prompt is armed', () => {
     renderPrompt()
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('does not render when a different kind is armed', async () => {
@@ -129,17 +123,37 @@ describe('MarketingConsentPrompt', () => {
       await Promise.resolve()
     })
     await settle()
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('pins Accept and Decline in the sheet footer, never in the scrolling body', async () => {
+    renderPrompt()
+    await armConsent()
+    await settle()
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['marketingConsent.prompt.decline', 'marketingConsent.prompt.accept'])
+    expectSmallSheetActions()
+    expect(sheetActionsUseActionPair()).toBe(true)
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
+  it('uses a quiet ghost pill for Decline', async () => {
+    renderPrompt()
+    await armConsent()
+    await settle()
+
+    expect(screen.getByRole('button', { name: 'marketingConsent.prompt.decline' })).toHaveAttribute('data-variant', 'ghost')
+    expect(screen.getByRole('button', { name: 'marketingConsent.prompt.decline' }).style.color).toBe('var(--fg-2)')
   })
 
   it('shows after the settle delay and records markEngagementPrompted', async () => {
     renderPrompt()
     await armConsent()
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
 
     await settle()
 
-    expect(screen.getByTestId('consent-prompt')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(useReferralPromptStore.getState().promptedMilestoneKeys).toContain(
       MARKETING_CONSENT_MILESTONE_KEY,
     )
@@ -154,26 +168,22 @@ describe('MarketingConsentPrompt', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
-  it('waits for the create modal to close before showing the armed prompt', async () => {
-    useUIStore.getState().setShowCreateModal(true)
+  it('waits for an open sheet before offering consent', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
     renderPrompt()
     await armConsent()
+    expect(useUIStore.getState().openOverlayIds).toContain('already-open')
+    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(MARKETING_CONSENT_MILESTONE_KEY)
     await settle()
+    expect(screen.queryByTestId('sheet')).toBeNull()
+    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(MARKETING_CONSENT_MILESTONE_KEY)
 
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
-    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(
-      MARKETING_CONSENT_MILESTONE_KEY,
-    )
-
-    await act(async () => {
-      useUIStore.getState().setShowCreateModal(false)
-    })
+    await act(async () => useUIStore.getState().unregisterOpenOverlay('already-open'))
     await settle()
-
-    expect(screen.getByTestId('consent-prompt')).toBeInTheDocument()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
   })
 
   it('opts in and optimistically patches the profile on accept', async () => {
@@ -188,7 +198,7 @@ describe('MarketingConsentPrompt', () => {
 
     expect(updateMarketingConsent).toHaveBeenCalledWith({ enabled: true })
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: true })
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 
   it('opts out and optimistically patches the profile on decline', async () => {
@@ -203,6 +213,50 @@ describe('MarketingConsentPrompt', () => {
 
     expect(updateMarketingConsent).toHaveBeenCalledWith({ enabled: false })
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: false })
-    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('does not roll back or invalidate the next account after an old consent failure', async () => {
+    let failConsent!: (error: Error) => void
+    updateMarketingConsent.mockImplementationOnce(() => new Promise((_resolve, reject) => { failConsent = reject }))
+    renderPrompt()
+    await armConsent()
+    await settle()
+    await act(async () => {
+      fireEvent.click(screen.getByText('marketingConsent.prompt.accept'))
+      await Promise.resolve()
+    })
+    expect(updateMarketingConsent).toHaveBeenCalledOnce()
+    expect(patchProfile).toHaveBeenCalledTimes(1)
+
+    await replaceAccountWith('user-2')
+    await act(async () => { failConsent(new Error('old account request failed')) })
+
+    expect(patchProfile).toHaveBeenCalledTimes(1)
+    expect(invalidate).not.toHaveBeenCalled()
+  })
+
+  it('takes the prompt off the screen when another account replaces the tab', async () => {
+    renderPrompt()
+    await armConsent()
+    await settle()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('does not open under the next account from a timer the previous one armed', async () => {
+    renderPrompt()
+    await armConsent()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    await replaceAccountWith('user-2')
+    await settle()
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 })

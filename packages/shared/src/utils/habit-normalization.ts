@@ -4,10 +4,10 @@ import type {
   HabitScheduleItem,
   LinkedGoalUpdate,
   NormalizedHabit,
+  PaginatedResponse,
 } from '../types/habit'
 import type { Goal } from '../types/goal'
 import { formatAPIDate } from './dates'
-import { hasHabitScheduleOnDate } from './habits'
 
 interface NormalizedHabitQueryData {
   habitsById: Map<string, NormalizedHabit>
@@ -16,28 +16,6 @@ interface NormalizedHabitQueryData {
   totalCount: number
   totalPages: number
   currentPage: number
-}
-
-export function computeDayProgress(
-  habitsById: Map<string, NormalizedHabit>,
-  selectedDate: string,
-): { done: number; total: number } {
-  let done = 0
-  let total = 0
-  for (const habit of habitsById.values()) {
-    if (habit.isBadHabit) continue
-    const countsForDay =
-      habit.isGeneral || habit.isOverdue || hasHabitScheduleOnDate(habit, selectedDate)
-    if (!countsForDay) continue
-    total++
-    const loggedOnSelectedDate =
-      habit.isLoggedInRange ||
-      habit.instances.some(
-        (instance) => instance.date === selectedDate && instance.status === 'Completed',
-      )
-    if (habit.isCompleted || loggedOnSelectedDate) done++
-  }
-  return { done, total }
 }
 
 export function sortNormalizedHabits(a: NormalizedHabit, b: NormalizedHabit): number {
@@ -74,7 +52,8 @@ function normalizeChildren(
     const { children: grandchildren, ...childData } = child
     map.set(child.id, {
       ...childData,
-      createdAtUtc: rootItem.createdAtUtc,
+      createdAtUtc: child.createdAtUtc ?? rootItem.createdAtUtc,
+      createdAtUtcIsInherited: child.createdAtUtc === undefined,
       parentId,
       position: child.position ?? null,
       scheduledDates: child.scheduledDates ?? [],
@@ -145,6 +124,7 @@ export function buildChildrenIndex(
 
 export function normalizeHabitQueryData(
   items: HabitScheduleItem[],
+  pagination?: Pick<PaginatedResponse<HabitScheduleItem>, 'totalCount' | 'totalPages' | 'page'>,
 ): NormalizedHabitQueryData {
   const habitsById = normalizeHabits(items)
   const childrenByParent = buildChildrenIndex(habitsById)
@@ -156,9 +136,9 @@ export function normalizeHabitQueryData(
     habitsById,
     childrenByParent,
     topLevelHabits,
-    totalCount: items.length,
-    totalPages: 1,
-    currentPage: 1,
+    totalCount: pagination?.totalCount ?? items.length,
+    totalPages: pagination?.totalPages ?? 1,
+    currentPage: pagination?.page ?? 1,
   }
 }
 
@@ -180,6 +160,12 @@ export function applyLinkedGoalUpdates(
   })
 }
 
+/**
+ * Converts a single HabitDetail (from GET /api/habits/:id) to a NormalizedHabit stub
+ * suitable for HabitDetailDrawer's `habit` prop. Fills schedule/list-only fields with safe
+ * defaults; the drawer's internal useHabitFullDetail loads the authoritative metrics and
+ * logs separately.
+ */
 export function habitDetailToNormalized(detail: HabitDetail): NormalizedHabit {
   const { children: _children, ...base } = detail
   return {

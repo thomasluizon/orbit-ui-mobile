@@ -1,66 +1,48 @@
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useEffect, useRef } from 'react'
-import { Pressable } from 'react-native'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withSpring,
+  withTiming,
 } from 'react-native-reanimated'
-import { Check } from 'lucide-react-native'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { createTokensV2 } from '@/lib/theme'
-import type { StatusDotState } from '@/components/ui/status-dot'
-import { styles } from './habit-row-styles'
-
-const CHECK_FILLED_STATES: ReadonlySet<StatusDotState> = new Set([
-  'done',
-  'skip',
-  'frozen',
-])
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
+import { HabitCheck } from './habit-check'
 
 interface CheckCircleProps {
-  state: StatusDotState
-  /** 'bad' fills the logged circle in statusBad instead of statusDone. */
-  tone?: 'default' | 'bad'
+  state: HabitStatus
+  unavailable?: boolean
   onToggle: () => void
   disabled: boolean
   accessibilityLabel: string
+  accessibilityHint?: string
   tokens: ReturnType<typeof createTokensV2>
 }
 
 export function CheckCircle({
   state,
-  tone = 'default',
+  unavailable = false,
   onToggle,
   disabled,
   accessibilityLabel,
+  accessibilityHint,
   tokens,
 }: Readonly<CheckCircleProps>) {
-  const colorMap: Record<StatusDotState, string> = {
-    done: tokens.statusDone,
-    empty: tokens.statusEmpty,
-    skip: tokens.statusSkip,
-    overdue: tokens.statusOverdue,
-    bad: tokens.statusBad,
-    frozen: tokens.statusFrozen,
-  }
-  const filled = CHECK_FILLED_STATES.has(state)
-  const color =
-    tone === 'bad' && state === 'done' ? tokens.statusBad : colorMap[state]
-
   const prefersReducedMotion = usePrefersReducedMotion()
   const popScale = useSharedValue(1)
-  const previousFilled = useRef(filled)
+  const previousState = useRef(state)
 
   useEffect(() => {
-    if (filled && !previousFilled.current && !prefersReducedMotion) {
+    if (state === 'done' && previousState.current !== 'done' && !prefersReducedMotion) {
       popScale.value = withSequence(
-        withSpring(1.18, { damping: 14 }),
-        withSpring(1),
+        withTiming(1.08, { duration: 80 }),
+        withTiming(1, { duration: 80 }),
       )
     }
-    previousFilled.current = filled
-  }, [filled, popScale, prefersReducedMotion])
+    previousState.current = state
+  }, [popScale, prefersReducedMotion, state])
 
   const popStyle = useAnimatedStyle(() => ({
     transform: [{ scale: popScale.value }],
@@ -70,41 +52,28 @@ export function CheckCircle({
     <Pressable
       onPress={onToggle}
       disabled={disabled}
-      hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
+      hitSlop={0}
+      focusOffset={-10}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityHint={disabled ? accessibilityHint : undefined}
       accessibilityState={{ disabled }}
       style={({ pressed }) => {
-        const pressedOpacity = pressed ? 0.85 : 1
         return {
-          opacity: disabled ? 0.4 : pressedOpacity,
-          transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
+          width: 48,
+          minHeight: 48,
+          borderRadius: 22,
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent',
+          opacity: disabled ? 0.4 : 1,
+          transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
         }
       }}
     >
-      <Animated.View
-        style={[
-          styles.checkCircle,
-          {
-            backgroundColor: filled ? color : 'transparent',
-            borderWidth: filled ? 0 : 2,
-            borderColor: filled ? 'transparent' : color,
-          },
-          filled && state === 'done'
-            ? {
-                shadowColor: tone === 'bad' ? tokens.statusBad : tokens.primary,
-                shadowOpacity: 0.35,
-                shadowRadius: 7,
-                shadowOffset: { width: 0, height: 3 },
-                elevation: 3,
-              }
-            : null,
-          popStyle,
-        ]}
-      >
-        {filled ? (
-          <Check size={17} color={tokens.fgOnPrimary} strokeWidth={3} />
-        ) : null}
+      <Animated.View style={popStyle} accessible={false}>
+        <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel} />
       </Animated.View>
     </Pressable>
   )

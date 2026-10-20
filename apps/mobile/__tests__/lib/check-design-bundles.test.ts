@@ -27,13 +27,59 @@ beforeEach(() => {
     ]) cpSync(resolve(root, path), resolve(destination, path), { recursive: true })
     symlinkSync(resolve(root, 'node_modules'), resolve(destination, 'node_modules'), 'junction')
   }
-  const identity = resolve(redesign, 'apps/mobile/lib/design-bundle-identity.ts')
-  writeFileSync(identity, readFileSync(identity, 'utf8').replace("= 'legacy'", "= 'redesign'"))
+  cpSync(
+    resolve(root, 'apps/mobile/__tests__/fixtures/native-designs/legacy-widget-layout.fixture'),
+    resolve(legacy, 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml'),
+  )
+  for (const [destination, design] of [[legacy, 'legacy'], [redesign, 'redesign']]) {
+    const identity = resolve(destination!, 'apps/mobile/lib/design-bundle-identity.ts')
+    writeFileSync(identity, readFileSync(identity, 'utf8').replace("= 'redesign'", `= '${design}'`))
+  }
 })
 afterEach(() => { rmSync(fixture, { recursive: true }) })
 
 describe('Android design publication guard', () => {
-  it('accepts two real source trees carrying the union with different bundle identities', () => {
+  it.each(['legacy', 'redesign'])('rejects a missing native dependency on %s', side => {
+    const path = resolve(side === 'legacy' ? legacy : redesign, 'package-lock.json')
+    const lock = JSON.parse(readFileSync(path, 'utf8')) as { packages: Record<string, { version: string }> }
+    delete lock.packages['node_modules/expo-linear-gradient']
+    writeFileSync(path, JSON.stringify(lock))
+    expect(() => checkDesignBundles(legacy, redesign)).toThrow('Native version mismatch')
+  })
+
+  it.each(['legacy', 'redesign'])('accepts each binary rendering its own widget on %s', side => {
+    const path = resolve(side === 'legacy' ? legacy : redesign, 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml')
+    writeFileSync(path, `${readFileSync(path, 'utf8')}\n`)
+    expect(() => checkDesignBundles(legacy, redesign)).not.toThrow()
+  })
+
+  it.each(['legacy', 'redesign'])('rejects losing the optional widget token argument on %s', side => {
+    const path = resolve(side === 'legacy' ? legacy : redesign, 'apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/OrbitWidgetModule.kt')
+    writeFileSync(path, readFileSync(path, 'utf8').replace('json: String, token: String?', 'json: String, token: String'))
+    expect(() => checkDesignBundles(legacy, redesign)).toThrow('OrbitWidgetModule.kt')
+  })
+
+  it.each(['legacy', 'redesign'])('rejects dropping the two-argument widget call on %s', side => {
+    const path = resolve(side === 'legacy' ? legacy : redesign, 'apps/mobile/modules/orbit-widget/src/OrbitWidget.types.ts')
+    writeFileSync(path, readFileSync(path, 'utf8').replace('json: string, token?: string', 'json: string'))
+    expect(() => checkDesignBundles(legacy, redesign)).toThrow('OrbitWidget.types.ts')
+  })
+
+  it.each(['legacy', 'redesign'])('rejects an additional local native module on %s', side => {
+    const path = resolve(side === 'legacy' ? legacy : redesign, 'apps/mobile/modules/extra/expo-module.config.json')
+    mkdirSync(resolve(path, '..'), { recursive: true })
+    writeFileSync(path, readFileSync(resolve(root, 'apps/mobile/modules/orbit-design-bundle/expo-module.config.json')))
+    expect(() => checkDesignBundles(legacy, redesign)).toThrow('extra')
+  })
+
+  it('rejects config plugin registration drift', () => {
+    const path = resolve(redesign, 'apps/mobile/app.json')
+    const config = JSON.parse(readFileSync(path, 'utf8')) as { expo: { plugins: unknown[] } }
+    config.expo.plugins.pop()
+    writeFileSync(path, JSON.stringify(config))
+    expect(() => checkDesignBundles(legacy, redesign)).toThrow('Config plugin')
+  })
+  it("accepts the shared union with each branch's real widget layout and bundle identity", () => {
     expect(() => checkDesignBundles(legacy, redesign)).not.toThrow()
   })
 

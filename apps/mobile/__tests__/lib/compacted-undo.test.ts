@@ -18,7 +18,7 @@ const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => {
   const rows = new Map<string, {
     id: string; timestamp: number; type: string; endpoint: string; method: string
-    payload: string; retries: number; max_retries: number; meta: string
+    payload: string; retries: number; max_retries: number; meta: string; account_id: string | null
   }>()
   let online = false
   let accountId: string | null = 'test-account'
@@ -36,24 +36,36 @@ const mocks = vi.hoisted(() => {
 vi.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
     execSync: () => {},
-    getAllSync: (sql: string) => sql.startsWith('PRAGMA')
+    getAllSync: (sql: string, params: unknown[] = []) => sql.startsWith('PRAGMA')
       ? [{ name: 'meta' }]
-      : [...mocks.rows.values()].sort((left, right) => left.timestamp - right.timestamp),
+      : [...mocks.rows.values()]
+        .filter((row) => row.account_id === params[0] || row.account_id === null)
+        .sort((left, right) => left.timestamp - right.timestamp),
     getFirstSync: () => ({ cnt: mocks.rows.size }),
     runSync: (sql: string, params: unknown[] = []) => {
       if (sql === 'DELETE FROM mutation_queue') mocks.rows.clear()
-      else if (sql.startsWith('DELETE FROM mutation_queue WHERE')) mocks.rows.delete(String(params[0]))
+      else if (sql.startsWith('DELETE FROM mutation_queue WHERE account_id')) {
+        for (const [id, row] of mocks.rows) {
+          if (row.account_id === params[0] || row.account_id === null) mocks.rows.delete(id)
+        }
+      } else if (sql.startsWith('DELETE FROM mutation_queue WHERE')) mocks.rows.delete(String(params[0]))
       else if (sql.startsWith('INSERT OR REPLACE INTO mutation_queue')) {
-        const [id, timestamp, type, endpoint, method, payload, retries, max_retries, meta] = params
+        const [id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id] = params
         mocks.rows.set(String(id), {
           id: String(id), timestamp: Number(timestamp), type: String(type),
           endpoint: String(endpoint), method: String(method), payload: String(payload),
           retries: Number(retries), max_retries: Number(max_retries), meta: String(meta),
+          account_id: typeof account_id === 'string' ? account_id : null,
         })
       }
     },
     withTransactionSync: (task: () => void) => task(),
   }),
+}))
+vi.mock('react-native-url-polyfill/auto', () => ({}))
+vi.mock('expo-sqlite/localStorage/install', () => ({}))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => ({ isAuthenticated: true, user: { userId: mocks.getAccountId() } }), subscribe: () => () => {} },
 }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('@/lib/account-scope', () => ({ getAccountId: mocks.getAccountId, setAccountId: mocks.setAccountId }))

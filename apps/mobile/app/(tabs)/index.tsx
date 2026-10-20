@@ -1,727 +1,383 @@
-import {
-  useState,
-  useMemo,
-  useCallback,
-  useEffect,
-  useRef,
-  type ReactElement,
-} from "react";
-// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated, StyleSheet, View } from "react-native";
-import type { FlatList } from "react-native-gesture-handler";
-import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { isToday } from "date-fns";
-import { useTranslation } from "react-i18next";
-import {
-  computeDayProgress,
-  formatAPIDate,
-} from "@orbit/shared/utils";
-import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
-import type { Goal } from "@orbit/shared/types/goal";
-import { plural } from "@/lib/plural";
-import { useProfile } from "@/hooks/use-profile";
-import {
-  EMPTY_HABITS_BY_ID,
-  useHabits,
-} from "@/hooks/use-habits";
-import { useTags } from "@/hooks/use-tags";
-import { useCoachTour } from "@/hooks/use-coach-tour";
-import { useUIStore } from "@/stores/ui-store";
-import { getAccountId, useAccountId } from "@/lib/account-scope";
-import { useReferralPromptStore } from "@/stores/referral-prompt-store";
-import { type HabitListHandle } from "@/components/habit-list";
-import { BulkActionBarV2 } from "@/components/habits/bulk-action-bar-v2";
-import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
-import { TrialBanner } from "@/components/ui/trial-banner";
-import { DismissibleCard } from "@/components/today/dismissible-card";
-import { TodayHabitsHeader } from "@/components/today/today-habits-header";
-import { ReferralCard } from "@/components/referral/referral-card";
-import { SetupChecklistCard } from "@/components/today/setup-checklist-card";
-import { useAnchoredMenu } from "@/components/ui/anchored-menu";
-import { createTokensV2 } from "@/lib/theme";
-import { useAppTheme } from "@/lib/use-app-theme";
-import { useEngagementSlot } from "@/hooks/use-engagement-slot";
-import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
-import { useTourTarget } from "@/hooks/use-tour-target";
-import { TodayHeader, TodayTabs, type TodayTabItem } from "./today-shell";
-import { buildTodayFilters } from "./today-model";
-import { useTodayViewSync } from "./use-today-view-sync";
-import { TodayScreenBody } from "./today-sections";
-import { useTodayDate } from "./use-today-date";
-import { useTodayMotion } from "./use-today-motion";
-import { useTodaySelection } from "./use-today-selection";
-import { useTodaySearch } from "./use-today-search";
-import { readShowGeneralOnToday } from "@/lib/show-general-on-today-storage";
-import { TodayModals } from "./today-modals";
+import { PADDING, SPACING } from '@orbit/shared/theme'
+import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { AccessibilityInfo, Animated, StyleSheet, View, type Text } from 'react-native'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
+import { useShellScrollToTopSlot } from '@/components/shell/shell-scroll-to-top-slot'
+import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
+import { getTodayBoundary, updateScrollToTopState } from '@orbit/shared/utils'
+import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { plural } from '@/lib/plural'
+import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
+import { useUIStore } from '@/stores/ui-store'
+import { HabitList, type HabitListHandle } from '@/components/habit-list'
+import { SelectionTray } from '@/components/habits/selection-tray'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import type { ActiveView } from '@orbit/shared/stores'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
+import { useOverlayBack } from '@/hooks/use-overlay-back'
+import { Input } from '@/components/ui/input'
+import { HabitViewSwitch } from '@/components/today/habit-view-switch'
+import { buildTodayFilters } from './today-model'
+import { TodayDateControl } from '@/components/today/today-date-control'
+import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
+import { TodayModals } from '@/components/today/today-modals'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { useTodayDate } from './use-today-date'
+import { useTodaySelection } from './use-today-selection'
+import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
+import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
+import { TodayAstra } from '@/components/today/today-astra'
+import { useTodayMotion } from './use-today-motion'
+import { usePushNotifications } from '@/hooks/use-push-notifications'
+import { useProfile } from '@/hooks/use-profile'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
+import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
+import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 
-export { resolveBulkActionBarEnterShift } from "./today-model";
-
-const TAB_VIEWS = ["today", "all", "general", "goals"] as const;
-export type TodayView = (typeof TAB_VIEWS)[number];
-
-export function resolveTodayView(
-  activeView: TodayView,
-  hasProAccess: boolean,
-): TodayView {
-  return !hasProAccess && activeView === "goals" ? "today" : activeView;
+function getBoundaryMessageKey(
+  boundary: ReturnType<typeof getTodayBoundary>,
+  view: ActiveView,
+): 'habits.todayBoundary.lastLoggable' | 'habits.todayBoundary.readOnly' | 'habits.todayBoundary.future' | null {
+  if (view !== 'today') return null
+  if (boundary === 'last-loggable') return 'habits.todayBoundary.lastLoggable'
+  if (boundary === 'read-only') return 'habits.todayBoundary.readOnly'
+  if (boundary === 'future') return 'habits.todayBoundary.future'
+  return null
 }
 
-export function shouldRedirectGoalsTab(
-  nextView: TodayView,
-  hasProAccess: boolean,
-): boolean {
-  return nextView === "goals" && !hasProAccess;
+function getSeeUpcomingAction(view: ActiveView, nextDisabled: boolean, goToNextDay: () => void) {
+  return view === 'today' && !nextDisabled ? goToNextDay : undefined
 }
 
-type FreqKey = "Day" | "Week" | "Month" | "Year" | "none";
+function getSearchLabelKey(open: boolean) {
+  return open ? 'habits.closeSearch' : 'habits.search.title'
+}
 
-// react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into today-sections / today-shell / today-modals and the use-today-* hooks; the remaining wiring + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+function TodaySearchInput({ search }: Readonly<{ search: ReturnType<typeof useHabitViewSearch> }>) {
+  const { t } = useTranslation()
+  if (!search.open) return null
+  return <Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={search.text} onChange={search.changeText} focusRequest={1} />
+}
+
+function TodayViewHeader({ search, activeView, onChangeView, today, focused, isTodaySelected, suppressed }: Readonly<{
+  search: ReturnType<typeof useHabitViewSearch>
+  activeView: ActiveView
+  onChangeView: (view: ActiveView) => void
+  today: string
+  focused: boolean
+  isTodaySelected: boolean
+  suppressed: boolean
+}>) {
+  return <View style={styles.viewHeader}>
+    <TodaySearchInput search={search} />
+    <HabitViewSwitch value={activeView} onChange={onChangeView} />
+    {focused && activeView === 'today' ? <TodayAstra today={today} isTodaySelected={isTodaySelected} suppressed={suppressed} /> : null}
+  </View>
+}
+
 export default function TodayScreen() {
-  const { t } = useTranslation();
-  const theme = useAppTheme();
-  const tokens = useMemo(
-    () => createTokensV2(theme.currentScheme, theme.currentTheme),
-    [theme.currentScheme, theme.currentTheme],
-  );
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
-
-  const { profile } = useProfile();
-  const accountId = useAccountId();
-  const { tags } = useTags();
-  useCoachTour();
-
-  const activeView = useUIStore((s) => s.activeView);
-  const setActiveView = useUIStore((s) => s.setActiveView);
-  const selectedFrequency = useUIStore((s) => s.selectedFrequency);
-  const setSelectedFrequency = useUIStore((s) => s.setSelectedFrequency);
-  const selectedTagIds = useUIStore((s) => s.selectedTagIds);
-  const setSelectedTagIds = useUIStore((s) => s.setSelectedTagIds);
-  const showCompleted = useUIStore((s) => s.showCompleted);
-  const setShowCompleted = useUIStore((s) => s.setShowCompleted);
-  const isSelectMode = useUIStore((s) => s.isSelectMode);
-  const selectedHabitIds = useUIStore((s) => s.selectedHabitIds);
-  const hasProAccess = profile?.hasProAccess ?? false;
-  const currentActiveView = resolveTodayView(activeView, hasProAccess);
-
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState(false);
-  const {
-    anchorRef: controlsButtonRef,
-    visible: showControlsMenu,
-    isClosing: isControlsMenuClosing,
-    openRevision: controlsMenuOpenRevision,
-    anchorRect: controlsMenuAnchorRect,
-    close: closeControlsMenu,
-    finishClose: finishControlsMenuClose,
-    toggle: toggleControlsMenu,
-  } = useAnchoredMenu();
-  const {
-    anchorRef: freqMenuButtonRef,
-    visible: showFreqMenu,
-    isClosing: isFreqMenuClosing,
-    openRevision: freqMenuOpenRevision,
-    anchorRect: freqMenuAnchorRect,
-    close: closeFreqMenu,
-    finishClose: finishFreqMenuClose,
-    toggle: toggleFreqMenu,
-  } = useAnchoredMenu();
-  const {
-    searchQuery: searchQueryStore,
-    isSearchOpen,
-    isSearchFocused,
-    setSearchQuery: setSearchQueryStore,
-    setIsSearchFocused,
-    closeSearch,
-    toggleSearch,
-  } = useTodaySearch();
-  const habitListRef = useRef<HabitListHandle>(null);
-  const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const handleHabitListScroll = useCallback((offsetY: number) => {
-    setShowScrollTop(offsetY > 600);
-  }, []);
-  const scrollHabitsToTop = useCallback(() => {
-    habitListRef.current?.scrollToOffset(0);
-  }, []);
-  const [habitListAllLoadedIds, setHabitListAllLoadedIds] = useState<
-    Set<string> | null
-  >(null);
-  const habitsTourRef = useRef<View>(null);
-  useTourTarget("tour-habit-list", habitsTourRef);
-  const goalsScrollRef = useRef<FlatList<Goal>>(null);
-  const goalsScrollTo = useCallback((y: number) => {
-    goalsScrollRef.current?.scrollToOffset({ offset: y, animated: true });
-  }, []);
-  const { onTourScrollOffset: onGoalsTourScrollOffset } = useTourScrollContainer(
-    "/",
-    goalsScrollTo,
-  );
-  const scrollGoalsToTop = useCallback(() => {
-    goalsScrollTo(0);
-  }, [goalsScrollTo]);
-  const handleGoalsScroll = useCallback(
-    (offsetY: number) => {
-      onGoalsTourScrollOffset(offsetY);
-      setShowScrollTop(offsetY > 600);
-    },
-    [onGoalsTourScrollOffset],
-  );
-  const isGoalsView = currentActiveView === "goals";
-  const [scrollTopResetGoalsView, setScrollTopResetGoalsView] =
-    useState(isGoalsView);
-  if (isGoalsView !== scrollTopResetGoalsView) {
-    setScrollTopResetGoalsView(isGoalsView);
-    setShowScrollTop(false);
+  const { t } = useTranslation()
+  const { profile, isError, refetch } = useProfile()
+  const { requestFirstUsePermission } = usePushNotifications()
+  const readyForNotifications = profile?.hasCompletedOnboarding === true
+  useFocusEffect(useCallback(() => {
+    if (!readyForNotifications) return
+    let focused = true
+    void requestFirstUsePermission(() => focused)
+    return () => { focused = false }
+  }, [readyForNotifications, requestFirstUsePermission]))
+  if (!profile) {
+    return isError
+      ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /></>
+      : <><ScreenReaderHeading title={t('nav.today')} /><View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
+          <Skeleton variant="settings" grouped />
+          <View style={styles.profileLoadingHabits}>
+            <Skeleton variant="habit-row" grouped />
+            <Skeleton variant="habit-row" grouped />
+            <Skeleton variant="habit-row" grouped />
+          </View>
+        </View></>
   }
+  return <TodayScreenContent />
+}
 
-  const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null);
-  const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null);
-  const [editHabitOnSaved, setEditHabitOnSaved] = useState<
-    (() => void | Promise<void>) | null
-  >(null);
+function TodayScreenContent() {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const date = useTodayDate()
+  const activeView = useUIStore((state) => state.activeView)
+  const setActiveView = useUIStore((state) => state.setActiveView)
+  useEffect(() => { if (date.pinnedDateStr) setActiveView('today') }, [date.pinnedDateStr, setActiveView])
+  const accountId = useAccountId()
+  const search = useHabitViewSearch(JSON.stringify([accountId, activeView, activeView === 'today' ? date.dateStr : null]))
+  const closeSearch = search.close
+  useOverlayBack(search.open, search.close)
+  const actionDate = activeView === 'today' ? date.dateStr : date.today
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
+  const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
+  const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
+  const [allLoadedIds, setAllLoadedIds] = useState<Set<string> | null>(null)
+  const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
+  const [todayFocused, setTodayFocused] = useState(false)
+  const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
+  const habitListRef = useRef<HabitListHandle>(null)
+  const headingRef = useRef<Text>(null)
+  const viewportHeight = useRef(0)
+  const scrollState = useRef({ offset: 0, visible: false })
+  const scrollVisibility = useMemo(() => {
+    const listeners = new Set<() => void>()
+    return {
+      subscribe: (listener: () => void) => {
+        listeners.add(listener)
+        return () => { listeners.delete(listener) }
+      },
+      getSnapshot: () => scrollState.current.visible,
+      update: (offset: number) => {
+        const previous = scrollState.current
+        const next = updateScrollToTopState(previous, offset, viewportHeight.current)
+        scrollState.current = next
+        if (next.visible !== previous.visible) listeners.forEach((listener) => listener())
+      },
+    }
+  }, [])
+  const scrollToTopVisible = useSyncExternalStore(scrollVisibility.subscribe, scrollVisibility.getSnapshot)
+  const scrollToTop = useCallback((focusHeading = false) => {
+    habitListRef.current?.scrollToOffset(0, false)
+    if (focusHeading && headingRef.current) AccessibilityInfo.sendAccessibilityEvent(headingRef.current, 'focus')
+    scrollVisibility.update(0)
+  }, [scrollVisibility])
+  useRootScrollToTop('hoje', scrollToTop)
+  useShellScrollToTopSlot(todayFocused && scrollToTopVisible, <ScrollToTopButton onPress={() => scrollToTop(true)} />)
+  const [showCompleted, setShowCompleted] = useState(false)
+  const isSelectMode = useUIStore((state) => state.isSelectMode)
+  const frequencyUnit = useUIStore((state) => state.activeFilters.frequencyUnit ?? null)
+  const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
+  const showCreateModal = useUIStore((state) => state.showCreateModal)
+  const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
 
-  const {
-    pinnedDateStr,
-    selectedDateStr,
-    selectedDate,
-    dateStr,
-    dateLabel,
-    slideDirection,
-    dateLabelAnim,
-    goToPreviousDay,
-    goToNextDay,
-    goToToday,
-    swipeGesture,
-  } = useTodayDate(closeSearch);
+  const filters = useMemo<HabitsFilter>(() => buildTodayFilters({
+    view: activeView,
+    dateStr: date.dateStr,
+    isTodayDate: date.dateStr === date.today,
+    searchQuery: search.query,
+    selectedFrequency: frequencyUnit,
+    selectedTagIds: [],
+    showGeneralOnToday,
+  }), [activeView, date.dateStr, date.today, frequencyUnit, showGeneralOnToday, search.query])
+  const habitsQuery = useHabits(filters, habitViewQueryOptions(activeView, date.today))
+  const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
+  const motion = useTodayMotion({
+    filterMotionKey: date.dateStr,
+    isRefetching: Boolean(habitsQuery.data && habitsQuery.isFetching && !search.open),
+  })
+  const closeControlsMenu = useCallback(() => {}, [])
+  const selection = useTodaySelection({
+    selectedDateStr: actionDate,
+    today: date.today,
+    habitListRef,
+    habitListAllLoadedIds: allLoadedIds,
+    habitsById,
+    closeControlsMenu,
+  })
+  const clearSelection = selection.clearSelection
+  const changeView = useCallback((nextView: ActiveView) => {
+    if (nextView !== 'today' && date.pinnedDateStr) router.replace('/(tabs)')
+    clearSelection()
+    closeSearch()
+    setActiveView(nextView)
+  }, [clearSelection, closeSearch, date.pinnedDateStr, router, setActiveView])
+  const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today), activeView)
 
-  const { slot: engagementSlot } = useEngagementSlot({
-    isTodayView: currentActiveView === "today",
-    isTodayDate: isToday(selectedDate),
-  });
-  const filterMotionKey = useMemo(
-    () =>
-      [
-        currentActiveView,
-        selectedDateStr,
-        searchQueryStore,
-        selectedFrequency ?? "",
-        selectedTagIds.join(","),
-      ].join("|"),
-    [
-      currentActiveView,
-      searchQueryStore,
-      selectedDateStr,
-      selectedFrequency,
-      selectedTagIds,
-    ],
-  );
+  useFocusEffect(
+    useCallback(() => {
+      let active = true
+      setShowGeneralOnToday(false)
+      readShowGeneralOnToday()
+        .then((saved) => {
+          if (active && getAccountId() === accountId) setShowGeneralOnToday(saved)
+        })
+        .catch(() => {
+          if (active && getAccountId() === accountId) setShowGeneralOnToday(false)
+        })
+      setTodayFocused(true)
+      return () => {
+        active = false
+        clearSelection()
+        setTodayFocused(false)
+      }
+    }, [accountId, clearSelection]),
+  )
 
   useEffect(() => {
-    let active = true;
-    readShowGeneralOnToday()
-      .then((storedValue) => {
-        if (active && getAccountId() === accountId) setShowGeneralOnToday(storedValue);
-      })
-      .catch(() => {
-        if (active && getAccountId() === accountId) setShowGeneralOnToday(false);
-      });
-    return () => { active = false; };
-  }, [accountId]);
-
-  const frequencyOptions = useMemo<{ key: FreqKey; label: string }[]>(
-    () => [
-      { key: "Day", label: t("habits.filter.daily") },
-      { key: "Week", label: t("habits.filter.weekly") },
-      { key: "Month", label: t("habits.filter.monthly") },
-      { key: "Year", label: t("habits.filter.yearly") },
-      { key: "none", label: t("habits.filter.oneTime") },
-    ],
-    [t],
-  );
-
-  const handleChangeView = useCallback(
-    (nextView: TodayView) => {
-      if (shouldRedirectGoalsTab(nextView, profile?.hasProAccess ?? false)) {
-        router.push("/upgrade");
-        return;
-      }
-
-      setActiveView(nextView);
-      closeSearch();
-    },
-    [closeSearch, profile?.hasProAccess, router, setActiveView],
-  );
-
-  const tabItems = useMemo<TodayTabItem[]>(
-    () =>
-      TAB_VIEWS.map((view) => {
-        let label: string;
-        if (view === "today") label = t("habits.viewToday");
-        else if (view === "all") label = t("habits.viewAll");
-        else if (view === "general") label = t("habits.viewGeneral");
-        else label = t("goals.tab");
-        return { view, label };
-      }),
-    [t],
-  );
-
-  const toggleTagFilter = useCallback(
-    (tagId: string) => {
-      const idx = selectedTagIds.indexOf(tagId);
-      if (idx >= 0) {
-        setSelectedTagIds(selectedTagIds.filter((id) => id !== tagId));
-        return;
-      }
-
-      setSelectedTagIds([...selectedTagIds, tagId]);
-    },
-    [selectedTagIds, setSelectedTagIds],
-  );
-
-  const filters = useMemo<HabitsFilter>(
-    () =>
-      buildTodayFilters({
-        view: currentActiveView,
-        dateStr,
-        isTodayDate: isToday(selectedDate),
-        searchQuery: searchQueryStore,
-        selectedFrequency,
-        selectedTagIds,
-        showGeneralOnToday,
-      }),
-    [
-      currentActiveView,
-      dateStr,
-      selectedDate,
-      searchQueryStore,
-      selectedFrequency,
-      selectedTagIds,
-      showGeneralOnToday,
-    ],
-  );
-
-  const habitsQuery = useHabits(filters);
-  const hasFetchedHabits = habitsQuery.data !== undefined;
-  const isRefetching = habitsQuery.isFetching && hasFetchedHabits;
-  const showHabitsLoadError = habitsQuery.isError && !hasFetchedHabits;
-  const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID;
-
-  const dayProgress = useMemo(
-    () => computeDayProgress(habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID, dateStr),
-    [habitsQuery.data?.habitsById, dateStr],
-  );
-  const showDayProgress = currentActiveView === "today" && dayProgress.total > 0;
-
-  const {
-    showBulkDeleteConfirm,
-    showBulkLogConfirm,
-    showBulkSkipConfirm,
-    setShowBulkDeleteConfirm,
-    setShowBulkLogConfirm,
-    setShowBulkSkipConfirm,
-    confirmBulkDelete,
-    confirmBulkLog,
-    confirmBulkSkip,
-    clearSelection,
-    allSelected,
-    selectedCount,
-    handleToggleSelectMode,
-    handleSelectAll,
-    handleDeselectAll,
-    handleOpenBulkDelete,
-    handleOpenBulkLog,
-    handleOpenBulkSkip,
-  } = useTodaySelection({
-    selectedDateStr: dateStr,
-    habitListRef,
-    habitListAllLoadedIds,
-    closeControlsMenu,
-  });
-
-  const {
-    filtersAnimatedStyle,
-    listAnimatedStyle,
-    refetchAnimatedStyle,
-    bulkBarAnimatedStyle,
-    renderBulkActionBar,
-    setRenderBulkActionBar,
-  } = useTodayMotion({ filterMotionKey, isRefetching });
-
-  const showCreateModal = useUIStore((s) => s.showCreateModal);
-  const setShowCreateModal = useUIStore((s) => s.setShowCreateModal);
-  const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal);
-  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal);
-  const dismissHomeEntry = useReferralPromptStore((s) => s.dismissHomeEntry);
-  const [showReferral, setShowReferral] = useState(false);
-
-  useTodayViewSync({
-    currentActiveView,
+    const hidden = isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen ||
+      !habitsQuery.data || habitsById.size === 0
+    setTodayFabHidden(hidden)
+    return () => setTodayFabHidden(false)
+  }, [
+    editHabit,
+    habitsById.size,
+    habitsQuery.data,
     isSelectMode,
-    pinnedDateStr,
-    setShowScrollTop,
-    setRenderBulkActionBar,
-    setActiveView,
-    closeSearch,
-  });
+    listSurfaceOpen,
+    setTodayFabHidden,
+    showCreateModal,
+  ])
 
-  const showSummary = currentActiveView === "today" && isToday(selectedDate);
-
-  const handleToggleCollapse = useCallback(() => {
-    if (habitListRef.current?.allCollapsed) {
-      habitListRef.current.expandAll();
-    } else {
-      habitListRef.current?.collapseAll();
-    }
-    closeControlsMenu();
-  }, [closeControlsMenu]);
-
-  const handleRefresh = useCallback(() => {
-    habitListRef.current?.refetch();
-    closeControlsMenu();
-  }, [closeControlsMenu]);
-
-  const handleToggleCompleted = useCallback(() => {
-    setShowCompleted(!showCompleted);
-    closeControlsMenu();
-  }, [closeControlsMenu, setShowCompleted, showCompleted]);
-
-  const handleSelectFrequency = useCallback(
-    (key: FreqKey | null) => {
-      setSelectedFrequency(key);
-      closeFreqMenu();
-    },
-    [closeFreqMenu, setSelectedFrequency],
-  );
-
-  const handleHabitLogged = useCallback(
-    (habitId: string) => {
-      habitListRef.current?.markRecentlyCompleted(habitId);
-      habitListRef.current?.checkAndPromptParentLog(habitId);
-    },
-    [],
-  );
-
-  const handleEditHabit = useCallback(
-    (habit: NormalizedHabit, onSaved?: () => void | Promise<void>) => {
-      setEditHabit(habit);
-      setEditHabitOnSaved(() => onSaved ?? null);
-    },
-    [],
-  );
-
-  const handleEditHabitClose = useCallback(() => {
-    setEditHabit(null);
-    setEditHabitOnSaved(null);
-  }, []);
-
-  const handleListScrollBeginDrag = useCallback(() => {
-    closeControlsMenu();
-  }, [closeControlsMenu]);
-
-  const sharedHeader = useMemo(
-    () => (
-      <>
-
-        <TodayHeader
-          currentStreak={profile?.currentStreak ?? 0}
-          onGoToToday={goToToday}
-          goToTodayLabel={t("dates.goToToday")}
-          topInset={insets.top}
-        />
-
-        {engagementSlot === "trial" ? <TrialBanner /> : null}
-
-        <DismissibleCard visible={engagementSlot === "setupChecklist"}>
-          <SetupChecklistCard />
-        </DismissibleCard>
-
-        <DismissibleCard visible={engagementSlot === "referral"}>
-          <ReferralCard
-            onOpen={() => setShowReferral(true)}
-            onDismiss={dismissHomeEntry}
+  useShellComposerSlot(
+    motion.renderBulkActionBar && todayFocused,
+    (
+      <Animated.View style={motion.bulkBarAnimatedStyle}>
+        <View style={styles.selectionTray}>
+          <SelectionTray
+            count={selection.selectedCount}
+            allSelected={selection.allSelected}
+            onSelectAll={selection.handleSelectAll}
+            onDeselectAll={selection.handleDeselectAll}
+            onLog={selection.handleOpenBulkLog}
+            onSkip={selection.handleOpenBulkSkip}
+            onDelete={selection.handleOpenBulkDelete}
+            onClose={clearSelection}
+            countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
+            selectAllLabel={t('common.selectAll')}
+            deselectAllLabel={t('common.deselectAll')}
+            logLabel={t('habits.bulkBar.log')}
+            skipLabel={t('habits.bulkBar.skip')}
+            deleteLabel={t('habits.bulkBar.delete')}
+            closeLabel={t('common.cancel')}
+            completionReadOnly={selection.completionReadOnly}
+            completionReason={selection.completionReadOnly ? t('habits.todayBoundary.readOnly') : undefined}
           />
-        </DismissibleCard>
+        </View>
+      </Animated.View>
+    ),
+  )
 
-        <TodayTabs
-          tabs={tabItems}
-          activeView={currentActiveView}
-          hasProAccess={profile?.hasProAccess ?? false}
-          onChangeView={handleChangeView}
-          viewsLabel={t("habits.viewsLabel")}
+  const listHeader = (
+    <View testID="today-section-header" style={styles.header}>
+      <View testID="today-date-group" style={styles.viewHeader}>
+        <TodayDateControl
+          showDate={activeView === 'today'}
+          beforeDate={<TodayViewHeader search={search} activeView={activeView} onChangeView={changeView}
+            today={date.today} focused={todayFocused} isTodaySelected={date.dateStr === date.today}
+            suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data} />}
+          headerActive={todayFocused}
+          shortDayName={date.shortDayName}
+          searchLabel={t(getSearchLabelKey(search.open))}
+          searchOpen={search.open}
+          onSearch={search.toggle}
+          dayName={date.dayName}
+          numericDate={date.numericDate}
+          isTodaySelected={date.dateStr === date.today}
+          nextDisabled={date.nextDisabled}
+          previousLabel={t('dates.previousDay')}
+          goToTodayLabel={t('dates.goToToday')}
+          nextLabel={t('dates.nextDay')}
+          moreLabel={t('habits.listOptions')}
+          menuHeading={t('common.options')}
+          selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
+          collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+          allCollapsed={habitListAllCollapsed}
+          refreshLabel={t('habits.refresh')}
+          completedLabel={showCompleted ? t('habits.hideCompletedMenu') : t('habits.showCompletedMenu')}
+          showCompleted={showCompleted}
+          isFetching={habitsQuery.isFetching}
+          onToggleSelect={selection.handleToggleSelectMode}
+          onToggleCollapse={() => {
+            if (habitListAllCollapsed) habitListRef.current?.expandAll()
+            else habitListRef.current?.collapseAll()
+          }}
+          onRefresh={() => void habitsQuery.refetch()}
+          onToggleCompleted={() => setShowCompleted(!showCompleted)}
+          onGoToPreviousDay={date.goToPreviousDay}
+          onGoToToday={date.goToToday}
+          onGoToNextDay={date.goToNextDay}
         />
-      </>
-    ),
-    [
-      currentActiveView,
-      profile?.currentStreak,
-      engagementSlot,
-      profile?.hasProAccess,
-      insets.top,
-      goToToday,
-      handleChangeView,
-      tabItems,
-      t,
-      dismissHomeEntry,
-    ],
-  );
-
-  const habitsHeader = useMemo<ReactElement>(
-    () => (
-      <TodayHabitsHeader
-        header={sharedHeader}
-        showSummary={showSummary}
-        dateStr={dateStr}
-        currentActiveView={currentActiveView}
-        dateLabel={dateLabel}
-        selectedDate={selectedDate}
-        slideDirection={slideDirection}
-        dateLabelAnim={dateLabelAnim}
-        isSearchFocused={isSearchFocused}
-        swipeGesture={swipeGesture}
-        showDayProgress={showDayProgress}
-        dayProgress={dayProgress}
-        isSearchOpen={isSearchOpen}
-        searchQuery={searchQueryStore}
-        selectedFrequency={selectedFrequency}
-        selectedTagIds={selectedTagIds}
-        tags={tags}
-        frequencyOptions={frequencyOptions}
-        isSelectMode={isSelectMode}
-        showCompleted={showCompleted}
-        isFetching={habitsQuery.isFetching}
-        allCollapsed={habitListAllCollapsed}
-        showControlsMenu={showControlsMenu}
-        isControlsMenuClosing={isControlsMenuClosing}
-        controlsMenuOpenRevision={controlsMenuOpenRevision}
-        controlsMenuAnchorRect={controlsMenuAnchorRect}
-        showFreqMenu={showFreqMenu}
-        isFreqMenuClosing={isFreqMenuClosing}
-        freqMenuOpenRevision={freqMenuOpenRevision}
-        freqMenuAnchorRect={freqMenuAnchorRect}
-        controlsButtonRef={controlsButtonRef}
-        freqMenuButtonRef={freqMenuButtonRef}
-        filtersAnimatedStyle={filtersAnimatedStyle}
-        onGoToPreviousDay={goToPreviousDay}
-        onGoToToday={goToToday}
-        onGoToNextDay={goToNextDay}
-        onSearchToggle={toggleSearch}
-        onSearchChange={setSearchQueryStore}
-        onSearchFocusChange={setIsSearchFocused}
-        onTagToggle={toggleTagFilter}
-        onToggleFreqMenu={toggleFreqMenu}
-        onToggleControlsMenu={toggleControlsMenu}
-        onCloseControlsMenu={closeControlsMenu}
-        onFinishControlsMenuClose={finishControlsMenuClose}
-        onCloseFreqMenu={closeFreqMenu}
-        onFinishFreqMenuClose={finishFreqMenuClose}
-        onToggleSelect={handleToggleSelectMode}
-        onToggleCollapse={handleToggleCollapse}
-        onRefresh={handleRefresh}
-        onToggleCompleted={handleToggleCompleted}
-        onSelectFrequency={handleSelectFrequency}
-      />
-    ),
-    [
-      controlsMenuAnchorRect,
-      controlsMenuOpenRevision,
-      controlsButtonRef,
-      currentActiveView,
-      dateLabel,
-      dateLabelAnim,
-      dateStr,
-      dayProgress,
-      filtersAnimatedStyle,
-      freqMenuButtonRef,
-      freqMenuOpenRevision,
-      frequencyOptions,
-      goToNextDay,
-      goToPreviousDay,
-      goToToday,
-      habitListAllCollapsed,
-      habitsQuery.isFetching,
-      handleRefresh,
-      handleSelectFrequency,
-      handleToggleCollapse,
-      handleToggleCompleted,
-      toggleControlsMenu,
-      toggleFreqMenu,
-      handleToggleSelectMode,
-      isSearchFocused,
-      isSearchOpen,
-      isSelectMode,
-      isControlsMenuClosing,
-      isFreqMenuClosing,
-      searchQueryStore,
-      selectedDate,
-      selectedFrequency,
-      selectedTagIds,
-      setIsSearchFocused,
-      setSearchQueryStore,
-      closeControlsMenu,
-      closeFreqMenu,
-      finishControlsMenuClose,
-      finishFreqMenuClose,
-      sharedHeader,
-      showCompleted,
-      showControlsMenu,
-      showDayProgress,
-      showSummary,
-      slideDirection,
-      swipeGesture,
-      tags,
-      toggleTagFilter,
-      freqMenuAnchorRect,
-      showFreqMenu,
-      toggleSearch,
-    ],
-  );
+      </View>
+      <SetupChecklistCard />
+      {boundaryKey ? (
+        <View style={styles.notice}>
+          <CapacityNotice message={t(boundaryKey)} />
+        </View>
+      ) : null}
+    </View>
+  )
 
   return (
-    <View testID="today-content-column" style={styles.safeArea}>
-      <TodayScreenBody
-        currentActiveView={currentActiveView}
-        showHabitsLoadError={showHabitsLoadError}
-        sharedHeader={sharedHeader}
-        habitsHeader={habitsHeader}
-        styles={styles}
-        goalsScrollRef={goalsScrollRef}
-        habitsTourRef={habitsTourRef}
-        habitListRef={habitListRef}
-        isSelectMode={isSelectMode}
-        listAnimatedStyle={listAnimatedStyle}
-        refetchAnimatedStyle={refetchAnimatedStyle}
-        filters={filters}
-        selectedDate={selectedDate}
-        showCompleted={showCompleted}
-        searchQuery={searchQueryStore}
-        selectedHabitIds={selectedHabitIds}
-        onGoalsScroll={handleGoalsScroll}
-        onScrollBeginDrag={handleListScrollBeginDrag}
-        onRetry={() => {
-          void habitsQuery.refetch();
-        }}
-        onCreatePress={() => setShowCreateModal(true)}
-        onSeeUpcoming={goToNextDay}
-        onDetailHabit={setDetailHabit}
-        onEditHabit={handleEditHabit}
-        onScroll={handleHabitListScroll}
-        onAllCollapsedChange={setHabitListAllCollapsed}
-        onAllLoadedIdsChange={setHabitListAllLoadedIds}
-      />
-
-      {renderBulkActionBar && (
-        <Animated.View
-          testID="bulk-action-bar"
-          style={[
-            styles.bulkActionBarWrap,
-            { bottom: 20 + insets.bottom },
-            bulkBarAnimatedStyle,
-          ]}
-        >
-          <BulkActionBarV2
-            count={selectedCount}
-            allSelected={allSelected}
-            onSelectAll={handleSelectAll}
-            onDeselectAll={handleDeselectAll}
-            onLog={handleOpenBulkLog}
-            onSkip={handleOpenBulkSkip}
-            onDelete={handleOpenBulkDelete}
-            onClose={clearSelection}
-            countSuffixLabel={plural(
-              t("common.selectedSuffix"),
-              selectedCount,
-            )}
-            selectAllLabel={t("common.selectAll")}
-            deselectAllLabel={t("common.deselectAll")}
-            logLabel={t("habits.bulkBar.log")}
-            skipLabel={t("habits.bulkBar.skip")}
-            deleteLabel={t("habits.bulkBar.delete")}
-            closeLabel={t("common.cancel")}
+    <View testID="today-content-column" onLayout={(event) => { viewportHeight.current = event.nativeEvent.layout.height }} style={[styles.screen, { backgroundColor: tokens.bg }]}>
+      <ScreenReaderHeading ref={headingRef} title={t('nav.today')} />
+      <Animated.View style={[styles.listBand, motion.refetchAnimatedStyle]}>
+        <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
+          <HabitList
+            ref={habitListRef}
+            view={activeView}
+            searchQuery={search.query}
+            onClearSearch={search.close}
+            filters={filters}
+            selectedDate={activeView === 'today' ? date.selectedDate : undefined}
+            showCompleted={showCompleted}
+            onShowCompleted={() => setShowCompleted(true)}
+            isSelectMode={isSelectMode}
+            selectedHabitIds={selectedHabitIds}
+            listHeader={listHeader}
+            onCreatePress={() => setShowCreateModal(true)}
+            onSeeUpcoming={getSeeUpcomingAction(activeView, date.nextDisabled, date.goToNextDay)}
+            onDetailHabit={(habit) => router.push({
+              pathname: '/habits/[id]',
+              params: { id: habit.id, date: actionDate, from: 'today' },
+            })}
+            onEditHabit={(habit, onSaved) => {
+              setEditHabit(habit)
+              setEditHabitOnSaved(() => onSaved ?? null)
+            }}
+            onAllLoadedIdsChange={setAllLoadedIds}
+            onAllCollapsedChange={setHabitListAllCollapsed}
+            onSurfaceOpenChange={setListSurfaceOpen}
+            onScroll={scrollVisibility.update}
           />
         </Animated.View>
-      )}
-
-      <ScrollToTopButton
-        visible={showScrollTop && !isSelectMode}
-        onPress={isGoalsView ? scrollGoalsToTop : scrollHabitsToTop}
-        bottom={insets.bottom + 24}
-      />
+      </Animated.View>
 
       <TodayModals
         showCreateModal={showCreateModal}
         onCloseCreateModal={() => setShowCreateModal(false)}
-        createInitialDate={
-          currentActiveView === "today" ? formatAPIDate(selectedDate) : null
-        }
-        detailHabit={detailHabit}
-        onCloseDetail={() => setDetailHabit(null)}
-        onHabitLogged={handleHabitLogged}
+        createInitialDate={activeView === 'today' ? date.dateStr : null}
         editHabit={editHabit}
-        editHabitParentIsGeneral={
-          editHabit?.parentId
-            ? (habitsById.get(editHabit.parentId)?.isGeneral ?? null)
-            : null
-        }
-        onCloseEdit={handleEditHabitClose}
+        editHabitParentIsGeneral={editHabit?.parentId ? (habitsById.get(editHabit.parentId)?.isGeneral ?? null) : null}
+        onCloseEdit={() => {
+          setEditHabit(null)
+          setEditHabitOnSaved(null)
+        }}
         editHabitOnSaved={editHabitOnSaved}
-        showBulkDeleteConfirm={showBulkDeleteConfirm}
-        onBulkDeleteOpenChange={setShowBulkDeleteConfirm}
-        onConfirmBulkDelete={() => void confirmBulkDelete()}
-        showBulkLogConfirm={showBulkLogConfirm}
-        onBulkLogOpenChange={setShowBulkLogConfirm}
-        onConfirmBulkLog={() => void confirmBulkLog()}
-        showBulkSkipConfirm={showBulkSkipConfirm}
-        onBulkSkipOpenChange={setShowBulkSkipConfirm}
-        onConfirmBulkSkip={() => void confirmBulkSkip()}
-        selectedCount={selectedCount}
-        showCreateGoalModal={showCreateGoalModal}
-        onCloseCreateGoal={() => setShowCreateGoalModal(false)}
-        showReferral={showReferral}
-        onCloseReferral={() => setShowReferral(false)}
+        showBulkDeleteConfirm={selection.showBulkDeleteConfirm}
+        onBulkDeleteOpenChange={selection.setShowBulkDeleteConfirm}
+        onConfirmBulkDelete={() => void selection.confirmBulkDelete()}
+        selectedCount={selection.selectedCount}
+        showReferral={false}
+        onCloseReferral={() => {}}
       />
     </View>
-  );
+  )
 }
 
-export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
-  return StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      width: "100%",
-      maxWidth: 740,
-      alignSelf: "center",
-      backgroundColor: tokens.bg,
-    },
-    scrollContentWithBulkBar: {
-      paddingBottom: 220,
-    },
-    listShell: {
-      flex: 1,
-    },
-    loadErrorState: {
-      alignItems: "center",
-      paddingVertical: 48,
-      paddingHorizontal: 24,
-    },
-    loadErrorText: {
-      fontFamily: "Rubik_400Regular",
-      fontSize: 14,
-      lineHeight: 21,
-      color: tokens.fg3,
-      marginTop: 14,
-      maxWidth: 280,
-      textAlign: "center",
-    },
-    loadErrorRetry: {
-      marginTop: 22,
-    },
-    bulkActionBarWrap: {
-      position: "absolute",
-      left: 20,
-      right: 20,
-      zIndex: 20,
-    },
-  });
-}
+const styles = StyleSheet.create({
+  screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
+  profileLoading: { gap: 24, padding: SPACING.s16 },
+  profileLoadingHabits: { gap: 12 },
+  listBand: { flex: 1 },
+  viewHeader: { gap: PADDING.sectionGap },
+  header: { gap: PADDING.sectionGap, paddingBottom: PADDING.sectionGap },
+  notice: { paddingHorizontal: SPACING.s0 },
+  selectionTray: { paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
+})

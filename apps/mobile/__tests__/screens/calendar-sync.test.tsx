@@ -1,17 +1,60 @@
+import { SettingsGroup } from '@/components/ui/settings-group';
+import { PersonalText } from '@/components/ui/personal-text'
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Resvg } from "@resvg/resvg-js";
+import * as ReactNative from 'react-native';
+import { StyleSheet, type ViewStyle } from 'react-native';
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
 import { ApiClientError } from "@orbit/shared";
+import { calendarImportTitleKey, type CalendarSyncEvent } from "@orbit/shared/utils";
+import en from "@orbit/shared/i18n/en.json";
+import ptBR from "@orbit/shared/i18n/pt-BR.json";
+import { Sheet } from "@/components/ui/sheet";
+import { calendarKeys } from '@orbit/shared/query';
+import { Link as LinkIcon } from '@/components/ui/icons';
+import { advanceAccountGeneration } from '@/lib/session-epoch';
+import { expectPressPaint } from '@/__tests__/support/press-feedback';
 
-import CalendarSyncScreen from "@/app/calendar-sync";
-import AuthCallbackScreen from "@/app/auth-callback";
-import { clearPendingGoogleAuthSession } from "@/lib/google-auth-callback";
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from "@/components/calendar-sync/calendar-import-content";
+import AuthCallbackScreen from '@/app/auth-callback';
+import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback';
+import { PillButton } from '@/components/ui/pill-button';
+import { useTranslation } from 'react-i18next';
+function CalendarSyncScreen({ inSheet = false }: Readonly<{ inSheet?: boolean }>) {
+  const [action, setAction] = React.useState<CalendarImportActionState | null>(null);
+  const actionRef = React.useRef<CalendarImportActionHandle>(null);
+  const { t } = useTranslation();
+  const content = <>
+    <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={mocks.initialEventId} onClose={() => {}} onGoToHabits={mocks.goToHabits} actionRef={actionRef} onActionStateChange={setAction} />
+    {action ? <PillButton disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</PillButton> : null}
+  </>;
+  return inSheet ? <Sheet title={t(calendarImportTitleKey(false))} onClose={() => {}}>{content}</Sheet> : content;
+}
+
+vi.unmock('@/components/ui/sheet')
+
+vi.mock('@lodev09/react-native-true-sheet', () => ({
+  TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode }> {
+    present = vi.fn(async () => {});
+    dismiss = vi.fn(async () => {});
+    render() { return <>{this.props.header}{this.props.children}{this.props.footer}</>; }
+  },
+}));
 
 const TestRenderer = require("react-test-renderer");
 
 type TestNode = {
   props: Record<string, unknown>;
+  type?: unknown;
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[];
+};
+
+type CalendarSyncTree = {
+  root: TestNode & {
+    find: (predicate: (node: TestNode) => boolean) => TestNode;
+  };
+  update: (element: React.ReactElement) => void;
 };
 
 const colorProxy: any = new Proxy(
@@ -22,39 +65,58 @@ const colorProxy: any = new Proxy(
 );
 
 const mocks = vi.hoisted(() => {
+  const events: CalendarSyncEvent[] = [];
+  const initialEventsQueryData = (): { status: "connected"; events: CalendarSyncEvent[] } | { status: "not-connected" } =>
+    ({ status: "connected", events });
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
   };
 
   return {
+    neverSynced: false,
     apiClient: vi.fn(),
     login: vi.fn(),
     openBrowser: vi.fn(),
     queryClient,
     eventsQuery: {
-      data: undefined as { status: "connected"; events: unknown[] } | { status: "not-connected" } | undefined,
+      data: initialEventsQueryData(),
       isLoading: false,
       isError: false,
       error: null as Error | null,
       refetch: vi.fn(),
     },
+    goToHabits: vi.fn(),
     router: {
       push: vi.fn(),
       replace: vi.fn(),
     },
     profile: null as ReturnType<typeof createMockProfile> | null,
     searchParams: {},
+    initialEventId: null as string | null,
     suggestions: [] as unknown[],
     isOnline: true,
+    hasGoogleConnection: true,
     bulkMutateAsync: vi.fn(),
     dismissMutateAsync: vi.fn(),
     setAutoSyncMutate: vi.fn(),
     runSyncNowMutate: vi.fn(),
+    isSetPending: false,
+    isRunPending: false,
     showError: vi.fn(),
     startGoogleAuth: vi.fn(),
     autoSyncStatus: "Idle",
+    autoSyncError: false,
+    refetchAutoSyncState: vi.fn(),
+    language: 'en',
+    reducedMotion: false,
+    realPressTokens: false,
   };
 });
+
+vi.mock('@/lib/motion', () => ({
+  usePrefersReducedMotion: () => mocks.reducedMotion,
+  toAnimatedEasing: () => (value: number) => value,
+}));
 
 vi.mock("expo-router", async () => {
   const React = await import("react");
@@ -70,9 +132,9 @@ vi.mock("expo-router", async () => {
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    i18n: { language: "en" },
+    i18n: { language: mocks.language },
     t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}(${JSON.stringify(params)})` : key,
+      key === 'calendar.calendars.title' ? (mocks.language === 'pt-BR' ? ptBR : en).calendar.calendars.title : key === 'calendar.eventsFound' ? (mocks.language === 'pt-BR' ? ptBR : en).calendar.eventsFound.replaceAll('{count}', String(params?.count)) : params ? `${key}(${JSON.stringify(params)})` : key,
   }),
 }));
 
@@ -98,10 +160,12 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
     data: {
       enabled: false,
       status: mocks.autoSyncStatus,
-      lastSyncedAt: null,
-      hasGoogleConnection: true,
+      lastSyncedAt: mocks.neverSynced ? null : '2026-09-12T09:12:00Z',
+      hasGoogleConnection: mocks.hasGoogleConnection,
     },
     isLoading: false,
+    isError: mocks.autoSyncError,
+    refetch: mocks.refetchAutoSyncState,
   }),
   useCalendarSyncSuggestions: () => ({
     data: mocks.suggestions,
@@ -110,12 +174,12 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
     error: null,
   }),
   useSetCalendarAutoSync: () => ({
-    mutate: mocks.setAutoSyncMutate,
-    isPending: false,
+    mutateAsync: mocks.setAutoSyncMutate,
+    isPending: mocks.isSetPending,
   }),
   useRunCalendarSyncNow: () => ({
-    mutate: mocks.runSyncNowMutate,
-    isPending: false,
+    mutateAsync: mocks.runSyncNowMutate,
+    isPending: mocks.isRunPending,
   }),
   useDismissCalendarSuggestion: () => ({
     mutateAsync: mocks.dismissMutateAsync,
@@ -156,6 +220,7 @@ vi.mock("@/stores/auth-store", () => ({
   getSessionGeneration: () => ({ epoch: 0, credentialVersion: 0 }),
   useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) => selector({ login: mocks.login }),
 }));
+vi.mock("@/components/auth/login-content", () => ({ LoginContent: () => null }));
 vi.mock("expo-linking", () => ({ useLinkingURL: () => null }));
 vi.mock("expo-crypto", () => ({
   getRandomBytesAsync: () => Promise.resolve(new Uint8Array(32).fill(1)),
@@ -172,7 +237,7 @@ vi.mock("expo-web-browser", () => ({
 const tokensV2Proxy: any = new Proxy(
   {},
   {
-    get: (_target, prop) => (prop === "fgOnPrimary" ? "#ffffff" : "#111111"),
+    get: (_target, prop) => prop === "fgOnPrimary" ? "#ffffff" : prop === 'primary' ? '#ff00ff' : "#111111",
   },
 );
 
@@ -185,11 +250,11 @@ vi.mock("@/lib/use-app-theme", () => ({
 }));
 
 vi.mock("@/lib/theme", async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>();
+  const actual = await importOriginal<typeof import('@/lib/theme')>();
   return {
     ...actual,
     createColors: () => colorProxy,
-    createTokensV2: () => tokensV2Proxy,
+    createTokensV2: (...args: Parameters<typeof actual.createTokensV2>) => mocks.realPressTokens ? actual.createTokensV2(...args) : tokensV2Proxy,
   };
 });
 
@@ -209,57 +274,37 @@ vi.mock("@/components/ui/offline-unavailable-state", () => ({
   OfflineUnavailableState: () => null,
 }));
 
-vi.mock("lucide-react-native", () => {
-  const createIcon = (name: string) => (props: any) =>
-    React.createElement(name, props);
-
-  return {
-    AlertTriangle: createIcon("AlertTriangle"),
-    TriangleAlert: createIcon("TriangleAlert"),
-    ArrowLeft: createIcon("ArrowLeft"),
-    Bell: createIcon("Bell"),
-    CalendarDays: createIcon("CalendarDays"),
-    Check: createIcon("Check"),
-    ChevronLeft: createIcon("ChevronLeft"),
-    ChevronRight: createIcon("ChevronRight"),
-    Link: createIcon("Link"),
-    Loader2: createIcon("Loader2"),
-    RefreshCw: createIcon("RefreshCw"),
-    WifiOff: createIcon("WifiOff"),
-    X: createIcon("X"),
-  };
-});
-
 vi.mock("@/components/ui/app-bar", () => ({
   AppBar: () => null,
 }));
 
-vi.mock("@/components/ui/section-label", () => ({
-  SectionLabel: ({ children }: { children?: unknown }) => React.createElement("SectionLabel", null, children as never),
+
+
+vi.mock("@/components/ui/list-row", () => ({
+  ListRow: ({ title, toggle, readOnly, chevron, textMode, onClick }: React.ComponentProps<typeof import("@/components/ui/list-row")["ListRow"]>) =>
+    React.createElement("ListRow", { title, readOnly, chevron, textMode, accessibilityRole: toggle ? "switch" : undefined, onPress: toggle ? () => toggle.onChange(!toggle.checked) : onClick }, title),
 }));
 
-vi.mock("@/components/ui/settings-row", () => ({
-  SettingsRow: ({ label, accessory }: { label: string; accessory?: string }) =>
-    React.createElement("SettingsRow", { accessory }, label),
-  Switch: ({ onToggle, accessibilityLabel }: { onToggle: () => void; accessibilityLabel: string }) =>
-    React.createElement("Switch", { onPress: onToggle, accessibilityLabel }),
+vi.mock("@/components/ui/switch", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/components/ui/switch")>(),
+  Switch: ({ onChange, label, checked }: { onChange: (value: boolean) => void; label: string; checked: boolean }) =>
+    React.createElement("Switch", { onPress: () => onChange(!checked), accessibilityLabel: label }),
 }));
 
 vi.mock("@/components/ui/select-check", () => ({
-  SelectCheck: () => null,
   RadioGlyph: () => null,
 }));
 
 vi.mock("@/components/ui/pill-button", () => ({
   PillButton: ({
     children,
-    onPress,
+    onClick,
     disabled,
   }: {
     children?: unknown;
-    onPress?: () => void;
+    onClick?: () => void;
     disabled?: boolean;
-  }) => React.createElement("PillButton", { onPress, disabled }, children as never),
+  }) => React.createElement("PillButton", { onClick, disabled }, children as never),
 }));
 
 vi.mock("react-native", async (importOriginal) => {
@@ -272,23 +317,284 @@ vi.mock("react-native", async (importOriginal) => {
 });
 
 describe("CalendarSyncScreen", () => {
+  afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
   beforeEach(() => {
+    mocks.reducedMotion = false;
+    mocks.realPressTokens = false;
     vi.clearAllMocks();
     mocks.profile = createMockProfile({ hasProAccess: true });
+    mocks.language = 'en';
     mocks.apiClient.mockResolvedValue([]);
     mocks.eventsQuery.data = { status: "connected", events: [] };
     mocks.eventsQuery.isLoading = false;
     mocks.eventsQuery.isError = false;
     mocks.eventsQuery.error = null;
     mocks.searchParams = {};
+    mocks.initialEventId = null;
     mocks.suggestions = [];
     mocks.isOnline = true;
+    mocks.hasGoogleConnection = true;
     mocks.bulkMutateAsync.mockReset();
     mocks.dismissMutateAsync.mockReset();
     mocks.setAutoSyncMutate.mockReset();
     mocks.runSyncNowMutate.mockReset();
     mocks.startGoogleAuth.mockReset();
     mocks.autoSyncStatus = "Idle";
+    mocks.neverSynced = false;
+    mocks.autoSyncError = false;
+    mocks.isSetPending = false;
+    mocks.isRunPending = false;
+  });
+
+
+  it('shows one Calendários heading in the connected import sheet', async () => {
+    mocks.language = 'pt-BR';
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(2) };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'header' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
+  });
+
+  it.each([{ fontScale: 1, height: 24, y: 0 }, { fontScale: 2, height: 36, y: 0 }, { fontScale: 2, height: 60, y: 3 }])('keeps select all centred on the measured first line: %j', async ({ fontScale, height, y }) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 320, height: 915, scale: 1, fontScale });
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(2) };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
+    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ flexDirection: 'row', alignItems: 'flex-start' });
+    const heading = row.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')[0]!;
+    const toggle = row.findAll((node) => node.type === 'Pressable' && typeof node.props.onPress === 'function')[0]!;
+    const content = row.findAll((node) => node.type === 'Text' || node.type === 'Pressable');
+    expect(content.indexOf(heading)).toBeLessThan(content.indexOf(toggle));
+    expect(toggle.props.disabled).toBeUndefined();
+    expect(toggle.props.accessibilityState).toEqual({ selected: true });
+    const headingContainer = row.findAll((node) => node.type === 'View' && node.findAll((child) => child === heading).length > 0).at(-1)!;
+    const toggleContainer = row.findAll((node) => node.type === 'View' && node.findAll((child) => child === toggle).length > 0).at(-1)!;
+    expect(heading.props.allowFontScaling).not.toBe(false);
+    expect(heading.props.numberOfLines).toBeUndefined();
+    const onTextLayout = heading.props.onTextLayout as (event: { nativeEvent: { lines: unknown[] } }) => void;
+    expect(onTextLayout).toBeTypeOf('function');
+    await TestRenderer.act(() => onTextLayout({ nativeEvent: { lines: [
+      { x: 0, y, width: 180, height, text: '100', ascender: 28, descender: 8, capHeight: 26, xHeight: 20 },
+      { x: 0, y: y + height, width: 180, height, text: 'events', ascender: 28, descender: 8, capHeight: 26, xHeight: 20 },
+    ] } }));
+    const headingContainerStyle = StyleSheet.flatten(headingContainer.props.style as ViewStyle);
+    const toggleContainerStyle = StyleSheet.flatten(toggleContainer.props.style as ViewStyle);
+    expect(toggleContainerStyle.height).toBeGreaterThanOrEqual(48);
+    expect((headingContainerStyle.paddingTop as number) + y + height / 2).toBe((toggleContainerStyle.height as number) / 2);
+    dimensions.mockRestore();
+  });
+
+  it.each([['pt-BR', '100 eventos'], ['en', '100 events']])('fits the three-digit count beside select all in %s', async (language, expected) => {
+    mocks.language = language;
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(100) };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    const heading = tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && typeof node.props.children === 'string' && node.props.children.startsWith('100'));
+    expect(heading.props.children).toBe(expected);
+    const style = StyleSheet.flatten(heading.props.style as ReactNative.TextStyle);
+    const font = require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="288" height="100"><text y="50" font-family="Geist" font-size="${style.fontSize}" letter-spacing="${style.letterSpacing}">${expected}</text></svg>`;
+    const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!;
+    const textWidth = bounds.x + bounds.width;
+    const body = tree.root.findAll((node) => node.props.testID === 'sheet-body-scroll' && node.props.contentContainerStyle != null)[0]!;
+    const bodyStyle = StyleSheet.flatten(body.props.contentContainerStyle as ViewStyle);
+    const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
+    const toggle = row.findAll((node) => node.type === 'Pressable')[0]!;
+    const toggleStyle = (toggle.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: false });
+    const contentMeasure = 320 - 2 * Number(bodyStyle.paddingHorizontal);
+    const headingMeasure = contentMeasure - Number(StyleSheet.flatten(toggleStyle).width) - Number(StyleSheet.flatten(row.props.style as ViewStyle).gap);
+    process.stdout.write(`${JSON.stringify({ platform: 'Android font proxy', language, text: expected, textWidth, headingMeasure, contentMeasure, measurementCanvasWidth: 288 })}\n`);
+    expect(contentMeasure).toBe(272);
+    expect(headingMeasure).toBe(216);
+    expect(textWidth).toBeLessThanOrEqual(headingMeasure);
+  });
+
+  it.each([false, true])('omits select all when every event has an import issue, review: %s', async (review) => {
+    const events = buildEvents(2).map((event) => ({ ...event, isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null }));
+    mocks.eventsQuery.data = { status: 'connected', events };
+    if (review) {
+      mocks.searchParams = { mode: 'review' };
+      mocks.suggestions = events.map((event) => ({ id: `suggestion-${event.id}`, event }));
+    }
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
+    expect(row.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.importIssue.utcUntilOffsetShift')).toHaveLength(2);
+  });
+
+  it.each([['pt-BR', 'sex., 16 de out.'], ['en', 'Fri, Oct 16']])('localizes calendar dates in %s west of UTC', async (language, expected) => {
+    vi.stubEnv('TZ', 'America/Los_Angeles');
+    expect(new Date(2026, 9, 16).getTimezoneOffset()).toBeGreaterThan(0);
+    mocks.language = language;
+    mocks.eventsQuery.data = { status: 'connected', events: [{ ...buildEvents(1)[0]!, startDate: '2026-10-16' }] };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === expected)).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === '2026-10-16')).toHaveLength(0);
+    vi.unstubAllEnvs();
+  });
+
+  it('preselects only the event opened from the day card', async () => {
+    mocks.initialEventId = 'ev-1';
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(3) };
+    mocks.bulkMutateAsync.mockResolvedValue({ results: [] });
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    const action = tree.root.find((node) => node.props.children === 'calendar.importButton({"count":1})' && typeof node.props.onClick === 'function');
+    await TestRenderer.act(async () => { (action.props.onClick as () => void)(); await Promise.resolve(); });
+    expect(mocks.bulkMutateAsync.mock.calls[0]![0].habits).toHaveLength(1);
+    expect(mocks.bulkMutateAsync.mock.calls[0]![0].habits[0].title).toBe('Event 1');
+  });
+
+  it('opens an event beyond the first page in place', async () => {
+    mocks.initialEventId = 'ev-25';
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(45) };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === 'Event 25' && node.props.expanded === true)).toHaveLength(1);
+    expect(tree.root.find((node) => node.props.children === 'calendar.importButton({"count":1})' && typeof node.props.onClick === 'function').props.disabled).toBe(false);
+  });
+
+  it('discloses an imported event title without selecting other events', async () => {
+    const title = 'Already imported event ' + 'long title '.repeat(30);
+    mocks.initialEventId = 'ev-0';
+    mocks.eventsQuery.data = { status: 'connected', events: [{ ...buildEvents(2)[0]!, title, isImported: true }, buildEvents(2)[1]!] };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    const fullTitle = tree.root.find((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title);
+    expect(fullTitle.props.numberOfLines).toBe(1);
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === title && node.props.expanded === true)).toHaveLength(1);
+    expect(tree.root.find((node) => node.props.children === 'calendar.importButton({"count":0})' && typeof node.props.onClick === 'function').props.disabled).toBe(true);
+    expect(mocks.bulkMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps one title in place and hides the provider description', async () => {
+    const event = { ...buildEvents(1)[0]!, description: 'Event Name / Interview Calendar / Location: Google Meet' };
+    mocks.eventsQuery.data = { status: 'connected', events: [event] };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === event.description)).toHaveLength(0);
+    const disclosure = tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails');
+    TestRenderer.act(() => { (disclosure.props.onPress as () => void)(); });
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === event.title)).toHaveLength(1);
+  });
+
+  it('shows the automatic sync Pro gate before attempting any mutation', async () => {
+    mocks.profile = createMockProfile({ hasProAccess: false });
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.autoSync.proRequired')).toHaveLength(1);
+    expect(mocks.runSyncNowMutate).not.toHaveBeenCalled();
+    expect(mocks.setAutoSyncMutate).not.toHaveBeenCalled();
+  });
+
+  it('shows a Pro gate if access expires during sync', async () => {
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(1) };
+    mocks.runSyncNowMutate.mockRejectedValueOnce(new ApiClientError(403, 'Calendar integration is a Pro feature.', { code: 'PAY_GATE' }));
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    const refresh = tree.root.find((node) => (node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow') || (node.props.children === 'calendar.autoSync.syncNow' && typeof node.props.onClick === 'function'));
+    await TestRenderer.act(async () => { ((refresh.props.onPress ?? refresh.props.onClick) as () => void)(); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.autoSync.proRequired')).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'ListRow' && node.props.accessibilityRole === 'switch')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert' && node.props.children !== '')).toHaveLength(0);
+  });
+
+  it('keeps a never-synced conflict retryable and prevents another sync while pending', async () => {
+    mocks.neverSynced = true;
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(1) };
+    let rejectSync!: (failure: Error) => void;
+    mocks.runSyncNowMutate.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectSync = reject; }));
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.autoSync.lastSyncedNever')).toHaveLength(1);
+    const refresh = () => tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow');
+    await TestRenderer.act(async () => { (refresh().props.onPress as () => void)(); await Promise.resolve(); });
+    expect(refresh().props.disabled).toBe(true);
+    expect(refresh().props.accessibilityState).toMatchObject({ busy: true });
+    await TestRenderer.act(async () => { (refresh().props.onPress as () => void)(); await Promise.resolve(); });
+    expect(mocks.runSyncNowMutate).toHaveBeenCalledTimes(1);
+    await TestRenderer.act(async () => { rejectSync(new ApiClientError(409, 'Concurrent update', { code: 'CONCURRENT_UPDATE_CONFLICT' })); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert' && node.props.children === 'toast.errors.conflict')).toHaveLength(1);
+    await TestRenderer.act(async () => { (refresh().props.onPress as () => void)(); await Promise.resolve(); });
+    expect(mocks.runSyncNowMutate).toHaveBeenCalledTimes(2);
+  });
+
+  it('owns dated sync controls and keeps sync failures in the sheet', async () => {
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(1) };
+    mocks.runSyncNowMutate.mockRejectedValueOnce(new ApiClientError(403, 'Forbidden'));
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'calendar.dayDetail.googleConnected')).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && typeof node.props.children === 'string' && /2026,/.test(node.props.children))).toHaveLength(1);
+    const toggle = tree.root.find((node) => node.type === 'ListRow' && node.props.accessibilityRole === 'switch' && typeof node.props.onPress === 'function');
+    await TestRenderer.act(async () => { (toggle.props.onPress as () => void)(); await Promise.resolve(); });
+    expect(mocks.setAutoSyncMutate).toHaveBeenCalledWith({ enabled: true });
+    const sync = () => tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow' && typeof node.props.onPress === 'function');
+    await TestRenderer.act(async () => { (sync().props.onPress as () => void)(); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children === 'errors.api.edgeBlockedRetry')).toHaveLength(1);
+    expect(mocks.showError).not.toHaveBeenCalled();
+    await TestRenderer.act(async () => { (sync().props.onPress as () => void)(); await Promise.resolve(); });
+    expect(mocks.runSyncNowMutate).toHaveBeenCalledTimes(2);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children !== '')).toHaveLength(0);
+  });
+
+  it.each([[false, false], [true, false], [true, true]])('exposes all long event text before import, review: %s, blocked: %s', async (review, blocked) => {
+    const event = {
+      ...buildEvents(1)[0]!,
+      ...(blocked ? { isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null } : {}),
+      title: `Planning the weekly training schedule ${'UnbrokenTitle'.repeat(20)}`,
+      calendarName: `The shared calendar for family routines ${'UnbrokenCalendar'.repeat(20)}`,
+      description: `Review the complete agenda. ${'Include every preparation step and follow-up commitment. '.repeat(30)}`,
+    };
+    const events = [event, { ...buildEvents(1)[0]!, id: 'short-event', title: 'Short event' }];
+    if (review) {
+      mocks.searchParams = { mode: 'review' };
+      mocks.suggestions = events.map((entry) => ({ id: `suggestion-${entry.id}`, event: entry }));
+    } else {
+      mocks.eventsQuery.data = { status: 'connected', events };
+    }
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+    for (const value of [event.title, event.calendarName]) {
+      const text = tree.root.find((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value);
+      expect(text.props.numberOfLines ?? 0, value).toBe(1);
+    }
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === event.description)).toHaveLength(0);
+    const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!;
+    expect(row.props.accessibilityState).toEqual({ checked: !blocked, disabled: blocked });
+    const disclosure = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails')[0]!;
+    TestRenderer.act(() => { (disclosure.props.onPress as () => void)(); });
+    expect(disclosure.props.accessibilityState).toEqual({ expanded: true });
+    for (const value of [event.title, event.calendarName]) {
+      expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === value && node.props.expanded === true)).toHaveLength(1);
+    }
+    for (const value of [event.title, event.calendarName]) {
+      expect(row.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value)).toHaveLength(0);
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value)).toHaveLength(1);
+    }
+    if (blocked) {
+      expect(row.props.disabled).toBe(true);
+      expect(row.props.accessibilityHint).toBe('calendar.importIssue.utcUntilOffsetShift');
+    } else {
+      TestRenderer.act(() => { (row.props.onPress as () => void)(); });
+      expect(row.props.accessibilityState).toEqual({ checked: false, disabled: false });
+      TestRenderer.act(() => { (row.props.onPress as () => void)(); });
+      expect(row.props.accessibilityState).toEqual({ checked: true, disabled: false });
+    }
+    if (review) {
+      const dismiss = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.dismissSuggestion')[0]!;
+      await TestRenderer.act(async () => { await (dismiss.props.onPress as () => Promise<void>)(); });
+      expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: 'suggestion-ev-0' });
+      expect(row.props.accessibilityState).toEqual({ checked: !blocked, disabled: blocked });
+    }
+    expect(mocks.bulkMutateAsync).not.toHaveBeenCalled();
   });
 
   it("refetches calendar events through the cached query once the screen settles", async () => {
@@ -301,35 +607,68 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.eventsQuery.refetch).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves the import body bottom inset to its sheet', async () => {
+    let tree: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+    const body = tree!.root.findAll((node) => node.type === 'View')[0];
+    const style = (StyleSheet.flatten(body!.props.style) as ViewStyle | undefined) ?? {};
+    expect(style.paddingBottom ?? style.paddingVertical ?? style.padding ?? 0).toBe(0);
+  });
+
   async function pressConnect() {
-    let tree: any;
+    let tree: CalendarSyncTree;
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<CalendarSyncScreen />);
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
       await Promise.resolve();
     });
-    const connect = tree.root.find((node: TestNode) =>
-      node.props.children === "auth.signInWithGoogle" && typeof node.props.onPress === "function");
+    const connect = tree!.root.find((node: TestNode) =>
+      node.props.children === "auth.signInWithGoogle" && typeof node.props.onClick === "function");
     await TestRenderer.act(async () => {
-      (connect.props.onPress as () => void)();
+      (connect.props.onClick as () => void)();
       await Promise.resolve();
     });
-    return tree;
+    return tree!;
   }
 
   it("starts Google calendar consent and leaves callback navigation to the App Link", async () => {
     mocks.eventsQuery.data = { status: "not-connected" };
     mocks.startGoogleAuth.mockResolvedValue({ type: "success", url: "https://app.useorbit.org/auth-callback?code=google-code" });
 
-    await pressConnect();
+    const tree = await pressConnect();
 
-    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar-sync", forceConsent: true });
+    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar?import=1", forceConsent: true });
+    expect(tree.root.findAll((node) => node.type === 'Switch')).toHaveLength(0);
+    const linkGlyph = tree.root.find((node) => node.type === LinkIcon);
+    expect(linkGlyph.props.color).toBe('#111111');
     expect(mocks.router.replace).not.toHaveBeenCalled();
     expect(mocks.router.replace).not.toHaveBeenCalledWith("/login?googleError=1");
   });
 
+  it("shows retry when connection status fails instead of claiming disconnection", async () => {
+    mocks.autoSyncError = true;
+    mocks.hasGoogleConnection = false;
+    let tree: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+
+    expect(tree!.root.findAll((node) => node.props.children === "calendar.errorTitle")).not.toHaveLength(0);
+    expect(tree!.root.findAll((node) => node.props.children === "calendar.notConnectedTitle")).toHaveLength(0);
+    const retry = tree!.root.find((node) => node.props.children === "calendar.retry" && typeof node.props.onClick === "function");
+    await TestRenderer.act(async () => {
+      (retry.props.onClick as () => void)();
+      await Promise.resolve();
+    });
+    expect(mocks.refetchAutoSyncState).toHaveBeenCalled();
+  });
+
   it("exchanges calendar consent once when the App Link mounts two callback screens", async () => {
     vi.stubEnv("EXPO_PUBLIC_GOOGLE_CLIENT_ID", "web-client-id");
-    clearPendingGoogleAuthSession();
+    await clearPendingGoogleAuthSession();
     const { startMobileGoogleAuth } = await vi.importActual<typeof import("@/lib/google-auth")>("@/lib/google-auth");
     mocks.startGoogleAuth.mockImplementation(startMobileGoogleAuth);
     mocks.eventsQuery.data = { status: "not-connected" };
@@ -349,7 +688,7 @@ describe("CalendarSyncScreen", () => {
     });
     try {
       callbacks.push(await pressConnect());
-      await vi.waitFor(() => expect(mocks.router.replace).toHaveBeenCalledWith("/calendar-sync"));
+      await vi.waitFor(() => expect(mocks.router.replace).toHaveBeenCalledWith("/calendar?import=1"));
       expect(mocks.apiClient.mock.calls.filter(([endpoint]) => endpoint === "/api/auth/google/code")).toHaveLength(1);
       expect(mocks.login).toHaveBeenCalledTimes(1);
       expect(mocks.router.replace).toHaveBeenCalledTimes(1);
@@ -358,7 +697,7 @@ describe("CalendarSyncScreen", () => {
       TestRenderer.act(() => {
         callbacks.forEach((callback) => callback.unmount());
       });
-      clearPendingGoogleAuthSession();
+      await clearPendingGoogleAuthSession();
       vi.unstubAllEnvs();
     }
   });
@@ -388,37 +727,39 @@ describe("CalendarSyncScreen", () => {
 
   it("keeps the review return path and sends failed authorization to login", async () => {
     mocks.searchParams = { mode: "review" };
+    mocks.hasGoogleConnection = false;
     mocks.autoSyncStatus = "ReconnectRequired";
     mocks.startGoogleAuth.mockRejectedValue(new Error("Google denied access"));
 
-    let tree: any;
+    let tree: CalendarSyncTree;
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<CalendarSyncScreen />);
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
       await Promise.resolve();
     });
-    const reconnect = tree.root.find((node: TestNode) =>
-      typeof node.props.onPress === "function" && node.findAll((child: TestNode) =>
-        child.props.children === "calendar.autoSync.reconnectCta").length > 0);
+    const reconnect = tree!.root.find((node: TestNode) =>
+      node.props.children === "auth.signInWithGoogle" && typeof node.props.onClick === "function");
     await TestRenderer.act(async () => {
-      (reconnect.props.onPress as () => void)();
+      (reconnect.props.onClick as () => void)();
       await Promise.resolve();
     });
 
-    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar-sync?mode=review", forceConsent: true });
+    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar?mode=review", forceConsent: true });
     expect(mocks.router.replace).toHaveBeenCalledWith("/login?googleError=1");
     expect(mocks.router.replace).not.toHaveBeenCalledWith("/auth-callback");
   });
 
-  it("replaces to upgrade instead of pushing when a free user opens the screen", async () => {
+  it("shows the Pro gate without navigating when a free account opens the sheet", async () => {
     mocks.profile = createMockProfile({ hasProAccess: false });
 
+    let tree!: CalendarSyncTree;
     await TestRenderer.act(async () => {
-      TestRenderer.create(<CalendarSyncScreen />);
+      tree = TestRenderer.create(<CalendarSyncScreen />);
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(mocks.router.replace).toHaveBeenCalledWith("/upgrade");
+    expect(mocks.router.replace).not.toHaveBeenCalled();
+    expect(tree.root.findAll((node: TestNode) => node.type === 'Text' && node.props.children === 'calendar.autoSync.proRequired')).toHaveLength(1);
     expect(mocks.router.push).not.toHaveBeenCalledWith("/upgrade");
     expect(mocks.eventsQuery.refetch).not.toHaveBeenCalled();
   });
@@ -438,6 +779,22 @@ describe("CalendarSyncScreen", () => {
     }));
   }
 
+  it.each([
+    ['pt-BR', false, '7:30 PM - 8:15 PM'],
+    ['en', true, '19:30 - 20:15'],
+  ])('shows imported event times with %s and the saved clock', async (language, uses24HourClock, expected) => {
+    mocks.language = language;
+    mocks.profile = createMockProfile({ hasProAccess: true, uses24HourClock });
+    mocks.eventsQuery.data = { status: 'connected', events: [{ ...buildEvents(1)[0]!, startTime: '19:30', endTime: '20:15' }] };
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(tree.root.findAll((node: TestNode) => node.props.children === expected).length).toBeGreaterThan(0);
+  });
+
   function countEventTitles(root: {
     findAll: (
       predicate: (node: { props: Record<string, unknown>; type?: unknown }) => boolean,
@@ -445,7 +802,7 @@ describe("CalendarSyncScreen", () => {
   }) {
     return root.findAll(
       (node) =>
-        typeof node.type === "string" && /^Event \d+$/.test(String(node.props.children)),
+        typeof node.type === "string" && node.props.importantForAccessibility !== 'no-hide-descendants' && /^Event \d+$/.test(String(node.props.children)),
     ).length;
   }
 
@@ -457,7 +814,11 @@ describe("CalendarSyncScreen", () => {
     return root.findAll((node) => node.props.children === "calendar.showMore");
   }
 
-  it("renders only the first page of events and reveals more on demand", async () => {
+  it.each([false, true])("paints the pager and reveals the next page (reduced motion: %s)", async (reducedMotion) => {
+    mocks.reducedMotion = reducedMotion;
+    mocks.realPressTokens = true;
+    const { createTokensV2 } = await vi.importActual<typeof import('@/lib/theme')>('@/lib/theme');
+    const tokens = createTokensV2('purple', 'dark');
     mocks.eventsQuery.data = { status: "connected", events: buildEvents(45) };
 
     let tree: any;
@@ -481,16 +842,21 @@ describe("CalendarSyncScreen", () => {
         ).length > 0,
     );
 
+    expectPressPaint(pressable, { fill: tokens.bgHoverOpaque, restFill: tokens.bgElev, overlay: true, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 });
     await TestRenderer.act(async () => {
       (pressable.props.onPress as () => void)();
       await Promise.resolve();
     });
 
     expect(countEventTitles(tree.root)).toBe(40);
+    mocks.reducedMotion = false;
+    mocks.realPressTokens = false;
   });
 
   it("does not show the pager when events fit on one page", async () => {
-    mocks.eventsQuery.data = { status: "connected", events: buildEvents(8) };
+    const events: CalendarSyncEvent[] = buildEvents(8);
+    events[0] = { ...events[0]!, isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' };
+    mocks.eventsQuery.data = { status: "connected", events };
 
     let tree: any;
     await TestRenderer.act(async () => {
@@ -499,8 +865,34 @@ describe("CalendarSyncScreen", () => {
       await Promise.resolve();
     });
 
-    expect(countEventTitles(tree.root)).toBe(8);
+    expect(countEventTitles(tree.root)).toBe(7);
+    expect(tree.root.findAll((node: TestNode) => node.props.children === 'Event 0')).toHaveLength(0);
     expect(findShowMore(tree.root)).toHaveLength(0);
+
+    const deselect = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.deselectAll" &&
+        typeof node.props.onPress === "function",
+    );
+    TestRenderer.act(() => {
+      (deselect.props.onPress as () => void)();
+    });
+    const select = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.selectAll" &&
+        typeof node.props.onPress === "function",
+    );
+    expect(select.props.accessibilityState).toEqual({ selected: false });
+    TestRenderer.act(() => {
+      (select.props.onPress as () => void)();
+    });
+    expect(
+      tree.root.find(
+        (node: TestNode) =>
+          node.props.accessibilityLabel === "calendar.deselectAll" &&
+          typeof node.props.onPress === "function",
+      ).props.accessibilityState,
+    ).toEqual({ selected: true });
   });
 
   it("shows the source calendar name in each event's meta", async () => {
@@ -516,7 +908,7 @@ describe("CalendarSyncScreen", () => {
     const metaNodes = tree.root.findAll(
       (node: { props: Record<string, unknown> }) =>
         typeof node.props.children === "string" &&
-        node.props.children.includes("Work"),
+        (node.props.children).includes("Work"),
     );
     expect(metaNodes.length).toBeGreaterThan(0);
   });
@@ -534,13 +926,13 @@ describe("CalendarSyncScreen", () => {
 
     const importPill = tree.root.find(
       (node: TestNode) =>
-        typeof node.props.onPress === "function" &&
+        typeof node.props.onClick === "function" &&
         typeof node.props.children === "string" &&
         node.props.children.includes("calendar.importButton"),
     );
 
     await TestRenderer.act(async () => {
-      (importPill.props.onPress as () => void)();
+      (importPill.props.onClick as () => void)();
       await Promise.resolve();
     });
 
@@ -566,56 +958,6 @@ describe("CalendarSyncScreen", () => {
     ).length).toBeGreaterThan(0);
   });
 
-  it("shows retry recovery when a textless sync request is blocked", async () => {
-    let tree: any;
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<CalendarSyncScreen />);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const syncNow = tree.root.find(
-      (node: TestNode) =>
-        node.props.accessibilityLabel === "calendar.autoSync.syncNow" &&
-        typeof node.props.onPress === "function",
-    );
-    TestRenderer.act(() => {
-      (syncNow.props.onPress as () => void)();
-      const options = mocks.runSyncNowMutate.mock.calls[0]?.[1] as {
-        onError: (error: unknown) => void;
-      };
-      options.onError(new ApiClientError(403, "Forbidden"));
-    });
-
-    expect(mocks.runSyncNowMutate.mock.calls[0]?.[0]).toBeUndefined();
-    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
-  });
-
-  it("shows retry recovery when changing auto-sync is blocked", async () => {
-    let tree: any;
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<CalendarSyncScreen />);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const toggle = tree.root.find(
-      (node: TestNode) =>
-        node.props.accessibilityLabel === "calendar.autoSync.title" &&
-        typeof node.props.onPress === "function",
-    );
-    TestRenderer.act(() => {
-      (toggle.props.onPress as () => void)();
-      const options = mocks.setAutoSyncMutate.mock.calls[0]?.[1] as {
-        onError: (error: unknown) => void;
-      };
-      options.onError(new ApiClientError(403, "Forbidden"));
-    });
-
-    expect(mocks.setAutoSyncMutate.mock.calls[0]?.[0]).toEqual({ enabled: true });
-    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
-  });
-
   it("shows text-bearing recovery when importing a review suggestion is blocked", async () => {
     mocks.searchParams = { mode: "review" };
     mocks.suggestions = [{ id: "suggestion-1", event: buildEvents(1)[0] }];
@@ -630,12 +972,12 @@ describe("CalendarSyncScreen", () => {
 
     const importPill = tree.root.find(
       (node: TestNode) =>
-        typeof node.props.onPress === "function" &&
+        typeof node.props.onClick === "function" &&
         typeof node.props.children === "string" &&
         node.props.children.includes("calendar.importButton"),
     );
     await TestRenderer.act(async () => {
-      (importPill.props.onPress as () => void)();
+      (importPill.props.onClick as () => void)();
       await Promise.resolve();
     });
 
@@ -668,7 +1010,8 @@ describe("CalendarSyncScreen", () => {
     });
 
     expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: "suggestion-1" });
-    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
+    expect(tree.root.findAll((node: TestNode) => node.type === "Text" && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === "alert" && node.props.children === "errors.api.edgeBlockedRetry")).toHaveLength(1);
+    expect(mocks.showError).not.toHaveBeenCalled();
   });
 
   it("shows the offline state without a retry chip when disconnected", async () => {
@@ -724,11 +1067,130 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: "sug-0" });
   });
 
-  it("lists imported habits on the done step and toasts partial failures", async () => {
-    mocks.eventsQuery.data = { status: "connected", events: buildEvents(2) };
+  it('drops a previous account suggestion error', async () => {
+    mocks.searchParams = { mode: 'review' };
+    mocks.suggestions = [{ id: 'sug-0', event: buildEvents(1)[0] }];
+    let failDismiss!: (error: Error) => void;
+    mocks.dismissMutateAsync.mockImplementationOnce(() => new Promise((_resolve, reject) => { failDismiss = reject; }));
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree; await Promise.resolve(); });
+    const dismiss = tree.root.find((node: TestNode) => node.props.accessibilityLabel === 'calendar.autoSync.dismissSuggestion');
+    await TestRenderer.act(async () => { (dismiss.props.onPress as () => void)(); await Promise.resolve(); });
+    await TestRenderer.act(async () => { advanceAccountGeneration(); failDismiss(new Error('old failure')); await Promise.resolve(); });
+    expect(mocks.showError).not.toHaveBeenCalled();
+  });
+
+  it("enables and imports an alternating weekday suggestion", async () => {
+    const event = {
+      ...buildEvents(1)[0]!,
+      title: "Alternate week training",
+      isRecurring: true,
+      recurrenceRule: "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE",
+    };
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "sug-interval", event }];
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const eventRow = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityRole === "checkbox",
+    );
+    expect(eventRow.props.disabled).toBe(false);
+    expect(eventRow.props.accessibilityState).toEqual({
+      checked: true,
+      disabled: false,
+    });
+    const importPill = tree.root.find(
+      (node: TestNode & { type?: unknown }) =>
+        typeof node.props.onClick === "function" &&
+        typeof node.props.children === "string" &&
+        node.props.children.includes("calendar.importButton"),
+    );
+    expect(importPill.props.disabled).toBe(false);
+    await TestRenderer.act(async () => {
+      (importPill.props.onClick as () => void)();
+      await Promise.resolve();
+    });
+    expect(mocks.bulkMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({
+        days: ["Monday", "Wednesday"],
+        frequencyUnit: "Day",
+        frequencyQuantity: 1,
+        intervalWeeks: 2,
+      })],
+    }));
+  });
+
+  it.each([
+    ["a monthly weekday interval", "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO", "2026-09-21", 1],
+    ["a weekday interval above the API bound", "RRULE:FREQ=WEEKLY;INTERVAL=53;BYDAY=MO", "2026-09-21", 1],
+    ["a different active-week partition", "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO", "2026-09-27", 0],
+  ])("adapts %s in review", async (_name, recurrenceRule, startDate, weekStartDay) => {
+    mocks.profile = createMockProfile({ hasProAccess: true, weekStartDay: weekStartDay as 0 | 1 });
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "sug-unsupported", event: {
+      ...buildEvents(1)[0]!, title: "Unsupported training", startDate,
+      isRecurring: true, recurrenceRule,
+    } }];
+
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+
+    const eventRow = tree.root.find((node: TestNode) => node.props.accessibilityRole === "checkbox");
+    expect(eventRow.props.disabled).toBe(false);
+    expect(eventRow.props.accessibilityHint).toBeUndefined();
+    const importPill = tree.root.find((node: TestNode) =>
+      typeof node.props.onClick === "function" &&
+      typeof node.props.children === "string" &&
+      node.props.children.includes("calendar.importButton"),
+    );
+    expect(importPill.props.disabled).toBe(false);
+    await TestRenderer.act(async () => { (importPill.props.onClick as () => void)(); await Promise.resolve(); });
+    const expected = recurrenceRule.includes('MONTHLY')
+      ? { frequencyUnit: 'Month', frequencyQuantity: 2, days: null }
+      : recurrenceRule.includes('53')
+        ? { frequencyUnit: 'Week', frequencyQuantity: 53, days: null }
+        : { frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Sunday', 'Monday'], intervalWeeks: 2 };
+    expect(mocks.bulkMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ habits: [expect.objectContaining(expected)] }));
+  });
+
+  it.each([
+    ['second Monday', 'RRULE:FREQ=MONTHLY;BYDAY=2MO', '2026-09-14', null],
+    ['finite month end', 'RRULE:FREQ=MONTHLY;COUNT=3', '2026-01-31', '2026-03-31'],
+  ])('adapts and imports a %s suggestion as a monthly habit', async (_name, recurrenceRule, startDate, endDate) => {
+    const event = { ...buildEvents(1)[0]!, startDate, startTime: null, isRecurring: true, recurrenceRule };
+    mocks.searchParams = { mode: 'review' };
+    mocks.suggestions = [{ id: 'sug-monthly', event }];
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    const row = tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox');
+    expect(row.props.accessibilityState).toEqual({ checked: true, disabled: false });
+    expect(row.props.accessibilityHint).toBeUndefined();
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.recurrenceMonthly')).toHaveLength(1);
+    const importPill = tree.root.find((node) => typeof node.props.onClick === 'function' && typeof node.props.children === 'string' && node.props.children.includes('calendar.importButton'));
+    expect(importPill.props.disabled).toBe(false);
+    await TestRenderer.act(async () => { (importPill.props.onClick as () => void)(); await Promise.resolve(); });
+    expect(mocks.bulkMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({ frequencyUnit: 'Month', frequencyQuantity: 1, dueDate: startDate, days: null, endDate })],
+    }));
+  });
+
+  it("lists imported habits and keeps partial failures visible", async () => {
+    const habitName = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana';
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(3).map((event, index) => index === 0 ? { ...event, title: habitName } : event) };
     mocks.bulkMutateAsync.mockResolvedValue({
       results: [
-        { status: "Success", habitId: "h1", title: "Event 0", error: null },
+        { status: "Success", habitId: "h1", title: habitName, error: null },
+        { status: "Success", habitId: "h2", title: "Event 2", error: null },
         { status: "Failed", habitId: null, title: "Event 1", error: "boom" },
       ],
     });
@@ -742,20 +1204,22 @@ describe("CalendarSyncScreen", () => {
 
     const importPill = tree.root.find(
       (node: TestNode) =>
-        typeof node.props.onPress === "function" &&
+        typeof node.props.onClick === "function" &&
         typeof node.props.children === "string" &&
-        node.props.children.includes("calendar.importButton"),
+        (node.props.children).includes("calendar.importButton"),
     );
 
     await TestRenderer.act(async () => {
-      (importPill.props.onPress as () => void)();
+      (importPill.props.onClick as () => void)();
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(mocks.showError).toHaveBeenCalledWith(
-      'calendar.importPartialFailure({"count":1})',
-    );
+    expect(tree.root.findAll((node: TestNode) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children === 'calendar.importPartialFailure({"count":1})')).toHaveLength(1);
+    expect(mocks.showError).not.toHaveBeenCalled();
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: [...calendarKeys.all, 'manual-fetch'],
+    });
     expect(
       tree.root.findAll(
         (node: TestNode) => node.props.children === "calendar.importDone",
@@ -763,23 +1227,27 @@ describe("CalendarSyncScreen", () => {
     ).toBeGreaterThan(0);
     const doneRows = tree.root.findAll(
       (node: TestNode & { type?: unknown }) =>
-        node.type === "SettingsRow" && node.props.children === "Event 0",
+        node.type === "ListRow" && node.props.children === habitName,
     );
     expect(doneRows).toHaveLength(1);
-    expect(doneRows[0]!.props.accessory).toBe("none");
+    const group = tree.root.findAllByType(SettingsGroup).find((node: TestNode) => React.Children.count(node.props.children) === 2);
+    expect(group).toBeDefined();
+    expect(group.findAll((node: TestNode & { type?: unknown }) => node.type === "View" && (StyleSheet.flatten(node.props.style) as ViewStyle | undefined)?.height === StyleSheet.hairlineWidth)).toHaveLength(1);
+    expect(doneRows[0]!.props.chevron).toBe(false);
+    expect(doneRows[0]!.props.textMode).toBe("personal");
     const goToHabits = tree.root.find(
       (node: TestNode) =>
-        typeof node.props.onPress === "function" &&
+        typeof node.props.onClick === "function" &&
         node.props.children === "calendar.goToHabits",
     );
     await TestRenderer.act(() => {
-      (goToHabits.props.onPress as () => void)();
+      (goToHabits.props.onClick as () => void)();
     });
-    expect(mocks.router.replace).toHaveBeenCalledWith("/(tabs)");
+    expect(mocks.goToHabits).toHaveBeenCalledExactlyOnceWith();
     expect(
       tree.root.findAll(
         (node: TestNode & { type?: unknown }) =>
-          node.type === "SettingsRow" && node.props.children === "Event 1",
+          node.type === "ListRow" && node.props.children === "Event 1",
       ),
     ).toHaveLength(0);
   });

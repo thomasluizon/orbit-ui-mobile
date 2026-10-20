@@ -42,20 +42,22 @@ export function getAndroidBackFallbackRoute(
   switch (currentPath) {
     case '/':
       return null
+    case '/notifications':
     case '/calendar':
     case '/chat':
     case '/profile':
       return '/'
+    case '/profile/account':
+    case '/profile/preferences':
+    case '/profile/astra':
+    case '/profile/notifications':
     case '/about':
-    case '/achievements':
-    case '/advanced':
-    case '/ai-settings':
-    case '/calendar-sync':
-    case '/preferences':
-    case '/retrospective':
-    case '/streak':
     case '/support':
       return '/profile'
+    case '/progress/streak':
+    case '/progress/goals':
+    case '/progress/achievements':
+      return '/progress'
     case '/privacy':
       return options.isAuthenticated ? '/' : '/login'
     case '/upgrade':

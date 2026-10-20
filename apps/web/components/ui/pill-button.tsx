@@ -1,100 +1,192 @@
 'use client'
 
-import type { ReactNode } from 'react'
-import { Loader2 } from 'lucide-react'
-import { BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
-
-interface PillButtonProps {
-  variant?: ButtonVariant
-  size?: ButtonSize
-  type?: 'button' | 'submit'
-  form?: string
-  onClick?: () => void
-  disabled?: boolean
-  busy?: boolean
-  fullWidth?: boolean
-  glow?: boolean
-  leading?: ReactNode
-  /** Omit (with a `leading` icon + `ariaLabel`) for an icon-only square control. */
-  children?: ReactNode
-  className?: string
-  dataTestId?: string
-  /** Accessible name — required when the pill is icon-only (no visible label). */
-  ariaLabel?: string
-  /** Native hover tooltip, used by the collapsed sidebar rail. */
-  title?: string
-}
+import Link, { type LinkProps } from 'next/link'
+import { useContext, useId, type CSSProperties, type Ref } from 'react'
+import { ActionRowContext } from './action-row'
+import type { ButtonProps } from '@orbit/shared/contracts/actions'
+import { Loader2 } from '@/components/ui/icons'
+import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.98]',
-  secondary:
-    'bg-[var(--fg-1)] text-[var(--bg)] enabled:hover:opacity-90 enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.98] enabled:active:opacity-85',
-  ghost:
-    'bg-transparent text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.98]',
-  destructive:
-    'bg-[var(--status-bad)] text-[var(--fg-on-bad)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.98]',
+  primary: 'bg-[var(--primary)] text-[var(--fg-on-primary)]',
+  secondary: 'bg-[var(--fg-1)] text-[var(--bg)]',
+  ghost: 'text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)]',
+  destructive: 'bg-[var(--status-bad)] text-[var(--fg-on-bad)]',
+  caution: 'bg-[var(--status-overdue)] text-[var(--fg-on-overdue)]',
 }
 
-export function PillButton({
-  variant = 'primary',
-  size = 'md',
-  type = 'button',
-  form,
-  onClick,
-  disabled = false,
-  busy = false,
-  fullWidth = false,
-  glow = true,
-  leading,
-  children,
-  className,
-  dataTestId,
-  ariaLabel,
-  title,
-}: Readonly<PillButtonProps>) {
+const buttonInteractionClasses: Record<ButtonVariant, string> = {
+  primary: 'enabled:active:scale-[0.96]',
+  secondary: 'enabled:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
+  ghost: 'overflow-hidden enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]',
+  destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] enabled:active:scale-[0.96]',
+  caution: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:active:scale-[0.96]',
+}
+
+const linkInteractionClasses: Record<ButtonVariant, string> = {
+  primary: 'hover:bg-[var(--primary-hover)] active:scale-[0.96]',
+  secondary: 'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
+  ghost: 'overflow-hidden hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]',
+  destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] active:scale-[0.96]',
+  caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] active:scale-[0.96]',
+}
+
+const baseClasses = 'orbit-pill-action inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
+
+function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false, quiet = false, elevated = false) {
+  const variantInteractions = element === 'button'
+    ? buttonInteractionClasses[variant]
+    : linkInteractionClasses[variant]
+  const interactionClasses = elevated && variant === 'ghost'
+    ? 'overflow-hidden enabled:hover:bg-[var(--bg-elev-hover)] enabled:active:bg-[var(--bg-elev-hover)] motion-safe:enabled:active:scale-[0.96]'
+    : quiet && variant === 'ghost'
+    ? 'overflow-hidden enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] motion-safe:enabled:active:scale-[0.96]'
+    : variantInteractions
+  return [baseClasses, variantClasses[variant], variant === 'ghost' ? elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent' : undefined, loading ? undefined : interactionClasses,
+    element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
+    size === 'sm' ? 'touch-target' : undefined]
+    .filter(Boolean)
+    .join(' ')
+}
+
+function inlineStartPadding(paddingX: number, iconOnly: boolean, leadingIcon: boolean): number {
+  if (iconOnly) return 0
+  return leadingIcon ? paddingX - 2 : paddingX
+}
+
+function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, leadingIcon = false, hugLabel = false, minimumHeight?: number): CSSProperties & { '--pill-hit-padding'?: string } {
   const sizeSpec = BUTTON_SIZES[size]
-  const hasLabel = children !== undefined && children !== null && children !== ''
-  const iconOnly = !hasLabel && leading != null
-  const glowClasses =
-    variant === 'primary' && glow && !disabled
-      ? 'shadow-[var(--primary-glow)] enabled:hover:shadow-[var(--primary-glow-hover)]'
-      : ''
+  return {
+    '--pill-hit-padding': iconOnly && minimumHeight !== undefined && minimumHeight >= TOUCH_TARGET_MIN ? '0px' : undefined,
+    flexShrink: 0,
+    fontFamily: 'var(--font-sans)',
+    height: sizeSpec.height,
+    width: iconOnly ? Math.max(minimumHeight ?? sizeSpec.height, sizeSpec.height) : matchedWidth ? MATCHED_PILL_WIDTH : hugLabel ? 'auto' : undefined,
+    paddingInlineStart: inlineStartPadding(sizeSpec.paddingX, iconOnly, leadingIcon),
+    paddingInlineEnd: iconOnly ? SPACING.s0 : sizeSpec.paddingX,
+    paddingBlock: SPACING.s4,
+    fontSize: sizeSpec.fontSize,
+    gap: iconOnly ? 0 : sizeSpec.gap,
+  }
+}
+
+function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
+  return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
+}
+
+function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet }: Readonly<Pick<ButtonProps, 'minimumHeight' | 'iconOnly' | 'matchedWidth' | 'leadingIcon' | 'brand' | 'variant'> & { quiet: boolean }>): CSSProperties {
+  const sizeSpec = BUTTON_SIZES[size]
+  return {
+    ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow, minimumHeight),
+    ...(brand === 'google' ? { paddingInlineStart: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingInlineEnd: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : undefined),
+    height: minimumHeight === undefined ? sizeSpec.height : undefined,
+    minHeight: minimumHeight,
+    fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`,
+    color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined,
+  }
+}
+
+function ButtonIcon({ size, loading, iconOnly, children, leadingIcon }: Readonly<Pick<ButtonProps, 'loading' | 'iconOnly' | 'children' | 'leadingIcon'> & { size: ButtonSize }>) {
+  if (loading) return <Loader2 size={BUTTON_SIZES[size].iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
+  return iconOnly ? children : leadingIcon
+}
+
+/** The canonical five-variant pill action in the shared two-size geometry. */
+export function Button({
+  minimumHeight,
+  expanded,
+  controlsId,
+  hasPopup,
+  elevated = false,
+  variant = 'primary',
+  size: requestedSize = 'sm',
+  onClick,
+  onFocus,
+  onBlur,
+  onMouseEnter,
+  onMouseLeave,
+  disabled = false,
+  loading = false,
+  focusableWhenLoading = false,
+  children,
+  accessibleName,
+  iconOnly,
+  matchedWidth = false,
+  label,
+  leadingIcon,
+  brand,
+  formId,
+  descriptionId,
+  hint,
+  buttonRef,
+  quiet = false,
+}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
+  const withinRow = useContext(ActionRowContext)
+  const hintId = useId()
+  const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
+  const size = withinRow ? 'sm' : requestedSize
 
   return (
-    <button
-      type={type}
-      form={form}
-      onClick={busy ? undefined : onClick}
-      disabled={disabled}
-      aria-busy={busy || undefined}
-      aria-label={ariaLabel}
-      title={title}
-      data-testid={dataTestId}
-      className={[
-        'inline-flex cursor-pointer items-center justify-center rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
-        variantClasses[variant],
-        glowClasses,
-        fullWidth ? 'w-full sm:w-auto sm:min-w-[220px] sm:max-w-[360px] sm:mx-auto' : '',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      style={{
-        fontFamily: 'var(--font-sans)',
-        height: sizeSpec.height,
-        width: iconOnly ? sizeSpec.height : undefined,
-        paddingInline: iconOnly ? 0 : sizeSpec.paddingX,
-        fontSize: sizeSpec.fontSize,
-        gap: iconOnly ? 0 : sizeSpec.gap,
-      }}
+    <><button
+      ref={buttonRef}
+      type={onClick ? 'button' : 'submit'}
+      form={formId}
+      onClick={loading ? (event) => event.preventDefault() : onClick}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      disabled={disabled || (loading && !focusableWhenLoading)}
+      aria-disabled={!disabled && loading && focusableWhenLoading ? true : undefined}
+      aria-busy={loading || undefined}
+      aria-label={iconOnly ? label : accessibleName}
+      aria-describedby={descriptionIds}
+      aria-haspopup={hasPopup ?? (expanded === undefined ? undefined : 'dialog')}
+      aria-controls={controlsId}
+      aria-expanded={expanded}
+      data-variant={variant}
+      data-size={size}
+      data-loading={loading || undefined}
+      className={actionClasses(variant, size, 'button', loading, quiet, elevated)}
+      style={buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet })}
     >
-      {busy ? (
-        <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin" aria-hidden="true" />
-      ) : (
-        leading
-      )}
-      {hasLabel ? <span className={busy ? 'opacity-60' : undefined}>{children}</span> : null}
-    </button>
+      <ButtonIcon size={size} loading={loading} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon>
+      {iconOnly ? null : <span>{children}</span>}
+    </button>{hint ? <span id={hintId} hidden>{hint}</span> : null}</>
   )
 }
+
+/** Native navigation with the same visual contract as PillButton. */
+export function PillLink({
+  href,
+  onClick,
+  variant = 'primary',
+  size: requestedSize = 'sm',
+  children,
+  accessibleName,
+}: Readonly<{
+  href: LinkProps['href']
+  onClick?: () => void
+  variant?: ButtonVariant
+  size?: ButtonSize
+  children: string
+  accessibleName?: string
+}>) {
+  const withinRow = useContext(ActionRowContext)
+  const size = withinRow ? 'sm' : requestedSize
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-label={accessibleName}
+      data-variant={variant}
+      data-size={size}
+      className={actionClasses(variant, size, 'link')}
+      style={actionStyle(size, false, false, false, withinRow)}
+    >
+      <span>{children}</span>
+    </Link>
+  )
+}
+
+export { Button as PillButton }

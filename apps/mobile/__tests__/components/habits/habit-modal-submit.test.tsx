@@ -1,0 +1,183 @@
+import React from 'react'
+import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
+import { HabitFormFields } from '@/components/habits/habit-form-fields'
+import { formatLocaleDayMonth } from '@orbit/shared/utils'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { EditHabitModal } from '@/components/habits/edit-habit-modal'
+import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
+import { ActivityIndicator } from 'react-native'
+import { __setFocusImpl } from '@/test-mocks/react-native'
+
+const mutation = vi.hoisted(() => vi.fn())
+const showError = vi.hoisted(() => vi.fn())
+const habit = createMockHabit({ title: 'Walk every day' })
+
+vi.mock('@/hooks/use-habits', () => ({
+  useCreateHabit: () => useMutation({ mutationFn: mutation }),
+  useCreateSubHabit: () => useMutation({ mutationFn: mutation }),
+  useUpdateHabit: () => useMutation({ mutationFn: mutation }),
+  useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+}))
+vi.mock('@/hooks/use-habit-suggestion', () => ({
+  useHabitSuggestion: () => ({ isPending: false, mutateAsync: vi.fn() }),
+}))
+vi.mock('@/hooks/use-profile', () => ({
+  useHasProAccess: () => true,
+  useProfile: () => ({ profile: { hasProAccess: true, uses24HourClock: true, timeZone: 'UTC' } }),
+}))
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({ config: { features: { 'sub_habits': { enabled: true, planRequirement: 'Pro' } } } }),
+}))
+vi.mock('@/hooks/use-tags', () => ({ useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useTags: () => ({ tags: [] }),
+  useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useAssignTags: () => ({ isPending: false, mutateAsync: vi.fn().mockResolvedValue(undefined) }),
+}))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError, showSuccess: vi.fn(), showInfo: vi.fn() }),
+}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => null }))
+vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null }))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => null }))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => null }))
+vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => null }))
+vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
+vi.mock('@/components/ui/date-field', () => ({ DateField: () => null }))
+const { act, create } = require('react-test-renderer') as typeof import('react-test-renderer')
+
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { date?: string }) => key === 'habits.form.startDateValue' ? `Starts on ${values?.date}` : key, i18n: { language: 'en' } }) }))
+
+vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ push: vi.fn() }) }))
+
+async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
+  const onClose = vi.fn()
+  let tree!: ReactTestRenderer
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+  const element = (open: boolean) => <QueryClientProvider client={client}>
+    {mode === 'create'
+      ? <CreateHabitModal open={open} onClose={onClose} initialTitle={habit.title} />
+      : <EditHabitModal open={open} onClose={onClose} habit={selectedHabit} />}
+  </QueryClientProvider>
+  await act(() => { tree = create(element(true)); return Promise.resolve() })
+  const label = mode === 'create' ? 'habits.createHabit' : 'common.save'
+  return { onClose, tree, setOpen: async (open: boolean) => { await act(() => { tree.update(element(open)); return Promise.resolve() }) }, title: tree.root.findAll((node) => (node.type as unknown) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
+}
+
+async function changeTitle(title: ReactTestInstance, value: string) {
+  await act(() => {
+    (title.props.onChangeText as (value: string) => void)(value)
+    return Promise.resolve()
+  })
+}
+
+async function pressSubmit(submit: ReactTestInstance) {
+  await act(() => {
+    if (!submit.props.disabled) (submit.props.onPress as (() => void) | undefined)?.()
+    return Promise.resolve()
+  })
+}
+
+function buttonState(button: ReactTestInstance) {
+  return button.props.accessibilityState as { disabled: boolean; busy: boolean }
+}
+
+async function settleMutation() {
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+}
+
+describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
+  beforeEach(() => { vi.resetAllMocks(); __setFocusImpl(() => {}) })
+
+
+  it('discards backend errors and focus requests when a persistent owner opens a matching draft', async () => {
+    const messages = verificationValidationResponses.en.errors.Code
+    mutation.mockRejectedValue({ errors: { Title: [...messages] } })
+    const { title, submit, tree, setOpen } = await renderSheet(mode)
+    await changeTitle(title, habit.title)
+    await pressSubmit(submit)
+    await settleMutation()
+    expect(title.props.accessibilityHint).toBe(messages.join('\n'))
+    const form = () => tree.root.findAll((node) => node.type === HabitFormFields)[0]!.props.formHelpers as import('@/hooks/use-habit-form').HabitFormHelpers
+    expect(form().backendFocusRequest).toBeGreaterThan(0)
+    await setOpen(false)
+    await setOpen(true)
+    const nextTitle = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!
+    expect(nextTitle.props.value).toBe(habit.title)
+    expect(nextTitle.props.accessibilityHint).toBeUndefined()
+    expect(form().backendFocusRequest).toBe(0)
+    expect(form().backendFocusField).toBeUndefined()
+    await act(() => { tree.update(<></>); return Promise.resolve() })
+  })
+
+  it.each(['', '   '])('focuses an invalid title and shows its inline error after submit (%j)', async (value) => {
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const { title, submit, tree } = await renderSheet(mode)
+    await changeTitle(title, value)
+    expect(buttonState(submit).disabled).toBe(false)
+    await pressSubmit(submit)
+    expect(focus).toHaveBeenCalledWith(expect.objectContaining({ accessibilityLabel: 'habits.form.describe' }))
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')[0]!.props.children).toBe('habits.form.titleRequired')
+    expect(title.props.accessibilityHint).toBe('habits.form.titleRequired')
+    expect(mutation).not.toHaveBeenCalled()
+  })
+
+  it('keeps its label and shows a spinner only while the request runs', async () => {
+    let finish!: () => void
+    mutation.mockImplementation(() => new Promise((resolve) => { finish = () => resolve(habit) }))
+    const { title, submit, onClose, tree } = await renderSheet(mode)
+    await changeTitle(title, 'Walk every day')
+    await pressSubmit(submit)
+    await settleMutation()
+    expect(buttonState(submit).busy).toBe(true)
+    expect(buttonState(submit).disabled).toBe(true)
+    expect(submit.findAll((node) => (node.type as unknown) === 'Text').some((node) => node.props.children === (mode === 'create' ? 'habits.createHabit' : 'common.save'))).toBe(true)
+    expect(tree.root.findAll((node) => node.type === ActivityIndicator)[0]).toBeTruthy()
+    await pressSubmit(submit)
+    expect(mutation).toHaveBeenCalledTimes(1)
+    await act(() => Promise.resolve(finish()))
+    await settleMutation()
+    expect(buttonState(submit).disabled).toBe(false)
+    expect(buttonState(submit).busy).toBe(false)
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('allows retry after the request fails', async () => {
+    mutation.mockRejectedValue(new Error('offline'))
+    const { title, submit, onClose } = await renderSheet(mode)
+    await changeTitle(title, 'Walk every day')
+    await pressSubmit(submit)
+    await settleMutation()
+    expect(showError).toHaveBeenCalled()
+    await settleMutation()
+    expect(buttonState(submit).disabled).toBe(false)
+    expect(onClose).not.toHaveBeenCalled()
+    mutation.mockResolvedValue(habit)
+    await pressSubmit(submit)
+    await settleMutation()
+    expect(onClose).toHaveBeenCalled()
+  })
+})
+
+describe('habit edit start date', () => {
+  beforeEach(() => { vi.resetAllMocks() })
+
+  it.each([
+    ['2026-01-01', 'Starts on January 1'],
+    ['2026-08-20', 'Starts on August 20'],
+    ['2026-08-28', 'Starts on August 28'],
+    [undefined, `Starts on ${formatLocaleDayMonth('2026-08-29T00:30:00Z', 'en')}`],
+  ])('shows the API start date %s with legacy timestamp compatibility', async (startDate, expected) => {
+    const selectedHabit = { ...habit, startDate, createdAtUtc: '2026-08-29T00:30:00Z' }
+    const { tree } = await renderSheet('edit', selectedHabit)
+    expect(tree.root.findAll((node) => (node.type as unknown) === 'Text' && node.props.children === expected)).toHaveLength(1)
+    await act(() => { tree.update(<></>); return Promise.resolve() })
+  })
+})

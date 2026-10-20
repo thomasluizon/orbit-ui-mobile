@@ -1,4 +1,7 @@
 import type { ZodType } from 'zod'
+import { validationErrorDetailsSchema, validationErrorsSchema, type ValidationErrorDetails } from '../types/api'
+
+import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
 
 interface BackendErrorData {
   error?: string
@@ -9,6 +12,7 @@ interface BackendErrorData {
   type?: string
   status?: number
   data?: BackendErrorData
+  errorDetails?: ValidationErrorDetails
   errors?: Record<string, string[]>
 }
 
@@ -17,6 +21,7 @@ interface ErrorWithData {
   status?: number
   code?: string
   errorCode?: string
+  errorDetails?: ValidationErrorDetails
   fieldErrors?: Record<string, string[]>
 }
 
@@ -32,29 +37,40 @@ type FriendlyErrorContext =
   | 'textless'
 
 export class ApiClientError extends Error {
+  retryAfter?: string | null
   status: number
   code?: string
   data?: unknown
+  errorDetails?: ValidationErrorDetails
   fieldErrors?: Record<string, string[]>
 
   constructor(
     status: number,
     message: string,
     options?: {
+      retryAfter?: string | null
       code?: string
       data?: unknown
+      errorDetails?: ValidationErrorDetails
       fieldErrors?: Record<string, string[]>
     },
   ) {
     super(message)
     this.name = 'ApiClientError'
+    this.retryAfter = options?.retryAfter
     this.status = status
     this.code = options?.code
     this.data = options?.data
     this.fieldErrors = options?.fieldErrors
+    this.errorDetails = options?.errorDetails
   }
 }
 
+/**
+ * Validates an already-parsed API response `body` against a Zod `schema` at the client trust
+ * boundary. When no `schema` is supplied the body is returned unchanged, making validation
+ * opt-in.
+ */
 export function validateApiResponse<T>(
   body: unknown,
   schema: ZodType<T> | undefined,
@@ -111,7 +127,8 @@ function extractNestedData(err: unknown): BackendErrorData | undefined {
   const directData = asBackendErrorData(err.data)
   if (directData) return directData
 
-  return asBackendErrorData(err)
+  const body = asBackendErrorData((err as { body?: unknown }).body)
+  return body ?? asBackendErrorData(err)
 }
 
 function normalizeMessage(message: string | undefined): string {
@@ -135,16 +152,22 @@ export function extractBackendFieldErrors(
   err: unknown,
 ): Record<string, string[]> | undefined {
   const data = extractNestedData(err)
-  const nestedErrors = data?.data?.errors ?? data?.errors
-  if (nestedErrors && typeof nestedErrors === 'object') {
-    return nestedErrors
-  }
+  const candidate = data?.data?.errors ?? data?.errors ?? (isErrorWithData(err) ? err.fieldErrors : undefined)
+  const parsed = validationErrorsSchema.safeParse(candidate)
+  return parsed.success ? parsed.data : undefined
+}
 
-  if (isErrorWithData(err) && err.fieldErrors) {
-    return err.fieldErrors
-  }
+export function extractBackendErrorDetails(err: unknown): ValidationErrorDetails | undefined {
+  const data = extractNestedData(err)
+  const candidate = data?.data?.errorDetails ?? data?.errorDetails ?? (isErrorWithData(err) ? err.errorDetails : undefined)
+  const parsed = validationErrorDetailsSchema.safeParse(candidate)
+  return parsed.success ? parsed.data : undefined
+}
 
-  return undefined
+export function getBackendFieldError(err: unknown, field: string): string | undefined {
+  const errors = extractBackendFieldErrors(err)
+  const key = Object.keys(errors ?? {}).find((name) => name.toLowerCase() === field.toLowerCase())
+  return key ? errors?.[key]?.join('\n') : undefined
 }
 
 export function extractBackendErrorCode(err: unknown): string | undefined {
@@ -159,10 +182,11 @@ export function extractBackendErrorCode(err: unknown): string | undefined {
 
   if (isErrorWithData(err)) {
     const body = asBackendErrorData((err as { body?: unknown }).body)
-    return body?.errorCode ?? body?.code
+    const bodyCode = body?.errorCode ?? body?.code
+    if (bodyCode) return bodyCode
   }
 
-  return undefined
+  return Object.values(extractBackendErrorDetails(err) ?? {}).flat()[0]?.code
 }
 
 export function extractBackendStatus(err: unknown): number | undefined {
@@ -176,6 +200,10 @@ export function extractBackendStatus(err: unknown): number | undefined {
   }
 
   return undefined
+}
+
+export function isPayGateError(err: unknown): boolean {
+  return extractBackendStatus(err) === 403 && extractBackendErrorCode(err) === 'PAY_GATE'
 }
 
 export function extractBackendRequestId(err: unknown): string | undefined {
@@ -192,6 +220,7 @@ export function createApiClientError(
   status: number,
   payload: unknown,
   fallbackMessage: string,
+  retryAfter?: string | null,
 ): ApiClientError {
   const wrapped = { data: payload }
   const message = extractBackendError(wrapped) ?? fallbackMessage
@@ -199,9 +228,11 @@ export function createApiClientError(
   const fieldErrors = extractBackendFieldErrors(wrapped)
 
   return new ApiClientError(status, message, {
+    retryAfter,
     code,
     data: payload,
     fieldErrors,
+    errorDetails: extractBackendErrorDetails(wrapped),
   })
 }
 
@@ -238,8 +269,8 @@ export function extractBackendError(err: unknown): string | undefined {
 type ContextSet = ReadonlySet<FriendlyErrorContext>
 
 interface MessageRule {
-  /** All substrings must be present (AND logic). Use an array of arrays for OR groups. */
-  includes: readonly string[] | readonly (readonly string[])[]
+  /** All substrings must be present (AND logic). */
+  includes: readonly string[]
   key: string
   contexts?: ContextSet
 }
@@ -247,52 +278,44 @@ interface MessageRule {
 const HABIT_CONTEXTS: ContextSet = new Set(['habit', 'subHabit', 'habitLog'])
 const GOAL_CONTEXTS: ContextSet = new Set(['goal', 'goalProgress'])
 const TAG_CONTEXTS: ContextSet = new Set(['tag'])
-const AUTH_CONTEXTS: ContextSet = new Set(['auth'])
 
+/**
+ * A rule whose only producer was a `DomainErrors` sentence belongs in `ERROR_CODE_TO_KEY`
+ * instead, because the API localizes those sentences at its response boundary.
+ */
 const CONTEXTUAL_RULES: readonly MessageRule[] = [
-  { includes: ['description', '2000'], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['description', String(MAX_HABIT_DESCRIPTION_LENGTH)], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
   { includes: ['frequency quantity', 'required'], key: 'habits.form.frequencyRequired', contexts: HABIT_CONTEXTS },
   { includes: ['days can only be specified'], key: 'habits.form.daysOnlyForDaily', contexts: HABIT_CONTEXTS },
-  { includes: ['general habits cannot be bad habits'], key: 'habits.form.generalBadHabit', contexts: HABIT_CONTEXTS },
   { includes: ['checklist item text'], key: 'habits.form.checklistItemTooLong', contexts: HABIT_CONTEXTS },
-  { includes: ['scheduled reminders must not contain duplicate'], key: 'habits.form.duplicateScheduledReminder', contexts: HABIT_CONTEXTS },
   { includes: ['scheduled reminder', 'duplicate'], key: 'habits.form.duplicateScheduledReminder', contexts: HABIT_CONTEXTS },
   { includes: ['scheduled reminder', 'at most'], key: 'habits.form.scheduledReminderMax', contexts: HABIT_CONTEXTS },
   { includes: ['a habit can have at most', 'sub-habit'], key: 'habits.form.subHabitLimit', contexts: HABIT_CONTEXTS },
   { includes: ['sub-habit title', 'empty'], key: 'habits.form.subHabitTitleRequired', contexts: HABIT_CONTEXTS },
-  { includes: ['sub-habit title', '200'], key: 'habits.form.subHabitTitleTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['sub-habit title', String(MAX_HABIT_TITLE_LENGTH)], key: 'habits.form.subHabitTitleTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['title', 'must not be empty'], key: 'habits.form.titleRequired', contexts: HABIT_CONTEXTS },
   { includes: ['linked goals'], key: 'habits.form.goalLimit', contexts: HABIT_CONTEXTS },
   { includes: ['at most 5 tags'], key: 'habits.form.tagLimit', contexts: HABIT_CONTEXTS },
-  { includes: ['already logged'], key: 'habits.errors.alreadyLogged', contexts: HABIT_CONTEXTS },
-  { includes: [['max depth'], ['depth reached']], key: 'habits.errors.maxDepthReached', contexts: HABIT_CONTEXTS },
-  { includes: ['circular'], key: 'habits.errors.circularReference', contexts: HABIT_CONTEXTS },
 
-  { includes: ['unit', 'required'], key: 'goals.form.unitRequired', contexts: GOAL_CONTEXTS },
+  { includes: ['title', 'must not be empty'], key: 'goals.form.titleRequired', contexts: GOAL_CONTEXTS },
+  { includes: ['unit', 'must not be empty'], key: 'goals.form.unitRequired', contexts: GOAL_CONTEXTS },
   { includes: ['unit', '50'], key: 'goals.form.unitTooLong', contexts: GOAL_CONTEXTS },
-  { includes: [['target value'], ['must be greater than 0']], key: 'goals.form.targetValueRequired', contexts: GOAL_CONTEXTS },
-  { includes: ['new value', 'greater than or equal to 0'], key: 'goals.form.progressValueInvalid', contexts: GOAL_CONTEXTS },
-  { includes: ['linked habits'], key: 'goals.form.habitLimit', contexts: GOAL_CONTEXTS },
+  { includes: ['target value'], key: 'goals.form.targetValueRequired', contexts: GOAL_CONTEXTS },
+  { includes: ['new value', 'greater than or equal to'], key: 'goals.form.progressValueInvalid', contexts: GOAL_CONTEXTS },
+  { includes: ['at most', 'linked habits'], key: 'goals.form.habitLimit', contexts: GOAL_CONTEXTS },
 
-  { includes: ['name', 'required'], key: 'habits.form.tagNameRequired', contexts: TAG_CONTEXTS },
+  { includes: ['name', 'must not be empty'], key: 'habits.form.tagNameRequired', contexts: TAG_CONTEXTS },
   { includes: ['name', '50'], key: 'habits.form.tagNameTooLong', contexts: TAG_CONTEXTS },
   { includes: ['valid hex color'], key: 'habits.form.tagColorInvalid', contexts: TAG_CONTEXTS },
-
-  { includes: [['invalid verification code'], ['invalid code']], key: 'auth.errors.invalidCode', contexts: AUTH_CONTEXTS },
-  { includes: ['expired'], key: 'auth.errors.codeExpired', contexts: AUTH_CONTEXTS },
 ]
 
 function matchesIncludes(msg: string, includes: MessageRule['includes']): boolean {
   if (includes.length === 0) return false
-  if (typeof includes[0] === 'string') {
-    // react-doctor-disable-next-line js-set-map-lookups -- FP: `msg` is a string; `msg.includes(s)` is String.prototype.includes (substring test), not Array membership, so a Set is inapplicable (and each rule's pattern list is 1-3 entries). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    return (includes as readonly string[]).every((s) => msg.includes(s))
-  }
-  return (includes as readonly (readonly string[])[]).some((group) =>
-    // react-doctor-disable-next-line js-set-map-lookups -- FP: `msg` is a string; `msg.includes(s)` is String.prototype.includes (substring test), not Array membership, so a Set is inapplicable (and each group is 1-2 entries). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    group.every((s) => msg.includes(s)),
-  )
+  // react-doctor-disable-next-line js-set-map-lookups -- FP: `msg` is a string; `msg.includes(s)` is String.prototype.includes (substring test), not Array membership, so a Set is inapplicable (and each rule's pattern list is 1-3 entries). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  return includes.every((s) => msg.includes(s))
 }
 
+/** Apply contextual rules before title fallback so named fields retain their specific message. */
 function getContextualMessageKey(
   normalizedMessage: string,
   context: FriendlyErrorContext,
@@ -305,7 +328,10 @@ function getContextualMessageKey(
   if (normalizedMessage.includes('title') && normalizedMessage.includes('required')) {
     return context === 'goal' ? 'goals.form.titleRequired' : 'habits.form.titleRequired'
   }
-  if (normalizedMessage.includes('title') && normalizedMessage.includes('200')) {
+  if (
+    normalizedMessage.includes('title') &&
+    normalizedMessage.includes(String(MAX_HABIT_TITLE_LENGTH))
+  ) {
     return context === 'goal' ? 'goals.form.titleTooLong' : 'habits.form.titleTooLong'
   }
 
@@ -313,9 +339,9 @@ function getContextualMessageKey(
 }
 
 /**
- * Maps stable backend error codes (orbit-api ErrorCodes) to friendly i18n keys.
- * Consulted after contextual form-field matching, so precise validation messages
- * still win; this guarantees every other backend error renders localized text
+ * Maps stable backend error codes (orbit-api ErrorCodes and DomainErrors) to friendly i18n
+ * keys. Consulted after contextual form-field matching, so an uncoded FluentValidation
+ * message still wins; this guarantees every other backend error renders localized text
  * instead of the raw English message.
  */
 export const ERROR_CODE_TO_KEY: Record<string, string> = {
@@ -325,10 +351,26 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   NO_PERMISSION: 'errors.api.noPermission',
   HABIT_NOT_OWNED: 'errors.api.noPermission',
   INVALID_SESSION: 'errors.api.sessionExpired',
+  INVALID_VERIFICATION_CODE: 'auth.errors.invalidCode',
+  VALIDATION_VERIFICATION_CODE_FORMAT: 'auth.errors.codeFormat',
+  CODE_EXPIRED: 'auth.errors.codeExpired',
+  ALREADY_LOGGED: 'habits.errors.alreadyLogged',
+  MAX_DEPTH_REACHED: 'habits.errors.maxDepthReached',
+  CIRCULAR_REFERENCE: 'habits.errors.circularReference',
   DUPLICATE_TAG_NAME: 'errors.api.duplicateTag',
   MAX_API_KEYS: 'errors.api.apiKeyLimit',
   MAX_TAGS_PER_HABIT: 'habits.form.tagLimit',
   MAX_HABITS_PER_GOAL: 'goals.form.habitLimit',
+  TAG_NAME_REQUIRED: 'habits.form.tagNameRequired',
+  TAG_COLOR_REQUIRED: 'habits.form.tagColorInvalid',
+  GENERAL_HABIT_IS_BAD: 'habits.form.generalBadHabit',
+  FREQUENCY_QUANTITY_INVALID: 'habits.form.frequencyRequired',
+  DAYS_REQUIRE_QUANTITY_ONE: 'habits.form.daysOnlyForDaily',
+  MAX_SCHEDULED_REMINDERS: 'habits.form.scheduledReminderMax',
+  DUPLICATE_SCHEDULED_REMINDERS: 'habits.form.duplicateScheduledReminder',
+  UNIT_REQUIRED: 'goals.form.unitRequired',
+  TARGET_VALUE_INVALID: 'goals.form.targetValueRequired',
+  PROGRESS_NEGATIVE: 'goals.form.progressValueInvalid',
   MESSAGE_TOO_LONG: 'errors.api.messageTooLong',
   CHAT_HISTORY_TOO_LARGE: 'errors.api.messageTooLong',
   IMAGE_TOO_LARGE: 'errors.api.imageInvalid',
@@ -400,6 +442,17 @@ function isRateLimit(status: number | undefined, normalizedMessage: string): boo
   return status === 429 || normalizedMessage.includes('please wait')
 }
 
+function getSpecialErrorKey(code: string | undefined, normalizedMessage: string): string | null {
+  if (code === 'PAY_GATE') return getPayGateErrorKey(normalizedMessage)
+  if (code === 'TOO_MANY_ATTEMPTS') return 'toast.errors.tooManyRequests'
+  if (code === 'INVALID_VERIFICATION_CODE') return 'auth.errors.invalidCode'
+  if (code === 'CODE_EXPIRED') return 'auth.errors.codeExpired'
+  if (code === 'ALREADY_LOGGED') return 'habits.errors.alreadyLogged'
+  if (code === 'MAX_DEPTH_REACHED') return 'habits.errors.maxDepthReached'
+  if (code === 'CIRCULAR_REFERENCE') return 'habits.errors.circularReference'
+  return null
+}
+
 export function getFriendlyErrorKey(
   err: unknown,
   fallbackKey: string,
@@ -410,13 +463,8 @@ export function getFriendlyErrorKey(
   const message = getErrorMessage(err, '')
   const normalizedMessage = normalizeMessage(message)
 
-  if (code === 'PAY_GATE') return getPayGateErrorKey(normalizedMessage)
-  if (code === 'TOO_MANY_ATTEMPTS') return 'toast.errors.tooManyRequests'
-  if (code === 'INVALID_VERIFICATION_CODE') return 'auth.errors.invalidCode'
-  if (code === 'CODE_EXPIRED') return 'auth.errors.codeExpired'
-  if (code === 'ALREADY_LOGGED') return 'habits.errors.alreadyLogged'
-  if (code === 'MAX_DEPTH_REACHED') return 'habits.errors.maxDepthReached'
-  if (code === 'CIRCULAR_REFERENCE') return 'habits.errors.circularReference'
+  const specialKey = getSpecialErrorKey(code, normalizedMessage)
+  if (specialKey) return specialKey
   const forbiddenKey = getForbiddenErrorKey(status, code, fallbackKey, context)
   if (forbiddenKey) return forbiddenKey
   if (isRateLimit(status, normalizedMessage)) {
@@ -438,6 +486,10 @@ export function getFriendlyErrorKey(
   const contextualKey = getContextualMessageKey(normalizedMessage, context)
   if (contextualKey) return contextualKey
 
+  if (code === 'TITLE_REQUIRED') {
+    return context === 'goal' ? 'goals.form.titleRequired' : 'habits.form.titleRequired'
+  }
+
   if (code && ERROR_CODE_TO_KEY[code]) return ERROR_CODE_TO_KEY[code]
 
   return fallbackKey
@@ -449,5 +501,7 @@ export function getFriendlyErrorMessage(
   fallbackKey: string,
   context: FriendlyErrorContext = 'generic',
 ): string {
+  const fieldErrors = extractBackendFieldErrors(err)
+  if (fieldErrors) return Object.values(fieldErrors).flat().join('\n') || translate(fallbackKey)
   return translate(getFriendlyErrorKey(err, fallbackKey, context))
 }

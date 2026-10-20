@@ -1,113 +1,90 @@
 'use client'
 
-import type { Locale } from 'date-fns'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { CalendarGrid } from './calendar-grid'
-import { ShowRecurringToggle } from './show-recurring-toggle'
-import { CalendarTimeGrid, type TimeGridColumn } from './calendar-time-grid'
+import { SPACING, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+
+import { useTranslations } from 'next-intl'
+import type { CalendarRangeModel } from '@orbit/shared/utils'
+import { DayCell } from '@/components/dates/day-cell'
+import { MonthGrid } from '@/components/dates/month-grid'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useDateFormat } from '@/hooks/use-date-format'
+import { CalendarStats, type CalendarStat } from './calendar-stats'
 
 interface CalendarRangeViewProps {
-  /** Month shown in the mini-calendar range picker. */
-  currentMonth: Date
-  /** Month-scoped entries powering the mini-calendar's status dots. */
-  monthDayMap: Map<string, CalendarDayEntry[]>
-  rangeStart: string
-  rangeEnd: string
-  onPickDay: (dateStr: string) => void
-  columns: ReadonlyArray<TimeGridColumn>
-  /** Range-scoped entries powering the time grid. */
-  rangeDayMap: Map<string, CalendarDayEntry[]>
-  hint: string
-  /** Hint shown after the first tap, prompting for the range's end day. */
-  endHint: string
-  /** Notice shown in place of the hint when the picked range was clamped to the
-   *  maximum number of days. */
-  clampedNotice: string
-  isClamped: boolean
-  /** True between the first and second taps of a range pick. */
-  isAwaitingEnd: boolean
-  isRangeLoading?: boolean
-  onSelectDay: (dateStr: string) => void
-  displayTime: (time: string) => string
-  dateFnsLocale: Locale
-  allDayLabel: string
-  nowLabel: string
-  showRecurring: boolean
-  onShowRecurringChange: (value: boolean) => void
+  model: CalendarRangeModel
+  weekdayLabels: readonly string[]
+  rangeLabel: string
+  isLoading: boolean
+  loadingLabel: string
+  stats: readonly [CalendarStat, CalendarStat, CalendarStat]
 }
 
-/** Custom-range view: a mini-calendar to pick a contiguous range, then the same
- *  time grid rendered with one column per day in that range. */
-// react-doctor-disable-next-line no-many-boolean-props -- the four flags model orthogonal, independent states (clamp notice, mid-pick hint, range loading, recurring-row toggle), not a combinatorial variant space; they are threaded from the calendar page (owned by a separate bucket), so collapsing the API is out of scope here; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+/** A fixed fourteen-day, read-only orientation view with span-level figures. */
 export function CalendarRangeView({
-  currentMonth,
-  monthDayMap,
-  rangeStart,
-  rangeEnd,
-  onPickDay,
-  columns,
-  rangeDayMap,
-  hint,
-  endHint,
-  clampedNotice,
-  isClamped,
-  isAwaitingEnd,
-  isRangeLoading = false,
-  onSelectDay,
-  displayTime,
-  dateFnsLocale,
-  allDayLabel,
-  nowLabel,
-  showRecurring,
-  onShowRecurringChange,
+  model,
+  weekdayLabels,
+  rangeLabel,
+  isLoading,
+  loadingLabel,
+  stats,
 }: Readonly<CalendarRangeViewProps>) {
-  let hintText: string
-  if (isAwaitingEnd) {
-    hintText = endHint
-  } else if (isClamped) {
-    hintText = clampedNotice
-  } else {
-    hintText = hint
+  const t = useTranslations()
+  const { displayWeekdayDate } = useDateFormat()
+  const words = {
+    none: t('calendar.dayCell.none'),
+    partial: t('calendar.dayCell.partial'),
+    full: t('calendar.dayCell.full'),
+    notScheduled: t('calendar.dayCell.notScheduled'),
+    of: t('calendar.dayCell.of'),
+    today: t('calendar.dayCell.today'),
+    readOnly: t('calendar.dayCell.readOnly'),
   }
+  const gridCellCount = model.leadingEmptyDays + model.days.length
 
   return (
-    <>
-      <CalendarGrid
-        currentMonth={currentMonth}
-        dayMap={monthDayMap}
-        onSelectDay={onPickDay}
-        rangeStart={rangeStart}
-        rangeEnd={rangeEnd}
-      />
-      <div
-        className="flex items-center justify-between"
-        style={{ gap: 12, padding: '0 20px 6px' }}
-      >
-        <p
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: isClamped && !isAwaitingEnd ? 'var(--status-overdue-text)' : 'var(--fg-3)',
-          }}
-        >
-          {hintText}
-        </p>
-        <ShowRecurringToggle
-          checked={showRecurring}
-          onChange={onShowRecurringChange}
-        />
-      </div>
-      <CalendarTimeGrid
-        columns={columns}
-        dayMap={rangeDayMap}
-        onSelectDay={onSelectDay}
-        displayTime={displayTime}
-        dateFnsLocale={dateFnsLocale}
-        allDayLabel={allDayLabel}
-        nowLabel={nowLabel}
-        isLoading={isRangeLoading}
-      />
-    </>
+    <section
+      aria-label={rangeLabel}
+      aria-busy={isLoading}
+      className="flex flex-col"
+      style={{ gap: 16, padding: "var(--orbit-space-0) var(--orbit-space-0) var(--orbit-space-24)" }}
+    >
+      {isLoading ? (
+        <>
+          <div className="orbit-calendar-grid-frame" style={{ paddingInline: SPACING.s16 }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
+            {Array.from({ length: gridCellCount }, (_, index) => (
+              <span key={index} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}>
+                {index === 0 ? (
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
+                ) : (
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
+                )}
+              </span>
+            ))}
+          </MonthGrid></div></div>
+          <CalendarStats stats={stats} state="loading" loadingLabel={loadingLabel} />
+        </>
+      ) : (
+        <>
+          <div className="orbit-calendar-grid-frame" style={{ paddingInline: SPACING.s16 }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
+            {Array.from({ length: model.leadingEmptyDays }, (_, index) => (
+              <span key={`leading-${index}`} aria-hidden="true" style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }} />
+            ))}
+            {model.days.map((day) => (
+              <DayCell
+                key={day.dateStr}
+                day={day.day}
+                done={day.completedCount}
+                scheduled={day.totalCount}
+                today={day.isToday}
+                label={displayWeekdayDate(day.date, true)}
+                words={words}
+              />
+            ))}
+          </MonthGrid></div></div>
+
+          <CalendarStats stats={stats} />
+        </>
+      )}
+    </section>
   )
 }

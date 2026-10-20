@@ -1,7 +1,11 @@
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AboutScreen from '@/app/about'
+import { ShellScrollerClearanceContext } from '@/components/shell/shell-scroller-clearance'
 import en from '@orbit/shared/i18n/en.json'
 
 const TestRenderer = require('react-test-renderer')
@@ -12,39 +16,34 @@ type TestNode = {
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
-const mocks = vi.hoisted(() => ({
-  nativeVersion: null as string | null,
-  configVersion: undefined as string | undefined,
+const mocks = vi.hoisted((): {
+  nativeVersion: string | null
+  configVersion: string | undefined
+  email: string
+  isAuthenticated: boolean
+  push: ReturnType<typeof vi.fn>
+  useProfile: ReturnType<typeof vi.fn>
+} => ({
+  nativeVersion: '1.0.0',
+  configVersion: '1.0.0',
+  email: 'profile-account-with-a-long-address@example.com',
+  isAuthenticated: true,
   push: vi.fn(),
+  useProfile: vi.fn(() => ({ profile: { email: 'profile-account-with-a-long-address@example.com' } })),
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, string>) => {
-      const message = key.split('.').reduce<unknown>(
-        (value, part) => (value as Record<string, unknown>)[part],
-        en,
-      ) as string
-      return message.replace(/\{(\w+)\}/g, (_, name: string) => params?.[name] ?? '')
-    },
-  }),
+  useTranslation: () => ({ t: (key: string) => key.split('.').reduce<unknown>(
+    (value, part) => (value as Record<string, unknown>)[part],
+    en,
+  ) as string }),
 }))
 
-vi.mock('expo-application', () => ({
-  get nativeApplicationVersion() {
-    return mocks.nativeVersion
-  },
-}))
-
-vi.mock('expo-constants', () => ({
-  default: {
-    get expoConfig() {
-      return { version: mocks.configVersion }
-    },
-  },
-}))
+vi.mock('expo-application', () => ({ get nativeApplicationVersion() { return mocks.nativeVersion } }))
+vi.mock('expo-constants', () => ({ default: { get expoConfig() { return { version: mocks.configVersion } } } }))
 
 vi.mock('expo-router', () => ({
+  useRootNavigationState: () => undefined,
   useRouter: () => ({ push: mocks.push }),
 }))
 
@@ -52,18 +51,28 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
-vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/components/onboarding/feature-guide-drawer', () => ({
-  FeatureGuideDrawer: ({ open }: { open: boolean }) =>
-    open ? React.createElement('View', { testID: 'feature-guide' }) : null,
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => boolean) =>
+    selector({ isAuthenticated: mocks.isAuthenticated }),
 }))
 
-function renderScreen() {
-  let tree!: { root: TestNode }
-  TestRenderer.act(() => {
-    tree = TestRenderer.create(<AboutScreen />)
-  })
-  return tree
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: mocks.useProfile,
+}))
+
+vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
+vi.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: (props: React.PropsWithChildren<{ edges?: readonly string[] }>) =>
+    React.createElement('SafeAreaView', props, props.children),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, title, children }: { open: boolean; title: string; children: React.ReactNode }) =>
+    open ? React.createElement('View', { testID: 'guide-sheet' }, React.createElement('Text', null, title), children) : null,
+}))
+
+function flattenedStyle(node: TestNode) {
+  return StyleSheet.flatten(typeof node.props.style === 'function' ? node.props.style({ pressed: false }) : node.props.style) as Record<string, unknown>
 }
 
 function textContent(node: TestNode): string {
@@ -75,47 +84,256 @@ function textContent(node: TestNode): string {
 describe('AboutScreen', () => {
   beforeEach(() => {
     mocks.push.mockClear()
-    mocks.nativeVersion = null
-    mocks.configVersion = undefined
+    mocks.useProfile.mockClear()
+    mocks.email = 'profile-account-with-a-long-address@example.com'
+    mocks.useProfile.mockImplementation(() => ({ profile: { email: mocks.email } }))
+    mocks.isAuthenticated = true
+    mocks.nativeVersion = '1.0.0'
+    mocks.configVersion = '1.0.0'
+  })
+
+  it.each([600, 840, 1352])('keeps the drawn Sobre width and both fact edges at %i', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const measured = measureProfileRow(tree.toJSON(), width, 1)
+      for (const testID of ['about-identity', 'about-facts']) {
+        const box = measured.boxes.find((box) => box.testID === testID)!
+        expect(box.left).toBe(16)
+        expect(box.width).toBe(width < 1024 ? width - 32 : 620)
+      }
+      for (const id of ['version', 'account']) {
+        expect(measured.boxes.find((box) => box.testID === `about-fact-${id}-label`)!.left).toBe(16)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([600, 1352])('keeps the account fill clear of the page edge with its existing hit area at %i', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const measured = measureProfileRow(tree.toJSON(), width, 1)
+      const version = measured.boxes.find((box) => box.testID === 'about-fact-version')!
+      const account = measured.boxes.find((box) => box.testID === 'about-fact-account')!
+      const fill = measured.boxes.find((box) => box.testID === 'about-account-fill')
+      expect(account.left).toBe(version.left)
+      expect(account.right).toBe(version.right)
+      expect(fill).toMatchObject({ left: version.left - 12, right: version.right + 12 })
+      const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'about-fact-account')[0]!
+      expect(control.props.hitSlop).toEqual({ left: 16, right: 16 })
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([600, 1352])('keeps a fitting email beside the account label at %i', (width) => {
+    mocks.email = 'a@example.com'
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const measured = measureProfileRow(tree.toJSON(), width, 1)
+      const label = measured.boxes.find((box) => box.testID === 'about-fact-account-label')!
+      const value = measured.boxes.find((box) => box.testID === 'about-fact-account-value')!
+      expect(value.top).toBeGreaterThanOrEqual(label.top)
+      expect(value.top).toBeLessThan(label.bottom)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([320, 600, 1352])('keeps long account text and its disclosure inside the fact edges at %i', (width) => {
+    mocks.email = `${'account'.repeat(30)}@example.com`
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'about-fact-account')[0]!
+      for (const expanded of [false, true]) {
+        if (expanded) TestRenderer.act(() => { (control.props.onPress as () => void)() })
+        const measured = measureProfileRow(tree.toJSON(), width, 1)
+        const row = measured.boxes.find((box) => box.testID === 'about-fact-account')!
+        const label = measured.boxes.find((box) => box.testID === 'about-fact-account-label')!
+        const value = measured.boxes.find((box) => box.testID === 'about-fact-account-value')!
+        expect(value.left).toBe(label.left)
+        expect(value.top).toBeGreaterThanOrEqual(label.bottom)
+        expect(value.right).toBeLessThanOrEqual(row.right)
+        const chevron = measured.boxes.find((box) => box.testID === 'about-account-chevron')!
+        expect(chevron.right).toBeCloseTo(row.right)
+        expect(value.right).toBeCloseTo(chevron.left - 12)
+        expect(control.props.accessibilityState).toMatchObject({ expanded })
+        expect(control.props.accessibilityLabel).toContain(mocks.email)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('paints the same outset for hover, press and focus without clipping its parent', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'about-fact-account')[0]!
+      const fill = () => tree.root.findAll((node: TestNode) => node.type === 'View' && node.props.testID === 'about-account-fill')[0]!
+      expect(flattenedStyle(fill()).backgroundColor).toBe('transparent')
+      for (const [enter, leave] of [['onHoverIn', 'onHoverOut'], ['onPressIn', 'onPressOut'], ['onFocus', 'onBlur']]) {
+        TestRenderer.act(() => { (control.props[enter!] as () => void)() })
+        expect(flattenedStyle(fill()).backgroundColor).not.toBe('transparent')
+        expect(flattenedStyle(fill()).outlineWidth).toBe(enter === 'onFocus' ? 2 : 0)
+        TestRenderer.act(() => { (control.props[leave!] as () => void)() })
+        expect(flattenedStyle(fill()).backgroundColor).toBe('transparent')
+      }
+      expect(flattenedStyle(control).overflow).not.toBe('hidden')
+      expect(fill().props.pointerEvents).toBe('none')
+    } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
   it('shows the installed APK version the API header sends, not the bundled config version', () => {
     mocks.nativeVersion = '1.3.39'
     mocks.configVersion = '1.1.4'
-
-    const tree = renderScreen()
-
-    expect(textContent(tree.root)).toContain('Version 1.3.39')
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    expect(textContent(tree.root)).toContain('1.3.39')
     expect(textContent(tree.root)).not.toContain('1.1.4')
   })
 
   it('renders no version row when no version resolves', () => {
-    const tree = renderScreen()
-
+    mocks.nativeVersion = null
+    mocks.configVersion = undefined
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
     expect(textContent(tree.root)).toContain('Orbit')
-    expect(textContent(tree.root)).not.toContain('Version')
+    expect(tree.root.findAll((node) => node.props.testID === 'about-fact-version')).toHaveLength(0)
   })
 
-  it('opens the feature guide and routes the other destinations', () => {
-    const tree = renderScreen()
+  it.each([412, 768])('renders the drawn identity size at %ipx', (width) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    let tree!: { root: TestNode; unmount: () => void }
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'Orbit')[0]!
+    expect(flattenedStyle(name).fontSize).toBe(width >= 768 ? 34 : 28)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('renders the About identity, real facts, and four destinations in order', () => {
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<AboutScreen />)
+    })
+
+    expect(
+      tree.root.findAll(
+        (node) => node.type === 'Svg' && node.props.testID === 'orbit-mark-accent',
+      ),
+    ).toHaveLength(1)
+    expect(textContent(tree.root)).toContain('Orbit')
+    expect(textContent(tree.root)).toContain(en.about.tagline)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'header')
+      .map(textContent)).toContain('About')
+    expect(textContent(tree.root)).toContain('1.0.0')
+    expect(textContent(tree.root)).toContain(mocks.email)
+    expect(tree.root.findAll((node) => node.props.testID === 'about-credit')).toHaveLength(0)
+
     const destinations = tree.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+      (node) =>
+        node.type === 'Pressable' &&
+        node.props.accessibilityRole === 'button' &&
+        typeof node.props.accessibilityLabel === 'string' && node.props.testID !== 'about-fact-account',
     )
     expect(destinations.map((node) => node.props.accessibilityLabel)).toEqual([
-      en.onboarding.featureGuide.openButton,
-      en.profile.support.title,
-      en.terms.title,
-      en.privacy.title,
+      en.common.backToProfile,
+      'Orbit guide',
+      'Contact support',
+      'Terms of use',
+      'Privacy policy',
     ])
 
     TestRenderer.act(() => {
-      destinations.forEach((destination) => {
+      const onPress = destinations[1]!.props.onPress as () => void
+      onPress()
+    })
+    expect(textContent(tree.root.findAll((node) => node.props.testID === 'guide-sheet')[0]!))
+      .toContain('Orbit guide')
+
+    TestRenderer.act(() => {
+      destinations.slice(2).forEach((destination) => {
         const onPress = destination.props.onPress as () => void
         onPress()
       })
     })
-
-    expect(tree.root.findAll((node) => node.props.testID === 'feature-guide')).toHaveLength(1)
     expect(mocks.push.mock.calls).toEqual([['/support'], ['/terms'], ['/privacy']])
+  })
+
+  it.each([412, 1280])('gives every destination a 52px touch body with decorative content at %ipx', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: { root: TestNode; unmount: () => void }
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    const destinations = tree.root.findAll((node) => node.type === 'Pressable' && ['Orbit guide', 'Contact support', 'Terms of use', 'Privacy policy'].includes(node.props.accessibilityLabel as string))
+    expect(destinations).toHaveLength(4)
+    for (const destination of destinations) {
+      const body = flattenedStyle(destination)
+      expect(body.minHeight).toBe(52)
+      expect(body.paddingVertical).toBe(12)
+      expect(destination.findAll((node) => node.type === 'View' && flattenedStyle(node).minHeight === 24).length).toBeGreaterThan(0)
+    }
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps every 412px column shrinkable and lets fact values wrap', () => {
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<AboutScreen />)
+    })
+
+    for (const testID of ['about-content', 'about-identity', 'about-destinations', 'about-facts']) {
+      expect(flattenedStyle(tree.root.findAll((node) => node.props.testID === testID)[0]!)).toMatchObject({
+        minWidth: 0,
+      })
+    }
+
+    for (const fact of ['version', 'account']) {
+      expect(flattenedStyle(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === `about-fact-${fact}`)[0]!)).toMatchObject({
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        minWidth: 0,
+      })
+      expect(flattenedStyle(tree.root.findAll((node) => node.props.testID === `about-fact-${fact}-label`)[0]!)).toMatchObject({
+        flexGrow: 1,
+        flexShrink: fact === 'account' ? 0 : 1,
+        minWidth: 0,
+      })
+      expect(flattenedStyle(tree.root.findAll((node) => node.props.testID === `about-fact-${fact}-value`)[0]!)).toMatchObject({
+        flexShrink: 1,
+        minWidth: 0,
+        maxWidth: '100%',
+      })
+    }
+  })
+
+  it('hides the account fact and skips the profile hook while signed out', () => {
+    mocks.isAuthenticated = false
+
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<AboutScreen />)
+    })
+
+    expect(
+      tree.root.findAll((node) => node.props.testID === 'about-fact-account'),
+    ).toHaveLength(0)
+    expect(mocks.useProfile).not.toHaveBeenCalled()
+  })
+  it.each([
+    [0, 24, ['top', 'bottom']],
+    [96, 96, ['top']],
+  ] as const)('ends clear of the system bar or the pinned chrome at shell clearance %i', (clearance, paddingBottom, edges) => {
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <ShellScrollerClearanceContext.Provider value={clearance}>
+          <AboutScreen />
+        </ShellScrollerClearanceContext.Provider>,
+      )
+    })
+
+    expect(tree.root.findAll((node) => node.type === 'SafeAreaView')[0]!.props.edges).toEqual(edges)
+    const scroll = tree.root.findAll((node) => node.props.contentContainerStyle !== undefined)[0]!
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle)).toMatchObject({ paddingBottom })
   })
 })

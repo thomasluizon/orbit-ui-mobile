@@ -7,6 +7,7 @@ import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { getQueryClient } from '@/lib/query-client'
 import { useAuthStore } from '@/stores/auth-store'
+import { holdAccount, replaceAccountWith, retireHeldAccount } from '@/__tests__/support/account-change'
 
 vi.mock('@/lib/posthog', () => ({ identifyPostHogUser: vi.fn(), resetPostHogUser: vi.fn() }))
 vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
@@ -28,7 +29,8 @@ describe('profile fetch across the first session check', () => {
   it('leaves loading when the held profile response arrives', async () => {
     const queryClient = getQueryClient()
     queryClient.clear()
-    useAuthStore.setState({ heldAccountId: null, isAuthenticated: false, user: null })
+    vi.stubGlobal('fetch', vi.fn())
+    await retireHeldAccount()
     let answer: () => void = () => {}
     const profileAnswer = new Promise<void>((resolve) => { answer = resolve })
     const profile = createMockProfile({ name: 'Answered' })
@@ -36,7 +38,7 @@ describe('profile fetch across the first session check', () => {
       if (input === '/api/auth/session') {
         return Promise.resolve(new Response(JSON.stringify({
           expiresAt: Date.now() + 3600000,
-          accountId: 'account-a',
+          userId: 'account-a',
         }), { status: 200 }))
       }
       if (input === API.profile.get) {
@@ -49,12 +51,48 @@ describe('profile fetch across the first session check', () => {
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 
     const { result } = renderHook(() => useProfile(), { wrapper })
-    await waitFor(() => expect(result.current.isLoading).toBe(true))
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await useAuthStore.getState().checkSession() })
-    await act(async () => { answer() })
+    await act(async () => {
+      answer()
+      await result.current.refetch({ cancelRefetch: false, throwOnError: true })
+    })
 
     await waitFor(() => expect(result.current.profile?.name).toBe('Answered'))
     expect(result.current.isLoading).toBe(false)
     expect(fetchMock).toHaveBeenCalledWith(API.profile.get, expect.anything())
+  })
+
+  it('keeps an explicitly disabled query out of loading before session validation', async () => {
+    const queryClient = getQueryClient()
+    queryClient.clear()
+    vi.stubGlobal('fetch', vi.fn())
+    await retireHeldAccount()
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+
+    const { result } = renderHook(() => useProfile({ enabled: false }), { wrapper })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.isFetching).toBe(false)
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('drops the server profile when the mounted hook moves to another account', async () => {
+    const queryClient = getQueryClient()
+    queryClient.clear()
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('account-a')
+    const previousProfile = createMockProfile({ name: 'Previous account' })
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+
+    const { result } = renderHook(() => useProfile({ enabled: false, initialData: previousProfile }), { wrapper })
+    expect(result.current.profile?.name).toBe('Previous account')
+
+    await replaceAccountWith('account-b')
+
+    await waitFor(() => expect(result.current.profile).toBeUndefined())
+    expect(queryClient.getQueryData(['profile', 'detail'])).toBeUndefined()
   })
 })

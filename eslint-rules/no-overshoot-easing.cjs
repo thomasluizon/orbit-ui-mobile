@@ -1,4 +1,3 @@
-
 const CUBIC_BEZIER_RE = /cubic-bezier\s*\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/g
 
 function numericLiteral(node) {

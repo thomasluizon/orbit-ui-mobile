@@ -16,7 +16,14 @@ const MUTATION_RESPONSE_SCHEMAS: Partial<Record<MutationType, ZodType>> = {
   bulkSkipHabits: bulkSkipResultSchema,
 }
 
-export function getMutationResponseSchema(type: string): ZodType | undefined {
+/**
+ * Resolves the `@orbit/shared` response schema for an offline-queue mutation `type`, or
+ * `undefined` when the type has no registered schema. Types absent from the registry are not
+ * validated (opt-in), preserving prior behavior.
+ */
+export function getMutationResponseSchema<TResult = unknown>(type: string): ZodType<TResult> | undefined {
   const currentType = mutationTypeSchema.safeParse(type)
-  return currentType.success ? MUTATION_RESPONSE_SCHEMAS[currentType.data] : undefined
+  return currentType.success
+    ? MUTATION_RESPONSE_SCHEMAS[currentType.data] as ZodType<TResult> | undefined
+    : undefined
 }

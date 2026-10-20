@@ -1,3 +1,4 @@
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import {
@@ -5,7 +6,6 @@ import {
   useBufferOnboardingActions,
   useLiveOnboardingActions,
   useOnboardingActions,
-  useOnboardingHasProAccess,
   useOnboardingIsLive,
 } from '@/components/onboarding/onboarding-actions-context'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -19,16 +19,15 @@ const mocks = vi.hoisted(() => ({
     bufferFirstLog: vi.fn(),
     bufferGoal: vi.fn(),
     bufferWeekStartDay: vi.fn(),
-    bufferColorScheme: vi.fn(),
     markOnboardingLocallyDone: vi.fn(),
   },
   createHabitMutateAsync: vi.fn(() => Promise.resolve({ id: 'server-id' })),
+  updateHabitMutateAsync: vi.fn(() => Promise.resolve(undefined)),
   bulkCreateHabitsMutateAsync: vi.fn(() => Promise.resolve({ results: [] })),
   logHabitMutateAsync: vi.fn(() => Promise.resolve(undefined)),
   createGoalMutateAsync: vi.fn(() => Promise.resolve({ id: 'goal-id' })),
   performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
   patchProfile: vi.fn(),
-  applyScheme: vi.fn(),
   setItem: vi.fn(() => Promise.resolve(undefined)),
   setQueryData: vi.fn(),
 }))
@@ -58,6 +57,7 @@ vi.mock('@/stores/onboarding-draft-store', () => {
 
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: mocks.createHabitMutateAsync }),
+  useUpdateHabit: () => ({ mutateAsync: mocks.updateHabitMutateAsync }),
   useBulkCreateHabits: () => ({ mutateAsync: mocks.bulkCreateHabitsMutateAsync }),
   useLogHabit: () => ({ mutateAsync: mocks.logHabitMutateAsync }),
 }))
@@ -68,10 +68,6 @@ vi.mock('@/hooks/use-goals', () => ({
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ patchProfile: mocks.patchProfile }),
-}))
-
-vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ applyScheme: mocks.applyScheme }),
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
@@ -144,13 +140,24 @@ describe('onboarding action provider factories', () => {
       habits: [{ title: 'Walk', tags: ['movement'] }],
     })
 
-    await actions.setColorScheme('blue')
-    expect(mocks.applyScheme).toHaveBeenCalledWith('blue')
-
     expect(actions.onImport).toBeTypeOf('function')
   })
 
-  it('buffers goals and color scheme in pre-auth mode', async () => {
+  it('passes the pending timezone dependency only to an onboarding habit save', async () => {
+    const actions = captureActions(useLiveOnboardingActions)
+
+    await actions.createHabit({ title: 'Run' }, 'offline-account-timezone:timezone-1')
+    expect(mocks.createHabitMutateAsync).toHaveBeenCalledWith({
+      title: 'Run', __offlineDependsOn: ['offline-account-timezone:timezone-1'],
+    })
+
+    await actions.updateHabit('server-id', { title: 'Run' }, 'offline-account-timezone:timezone-1')
+    expect(mocks.updateHabitMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      habitId: 'server-id', dependsOn: ['offline-account-timezone:timezone-1'],
+    }))
+  })
+
+  it('buffers goals in pre-auth mode', async () => {
     const actions = captureActions(useBufferOnboardingActions)
 
     await actions.createGoal({ title: 'Ship', targetValue: 1, unit: 'app' })
@@ -159,16 +166,16 @@ describe('onboarding action provider factories', () => {
       targetValue: 1,
       unit: 'app',
     })
-
-    await actions.setColorScheme('amber')
-    expect(mocks.draftState.bufferColorScheme).toHaveBeenCalledWith('amber')
   })
 
   it('logs, creates goals, and queues the week-start day in live mode', async () => {
     const actions = captureActions(useLiveOnboardingActions)
 
     await actions.logHabit('server-id')
-    expect(mocks.logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'server-id' })
+    expect(mocks.logHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'server-id',
+      intent: 'log',
+    })
 
     await actions.createGoal({ title: 'Ship', targetValue: 1, unit: 'app' })
     expect(mocks.createGoalMutateAsync).toHaveBeenCalledWith({
@@ -202,13 +209,25 @@ describe('onboarding action provider factories', () => {
     expect(updater(undefined)).toBeUndefined()
   })
 
-  it('tolerates a failed completion mutation but still advances', async () => {
+  it('drops completion after the account changes while its mutation is pending', async () => {
+    let release!: () => void
+    mocks.performQueuedApiMutation.mockImplementationOnce(() => new Promise<undefined>((resolve) => { release = () => resolve(undefined) }))
+    const actions = captureActions(useLiveOnboardingActions)
+    const completion = actions.finishOnboarding()
+    advanceAccountGeneration()
+    release()
+    await completion
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('keeps onboarding open when completion cannot be queued', async () => {
     mocks.performQueuedApiMutation.mockRejectedValueOnce(new Error('offline'))
     const actions = captureActions(useLiveOnboardingActions)
 
-    await actions.finishOnboarding()
+    await expect(actions.finishOnboarding()).rejects.toThrow('offline')
 
-    expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 
   it('imports the onboarding prompt into the chat draft in live mode', async () => {
@@ -221,46 +240,44 @@ describe('onboarding action provider factories', () => {
         expect.any(String),
         'onboarding.flow.meetAstra.importPrompt',
       )
-      expect(mocks.replace).toHaveBeenCalledWith('/chat')
+      expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
     })
   })
 })
 
 const stubActions: OnboardingActions = {
   createHabit: vi.fn(() => Promise.resolve({ id: '1', title: 'x' })),
-  createHabitsBulk: vi.fn(async () => {}),
-  logHabit: vi.fn(async () => {}),
-  createGoal: vi.fn(async () => {}),
-  setWeekStartDay: vi.fn(async () => {}),
-  setColorScheme: vi.fn(async () => {}),
-  finishOnboarding: vi.fn(async () => {}),
+  updateHabit: vi.fn(() => Promise.resolve()),
+  createHabitsBulk: vi.fn(() => Promise.resolve()),
+  logHabit: vi.fn(() => Promise.resolve()),
+  createGoal: vi.fn(() => Promise.resolve()),
+  setWeekStartDay: vi.fn(() => Promise.resolve()),
+  deferPushRegistration: vi.fn(),
+  finishOnboarding: vi.fn(() => Promise.resolve()),
 }
 
 describe('OnboardingActionsProvider', () => {
-  it('exposes the actions, pro access, and live flag to consumers', () => {
+  it('exposes the actions and live flag to consumers', () => {
     const captured = {
       actions: null as OnboardingActions | null,
-      pro: false,
       live: false,
     }
 
     function Child() {
       captured.actions = useOnboardingActions()
-      captured.pro = useOnboardingHasProAccess()
       captured.live = useOnboardingIsLive()
       return null
     }
 
     TestRenderer.act(() => {
       TestRenderer.create(
-        <OnboardingActionsProvider actions={stubActions} hasProAccess isLive>
+        <OnboardingActionsProvider actions={stubActions} isLive>
           <Child />
         </OnboardingActionsProvider>,
       )
     })
 
     expect(captured.actions).toBe(stubActions)
-    expect(captured.pro).toBe(true)
     expect(captured.live).toBe(true)
   })
 

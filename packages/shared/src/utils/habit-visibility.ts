@@ -5,6 +5,12 @@ import { isHabitLoggedOnDate, isHabitSkippedOnDate } from './all-done'
 
 export type HabitVisibilityView = 'today' | 'all' | 'general'
 
+export function isHabitDoneForRange(
+  habit: Pick<NormalizedHabit, 'isCompleted' | 'isLoggedInRange'>,
+): boolean {
+  return habit.isCompleted || habit.isLoggedInRange
+}
+
 export interface HabitVisibilityOptions {
   habitsById: Map<string, NormalizedHabit>
   childrenByParent: Map<string, string[]>
@@ -12,6 +18,7 @@ export interface HabitVisibilityOptions {
   searchQuery: string
   showCompleted: boolean
   recentlyCompletedIds: Set<string>
+  recentlyCompletedDates?: ReadonlyMap<string, ReadonlySet<string>>
 }
 
 export interface HabitVisibilityHelpers {
@@ -20,6 +27,19 @@ export interface HabitVisibilityHelpers {
   hasVisibleContent: (habit: NormalizedHabit) => boolean
   hasSearchMatch: (habit: NormalizedHabit) => boolean
   getVisibleChildren: (parentId: string, view: HabitVisibilityView) => NormalizedHabit[]
+}
+
+export function filterHabitViewRoots(
+  habits: NormalizedHabit[],
+  view: HabitVisibilityView,
+  showCompleted: boolean,
+  recentlyCompletedIds: ReadonlySet<string>,
+  visibility: HabitVisibilityHelpers,
+): NormalizedHabit[] {
+  if (view === 'all') return habits.filter((habit) => isHabitVisibleInAllView(habit, showCompleted))
+  if (view === 'general') return habits.filter((habit) => habit.isGeneral &&
+    (showCompleted || !habit.isCompleted || recentlyCompletedIds.has(habit.id)))
+  return habits.filter((habit) => visibility.hasSearchMatch(habit) && visibility.hasVisibleContent(habit))
 }
 
 /** A completed non-recurring (one-time) habit: it is done and has no future
@@ -157,6 +177,7 @@ export function createHabitVisibilityHelpers({
   }
 
   const hasSearchMatch = (habit: NormalizedHabit): boolean => {
+    if (!searchQuery.trim()) return true
     if (habit.searchMatches && habit.searchMatches.length > 0) return true
     const children = getChildrenFromIndex(habit.id, habitsById, childrenByParent)
     return children.some((child) => hasSearchMatch(child))

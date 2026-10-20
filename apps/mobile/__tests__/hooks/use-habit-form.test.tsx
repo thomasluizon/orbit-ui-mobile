@@ -1,3 +1,4 @@
+import { createApiClientError } from '@orbit/shared/utils'
 import React from 'react'
 import { describe, expect, it } from 'vitest'
 import { useHabitForm, type HabitFormHelpers, type HabitFormOptions } from '@/hooks/use-habit-form'
@@ -124,6 +125,18 @@ describe('mobile useHabitForm', () => {
     expect(form.current.form.getValues('days')).toEqual([])
   })
 
+  it('deselects one weekday from daily and restores the unrestricted schedule', () => {
+    const form = renderHabitForm({ initialData: { frequencyUnit: 'Day', frequencyQuantity: 1, days: [] } })
+
+    act(() => form.current.toggleDay('Monday', true))
+    expect(form.current.form.getValues('days')).toEqual(
+      form.current.daysList.map((day) => day.value).filter((day) => day !== 'Monday'),
+    )
+
+    act(() => form.current.toggleDay('Monday', false))
+    expect(form.current.form.getValues('days')).toEqual([])
+  })
+
   it('validateAll flags a missing title and clears once one is provided', () => {
     const form = renderHabitForm()
     expect(form.current.validateAll()).toBe('habits.form.titleRequired')
@@ -151,4 +164,23 @@ describe('mobile useHabitForm', () => {
     expect(form.current.formatTimeInput('0830')).toBe('08:30')
     expect(form.current.formatEndTimeInput('2159')).toBe('21:59')
   })
+})
+
+
+it('routes server title and description errors without translating dynamic copy', () => {
+  const holder = renderHabitForm()
+  act(() => { holder.current.reportBackendErrors(createApiClientError(400, { errors: { Title: ['Server title failure'], Description: ['Description exceeds 123 characters'] } }, 'Fallback')) })
+  expect(holder.current.backendFieldErrors).toEqual({ title: 'Server title failure', description: 'Description exceeds 123 characters' })
+  act(() => holder.current.form.setValue('title', 'Updated'))
+  expect(holder.current.backendFieldErrors).toEqual({ description: 'Description exceeds 123 characters' })
+})
+
+it('requests focus and disclosure for mixed description and unknown validation', () => {
+  const holder = renderHabitForm()
+  let handled = true
+  act(() => { handled = holder.current.reportBackendErrors(createApiClientError(400, { errors: { Description: ['Server description failure'], Emoji: ['Server emoji failure'] } }, 'Fallback')) })
+  expect(handled).toBe(false)
+  expect(holder.current.backendFieldErrors.description).toBe('Server description failure')
+  expect(holder.current.backendFocusField).toBe('description')
+  expect(holder.current.backendFocusRequest).toBe(1)
 })

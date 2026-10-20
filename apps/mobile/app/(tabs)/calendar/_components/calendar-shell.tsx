@@ -1,373 +1,132 @@
-import { useMemo, useRef, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react-native";
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { useTourTarget } from "@/hooks/use-tour-target";
-import { createTokensV2, radius, shadowsV2 } from "@/lib/theme";
-import { YearPicker } from "@/components/ui/year-picker";
+import { SPACING } from '@orbit/shared/theme'
+import type { CalendarHeaderNavigationProps } from '@orbit/shared/utils/calendar-navigation'
+import { useState, type ReactNode } from 'react'
+import { StyleSheet, Text, View, useWindowDimensions, type PressableProps } from 'react-native'
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
+import { useTranslation } from 'react-i18next'
+import Svg, { Circle } from 'react-native-svg'
+import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
+import { createTokensV2 } from '@/lib/theme'
+import { YearPicker } from '@/components/ui/year-picker'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/utils'
 
-interface CalendarHeaderProps {
-  monthLabel: string;
-  year: number;
-  previousMonthLabel: string;
-  nextMonthLabel: string;
-  currentMonthLabel: string;
-  selectYearLabel: string;
-  onPreviousMonth: () => void;
-  onNextMonth: () => void;
-  onCurrentMonth: () => void;
-  onSelectYear: (year: number) => void;
-  tokens: ReturnType<typeof createTokensV2>;
+type Tokens = ReturnType<typeof createTokensV2>
+
+interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
+  viewSelector?: ReactNode
+  tokens: Tokens
 }
 
-interface CalendarWeekNavProps {
-  weekLabel: string;
-  previousWeekLabel: string;
-  nextWeekLabel: string;
-  currentWeekLabel: string;
-  onPreviousWeek: () => void;
-  onNextWeek: () => void;
-  onCurrentWeek: () => void;
-  tokens: ReturnType<typeof createTokensV2>;
+function CalendarTitleControl({ tokens, compact = false, insetPaint = false, ...props }: Readonly<Pick<PressableProps, 'children' | 'accessibilityLabel' | 'accessibilityState' | 'onPress'> & { tokens: Tokens; compact?: boolean; insetPaint?: boolean }>) {
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const styles = createStyles(tokens)
+  return <Pressable {...props} accessibilityRole="button" focusOffset={insetPaint ? -6 : -4}
+    onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+    onFocus={(event) => { if (event.target === event.currentTarget) setFocused(true) }}
+    onBlur={(event) => { if (event.target === event.currentTarget) setFocused(false) }}
+    style={({ pressed }) => [styles.titleButton, compact && styles.monthTitleButton, !insetPaint && !props.accessibilityState?.disabled && (pressed || hovered || focused) && styles.pressed]}>
+    {(state) => <>{insetPaint ? <View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.pickerPaint, !props.accessibilityState?.disabled && (state.pressed || hovered || focused) && styles.pressed]} /> : null}{typeof props.children === 'function' ? props.children(state) : props.children}</>}
+  </Pressable>
+}
+
+function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear, year, onSelectYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'tokens' | 'onSelectMonth'> & { choosingYear: boolean; year: number; onSelectYear: (year: number) => void }>) {
+  const { i18n } = useTranslation()
+  const { fontScale } = useWindowDimensions()
+  const styles = createStyles(tokens)
+  return <View style={styles.picker}>
+    {choosingYear ? <YearPicker selectedYear={year} tokens={tokens} onSelectYear={onSelectYear} /> :
+      <View style={styles.months}>
+        {Array.from({ length: 12 }, (_, month) => <View key={month} style={{ width: fontScale > 1.3 ? '50%' : '33.333333%', padding: SPACING.s4 }}><Pressable accessibilityRole="button"
+          accessibilityLabel={formatLocaleDate(new Date(year, month, 1), i18n.language, { month: 'long' })}
+          accessibilityState={{ selected: month === currentMonth.getMonth() && year === currentMonth.getFullYear() }}
+          style={({ pressed }) => [styles.month, month === currentMonth.getMonth() && year === currentMonth.getFullYear() && styles.selectedMonth, pressed && styles.pressed]} onPress={() => onSelectMonth(month, year)}>
+          <Text style={styles.label}>{formatLocaleDate(new Date(year, month, 1), i18n.language, { month: 'short' })}</Text>
+        </Pressable></View>)}
+      </View>}
+  </View>
+}
+
+export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, tokens }: Readonly<CalendarHeaderProps>) {
+  const { t, i18n } = useTranslation()
+  const styles = createStyles(tokens)
+  const heading = formatCalendarMonthHeading(currentMonth, todayKey, i18n.language)
+  const [year, setYear] = useState(currentMonth.getFullYear())
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [choosingYear, setChoosingYear] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const returnToToday = () => { if (!isTodaySelected) (period?.onCurrent ?? onCurrentMonth)() }
+  const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
+  return <View testID="calendar-header-group" style={styles.header}>
+    <View testID={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} style={[styles.navigation, !period && styles.monthNavigation]}>
+      <Pressable focusOffset={-6} accessibilityRole="button" accessibilityLabel={period?.previousLabel ?? previousMonthLabel} onPress={period?.onPrevious ?? onPreviousMonth} style={styles.iconButton}>{({ pressed, focused }) => <><View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.iconPaint, (pressed || focused) && styles.pressed]} /><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></>}</Pressable>
+      <View style={styles.monthTitleGroup}>
+        <CalendarTitleControl tokens={tokens} compact={!period}
+          accessibilityLabel={period ? t('calendar.period.goToCurrent', { period: period.label }) : `${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('dates.goToToday')}`}
+          accessibilityState={{ disabled: isTodaySelected }} onPress={returnToToday}>
+          {period ? <Text style={styles.span}>{period.label}</Text> : <Text style={styles.title}>{heading.month}{heading.year ? <Text style={styles.year}> {heading.year}</Text> : null}</Text>}
+        </CalendarTitleControl>
+        {!period ? <CalendarTitleControl tokens={tokens} insetPaint accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
+          <ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
+        </CalendarTitleControl> : null}
+      </View>
+      <Pressable focusOffset={-6} accessibilityRole="button" accessibilityLabel={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled} accessibilityState={{ disabled: period?.nextDisabled }} style={[styles.iconButton, period?.nextDisabled && { opacity: 0.4 }]}>{({ pressed, focused }) => <><View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.iconPaint, !period?.nextDisabled && (pressed || focused) && styles.pressed]} /><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></>}</Pressable>
+    </View>
+    {viewSelector}
+    {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
+      headerAccessory={<CalendarTitleControl tokens={tokens} accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></CalendarTitleControl>}>
+      <CalendarMonthPicker currentMonth={currentMonth} tokens={tokens} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} />
+    </Sheet> : null}
+  </View>
 }
 
 interface CalendarLegendProps {
-  todayLabel: string;
-  doneLabel: string;
-  partialLabel: string;
-  missedLabel: string;
-  tokens: ReturnType<typeof createTokensV2>;
+  loggableLabel: string
+  fullLabel: string
+  partialLabel: string
+  noneLabel: string
+  tokens: Tokens
 }
 
-function createStyles(tokens: ReturnType<typeof createTokensV2>) {
+export function CalendarLegend({ loggableLabel, fullLabel, partialLabel, noneLabel, tokens }: Readonly<CalendarLegendProps>) {
+  const styles = createStyles(tokens)
+  return <View style={styles.legend}>
+    <View style={styles.legendItem}><View testID="calendar-legend-full" style={styles.legendFull} /><Text style={styles.legendLabel}>{fullLabel}</Text></View>
+    <View style={styles.legendItem}><Svg testID="calendar-legend-partial" width={14} height={14}>
+      <Circle cx={7} cy={7} r={6.25} fill="none" stroke={tokens.statusEmpty} strokeWidth={1.5} />
+      <Circle cx={7} cy={7} r={6.25} fill="none" stroke={tokens.primary} strokeDasharray={[Math.PI * 6.25, Math.PI * 12.5]} strokeWidth={1.5} rotation={-135} origin="7, 7" />
+    </Svg><Text style={styles.legendLabel}>{partialLabel}</Text></View>
+    <View style={styles.legendItem}><View testID="calendar-legend-none" style={styles.legendNone} /><Text style={styles.legendLabel}>{noneLabel}</Text></View>
+    <View style={styles.legendItem}><View testID="calendar-legend-loggable" style={styles.legendLoggable} /><Text style={styles.legendLabel}>{loggableLabel}</Text></View>
+  </View>
+}
+
+function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    headerWrap: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 4,
-    },
-    monthLabelGroup: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 2,
-    },
-    monthNavButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-    },
-    monthNavButtonPressed: {
-      backgroundColor: tokens.bgElev,
-      transform: [{ scale: 0.96 }],
-    },
-    monthLabelButton: {
-      height: 36,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 10,
-    },
-    weekLabelButton: {
-      height: 36,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 16,
-    },
-    monthLabelButtonPressed: {
-      backgroundColor: tokens.bgElev,
-      transform: [{ scale: 0.96 }],
-    },
-    monthTitle: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 17,
-      letterSpacing: -0.17,
-      color: tokens.fg1,
-      textAlign: "center",
-    },
-    yearButton: {
-      height: 36,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 8,
-    },
-    yearTitle: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 17,
-      color: tokens.fg1,
-      fontVariant: ['tabular-nums'],
-    },
-    yearBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.55)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 24,
-    },
-    yearDialog: {
-      width: '100%',
-      maxWidth: 320,
-      backgroundColor: tokens.bgSheet,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      padding: 10,
-      ...shadowsV2.shadow2,
-    },
-    legend: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      flexWrap: "wrap",
-      paddingHorizontal: 20,
-      paddingVertical: 14,
-      gap: 16,
-    },
-    legendItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    legendDotToday: {
-      width: 6,
-      height: 6,
-      borderRadius: 999,
-      borderWidth: 1.5,
-      borderColor: tokens.primary,
-      opacity: 0.6,
-    },
-    legendDotDone: {
-      width: 6,
-      height: 6,
-      borderRadius: 999,
-      backgroundColor: tokens.primary,
-      opacity: 0.6,
-    },
-    legendDotPartial: {
-      width: 6,
-      height: 6,
-      borderRadius: 999,
-      borderWidth: 1.5,
-      borderColor: tokens.fg4,
-      opacity: 0.6,
-    },
-    legendDotMissed: {
-      width: 6,
-      height: 6,
-      borderRadius: 999,
-      backgroundColor: tokens.statusOverdue,
-      opacity: 0.6,
-    },
-    legendLabel: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
-    },
-  });
-}
-
-export function CalendarHeader({
-  monthLabel,
-  year,
-  previousMonthLabel,
-  nextMonthLabel,
-  currentMonthLabel,
-  selectYearLabel,
-  onPreviousMonth,
-  onNextMonth,
-  onCurrentMonth,
-  onSelectYear,
-  tokens,
-}: Readonly<CalendarHeaderProps>) {
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const monthNavRef = useRef<View>(null);
-  useTourTarget("tour-calendar-month-nav", monthNavRef);
-  const [isYearOpen, setIsYearOpen] = useState(false);
-
-  const handleSelectYear = (nextYear: number) => {
-    onSelectYear(nextYear);
-    setIsYearOpen(false);
-  };
-
-  return (
-    <View ref={monthNavRef} collapsable={false} style={styles.headerWrap}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={previousMonthLabel}
-        onPress={onPreviousMonth}
-        hitSlop={4}
-        style={({ pressed }) => [
-          styles.monthNavButton,
-          pressed && styles.monthNavButtonPressed,
-        ]}
-      >
-        <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
-      </Pressable>
-      <View style={styles.monthLabelGroup}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={currentMonthLabel}
-          onPress={onCurrentMonth}
-          hitSlop={4}
-          style={({ pressed }) => [
-            styles.monthLabelButton,
-            pressed && styles.monthLabelButtonPressed,
-          ]}
-        >
-          <Text style={styles.monthTitle} numberOfLines={1}>
-            {monthLabel}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={selectYearLabel}
-          onPress={() => setIsYearOpen(true)}
-          hitSlop={4}
-          style={({ pressed }) => [
-            styles.yearButton,
-            pressed && styles.monthLabelButtonPressed,
-          ]}
-        >
-          <Text
-            style={[styles.yearTitle, isYearOpen && { color: tokens.primary }]}
-          >
-            {year}
-          </Text>
-        </Pressable>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={nextMonthLabel}
-        onPress={onNextMonth}
-        hitSlop={4}
-        style={({ pressed }) => [
-          styles.monthNavButton,
-          pressed && styles.monthNavButtonPressed,
-        ]}
-      >
-        <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
-      </Pressable>
-
-      <Modal
-        visible={isYearOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsYearOpen(false)}
-      >
-        <Pressable style={styles.yearBackdrop} onPress={() => setIsYearOpen(false)}>
-          <View style={styles.yearDialog} onStartShouldSetResponder={() => true}>
-            <YearPicker
-              selectedYear={year}
-              onSelectYear={handleSelectYear}
-              tokens={tokens}
-            />
-          </View>
-        </Pressable>
-      </Modal>
-    </View>
-  );
-}
-
-export function CalendarWeekNav({
-  weekLabel,
-  previousWeekLabel,
-  nextWeekLabel,
-  currentWeekLabel,
-  onPreviousWeek,
-  onNextWeek,
-  onCurrentWeek,
-  tokens,
-}: Readonly<CalendarWeekNavProps>) {
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
-
-  return (
-    <View style={styles.headerWrap}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={previousWeekLabel}
-        onPress={onPreviousWeek}
-        hitSlop={4}
-        style={({ pressed }) => [
-          styles.monthNavButton,
-          pressed && styles.monthNavButtonPressed,
-        ]}
-      >
-        <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={currentWeekLabel}
-        onPress={onCurrentWeek}
-        hitSlop={4}
-        style={({ pressed }) => [
-          styles.weekLabelButton,
-          pressed && styles.monthLabelButtonPressed,
-        ]}
-      >
-        <Text style={styles.monthTitle} numberOfLines={1}>
-          {weekLabel}
-        </Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={nextWeekLabel}
-        onPress={onNextWeek}
-        hitSlop={4}
-        style={({ pressed }) => [
-          styles.monthNavButton,
-          pressed && styles.monthNavButtonPressed,
-        ]}
-      >
-        <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
-      </Pressable>
-    </View>
-  );
-}
-
-export function CalendarLegend({
-  todayLabel,
-  doneLabel,
-  partialLabel,
-  missedLabel,
-  tokens,
-}: Readonly<CalendarLegendProps>) {
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const legendRef = useRef<View>(null);
-  useTourTarget("tour-calendar-legend", legendRef);
-
-  return (
-    <View ref={legendRef} collapsable={false} style={styles.legend}>
-      <View style={styles.legendItem}>
-        <View style={styles.legendDotToday} />
-        <Text style={styles.legendLabel}>{todayLabel}</Text>
-      </View>
-      <View style={styles.legendItem}>
-        <View style={styles.legendDotDone} />
-        <Text style={styles.legendLabel}>{doneLabel}</Text>
-      </View>
-      <View style={styles.legendItem}>
-        <View style={styles.legendDotPartial} />
-        <Text style={styles.legendLabel}>{partialLabel}</Text>
-      </View>
-      <View style={styles.legendItem}>
-        <View style={styles.legendDotMissed} />
-        <Text style={styles.legendLabel}>{missedLabel}</Text>
-      </View>
-    </View>
-  );
+    header: { gap: 16, paddingHorizontal: SPACING.s16, paddingTop: SPACING.s12, paddingBottom: SPACING.s24 },
+    navigation: { minHeight: 48, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
+    iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+    iconPaint: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.hairlineStrong },
+    pickerPaint: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 12 },
+    monthNavigation: { gap: 0 },
+    monthTitleGroup: { maxWidth: '100%', flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' },
+    monthTitleButton: { flexShrink: 0, paddingHorizontal: SPACING.s8 },
+    titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
+    pressed: { backgroundColor: tokens.bgHover },
+    title: { flexShrink: 1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26.4, color: tokens.fg1 },
+    span: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2, fontVariant: ['tabular-nums'] },
+    year: { color: tokens.fg2 },
+    label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
+    selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },
+    picker: { gap: 16, flexShrink: 1, minHeight: 0 },
+    months: { flexDirection: 'row', flexWrap: 'wrap' },
+    month: { minHeight: 48, padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgField },
+    legend: { gap: 16 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    legendLabel: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 16, color: tokens.fg2 },
+    legendFull: { width: 14, height: 14, borderRadius: 999, backgroundColor: tokens.fg1 },
+    legendNone: { width: 14, height: 14, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.statusEmpty },
+    legendLoggable: { width: 14, height: 14, borderRadius: 999, borderWidth: 1, borderColor: tokens.hairline, backgroundColor: tokens.bgWell },
+  })
 }

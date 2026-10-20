@@ -1,78 +1,56 @@
 'use client'
 
-import { useState } from 'react'
-import { Check } from 'lucide-react'
-import type { StatusDotState } from '@/components/ui/status-dot'
-
-const CHECK_FILLED_STATES: ReadonlySet<StatusDotState> = new Set(['done', 'skip', 'frozen'])
-
-const CHECK_COLOR_VAR: Record<StatusDotState, string> = {
-  done: 'var(--status-done)',
-  empty: 'var(--status-empty)',
-  skip: 'var(--status-skip)',
-  overdue: 'var(--status-overdue)',
-  bad: 'var(--status-bad)',
-  frozen: 'var(--status-frozen)',
-}
+import { useEffect, useId, useRef, useState } from 'react'
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
+import { HabitCheck } from './habit-check'
 
 interface CheckCircleProps {
-  state: StatusDotState
-  /** 'bad' fills the logged circle in status-bad instead of status-done. */
-  tone?: 'default' | 'bad'
+  state: HabitStatus
+  unavailable?: boolean
   onToggle: () => void
   disabled: boolean
   ariaLabel: string
+  disabledReason?: string
 }
 
-export function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaLabel }: Readonly<CheckCircleProps>) {
-  const filled = CHECK_FILLED_STATES.has(state)
-  const color =
-    tone === 'bad' && state === 'done' ? 'var(--status-bad)' : CHECK_COLOR_VAR[state]
-  const [previousFilled, setPreviousFilled] = useState(filled)
+export function CheckCircle({ state, unavailable = false, onToggle, disabled, ariaLabel, disabledReason }: Readonly<CheckCircleProps>) {
+  const previousState = useRef(state)
   const [justCompleted, setJustCompleted] = useState(false)
-  if (filled !== previousFilled) {
-    setPreviousFilled(filled)
-    setJustCompleted(filled)
-  }
+  const reasonId = useId()
 
-  let boxShadow: string
-  if (!filled) {
-    boxShadow = `inset 0 0 0 2px ${color}`
-  } else if (state === 'done') {
-    boxShadow =
-      tone === 'bad'
-        ? '0 4px 14px color-mix(in srgb, var(--status-bad) 35%, transparent)'
-        : '0 4px 14px rgba(var(--primary-rgb), 0.35)'
-  } else {
-    boxShadow = 'none'
-  }
+  useEffect(() => {
+    const completedNow = state === 'done' && previousState.current !== 'done'
+    previousState.current = state
+    if (!completedNow) return
+    setJustCompleted(true)
+    const timer = window.setTimeout(() => setJustCompleted(false), 160)
+    return () => window.clearTimeout(timer)
+  }, [state])
 
   return (
     <button
       type="button"
       data-testid="habit-status-toggle"
+      data-habit-row-control="check"
       onClick={(event) => {
         event.stopPropagation()
         if (disabled) return
         onToggle()
       }}
-      disabled={disabled}
-      aria-disabled={disabled}
+      disabled={disabled && !disabledReason}
+      aria-disabled={disabled && disabledReason ? true : undefined}
       aria-label={ariaLabel}
-      className={`appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ padding: 7, margin: -7, opacity: disabled ? 0.4 : 1 }}
+      aria-describedby={disabled && disabledReason ? reasonId : undefined}
+      title={disabled ? disabledReason : undefined}
+      className={`appearance-none border-0 bg-transparent shrink-0 flex min-h-[48px] w-[48px] items-center justify-center rounded-[22px] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer active:scale-[0.96]'}`}
+      style={{ opacity: disabled ? 0.4 : 1 }}
     >
-      <span
-        className={`flex items-center justify-center rounded-full transition-transform duration-[160ms] ease-[var(--ease-standard)] ${disabled ? '' : 'hover:scale-105 active:scale-[0.96]'} ${justCompleted ? 'animate-check-pop' : ''}`}
-        style={{
-          width: 30,
-          height: 30,
-          background: filled ? color : 'transparent',
-          boxShadow,
-        }}
-      >
-        {filled && <Check size={17} strokeWidth={3} color="var(--fg-on-primary)" aria-hidden="true" />}
+      <span aria-hidden="true" className={justCompleted ? 'animate-check-pop' : undefined}>
+        {unavailable
+          ? <HabitCheck status={state} unavailable />
+          : <HabitCheck status={state} label={ariaLabel} />}
       </span>
+      {disabled && disabledReason ? <span id={reasonId} className="sr-only">{disabledReason}</span> : null}
     </button>
   )
 }

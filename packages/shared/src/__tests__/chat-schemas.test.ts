@@ -1,5 +1,58 @@
-import { describe, expect, it } from 'vitest'
-import { actionResultSchema, chatStreamEventSchema } from '../types/chat'
+import { describe, expect, it, vi } from 'vitest'
+import type { z } from 'zod'
+import { actionResultSchema, chatMessageSchema, chatResponseSchema, chatStreamEventSchema } from '../types/chat'
+import { CHAT_BLOCK_KINDS } from '../chat/block-kinds'
+import { buildChatFinalMessageFields, getChatMessageParts } from '../chat/final-message'
+import { createChatSseParser } from '../chat/sse-stream'
+import partsFixture from '../test-support/chat-parts.fixture.json'
+import { agentExecuteOperationResponseSchema } from '../types/ai'
+import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '../test-support/chat-fixtures'
+import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '../test-support/chat-block-layout'
+
+const { PostApiChatResponse } = await vi.importActual<{ PostApiChatResponse: z.ZodObject }>('../types/__generated__/api.generated')
+
+describe('ordered chat parts', () => {
+  it('keeps generated contract parts through SSE, final assembly and stored message parsing', () => {
+    expect(PostApiChatResponse.parse(partsFixture.response)).toEqual(partsFixture.response)
+    const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response: partsFixture.response })}\n\n`)
+    expect(event?.type).toBe('final')
+    if (event?.type !== 'final') throw new Error('Expected a final event')
+    const message = chatMessageSchema.parse({ id: 'parts', role: 'ai', timestamp: new Date(), ...buildChatFinalMessageFields(event.response, []) })
+    expect(message.parts).toEqual(partsFixture.response.parts)
+    expect(message.content).toBe(partsFixture.response.aiMessage)
+    expect(getChatMessageParts(message, true)).toEqual([{ type: 'text', text: message.content }])
+  })
+
+  it('validates every registered block from the pinned contract', () => {
+    expect(partsFixture.blocks.map(part => part.kind)).toEqual(CHAT_BLOCK_KINDS)
+    const response = { ...partsFixture.response, parts: partsFixture.blocks }
+    expect(PostApiChatResponse.parse(response)).toEqual(response)
+    expect(chatResponseSchema.parse(response).parts).toEqual(partsFixture.blocks)
+  })
+
+  it.each(['futureKind', ...CHAT_BLOCK_KINDS])('skips an unsupported or malformed %s block without losing the final event', kind => {
+    const parts = partsFixture.response.parts.map((part, index) => index === 1 ? { type: 'block', kind, block: {} } : part)
+    const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response: { ...partsFixture.response, parts } })}\n\n`)
+    expect(event?.type).toBe('final')
+    if (event?.type !== 'final') throw new Error('Expected a final event')
+    expect(event.response.parts).toEqual([parts[0], null, parts[2], parts[3]])
+    expect(buildChatFinalMessageFields(event.response, []).parts).toEqual([parts[0], parts[2], parts[3]])
+  })
+
+  it.each([{ parts: [] }, { parts: [{ type: 'block', kind: 'futureKind', block: {} }] }])('uses aiMessage when every part is skipped or absent from the array', ({ parts }) => {
+    const response = chatResponseSchema.parse({ ...partsFixture.response, parts })
+    expect(buildChatFinalMessageFields(response, []).parts).toEqual([{ type: 'text', text: response.aiMessage }])
+  })
+
+  it.each([undefined, null])('adapts legacy fields in their existing order when parts is %s', parts => {
+    const scenario = chatBlockLayoutCases.find(scenario => scenario.kind === 'lists and metrics')!
+    const response = chatResponseSchema.parse({ aiMessage: 'Legacy reply', actions: [], ...scenario.fields, parts })
+    const assembled = buildChatFinalMessageFields(response, []).parts!
+    expect(assembled.map(part => part?.type === 'block' ? part.kind : part?.type)).toEqual([
+      'text', 'habitList', 'goalList', 'metrics', 'periodInsight', 'daySummary', 'streak', 'calendar', 'recordList', 'recordList', 'accountRows',
+    ])
+  })
+})
 
 const validClarificationRequest = {
   question: 'Which reading habit did you mean?',
@@ -58,6 +111,97 @@ describe('actionResultSchema superRefine', () => {
 })
 
 describe('chatStreamEventSchema discriminatedUnion', () => {
+  it('parses the shared clarification fixture through the stream producer schema', () => {
+    const message = makeClarificationPreviewMessage()
+    expect(chatStreamEventSchema.parse({ type: 'final', response: {
+      aiMessage: message.content, actions: message.actions,
+    } })).toMatchObject({ type: 'final', response: { actions: message.actions } })
+  })
+
+  it('parses the shared held preview fixtures through the clarification response schema', () => {
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    const operation = makeAgentOperationResult('PendingConfirmation', 1)
+    expect(agentExecuteOperationResponseSchema.parse({ operation, pendingOperation })).toEqual({ operation, pendingOperation })
+  })
+
+  it.each(chatBlockLayoutCases)('parses the $kind layout fixture through the stream boundary', (scenario) => {
+    for (const prose of [true, false]) {
+      const message = makeChatBlockLayoutMessage(scenario, prose)
+      const event = chatStreamEventSchema.parse({ type: 'final', response: {
+        ...scenario.fields, pendingOperations: message.pendingOperations, aiMessage: message.content, actions: message.actions ?? [],
+      } })
+      expect(event.type).toBe('final')
+      if (event.type !== 'final') return
+      expect(event.response.actions).toEqual(message.actions ?? [])
+      expect(event.response.pendingOperations).toEqual(message.pendingOperations)
+    }
+  })
+
+  it('gives separate layout requests distinct preview operation IDs', () => {
+    const scenario = chatBlockLayoutCases[0]!
+    const first = makeChatBlockLayoutMessage(scenario, true, 'first-request')
+    const second = makeChatBlockLayoutMessage(scenario, false, 'second-request')
+    expect(first.id).not.toBe(second.id)
+    const firstIds = first.pendingOperations!.map(operation => operation.id)
+    const secondIds = second.pendingOperations!.map(operation => operation.id)
+    expect(firstIds).toHaveLength(scenario.count)
+    expect(secondIds).toHaveLength(scenario.count)
+    expect(secondIds.filter(id => firstIds.includes(id))).toEqual([])
+  })
+
+  it.each(['today', 'overdue', 'general', 'none', 'done'])(
+    'parses a habit list card item with status %s',
+    (status) => {
+      const parsed = chatStreamEventSchema.parse({
+        type: 'final',
+        response: {
+          actions: [],
+          habitList: {
+            scope: 'today',
+            items: [{ id: 'habit-1', title: 'Walk', emoji: null, depth: 0, isBadHabit: false, status }],
+          },
+        },
+      })
+      expect(parsed.type).toBe('final')
+      if (parsed.type !== 'final') return
+      expect(parsed.response.habitList?.items[0]?.status).toBe(status)
+    },
+  )
+
+  it('keeps status card payloads in final responses', () => {
+    const parsed = chatStreamEventSchema.parse({ type: 'final', response: {
+      actions: [],
+      daySummary: { date: '2026-09-26', due: 3, done: 1, completionRate: 33, overdueCount: 2, currentStreak: 4, surfaceId: 'today' },
+      streak: { currentStreak: 4, longestStreak: 8, level: 2, totalXp: 120, xpForNextLevel: 200, lastActiveDate: '2026-09-26', isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], achievementDiscs: [{ id: 'first_orbit', iconKey: 'satellite', earnedAt: null }], surfaceId: 'progress' },
+      calendar: { events: [{ title: 'Walk', start: '2026-09-26', end: null, isAllDay: true }], sync: null, surfaceId: 'calendar' },
+    } })
+    expect(parsed.type).toBe('final')
+    if (parsed.type !== 'final') return
+    expect(parsed.response).toHaveProperty('daySummary.done', 1)
+    expect(parsed.response).toHaveProperty('streak.achievementDiscs.0.earnedAt', null)
+    expect(parsed.response).toHaveProperty('calendar.events.0.title', 'Walk')
+  })
+
+  it('keeps record list cursor, key state, and unread state', () => {
+    const parsed = chatStreamEventSchema.parse({ type: 'final', response: { actions: [], recordLists: [{
+      kind: 'notifications', totalCount: 37, nextCursor: 'cursor', surfaceId: 'notifications',
+      items: [{ id: 'n1', title: 'Reminder', isRead: false, state: 'active' }],
+    }] } })
+    expect(parsed.type).toBe('final')
+    if (parsed.type !== 'final') return
+    expect(parsed.response).toHaveProperty('recordLists.0.nextCursor', 'cursor')
+    expect(parsed.response).toHaveProperty('recordLists.0.items.0.isRead', false)
+  })
+
+  it('keeps account rows and the referral code', () => {
+    const parsed = chatStreamEventSchema.parse({ type: 'final', response: { actions: [], accountRows: {
+      kind: 'referral', rows: [{ key: 'successfulReferrals', value: '1', valueType: 'count' }],
+      referralCode: 'ORBIT123', referralLink: 'https://example.com/r/ORBIT123', surfaceId: 'profile',
+    } } })
+    expect(parsed.type).toBe('final')
+    if (parsed.type !== 'final') return
+    expect(parsed.response).toHaveProperty('accountRows.referralCode', 'ORBIT123')
+  })
   it('parses the payload-less started and reset variants to their member', () => {
     expect(chatStreamEventSchema.parse({ type: 'started' }).type).toBe('started')
     expect(chatStreamEventSchema.parse({ type: 'reset' }).type).toBe('reset')

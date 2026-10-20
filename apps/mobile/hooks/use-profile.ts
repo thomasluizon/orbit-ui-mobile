@@ -7,7 +7,6 @@ import type { Profile } from '@orbit/shared/types/profile'
 import {
   getCurrentPlan,
   getIsYearlyPro,
-  getTrialDaysLeft,
   getTrialExpired,
   getTrialUrgent,
 } from '@orbit/shared/utils'
@@ -26,22 +25,22 @@ export function useProfile(options?: { enabled?: boolean }) {
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: fetchProfile,
-    enabled: isAuthenticated && (options?.enabled ?? true),
+    enabled: options?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
   })
 
-  const profile = query.data
+  const profile = isAuthenticated ? query.data : undefined
 
   useEffect(() => {
-    const language = query.data?.language
+    const language = profile?.language
     if (!language) return
     if (i18n.language === language) return
     void i18n.changeLanguage(language)
-  }, [query.data?.language, i18n])
+  }, [profile?.language, i18n])
 
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    void queryClient.invalidateQueries({ queryKey: profileKeys.all })
   }, [queryClient])
 
   const patchProfile = useCallback(
@@ -71,12 +70,6 @@ export function useHasProAccess(): boolean {
 export function useCanViewGamification(): boolean {
   const { profile } = useProfile()
   return profile?.canViewGamification ?? false
-}
-
-/** Computed: how many trial days remain (null if not in trial). */
-export function useTrialDaysLeft(): number | null {
-  const { profile } = useProfile()
-  return useMemo(() => getTrialDaysLeft(profile), [profile])
 }
 
 /** Computed: readable plan label. */

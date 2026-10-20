@@ -4,7 +4,7 @@ import { runInNewContext } from "node:vm"
 import * as fc from "fast-check"
 
 import { REPO_ROOT, T } from "./_harness.mjs"
-import { GENERATED_END, GENERATED_START } from "../generate-performance-workflow.mjs"
+import { GENERATED_END, GENERATED_START, generatedPerformanceSource } from "../generate-performance-workflow.mjs"
 import {
   applyMeasuredQueryContexts,
   attachPerformanceMetrics,
@@ -81,6 +81,36 @@ export const cases = async () => {
   T("performance-measurement: audit workflow executes the four measured signals", ["unbounded-user-list", "full-entity-projection", "large-table-fraction", "background-sweep-budget"].every((signal) => auditWorkflow.includes(signal)))
   T("performance-measurement: audit workflow returns an explicit performance verdict", auditWorkflow.includes("performanceVerdict: performanceMeasurement?.verdict"))
   T("performance-measurement: prod-readiness forwards only the performance measurement to the performance child", readinessWorkflow.includes("k === 'performance' ? performanceMeasurement : undefined"))
+  for (const [name, source, endMarker] of [["audit", auditWorkflow, "const VERIFY_CAP"], ["prod-readiness", readinessWorkflow, "const OPS_SCHEMA"]]) {
+    const start = source.indexOf("const parsedArgs = typeof args")
+    const end = source.indexOf(endMarker)
+    const startup = start >= 0 && end > start ? source.slice(start, end) : ""
+    const runStartup = (args) => {
+      try {
+        return { value: runInNewContext(`${startup}\n;({ UI, API })`, { args }) }
+      } catch (error) {
+        return { error: error.message }
+      }
+    }
+    T(
+      `performance-measurement: ${name} workflow uses no filesystem or Node API`,
+      !source.includes("import(") && !source.includes("process."),
+    )
+    T(`performance-measurement: ${name} rejects missing roots at startup`, /absolute ui and api roots/.test(runStartup({}).error ?? ""))
+    T(`performance-measurement: ${name} rejects relative UI root at startup`, /absolute ui and api roots/.test(runStartup({ roots: { ui: ".", api: "/checkout/orbit-api" } }).error ?? ""))
+    T(`performance-measurement: ${name} rejects relative API root at startup`, /absolute ui and api roots/.test(runStartup({ roots: { ui: "/checkout/orbit-ui-mobile", api: "../orbit-api" } }).error ?? ""))
+    const accepted = runStartup({ roots: { ui: "/checkout/orbit-ui-mobile", api: "/checkout/orbit-api" } }).value
+    T(`performance-measurement: ${name} accepts absolute checkout roots at startup`, accepted?.UI === "/checkout/orbit-ui-mobile" && accepted?.API === "/checkout/orbit-api")
+  }
+  T("performance-measurement: prod-readiness forwards roots to audit children", readinessWorkflow.includes("roots: parsedArgs.roots"))
+  for (const name of ["audit-code-quality", "audit-performance", "audit-security", "audit-tests", "prod-readiness"]) {
+    const skill = readFileSync(join(REPO_ROOT, ".claude", "skills", name, "SKILL.md"), "utf8")
+    T(
+      `performance-measurement: ${name} resolves checkout roots before starting its workflow`,
+      skill.includes('readOrchestratorConfig().repos') &&
+        skill.includes("roots: { ui: '<resolved ui>', api: '<resolved api>' }"),
+    )
+  }
   const scopeResolutionIndex = auditWorkflow.indexOf("const surfaces = resolveSurfaces(kind, scope)")
   const scopedMeasurementIndex = auditWorkflow.indexOf("if (kind === 'performance' && surfaces.some(isApiSurface))")
   T("performance-measurement: requested scope is applied before API hot paths are measured", scopeResolutionIndex >= 0 && scopedMeasurementIndex > scopeResolutionIndex)
@@ -300,6 +330,29 @@ export const cases = async () => {
   )
 
   const unresolvedMeasurement = resolvePerformanceMeasurement(availableInput())
+  const duplicateInput = availableInput()
+  duplicateInput.queryStats.push({ ...duplicateInput.queryStats[0], rows: 1 })
+  const duplicateMeasurement = resolvePerformanceMeasurement(duplicateInput)
+  T(
+    "performance-measurement: duplicate measured queryIds fail with the offending id",
+    duplicateMeasurement.verdict === "CODE_ONLY"
+      && duplicateMeasurement.reason.includes("duplicate queryId: habit-logs"),
+    JSON.stringify({ verdict: duplicateMeasurement.verdict, reason: duplicateMeasurement.reason }),
+  )
+  const workflowDuplicate = runInNewContext(
+    `${measurementFunctions}\nresolvePerformanceMeasurement(${JSON.stringify(duplicateInput)})`,
+  )
+  T(
+    "performance-measurement: generated workflow rejects duplicate measured queryIds",
+    workflowDuplicate.verdict === "CODE_ONLY"
+      && workflowDuplicate.reason.includes("duplicate queryId: habit-logs"),
+    JSON.stringify({ verdict: workflowDuplicate.verdict, reason: workflowDuplicate.reason }),
+  )
+  T(
+    "performance-measurement: unique measured queryIds retain every statement",
+    unresolvedMeasurement.verdict === "MEASURED"
+      && unresolvedMeasurement.rowsRanking.length === availableInput().queryStats.length,
+  )
   const measurement = applyMeasuredQueryContexts(unresolvedMeasurement, measuredMappings())
   const workflowMeasurement = runInNewContext(
     `${measurementFunctions}\napplyMeasuredQueryContexts(
@@ -327,6 +380,22 @@ export const cases = async () => {
   const codeOnly = resolvePerformanceMeasurement({ status: "unavailable", reason: "permission denied for pg_stat_statements" })
   T("performance-measurement: unreadable production views produce CODE_ONLY", codeOnly.verdict === "CODE_ONLY")
   T("performance-measurement: the code-only verdict retains the named reason", codeOnly.reason === "permission denied for pg_stat_statements", codeOnly.reason)
+  const moduleUnavailable = applyMeasuredQueryContexts(codeOnly, measuredMappings())
+  let workflowUnavailable
+  let workflowUnavailableError
+  try {
+    workflowUnavailable = runInNewContext(
+      `${measurementFunctions}\napplyMeasuredQueryContexts(measurement, mappings)`,
+      { measurement: codeOnly, mappings: measuredMappings() },
+    )
+  } catch (error) {
+    workflowUnavailableError = error.message
+  }
+  T(
+    "performance-measurement: both copies preserve an unavailable measurement",
+    moduleUnavailable === codeOnly && workflowUnavailable === codeOnly,
+    workflowUnavailableError ?? JSON.stringify({ moduleUnavailable, workflowUnavailable }),
+  )
   const malformed = resolvePerformanceMeasurement({ status: "available", windowDays: 0, queryStats: [] })
   T("performance-measurement: malformed measurement fails to code-only instead of passing", malformed.verdict === "CODE_ONLY" && malformed.reason.includes("windowDays"), malformed.reason)
 
@@ -334,12 +403,6 @@ export const cases = async () => {
   T("performance-measurement: finder context carries production account skew", prompt.includes('"maxHabitsPerAccount":848'))
   T("performance-measurement: finder context carries both cost and row rankings", prompt.includes('"rankedByMonthlyEgress"') && prompt.includes('"rankedByRows"'))
 
-  /**
-   * P1, connector pass 6 on #699: collection can return more query shapes than the bounded mapper
-   * prompt displays. A call-heavy shape outside both top-20 slices was never shown to the mapper,
-   * but mapping validation still required it and downgraded a valid production measurement to
-   * CODE_ONLY. The prompt and coverage check must use the same derived query-ID set.
-   */
   const promptOverflowInput = {
     status: "available",
     windowDays: 1,
@@ -447,8 +510,6 @@ export const cases = async () => {
       && narrow.fromWorkflow.monthlyEgressBytes === null,
     JSON.stringify({ workflow: narrow.fromWorkflow.monthlyEgressBytes, lib: narrow.fromLib.monthlyEgressBytes }),
   )
-  /** A whole-row read IS the measured row width, so it keeps an exact figure. That is the shape
-   * behind the 112% Supabase overage, and it must never become unknown. */
   const wholeRowEgress = probe('SELECT * FROM "Habits" h')
   T(
     "performance-measurement: a whole-row projection keeps the exact measured row width",
@@ -490,11 +551,6 @@ export const cases = async () => {
     JSON.stringify(literalKeywords.fromLib),
   )
 
-  /**
-   * P1, connector pass 4 on #699: an EMPTY public table reports a legitimate `n_live_tup` of 0.
-   * Requiring a positive count threw, which downgraded the WHOLE measurement to CODE_ONLY and cost a
-   * full readiness verdict over a table nobody had written to yet.
-   */
   const emptyTableInput = {
     ...availableInput(),
     tableStats: [{ table: "Habits", liveRows: 0, columnCount: 20, seqScan: 1, seqTupRead: 1 }],
@@ -513,11 +569,6 @@ export const cases = async () => {
     JSON.stringify({ fraction: emptyTable.rowsRanking[0].tableFraction, signals: emptyTable.rowsRanking[0].signals }),
   )
 
-  /**
-   * P1, connector pass 4 on #699: every finder may supply `monthlyEgressBytes` and the final sorter
-   * trusts it, but only the mapper's findings were normalized. An invented value could become the
-   * top finding and drive ticket priority, so measurement is authoritative at EVERY merge.
-   */
   const laundered = attachPerformanceMetrics([
     { queryId: "habit-list", monthlyEgressBytes: 999999999, title: "real, but with an agent's number" },
     { queryId: "not-a-measured-id", monthlyEgressBytes: 888888888, title: "invented id" },
@@ -539,11 +590,6 @@ export const cases = async () => {
     JSON.stringify(laundered[2]),
   )
 
-  /**
-   * P1, connector pass 5 on #699: only a TOP-LEVEL row limit bounds the statement. A correlated
-   * subquery's `LIMIT 1` marked the whole query bounded, which suppressed `unbounded-user-list`, the
-   * principal signal, on exactly the unbounded user list this audit exists to catch.
-   */
   const subqueryLimit = probe('SELECT h."Id", (SELECT g."Name" FROM "Goals" g WHERE g."HabitId" = h."Id" LIMIT 1) FROM "Habits" h WHERE h."UserId" = $1')
   T(
     "performance-measurement: a LIMIT inside a subquery does not bound the outer statement",
@@ -565,11 +611,6 @@ export const cases = async () => {
     JSON.stringify({ lib: limitAll.fromLib.bounded, workflow: limitAll.fromWorkflow.bounded }),
   )
 
-  /**
-   * P1, connector pass 5 on #699: counting expressions was an inference, not a proof. `SELECT h.*,
-   * g.*` has more expressions than the root table has columns while `bytesPerRow` measures only `h`,
-   * so an exact figure there understates egress and can suppress the background-budget signal.
-   */
   const joinedStars = probe('SELECT h.*, g.* FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"')
   T(
     "performance-measurement: a projection spanning a join is NOT an exact root-row width",
@@ -628,11 +669,6 @@ export const cases = async () => {
     JSON.stringify({ lib: joinedAliasStar.fromLib.projectedBytesPerRow }),
   )
 
-  /**
-   * P1, connector pass 5 on #699: CODE_ONLY is the most dangerous path to trust, not the safest.
-   * With no measurement there is nothing to overwrite an agent's numbers with, and the skeptic reads
-   * a `queryId` as normalized production evidence.
-   */
   const unmeasured = attachPerformanceMetrics(
     [{ queryId: 'habit-list', monthlyEgressBytes: 123456789, title: 'invented on a CODE_ONLY run' }],
     { status: 'unavailable', verdict: 'CODE_ONLY', reason: 'no production access' },
@@ -669,6 +705,30 @@ export const cases = async () => {
     "performance-measurement: the module and generated workflow agree on every corpus query",
     divergent.length === 0,
     `diverged on: ${JSON.stringify(divergent)}`,
+  )
+  const moduleSource = readFileSync(join(REPO_ROOT, "tools", "lib", "performance-measurement.mjs"), "utf8")
+  const moduleFunctions = generatedPerformanceSource(moduleSource)
+  const promptFrom = (source, sample) => runInNewContext(
+    `${source}\nperformanceMeasurementPrompt(${JSON.stringify(sample)})`,
+  )
+  const promptCorpus = [measurement, codeOnly, promptOverflowMeasurement]
+  const promptDifference = (moduleCopy, workflowCopy) => promptCorpus.some((sample) =>
+    promptFrom(moduleCopy, sample) !== promptFrom(workflowCopy, sample))
+  T(
+    "performance-measurement: both copies produce the same mapping prompt across the corpus",
+    !promptDifference(moduleFunctions, measurementFunctions),
+  )
+  const originalField = "backgroundBudgetBytes: measurement.thresholds.backgroundBudgetBytes,"
+  const changedField = "backgroundBudgetBytes: measurement.thresholds.backgroundBudgetBytes + 1,"
+  const changedModule = moduleFunctions.replace(originalField, changedField)
+  const changedWorkflow = measurementFunctions.replace(originalField, changedField)
+  T(
+    "performance-measurement: editing the module prompt alone breaks equivalence",
+    changedModule !== moduleFunctions && promptDifference(changedModule, measurementFunctions),
+  )
+  T(
+    "performance-measurement: editing the workflow prompt alone breaks equivalence",
+    changedWorkflow !== measurementFunctions && promptDifference(moduleFunctions, changedWorkflow),
   )
   const distinct = probe('SELECT DISTINCT h."Id", h."UserId" FROM "Habits" h')
   T("performance-measurement: DISTINCT is not counted as a column", distinct.fromLib.projectionColumns === 2, String(distinct.fromLib.projectionColumns))
@@ -820,11 +880,6 @@ export const cases = async () => {
     JSON.stringify(unknownFailures),
   )
 
-  /**
-   * P1, same pass: reject or merge duplicate measured-query mappings. `new Map(mappings.map(...))`
-   * silently kept the LAST entry, so two mappings that disagree about executionContext produced
-   * opposite signals and whichever the agent emitted second decided the finding.
-   */
   const baseMeasurement = resolvePerformanceMeasurement(availableInput())
   const duplicateOf = (overrides) => [...measuredMappings(), { ...measuredMappings()[0], ...overrides }]
   let conflictError = null

@@ -1,74 +1,354 @@
-import { Pressable, Text, View } from 'react-native'
+import { ProBenefits } from './pro-benefits'
+import { useState, type ReactNode } from 'react'
+import { Text, View } from 'react-native'
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  ReduceMotion,
+} from 'react-native-reanimated'
+import { SPACING, motionDurations, motionEasings } from '@orbit/shared/theme'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
+import { getUpgradeTierReservation } from '@orbit/shared/utils/upgrade'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
-import { PlanCard } from '@/components/upgrade/plan-card'
+import { Badge } from '@/components/ui/badge'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice } from '@/hooks/use-subscription-plans'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { styles } from './styles'
-import { monthlyEquivalentPriceLabel } from './types'
-import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
+import {
+  monthlyEquivalentPriceLabel,
+  type SubscriptionInterval,
+  type Tokens,
+  type UpgradeTextFn,
+} from './types'
+
+interface Tier {
+  interval: SubscriptionInterval
+  name: string
+  price: string
+  period: string
+  heroLine?: string
+  secondLine?: string
+  couponLine?: string
+}
+
+const motionPurpose = {
+  load: 'preventing a jarring change',
+} as const
+
+function motionTestId(purpose: string) {
+  return `upgrade-motion-${purpose.replaceAll(' ', '-')}`
+}
+
+function PlanLoadMotion({
+  stateKey,
+  reduced,
+  children,
+}: Readonly<{ stateKey: string; reduced: boolean; children: ReactNode }>) {
+  const [transition, setTransition] = useState({ stateKey, shouldEnter: false })
+  if (transition.stateKey !== stateKey) {
+    setTransition({
+      stateKey,
+      shouldEnter: true,
+    })
+  }
+
+  return (
+    <Animated.View
+      key={stateKey}
+      entering={transition.shouldEnter && !reduced
+        ? FadeIn.duration(motionDurations.base)
+            .easing(Easing.bezier(...motionEasings.enter))
+            .reduceMotion(ReduceMotion.System)
+        : undefined}
+      exiting={!reduced
+        ? FadeOut.duration(motionDurations.routeExit)
+            .easing(Easing.bezier(...motionEasings.exit))
+            .reduceMotion(ReduceMotion.System)
+        : undefined}
+      testID={motionTestId(motionPurpose.load)}
+    >
+      {children}
+    </Animated.View>
+  )
+}
 
 export function PlanSelection({
+  inset = true,
   plans,
-  yearlyOffer,
+  isLoading,
+  isError,
+  isOnline,
   monthlyPrice,
   yearlyPrice,
+  monthlyOffer,
+  yearlyOffer,
   selectedInterval,
+  checkoutLoading,
+  checkoutError,
+  checkoutDisabled,
   onSelectInterval,
-  onStayFree,
+  onCheckout,
+  onRetry,
   t,
   tokens,
 }: Readonly<{
-  plans: SubscriptionPlans
+  inset?: boolean
+  plans: SubscriptionPlans | null | undefined
+  isLoading: boolean
+  isError: boolean
+  isOnline: boolean
+  monthlyOffer: PlayOffer | null
   yearlyOffer: PlayOffer | null
   monthlyPrice?: string
   yearlyPrice?: string
   selectedInterval: SubscriptionInterval
+  checkoutLoading: SubscriptionInterval | null
+  checkoutError: string
+  checkoutDisabled: boolean
   onSelectInterval: (interval: SubscriptionInterval) => void
-  onStayFree: () => void
+  onCheckout: (interval: SubscriptionInterval) => void
+  onRetry: () => void
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  const yearlyCharge =
-    yearlyPrice ??
-    formatPrice(applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff), plans.currency)
-  const monthlyCharge =
-    monthlyPrice ??
-    formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
-  const discountSuffix =
-    !yearlyPrice && plans.couponPercentOff
-      ? ` · ${t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}`
-      : ''
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const checkoutPending = checkoutLoading !== null
+  const selectInterval = (interval: string) => {
+    if (interval !== 'monthly' && interval !== 'yearly') return
+    onSelectInterval(interval)
+  }
+
+  const intervalControl = (
+    <View>
+      <SegmentedControl
+        label={t('upgrade.plans.intervalLabel')}
+        options={[
+          { value: 'monthly', label: t('upgrade.plans.interval.monthly') },
+          { value: 'yearly', label: t('upgrade.plans.interval.annual') },
+        ]}
+        value={selectedInterval}
+        onChange={selectInterval}
+        disabled={checkoutPending}
+        fullWidth
+      />
+    </View>
+  )
+
+  if (isLoading) {
+    return (
+      <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
+        <View style={[styles.planState, !inset && { paddingHorizontal: SPACING.s0 }]}>
+          {intervalControl}
+          <View style={styles.planChoices}>
+            {(['yearly', 'monthly'] as const).map((interval) => (
+              <TierReservation key={interval} interval={interval} t={t} tokens={tokens}>
+                <View style={styles.planChoices}>
+                  {[0, 1, 2].map((rowIndex) => (
+                    <Skeleton
+                      key={rowIndex}
+                      variant="settings"
+                      label={t('upgrade.plans.loading')}
+                    />
+                  ))}
+                </View>
+              </TierReservation>
+            ))}
+          </View>
+          <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, { color: tokens.statusBadText }]}>{checkoutError}</Text>
+        </View>
+      </PlanLoadMotion>
+    )
+  }
+
+  if (isError && !plans && isOnline) {
+    return (
+      <PlanLoadMotion stateKey="error" reduced={prefersReducedMotion}>
+        <View style={[styles.planState, !inset && { paddingHorizontal: SPACING.s0 }]}>
+          {intervalControl}
+          <ErrorState
+            message={t('upgrade.plans.error')}
+            action={
+              <>
+                {/* eslint-disable-next-line local/max-button-words -- The granted Pro drawing requires the three-word retry label in pt-BR. */}
+                <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>
+              </>
+            }
+          />
+        </View>
+      </PlanLoadMotion>
+    )
+  }
+
+  if (!plans) return null
+
+  const monthlyCharge = monthlyPrice ?? formatPrice(
+    applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff),
+    plans.currency,
+  )
+  const yearlyCharge = yearlyPrice ?? formatPrice(
+    applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff),
+    plans.currency,
+  )
+  const couponLine = plans.couponPercentOff
+    ? t('upgrade.plans.coupon.line', { percent: plans.couponPercentOff })
+    : undefined
+  const annualTier: Tier = {
+    interval: 'yearly',
+    name: t('upgrade.plans.yearly.name'),
+    price: yearlyCharge,
+    period: t('upgrade.plans.yearly.period'),
+    heroLine: t('upgrade.plans.yearly.heroLine'),
+    secondLine: t('upgrade.plans.yearly.equivalent', {
+      price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
+      percent: plans.savingsPercent,
+    }),
+    couponLine: yearlyOffer?.isReferral ? couponLine : undefined,
+  }
+  const monthlyTier: Tier = {
+    interval: 'monthly',
+    name: t('upgrade.plans.monthly.name'),
+    price: monthlyCharge,
+    period: t('upgrade.plans.monthly.period'),
+    couponLine: monthlyOffer?.isReferral ? couponLine : undefined,
+  }
+  const tiers = selectedInterval === 'yearly'
+    ? [annualTier, monthlyTier]
+    : [monthlyTier, annualTier]
 
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={t('upgrade.plan')} style={styles.planGroup}>
-      <PlanCard
-        name={t('upgrade.plans.yearly.name')}
-        badge={t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
-        price={t('upgrade.plans.equivalent', {
-          price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
-        })}
-        sub={`${yearlyCharge}${t('upgrade.plans.yearly.period')}${discountSuffix}`}
-        selected={selectedInterval === 'yearly'}
-        onSelect={() => onSelectInterval('yearly')}
-      />
-      <PlanCard
-        name={t('upgrade.plans.monthly.name')}
-        price={`${monthlyCharge}${t('upgrade.plans.monthly.period')}`}
-        sub={t('upgrade.plans.monthly.note')}
-        selected={selectedInterval === 'monthly'}
-        onSelect={() => onSelectInterval('monthly')}
-      />
-      <Pressable
-        accessibilityRole="button"
-        onPress={onStayFree}
-        style={({ pressed }) => [
-          styles.freeLink,
-          pressed ? { opacity: 0.7, transform: [{ scale: 0.96 }] } : null,
-        ]}
+    <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
+      <View style={[styles.planGroup, !inset && { paddingHorizontal: SPACING.s0 }]}>
+        {intervalControl}
+        <View style={styles.planChoices}>
+          {tiers.map((tier) => (
+            <TierCard
+              key={tier.interval}
+              tier={tier}
+              recommended={tier.interval === 'yearly'}
+              selected={tier.interval === selectedInterval}
+              loading={checkoutLoading === tier.interval}
+              disabled={checkoutPending || checkoutDisabled}
+              onCheckout={onCheckout}
+              t={t}
+              tokens={tokens}
+            />
+          ))}
+        </View>
+        <Text
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+          style={[styles.errorText, { color: tokens.fg2 }]}
+        >
+          {checkoutError}
+        </Text>
+      </View>
+    </PlanLoadMotion>
+  )
+}
+
+function TierReservation({ interval, t, tokens, children }: Readonly<{
+  interval: SubscriptionInterval
+  t: UpgradeTextFn
+  tokens: Tokens
+  children: ReactNode
+}>) {
+  const [height, setHeight] = useState(0)
+  const [contentHeight, setContentHeight] = useState(0)
+  return (
+    <View testID={`upgrade-reservation-${interval}`} style={{ minHeight: Math.max(height, contentHeight) }}>
+      <View
+        importantForAccessibility="no-hide-descendants"
+        pointerEvents="none"
+        style={{ opacity: 0 }}
+        onLayout={({ nativeEvent }) => setHeight(nativeEvent.layout.height)}
+        testID={`upgrade-measurement-${interval}`}
       >
-        <Text style={[styles.freeLinkText, { color: tokens.fg3 }]}>{t('upgrade.convert.stayFree')}</Text>
-      </Pressable>
+        <TierCard
+          tier={getUpgradeTierReservation(interval, t)}
+          recommended={interval === 'yearly'}
+          selected={false}
+          loading={false}
+          disabled
+          measurement
+          onCheckout={() => {}}
+          t={t}
+          tokens={tokens}
+        />
+      </View>
+      <View
+        testID={`upgrade-content-${interval}`}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, minHeight: height }}
+        onLayout={({ nativeEvent }) => setContentHeight(nativeEvent.layout.height)}
+      >
+        {children}
+      </View>
+    </View>
+  )
+}
+
+function TierCard({
+  tier,
+  recommended,
+  selected,
+  loading,
+  disabled,
+  measurement = false,
+  onCheckout,
+  t,
+  tokens,
+}: Readonly<{
+  tier: Tier
+  recommended: boolean
+  selected: boolean
+  loading: boolean
+  disabled: boolean
+  measurement?: boolean
+  onCheckout: (interval: SubscriptionInterval) => void
+  t: UpgradeTextFn
+  tokens: Tokens
+}>) {
+  return (
+    <View
+      testID={measurement ? undefined : `upgrade-tier-${tier.interval}`}
+      style={[
+        styles.tierCard,
+        {
+          backgroundColor: selected ? tokens.primaryDim : tokens.bgCard,
+          borderColor: selected ? tokens.primary : tokens.hairline,
+          borderWidth: selected ? 1.5 : 1,
+        },
+      ]}
+    >
+      <View style={styles.tierHeader}>
+        <Text accessibilityRole="header" style={[styles.tierName, { color: tokens.fg1 }]}>{tier.name}</Text>
+        {recommended ? (
+          <Badge>{t('upgrade.plans.recommended')}</Badge>
+        ) : null}
+      </View>
+      <Text style={[styles.tierPrice, { color: tokens.fg1 }]}>
+        {tier.price}<Text style={[styles.tierPeriod, { color: selected ? tokens.fg2 : tokens.fg3 }]}>{tier.period}</Text>
+      </Text>
+      {tier.heroLine ? <Text style={[styles.tierHero, { color: tokens.fg2 }]}>{tier.heroLine}</Text> : null}
+      {tier.secondLine ? <Text style={[styles.tierSecond, { color: selected ? tokens.fg2 : tokens.fg3 }]}>{tier.secondLine}</Text> : null}
+      {tier.couponLine ? <Text style={[styles.tierCoupon, { color: tokens.fg2 }]}>{tier.couponLine}</Text> : null}
+      <ProBenefits t={t} tokens={tokens} />
+      <View style={styles.tierAction}>
+        <PillButton
+          variant={selected ? 'primary' : 'ghost'}
+          loading={loading}
+          disabled={disabled}
+          accessibleName={t(recommended ? 'upgrade.plans.checkoutLabelRecommended' : 'upgrade.plans.checkoutLabel', { interval: tier.name })}
+          onClick={() => onCheckout(tier.interval)}
+        >
+          {t('upgrade.plans.cta')}
+        </PillButton>
+      </View>
     </View>
   )
 }

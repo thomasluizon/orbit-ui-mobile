@@ -11,17 +11,28 @@ vi.mock('@orbit/shared/query', () => ({
   gamificationKeys: { all: ['gamification'] },
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  formatAPIDate: (date: Date) =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-      date.getDate(),
-    ).padStart(2, '0')}`,
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: 'Pacific/Kiritimati' } }),
 }))
 
 import { TodayProvider, useToday } from '@/app/(app)/today-provider'
 
+const originalTimeZone = process.env.TZ
+
 function TodayProbe() {
   return <span data-testid="today">{useToday()}</span>
+}
+
+function DeviceTodayProbe() {
+  return <span data-testid="device-today">{useToday()}</span>
+}
+
+function AccountTodayProbe() {
+  return <span data-testid="today">{useToday('Pacific/Kiritimati')}</span>
+}
+
+function NullableAccountTodayProbe() {
+  return <span data-testid="today">{useToday(null)}</span>
 }
 
 function renderProvider() {
@@ -36,10 +47,13 @@ describe('TodayProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
+    process.env.TZ = 'America/Sao_Paulo'
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    if (originalTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalTimeZone
   })
 
   it('provides the current local day to consumers', () => {
@@ -49,6 +63,40 @@ describe('TodayProvider', () => {
     renderProvider()
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-04-07')
+  })
+
+  it('provides the current day in the account timezone', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-11T10:30:00.000Z'))
+
+    render(<TodayProvider><AccountTodayProbe /></TodayProvider>)
+
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
+  })
+
+  it('uses UTC when the account timezone is null', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
+
+    render(<TodayProvider><NullableAccountTodayProbe /></TodayProvider>)
+
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
+  })
+
+  it('advances at account midnight while the device remains on the previous day', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-11T09:59:59.000Z'))
+    render(<TodayProvider><AccountTodayProbe /><DeviceTodayProbe /></TodayProvider>)
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-09-11')
+    expect(screen.getByTestId('device-today')).toHaveTextContent('2026-09-11')
+
+    act(() => {
+      vi.advanceTimersByTime(2_000)
+    })
+
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
+    expect(screen.getByTestId('device-today')).toHaveTextContent('2026-09-11')
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
   })
 
   it('advances the day and refreshes gamification when the tab regains visibility on a new day', () => {
@@ -67,7 +115,7 @@ describe('TodayProvider', () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
   })
 
-  it('advances the day and refreshes gamification at local midnight without a focus event', () => {
+  it('advances the local day without refreshing gamification before account midnight', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-07T23:59:55'))
 
@@ -79,7 +127,7 @@ describe('TodayProvider', () => {
     })
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-04-08')
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
+    expect(invalidateQueriesMock).not.toHaveBeenCalled()
   })
 
   it('does not refresh gamification when a focus event fires on the same day', () => {

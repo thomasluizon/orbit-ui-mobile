@@ -1,5 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -40,20 +41,22 @@ vi.mock('@/components/ui/section-label', () => ({
     React.createElement('SectionLabelStub', {}, children),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
-  SettingsRow: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('SettingsRowStub', {}, children),
-  Switch: ({ on, onToggle }: { on: boolean; onToggle: () => void }) =>
-    React.createElement('SwitchStub', { on, onToggle }),
+vi.mock('@/components/ui/list-row', () => ({
+  ListRow: ({ title, toggle }: import('@orbit/shared/contracts/lists').ListRowProps) =>
+    React.createElement('SettingsRowStub', {}, React.createElement('SwitchStub', { label: title, ...toggle })),
 }))
 
-import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
+vi.mock('@/components/ui/switch', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/ui/switch')>(),
+  Switch: ({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) =>
+    React.createElement('SwitchStub', { checked, onChange }),
+}))
 
 const TestRenderer = require('react-test-renderer')
 
 type RenderedNode = {
   type: unknown
-  props: { on?: boolean; onToggle?: () => void } & Record<string, unknown>
+  props: { checked?: boolean; onChange?: (checked: boolean) => void } & Record<string, unknown>
 }
 type RenderedTree = {
   root: { findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[] }
@@ -68,9 +71,9 @@ function getSwitch(tree: RenderedTree) {
   return node
 }
 
-async function render() {
+async function render(contained = false) {
   await TestRenderer.act(async () => {
-    currentTree = TestRenderer.create(<MarketingConsentSection />)
+    currentTree = TestRenderer.create(<MarketingConsentSection contained={contained} />)
     await Promise.resolve()
   })
   return currentTree!
@@ -91,24 +94,42 @@ describe('MarketingConsentSection (mobile)', () => {
     }
   })
 
-  it('reflects consent off when the profile has not opted in', async () => {
+  it.each([false, true])('asks for an explicit answer when consent has never been decided with contained %s', async (contained) => {
     profileValue = { marketingEmailConsent: null }
+    const tree = await render(contained)
+    expect(tree.root.findAll((candidate) => candidate.type === 'SwitchStub')).toHaveLength(0)
+    expect(
+      tree.root.findAll((candidate) => candidate.props.testID === 'button-primary-sm').length,
+    ).toBeGreaterThan(0)
+    expect(
+      tree.root.findAll((candidate) => candidate.props.testID === 'button-ghost-sm').length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('keeps the default answered settings row', async () => {
+    profileValue = { marketingEmailConsent: false }
     const tree = await render()
-    expect(getSwitch(tree).props.on).toBe(false)
+    expect(tree.root.findAll((node) => node.type === 'SettingsRowStub')).toHaveLength(1)
+  })
+
+  it('reflects explicit consent off', async () => {
+    profileValue = { marketingEmailConsent: false }
+    const tree = await render()
+    expect(getSwitch(tree).props.checked).toBe(false)
   })
 
   it('reflects consent on when the profile opted in', async () => {
     profileValue = { marketingEmailConsent: true }
     const tree = await render()
-    expect(getSwitch(tree).props.on).toBe(true)
+    expect(getSwitch(tree).props.checked).toBe(true)
   })
 
-  it('opts in through the offline queue and patches optimistically', async () => {
+  it.each([false, true])('opts in through the offline queue and patches optimistically with contained %s', async (contained) => {
     profileValue = { marketingEmailConsent: false }
-    const tree = await render()
+    const tree = await render(contained)
 
     await TestRenderer.act(async () => {
-      getSwitch(tree).props.onToggle?.()
+      getSwitch(tree).props.onChange?.(true)
       await Promise.resolve()
     })
 
@@ -123,13 +144,13 @@ describe('MarketingConsentSection (mobile)', () => {
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: true })
   })
 
-  it('rolls the optimistic patch back when the mutation fails', async () => {
+  it.each([false, true])('rolls the optimistic patch back when the mutation fails with contained %s', async (contained) => {
     profileValue = { marketingEmailConsent: true }
     performQueuedApiMutation.mockRejectedValueOnce(new Error('network'))
-    const tree = await render()
+    const tree = await render(contained)
 
     await TestRenderer.act(async () => {
-      getSwitch(tree).props.onToggle?.()
+      getSwitch(tree).props.onChange?.(false)
       await Promise.resolve()
       await Promise.resolve()
     })

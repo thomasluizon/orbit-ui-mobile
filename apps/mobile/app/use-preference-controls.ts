@@ -1,32 +1,26 @@
 import { useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import { habitKeys } from '@orbit/shared/query'
-import type { ColorScheme } from '@orbit/shared/theme'
+import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { resolveSystemLocale } from '@orbit/shared/utils'
-import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
-import { getAccountId, useAccountId } from '@/lib/account-scope'
-import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
-import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useAppTheme } from '@/lib/use-app-theme'
-import type { PreferencePicker } from './preferences-sections'
+import type { PreferencePicker } from '@/components/profile/preferences-sections'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
+import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 
 export function usePreferenceControls() {
   const accountId = useAccountId()
   const { i18n } = useTranslation()
-  const router = useRouter()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
-  const { applyScheme, applyTheme, currentTheme, currentScheme } = useAppTheme()
+  const { applyTheme, currentTheme, currentScheme } = useAppTheme()
 
   const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
-  const { scheduleExitAction, runExitAction } = useSheetExitAction()
 
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>(() =>
     resolveSystemLocale(i18n.language),
@@ -88,14 +82,50 @@ export function usePreferenceControls() {
     },
   })
 
-  function handleSchemeChange(scheme: ColorScheme) {
-    if (!profile?.hasProAccess && scheme !== 'purple') {
-      scheduleExitAction(() => router.push(buildUpgradeHref('/preferences')))
-      setActivePicker(null)
-      return
-    }
-    applyScheme(scheme)
-  }
+  const clockFormatMutation = useMutation({
+    mutationFn: (uses24HourClock: boolean) => performQueuedApiMutation({
+      type: 'setClockFormat',
+      scope: 'profile',
+      endpoint: API.profile.clockFormat,
+      method: 'PUT',
+      payload: { uses24HourClock },
+      dedupeKey: 'profile-clock-format',
+    }),
+    onMutate: (uses24HourClock) => {
+      const previous = profile?.uses24HourClock
+      patchProfile({ uses24HourClock })
+      return { previous }
+    },
+    onError: (_error, _value, context) => {
+      patchProfile({ uses24HourClock: context?.previous })
+    },
+  })
+
+  const timeZoneMutation = useMutation({
+    mutationFn: (timeZone: string) =>
+      performQueuedApiMutation({
+        type: 'setTimeZone',
+        scope: 'profile',
+        endpoint: API.profile.timezone,
+        method: 'PUT',
+        payload: { timeZone },
+        dedupeKey: 'profile-timezone',
+      }),
+    onMutate: (timeZone) => {
+      const previous = profile?.timeZone ?? null
+      patchProfile({ timeZone })
+      return { previous }
+    },
+    onError: (_error, _timeZone, context) => {
+      patchProfile({ timeZone: context?.previous ?? null })
+    },
+    onSettled: async () => {
+      await queryClient.cancelQueries({ queryKey: calendarKeys.all })
+      await queryClient.invalidateQueries({ queryKey: calendarKeys.all })
+      await queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
+      await queryClient.invalidateQueries({ queryKey: habitKeys.all })
+    },
+  })
 
   function handleThemeModeChange(mode: ThemeMode) {
     if (mode === currentTheme) return
@@ -135,10 +165,10 @@ export function usePreferenceControls() {
     selectedLanguage,
     showGeneralOnToday,
     handleLanguageChange,
-    handleSchemeChange,
     handleThemeModeChange,
     handleShowGeneralToggle,
-    runPickerExitAction: runExitAction,
+    timeZoneMutation,
     weekStartMutation,
+    clockFormatMutation,
   }
 }

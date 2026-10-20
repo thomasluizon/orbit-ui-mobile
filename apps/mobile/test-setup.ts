@@ -1,6 +1,16 @@
 import { vi } from 'vitest'
 import React from 'react'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const icons = await importOriginal<typeof import('@/components/ui/icons')>()
+  return Object.fromEntries(
+    Object.keys(icons).map((name) => [
+      name,
+      (props: Record<string, unknown>) => React.createElement(name, props),
+    ]),
+  )
+})
+
 vi.mock('@sentry/react-native', () => ({ captureException: vi.fn() }))
 
 vi.mock('posthog-react-native', () => ({
@@ -15,8 +25,6 @@ vi.mock('posthog-react-native', () => ({
   PostHogProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
-;(globalThis as { __DEV__?: boolean }).__DEV__ = true
-
 vi.mock('expo-secure-store', () => {
   const entries = new Map<string, string>()
   return {
@@ -26,9 +34,10 @@ vi.mock('expo-secure-store', () => {
   }
 })
 
-vi.mock('expo-modules-core/src/uuid', () => ({
-  default: { v4: () => crypto.randomUUID() },
-}))
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+vi.mock('expo-updates', () => ({ isEnabled: false }))
+
+;(globalThis as { __DEV__?: boolean }).__DEV__ = true
 
 vi.mock('react-native', async () => {
   const reactNative = await import('./test-mocks/react-native')
@@ -117,9 +126,18 @@ vi.mock('react-native-draggable-flatlist', () => {
     )
   }
 
+  function NestableScrollContainer({
+    children,
+    ...props
+  }: Readonly<{ children?: React.ReactNode; [key: string]: unknown }>) {
+    return React.createElement('NestableScrollContainer', props, children)
+  }
+
   return {
     __esModule: true,
     default: DraggableFlatList,
+    NestableDraggableFlatList: DraggableFlatList,
+    NestableScrollContainer,
   }
 })
 
@@ -159,40 +177,10 @@ vi.mock('@/lib/theme-provider', () => ({
   useThemeContext: () => null,
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
-    open,
-    children,
-    title,
-    onDidDismiss,
-  }: {
-    open: boolean
-    children?: React.ReactNode
-    title?: string
-    onDidDismiss?: () => void
-  }) => {
-    const wasOpenRef = React.useRef(false)
-    React.useEffect(() => {
-      if (open) {
-        wasOpenRef.current = true
-      } else if (wasOpenRef.current) {
-        wasOpenRef.current = false
-        onDidDismiss?.()
-      }
-    }, [open, onDidDismiss])
-    return open
-      ? React.createElement(
-          'BottomSheetModal',
-          null,
-          title ? React.createElement('Text', null, title) : null,
-          children,
-        )
-      : null
-  },
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-vi.mock('@/components/ui/app-date-picker', () => ({
-  AppDatePicker: ({ value, onChange }: { value: string; onChange: (value: string) => void }) =>
+vi.mock('@/components/ui/date-field', () => ({
+  DateField: ({ value, onChange }: { value: string; onChange: (value: string) => void }) =>
     React.createElement('TextInput', {
       testID: 'date-picker',
       value,

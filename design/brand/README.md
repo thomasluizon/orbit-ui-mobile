@@ -1,0 +1,133 @@
+# Orbit brand assets
+
+> **At a glance** - the two marks and the three type families.
+
+## The marks
+
+`orbit-mark.svg` and `astra-mark.svg` are the source marks.
+
+| file | what it is |
+|---|---|
+| `orbit-mark.svg` | the Orbit mark. A planet drawn as a ring with an open centre, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right |
+| `astra-mark.svg` | the Astra glyph. A letter A carrying the same orbital band and the same solid dot |
+
+**They are told apart by silhouette.** Orbit is a hollow ring; Astra is a solid
+letterform. That distinction survives at 16px. Use these shapes when applying the mark rule in
+`DESIGN.md`.
+
+Each file is one `fill-rule="evenodd"` path plus, on Orbit, the moon. Both paint with
+`fill="currentColor"` and carry no hex at all, so one file serves every colour the mark is drawn
+in: the `--fg-1` ink, white on an accent tile, and the warm orange itself. The consumer sets
+`color`. Neither carries a background rectangle, so both are transparent. Neither carries C2PA
+metadata.
+
+**Set `color` on whatever renders the mark.** `DESIGN.md` puts the mark in `--fg-1` everywhere
+except the accent treatment, so a component renders it with `color: var(--fg-1)`. A standalone
+viewer that sets no `color` falls back to the browser default, which is black on white.
+
+**Inline these files. Never load one through an image primitive.** `currentColor` resolves against
+the render tree the SVG participates in, and an `<img src>`, a CSS `background-image` or a React
+Native `<Image source>` puts the file in its own document, where the surrounding `color` does not
+reach it and the mark renders black. That is why `DESIGN.md` states the rule as "one SVG, recoloured
+per state ... strip any hardcoded `fill` on import": a mark that has to take `--fg-1`, white on an
+accent tile, and the accent itself cannot be an external image. A surface that genuinely needs a
+flat file takes a baked raster instead of one of these two.
+
+The marks were generated privately under a paid Recraft plan with commercial rights.
+
+## The variants
+
+| file | what it is |
+|---|---|
+| `orbit-mark-16.svg`, `astra-mark-16.svg` | the native 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:267`). Monochrome, no accent |
+| `orbit-mark-accent.svg` | the accent treatment: the granted 1024 drawing with `var(--primary)` on the moon and `currentColor` everywhere else |
+| `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221) |
+
+**There is no 24 grid variant.** `DESIGN.md` enumerates 16, 48, 128, and 512 as asset sizes.
+The mark is neither type nor an icon, so it does not follow the type scale or the 24 icon grid.
+
+**Pick by size, not by taste.** Below roughly 20px use the 16 pair; above that use the 1024
+originals. The redraw is a simplification, so blowing a 16 up to 128 shows geometry that was chosen
+to survive at 16 and nothing else.
+
+**The accent tints exactly one element.** `DESIGN.md:261` gives the accent four roles and this is the
+fourth: "The mark carries the accent on exactly one element, its moon." A second tinted element is a
+violation, not a variation. The moon's fill falls back to `currentColor`, so a viewer or an upload
+preview that defines no `--primary` still renders the whole mark rather than dropping the moon.
+
+**The lockup's 28 measures the MARK, not a 28 box.** `DESIGN.md:269` says so explicitly. The 1024
+art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap
+height and the word swamps the mark. Sized on the ink it stands 15.04px and the pair reads as one
+lockup.
+
+**The lockup's 12 separates ink from ink**, not bounding boxes. The wordmark's `O` carries a left
+side bearing, so placing the text origin 12 from the mark would have left a 13.15 visual gap.
+
+**The lockup's viewBox IS its ink**, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221), with no baked margin. Clear space is the
+consumer's to add. A logo file that carries its own padding cannot be aligned to anything.
+
+Both numbers are solved from the curve extrema, not measured off a render. A pixel measurement
+rounds to the render grid and can clip the `O`'s overshoot at 24.292.
+
+**`tools/check-lockup-crop.mjs` holds this.** It parses the committed file, re-solves the bounds and
+fails if any edge is off by more than 1e-6. It runs in `guards.yml` and on pre-commit. The gate reads
+the shipped bytes so rounded generator values cannot hide a clipped edge. Run that check when
+regenerating the lockup; a raster cannot prove the bounds are correct.
+
+**The lockup's wordmark is outlined**, so it renders identically without Space Grotesk installed and
+carries no `<text>`. It cannot be restyled, re-tracked or re-set; a different wordmark size is a new
+asset, not a CSS override.
+
+## Raster exports, in `png/`
+
+`node tools/generate-brand-assets.mjs --write` rebuilds these files together with every consumer
+asset. The transparent 16px export uses the native redraw and stays monochrome. The larger
+transparent marks use the granted 1024 canvas and preserve the accent moon. The platform icon puts
+the accent mark at 60% on the flat `#09090B` canvas and leaves its corners square for the platform
+mask.
+
+| file | contract |
+|---|---|
+| `orbit-mark-native-16.png` | 16px native redraw, monochrome `--fg-1`, transparent |
+| `orbit-mark-accent-48.png` | 48px granted mark, accent moon, transparent |
+| `orbit-mark-accent-128.png` | 128px granted mark, accent moon, transparent |
+| `orbit-mark-accent-512.png` | 512px granted mark, accent moon, transparent |
+| `orbit-platform-icon-512.png` | 512px square platform icon on `#09090B` |
+
+## Manual upload exports, in `exports/`
+
+These files use the same platform icon composition and are regenerated with the rest of the set.
+They are committed so the console updates do not depend on a local render at upload time.
+
+| file | target surface |
+|---|---|
+| `oauth-consent-logo-512.png` | Google Auth Platform Branding page app logo |
+| `play-icon-512.png` | Google Play Console store listing app icon |
+
+The Play feature graphic remains at `apps/mobile/store/feature-graphic.png` because it is a mobile
+store asset rather than a reusable brand export.
+
+## Type, in `fonts/`
+
+| file | family | version | axis |
+|---|---|---|---|
+| `Geist[wght].ttf` | Geist | 1.800 | `wght` 100 to 900 |
+| `GeistMono[wght].ttf` | Geist Mono | 1.701 | `wght` 100 to 900 |
+| `SpaceGrotesk[wght].ttf` | Space Grotesk | 2.000 | `wght` 300 to 700 |
+
+All three come from `github.com/google/fonts`, the canonical OFL source. Each licence sits beside it
+as `OFL-*.txt`. Orbit loads Geist Sans 400/500/600, Space Grotesk 500/600 and Geist Mono 400/500. No
+other weight is legal.
+
+**Two traps live in these files. Read both before you import them.**
+
+1. The real family name of the sans is **`Geist`**, not `Geist Sans`. `Geist Sans` is the Orbit token
+   name and exists only inside `@font-face` and `--font-sans`. A tool that matches on the family name
+   needs `Geist`.
+2. `SpaceGrotesk[wght].ttf` reports name ID 1 as **`Space Grotesk Light`** and defaults the `wght`
+   axis to **300**. `DESIGN.md` bans weights below 300 and loads only 500 and 600, so any tool that
+   takes the default instance renders the wrong weight. Set 500 or 600 by hand and check it.
+
+The three `woff2` files inside `design/superseded/reference.html` are **subsets**, so they do not
+carry the whole character set. That page is historical and has no design authority. Use the TTF
+files here for anything that renders new copy, and keep pt-BR in mind.

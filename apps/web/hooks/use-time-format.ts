@@ -1,19 +1,13 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useLocale } from 'next-intl'
-import { formatLocaleTime } from '@orbit/shared/utils'
+import { createTimeDisplay } from '@orbit/shared/utils'
+import { useProfile } from '@/hooks/use-profile'
 
 export function useTimeFormat() {
   const locale = useLocale()
-
-  const displayTime = useCallback(
-    (time: string | null | undefined): string => {
-      if (!time) return ''
-      return formatLocaleTime(time, locale)
-    },
-    [locale],
-  )
-
-  return useMemo(() => ({ displayTime, locale }), [displayTime, locale])
+  const { profile } = useProfile()
+  const uses24HourClock = profile?.uses24HourClock
+  return useMemo(() => createTimeDisplay(locale, uses24HourClock), [locale, uses24HourClock])
 }

@@ -1,136 +1,767 @@
-import React from "react";
-import { describe, it, expect, vi } from "vitest";
-import type { TFunction } from "i18next";
-import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import type { CalendarMonthResponse } from "@orbit/shared/types/habit";
-import { buildCalendarDayMap } from "@orbit/shared/utils";
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { buildCalendarDayMap } from '@orbit/shared/utils'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import React from 'react'
+import { StyleSheet, type ViewStyle } from 'react-native'
+import { describe, expect, it, vi } from 'vitest'
+import type { TFunction } from 'i18next'
+import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarSyncEvent } from '@orbit/shared'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import {
-  createMockHabitScheduleChild,
-  createMockHabitScheduleItem,
-} from "@orbit/shared/__tests__/factories";
-import { createTokensV2 } from "@/lib/theme";
-import { CalendarDayDetail } from "@/app/(tabs)/calendar/_components/calendar-day-detail";
+  getCalendarEntryMutationKey,
+} from '@orbit/shared/hooks'
+import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
+import { createTokensV2 } from '@/lib/theme'
+import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-day-detail'
+import { CheckRow } from '@/components/ui/check-row'
+import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
 
-const TestRenderer = require("react-test-renderer");
+const TestRenderer = require('react-test-renderer')
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-vi.mock("@/components/ui/pill-button", () => ({
-  PillButton: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement("PillButtonMock", null, children),
-}));
+vi.mock('@/hooks/use-calendars', () => ({
+  useCalendars: () => ({ data: [{ id: 'family', name: 'Family calendar', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true }], isLoading: false, isError: false }),
+  useSetSelectedCalendars: () => ({ mutateAsync: vi.fn(), mutate: vi.fn() }),
+}))
 
-vi.mock("@/app/(tabs)/calendar/_components/show-recurring-toggle", () => ({
-  ShowRecurringToggle: () => React.createElement("ShowRecurringToggleMock", null),
-}));
+const network = { isOnline: true }
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => network }))
 
-vi.mock("@/app/(tabs)/calendar/_components/calendar-day-entry", () => ({
-  CalendarDayEntryRow: ({
-    entry,
-    isLast,
-    statusText,
-    statusColor,
-  }: {
-    entry: { title: string; isBadHabit: boolean };
-    isLast: boolean;
-    statusText: string | null;
-    statusColor: string;
-  }) =>
-    React.createElement("CalendarDayEntryRowMock", {
-      title: entry.title,
-      isBadHabit: entry.isBadHabit,
-      isLast,
-      statusText,
-      statusColor,
-    }),
-}));
+vi.mock('@/components/ui/list-row', () => ({
+  ListRow: (props: Record<string, unknown>) => React.createElement('ListRowMock', props),
+}))
 
-type TestNode = { type: unknown; props: Record<string, any> };
+vi.mock('@/components/ui/pill-button', () => ({
+  PillButton: ({ children, variant = 'primary', ...props }: {
+    children?: React.ReactNode
+    variant?: string
+  }) => React.createElement('PillButtonMock', { ...props, variant }, children),
+}))
+
+vi.mock('@/components/ui/switch', () => ({
+  Switch: ({ checked, label, onChange }: {
+    checked: boolean
+    label: string
+    onChange: (value: boolean) => void
+  }) => React.createElement('SwitchMock', {
+    accessibilityLabel: label,
+    accessibilityState: { checked },
+    onPress: () => onChange(!checked),
+  }),
+}))
+
+vi.unmock('@/components/ui/icons')
+vi.mock('react-native-svg', async () => {
+  const svg = await import('@/test-mocks/react-native-svg')
+  return { ...svg, Svg: svg.default }
+})
+
+vi.mock('@/components/ui/status-ring', () => ({
+  StatusRing: (props: Record<string, unknown>) => React.createElement('StatusRingMock', props),
+}))
+
+vi.mock('@/app/(tabs)/calendar/_components/show-recurring-toggle', () => ({
+  ShowRecurringToggle: () => React.createElement('ShowRecurringToggleMock'),
+}))
+
+vi.mock('@/components/dates/event-row', () => ({
+  EventRow: (props: Record<string, unknown>) => React.createElement('EventRowMock', props),
+}))
+
+vi.mock('@/components/ui/input', () => ({
+  Input: (props: Record<string, unknown>) => React.createElement('InputMock', props),
+}))
+
+type TestNode = {
+  type: unknown
+  props: Record<string, unknown>
+  children: TestNode[]
+  findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
+}
+
 type Tree = {
-  root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
-};
+  root: {
+    findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
+  }
+  update: (element: React.ReactElement) => void
+}
 
-const translate = ((key: string) => key) as unknown as TFunction;
+const translations: Record<string, string> = {
+  'calendar.dayDetail.nothingDue': 'nothing due',
+  'calendar.noHabitsScheduled': 'No habit was scheduled on this day.',
+  'calendar.goToDay': en.calendar.goToDay,
+  'calendar.status.completed': en.calendar.status.completed,
+  'calendar.status.missed': en.calendar.status.missed,
+  'calendar.status.indulged': en.calendar.status.indulged,
+  'calendar.status.resisted': en.calendar.status.resisted,
+  'calendar.dayDetail.disconnectedTitle': 'Google Calendar disconnected',
+  'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
+  'calendar.dayDetail.noEventsToImport': 'No Google Calendar events on this day.',
+  'calendar.autoSync.reconnectCta': 'Reconnect',
+}
+
+const detailLocale = { language: 'en' }
+
+const translate = ((key: string, params?: Record<string, unknown>) => {
+  if (key === 'calendar.dayDetail.completionSummary') {
+    return `${String(params?.done)} of ${String(params?.total)} logged`
+  }
+  const boundary = detailLocale.language === 'en' ? en.calendar.proBoundary : ptBR.calendar.proBoundary
+  if (key === 'calendar.proBoundary.title') return boundary.title
+  if (key === 'calendar.proBoundary.body') return boundary.body
+  if (key === 'calendar.proBoundary.action') return boundary.action
+  return translations[key] ?? key
+}) as unknown as TFunction
+
+const proAutoSyncState: CalendarAutoSyncState = {
+  hasGoogleConnection: true,
+  enabled: true,
+  status: "Idle",
+  lastSyncedAt: "2026-09-12T09:12:00Z",
+};
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
-    habitId: "1",
-    title: "Meditate",
-    status: "upcoming",
+    habitId: '1',
+    title: 'Meditate',
+    status: 'completed',
     isBadHabit: false,
-    dueTime: null,
+    dueTime: '08:00',
     isOneTime: false,
     ...overrides,
-  };
+  }
 }
 
-const tokens = createTokensV2("purple", "dark");
+interface RenderDetailProps {
+  selectedDate?: string
+  entries?: CalendarDayEntry[]
+  calendarEvents?: CalendarSyncEvent[]
+  autoSyncState?: CalendarAutoSyncState
+  calendarEventsState?: CalendarEventsDisplayState
+  onRetryCalendarEvents?: () => void
+  onReconnectCalendarEvents?: () => void
+  onOpenCalendarImport?: (eventId: string | null) => void
+  onViewPro?: () => void
+  loggable?: boolean
+  onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
+  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  onGoToDay?: () => void
+}
 
-function renderDetail(entries: CalendarDayEntry[]): Tree {
-  let tree: Tree;
+function CalendarDayDetailHarness({
+  selectedDate = '2025-06-15',
+  entries = [],
+  calendarEvents = [],
+  autoSyncState = proAutoSyncState,
+  calendarEventsState = 'ready',
+  onRetryCalendarEvents = () => {},
+  onReconnectCalendarEvents = () => {},
+  onOpenCalendarImport = () => {},
+  onViewPro = () => {},
+  loggable = false,
+  onCalendarAutoSyncChange = async () => {},
+  onEntryChange = async () => {},
+  onGoToDay = () => {},
+}: RenderDetailProps): React.ReactElement {
+  const tokens = createTokensV2('purple', 'dark')
+  const sourceEntryStates = React.useMemo(
+    () => new Map(entries.map((entry) => [
+      getCalendarEntryMutationKey(selectedDate, entry.habitId),
+      entry.status === 'completed',
+    ])),
+    [entries, selectedDate],
+  )
+  const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
+    sourceEntryStates,
+  )
+
+  function changeEntry(entry: CalendarDayEntry, checked: boolean) {
+    return startEntryMutation(
+      getCalendarEntryMutationKey(selectedDate, entry.habitId),
+      checked,
+      () => onEntryChange(entry, checked),
+    )
+  }
+
+  return (
+    <CalendarDayDetail
+      key={selectedDate}
+      selectedDate={selectedDate}
+      title='Sunday, Jun 15'
+      filteredEntries={entries}
+      calendarEvents={calendarEvents}
+      calendarEventsState={calendarEventsState}
+      onRetryCalendarEvents={onRetryCalendarEvents}
+      onOpenCalendarImport={onOpenCalendarImport}
+      onReconnectCalendarEvents={onReconnectCalendarEvents}
+      onViewPro={onViewPro}
+      completedCount={entries.filter((entry) => entry.status === 'completed').length}
+      loggable={loggable}
+      pendingEntryStates={pendingEntryStates}
+      onEntryChange={changeEntry}
+      onGoToDay={onGoToDay}
+      displayTime={(time) => time}
+      t={translate}
+      tokens={tokens}
+    />
+  )
+}
+
+function detailElement(props: RenderDetailProps = {}): React.ReactElement {
+  return <CalendarDayDetailHarness {...props} />
+}
+
+function renderDetail(props: RenderDetailProps = {}): Tree {
+  let tree: Tree
   TestRenderer.act(() => {
-    tree = TestRenderer.create(
-      <CalendarDayDetail
-        selectedEntries={entries}
-        filteredEntries={entries}
-        completedCount={0}
-        showRecurring
-        onShowRecurringChange={() => {}}
-        onGoToDay={() => {}}
-        displayTime={(time) => time}
-        t={translate}
-        tokens={tokens}
-      />,
-    );
-  });
-  return tree!;
+    tree = TestRenderer.create(detailElement(props))
+  })
+  return tree!
 }
 
-function entryRows(tree: Tree): TestNode[] {
-  return tree.root.findAll((node) => node.type === "CalendarDayEntryRowMock");
+function nodes(tree: Tree, type: unknown): TestNode[] {
+  return tree.root.findAll((node) => node.type === type)
 }
 
-describe("CalendarDayDetail entry list (mobile)", () => {
-  it("renders exactly one row per filtered entry, preserving order", () => {
-    const tree = renderDetail([
-      makeEntry({ habitId: "1", title: "Read" }),
-      makeEntry({ habitId: "2", title: "Exercise" }),
-      makeEntry({ habitId: "3", title: "Journal" }),
-    ]);
+function readOnlyHabitRows(tree: Tree) {
+  return nodes(tree, 'Pressable').filter((row) => row.findAll((node) => node.type === 'StatusRingMock').length > 0)
+}
 
-    const rows = entryRows(tree);
-    expect(rows.map((row) => row.props.title)).toEqual([
-      "Read",
-      "Exercise",
-      "Journal",
-    ]);
-  });
+describe('CalendarDayDetail (mobile)', () => {
+  it('retires a full habit title when the account is replaced', () => {
+    const tree = renderDetail({ entries: [makeEntry({ title: 'Private habit title' })] })
+    const row = nodes(tree, 'Pressable').find((node) => node.props.accessibilityLabel === 'Private habit title, done')!
+    TestRenderer.act(() => { (row.props.onPress as () => void)() })
+    expect(nodes(tree, 'Sheet')).toHaveLength(1)
+    TestRenderer.act(() => { advanceAccountGeneration() })
+    expect(nodes(tree, 'Sheet')).toHaveLength(0)
+  })
 
-  it("flags only the final row as last, proving the index is passed through the map", () => {
-    const tree = renderDetail([
-      makeEntry({ habitId: "1", title: "Read" }),
-      makeEntry({ habitId: "2", title: "Exercise" }),
-      makeEntry({ habitId: "3", title: "Journal" }),
-    ]);
+  it('keeps the summary and its own no-habits line when the day is empty', () => {
+    const tree = renderDetail()
+    const text = nodes(tree, 'Text').map((node) => node.props.children)
+    expect(text).toContain('nothing due')
+    expect(text).toContain('No habit was scheduled on this day.')
+  })
 
-    const rows = entryRows(tree);
-    expect(rows.map((row) => row.props.isLast)).toEqual([false, false, true]);
-  });
+  it('uses the selected-day card surface from the calendar canvas', () => {
+    const tree = renderDetail()
+    expect(nodes(tree, 'View')[0]?.props.style).toMatchObject({
+      backgroundColor: 'rgba(250,250,250,0.04)',
+      outlineWidth: 1,
+      outlineOffset: -1,
+      outlineStyle: 'solid',
+      outlineColor: 'rgba(255,255,255,0.10)',
+      borderRadius: 20,
+      paddingHorizontal: 24,
+      paddingVertical: 24,
+      gap: 16,
+    })
+    expect(nodes(tree, 'View').some((node) => (node.props.style as { gap?: number } | undefined)?.gap === 4)).toBe(true)
+    expect(nodes(tree, 'Text').find((node) => node.props.children === 'nothing due')?.props.style).toContainEqual(expect.objectContaining({ fontFamily: 'GeistMono_400Regular' }))
+    expect(nodes(tree, 'Text').some((node) => node.props.children === 'Sunday, Jun 15')).toBe(true)
+    expect(nodes(tree, 'Pressable').some((node) => node.props.accessibilityLabel === 'Show recurring habits')).toBe(false)
+  })
 
-  it("renders no entry rows and the empty-day message when there are no entries", () => {
-    const tree = renderDetail([]);
+  it('opens timed and all-day events without an import pill', () => {
+    const onOpenCalendarImport = vi.fn()
+    const tree = renderDetail({ onOpenCalendarImport, calendarEvents: [
+      { id: 'event-1', title: 'Team meeting', description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [], calendarName: 'Work' },
+      { id: 'event-2', title: 'Holiday', description: null, startDate: '2025-06-15', startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [], calendarName: 'Work' },
+    ] })
+    const rows = nodes(tree, 'EventRowMock')
+    expect(rows[0]?.props).toMatchObject({ title: 'Team meeting', time: '09:00', source: undefined })
+    expect(rows[1]?.props.allDayLabel).toBe('calendar.timeGrid.allDay')
+    TestRenderer.act(() => (rows[1]?.props.onClick as () => void)())
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('event-2')
+    expect(nodes(tree, 'PillButtonMock')).toHaveLength(0)
+  })
 
-    expect(entryRows(tree)).toHaveLength(0);
-    const emptyText = tree.root.findAll(
+  it('renders a failed events request instead of the empty result', () => {
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'failed' })
+    const errors = nodes(tree, 'Text').filter(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchError',
+    )
+    const empty = nodes(tree, 'Text').filter(
+      (node) => node.props.children === 'calendar.noEvents',
+    )
+
+    expect(errors).toHaveLength(1)
+    expect(empty).toHaveLength(0)
+  })
+
+  it('renders the events loading treatment alone', () => {
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'loading' })
+    const loading = tree.root.findAll(
       (node) =>
-        node.type === "Text" &&
-        node.props.children === "calendar.noHabitsScheduled",
-    );
-    expect(emptyText).toHaveLength(1);
-  });
-});
+        node.props.accessibilityRole === 'progressbar'
+        && node.props.testID === 'skeleton-unit-settings',
+    )
+    const errors = nodes(tree, 'Text').filter(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchError',
+    )
 
-describe("CalendarDayDetail mixed-type family (mobile)", () => {
-  const loggedDate = "2026-09-28";
+    expect(loading.length).toBeGreaterThan(0)
+    expect(loading.every(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchingEvents',
+    )).toBe(true)
+    expect(errors).toHaveLength(0)
+  })
 
+  it('opens Calendars from the disconnected row even while offline', () => {
+    const onReconnectCalendarEvents = vi.fn()
+    const tree = renderDetail({ calendarEventsState: 'not-connected', onReconnectCalendarEvents })
+    const row = nodes(tree, 'ListRowMock').find((row) => row.props.title === 'calendar.calendars.title')
+    expect(row).toBeDefined()
+    TestRenderer.act(() => (row?.props.onClick as () => void)())
+    expect(onReconnectCalendarEvents).toHaveBeenCalledOnce()
+    expect(nodes(tree, 'PillButtonMock')).toHaveLength(0)
+  })
+
+  it.each(['en', 'pt-BR'])('shows the drawn free account notice in %s after Open in Today', (locale) => {
+    detailLocale.language = locale
+    try {
+      const copy = locale === 'en' ? en.calendar.proBoundary : ptBR.calendar.proBoundary
+      const onViewPro = vi.fn()
+      const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'pro-boundary', onViewPro })
+      expect(nodes(tree, 'Text').some((node) => node.props.children === 'Meditate')).toBe(true)
+      const notices = nodes(tree, 'View').filter((node) => node.props.testID === 'capacity-notice')
+      expect(notices).toHaveLength(1)
+      const notice = notices[0]!
+      expect(notice.findAll((node) => node.type === 'Text').map((node) => node.props.children)).toEqual([copy.title, copy.body])
+      const actions = notice.findAll((node) => node.type === 'PillButtonMock')
+      expect(actions).toHaveLength(1)
+      expect(actions[0]!.props).toMatchObject({ children: copy.action, size: 'sm', variant: 'primary' })
+      const card = tree.root.findAll((node) => node.type === 'View')[0]!
+      const hostChildren = card.children
+      expect(hostChildren.at(-2)!.findAll((node) => node.type === 'ListRowMock')[0]!.props.title).toBe(en.calendar.goToDay)
+      expect(hostChildren.at(-1)!.findAll((node) => node.type === 'View' && node.props.testID === 'capacity-notice')).toHaveLength(1)
+      TestRenderer.act(() => (actions[0]!.props.onClick as () => void)())
+      expect(onViewPro).toHaveBeenCalledOnce()
+      expect(nodes(tree, 'ListRowMock').some((node) => node.props.title === 'calendar.calendars.title')).toBe(false)
+      expect(nodes(tree, 'EventRowMock')).toHaveLength(0)
+      expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
+    } finally {
+      detailLocale.language = 'en'
+    }
+  })
+
+  it.each(['ready', 'not-connected'] as const)('keeps the Pro day card without a notice in %s', (calendarEventsState) => {
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState })
+    expect(nodes(tree, 'Text').some((node) => node.props.children === 'Meditate')).toBe(true)
+    expect(nodes(tree, 'View').filter((node) => node.props.testID === 'capacity-notice')).toHaveLength(0)
+    if (calendarEventsState === 'ready') {
+      expect(nodes(tree, 'Text').some((node) => node.props.children === 'calendar.dayDetail.eventsTitle')).toBe(true)
+      expect(nodes(tree, 'Text').some((node) => node.props.children === 'No Google Calendar events on this day.')).toBe(true)
+    } else {
+      expect(nodes(tree, 'ListRowMock').some((node) => node.props.title === 'calendar.calendars.title')).toBe(true)
+    }
+  })
+
+  it('renders the empty events state after an empty response resolves', () => {
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
+    const empty = nodes(tree, 'Text').filter(
+      (node) => node.props.children === 'No Google Calendar events on this day.',
+    )
+    const errors = nodes(tree, 'Text').filter(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchError',
+    )
+
+    expect(empty).toHaveLength(1)
+    expect(errors).toHaveLength(0)
+  })
+
+  it('labels an unlogged ordinary row like a missed row', () => {
+    const tree = renderDetail({
+      entries: [
+        makeEntry({ title: 'Read' }),
+        makeEntry({ habitId: '2', title: 'Walk', status: 'missed' }),
+        makeEntry({ habitId: '3', title: 'Swim', status: 'upcoming' }),
+      ],
+    })
+    const rows = readOnlyHabitRows(tree)
+    expect(rows).toHaveLength(3)
+    expect(rows.slice(0, 3).map((row) => ({
+      title: row.findAll((node) => node.type === 'Text')[0]?.props.children,
+      value: row.findAll((node) => node.type === 'Text')[1]?.props.children,
+      readOnly: row.findAll((node) => node.props.accessibilityRole === 'checkbox').length === 0,
+      ringStatus: row.findAll((node) => node.type === 'StatusRingMock')[0]?.props.status,
+    }))).toEqual([
+      { title: 'Read', value: '08:00', readOnly: true, ringStatus: 'done' },
+      { title: 'Walk', value: '08:00', readOnly: true, ringStatus: 'empty' },
+      { title: 'Swim', value: '08:00', readOnly: true, ringStatus: 'empty' },
+    ])
+  })
+
+  it('labels an unlogged avoid-habit row like a resisted row', () => {
+    const tree = renderDetail({
+      entries: [
+        makeEntry({ title: 'Sweets', isBadHabit: true }),
+        makeEntry({ habitId: '2', title: 'Smoking', isBadHabit: true, status: 'missed' }),
+        makeEntry({ habitId: '3', title: 'Beer', isBadHabit: true, status: 'upcoming' }),
+      ],
+    })
+    const rows = readOnlyHabitRows(tree)
+    expect(rows.slice(0, 3).map((row) => ({
+      value: row.findAll((node) => node.type === 'Text')[1]?.props.children,
+      ringStatus: row.findAll((node) => node.type === 'StatusRingMock')[0]?.props.status,
+      ringLabel: row.findAll((node) => node.type === 'StatusRingMock')[0]?.props.label,
+    }))).toEqual([
+      { value: '08:00', ringStatus: 'bad', ringLabel: 'indulged' },
+      { value: '08:00', ringStatus: 'done', ringLabel: 'resisted' },
+      { value: '08:00', ringStatus: 'empty', ringLabel: 'not logged' },
+    ])
+  })
+
+  it('uses CheckRow on a loggable day and reports the requested state', () => {
+    const entry = makeEntry({ title: 'Read' })
+    const onEntryChange = vi.fn(async () => {})
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+    const row = nodes(tree, CheckRow)[0]
+    expect(row?.props).toMatchObject({ label: 'Read', checked: true, value: '08:00' })
+    ;(row?.props.onChange as (checked: boolean) => void)(false)
+    expect(onEntryChange).toHaveBeenCalledWith(entry, false)
+  })
+
+  it.each(['upcoming', 'completed'] as const)('draws a circle with the matching check state for %s day rows', (status) => {
+    const tree = renderDetail({ entries: [makeEntry({ title: 'Read', status })], loggable: true })
+    const control = nodes(tree, 'Pressable').find((node) => node.props.accessibilityRole === 'checkbox')!
+    const circles = control.findAll((node) => node.type === 'Svg' && node.props['data-slot'] === 'calendar-day-circle')
+    expect(circles).toHaveLength(1)
+    expect(circles[0]!.props).toMatchObject({ width: 24, height: 24 })
+    expect(circles[0]!.findAll((node) => node.type === 'Path')).toHaveLength(status === 'completed' ? 2 : 1)
+    expect(control.findAll((node) => node.props['data-slot'] === 'checkbox-box')).toHaveLength(0)
+    expect(control.props.accessibilityState).toMatchObject({ checked: status === 'completed' })
+    expect(control.props.hitSlop).toBe(12)
+    const controlStyle = StyleSheet.flatten(control.props.style as ViewStyle)
+    expect(controlStyle).toMatchObject({ width: 24, height: 24 })
+    expect(Number(controlStyle.width) + Number(control.props.hitSlop) * 2).toBe(48)
+    expect(Number(controlStyle.height) + Number(control.props.hitSlop) * 2).toBe(48)
+    const row = nodes(tree, 'View').find(node => node.props['data-slot'] === 'list-row-body' && node.findAll(child => child === control).length > 0)!
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 68, paddingStart: 16, paddingEnd: 16, gap: 12 })
+    TestRenderer.act(() => { (control.props.onFocus as () => void)() })
+    const fills = control.findAll((node) => node.type === 'View' && node.props['data-press-fill'] === '')
+    expect(fills).toHaveLength(1)
+    expect(StyleSheet.flatten(fills[0]!.props.style)).toMatchObject({ borderRadius: 24, outlineWidth: 2, outlineOffset: -2 })
+  })
+
+  it('keeps the calendar picker completion control square', () => {
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarPickerSection enabled styles={createStyles()} tokens={createTokensV2('orange', 'dark')} t={translate} />) })
+    const control = nodes(tree, 'Pressable').find((node) => node.props.accessibilityRole === 'checkbox')!
+    expect(control.props.accessibilityLabel).toBe('Family calendar')
+    expect(control.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'checkbox-box')).toHaveLength(1)
+    expect(control.findAll((node) => node.type === 'Svg' && node.props['data-slot'] === 'calendar-day-circle')).toHaveLength(0)
+  })
+
+  it.each([undefined, 'personal'] as const)('keeps the box in a %s CheckRow outside the day card', (textMode) => {
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<CheckRow label="Family calendar" textMode={textMode} onOpenLabel={vi.fn()} checked onChange={vi.fn()} />) })
+    expect(nodes(tree, 'View').filter((node) => node.props['data-slot'] === 'checkbox-box')).toHaveLength(1)
+    expect(nodes(tree, 'Svg').filter((node) => node.props['data-slot'] === 'calendar-day-circle')).toHaveLength(0)
+  })
+
+  it('keeps current-day unchecks upcoming before their writes settle', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-06-15T00:00:00Z'))
+    const pendingChange = new Promise<void>(() => {})
+
+    try {
+      const tree = renderDetail({
+        entries: [
+          makeEntry({ title: 'Read' }),
+          makeEntry({ habitId: '2', title: 'Sweets', isBadHabit: true }),
+        ],
+        loggable: true,
+        onEntryChange: () => pendingChange,
+      })
+
+      TestRenderer.act(() => {
+        for (const row of nodes(tree, CheckRow)) {
+          ;(row.props.onChange as (checked: boolean) => void)(false)
+        }
+      })
+
+      const values = nodes(tree, CheckRow).map((row) => row.props.value)
+      expect(values).toEqual(['08:00', '08:00'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('refuses a second request when source reconciliation lands mid-toggle', () => {
+    const pendingChange = new Promise<void>(() => {})
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, CheckRow)[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        entries: [{ ...entry, status: 'completed' }],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+    TestRenderer.act(() => {
+      const row = nodes(tree, CheckRow)[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(false)
+    })
+
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the next day server state without carrying over a pending toggle', () => {
+    const pendingChange = new Promise<void>(() => {})
+    const dayAEntry = makeEntry({ title: 'Read', status: 'missed' })
+    const dayBEntry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [dayAEntry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, CheckRow)[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        selectedDate: '2025-06-16',
+        entries: [dayBEntry],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+
+    const dayBRow = nodes(tree, CheckRow)[0]
+    expect(dayBRow?.props).toMatchObject({ checked: false, loading: false })
+    TestRenderer.act(() => {
+      ;(dayBRow?.props.onChange as (checked: boolean) => void)(true)
+    })
+    expect(onEntryChange).toHaveBeenCalledTimes(2)
+    expect(onEntryChange).toHaveBeenLastCalledWith(dayBEntry, true)
+  })
+
+  it('keeps a returning day locked until its pending toggle settles', async () => {
+    let resolveChange: (() => void) | undefined
+    const pendingChange = new Promise<void>((resolve) => {
+      resolveChange = resolve
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, CheckRow)[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        selectedDate: '2025-06-16',
+        entries: [entry],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({ entries: [entry], loggable: true, onEntryChange }))
+    })
+
+    let returnedRow = nodes(tree, CheckRow)[0]
+    expect(returnedRow?.props.loading).toBe(true)
+    TestRenderer.act(() => {
+      ;(returnedRow?.props.onChange as (checked: boolean) => void)(true)
+    })
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    await TestRenderer.act(async () => {
+      resolveChange?.()
+      await pendingChange
+    })
+
+    returnedRow = nodes(tree, CheckRow)[0]
+    expect(returnedRow?.props.loading).toBe(true)
+    TestRenderer.act(() => {
+      ;(returnedRow?.props.onChange as (checked: boolean) => void)(true)
+    })
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        entries: [{ ...entry, status: 'completed' }],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+
+    returnedRow = nodes(tree, CheckRow)[0]
+    expect(returnedRow?.props.loading).toBe(false)
+  })
+
+  it('restores and enables a returned day when rejected source data changes identity', async () => {
+    let rejectChange: ((reason?: unknown) => void) | undefined
+    const pendingChange = new Promise<void>((_resolve, reject) => {
+      rejectChange = reject
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, CheckRow)[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        selectedDate: '2025-06-16',
+        entries: [entry],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({ entries: [entry], loggable: true, onEntryChange }))
+    })
+
+    await TestRenderer.act(async () => {
+      rejectChange?.(new Error('write failed'))
+      await pendingChange.catch(() => {})
+    })
+
+    let rejectedRow = nodes(tree, CheckRow)[0]
+    expect(rejectedRow?.props).toMatchObject({ checked: false, loading: false })
+
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        entries: [{ ...entry }],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+
+    rejectedRow = nodes(tree, CheckRow)[0]
+    expect(rejectedRow?.props.loading).toBe(false)
+  })
+
+  it('restores and enables a returned day after rejection with identical source data', async () => {
+    let rejectChange: ((reason?: unknown) => void) | undefined
+    const pendingChange = new Promise<void>((_resolve, reject) => {
+      rejectChange = reject
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, CheckRow)[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        selectedDate: '2025-06-16',
+        entries: [entry],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({ entries: [entry], loggable: true, onEntryChange }))
+    })
+
+    await TestRenderer.act(async () => {
+      rejectChange?.(new Error('write failed'))
+      await pendingChange.catch(() => {})
+    })
+
+    const rejectedRow = nodes(tree, CheckRow)[0]
+    expect(rejectedRow?.props).toMatchObject({ checked: false, loading: false })
+  })
+
+  it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
+    let rejectChange: ((reason?: unknown) => void) | undefined
+    const pendingChange = new Promise<void>((_resolve, reject) => {
+      rejectChange = reject
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, CheckRow)[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+
+    let row = nodes(tree, CheckRow)[0]
+    expect(row?.props).toMatchObject({
+      checked: true,
+      loading: true,
+      value: '08:00',
+    })
+    const pendingControl = nodes(tree, 'Pressable').find((node) => node.props.accessibilityRole === 'checkbox')!
+    expect(pendingControl.props).toMatchObject({ disabled: true, accessibilityState: { checked: true, busy: true } })
+    expect(pendingControl.findAll((node) => node.type === 'Path')).toHaveLength(2)
+    TestRenderer.act(() => {
+      ;(row?.props.onChange as (checked: boolean) => void)(false)
+    })
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    await TestRenderer.act(async () => {
+      rejectChange?.(new Error('write failed'))
+      await pendingChange.catch(() => {})
+    })
+
+    row = nodes(tree, CheckRow)[0]
+    expect(row?.props).toMatchObject({
+      checked: false,
+      loading: false,
+      value: '08:00',
+    })
+
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        entries: [{ ...entry }],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+
+    row = nodes(tree, CheckRow)[0]
+    expect(row?.props.loading).toBe(false)
+  })
+
+  it('routes the panel row through the supplied Today callback', () => {
+    const onGoToDay = vi.fn()
+    const tree = renderDetail({ onGoToDay })
+    const routeRow = nodes(tree, 'ListRowMock').find((row) => row.props.accessibilityLabel === en.calendar.goToDay)
+    expect(routeRow?.props).toMatchObject({ compact: true, icon: 'external-link', title: en.calendar.goToDay, textMode: 'label', chevron: false })
+    TestRenderer.act(() => (routeRow?.props.onClick as () => void)())
+    expect(onGoToDay).toHaveBeenCalledOnce()
+  })
+
+  it('searches a busy day only after opening its events sheet', () => {
+    const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 21 }, (_, index) => ({ id: `event-${index}`, title: `Event ${index}`, description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }))
+    const tree = renderDetail({ calendarEvents })
+    expect(nodes(tree, 'InputMock')).toHaveLength(0)
+    const all = nodes(tree, 'ListRowMock').find((row) => row.props.accessibilityLabel === 'calendar.dayDetail.viewAllEvents')
+    TestRenderer.act(() => (all?.props.onClick as () => void)())
+    const search = nodes(tree, 'InputMock')[0]
+    expect(search?.props.label).toBe('calendar.dayDetail.searchEvents')
+    TestRenderer.act(() => (search?.props.onChange as (value: string) => void)('Event 20'))
+    expect(nodes(tree, 'EventRowMock').filter((row) => row.props.title === 'Event 20')).toHaveLength(1)
+    TestRenderer.act(() => (search?.props.onChange as (value: string) => void)('No such event'))
+    expect(nodes(tree, 'Text').some((row) => String(row.props.children).startsWith('calendar.dayDetail.noMatchingEvents'))).toBe(true)
+  })
+})
+
+describe('CalendarDayDetail mixed-type family carry', () => {
+  const loggedDate = '2026-09-28'
   function badParentWithGoodChildLog(): CalendarMonthResponse {
     return {
       habits: [
@@ -161,19 +792,32 @@ describe("CalendarDayDetail mixed-type family (mobile)", () => {
     };
   }
 
-  it("labels a good sub-habit log under a bad parent as completed, not as a slip", () => {
-    const dayMap = buildCalendarDayMap(
-      badParentWithGoodChildLog(),
-      { from: "2026-09-01", to: "2026-09-30" },
-      new Date("2026-09-29T12:00:00"),
-    );
+  it('labels a good sub-habit log under a bad parent as completed, not as a slip', () => {
+    const dayMap = buildCalendarDayMap(badParentWithGoodChildLog(),
+      { from: '2026-09-01', to: '2026-09-30' }, new Date('2026-09-29T12:00:00'))
+    const tree = renderDetail({ selectedDate: loggedDate, entries: dayMap.get(loggedDate) ?? [] })
+    const rows = readOnlyHabitRows(tree)
+    expect(rows.map((row) => row.findAll((node) => node.type === 'Text')[0]?.props.children)).toEqual(['Good child'])
+    const ring = rows[0]!.findAll((node) => node.type === 'StatusRingMock')[0]!
+    expect(ring.props.status).toBe('done')
+    expect(ring.props.label).toBe(en.calendar.status.completed)
+    expect(ring.props.label).not.toBe(en.calendar.status.indulged)
+  })
+})
 
-    const rows = entryRows(renderDetail(dayMap.get(loggedDate) ?? []));
-
-    expect(rows.map((row) => row.props.statusText)).toEqual(["CALENDAR.STATUS.COMPLETED"]);
-    expect(rows.map((row) => row.props.statusColor)).toEqual([tokens.statusDone]);
-    expect(rows.map((row) => [row.props.title, row.props.isBadHabit])).toEqual([
-      ["Good child", false],
-    ]);
-  });
-});
+describe('day card disclosure regression', () => {
+  it.each([8, 21])('limits %i events to three tappable preview rows without sync controls', (count) => {
+    const onOpenCalendarImport = vi.fn()
+    const tree = renderDetail({ onOpenCalendarImport, calendarEvents: Array.from({ length: count }, (_, index) => ({
+      id: `preview-${index}`, title: `Preview ${index}`, description: null,
+      startDate: '2025-06-15', startTime: '09:00', endTime: null,
+      isRecurring: false, recurrenceRule: null, reminders: [],
+    })) })
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(3)
+    expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
+    expect(nodes(tree, 'PillButtonMock')).toHaveLength(0)
+    TestRenderer.act(() => (nodes(tree, 'EventRowMock')[0]?.props.onClick as () => void)())
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('preview-0')
+    expect(nodes(tree, 'ListRowMock').find((row) => row.props.accessibilityLabel === 'calendar.dayDetail.viewAllEvents')?.props).toMatchObject({ title: 'calendar.dayDetail.viewAllEventsLabel', value: `(${count})` })
+  })
+})

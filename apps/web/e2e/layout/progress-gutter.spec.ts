@@ -1,0 +1,105 @@
+import { openTodayListOptions } from './hydration-guard'
+import { expect, type Locator } from '@playwright/test'
+import { test } from './layout-test'
+import { API } from '@orbit/shared/api'
+import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
+import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { LAYOUT_ORIGIN } from '../support/env'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
+
+const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
+  ...emptyHabitsPageFixture,
+  items: [
+    makeHabitScheduleItem({ title: 'Read', children: [], hasSubHabits: false, isOverdue: true }),
+    makeHabitScheduleItem({ id: 'habit-2', title: 'Walk', children: [], hasSubHabits: false, isOverdue: true }),
+  ],
+  totalCount: 2,
+})
+const goals = paginatedGoalResponseSchema.parse({
+  items: [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Walk', position: 1 })],
+  page: 1, pageSize: 100, totalCount: 2, totalPages: 1,
+})
+
+async function readContentEdgesOnceStill(surface: Locator) {
+  const readEdges = () => surface.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    return { left: bounds.left, right: bounds.right }
+  })
+  let bounds = await readEdges()
+  await expect(async () => {
+    const first = await readEdges()
+    await surface.page().waitForTimeout(250)
+    bounds = await readEdges()
+    expect(bounds).toEqual(first)
+  }).toPass({ timeout: 5000 })
+  return bounds
+}
+
+for (const width of [1352, 1100, 840, 412]) {
+  for (const panelOpen of [false, true]) {
+    for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
+      test.describe(`${locale} Progress gutter at ${width}px with conversation open=${panelOpen}`, () => {
+        test.use({ viewport: { width, height: 900 } })
+
+        test('aligns streak, headings and cards to Hoje', async ({ page, context }) => {
+          await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
+          const profile = profileSchema.parse({
+            ...profileFixture, language: locale, currentStreak: 4, longestStreak: 9, totalXp: 150,
+          })
+          await setLayoutProfileSession(context, profile)
+          await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+          await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
+          await context.route(`${LAYOUT_ORIGIN}${API.goals.list}?*`, (route) => route.fulfill({ json: goals }))
+
+          await page.goto('/')
+          await openTodayListOptions(page, messages.habits.listOptions)
+          await page.getByRole('menu', { name: messages.habits.listOptions })
+            .getByRole('menuitem', { name: messages.habits.refresh }).click()
+          const todayPanel = page.locator('.habit-panel').first()
+          await expect(todayPanel).toBeVisible()
+          if (panelOpen) {
+            await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation, exact: true }).click()
+            await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
+            await expect(page.locator('[data-shell-scroller]')).toBeHidden()
+            await page.getByRole('button', { name: messages.common.closeConversation }).click()
+          }
+          await page.evaluate(() => document.fonts.ready)
+          const today = await readContentEdgesOnceStill(todayPanel)
+
+          await page.goto(panelOpen ? '/progress?astra=open' : '/progress')
+          await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(0)
+          const overview = page.getByRole('region', { name: messages.progressScreen.sections.window, includeHidden: true })
+          if (panelOpen) {
+            await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
+            await expect(page.locator('[data-shell-scroller]')).toBeHidden()
+            await page.getByRole('button', { name: messages.common.closeConversation }).click()
+          }
+          await expect(overview).toBeVisible()
+          await page.evaluate(() => document.fonts.ready)
+          const overviewBounds = await readContentEdgesOnceStill(overview)
+          expect(overviewBounds.left).toBeCloseTo(today.left, 1)
+          expect(overviewBounds.right).toBeCloseTo(today.right, 1)
+          for (const destination of ['goals', 'streak'] as const) {
+            await page.goto(`/progress/${destination}`)
+            const surface = destination === 'goals' ? page.locator('[data-goal-id]').first() : page.getByRole('region', { name: messages.progressScreen.sections.streak })
+            await expect(surface).toBeVisible()
+            const bounds = await readContentEdgesOnceStill(surface)
+            expect(bounds.left).toBeCloseTo(today.left, 1)
+            expect(bounds.right).toBeCloseTo(today.right, 1)
+          }
+          const firstTile = page.getByText(messages.progressScreen.streak.longest, { exact: true }).locator('..')
+          const tileBounds = await readContentEdgesOnceStill(firstTile)
+          expect(tileBounds.left).toBeCloseTo(today.left, 1)
+          expect(tileBounds.right).toBeLessThanOrEqual(today.right)
+        })
+      })
+    }
+  }
+}

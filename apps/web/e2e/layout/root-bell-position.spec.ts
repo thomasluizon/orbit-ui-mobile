@@ -1,0 +1,171 @@
+import { expect, type Locator, type Page } from '@playwright/test'
+import { API } from '@orbit/shared/api'
+import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { LAYOUT_ORIGIN } from '../support/env'
+import { test } from './upgrade-fixtures'
+import { measureScrollbarGutter } from './scrollbar-geometry'
+
+test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
+
+const calendarMonth = calendarMonthResponseSchema.parse({ habits: [], logs: {} })
+async function waitForRoot(page: Page, root: string) {
+  if (root === '/calendar') {
+    await expect(page.getByTestId('calendar-day-select-2026-09-04')).toBeVisible()
+    await expect(page.getByTestId('calendar-grid').getByRole('progressbar')).toHaveCount(0)
+  } else if (root === '/progress') {
+    await expect(page.locator('a[href="/progress/goals"]')).toBeVisible()
+  } else if (root === '/profile') {
+    await expect(page.getByTestId('profile-settings-groups')).toBeVisible()
+  }
+}
+
+async function measureBell(bell: Locator) {
+  const gutter = await bell.locator('xpath=ancestor::*[@data-shell-column]')
+    .locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
+  return bell.evaluate((element, gutter) => {
+    const bounds = element.getBoundingClientRect()
+    const rowElement = element.parentElement!
+    const row = rowElement.getBoundingClientRect()
+    const rowStyle = getComputedStyle(rowElement)
+    const column = element.closest('[data-shell-column]')!.getBoundingClientRect()
+    const scroller = element.closest('[data-shell-column]')!.querySelector<HTMLElement>('[data-shell-scroller]')!
+    return {
+      right: bounds.right,
+      centerY: bounds.top + bounds.height / 2,
+      width: bounds.width,
+      height: bounds.height,
+      rowHeight: row.height,
+      rowCenterY: row.top + (row.height + Number.parseFloat(rowStyle.paddingTop) - Number.parseFloat(rowStyle.paddingBottom)) / 2,
+      trailingInset: column.right - bounds.right - gutter,
+      gutter,
+      overflows: scroller.scrollHeight > scroller.clientHeight,
+    }
+  }, gutter)
+}
+
+test.beforeEach(async ({ context }) => {
+  await context.route(
+    (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
+    (route) => route.fulfill({ json: calendarMonth }),
+  )
+
+})
+
+for (const locale of ['en', 'pt-BR'] as const) {
+  for (const { width, mode } of [320, 412, 600, 840, 1100, 1352].flatMap((width) =>
+    (['dark', 'light'] as const).map((mode) => ({ width, mode })),
+  )) {
+    test.describe(`root bell position in ${locale} at ${width}px in ${mode}`, () => {
+      test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: { themePreference: mode } })
+      const words = locale === 'pt-BR' ? ptBR : en
+
+      for (const content of width < 1024 ? ['short', 'long'] as const : ['short'] as const) {
+        test(`aligns every root to Hoje with ${content} content and opens Avisos`, async ({ page }) => {
+          await page.setViewportSize({ width, height: content === 'long' ? 480 : 915 })
+          let today: Awaited<ReturnType<typeof measureBell>> | undefined
+          const rootOverflow = new Map<string, boolean>()
+          for (const root of ['/', '/calendar', '/progress', '/profile']) {
+            await page.goto(root)
+            await waitForRoot(page, root)
+            const row = root === '/' ? page.locator('[data-today-header-actions]')
+              : root === '/calendar' ? page.getByTestId('calendar-shell-header')
+                : page.locator('[data-root-notification-header]')
+            const bell = page.getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) }).filter({ visible: true })
+            await expect(bell).toHaveCount(1)
+            if (width >= 1024) await expectWideBell(page, row, root, words)
+            else await expect(row.getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) })).toBeVisible()
+            await page.evaluate(() => document.fonts.ready)
+            if (width < 1024) await expect(async () => {
+              const geometry = await measureBell(bell)
+              today ??= geometry
+              expect(Math.abs(geometry.right - today.right), `${root} trailing edge`).toBeLessThanOrEqual(0.5)
+              if (root === '/progress' && content === 'long') {
+                expect(geometry.overflows).toBe(true)
+                expect(geometry.gutter).toBeGreaterThan(0)
+              }
+              expect(Math.abs(geometry.centerY - today.centerY), `${root} vertical centre`).toBeLessThanOrEqual(1)
+              expect(geometry.trailingInset).toBe(16)
+              expect(geometry.width).toBeGreaterThanOrEqual(48)
+              expect(geometry.height).toBeGreaterThanOrEqual(48)
+              expect(geometry.rowHeight).toBeGreaterThanOrEqual(48)
+              expect(geometry.centerY).toBe(geometry.rowCenterY)
+              rootOverflow.set(root, geometry.overflows)
+            }).toPass({ timeout: 5000 })
+            if (width < 1024 && (root === '/progress' || root === '/profile')) {
+              await expect(row.getByRole('button')).toHaveCount(1)
+              await expect(row.getByRole('heading')).toHaveCount(0)
+              expect(await row.evaluate((element) => Boolean(element.closest('[data-shell-scroller]')))).toBe(true)
+            }
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+            await bell.click()
+            await expect(page).toHaveURL(/\/notifications$/)
+            await expect(page.getByRole('heading', { name: words.notifications.title, exact: true })).toBeVisible()
+          }
+          expectNonScrollingRoot(width, content, rootOverflow)
+        })
+      }
+    })
+  }
+}
+
+function expectNonScrollingRoot(width: number, content: 'short' | 'long', rootOverflow: ReadonlyMap<string, boolean>) {
+  if (width < 1024 && content === 'short') {
+    expect([...rootOverflow.values()], 'short content includes a non-scrolling root').toContain(false)
+  }
+}
+
+for (const locale of ['en', 'pt-BR'] as const) {
+  for (const mode of ['dark', 'light'] as const) {
+    test.describe(`root bell resizing in ${locale} and ${mode}`, () => {
+      test.use({ appLocale: locale, viewport: { width: 1023, height: 915 }, layoutProfile: { themePreference: mode } })
+      const words = locale === 'pt-BR' ? ptBR : en
+
+      test('moves one bell across the sidebar breakpoint without duplicate frames', async ({ page }) => {
+        for (const root of ['/', '/calendar', '/progress', '/profile']) {
+          await page.setViewportSize({ width: 1023, height: 915 })
+          await page.goto(root)
+          await waitForRoot(page, root)
+          await expect(page.locator('[data-shell-tab-bar]')).toBeVisible()
+          const bells = page.getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) }).filter({ visible: true })
+          await expect(bells).toHaveCount(1)
+          const samples = recordBellFrames(page, words.notifications.bell)
+          for (const width of [1024, 1100, 1023, 840, 1024, 1023]) {
+            await page.setViewportSize({ width, height: 915 })
+            await expect(bells).toHaveCount(1)
+            await expect(page.locator('[data-shell-sidebar]').getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) })).toHaveCount(width >= 1024 ? 1 : 0)
+            if (root === '/calendar') await expect(page.getByTestId('calendar-shell-header').getByRole('button', { name: words.calendar.options, exact: true })).toBeVisible()
+          }
+          await page.evaluate(() => document.dispatchEvent(new Event('bell-resize-end')))
+          const counts = await samples
+          expect(counts.length).toBeGreaterThan(0)
+          expect(counts.every((count) => count <= 1), `${root} visible bells per frame: ${counts.join(',')}`).toBe(true)
+        }
+      })
+    })
+  }
+}
+
+async function recordBellFrames(page: Page, label: string) {
+  return page.evaluate((bellLabel) => new Promise<number[]>((resolve) => {
+    const counts: number[] = []
+    let frame: number
+    const sample = () => {
+      counts.push(Array.from(document.querySelectorAll<HTMLButtonElement>('button[aria-label]')).filter((button) => {
+        const bounds = button.getBoundingClientRect()
+        return button.getAttribute('aria-label')!.startsWith(bellLabel)
+          && bounds.width > 0 && bounds.height > 0 && getComputedStyle(button).visibility !== 'hidden'
+      }).length)
+      frame = requestAnimationFrame(sample)
+    }
+    sample()
+    document.addEventListener('bell-resize-end', () => { cancelAnimationFrame(frame); resolve(counts) }, { once: true })
+  }), label)
+}
+
+async function expectWideBell(page: Page, row: Locator, root: string, words: typeof en) {
+  await expect(page.locator('[data-shell-sidebar]').getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) })).toHaveCount(1)
+  await expect(row.getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) })).toHaveCount(0)
+  if (root === '/calendar') await expect(row.getByRole('button', { name: words.calendar.options, exact: true })).toBeVisible()
+}

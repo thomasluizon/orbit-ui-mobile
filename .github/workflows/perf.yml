@@ -6,6 +6,8 @@ on:
     paths:
       - 'apps/web/**'
       - 'packages/shared/**'
+      - '.github/workflows/perf.yml'
+      - 'tools/check-hermetic-web-build.mjs'
   workflow_dispatch:
 
 concurrency:
@@ -21,6 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       API_BASE: http://127.0.0.1:5099
+      NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
     steps:
       - uses: actions/checkout@v7
 
@@ -40,7 +43,10 @@ jobs:
             ${{ runner.os }}-next-hermetic-${{ hashFiles('package-lock.json') }}-
 
       - name: Build web
-        run: npm run build -w @orbit/web
+        run: npm run build:hermetic -w apps/web
+
+      - name: Check hermetic client output
+        run: node tools/check-hermetic-web-build.mjs
 
       - name: Start mock orbit-api and wait for health
         run: |
@@ -57,23 +63,17 @@ jobs:
           echo "::error::mock orbit-api failed to become healthy on :5099"
           exit 1
 
-      - name: Run authed Today Lighthouse budget gate
+      - name: Run median TBT and script budget gates
         run: npx lhci autorun --config apps/web/lighthouserc.json
+
+      - name: Report authed Today LCP
+        if: always()
+        run: node apps/web/perf/report-lcp.mjs
 
       - name: Stop mock orbit-api
         if: always()
         run: kill "${MOCK_PID}" 2>/dev/null || true
 
-      # include-hidden-files is load-bearing, not cosmetic. actions/upload-artifact excludes
-      # dot-paths by default (`include-hidden-files` defaults to 'false' in v7's action.yml),
-      # .lighthouseci is a dot-directory, and `if-no-files-found: ignore` swallowed the miss.
-      # lhci dumped 5 reports to disk on every one of the first 80 runs and all 80 uploads were
-      # discarded: zero of the repository's 713 artifacts belong to a perf run. That is why two
-      # of the three assertions in apps/web/lighthouserc.json still have n = 0 observations.
-      # if-no-files-found is `error` rather than `warn` because a warning leaves the job green
-      # over a missing artifact, which is the exact defect above. The cost is a second red step
-      # on a job that already failed before the gate ran; the annotation still names a real
-      # missing artifact rather than hiding it.
       - name: Upload Lighthouse reports
         if: always()
         uses: actions/upload-artifact@v7

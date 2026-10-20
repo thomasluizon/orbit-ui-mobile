@@ -1,105 +1,122 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import {
-  AnimatePresence,
-  domAnimation,
-  LazyMotion,
-  m,
-  useReducedMotion,
-} from 'motion/react'
+  createContext,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type RefObject,
+} from 'react'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
-import { resolveMotionPreset } from '@orbit/shared/theme'
-import type { SidebarNavItem } from '@/components/navigation/app-sidebar'
-import { useIsClient } from '@/hooks/use-is-client'
-import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import type { ActiveView } from '@orbit/shared/stores'
+import { useAppToast } from '@/hooks/use-app-toast'
+import type { ShellDestinationId } from '@orbit/shared/utils'
+import type { IconProps } from '@/components/ui/icons'
 import { useShellStore } from '@/stores/shell-store'
-import { CommandMenu } from './command-menu'
+import { useUIStore } from '@/stores/ui-store'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
-interface CommandPaletteProps {
-  navItems: readonly SidebarNavItem[]
-  onCreateHabit: () => void
-  onCreateGoal: () => void
+function createCommandPaletteDialog() {
+  return dynamic<CommandPaletteProps & { modalId: string; panelRef: RefObject<HTMLDivElement | null>; onLoadFailure: () => void }>(
+    () => import('./command-palette-dialog')
+      .then((module) => module.CommandPaletteDialog)
+      .catch(() => {
+        CommandPaletteDialog = createCommandPaletteDialog()
+        return CommandPaletteLoadFailure
+      }),
+    { ssr: false, loading: () => null },
+  )
 }
 
-/**
- * Global command palette (Cmd/Ctrl+K). A token-styled portal overlay wrapping the
- * cmdk menu, dismissed through the shared overlay/escape stack, which also traps
- * Tab inside the panel and restores focus on close. Mounted app-wide, but the
- * menu (and its habit query) only mount while `shell-store.paletteOpen`.
- */
-export function CommandPalette({ navItems, onCreateHabit, onCreateGoal }: Readonly<CommandPaletteProps>) {
-  const t = useTranslations()
-  const paletteOpen = useShellStore((state) => state.paletteOpen)
-  const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
-  const mounted = useIsClient()
-  const prefersReducedMotion = useReducedMotion()
-  const motionPreset = resolveMotionPreset('dialog', Boolean(prefersReducedMotion))
-  const panelRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+let CommandPaletteDialog = createCommandPaletteDialog()
 
-  const close = useCallback(() => setPaletteOpen(false), [setPaletteOpen])
+function CommandPaletteLoadFailure({ onLoadFailure }: Readonly<{ onLoadFailure: () => void }>) {
+  useEffect(onLoadFailure, [onLoadFailure])
+  return null
+}
 
-  useOverlayEscape({ open: paletteOpen, onDismiss: close, initialFocusRef: inputRef, panelRef })
+export interface CommandNavigationItem {
+  id: ShellDestinationId | ActiveView
+  label: string
+  icon: ComponentType<IconProps>
+  onSelect: () => void
+}
 
-  if (!mounted) return null
+export interface CommandPaletteProps {
+  navItems: readonly CommandNavigationItem[]
+  onCreateHabit: () => void
+}
 
-  const overlay = (
-    <LazyMotion features={domAnimation}>
-      <AnimatePresence>
-        {paletteOpen ? (
-          <div className="fixed inset-0 z-[9999] flex items-start justify-center px-4 pt-[12vh]">
-            <m.button
-              type="button"
-              aria-label={t('common.close')}
-              tabIndex={-1}
-              className="absolute inset-0 cursor-default bg-black/55"
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: 1,
-                transition: { duration: motionPreset.enterDuration / 1000, ease: motionPreset.enterEasing },
-              }}
-              exit={{
-                opacity: 0,
-                transition: { duration: motionPreset.exitDuration / 1000, ease: motionPreset.exitEasing },
-              }}
-              onClick={close}
-            />
-            <m.div
-              ref={panelRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label={t('command.title')}
-              className="relative w-full max-w-[600px] overflow-hidden rounded-[var(--radius-xl)] bg-[var(--bg-sheet)] shadow-[inset_0_0_0_1px_var(--hairline),var(--shadow-3)]"
-              initial={{ opacity: 0, y: motionPreset.shift, scale: motionPreset.scaleFrom }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                scale: motionPreset.scaleTo,
-                transition: { duration: motionPreset.enterDuration / 1000, ease: motionPreset.enterEasing },
-              }}
-              exit={{
-                opacity: 0,
-                y: motionPreset.shift * 0.35,
-                scale: 0.985,
-                transition: { duration: motionPreset.exitDuration / 1000, ease: motionPreset.exitEasing },
-              }}
-            >
-              <CommandMenu
-                navItems={navItems}
-                onCreateHabit={onCreateHabit}
-                onCreateGoal={onCreateGoal}
-                onClose={close}
-                inputRef={inputRef}
-              />
-            </m.div>
-          </div>
-        ) : null}
-      </AnimatePresence>
-    </LazyMotion>
+interface CommandPaletteBackgroundProps {
+  children: ReactNode
+  className?: string
+}
+
+export const CommandPalettePortalContext = createContext<
+  (portal: HTMLDivElement | null) => void
+>(() => {})
+
+export function CommandPaletteBackground({
+  children,
+  className,
+}: Readonly<CommandPaletteBackgroundProps>) {
+  const [portalMounted, setPortalMounted] = useState(false)
+  const registerPortal = useCallback(
+    (portal: HTMLDivElement | null) => setPortalMounted(portal !== null),
+    [],
   )
 
-  // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- reached only after the useIsClient mounted gate returns null on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  return createPortal(overlay, document.body)
+  return (
+    <CommandPalettePortalContext value={registerPortal}>
+      <div
+        data-command-palette-background=""
+        inert={portalMounted || undefined}
+        aria-hidden={portalMounted || undefined}
+        className={className}
+      >
+        {children}
+      </div>
+    </CommandPalettePortalContext>
+  )
+}
+
+export function CommandPalette(props: Readonly<CommandPaletteProps>) {
+  const t = useTranslations()
+  const { showError, dismissToast } = useAppToast()
+  const failureToastId = useRef<number | undefined>(undefined)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const paletteOpen = useShellStore((state) => state.paletteOpen)
+  const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
+  const modalId = `modal:${useId()}`
+  const handleLoadFailure = useCallback(() => {
+    setPaletteOpen(false)
+    failureToastId.current = showError(t('command.loadFailed'))
+  }, [setPaletteOpen, showError, t])
+  useEffect(() => () => {
+    setPaletteOpen(false)
+    if (failureToastId.current !== undefined) dismissToast(failureToastId.current)
+  }, [dismissToast, setPaletteOpen])
+  useEffect(() => {
+    if (!paletteOpen) return
+    if (failureToastId.current !== undefined) {
+      dismissToast(failureToastId.current)
+      failureToastId.current = undefined
+    }
+    const { registerOpenOverlay, unregisterOpenOverlay } = useUIStore.getState()
+    registerOpenOverlay(modalId)
+    const unsubscribe = useUIStore.subscribe(({ openOverlayIds }) => {
+      if (!panelRef.current && openOverlayIds.at(-1) !== modalId) setPaletteOpen(false)
+    })
+    return () => {
+      unsubscribe()
+      unregisterOpenOverlay(modalId)
+    }
+  }, [dismissToast, modalId, paletteOpen, setPaletteOpen])
+  useOverlayEscape({ open: paletteOpen, onDismiss: () => setPaletteOpen(false), restoreFocus: false })
+  return paletteOpen ? <CommandPaletteDialog {...props} modalId={modalId} panelRef={panelRef} onLoadFailure={handleLoadFailure} /> : null
 }

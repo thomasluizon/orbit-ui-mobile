@@ -1,5 +1,6 @@
 {
   "worker": "codex",
+  "relay": { "enabled": true, "thresholdTokens": 400000 },
   "workers": {
     "codex": {
       "command": "codex",
@@ -8,23 +9,77 @@
         "--disable",
         "apps",
         "--ignore-user-config",
-        "-c",
-        "windows.sandbox=\"unelevated\"",
         "--dangerously-bypass-approvals-and-sandbox"
       ],
+      "subagentOffArgs": ["--disable", "multi_agent"],
       "models": {
         "default": {
-          "model": "gpt-5.6-sol",
+          "model": "gpt-6.1-sol",
           "args": [
             "-c",
             "model_reasoning_effort=\"high\""
           ]
+        },
+        "mechanical": {
+          "model": "gpt-6.1-sol",
+          "args": [
+            "-c",
+            "model_reasoning_effort=\"medium\""
+          ]
+        },
+        "deep": {
+          "model": "gpt-6.1-sol",
+          "args": [
+            "-c",
+            "model_reasoning_effort=\"xhigh\""
+          ]
+        },
+        "max": {
+          "model": "gpt-6.1-sol",
+          "args": [
+            "-c",
+            "model_reasoning_effort=\"max\""
+          ]
+        }
+      }
+    },
+    "claude": {
+      "command": "claude",
+      "args": [
+        "-p",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--strict-mcp-config",
+        "--permission-mode",
+        "bypassPermissions"
+      ],
+      "subagentOffArgs": ["--disallowed-tools", "Task"],
+      "models": {
+        "default": {
+          "model": "claude-opus-5-5"
+        },
+        "mechanical": {
+          "model": "claude-opus-5-5"
+        },
+        "deep": {
+          "model": "claude-opus-5-5"
+        },
+        "max": {
+          "model": "claude-opus-5-5"
         }
       }
     }
   },
+  "classifier": {
+    "model": "claude-sonnet-5-5"
+  },
   "timeouts": {
     "hardCeilingMinutes": 45,
+    "cloudCeilingMinutes": 45,
+    "cloudCommandMinutes": 10,
+    "gitRemoteSeconds": 30,
+    "receiptLockSeconds": 1,
     "noProgressMinutes": 10,
     "measurementNoProgressMinutes": 25,
     "pollSeconds": 60
@@ -33,8 +88,15 @@
     "maxOpenPullRequests": 200,
     "maxQueuedRuns": 1000,
     "parallelTickets": 40,
+    "cloudParallelTasks": 8,
     "reviewFixAttempts": 3,
-    "workerLogMegabytes": 32
+    "workerLaunchesPerBranch": 2,
+    "workerLogMegabytes": 512
+  },
+  "cloud": {
+    "enabled": false,
+    "environmentId": "6a95b419b608819199eb78d9eabc9579",
+    "repositoryKey": "ui"
   },
   "tickets": {
     "repository": "thomasluizon/orbit-tickets",

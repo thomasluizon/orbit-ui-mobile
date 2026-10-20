@@ -1,58 +1,36 @@
 'use client'
 
-import { useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useMemo, useState } from 'react'
+import { createTagSuggestionActions, createTagSuggestionState, reconcileTagSuggestionState, type TagSuggestionOptions, type TagSuggestionState } from '@orbit/shared/hooks'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 import type { SuggestedTag } from '@orbit/shared/types/habit'
-import { useSuggestTags } from '@/hooks/use-tags'
 
-interface TagSuggestionsState {
-  suggestions: SuggestedTag[]
-  noResults: boolean
-  isPending: boolean
+interface TagSuggestions extends TagSuggestionState {
+  needsTitle: boolean
   canSuggest: boolean
   suggest: () => Promise<void>
-  dismiss: (suggestion: SuggestedTag) => void
+  acceptSuggestion: (suggestion: SuggestedTag) => Promise<void>
 }
 
-/** Owns the AI tag-suggestion request and its result list for the habit form. */
-export function useTagSuggestions(
-  title: string,
-  description: string,
-  atTagLimit: boolean,
-): TagSuggestionsState {
-  const locale = useLocale()
-  const suggestMutation = useSuggestTags()
-  const [suggestions, setSuggestions] = useState<SuggestedTag[]>([])
-  const [noResults, setNoResults] = useState(false)
-
-  const trimmedTitle = title.trim()
-  const canSuggest =
-    trimmedTitle.length > 0 && !atTagLimit && !suggestMutation.isPending
-
-  async function suggest(): Promise<void> {
-    if (!canSuggest) return
-    setNoResults(false)
-    const response = await suggestMutation.mutateAsync({
-      title: trimmedTitle,
-      description: description.trim() ? description.trim() : null,
-      language: locale,
-    })
-    setSuggestions(response.tags)
-    setNoResults(response.tags.length === 0)
+export function useTagSuggestions(options: TagSuggestionOptions): TagSuggestions {
+  const account = useAccountGeneration()
+  const needsTitle = !options.title.trim()
+  const contextKey = JSON.stringify([account, options.language, options.title, options.description])
+  const [snapshot, setSnapshot] = useState(() => ({ contextKey, generation: 0, state: createTagSuggestionState() }))
+  if (snapshot.contextKey !== contextKey) {
+    setSnapshot({ contextKey, generation: snapshot.generation + 1, state: createTagSuggestionState() })
   }
-
-  function dismiss(suggestion: SuggestedTag): void {
-    setSuggestions((previous) =>
-      previous.filter((candidate) => candidate.name !== suggestion.name),
-    )
-  }
-
+  const { generation, state } = snapshot
+  const actions = useMemo(() => createTagSuggestionActions((update) => {
+    setSnapshot((previous) => previous.generation === generation
+      ? { ...previous, state: typeof update === 'function' ? update(previous.state) : update }
+      : previous)
+  }), [generation])
   return {
-    suggestions,
-    noResults,
-    isPending: suggestMutation.isPending,
-    canSuggest,
-    suggest,
-    dismiss,
+    ...reconcileTagSuggestionState(state, options.availableTags),
+    needsTitle,
+    canSuggest: !needsTitle && !options.disabled && state.pending === null,
+    suggest: () => actions.suggest(options),
+    acceptSuggestion: (suggestion) => actions.acceptSuggestion(suggestion, options),
   }
 }

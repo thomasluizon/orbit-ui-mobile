@@ -1,11 +1,11 @@
 import type { NextRequest } from 'next/server'
+import { resolveRequestLanguage } from '@/lib/resolve-request-language'
 
 const IP_PATTERN = /^[\d.:a-fA-F]+$/
 
 const GEO_COUNTRY_HEADERS = ['cf-ipcountry', 'cloudfront-viewer-country'] as const
 
 const PASS_THROUGH_HEADERS = [
-  ['accept-language', 'Accept-Language'],
   ['x-orbit-time-zone', 'X-Orbit-Time-Zone'],
   ['cloudfront-viewer-country', 'CloudFront-Viewer-Country'],
 ] as const
@@ -91,7 +91,9 @@ function resolveOrbitCountryCode(request: NextRequest): string | null {
 }
 
 export function buildForwardedClientHeaders(request: NextRequest): Record<string, string> {
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = {
+    'Accept-Language': resolveRequestLanguage(request.cookies.get('i18n_locale')?.value, request.headers.get('accept-language')),
+  }
 
   const cfConnectingIp = sanitizeClientIp(request.headers.get('cf-connecting-ip'))
   const forwardedIp = sanitizeClientIp(request.headers.get('x-forwarded-for'))

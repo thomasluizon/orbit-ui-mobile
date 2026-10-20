@@ -1,4 +1,4 @@
-import { formatLocaleDate, formatLocaleDateTime } from '../utils/locale-format'
+import { formatLocaleDate } from '../utils/locale-format'
 
 const DATE_NUMERIC: Intl.DateTimeFormatOptions = {
   year: 'numeric',
@@ -35,14 +35,6 @@ const MONTH_YEAR: Intl.DateTimeFormatOptions = {
   year: 'numeric',
 }
 
-const DATETIME_SHORT: Intl.DateTimeFormatOptions = {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-}
-
 export type DateFormatInput = Date | number | string | null | undefined
 
 export interface LocaleDateFormatters {
@@ -52,7 +44,6 @@ export interface LocaleDateFormatters {
   displayDateMedium: (value: DateFormatInput) => string
   displayWeekdayDate: (value: DateFormatInput, long?: boolean) => string
   displayMonthYear: (value: DateFormatInput) => string
-  displayDateTime: (value: DateFormatInput, options?: Intl.DateTimeFormatOptions) => string
 }
 
 /**
@@ -82,10 +73,6 @@ export function createLocaleDateFormatters(locale: string): LocaleDateFormatters
     displayMonthYear: (value) => {
       if (value === null || value === undefined) return ''
       return formatLocaleDate(value, locale, MONTH_YEAR)
-    },
-    displayDateTime: (value, options = DATETIME_SHORT) => {
-      if (value === null || value === undefined) return ''
-      return formatLocaleDateTime(value, locale, options)
     },
   }
 }

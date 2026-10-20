@@ -1,3 +1,4 @@
+import actionRows from "../../eslint-rules/action-rows.cjs"
 import nextConfig from "eslint-config-next"
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals"
 import nextTypeScript from "eslint-config-next/typescript"
@@ -11,6 +12,7 @@ import noArbitraryZindex from "../../eslint-rules/no-arbitrary-zindex.cjs"
 import noCalcPercentageWidth from "../../eslint-rules/no-calc-percentage-width.cjs"
 import noDeadHref from "../../eslint-rules/no-dead-href.cjs"
 import noDecorativeGlow from "../../eslint-rules/no-decorative-glow.cjs"
+import noRejectingAnimationWait from "../../eslint-rules/no-rejecting-animation-wait.cjs"
 import noDoubleAssertion from "../../eslint-rules/no-double-assertion.cjs"
 import noDynamicTailwindClass from "../../eslint-rules/no-dynamic-tailwind-class.cjs"
 import noGradientText from "../../eslint-rules/no-gradient-text.cjs"
@@ -29,9 +31,27 @@ import noUserScalableNo from "../../eslint-rules/no-user-scalable-no.cjs"
 import react19Api from "../../eslint-rules/react19-api.cjs"
 import requireDialogTitle from "../../eslint-rules/require-dialog-title.cjs"
 import requireFocusReplacement from "../../eslint-rules/require-focus-replacement.cjs"
+import noSparkleAiMarker from "../../eslint-rules/no-sparkle-ai-marker.cjs"
+import iconSizeGrid from "../../eslint-rules/icon-size-grid.cjs"
+import noPillRadiusOnStatic from "../../eslint-rules/no-pill-radius-on-static.cjs"
+import hoverTransition from "../../eslint-rules/hover-transition.cjs"
 import willChangeDiscipline from "../../eslint-rules/will-change-discipline.cjs"
+import maxButtonWords from "../../eslint-rules/max-button-words.cjs"
+import noMutatingServerAuthFetch from "../../eslint-rules/no-mutating-server-auth-fetch.cjs"
+
+const maxButtonWordControls = [
+  { name: "button", labelProps: ["children"] },
+  { name: "PillButton", labelProps: ["children", "label"], iconOnly: true },
+  { name: "Button", labelProps: ["children", "label"], iconOnly: true },
+  { name: "Chip", labelProps: ["children"] },
+  { name: "Pressable", labelProps: ["children"], roles: ["button", "tab", "menuitem"] },
+  { name: "SegmentedControl", collectionProps: ["options"] },
+  { name: "BottomTabBar", collectionProps: ["items"] },
+  { name: "ListRow", labelProps: ["title", "action.label"], iconAction: true },
+]
 
 export default [
+  { linterOptions: { reportUnusedDisableDirectives: "error" } },
   ...nextConfig,
   ...nextCoreWebVitals,
   ...nextTypeScript,
@@ -49,6 +69,14 @@ export default [
     plugins: { sonarjs },
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "error",
+      ...Object.fromEntries(
+        Object.keys(sonarjs.configs.recommended.rules ?? {})
+          .filter((full) => {
+            const rule = sonarjs.rules[full.replace("sonarjs/", "")]
+            return rule?.meta?.type === "problem" && rule?.meta?.docs?.recommended === true
+          })
+          .map((full) => [full, "error"]),
+      ),
       "sonarjs/cognitive-complexity": ["error", 15],
     },
   },
@@ -62,6 +90,7 @@ export default [
     plugins: {
       local: {
         rules: {
+          "action-rows": actionRows,
           "no-comments": noComments,
           "no-fullbleed-button": noFullbleedButton,
           "animate-presence-exit": animatePresenceExit,
@@ -71,6 +100,7 @@ export default [
           "no-dead-href": noDeadHref,
           "no-decorative-glow": noDecorativeGlow,
           "no-double-assertion": noDoubleAssertion,
+          "no-rejecting-animation-wait": noRejectingAnimationWait,
           "no-dynamic-tailwind-class": noDynamicTailwindClass,
           "no-gradient-text": noGradientText,
           "no-jsx-logical-and": noJsxLogicalAnd,
@@ -88,20 +118,51 @@ export default [
           "react19-api": react19Api,
           "require-dialog-title": requireDialogTitle,
           "require-focus-replacement": requireFocusReplacement,
+          "no-sparkle-ai-marker": noSparkleAiMarker,
+          "icon-size-grid": iconSizeGrid,
+          "no-pill-radius-on-static": noPillRadiusOnStatic,
+          "hover-transition": hoverTransition,
           "will-change-discipline": willChangeDiscipline,
+          "max-button-words": maxButtonWords,
+          "no-mutating-server-auth-fetch": noMutatingServerAuthFetch,
         },
       },
     },
     rules: {
+      "local/action-rows": "error",
       "local/no-comments": "error",
       "local/no-fullbleed-button": ["error", { flagFullWidthProp: false }],
       "no-console": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "lucide-react-native",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "@tabler/icons-react",
+              message: "Import icons from @/components/ui/icons.",
+            },
+            {
+              name: "@tabler/icons-react-native",
+              message: "Import icons from @/components/ui/icons.",
+            },
+          ],
+        },
+      ],
 
       "local/animate-presence-stable-key": "error",
       "local/no-arbitrary-zindex": "error",
       "local/no-calc-percentage-width": "error",
       "local/no-dead-href": "error",
       "local/no-double-assertion": "error",
+      "local/no-rejecting-animation-wait": "error",
       "local/no-gradient-text": "error",
       "local/no-jsx-logical-and": "error",
       "local/no-nested-component-definition": "error",
@@ -114,29 +175,33 @@ export default [
       "local/require-dialog-title": "error",
       "local/will-change-discipline": "error",
 
-      // Decorative glow remains staged for #539. Ticket #381 removed gradients and closed its gate.
-      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      "local/no-decorative-glow": "warn",
+      "local/no-decorative-glow": "error",
       "local/no-raw-gradient": "error",
 
-      // Staged at `warn`: pre-existing violations that are NOT bundle 5's de-decoration work.
-      // Each needs its own judgement call (a11y fix, motion fix, perf rewrite, React 19
-      // migration), so they are surfaced rather than silenced, and flip to `error` per rule as
-      // its backlog is cleared. Counts + the to-do list are in the bundle 4a report on #539.
-      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      "local/animate-presence-exit": "warn",
-      "local/no-dynamic-tailwind-class": "warn",
-      "local/no-scroll-listener-motion": "warn",
-      "local/no-space-x-y": "warn",
-      "local/react19-api": "warn",
-      "local/require-focus-replacement": "warn",
+      // Local rules fail immediately when violated.
+      "local/animate-presence-exit": "error",
+      "local/no-dynamic-tailwind-class": "error",
+      "local/no-scroll-listener-motion": "error",
+      "local/no-space-x-y": "error",
+      "local/react19-api": "error",
+      "local/require-focus-replacement": "error",
+      "local/no-sparkle-ai-marker": "error",
+      "local/icon-size-grid": "error",
+      "local/no-pill-radius-on-static": "error",
+      "local/hover-transition": "error",
+      "local/max-button-words": ["error", { controls: maxButtonWordControls }],
 
-      // A RATCHET, not a backlog: `error`, with pre-existing violations carried in the
-      // so only NEW or CHANGED code fails. A `warn` with hundreds of open violations is a
-      // migration backlog wearing a gate's clothes; this is the gate.
-      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+      // `error` with zero recorded violations. The baseline that once carried them is deleted,
+      // and tools/check-lint-severity.mjs fails if one ever returns.
+      // https://github.com/thomasluizon/orbit-ui-mobile/issues/175
       "local/spacing-scale": "error",
+
+      "local/no-mutating-server-auth-fetch": "error",
     },
+  },
+  {
+    files: ["components/ui/icons.ts"],
+    rules: { "no-restricted-imports": "off" },
   },
   {
     files: ["**/*.{ts,tsx}"],
@@ -150,9 +215,8 @@ export default [
       "jsx-a11y/alt-text": "error",
       "react-hooks/exhaustive-deps": "error",
 
-      // Staged at `warn`: one violation — a `draggable` <section> carrying drag handlers
-      // (components/goals/goal-list.tsx). Making drag-and-drop keyboard-operable is a real
-      // a11y feature, not a lint fix; flips to `error` once that lands.
+      // Staged at `warn` until remaining drag interactions are keyboard-operable.
+      // This becomes `error` once that accessibility work lands.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
       "jsx-a11y/no-noninteractive-element-interactions": "warn",
     },
@@ -169,7 +233,6 @@ export default [
       "**/*-celebration.tsx",
       "**/*-picker.tsx",
       "**/*-gate.tsx",
-      "**/upgrade/**",
       "**/goal-detail-drawer/**",
       "**/calendar-sync/**",
       "**/onboarding/**",
@@ -196,6 +259,7 @@ export default [
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
     rules: {
       "local/no-fullbleed-button": "off",
+      "local/max-button-words": "off",
       "local/no-double-assertion": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",

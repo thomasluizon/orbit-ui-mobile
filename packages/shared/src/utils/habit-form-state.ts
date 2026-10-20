@@ -1,6 +1,7 @@
 import type { HabitDetail, NormalizedHabit, ScheduledReminderTime } from '../types/habit'
 import type { HabitFormData } from '../validation'
 import { formatAPIDate } from './dates'
+import { toTime24 } from './time-field'
 
 export const DEFAULT_REMINDER_TIMES = [0, 15] as const
 
@@ -60,6 +61,7 @@ export function buildEmptyHabitFormValues(initialDate?: string | null): HabitFor
     emoji: '',
     frequencyUnit: null,
     frequencyQuantity: null,
+    intervalWeeks: 1,
     days: [],
     isBadHabit: false,
     isGeneral: false,
@@ -144,13 +146,14 @@ export function buildParentHabitFormState(
       emoji: parent.emoji ?? '',
       frequencyUnit: parent.frequencyUnit,
       frequencyQuantity: parent.frequencyQuantity,
+      intervalWeeks: parent.intervalWeeks ?? 1,
       days: [...parent.days],
       isBadHabit: parent.isBadHabit,
       isGeneral: parent.isGeneral,
       isFlexible: parent.isFlexible,
       dueDate: initialDate ?? parent.dueDate,
-      dueTime: parent.dueTime?.slice(0, 5) ?? '',
-      dueEndTime: parent.dueEndTime?.slice(0, 5) ?? '',
+      dueTime: toTime24(parent.dueTime),
+      dueEndTime: toTime24(parent.dueEndTime),
       endDate: parent.endDate ?? '',
       reminderEnabled: parent.reminderEnabled,
       scheduledReminders: editableReminders(parent).scheduledReminders,
@@ -175,13 +178,14 @@ export function buildEditHabitFormState(
       emoji: detail?.emoji ?? habit.emoji ?? '',
       frequencyUnit: habit.frequencyUnit,
       frequencyQuantity: habit.frequencyQuantity,
+      intervalWeeks: detail?.intervalWeeks ?? habit.intervalWeeks ?? 1,
       days: [...habit.days],
       isBadHabit: habit.isBadHabit,
       isGeneral: habit.isGeneral,
       isFlexible: habit.isFlexible,
       dueDate: detail?.dueDate ?? habit.dueDate,
-      dueTime: detail?.dueTime?.slice(0, 5) ?? habit.dueTime?.slice(0, 5) ?? '',
-      dueEndTime: detail?.dueEndTime?.slice(0, 5) ?? habit.dueEndTime?.slice(0, 5) ?? '',
+      dueTime: toTime24(detail?.dueTime ?? habit.dueTime),
+      dueEndTime: toTime24(detail?.dueEndTime ?? habit.dueEndTime),
       endDate: detail?.endDate ?? '',
       reminderEnabled: habit.reminderEnabled,
       scheduledReminders: editableReminders(habit, detail).scheduledReminders,

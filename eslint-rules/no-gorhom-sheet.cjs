@@ -1,7 +1,6 @@
-
 const GORHOM_MODULE = '@gorhom/bottom-sheet'
 const SHEET_METHODS = new Set(['present', 'dismiss'])
-const ALLOWED_SHEET_FILE = 'components/bottom-sheet-modal.tsx'
+const ALLOWED_SHEET_FILE = 'components/ui/sheet.tsx'
 
 function isCurrentMember(node) {
   return (
@@ -18,14 +17,14 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Ban @gorhom/bottom-sheet and direct sheet-ref present()/dismiss() calls outside the shared bottom-sheet wrapper.',
+        'Ban @gorhom/bottom-sheet and direct sheet-ref present()/dismiss() calls outside the shared Sheet primitive.',
     },
     schema: [],
     messages: {
       noGorhomImport:
-        "Don't import '@gorhom/bottom-sheet'. Its present()/portal no-op on the New Architecture in release builds — use the shared BottomSheetModal (components/bottom-sheet-modal.tsx, backed by react-native-true-sheet).",
+        "Don't import '@gorhom/bottom-sheet'. Its present()/portal no-op on the New Architecture in release builds. Use Sheet (components/ui/sheet.tsx, backed by react-native-true-sheet).",
       noSheetRefCall:
-        'Route sheets through the shared BottomSheetModal wrapper. Calling {{method}}() on a sheet ref is only allowed in components/bottom-sheet-modal.tsx.',
+        'Route sheets through the shared Sheet primitive. Calling {{method}}() on a sheet ref is only allowed in components/ui/sheet.tsx.',
     },
   },
   create(context) {

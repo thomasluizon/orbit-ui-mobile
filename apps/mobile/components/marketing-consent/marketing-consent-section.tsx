@@ -1,15 +1,84 @@
+import { SPACING } from '@orbit/shared/theme'
+
+import { ActionRow } from '@/components/ui/action-row'
+import { useMemo, type ReactNode } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Mail } from 'lucide-react-native'
+import { Mail } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
+import { StyleSheet, Text, View } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import type { createTokensV2 } from '@/lib/theme'
+import { useThemeTokens } from '@/hooks/use-theme-tokens'
+
+type Translate = ReturnType<typeof useTranslation>['t']
+type MarketingConsentStyles = ReturnType<typeof createStyles>
+
+interface MarketingConsentContentProps {
+  contained: boolean
+  consent: boolean | null | undefined
+  enabled: boolean
+  isPending: boolean
+  onChange: (enabled: boolean) => void
+  styles: MarketingConsentStyles
+  t: Translate
+}
+
+function MarketingConsentContent({
+  contained,
+  consent,
+  enabled,
+  isPending,
+  onChange,
+  styles,
+  t,
+}: Readonly<MarketingConsentContentProps>) {
+  if (consent == null) {
+    return (
+      <View style={styles.question}>
+        <Text style={styles.questionTitle}>
+          {t('profile.marketingEmails.question')}
+        </Text>
+        <Text style={styles.questionDescription}>
+          {t('profile.marketingEmails.questionDescription')}
+        </Text>
+        <View style={styles.answers} pointerEvents={isPending ? 'none' : 'auto'}><ActionRow>
+          <PillButton
+            size="sm"
+            variant="ghost"
+            disabled={isPending}
+            onClick={() => onChange(false)}
+          >
+            {t('profile.marketingEmails.decline')}
+          </PillButton>
+          {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42. */}
+          <PillButton size="sm" disabled={isPending} onClick={() => onChange(true)}>
+            {t('profile.marketingEmails.accept')}
+          </PillButton>
+        </ActionRow></View>
+      </View>
+    )
+  }
+
+  // eslint-disable-next-line local/max-button-words -- Orbit Perfil draws the marketing-consent switch label.
+  return <ListRow textMode="label" icon={contained ? undefined : <Mail size={24} />} title={t('profile.marketingEmails.title')} chevron={false} toggle={{ checked: enabled, pending: isPending, onChange }} />
+
+}
 
 /** Self-contained "Product updates by email" preference row: reflects and optimistically toggles marketing-email consent through the offline queue, rolling back on error. Never Pro-gated. */
-export function MarketingConsentSection() {
+export function MarketingConsentSection({
+  showSectionLabel = true,
+  contained = false,
+  trailingRow,
+}: Readonly<{ showSectionLabel?: boolean; contained?: boolean; trailingRow?: ReactNode }>) {
   const { t } = useTranslation()
+  const tokens = useThemeTokens()
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const { profile, patchProfile, invalidate } = useProfile()
   const enabled = profile?.marketingEmailConsent === true
 
@@ -39,24 +108,60 @@ export function MarketingConsentSection() {
       invalidate()
     },
   })
+  const content = (
+    <MarketingConsentContent
+      contained={contained}
+      consent={profile?.marketingEmailConsent}
+      enabled={enabled}
+      isPending={mutation.isPending}
+      onChange={mutation.mutate}
+      styles={styles}
+      t={t}
+    />
+  )
 
   return (
     <>
-      <SectionLabel bottom={4}>{t('profile.sections.communication')}</SectionLabel>
-      <SettingsRow
-        icon={Mail}
-        label={t('profile.marketingEmails.title')}
-        desc={t('profile.marketingEmails.description')}
-        accessory="none"
-        divider={false}
-      >
-        <Switch
-          on={enabled}
-          onToggle={() => mutation.mutate(!enabled)}
-          disabled={mutation.isPending}
-          accessibilityLabel={t('profile.marketingEmails.title')}
-        />
-      </SettingsRow>
+      {showSectionLabel ? (
+        <SectionLabel>{t('profile.sections.communication')}</SectionLabel>
+      ) : null}
+      {contained && profile?.marketingEmailConsent != null ? (
+        <RowList>{content}{trailingRow}</RowList>
+      ) : (
+        <>
+          {content}
+          {trailingRow ? <RowList>{trailingRow}</RowList> : null}
+        </>
+      )}
     </>
   )
+}
+
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
+  return StyleSheet.create({
+    question: {
+      backgroundColor: tokens.bgWell,
+      borderRadius: 12,
+      gap: 12,
+      padding: SPACING.s16,
+    },
+    questionTitle: {
+      color: tokens.fg1,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 17,
+      lineHeight: 23.8,
+    },
+    questionDescription: {
+      color: tokens.fg2,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 21.7,
+    },
+    answers: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+  })
 }

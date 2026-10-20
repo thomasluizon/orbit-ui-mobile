@@ -1,9 +1,9 @@
 let designReloadRequested = false
 
-export function enableRedesignCookie(): void {
-  if (document.cookie.split(';').some((cookie) => cookie.trim() === 'orbit_design=redesign')) return
+export function disableRedesignCookie(): void {
+  if (!document.cookie.split(';').some((cookie) => cookie.trim().startsWith('orbit_design='))) return
 
-  document.cookie = 'orbit_design=redesign; Max-Age=31536000; Path=/; Secure; SameSite=Lax'
+  clearDesignCookie()
   if (designReloadRequested) return
   designReloadRequested = true
   globalThis.location.reload()

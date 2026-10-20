@@ -1,83 +1,169 @@
 import React from 'react'
-import { describe, expect, it, vi } from 'vitest'
-
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'en' },
-  }),
-}))
-
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
-    open,
-    children,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    onClose?: () => void
-  }) => (open ? React.createElement('BottomSheetOpen', {}, children) : null),
-}))
-
-vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onPress,
-  }: {
-    children: React.ReactNode
-    onPress?: () => void
-  }) => React.createElement('PillButtonStub', { onPress }, children),
-}))
-
-const { refetch } = vi.hoisted(() => ({ refetch: vi.fn() }))
-
-vi.mock('@/hooks/use-recap', () => ({
-  useRecap: () => ({ data: undefined, isLoading: false, isError: true, refetch }),
-}))
-
-vi.mock('@/hooks/use-share-card', () => ({
-  useShareCard: () => ({
-    shareRef: { current: null },
-    isSharing: false,
-    hasError: false,
-    share: vi.fn(),
-  }),
-}))
-
-import { ShareCardSheet } from '@/components/share/share-card-sheet'
+import * as ReactNative from 'react-native'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { PADDING } from '@orbit/shared/theme'
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
+import { PillButton } from '@/components/ui/pill-button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const TestRenderer = require('react-test-renderer')
+const mocks = vi.hoisted(() => ({
+  wrapped: vi.fn(), share: vi.fn(), download: vi.fn(), resetFeedback: vi.fn(), refetch: vi.fn(),
+  isLoading: false, isError: false, isEmpty: false, isSharing: false, hasError: false,
+  canShareFiles: true, savedFileName: null as string | null,
+}))
+vi.mock('@/hooks/use-wrapped', () => ({ useWrapped: (period: string, options: unknown) => {
+  mocks.wrapped(period, options)
+  return { recap: createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: mocks.isEmpty ? 0 : 5, totalCompletions: mocks.isEmpty ? 0 : 40, completionRate: mocks.isEmpty ? 0 : 73.5 }) }), ...mocks }
+} }))
+vi.mock('@/hooks/use-share-card', () => ({ useShareCard: () => ({ shareRef: { current: null }, ...mocks }) }))
 
-type RenderedNode = {
+type TestNode = {
   type: unknown
   props: Record<string, unknown>
-  children?: RenderedNode[]
+  findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
+  findByType: (type: unknown) => TestNode
 }
-type RenderedTree = {
-  root: { findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[] }
-  unmount: () => void
+type Tree = { root: TestNode; toJSON: () => unknown; update: (element: React.ReactElement) => void }
+function renderEntry() {
+  let tree!: Tree
+  TestRenderer.act(() => { tree = TestRenderer.create(<ShareCardEntryButton variant="button" />) })
+  return tree
+}
+function openSheet(tree: Tree) {
+  const entry = tree.root.findByType(PillButton)
+  TestRenderer.act(() => { (entry.props.onClick as () => void)() })
+}
+function action(tree: Tree, label: string) {
+  return tree.root.findAll((node) => node.type === PillButton && node.props.children === label)[0]!
+}
+function feedbackRegions(tree: Tree) {
+  return tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')
+}
+function feedbackTexts(tree: Tree) {
+  return feedbackRegions(tree).flatMap((region) => region.findAll((node) => node.type === 'Text'))
 }
 
-describe('ShareCardSheet (mobile)', () => {
-  it('retries the recap fetch from the error state', async () => {
-    let tree: RenderedTree | null = null
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<ShareCardSheet open onClose={vi.fn()} />)
-      await Promise.resolve()
-    })
+describe('Share progress sheet', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.assign(mocks, { isLoading: false, isError: false, isEmpty: false, isSharing: false, hasError: false, canShareFiles: true, savedFileName: null })
+  })
 
-    const retryButton = tree!.root
-      .findAll((node) => node.type === 'PillButtonStub')
-      .find((node) => node.props.children === 'common.retry')
-    expect(retryButton).toBeDefined()
+  it.each([412, 840, 1352])('adds no trailing space for empty feedback at %ipx', (width) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
+    try {
+      const tree = renderEntry()
+      openSheet(tree)
+      const geometry = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], width, 1)
+      const content = geometry.boxes.find((box) => box.testID === 'sheet-body-slot')!
+      const card = geometry.boxes.find((box) => box.testID === 'share-card')!
+      expect(content.bottom - card.bottom).toBeCloseTo(0)
+      expect(feedbackTexts(tree)).toHaveLength(0)
+    } finally {
+      dimensions.mockRestore()
+    }
+  })
 
-    await TestRenderer.act(async () => {
-      ;(retryButton!.props.onPress as () => void)()
-      await Promise.resolve()
-    })
+  it.each([412, 840, 1352])('reserves only the active feedback line and clears it at %ipx', (width) => {
+    const tree = renderEntry()
+    openSheet(tree)
+    for (const feedback of [
+      { hasError: true, savedFileName: null },
+      { hasError: false, savedFileName: 'orbit-recap.png' },
+      { hasError: true, savedFileName: 'orbit-recap.png' },
+      { hasError: false, savedFileName: null },
+    ]) {
+      Object.assign(mocks, feedback)
+      TestRenderer.act(() => { tree.update(<ShareCardEntryButton variant="button" />) })
+      const geometry = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], width, 1)
+      const content = geometry.boxes.find((box) => box.testID === 'sheet-body-slot')!
+      const card = geometry.boxes.find((box) => box.testID === 'share-card')!
+      const active = feedback.hasError || Boolean(feedback.savedFileName)
+      expect(content.bottom - card.bottom).toBeCloseTo(active ? PADDING.sectionGap + 24 : 0)
+      const messages = feedbackTexts(tree)
+      expect(messages).toHaveLength(active ? 1 : 0)
+      if (active) expect(messages[0]!.props.children).toContain(feedback.hasError ? 'shareCard.shareError' : 'shareCard.saved')
+    }
+  })
 
-    expect(refetch).toHaveBeenCalledTimes(1)
+  it('opens on demand, renders the restored figures, and switches periods', () => {
+    const tree = renderEntry()
+    expect(mocks.wrapped).not.toHaveBeenCalled()
+    openSheet(tree)
+    const text = JSON.stringify(tree.toJSON())
+    expect(text).toContain('shareCard.stats.activeDays')
+    expect(text).toContain('74%')
+    expect(mocks.wrapped).toHaveBeenLastCalledWith('week', { enabled: true })
+    TestRenderer.act(() => { (tree.root.findByType(SegmentedControl).props.onChange as (period: string) => void)('month') })
+    expect(mocks.wrapped).toHaveBeenLastCalledWith('month', { enabled: true })
+    expect(mocks.resetFeedback).toHaveBeenCalledOnce()
+  })
 
-    TestRenderer.act(() => tree!.unmount())
+  it('passes the recap link to native sharing and downloads the image', () => {
+    const tree = renderEntry()
+    openSheet(tree)
+    TestRenderer.act(() => { (action(tree, 'shareCard.share').props.onClick as () => void)() })
+    expect(mocks.share).toHaveBeenCalledWith({ shareTitle: 'shareCard.shareTitle', shareText: 'shareCard.shareText', url: createMockRecap().shareDeepLink })
+    TestRenderer.act(() => { (action(tree, 'shareCard.download').props.onClick as () => void)() })
+    expect(mocks.download).toHaveBeenCalledOnce()
+  })
+
+  it.each(['isLoading', 'isError', 'isEmpty'] as const)('withholds export during %s', (state) => {
+    mocks[state] = true
+    const tree = renderEntry()
+    openSheet(tree)
+    expect(tree.root.findAll((node) => node.props.testID === 'share-card')).toHaveLength(0)
+    expect(action(tree, 'shareCard.download').props.disabled).toBe(true)
+    expect(action(tree, 'shareCard.share').props.disabled).toBe(true)
+    if (state === 'isError') {
+      TestRenderer.act(() => { (action(tree, 'common.retry').props.onClick as () => void)() })
+      expect(mocks.refetch).toHaveBeenCalledOnce()
+    }
+    if (state === 'isEmpty') expect(JSON.stringify(tree.toJSON())).toContain('shareCard.empty')
+    if (state === 'isLoading') expect(tree.root.findAll((node) => node.props.accessibilityRole === 'progressbar').length).toBeGreaterThan(0)
+  })
+
+  it('disables export and period selection while capturing', () => {
+    mocks.isSharing = true
+    const tree = renderEntry()
+    openSheet(tree)
+    expect(action(tree, 'shareCard.download').props.disabled).toBe(true)
+    expect(action(tree, 'shareCard.share').props.disabled).toBe(true)
+    expect(tree.root.findByType(SegmentedControl).props.disabled).toBe(true)
+  })
+
+  it('keeps download available without native file sharing', () => {
+    mocks.canShareFiles = false
+    const tree = renderEntry()
+    openSheet(tree)
+    expect(tree.root.findAll((node) => node.type === PillButton && node.props.children === 'shareCard.share')).toHaveLength(0)
+    expect(action(tree, 'shareCard.download').props.disabled).toBe(false)
+  })
+
+  it('announces export errors and save confirmation', () => {
+    const tree = renderEntry()
+    openSheet(tree)
+    const regions = feedbackRegions(tree)
+    expect(regions).toHaveLength(2)
+    expect(regions[0]!.props.accessibilityRole).toBe('alert')
+    expect(feedbackTexts(tree)).toHaveLength(0)
+    mocks.hasError = true
+    TestRenderer.act(() => { tree.update(<ShareCardEntryButton variant="button" />) })
+    expect(feedbackRegions(tree)).toEqual(regions)
+    const error = regions[0]!.findAll((node) => node.type === 'Text')
+    expect(error).toHaveLength(1)
+    expect(error[0]!.props.children).toBe('shareCard.shareError')
+    mocks.hasError = false
+    mocks.savedFileName = 'orbit-recap.png'
+    TestRenderer.act(() => { tree.update(<ShareCardEntryButton variant="button" />) })
+    expect(feedbackRegions(tree)).toEqual(regions)
+    expect(regions[0]!.findAll((node) => node.type === 'Text')).toHaveLength(0)
+    const saved = regions[1]!.findAll((node) => node.type === 'Text')
+    expect(saved).toHaveLength(1)
+    expect(saved[0]!.props.children).toContain('shareCard.saved')
+    expect(saved[0]!.props.children).toContain('orbit-recap.png')
   })
 })

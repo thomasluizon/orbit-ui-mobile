@@ -1,3 +1,5 @@
+import i18n from 'i18next'
+import { useThrottleStore } from '@/stores/throttle-store'
 import { getToken } from './secure-store'
 import { buildClientTimeZoneHeaders, createApiClientError, validateApiResponse } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
@@ -12,6 +14,8 @@ type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>
   idempotencyKey?: string
   skipAuthRecovery?: boolean
+  silent?: boolean
+  isCurrent?: () => boolean
 }
 
 interface ApiErrorPayload {
@@ -33,6 +37,12 @@ type RequestExecution = {
   tokenUsed: string | null
 }
 
+/**
+ * A parsed response together with the token the API accepted for it. `executeRequest` reads
+ * the store again at request time, and the 401 path retries under a rotated or refreshed
+ * token, so the credential that authorised the body can differ from the one the caller last
+ * saw.
+ */
 export interface AuthorizedApiResponse<T> {
   data: T
   authorizingToken: string | null
@@ -77,6 +87,7 @@ function buildRequestHeaders(
     ...buildClientTimeZoneHeaders(),
     ...buildAppVersionHeaders(),
     ...options.headers,
+    'Accept-Language': i18n.language,
   }
 
   const method = options.method?.toUpperCase() ?? 'GET'
@@ -106,8 +117,10 @@ async function executeRequest(
   tokenOverride?: string | null,
 ): Promise<RequestExecution> {
   const token = tokenOverride ?? await getToken()
+  if (options.isCurrent?.() === false) throw new Error('Account changed')
   const requestOptions = { ...options }
   delete requestOptions.skipAuthRecovery
+  delete requestOptions.isCurrent
   const response = await fetch(`${API_BASE}${path}`, {
     ...requestOptions,
     headers: buildRequestHeaders(token, options),
@@ -156,13 +169,17 @@ async function parseApiResponse<T>(
   requestId: string | null,
   path: string,
   schema?: ZodType<T>,
+  method = 'GET',
+  silent = false,
 ): Promise<T> {
   if (!response.ok) {
     const error = attachRequestIdToPayload(
       (await response.json().catch(() => null)) as ApiErrorPayload | null,
       requestId,
     )
-    throw createApiClientError(response.status, error, `Request failed: ${response.status}`)
+    const failure = createApiClientError(response.status, error, `Request failed: ${response.status}`, getResponseHeader(response.headers, 'retry-after'))
+    if (!silent && !['GET', 'HEAD'].includes(method.toUpperCase())) useThrottleStore.getState().show(response.status, error)
+    throw failure
   }
 
   if (response.status === 204) return undefined as T
@@ -209,6 +226,8 @@ async function handleUnauthorized<T>(
           retryWithLatest.requestId,
           path,
           schema,
+          effectiveOptions.method,
+          effectiveOptions.silent,
         ),
         authorizingToken: retryWithLatest.tokenUsed,
       }
@@ -231,7 +250,7 @@ async function handleUnauthorized<T>(
       const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
       if (retry.response.status !== 401) {
         return {
-          data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema),
+          data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema, effectiveOptions.method, effectiveOptions.silent),
           authorizingToken: retry.tokenUsed,
         }
       }
@@ -262,6 +281,11 @@ export async function apiClient<T = unknown>(
   return (await apiClientWithAuthorizingToken<T>(path, options, schema)).data
 }
 
+/**
+ * Use it only where the ANSWER has to be attributed to an account: the Android widget cache
+ * tags each payload with the account that produced it, and tagging with the caller's
+ * pre-request token would mislabel a body the 401 path fetched under a different one.
+ */
 export async function apiClientWithAuthorizingToken<T = unknown>(
   path: string,
   options: ApiRequestOptions = {},
@@ -288,7 +312,7 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
     const { useAuthStore } = await import('@/stores/auth-store')
     if (!latestToken && !useAuthStore.getState().isAuthenticated) {
       return {
-        data: await parseApiResponse<T>(response, requestId, path, schema),
+        data: await parseApiResponse<T>(response, requestId, path, schema, effectiveOptions.method, effectiveOptions.silent),
         authorizingToken: null,
       }
     }
@@ -308,7 +332,7 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   }
 
   return {
-    data: await parseApiResponse<T>(response, requestId, path, schema),
+    data: await parseApiResponse<T>(response, requestId, path, schema, effectiveOptions.method, effectiveOptions.silent),
     authorizingToken: tokenUsed,
   }
 }

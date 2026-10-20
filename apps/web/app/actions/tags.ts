@@ -12,7 +12,8 @@ export async function getTags(): Promise<ServerActionResult<Tag[]>> {
 
 export async function createTag(
   name: string,
-  color: string, intendedAccountId: string | null
+  color: string,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<{ id: string }>> {
   return wrapServerAction(() => serverAuthMutate(API.tags.create, {
     method: 'POST',
@@ -23,7 +24,8 @@ export async function createTag(
 export async function updateTag(
   tagId: string,
   name: string,
-  color: string, intendedAccountId: string | null
+  color: string,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.tags.update(tagId), {
     method: 'PUT',
@@ -31,13 +33,19 @@ export async function updateTag(
   }, intendedAccountId))
 }
 
-export async function deleteTag(tagId: string, intendedAccountId: string | null): Promise<ServerActionResult<void>> {
+export async function deleteTag(
+  tagId: string,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.tags.delete(tagId), {
     method: 'DELETE',
   }, intendedAccountId))
 }
 
-export async function restoreTag(tagId: string, intendedAccountId: string | null): Promise<ServerActionResult<void>> {
+export async function restoreTag(
+  tagId: string,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.tags.restore(tagId), {
     method: 'POST',
   }, intendedAccountId))
@@ -45,7 +53,8 @@ export async function restoreTag(tagId: string, intendedAccountId: string | null
 
 export async function assignTags(
   habitId: string,
-  tagIds: string[], intendedAccountId: string | null
+  tagIds: string[],
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.tags.assign(habitId), {
     method: 'PUT',
@@ -56,7 +65,8 @@ export async function assignTags(
 export async function suggestTags(
   title: string,
   description: string | null,
-  language: string, intendedAccountId: string | null
+  language: string,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<SuggestTagsResponse>> {
   return wrapServerAction(async () => {
     const raw: unknown = await serverAuthMutate(API.tags.suggest, {

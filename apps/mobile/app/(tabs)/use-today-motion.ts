@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated } from "react-native";
-import { useUIStore } from "@/stores/ui-store";
+import { Animated } from 'react-native'
+import { useUIStore } from '@/stores/ui-store'
 import {
   createAnimatedTimingConfig,
   toAnimatedEasing,
   useResolvedMotionPreset,
-} from "@/lib/motion";
-import { resolveBulkActionBarEnterShift } from "./today-model";
+} from '@/lib/motion'
+import { resolveBulkActionBarEnterShift } from './today-model'
 
 interface TodayMotionInput {
-  filterMotionKey: string;
-  isRefetching: boolean;
+  filterMotionKey: string
+  isRefetching: boolean
 }
 
 /**
@@ -23,46 +23,80 @@ export function useTodayMotion({
   filterMotionKey,
   isRefetching,
 }: TodayMotionInput) {
-  const listMotion = useResolvedMotionPreset("list-enter");
-  const selectionMotion = useResolvedMotionPreset("selection");
-  const isSelectMode = useUIStore((s) => s.isSelectMode);
+  const listMotion = useResolvedMotionPreset('list-enter')
+  const selectionMotion = useResolvedMotionPreset('selection')
+  const isSelectMode = useUIStore((state) => state.isSelectMode)
 
-  const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
-  const listTransitionAnim = useMemo(() => new Animated.Value(1), []);
-  const refetchTransitionAnim = useMemo(() => new Animated.Value(0), []);
-  const [bulkBarAnim] = useState(() => new Animated.Value(isSelectMode ? 1 : 0));
-  const hasAnimatedFiltersRef = useRef(false);
-  const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
+  const dayOpacityAnim = useMemo(() => new Animated.Value(1), [])
+  const dayTranslateAnim = useMemo(() => new Animated.Value(0), [])
+  const refetchTransitionAnim = useMemo(() => new Animated.Value(0), [])
+  const [bulkBarAnim] = useState(() => new Animated.Value(isSelectMode ? 1 : 0))
+  const previousFilterMotionKeyRef = useRef(filterMotionKey)
+  const dayTransitionSequenceRef = useRef(0)
+  const selectionTransitionSequenceRef = useRef(0)
+  const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode)
+  const [previousSelectMode, setPreviousSelectMode] = useState(isSelectMode)
+
+  if (isSelectMode !== previousSelectMode) {
+    setPreviousSelectMode(isSelectMode)
+    if (isSelectMode) {
+      setRenderBulkActionBar(true)
+    }
+  }
 
   useEffect(() => {
-    if (!hasAnimatedFiltersRef.current) {
-      hasAnimatedFiltersRef.current = true;
-      return;
+    if (listMotion.reducedMotionEnabled) {
+      previousFilterMotionKeyRef.current = filterMotionKey
+      dayTransitionSequenceRef.current += 1
+      dayOpacityAnim.stopAnimation()
+      dayTranslateAnim.stopAnimation()
+      dayOpacityAnim.setValue(1)
+      dayTranslateAnim.setValue(0)
+      return
     }
 
-    const startValue = listMotion.reducedMotionEnabled ? 1 : 0;
-    const timingConfig = createAnimatedTimingConfig(
-      listMotion.enterDuration,
-      listMotion.enterEasing,
-    );
+    if (filterMotionKey === previousFilterMotionKeyRef.current) {
+      return
+    }
 
-    filtersTransitionAnim.stopAnimation();
-    listTransitionAnim.stopAnimation();
-    filtersTransitionAnim.setValue(startValue);
-    listTransitionAnim.setValue(startValue);
-
-    Animated.parallel([
-      Animated.timing(filtersTransitionAnim, timingConfig),
-      Animated.timing(listTransitionAnim, timingConfig),
-    ]).start();
+    const direction = filterMotionKey > previousFilterMotionKeyRef.current ? 1 : -1
+    previousFilterMotionKeyRef.current = filterMotionKey
+    const sequence = dayTransitionSequenceRef.current + 1
+    dayTransitionSequenceRef.current = sequence
+    const timingConfig = {
+      duration: listMotion.enterDuration,
+      easing: toAnimatedEasing(listMotion.enterEasing),
+      useNativeDriver: true,
+    } as const
+    dayTranslateAnim.stopAnimation((liveTranslateY) => {
+      if (dayTransitionSequenceRef.current !== sequence) return
+      dayOpacityAnim.stopAnimation((liveOpacity) => {
+        if (dayTransitionSequenceRef.current !== sequence) return
+        const isInFlight = Math.abs(liveTranslateY) > 0.01 || liveOpacity < 0.999
+        if (!isInFlight) {
+          dayOpacityAnim.setValue(0.9)
+          dayTranslateAnim.setValue(direction * 8)
+        }
+        Animated.parallel([
+          Animated.timing(dayTranslateAnim, { ...timingConfig, toValue: 0 }),
+          Animated.timing(dayOpacityAnim, { ...timingConfig, toValue: 1 }),
+        ]).start()
+      })
+    })
   }, [
     filterMotionKey,
-    filtersTransitionAnim,
+    dayOpacityAnim,
+    dayTranslateAnim,
     listMotion.enterDuration,
     listMotion.enterEasing,
     listMotion.reducedMotionEnabled,
-    listTransitionAnim,
-  ]);
+  ])
+
+  useEffect(() => () => {
+    dayTransitionSequenceRef.current += 1
+    dayOpacityAnim.stopAnimation()
+    dayTranslateAnim.stopAnimation()
+  }, [dayOpacityAnim, dayTranslateAnim])
 
   useEffect(() => {
     Animated.timing(refetchTransitionAnim, {
@@ -74,7 +108,7 @@ export function useTodayMotion({
         isRefetching ? listMotion.enterEasing : listMotion.exitEasing,
       ),
       useNativeDriver: true,
-    }).start();
+    }).start()
   }, [
     isRefetching,
     listMotion.enterDuration,
@@ -82,78 +116,60 @@ export function useTodayMotion({
     listMotion.exitDuration,
     listMotion.exitEasing,
     refetchTransitionAnim,
-  ]);
+  ])
 
   useEffect(() => {
+    const sequence = selectionTransitionSequenceRef.current + 1
+    selectionTransitionSequenceRef.current = sequence
     if (isSelectMode) {
-      bulkBarAnim.stopAnimation();
-      bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
-      Animated.timing(
-        bulkBarAnim,
-        createAnimatedTimingConfig(
-          selectionMotion.enterDuration,
-          selectionMotion.enterEasing,
-        ),
-      ).start();
-      return;
+      bulkBarAnim.stopAnimation(() => {
+        if (selectionTransitionSequenceRef.current !== sequence) {
+          return
+        }
+        bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0)
+        Animated.timing(
+          bulkBarAnim,
+          createAnimatedTimingConfig(
+            selectionMotion.enterDuration,
+            selectionMotion.enterEasing,
+          ),
+        ).start()
+      })
+      return
     }
 
-    bulkBarAnim.stopAnimation();
+    bulkBarAnim.stopAnimation()
+    if (!renderBulkActionBar) {
+      return
+    }
     Animated.timing(bulkBarAnim, {
       toValue: 0,
       duration: selectionMotion.exitDuration,
       easing: toAnimatedEasing(selectionMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) {
-        setRenderBulkActionBar(false);
+      if (finished && selectionTransitionSequenceRef.current === sequence) {
+        setRenderBulkActionBar(false)
       }
-    });
+    })
   }, [
     bulkBarAnim,
     isSelectMode,
+    renderBulkActionBar,
     selectionMotion.enterDuration,
     selectionMotion.enterEasing,
     selectionMotion.exitDuration,
     selectionMotion.exitEasing,
     selectionMotion.reducedMotionEnabled,
-  ]);
+  ])
 
-  const filtersAnimatedStyle = useMemo(
+  const dayAnimatedStyle = useMemo(
     () => ({
-      opacity: filtersTransitionAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.86, 1],
-      }),
-      transform: [
-        {
-          translateY: filtersTransitionAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [Math.max(4, Math.round(listMotion.shift / 2)), 0],
-          }),
-        },
-      ],
+      opacity: dayOpacityAnim,
+      transform: [{ translateY: dayTranslateAnim }],
     }),
-    [filtersTransitionAnim, listMotion.shift],
-  );
-
-  const listAnimatedStyle = useMemo(
-    () => ({
-      opacity: listTransitionAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.9, 1],
-      }),
-      transform: [
-        {
-          translateY: listTransitionAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [Math.max(4, Math.round(listMotion.shift / 2)), 0],
-          }),
-        },
-      ],
-    }),
-    [listMotion.shift, listTransitionAnim],
-  );
+    [dayOpacityAnim, dayTranslateAnim],
+  )
 
   const refetchAnimatedStyle = useMemo(
     () => ({
@@ -166,13 +182,13 @@ export function useTodayMotion({
         {
           translateY: refetchTransitionAnim.interpolate({
             inputRange: [0, 1],
-            outputRange: [0, 4],
+            outputRange: [0, listMotion.reducedMotionEnabled ? 0 : 4],
           }),
         },
       ],
     }),
-    [refetchTransitionAnim],
-  );
+    [listMotion.reducedMotionEnabled, refetchTransitionAnim],
+  )
 
   const bulkBarAnimatedStyle = useMemo(
     () => ({
@@ -193,14 +209,12 @@ export function useTodayMotion({
       ],
     }),
     [bulkBarAnim, selectionMotion],
-  );
+  )
 
   return {
-    filtersAnimatedStyle,
-    listAnimatedStyle,
+    dayAnimatedStyle,
     refetchAnimatedStyle,
     bulkBarAnimatedStyle,
-    renderBulkActionBar,
-    setRenderBulkActionBar,
-  };
+    renderBulkActionBar: isSelectMode || renderBulkActionBar,
+  }
 }

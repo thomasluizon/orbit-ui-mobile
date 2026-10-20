@@ -1,3 +1,4 @@
+/** A checkout behind its configured base must not launch with a stale orchestrator config. */
 
 import { spawnSync } from "node:child_process"
 import { readFileSync } from "node:fs"
@@ -22,7 +23,11 @@ const assertNotStale = (configPath, baseBranch, workingText) => {
   const tracked = relative(repoRoot, configPath).replaceAll("\\", "/")
   const ref = `origin/${baseBranch}`
   const shown = runGit(repoRoot, ["show", `${ref}:${tracked}`])
-  if (!shown.ok || shown.stdout === workingText.trim()) return
+  // Compare content, not line endings. `git show` always emits LF while a Windows working copy
+  // checks out CRLF, so a byte comparison called every redesign-branch checkout stale and blocked
+  // the tool harness on a difference that does not exist.
+  const normalize = (text) => text.split("\r\n").join("\n").trim()
+  if (!shown.ok || normalize(shown.stdout) === normalize(workingText)) return
   if (runGit(repoRoot, ["merge-base", "--is-ancestor", ref, "HEAD"]).ok) return
   throw new Error(
     `${tracked} disagrees with ${ref} and this checkout does not contain ${ref}, so the working copy ` +
@@ -90,7 +95,7 @@ const validateTickets = (tickets) => {
   }
 }
 
-export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranch = "main") => {
+export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranch = "redesign/main") => {
   const configPath = fileURLToPath(configUrl)
   let text
   try {
@@ -111,7 +116,19 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   if (!isRecord(config.workers[config.worker])) {
     throw new Error(`.claude/orchestrator.json worker "${config.worker}" is not one of its workers`)
   }
+  if (!isRecord(config.classifier)) throw new Error(".claude/orchestrator.json must declare a classifier object")
+  if (!isRecord(config.relay) || typeof config.relay.enabled !== "boolean") {
+    throw new Error(".claude/orchestrator.json relay.enabled must be a boolean")
+  }
+  if (!Number.isInteger(config.relay.thresholdTokens) || config.relay.thresholdTokens < 150000 || config.relay.thresholdTokens > 900000) {
+    throw new Error(".claude/orchestrator.json relay.thresholdTokens must be an integer from 150000 through 900000")
+  }
+  nonEmptyString(config.classifier.model, "classifier.model")
   positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
+  positive(config.timeouts?.cloudCeilingMinutes, "timeouts.cloudCeilingMinutes")
+  positive(config.timeouts?.cloudCommandMinutes, "timeouts.cloudCommandMinutes")
+  positive(config.timeouts?.gitRemoteSeconds, "timeouts.gitRemoteSeconds")
+  positive(config.timeouts?.receiptLockSeconds, "timeouts.receiptLockSeconds")
   positive(config.timeouts?.noProgressMinutes, "timeouts.noProgressMinutes")
   positive(config.timeouts?.pollSeconds, "timeouts.pollSeconds")
   positive(config.caps?.reviewFixAttempts, "caps.reviewFixAttempts")
@@ -120,17 +137,34 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
       throw new Error(`.claude/orchestrator.json caps.${name} must be a positive integer`)
     }
   }
+  if (!Number.isInteger(config.caps?.workerLaunchesPerBranch) || config.caps.workerLaunchesPerBranch <= 0) {
+    throw new Error(".claude/orchestrator.json caps.workerLaunchesPerBranch must be a positive integer")
+  }
+  if (!Number.isInteger(config.caps?.cloudParallelTasks) || config.caps.cloudParallelTasks < 4 || config.caps.cloudParallelTasks > 8) {
+    throw new Error(".claude/orchestrator.json caps.cloudParallelTasks must be an integer from 4 through 8")
+  }
+  if (!isRecord(config.cloud)) throw new Error(".claude/orchestrator.json must declare a cloud object")
+  if (typeof config.cloud.enabled !== "boolean") {
+    throw new Error(".claude/orchestrator.json cloud.enabled must be a boolean")
+  }
+  nonEmptyString(config.cloud.environmentId, "cloud.environmentId")
+  const cloudRepositoryKey = nonEmptyString(config.cloud.repositoryKey, "cloud.repositoryKey")
+  if (!isRecord(config.repos) || typeof config.repos[cloudRepositoryKey] !== "string") {
+    throw new Error(`.claude/orchestrator.json cloud.repositoryKey must name a configured repository (${cloudRepositoryKey})`)
+  }
+  nonEmptyString(config.repos[cloudRepositoryKey], `repos.${cloudRepositoryKey}`)
   validateTickets(config.tickets)
-  if (!isRecord(config.repos)) throw new Error(".claude/orchestrator.json must declare a repos object")
   const commonDir = runGit(dirname(configPath), ["rev-parse", "--path-format=absolute", "--git-common-dir"])
   const primaryRoot = commonDir.ok ? dirname(commonDir.stdout) : resolve(dirname(configPath), "..")
-  config.repos = Object.fromEntries(Object.entries(config.repos).map(([key, path]) => [
-    key, resolve(primaryRoot, nonEmptyString(path, `repos.${key}`)),
-  ]))
+  config.repos = Object.fromEntries(Object.entries(config.repos).map(([key, path]) => [key, typeof path === "string" ? resolve(primaryRoot, path) : path]))
   return config
 }
 
-export const resolveWorkerInvocation = (engineName, engine, tier = "default") => {
+/**
+ * `tier` is a plain string, not a label array. The caller chooses the configured profile for the
+ * order in front of it; the resolver owns the one argument path shared by every tier.
+ */
+export const resolveWorkerInvocation = (engineName, engine, tier = "default", { allowSubagents = false } = {}) => {
   if (!isRecord(engine)) {
     throw new Error(`worker engine "${engineName}" is missing from .claude/orchestrator.json`)
   }
@@ -141,6 +175,13 @@ export const resolveWorkerInvocation = (engineName, engine, tier = "default") =>
   ) {
     throw new Error(`worker engine "${engineName}" must declare args as an array of non-model strings`)
   }
+  const subagentOffArgs = engine.subagentOffArgs ?? []
+  if (
+    !Array.isArray(subagentOffArgs) ||
+    subagentOffArgs.some((argument) => typeof argument !== "string" || argument === "--model" || argument === "-m" || argument.startsWith("--model="))
+  ) {
+    throw new Error(`worker engine "${engineName}" subagentOffArgs must be an array of non-model strings`)
+  }
   const entry = engine.models?.[tier]
   if (!isRecord(entry) || typeof entry.model !== "string" || entry.model.trim().length === 0) {
     const declared = Object.keys(engine.models ?? {}).join(", ") || "none"
@@ -149,5 +190,5 @@ export const resolveWorkerInvocation = (engineName, engine, tier = "default") =>
   if (entry.args !== undefined && (!Array.isArray(entry.args) || entry.args.some((argument) => typeof argument !== "string"))) {
     throw new Error(`worker engine "${engineName}" models.${tier}.args must be an array of strings`)
   }
-  return { tier, model: entry.model, args: [...engine.args, ...(entry.args ?? []), "--model", entry.model] }
+  return { tier, model: entry.model, args: [...engine.args, ...(allowSubagents ? [] : subagentOffArgs), ...(entry.args ?? []), "--model", entry.model] }
 }

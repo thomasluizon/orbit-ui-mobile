@@ -23,10 +23,10 @@ import {
   detectCrossedStreakMilestones,
   detectGamificationMilestones,
   deriveStreakFreezeState,
+  extractBackendStatus,
 } from '@orbit/shared/utils'
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
 import { apiClient } from '@/lib/api-client'
-import { useUIStore } from '@/stores/ui-store'
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
@@ -81,7 +81,7 @@ export function useGamificationProfile(enabled = true) {
   }, [profile?.level])
 
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
   }, [queryClient])
 
   return {
@@ -100,17 +100,21 @@ export function useGamificationProfile(enabled = true) {
   }
 }
 
-export function useStreakInfo(enabled = true) {
+export function useStreakInfo(timeZone: string | null, enabled = true) {
   return useQuery({
-    queryKey: gamificationKeys.streak(),
+    queryKey: gamificationKeys.streak(timeZone),
     queryFn: () => apiClient<StreakInfo>(API.gamification.streak, undefined, streakInfoSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })
 }
 
-export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; currentStreak?: number } | null, enabled = true) {
-  const streakQuery = useStreakInfo(enabled)
+export function useStreakFreeze(
+  profile: { streakFreezesAvailable?: number; currentStreak?: number } | null | undefined,
+  timeZone: string | null,
+  enabled = true,
+) {
+  const streakQuery = useStreakInfo(timeZone, enabled)
   const streakInfo = streakQuery.data ?? null
 
   const state = useMemo(
@@ -125,14 +129,39 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
   }
 }
 
+export function useRepairStreak(timeZone: string | null) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (dates: string[]) =>
+      apiClient<StreakInfo>(
+        API.gamification.repairStreakGap,
+        { method: 'POST', body: JSON.stringify({ dates }) },
+        streakInfoSchema,
+      ),
+    onSuccess: (streakInfo) => {
+      queryClient.setQueryData(gamificationKeys.streak(timeZone), streakInfo)
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
+    },
+    onError: async (error) => {
+      if (extractBackendStatus(error) !== 409) return
+      const queryKey = gamificationKeys.streak(timeZone)
+      await queryClient.cancelQueries({ queryKey })
+      await queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
+      await queryClient.fetchQuery({
+        queryKey,
+        queryFn: () => apiClient<StreakInfo>(API.gamification.streak, undefined, streakInfoSchema),
+      })
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
+    },
+  })
+}
+
 /**
  * Reports a whitelisted client gamification event (a shared card or a viewed Wrapped) to the backend,
- * which idempotently grants the mapped achievement. On success it celebrates each granted achievement
- * through the shared celebration queue and refreshes the gamification profile.
+ * which idempotently grants the mapped achievement and refreshes the gamification profile.
  */
 export function useReportEvent() {
   const queryClient = useQueryClient()
-  const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
 
   return useMutation({
     mutationFn: (eventKey: AchievementEventKey) =>
@@ -144,14 +173,8 @@ export function useReportEvent() {
         },
         reportEventResponseSchema,
       ),
-    onSuccess: (response) => {
-      for (const achievement of response.granted) {
-        enqueueCelebration('achievement', {
-          achievementId: achievement.id,
-          xpReward: achievement.xpReward,
-        })
-      }
-      queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },
   })
 }

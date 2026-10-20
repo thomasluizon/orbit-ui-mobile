@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useCallback, useMemo } from 'react'
+import { createContext, useContext, useEffect, useCallback, useMemo, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -9,13 +9,16 @@ import type { Profile } from '@orbit/shared/types/profile'
 import {
   getCurrentPlan,
   getIsYearlyPro,
-  getTrialDaysLeft,
   getTrialExpired,
   getTrialUrgent,
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { useAuthStore, useHeldAccountId } from '@/stores/auth-store'
+
+export const PreloadedProfileContext = createContext<Profile | undefined>(undefined)
 
 function writeLocaleCookie(value: string) {
   if (typeof document !== 'undefined') {
@@ -23,49 +26,54 @@ function writeLocaleCookie(value: string) {
   }
 }
 
-export function useProfile(options?: { enabled?: boolean }) {
+export function useProfile(options?: { enabled?: boolean; initialData?: Profile }) {
   const queryClient = useQueryClient()
   const locale = useLocale()
   const isClient = useIsClient()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const heldAccountId = useHeldAccountId()
+  const accountReady = isAuthenticated && heldAccountId !== null
+  const contextProfile = useContext(PreloadedProfileContext)
+  const accountGeneration = useAccountGeneration()
+  const [preloadAccountGeneration] = useState(accountGeneration)
+  const initialData = accountGeneration === preloadAccountGeneration
+    ? options?.initialData ?? contextProfile
+    : undefined
   const {
-    syncSchemeFromProfile,
     syncThemeFromProfile,
-    detectAndSaveSchemeIfNeeded,
     detectAndSaveThemeIfNeeded,
   } = useColorScheme()
 
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: () => fetchJson<Profile>(API.profile.get),
+    initialData,
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
     enabled: options?.enabled ?? true,
   })
 
-  const profile = isClient ? query.data : undefined
+  const profile = isClient ? query.data : initialData
   const profileLanguage = profile?.language
 
   useEffect(() => {
-    if (!profile) return
-    syncSchemeFromProfile(profile.colorScheme, profile.hasProAccess)
+    if (!accountReady || !profile) return
     syncThemeFromProfile(profile.themePreference)
-    detectAndSaveSchemeIfNeeded(profile.colorScheme)
     detectAndSaveThemeIfNeeded(profile.themePreference)
-    // react-doctor-disable-next-line exhaustive-deps -- profile aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+    // react-doctor-disable-next-line exhaustive-deps -- profile selects query.data or initialData and is already in deps; react-doctor does not resolve the derived value; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [
+    accountReady,
     profile,
-    syncSchemeFromProfile,
     syncThemeFromProfile,
-    detectAndSaveSchemeIfNeeded,
     detectAndSaveThemeIfNeeded,
   ])
 
   useEffect(() => {
-    if (!profileLanguage || profileLanguage === locale) return
+    if (!accountReady || !profileLanguage || profileLanguage === locale) return
     writeLocaleCookie(profileLanguage)
     globalThis.location.reload()
     // react-doctor-disable-next-line exhaustive-deps -- profileLanguage aliases profile.language and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [profileLanguage, locale])
+  }, [accountReady, profileLanguage, locale])
 
   const invalidate = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: profileKeys.all })
@@ -83,7 +91,7 @@ export function useProfile(options?: { enabled?: boolean }) {
   return {
     ...query,
     profile,
-    isLoading: !isClient || query.isLoading,
+    isLoading: (!isClient && !initialData) || query.isLoading,
     invalidate,
     patchProfile,
   }
@@ -99,12 +107,6 @@ export function useHasProAccess(): boolean {
 export function useCanViewGamification(): boolean {
   const { profile } = useProfile()
   return profile?.canViewGamification ?? false
-}
-
-/** Computed: how many trial days remain (null if not in trial). */
-export function useTrialDaysLeft(): number | null {
-  const { profile } = useProfile()
-  return useMemo(() => getTrialDaysLeft(profile), [profile])
 }
 
 /** Computed: readable plan label. */

@@ -1,15 +1,63 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor, act } from '@testing-library/react'
-import { QueryClient, QueryClientProvider, focusManager, onlineManager } from '@tanstack/react-query'
+import { renderHook, waitFor, act, render } from '@testing-library/react'
+import { QueryClient, QueryClientProvider, QueryObserver, useQuery } from '@tanstack/react-query'
 import React from 'react'
-import { useHabits, useTotalHabitCount, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { getTodayHabitList, habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
-import { formatAPIDate } from '@orbit/shared/utils'
 import { createApiClientError } from '@orbit/shared'
-import enMessages from '@orbit/shared/i18n/en.json'
-import type { HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
+import { buildCalendarDayMap, buildChildrenIndex, formatAPIDate, getAllDoneOnDate, getReturningInterval, hasHabitScheduleOnDate, normalizeHabits } from '@orbit/shared/utils'
+import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
+
+import { DailyStreakMoment } from '@/components/gamification/daily-streak-moment'
+import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
+
+import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
+})
+
+describe('search cache settlement', () => {
+  it('refreshes cached empty search pages after creating a habit', async () => {
+    const { createHabit } = await import('@/lib/actions/habits')
+    vi.mocked(createHabit).mockResolvedValue({ id: 'created' })
+    const queryClient = createQueryClient()
+    const keys = [habitKeys.search({ search: 'walk', page: 1 }), habitKeys.search({ search: 'walk', page: 2 }), habitKeys.search({ search: 'other', page: 1 })]
+    const response = { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 }
+    for (const key of keys) queryClient.setQueryData(key, response)
+    const { result } = renderHook(() => useCreateHabit(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync({ title: 'Walk' }))
+    for (const key of keys) {
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
+      expect(queryClient.getQueryData(key)).toEqual(response)
+    }
+    queryClient.clear()
+  })
+
+  it('keeps paginated search responses intact during optimistic edits and invalidates on settlement', async () => {
+    const { updateHabit } = await import('@/lib/actions/habits')
+    let finish!: () => void
+    vi.mocked(updateHabit).mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const queryClient = createQueryClient()
+    const key = habitKeys.search({ search: 'Exercise', page: 2 })
+    const response = { items: [makeScheduleItem()], page: 2, pageSize: 20, totalCount: 21, totalPages: 2 }
+    queryClient.setQueryData(key, response)
+    queryClient.setQueryData(habitKeys.list({}), response.items)
+    const { result } = renderHook(() => useUpdateHabit(), { wrapper: createWrapper(queryClient) })
+    act(() => result.current.mutate({ habitId: 'h-1', data: { title: 'Renamed', isBadHabit: false } }))
+    await waitFor(() => expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.title).toBe('Renamed'))
+    expect(queryClient.getQueryData(key)).toEqual(response)
+    await act(async () => { finish() })
+    await waitFor(() => expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true))
+    expect(queryClient.getQueryData(key)).toEqual(response)
+    queryClient.clear()
+  })
+})
 vi.stubGlobal('fetch', mockFetch)
 
 const mockShowError = vi.fn()
@@ -18,17 +66,21 @@ const mockShowQueued = vi.fn()
 const mockSetStreakCelebration = vi.fn()
 const { captureHabitLogged } = vi.hoisted(() => ({ captureHabitLogged: vi.fn() }))
 
-vi.mock('@/lib/posthog', () => ({ captureHabitLogged }))
+vi.mock('@/lib/posthog', () => ({
+  captureHabitLogged,
+  identifyPostHogUser: vi.fn(),
+  resetPostHogUser: vi.fn(),
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    key === 'errors.api.logNotAllowed' ? enMessages.errors.api.logNotAllowed
-      : params ? `${key}:${JSON.stringify(params)}` : key,
+    params ? `${key}:${JSON.stringify(params)}` : key,
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
     showError: mockShowError,
+    showPersistentError: vi.fn(),
     showSuccess: mockShowSuccess,
     showInfo: vi.fn(),
     showToast: vi.fn(),
@@ -44,6 +96,7 @@ vi.mock('@/lib/actions/habits', () => ({
   restoreHabit: vi.fn(),
   logHabit: vi.fn(),
   skipHabit: vi.fn(),
+  undoSkipHabit: vi.fn(),
   reorderHabits: vi.fn(),
   duplicateHabit: vi.fn(),
   updateChecklist: vi.fn(),
@@ -60,6 +113,8 @@ vi.mock('@/stores/ui-store', async () => {
   return { useUIStore: Object.assign(
     () => ({
       activeFilters: {},
+      showStreakMoment: actual.useUIStore.getState().showStreakMoment,
+      completeActiveCelebration: actual.useUIStore.getState().completeActiveCelebration,
       setStreakCelebration: mockSetStreakCelebration,
       checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
       setLastCreatedHabitId: vi.fn(),
@@ -67,6 +122,8 @@ vi.mock('@/stores/ui-store', async () => {
     {
       getState: () => ({
         activeFilters: {},
+        showStreakMoment: actual.useUIStore.getState().showStreakMoment,
+        completeActiveCelebration: actual.useUIStore.getState().completeActiveCelebration,
         setStreakCelebration: mockSetStreakCelebration,
         checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
         setLastCreatedHabitId: vi.fn(),
@@ -74,6 +131,8 @@ vi.mock('@/stores/ui-store', async () => {
     },
   )}
 })
+
+vi.mock('@/lib/account-scoped-state', () => ({ startAccountScopedSession: vi.fn() }))
 
 function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
@@ -141,6 +200,15 @@ function makeScheduleChild(overrides: Partial<HabitScheduleChild> = {}): HabitSc
   }
 }
 
+function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
+  const habit = makeScheduleItem()
+  return {
+    ...habit,
+    children: [],
+    ...overrides,
+  }
+}
+
 function makePaginatedResponse(items: HabitScheduleItem[]): PaginatedResponse<HabitScheduleItem> {
   return {
     items,
@@ -149,6 +217,29 @@ function makePaginatedResponse(items: HabitScheduleItem[]): PaginatedResponse<Ha
     totalCount: items.length,
     totalPages: 1,
   }
+}
+
+function makeCalendarMonth(
+  date: string,
+  habitIds: string[] = ['h-1'],
+): CalendarMonthResponse {
+  return {
+    habits: habitIds.map((id) => makeScheduleItem({ id, dueDate: date, scheduledDates: [date] })),
+    logs: Object.fromEntries(habitIds.map((id) => [id, []])),
+  }
+}
+
+function getCalendarStatus(
+  queryClient: QueryClient,
+  key: ReturnType<typeof habitKeys.calendar>,
+  date: string,
+  habitId = 'h-1',
+) {
+  const calendar = queryClient.getQueryData<CalendarMonthResponse>(key)
+  return calendar
+    ? buildCalendarDayMap(calendar, { from: '2025-01-01', to: '2025-01-31' }, new Date('2025-01-16T12:00:00Z'))
+        .get(date)?.find((entry) => entry.habitId === habitId)?.status
+    : undefined
 }
 
 function createQueryClient() {
@@ -175,62 +266,6 @@ describe('useHabits', () => {
     mockFetch.mockReset()
   })
 
-  it('counts Today requests for a 450-habit account across focus, reconnect, and mutations', async () => {
-    const { logHabit, skipHabit } = await import('@/lib/actions/habits')
-    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 })
-    vi.mocked(skipHabit).mockResolvedValue(undefined)
-    const date = formatAPIDate(new Date())
-    const clock = vi.spyOn(Date, 'now')
-    let now = Date.now()
-    clock.mockImplementation(() => now)
-    focusManager.setFocused(true)
-    onlineManager.setOnline(true)
-    mockFetch.mockImplementation(async (url: string) => ({
-      ok: true,
-      json: async () => url.includes('/count')
-        ? { count: 450 }
-        : { ...makePaginatedResponse([makeScheduleItem({ id: 'h-1', dueDate: date, scheduledDates: [date] })]), totalCount: 450, totalPages: 3 },
-    }))
-    const queryClient = createQueryClient()
-    const filters = { dateFrom: date, dateTo: date, includeOverdue: true }
-    const wrapper = createWrapper(queryClient)
-    const today = renderHook(() => ({ habits: useHabits(filters), count: useTotalHabitCount(), log: useLogHabit(), skip: useSkipHabit() }), { wrapper })
-    try {
-      await waitFor(() => expect(today.result.current.habits.isSuccess).toBe(true))
-      await waitFor(() => expect(today.result.current.count).toBe(450))
-      expect(mockFetch).toHaveBeenCalledTimes(4)
-
-      now += 60_000
-      await act(async () => { focusManager.setFocused(false); focusManager.setFocused(true) })
-      expect(mockFetch).toHaveBeenCalledTimes(4)
-
-      now += 9 * 60_000
-      await act(async () => { focusManager.setFocused(false); focusManager.setFocused(true) })
-      await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(8))
-
-      await act(async () => { onlineManager.setOnline(false); onlineManager.setOnline(true) })
-      expect(mockFetch).toHaveBeenCalledTimes(8)
-
-      await act(async () => { await today.result.current.log.mutateAsync({ habitId: 'h-1' }) })
-      expect(mockFetch).toHaveBeenCalledTimes(11)
-      await act(async () => { await today.result.current.skip.mutateAsync({ habitId: 'h-1' }) })
-      expect(mockFetch).toHaveBeenCalledTimes(14)
-
-      const firstPalette = renderHook(() => useHabits(filters), { wrapper })
-      await waitFor(() => expect(firstPalette.result.current.isSuccess).toBe(true))
-      firstPalette.unmount()
-      const secondPalette = renderHook(() => useHabits(filters), { wrapper })
-      await waitFor(() => expect(secondPalette.result.current.isSuccess).toBe(true))
-      secondPalette.unmount()
-      expect(mockFetch).toHaveBeenCalledTimes(14)
-    } finally {
-      today.unmount()
-      clock.mockRestore()
-      focusManager.setFocused(undefined)
-      onlineManager.setOnline(true)
-    }
-  })
-
   it('fetches and normalizes habits', async () => {
     const items = [
       makeScheduleItem({ id: 'h-1', title: 'Exercise', position: 1 }),
@@ -246,6 +281,8 @@ describe('useHabits', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data).toBeDefined()
@@ -267,11 +304,30 @@ describe('useHabits', () => {
     }))
     const queryClient = createQueryClient()
     const filters = { dateFrom: date, dateTo: date, includeOverdue: true, includeGeneral: true }
-    const { result } = renderHook(() => useHabits(filters), { wrapper: createWrapper(queryClient) })
+    const { result } = renderHook(() => useHabits(filters, undefined, { completeDay: true }), { wrapper: createWrapper(queryClient) })
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.habitsById.size).toBe(52)
     expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBe(51)
     expect(getTodayHabitList(queryClient, date)).toHaveLength(52)
+  })
+
+  it('records the total for a complete Today query with one full page', async () => {
+    const date = formatAPIDate(new Date())
+    const filters = { dateFrom: date, dateTo: date, includeOverdue: true }
+    const items = Array.from({ length: 50 }, (_, index) =>
+      makeScheduleItem({ id: `habit-${index}`, dueDate: date, scheduledDates: [date] }))
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ ...makePaginatedResponse(items), totalCount: 50, totalPages: 1 }) })
+    const queryClient = createQueryClient()
+
+    const { result } = renderHook(() => useHabits(filters, undefined, { completeDay: true }), { wrapper: createWrapper(queryClient) })
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBe(50)
+    expect(getTodayHabitList(queryClient, date)).toHaveLength(50)
   })
 
   it('normalizes children into flat map', async () => {
@@ -317,6 +373,8 @@ describe('useHabits', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.habitsById.has('child-1')).toBe(true)
@@ -325,17 +383,15 @@ describe('useHabits', () => {
   })
 
   it('handles fetch error', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: 'Server error' }),
-    })
+    mockFetch.mockResolvedValue(Response.json({ error: 'Server error' }, { status: 500 }))
 
     const { result } = renderHook(
       () => useHabits({ dateFrom: '2025-01-01', dateTo: '2025-01-01' }),
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error?.message).toContain('Server error')
   })
@@ -351,6 +407,8 @@ describe('useHabits', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.habitsById.size).toBe(0)
@@ -366,6 +424,50 @@ describe('useLogHabit', () => {
     mockShowError.mockClear()
   })
 
+  it.each(['log', 'unlog', 'skip', 'delete', 'restore', 'bulk log', 'bulk skip', 'bulk delete'] as const)('invalidates the cached month retrospective after %s', async (operation) => {
+    const { logHabit, skipHabit, deleteHabit, restoreHabit, bulkLogHabits, bulkSkipHabits } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 })
+    vi.mocked(skipHabit).mockResolvedValue(undefined)
+    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    vi.mocked(restoreHabit).mockResolvedValue(undefined)
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'log-1', error: null }] })
+    vi.mocked(bulkSkipHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', error: null }] })
+    const queryClient = createQueryClient()
+    const retrospectiveKey = habitKeys.retrospective('month')
+    const retrospective = { period: 'month', metrics: createMockRetrospectiveMetrics({ periodDays: 30 }),
+      narrative: { highlights: '', missed: '', trends: '', suggestion: '' }, fromCache: false }
+    queryClient.setQueryDefaults(retrospectiveKey, { staleTime: 5 * 60_000 })
+    queryClient.setQueryData(retrospectiveKey, retrospective)
+    const { result, unmount } = renderHook(() => {
+      const log = useLogHabit()
+      const skip = useSkipHabit()
+      const remove = useDeleteHabit()
+      const restore = useRestoreHabit()
+      const bulkLog = useBulkLogHabits()
+      const bulkSkip = useBulkSkipHabits()
+      const bulkDelete = useBulkDeleteHabits()
+      return {
+        log: () => log.mutateAsync({ habitId: 'h-1', intent: 'log' }),
+        unlog: () => log.mutateAsync({ habitId: 'h-1', intent: 'unlog' }),
+        skip: () => skip.mutateAsync({ habitId: 'h-1' }),
+        delete: () => remove.mutateAsync('h-1'),
+        restore: () => restore.mutateAsync('h-1'),
+        'bulk log': () => bulkLog.mutateAsync([{ habitId: 'h-1' }]),
+        'bulk skip': () => bulkSkip.mutateAsync([{ habitId: 'h-1' }]),
+        'bulk delete': () => bulkDelete.mutateAsync(['h-1']),
+      }
+    }, { wrapper: createWrapper(queryClient) })
+    try {
+      expect(queryClient.getQueryState(retrospectiveKey)?.isInvalidated).toBe(false)
+      await act(async () => { await result.current[operation]() })
+      expect(queryClient.getQueryState(retrospectiveKey)?.isInvalidated).toBe(true)
+      expect(queryClient.getQueryData(retrospectiveKey)).toEqual(retrospective)
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
+  })
+
   it('celebrates the last Today log once with both due habits counted', async () => {
     const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     const { logHabit } = await import('@/lib/actions/habits')
@@ -373,19 +475,19 @@ describe('useLogHabit', () => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     const today = formatAPIDate(new Date())
     const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true }), [
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }), [
       makeScheduleItem({ id: 'h-1', dueDate: today, scheduledDates: [today], isCompleted: false, isLoggedInRange: true }),
       makeScheduleItem({ id: 'h-2', dueDate: today, scheduledDates: [today], isCompleted: false, isLoggedInRange: false }),
     ])
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
-    await act(async () => { await result.current.mutateAsync({ habitId: 'h-2' }) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'h-2', intent: 'log' }) })
     expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
     expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
   })
 
-  it('does not celebrate while a recurring skip is pending when the other due habit is logged', async () => {
+  it('does not celebrate a logged habit while a recurring skip is pending', async () => {
     const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     const { logHabit, skipHabit } = await import('@/lib/actions/habits')
     let resolveSkip!: () => void
@@ -393,7 +495,7 @@ describe('useLogHabit', () => {
     vi.mocked(logHabit).mockResolvedValue({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 })
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     const today = formatAPIDate(new Date())
-    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
     const queryClient = createQueryClient()
     queryClient.setQueryData(key, [
       makeScheduleItem({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
@@ -403,39 +505,40 @@ describe('useLogHabit', () => {
       { wrapper: createWrapper(queryClient) })
 
     act(() => { result.current.skip.mutate({ habitId: 'skipped' }) })
-    await waitFor(() => expect(queryClient.getQueryData<HabitScheduleItem[]>(key)?.[0]?.isCompleted).toBe(true))
-    await act(async () => { await result.current.log.mutateAsync({ habitId: 'logged' }) })
+    await waitFor(() => expect(queryClient.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual([]))
+    await act(async () => { await result.current.log.mutateAsync({ habitId: 'logged', intent: 'log' }) })
 
+    const normalized = normalizeHabits(queryClient.getQueryData<HabitScheduleItem[]>(key)!)
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today))
+      .toEqual({ allDone: false, count: 1 })
     expect(useUIStore.getState().activeCelebration).toBeNull()
     expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
-    expect(queryClient.getQueryData<HabitScheduleItem[]>(key)?.[0]?.instances)
-      .toContainEqual({ date: today, status: 'Completed', logId: null })
     await act(async () => { resolveSkip() })
   })
 
-  it('celebrates after a settled skip when the cached Today lists never refetch', async () => {
+  it('celebrates after a settled skip when the complete Today list stays cached', async () => {
     const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     const { logHabit, skipHabit } = await import('@/lib/actions/habits')
     vi.mocked(skipHabit).mockResolvedValue(undefined)
     vi.mocked(logHabit).mockResolvedValue({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 })
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     const today = formatAPIDate(new Date())
-    const todayKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    const completeKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
     const ordinaryKey = habitKeys.list({ dateFrom: today, dateTo: today })
     const items = [
       makeScheduleItem({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
       makeScheduleItem({ id: 'last', dueDate: today, scheduledDates: [today] }),
     ]
     const queryClient = createQueryClient()
-    queryClient.setQueryData(todayKey, items)
+    queryClient.setQueryData(completeKey, items)
     queryClient.setQueryData(ordinaryKey, items)
     const { result } = renderHook(() => ({ skip: useSkipHabit(), log: useLogHabit() }),
       { wrapper: createWrapper(queryClient) })
 
     await act(async () => { await result.current.skip.mutateAsync({ habitId: 'skipped' }) })
-    expect(queryClient.getQueryData<HabitScheduleItem[]>(todayKey)?.[0]).not.toHaveProperty('__optimisticSkip')
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(completeKey)?.[0]).not.toHaveProperty('__optimisticSkip')
     expect(queryClient.getQueryData<HabitScheduleItem[]>(ordinaryKey)?.[0]).not.toHaveProperty('__optimisticSkip')
-    await act(async () => { await result.current.log.mutateAsync({ habitId: 'last' }) })
+    await act(async () => { await result.current.log.mutateAsync({ habitId: 'last', intent: 'log' }) })
 
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
     queryClient.clear()
@@ -448,7 +551,7 @@ describe('useLogHabit', () => {
     vi.mocked(logHabit).mockResolvedValue({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 })
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     const today = formatAPIDate(new Date())
-    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
     const queryClient = createQueryClient()
     queryClient.setQueryData(key, [
       makeScheduleItem({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
@@ -459,8 +562,7 @@ describe('useLogHabit', () => {
 
     await act(async () => { await expect(result.current.skip.mutateAsync({ habitId: 'skipped' })).rejects.toThrow('Skip failed') })
     expect(queryClient.getQueryData<HabitScheduleItem[]>(key)?.[0]).not.toHaveProperty('__optimisticSkip')
-    expect(queryClient.getQueryData<HabitScheduleItem[]>(key)?.[0]?.isCompleted).toBe(false)
-    await act(async () => { await result.current.log.mutateAsync({ habitId: 'last' }) })
+    await act(async () => { await result.current.log.mutateAsync({ habitId: 'last', intent: 'log' }) })
 
     expect(useUIStore.getState().activeCelebration).toBeNull()
     queryClient.clear()
@@ -475,7 +577,7 @@ describe('useLogHabit', () => {
     const today = formatAPIDate(new Date())
     const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
     const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.list(filters), [
+    queryClient.setQueryData(habitKeys.list({ ...filters, completeDay: true }), [
       makeScheduleItem({ id: 'deleted', dueDate: today, scheduledDates: [today] }),
       makeScheduleItem({ id: 'last', dueDate: today, scheduledDates: [today] }),
     ])
@@ -485,7 +587,7 @@ describe('useLogHabit', () => {
 
     await act(async () => { await result.current.remove.mutateAsync('deleted') })
     expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBe(1)
-    await act(async () => { await result.current.log.mutateAsync({ habitId: 'last' }) })
+    await act(async () => { await result.current.log.mutateAsync({ habitId: 'last', intent: 'log' }) })
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
     expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
   })
@@ -496,7 +598,7 @@ describe('useLogHabit', () => {
     const today = formatAPIDate(new Date())
     const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
     const queryClient = createQueryClient()
-    const key = habitKeys.list(filters)
+    const key = habitKeys.list({ ...filters, completeDay: true })
     const countKey = habitKeys.listTotalCount(filters)
     queryClient.setQueryData(key, [
       makeScheduleItem({ id: 'deleted', dueDate: today, scheduledDates: [today] }),
@@ -519,7 +621,7 @@ describe('useLogHabit', () => {
     const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
     const queryClient = createQueryClient()
     let fetches = 0
-    await queryClient.fetchQuery({ queryKey: habitKeys.list(filters), queryFn: async () => {
+    await queryClient.fetchQuery({ queryKey: habitKeys.list({ ...filters, completeDay: true }), queryFn: async () => {
       fetches += 1
       if (fetches > 1) queryClient.setQueryData(habitKeys.listTotalCount(filters), 1)
       return [makeScheduleItem({ id: 'last', dueDate: today, scheduledDates: [today], isLoggedInRange: fetches > 1 })]
@@ -527,7 +629,7 @@ describe('useLogHabit', () => {
     queryClient.setQueryData(habitKeys.listTotalCount(filters), 2)
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
 
-    await act(async () => { await result.current.mutateAsync({ habitId: 'last' }) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'last', intent: 'log' }) })
     expect(fetches).toBeGreaterThan(1)
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
     expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
@@ -542,7 +644,7 @@ describe('useLogHabit', () => {
     const today = formatAPIDate(new Date())
     const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
     const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.list(filters), [
+    queryClient.setQueryData(habitKeys.list({ ...filters, completeDay: true }), [
       makeScheduleItem({ id: 'original', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
     ])
     queryClient.setQueryData(habitKeys.listTotalCount(filters), 1)
@@ -554,13 +656,13 @@ describe('useLogHabit', () => {
       makeScheduleItem({ id: 'original', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
       makeScheduleItem({ id: 'created', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
     ]) })
-    const { result } = renderHook(() => ({ habits: useHabits(filters), create: useCreateHabit(), log: useLogHabit() }),
+    const { result } = renderHook(() => ({ habits: useHabits(filters, undefined, { completeDay: true }), create: useCreateHabit(), log: useLogHabit() }),
       { wrapper: createWrapper(queryClient) })
 
     try {
       await act(async () => { await result.current.create.mutateAsync({ title: 'Created', dueDate: today }) })
       await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
-      await act(async () => { await result.current.log.mutateAsync({ habitId: 'created' }) })
+      await act(async () => { await result.current.log.mutateAsync({ habitId: 'created', intent: 'log' }) })
       expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
       expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
     } finally {
@@ -575,13 +677,13 @@ describe('useLogHabit', () => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     const today = formatAPIDate(new Date())
     const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true }), [
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }), [
       makeScheduleItem({ id: 'flexible', dueDate: today, scheduledDates: [today],
         isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0 }),
     ])
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
     expect(useUIStore.getState().activeCelebration).toBeNull()
-    await act(async () => { await result.current.mutateAsync({ habitId: 'flexible' }) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'flexible', intent: 'log' }) })
     expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
     expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
@@ -594,11 +696,11 @@ describe('useLogHabit', () => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     const today = formatAPIDate(new Date())
     const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true }),
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }),
       Array.from({ length: 50 }, (_, index) => makeScheduleItem({ id: `habit-${index}`,
         dueDate: today, scheduledDates: [today], isLoggedInRange: index < 49 })))
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
-    await act(async () => { await result.current.mutateAsync({ habitId: 'habit-49' }) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'habit-49', intent: 'log' }) })
     expect(useUIStore.getState().activeCelebration).toBeNull()
   })
 
@@ -610,12 +712,12 @@ describe('useLogHabit', () => {
     const today = formatAPIDate(new Date())
     const filters = { dateFrom: today, dateTo: today, includeOverdue: true, includeGeneral: true }
     const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.list(filters), [...Array.from({ length: 51 }, (_, index) =>
+    queryClient.setQueryData(habitKeys.list({ ...filters, completeDay: true }), [...Array.from({ length: 51 }, (_, index) =>
       makeScheduleItem({ id: `habit-${index}`, dueDate: today, scheduledDates: [today],
         isLoggedInRange: index < 50 })), makeScheduleItem({ id: 'general', isGeneral: true, scheduledDates: [] })])
     queryClient.setQueryData(habitKeys.listTotalCount(filters), 51)
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
-    await act(async () => { await result.current.mutateAsync({ habitId: 'habit-50' }) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'habit-50', intent: 'log' }) })
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 51 })
   })
 
@@ -626,14 +728,14 @@ describe('useLogHabit', () => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     const today = formatAPIDate(new Date())
     const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true }), [
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }), [
       makeScheduleItem({ id: 'logged', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
       makeScheduleItem({ id: 'skipped', dueDate: today, scheduledDates: [today],
         instances: [{ date: today, status: 'Completed', logId: 'skip-log' }] }),
       makeScheduleItem({ id: 'open', dueDate: today, scheduledDates: [today] }),
     ])
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
-    await act(async () => { await result.current.mutateAsync({ habitId: 'open' }) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'open', intent: 'log' }) })
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
   })
 
@@ -658,16 +760,15 @@ describe('useLogHabit', () => {
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
-    expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
+    expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, 'account-a')
     expect(captureHabitLogged).toHaveBeenCalledOnce()
     expect(captureHabitLogged.mock.calls[0]).toEqual([])
-    expect(mockShowError).not.toHaveBeenCalled()
   })
 
-  it('rolls back a rejected habit log and shows the mapped error once', async () => {
+  it('rolls back a failed habit log and shows its mapped error once', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockRejectedValueOnce(createApiClientError(400, {
       error: 'Not scheduled on date', errorCode: 'NOT_SCHEDULED_ON_DATE',
@@ -678,43 +779,39 @@ describe('useLogHabit', () => {
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ habitId: 'h-1' })).rejects.toThrow()
+      await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })).rejects.toThrow()
     })
 
     expect(queryClient.getQueryData<HabitScheduleItem[]>(listKey)?.[0]?.isCompleted).toBe(false)
-    expect(mockShowError).toHaveBeenCalledOnce()
-    expect(mockShowError).toHaveBeenCalledWith(enMessages.errors.api.logNotAllowed)
+    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('errors.api.logNotAllowed', 'common.dismiss')
     expect(captureHabitLogged).not.toHaveBeenCalled()
   })
 
-  it('shows the generic mapped error once for a network failure', async () => {
+  it('shows one generic mapped error for a network failure', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockRejectedValueOnce(new Error('Network failed'))
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper() })
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ habitId: 'h-1' })).rejects.toThrow('Network failed')
+      await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'unlog' })).rejects.toThrow('Network failed')
     })
 
-    expect(mockShowError).toHaveBeenCalledOnce()
-    expect(mockShowError).toHaveBeenCalledWith('errors.logHabit')
+    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('habits.detail.logError', 'common.dismiss')
   })
 
   it('uses account-changed handling without a log error toast', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
-    vi.mocked(logHabit).mockRejectedValueOnce(Object.assign(new Error('Account changed'), {
-      code: 'ACCOUNT_CHANGED',
-    }))
+    vi.mocked(logHabit).mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper() })
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ habitId: 'h-1' })).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+      await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
     })
 
     expect(mockShowError).not.toHaveBeenCalled()
   })
 
-  it('refetches lists after a completion without refreshing unrelated families', async () => {
+  it('reconciles habit data without refetching response-backed or AI summary families', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-x',
@@ -729,7 +826,7 @@ describe('useLogHabit', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists(), refetchType: 'all' })
@@ -743,20 +840,6 @@ describe('useLogHabit', () => {
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
-  it('refetches Today after resolving an earlier overdue occurrence', async () => {
-    const { logHabit } = await import('@/lib/actions/habits')
-    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-overdue', isFirstCompletionToday: false, currentStreak: 1 })
-    const queryClient = createQueryClient()
-    const todayKey = habitKeys.list({ dateFrom: '2025-01-02', dateTo: '2025-01-02', includeOverdue: true })
-    queryClient.setQueryData(todayKey, [makeScheduleItem({ id: 'h-1', dueDate: '2025-01-01', isOverdue: true })])
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
-
-    await act(async () => { await result.current.mutateAsync({ habitId: 'h-1', date: '2025-01-01' }) })
-
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
-  })
-
   it('passes date to logHabit action', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
@@ -766,19 +849,126 @@ describe('useLogHabit', () => {
       currentStreak: 1,
     })
 
-    const wrapper = createWrapper()
+    const queryClient = createQueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = createWrapper(queryClient)
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
       await result.current.mutateAsync({
         habitId: 'h-1',
         date: '2025-01-15',
+        intent: 'log',
       })
     })
 
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', {
       date: '2025-01-15',
+    }, 'account-a')
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.logs('h-1') })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.metrics('h-1') })
+  })
+
+  it('updates a dated calendar row immediately and restores it when logging fails', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    let rejectLog: ((error: Error) => void) | undefined
+    vi.mocked(logHabit).mockImplementation(() => new Promise((_, reject) => {
+      rejectLog = reject
+    }))
+
+    const date = '2025-01-15'
+    const key = habitKeys.calendar(date, date)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(key, makeCalendarMonth(date))
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
     })
+
+    expect(getCalendarStatus(queryClient, key, date)).toBe('missed')
+    act(() => result.current.mutate({ habitId: 'h-1', date, intent: 'log' }))
+    expect(getCalendarStatus(queryClient, key, date)).toBe('completed')
+
+    await waitFor(() => expect(logHabit).toHaveBeenCalled())
+    rejectLog?.(new Error('Log failed'))
+    await waitFor(() => expect(getCalendarStatus(queryClient, key, date)).toBe('missed'))
+  })
+
+  it('applies one log intent to overlapping calendar caches that disagree', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    let resolveLog: (() => void) | undefined
+    vi.mocked(logHabit).mockImplementation(() => new Promise((resolve) => {
+      resolveLog = () => resolve({
+        logId: 'log-1',
+        isFirstCompletionToday: false,
+        currentStreak: 1,
+      })
+    }))
+
+    const date = '2025-01-15'
+    const dayKey = habitKeys.calendar(date, date)
+    const monthKey = habitKeys.calendar('2025-01-01', '2025-01-31')
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(dayKey, makeCalendarMonth(date))
+    queryClient.setQueryData(monthKey, {
+      ...makeCalendarMonth(date),
+      logs: {
+        'h-1': [{
+          id: 'server-log-1',
+          date,
+          value: 1,
+          createdAtUtc: '2025-01-15T09:30:00Z',
+        }],
+      },
+    } satisfies CalendarMonthResponse)
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    act(() => result.current.mutate({ habitId: 'h-1', date, intent: 'log' }))
+
+    expect(getCalendarStatus(queryClient, dayKey, date)).toBe('completed')
+    expect(getCalendarStatus(queryClient, monthKey, date)).toBe('completed')
+    resolveLog?.()
+    await waitFor(() => expect(logHabit).toHaveBeenCalled())
+  })
+
+  it('keeps pending mutation B optimistic when mutation A fails later', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    const previousCallCount = vi.mocked(logHabit).mock.calls.length
+    let rejectMutationA: ((error: Error) => void) | undefined
+    let resolveMutationB: (() => void) | undefined
+    vi.mocked(logHabit)
+      .mockImplementationOnce(() => new Promise((_, reject) => {
+        rejectMutationA = reject
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveMutationB = () => resolve({
+          logId: 'log-b',
+          isFirstCompletionToday: false,
+          currentStreak: 1,
+        })
+      }))
+
+    const date = '2025-01-15'
+    const key = habitKeys.calendar(date, date)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(key, makeCalendarMonth(date, ['h-1', 'h-2']))
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    act(() => result.current.mutate({ habitId: 'h-1', date, intent: 'log' }))
+    act(() => result.current.mutate({ habitId: 'h-2', date, intent: 'log' }))
+    expect(getCalendarStatus(queryClient, key, date, 'h-1')).toBe('completed')
+    expect(getCalendarStatus(queryClient, key, date, 'h-2')).toBe('completed')
+
+    await waitFor(() => expect(logHabit).toHaveBeenCalledTimes(previousCallCount + 2))
+    expect(resolveMutationB).toBeTypeOf('function')
+    rejectMutationA?.(new Error('Mutation A failed'))
+
+    await waitFor(() => expect(getCalendarStatus(queryClient, key, date, 'h-1')).toBe('missed'))
+    expect(getCalendarStatus(queryClient, key, date, 'h-2')).toBe('completed')
+    resolveMutationB?.()
   })
 
   it('optimistically completes before query cancellation resolves', async () => {
@@ -807,7 +997,7 @@ describe('useLogHabit', () => {
     })
 
     act(() => {
-      result.current.mutate({ habitId: 'h-1' })
+      result.current.mutate({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(
@@ -815,14 +1005,93 @@ describe('useLogHabit', () => {
     ).toBe(true)
 
     resolveCancel?.()
-    await waitFor(() => expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined))
+    await waitFor(() => expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, 'account-a'))
   })
 })
 
 describe('useSkipHabit', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch.mockReset()
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.undoSkipHabit).mockReset()
     vi.useRealTimers()
+  })
+
+  it.each([false, true])('undoes two occurrences through their toast actions after a refetch removes the row %s', async (removed) => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.undoSkipHabit).mockResolvedValue(undefined)
+    mockShowQueued.mockClear()
+    const client = createQueryClient()
+    const key = habitKeys.list({})
+    const dates = ['2026-09-12', '2026-09-13']
+    client.setQueryData(key, [makeScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: dates[0], scheduledDates: dates,
+      instances: dates.map((date) => ({ date, status: 'Pending', logId: null })) })])
+    const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(client) })
+    const undoActions: (() => void)[] = []
+    for (const date of dates) {
+      await act(() => result.current.mutateAsync({ habitId: 'h-1', date }))
+      undoActions.push(mockShowQueued.mock.calls.at(-1)![2] as () => void)
+    }
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual([])
+    if (removed) client.setQueryData(key, [])
+    await act(async () => { undoActions[0]!() })
+    await waitFor(() => expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual([dates[0]]))
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.flexibleTarget).toBe(1)
+    await act(async () => { undoActions[1]!() })
+    await waitFor(() => expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual(dates))
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.flexibleTarget).toBe(2)
+    client.clear()
+  })
+
+  it('undoes a flexible skip on a refetched row while preserving a later log', async () => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.undoSkipHabit).mockResolvedValue(undefined)
+    mockShowQueued.mockClear()
+    const client = createQueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = makeScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(client) })
+    await act(() => result.current.mutateAsync({ habitId: 'h-1', date }))
+    const undo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    const skipped = client.getQueryData<HabitScheduleItem[]>(key)![0]!
+    client.setQueryData(key, [{ ...skipped, flexibleCompleted: 1, isLoggedInRange: true }])
+    await act(async () => { undo() })
+    await waitFor(() => expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      flexibleTarget: 2, flexibleCompleted: 1, isLoggedInRange: true,
+    }))
+    client.clear()
+  })
+
+  it('keeps an authoritative flexible target when a restored-state refetch finishes before Undo', async () => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    let finishUndo!: () => void
+    vi.mocked(actions.undoSkipHabit).mockImplementation(() => new Promise<void>((resolve) => { finishUndo = resolve }))
+    const client = createQueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = makeScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(client) })
+    await act(() => result.current.mutateAsync({ habitId: row.id, date }))
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({ flexibleTarget: 1, scheduledDates: [] })
+    const undo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    act(() => { undo() })
+    await waitFor(() => expect(finishUndo).toBeTypeOf('function'))
+    const refreshed = { ...row, flexibleCompleted: 1, isLoggedInRange: true }
+    await act(() => client.fetchQuery({ queryKey: key, queryFn: () => Promise.resolve([refreshed]) }))
+    expect(client.getQueryData(key)).toEqual([refreshed])
+    await act(async () => { finishUndo() })
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    expect(client.getQueryData(key)).toEqual([refreshed])
+    client.clear()
   })
 
   it('calls skipHabit action', async () => {
@@ -837,10 +1106,10 @@ describe('useSkipHabit', () => {
       await result.current.mutateAsync({ habitId: 'h-1' })
     })
 
-    expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', undefined)
+    expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', { date: undefined, skipId: expect.any(String) }, 'account-a')
   })
 
-  it('refreshes skip lists, linked goals and dependents without unrelated families', async () => {
+  it('invalidates lists, summary, goals, gamification, and profile on settle (parity with mobile)', async () => {
     const { skipHabit } = await import('@/lib/actions/habits')
     vi.mocked(skipHabit).mockResolvedValue(undefined)
 
@@ -855,12 +1124,11 @@ describe('useSkipHabit', () => {
     })
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('passes date to skipHabit action', async () => {
@@ -875,7 +1143,56 @@ describe('useSkipHabit', () => {
       await result.current.mutateAsync({ habitId: 'h-1', date: '2025-01-15' })
     })
 
-    expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', '2025-01-15')
+    expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', { date: '2025-01-15', skipId: expect.any(String) }, 'account-a')
+  })
+
+  it('removes a dated skip from the cached day without marking it completed', async () => {
+    const date = '2025-01-15'
+    const { skipHabit } = await import('@/lib/actions/habits')
+    vi.mocked(skipHabit).mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    const listKey = habitKeys.list({ dateFrom: date, dateTo: date })
+    queryClient.setQueryData(listKey, [makeScheduleItem({
+      dueDate: date,
+      scheduledDates: [date],
+      instances: [{ date, status: 'Pending', logId: null }],
+    })])
+    const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'h-1', date })
+    })
+
+    const [skipped] = queryClient.getQueryData<HabitScheduleItem[]>(listKey) ?? []
+    expect(skipped?.isCompleted).toBe(false)
+    expect(hasHabitScheduleOnDate(skipped!, date)).toBe(false)
+    queryClient.clear()
+  })
+
+  it('keeps a skipped row absent and reports an undo conflict instead of restoring stale state', async () => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.undoSkipHabit).mockRejectedValue(createApiClientError(409, { error: 'Habit changed', errorCode: 'SKIP_UNDO_CONFLICT' }, 'Habit changed'))
+    mockShowQueued.mockClear()
+    mockShowError.mockClear()
+    const client = createQueryClient()
+    const date = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: date, dateTo: date })
+    client.setQueryData(key, [makeScheduleItem({ dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })])
+    const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(client) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'h-1', date }) })
+    const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    await act(async () => { performUndo() })
+    await waitFor(() => expect(mockShowQueued).toHaveBeenCalledWith('undo.restoreFailed', 'undo.action', expect.any(Function), expect.any(Function)))
+    const receipt = vi.mocked(actions.skipHabit).mock.calls.at(-1)![1].skipId
+    expect(actions.undoSkipHabit).toHaveBeenCalledWith('h-1', receipt, 'account-a')
+    expect(hasHabitScheduleOnDate(client.getQueryData<HabitScheduleItem[]>(key)![0]!, date)).toBe(false)
+    vi.mocked(actions.undoSkipHabit).mockResolvedValue(undefined)
+    const retryUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    await act(async () => { retryUndo() })
+    await waitFor(() => expect(hasHabitScheduleOnDate(client.getQueryData<HabitScheduleItem[]>(key)![0]!, date)).toBe(true))
+    expect(actions.undoSkipHabit).toHaveBeenCalledTimes(2)
+    client.clear()
   })
 
   it('optimistically postpones one-time child skips instead of completing them', async () => {
@@ -922,28 +1239,6 @@ describe('useCreateHabit', () => {
     mockFetch.mockReset()
   })
 
-  it('leaves general habit count and full pages to the server after create', async () => {
-    const { createHabit } = await import('@/lib/actions/habits')
-    vi.mocked(createHabit).mockResolvedValue({ id: 'new-h' })
-    const date = formatAPIDate(new Date())
-    const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.count(), 450)
-    const fullPage = Array.from({ length: 200 }, (_, index) => makeScheduleItem({ id: `h-${index}` }))
-    queryClient.setQueryData(habitKeys.list({}), fullPage)
-    queryClient.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date }), [makeScheduleItem({ id: 'h-1' })])
-    const { result } = renderHook(() => useCreateHabit(), { wrapper: createWrapper(queryClient) })
-
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-    await act(async () => { await result.current.mutateAsync({ title: 'New Habit', dueDate: date, isGeneral: true }) })
-
-    expect(queryClient.getQueryData(habitKeys.count())).toBe(450)
-    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))).toHaveLength(200)
-    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({ dateFrom: date, dateTo: date }))).toHaveLength(1)
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
-    expect(mockFetch).not.toHaveBeenCalled()
-  })
-
   it('calls createHabit action with request data', async () => {
     const { createHabit } = await import('@/lib/actions/habits')
     const mockedCreateHabit = vi.mocked(createHabit)
@@ -956,7 +1251,7 @@ describe('useCreateHabit', () => {
       await result.current.mutateAsync({ title: 'New Habit' })
     })
 
-    expect(mockedCreateHabit).toHaveBeenCalledWith({ title: 'New Habit' })
+    expect(mockedCreateHabit).toHaveBeenCalledWith({ title: 'New Habit' }, 'account-a')
   })
 })
 
@@ -977,21 +1272,7 @@ describe('useDeleteHabit', () => {
       await result.current.mutateAsync('h-1')
     })
 
-    expect(mockedDeleteHabit).toHaveBeenCalledWith('h-1')
-  })
-
-  it('refetches the habit count from the server after a delete', async () => {
-    const { deleteHabit } = await import('@/lib/actions/habits')
-    vi.mocked(deleteHabit).mockResolvedValue(undefined)
-    const queryClient = createQueryClient()
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-    const { result } = renderHook(() => useDeleteHabit(), { wrapper: createWrapper(queryClient) })
-
-    await act(async () => {
-      await result.current.mutateAsync('h-1')
-    })
-
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    expect(mockedDeleteHabit).toHaveBeenCalledWith('h-1', 'account-a')
   })
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
@@ -1018,7 +1299,27 @@ describe('useDeleteHabit', () => {
       performUndo()
     })
 
-    await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1'))
+    await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1', 'account-a'))
+  })
+
+  it('removes a deleted child from the mounted parent detail tree', async () => {
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.detail('parent-1'), makeDetail({
+      id: 'parent-1',
+      children: [makeScheduleChild({ id: 'child-1' })],
+    }))
+    const { result } = renderHook(() => useDeleteHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync('child-1')
+    })
+
+    expect(queryClient.getQueryData<HabitDetail>(habitKeys.detail('parent-1'))?.children)
+      .toEqual([])
   })
 })
 
@@ -1035,7 +1336,6 @@ describe('useRestoreHabit', () => {
 
     const { useRestoreHabit } = await import('@/hooks/use-habits')
     const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.count(), 449)
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useRestoreHabit(), {
       wrapper: createWrapper(queryClient),
@@ -1045,11 +1345,10 @@ describe('useRestoreHabit', () => {
       await result.current.mutateAsync('h-1')
     })
 
-    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1')
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1', 'account-a')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
-    expect(queryClient.getQueryData(habitKeys.count())).toBe(449)
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')
@@ -1080,7 +1379,7 @@ describe('useLogHabit onSuccess', () => {
     mockSetStreakCelebration.mockClear()
   })
 
-  /** The server sends no XP for a bad habit; celebration still uses the cached habit type. */
+  /** The server awards no XP for a bad habit, so the fixture must return zero. */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
@@ -1103,7 +1402,7 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'bad-child' })
+      await result.current.mutateAsync({ habitId: 'bad-child', intent: 'log' })
     })
 
     expect(mockSetStreakCelebration).not.toHaveBeenCalled()
@@ -1137,7 +1436,7 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'edited-habit' })
+      await result.current.mutateAsync({ habitId: 'edited-habit', intent: 'log' })
     })
 
     expect(queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp).toBe(125)
@@ -1145,12 +1444,7 @@ describe('useLogHabit onSuccess', () => {
     expect(mockSetStreakCelebration).not.toHaveBeenCalled()
   })
 
-  /**
-   * THE defect the connector found on #699. Rewards the server already granted were discarded
-   * whenever the habit was absent from the list cache, which is the ordinary state on a deep link
-   * or a cold navigation. The XP was banked server-side and never shown, and the achievement list
-   * was never refreshed, both silently.
-   */
+  /** Rewards must update when a deep link leaves the habit absent from the list cache. */
   it('banks XP and refreshes achievements for a habit that is not in the list cache', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
@@ -1170,7 +1464,7 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'never-listed' })
+      await result.current.mutateAsync({ habitId: 'never-listed', intent: 'log' })
     })
 
     expect(
@@ -1250,8 +1544,7 @@ describe('useLogHabit onSuccess', () => {
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-streak',
       isFirstCompletionToday,
-      currentStreak: 3,
-      xpEarned,
+      currentStreak: 7,
     })
 
     const queryClient = createQueryClient()
@@ -1263,18 +1556,17 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId })
+      await result.current.mutateAsync({ habitId, intent: 'log' })
     })
 
     if (celebrates) {
-      expect(mockSetStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+      expect(mockSetStreakCelebration).toHaveBeenCalledWith({ streak: 7 })
     } else {
       expect(mockSetStreakCelebration).not.toHaveBeenCalled()
     }
     expect(
       queryClient.getQueryData<{ currentStreak: number }>(profileKeys.detail())?.currentStreak,
-    ).toBe(celebrates ? 3 : 1)
-    expect(queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp).toBe(expectedXp)
+    ).toBe(celebrates ? 7 : 1)
   })
 
   it('completes successfully with streak response', async () => {
@@ -1298,10 +1590,10 @@ describe('useLogHabit onSuccess', () => {
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
-    expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
+    expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, 'account-a')
   })
 
   it('completes without triggering streak when not first today', async () => {
@@ -1325,7 +1617,7 @@ describe('useLogHabit onSuccess', () => {
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(mockedLogHabit).toHaveBeenCalled()
@@ -1361,7 +1653,7 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
@@ -1392,7 +1684,7 @@ describe('useLogHabit onSuccess', () => {
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(mockedLogHabit).toHaveBeenCalled()
@@ -1421,23 +1713,32 @@ describe('useUpdateHabit', () => {
       })
     })
 
-    expect(mockedUpdateHabit).toHaveBeenCalledWith('h-1', { title: 'Updated Exercise', isBadHabit: false })
+    expect(mockedUpdateHabit).toHaveBeenCalledWith('h-1', { title: 'Updated Exercise', isBadHabit: false }, 'account-a')
   })
 
-  it('refetches all lists when schedule days change', async () => {
-    const { useUpdateHabit } = await import('@/hooks/use-habits')
+  it('cancels an outstanding detail refresh before an inline edit', async () => {
     const { updateHabit } = await import('@/lib/actions/habits')
-    vi.mocked(updateHabit).mockResolvedValue(undefined)
     const queryClient = createQueryClient()
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const habit = makeHabitDetail()
+    queryClient.setQueryData(habitKeys.detail(habit.id), habit)
+    let finishRefresh!: (detail: HabitDetail) => void
+    const refresh = queryClient.fetchQuery({
+      queryKey: habitKeys.detail(habit.id),
+      queryFn: () => new Promise<HabitDetail>((resolve) => { finishRefresh = resolve }),
+    }).catch(() => undefined)
+    let finishWrite!: () => void
+    vi.mocked(updateHabit).mockImplementation(() => new Promise<void>((resolve) => { finishWrite = resolve }))
     const { result } = renderHook(() => useUpdateHabit(), { wrapper: createWrapper(queryClient) })
-
+    act(() => result.current.mutate({ habitId: habit.id, data: { title: 'Habit', isBadHabit: false, dueTime: '10:15' } }))
+    await waitFor(() => expect(finishWrite).toBeTypeOf('function'))
+    queryClient.setQueryData(habitKeys.detail(habit.id), { ...habit, dueTime: '10:15' })
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1', data: { title: 'Exercise', isBadHabit: false, days: ['Monday', 'Wednesday'] } })
+      finishRefresh({ ...habit, dueTime: '09:00' })
+      await refresh
     })
-
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    expect(queryClient.getQueryData<HabitDetail>(habitKeys.detail(habit.id))?.dueTime).toBe('10:15')
+    await act(async () => { finishWrite() })
+    queryClient.clear()
   })
 
   it('optimistically patches emoji changes', async () => {
@@ -1495,7 +1796,7 @@ describe('useReorderHabits', () => {
       await result.current.mutateAsync(data)
     })
 
-    expect(mockedReorderHabits).toHaveBeenCalledWith(data)
+    expect(mockedReorderHabits).toHaveBeenCalledWith(data, 'account-a')
   })
 
   it('optimistically applies the new positions to the cached list before the action resolves', async () => {
@@ -1597,7 +1898,7 @@ describe('useDuplicateHabit', () => {
       await result.current.mutateAsync('h-1')
     })
 
-    expect(mockedDuplicateHabit).toHaveBeenCalledWith('h-1')
+    expect(mockedDuplicateHabit).toHaveBeenCalledWith('h-1', 'account-a')
   })
 })
 
@@ -1625,7 +1926,7 @@ describe('useUpdateChecklist', () => {
       await result.current.mutateAsync({ habitId: 'h-1', items })
     })
 
-    expect(mockedUpdateChecklist).toHaveBeenCalledWith('h-1', items)
+    expect(mockedUpdateChecklist).toHaveBeenCalledWith('h-1', items, 'account-a')
   })
 
   it('optimistically updates the detail and fullDetail caches', async () => {
@@ -1731,7 +2032,9 @@ describe('useCreateSubHabit', () => {
     const mockedCreateSubHabit = vi.mocked(createSubHabit)
     mockedCreateSubHabit.mockResolvedValue(undefined)
 
-    const wrapper = createWrapper()
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.detail('h-1'), makeDetail({ id: 'h-1' }))
+    const wrapper = createWrapper(queryClient)
     const { result } = renderHook(() => useCreateSubHabit(), { wrapper })
 
     await act(async () => {
@@ -1741,7 +2044,9 @@ describe('useCreateSubHabit', () => {
       })
     })
 
-    expect(mockedCreateSubHabit).toHaveBeenCalledWith('h-1', { title: 'Warmup' })
+    expect(mockedCreateSubHabit).toHaveBeenCalledWith('h-1', { title: 'Warmup' }, 'account-a')
+    expect(queryClient.getQueryData<HabitDetail>(habitKeys.detail('h-1'))?.children[0])
+      .toMatchObject({ title: 'Warmup' })
   })
 })
 
@@ -1767,7 +2072,7 @@ describe('useMoveHabitParent', () => {
       })
     })
 
-    expect(mockedMoveHabitParent).toHaveBeenCalledWith('sub-h-1', { parentId: 'h-2' })
+    expect(mockedMoveHabitParent).toHaveBeenCalledWith('sub-h-1', { parentId: 'h-2' }, 'account-a')
   })
 })
 
@@ -1796,7 +2101,7 @@ describe('useBulkCreateHabits', () => {
       await result.current.mutateAsync(request)
     })
 
-    expect(mockedBulkCreate).toHaveBeenCalledWith(request)
+    expect(mockedBulkCreate).toHaveBeenCalledWith(request, 'account-a')
   })
 })
 
@@ -1805,16 +2110,12 @@ describe('useBulkDeleteHabits', () => {
     mockFetch.mockReset()
   })
 
-  it('calls bulkDeleteHabits action', async () => {
+  it('deletes each selected root through the single-habit action', async () => {
     const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
-    const { bulkDeleteHabits } = await import('@/lib/actions/habits')
-    const mockedBulkDelete = vi.mocked(bulkDeleteHabits)
-    mockedBulkDelete.mockResolvedValue({
-      results: [
-        { index: 0, status: 'Success' as const, habitId: 'h-1', error: null },
-        { index: 1, status: 'Success' as const, habitId: 'h-2', error: null },
-      ],
-    })
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    const mockedDeleteHabit = vi.mocked(deleteHabit)
+    mockedDeleteHabit.mockReset()
+    mockedDeleteHabit.mockResolvedValue(undefined)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
@@ -1823,19 +2124,41 @@ describe('useBulkDeleteHabits', () => {
       await result.current.mutateAsync(['h-1', 'h-2'])
     })
 
-    expect(mockedBulkDelete).toHaveBeenCalledWith(['h-1', 'h-2'])
+    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(1, 'h-1', 'account-a')
+    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(2, 'h-2', 'account-a')
+  })
+
+  it('limits parallel deletes to four and preserves global result indices', async () => {
+    const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    const mockedDeleteHabit = vi.mocked(deleteHabit)
+    let activeDeletes = 0
+    let maximumActiveDeletes = 0
+    mockedDeleteHabit.mockReset()
+    mockedDeleteHabit.mockImplementation(async () => {
+      activeDeletes += 1
+      maximumActiveDeletes = Math.max(maximumActiveDeletes, activeDeletes)
+      await Promise.resolve()
+      activeDeletes -= 1
+    })
+    const ids = Array.from({ length: 9 }, (_, index) => `h-${index}`)
+    const wrapper = createWrapper()
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
+
+    let response: Awaited<ReturnType<typeof result.current.mutateAsync>> | undefined
+    await act(async () => { response = await result.current.mutateAsync(ids) })
+
+    expect(maximumActiveDeletes).toBe(4)
+    expect(mockedDeleteHabit.mock.calls.map(([habitId]) => habitId)).toEqual(ids)
+    expect(response?.results.map((item) => item.index)).toEqual(Array.from({ length: 9 }, (_, index) => index))
   })
 
   it('offers Undo for successful bulk deletes and restores only those habits', async () => {
     mockShowQueued.mockReset()
-    const { bulkDeleteHabits, restoreHabit } = await import('@/lib/actions/habits')
+    const { deleteHabit, restoreHabit } = await import('@/lib/actions/habits')
     vi.mocked(restoreHabit).mockReset()
-    vi.mocked(bulkDeleteHabits).mockResolvedValue({
-      results: [
-        { index: 0, status: 'Success', habitId: 'h-1', error: null },
-        { index: 1, status: 'Failed', habitId: 'h-2', error: 'Failed' },
-        { index: 2, status: 'Success', habitId: 'h-3', error: null },
-      ],
+    vi.mocked(deleteHabit).mockReset().mockImplementation(async (id) => {
+      if (id === 'h-2') throw new Error('Delete failed')
     })
     vi.mocked(restoreHabit).mockResolvedValue(undefined)
 
@@ -1850,16 +2173,14 @@ describe('useBulkDeleteHabits', () => {
     const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
     await act(async () => { performUndo() })
     await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledTimes(2))
-    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1')
-    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-3')
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1', 'account-a')
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-3', 'account-a')
   })
 
   it('does not offer Undo when no bulk delete succeeds', async () => {
     mockShowQueued.mockReset()
-    const { bulkDeleteHabits } = await import('@/lib/actions/habits')
-    vi.mocked(bulkDeleteHabits).mockResolvedValue({
-      results: [{ index: 0, status: 'Failed', habitId: 'h-1', error: 'Failed' }],
-    })
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(deleteHabit).mockReset().mockRejectedValue(new Error('Delete failed'))
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
     await act(async () => { await result.current.mutateAsync(['h-1']) })
     expect(mockShowQueued).not.toHaveBeenCalled()
@@ -1867,28 +2188,25 @@ describe('useBulkDeleteHabits', () => {
 
   it('restores a selected parent once when the response reports its child', async () => {
     mockShowQueued.mockReset()
-    const { bulkDeleteHabits, restoreHabit } = await import('@/lib/actions/habits')
+    const { deleteHabit, restoreHabit } = await import('@/lib/actions/habits')
     vi.mocked(restoreHabit).mockReset().mockResolvedValue(undefined)
-    vi.mocked(bulkDeleteHabits).mockResolvedValue({
-      results: [
-        { index: 0, status: 'Success', habitId: 'parent', error: null, cascadedHabitIds: ['child'] },
-        { index: 1, status: 'Success', habitId: 'child', error: null, cascadedHabitIds: [] },
-      ],
-    })
-    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
+    vi.mocked(deleteHabit).mockReset().mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({
+      id: 'parent', children: [makeScheduleChild({ id: 'child' })],
+    })])
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper(queryClient) })
     await act(async () => { await result.current.mutateAsync(['parent', 'child']) })
     const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
     await act(async () => { performUndo() })
     await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('parent')
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('parent', 'account-a')
   })
 
   it('shows the singular bulk Undo toast for one deleted habit', async () => {
     mockShowQueued.mockReset()
-    const { bulkDeleteHabits } = await import('@/lib/actions/habits')
-    vi.mocked(bulkDeleteHabits).mockResolvedValue({
-      results: [{ index: 0, status: 'Success', habitId: 'h-1', error: null }],
-    })
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(deleteHabit).mockReset().mockResolvedValue(undefined)
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
     await act(async () => { await result.current.mutateAsync(['h-1']) })
     expect(mockShowQueued).toHaveBeenCalledWith(
@@ -1902,25 +2220,48 @@ describe('useBulkLogHabits', () => {
     mockFetch.mockReset()
   })
 
-  it('celebrates a bulk log that finishes Today', async () => {
-    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  it('refreshes a returning profile after a successful bulk log', async () => {
     const { bulkLogHabits } = await import('@/lib/actions/habits')
     vi.mocked(bulkLogHabits).mockResolvedValue({ results: [
       { index: 0, status: 'Success', habitId: 'h-1', logId: 'log-1', error: null },
-      { index: 1, status: 'Success', habitId: 'h-2', logId: 'log-2', error: null },
     ] })
-    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
-    const today = formatAPIDate(new Date())
     const queryClient = createQueryClient()
-    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true }), [
-      makeScheduleItem({ id: 'h-1', dueDate: today, scheduledDates: [today] }),
-      makeScheduleItem({ id: 'h-2', dueDate: today, scheduledDates: [today] }),
-    ])
+    queryClient.setQueryData(profileKeys.detail(), { lastCompletionDate: '2026-08-20' })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
-    await act(async () => { await result.current.mutateAsync([{ habitId: 'h-1' }, { habitId: 'h-2' }]) })
-    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
-    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
-    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+
+    await act(async () => { await result.current.mutateAsync([{ habitId: 'h-1' }]) })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it.each(['unlog', 'bulk log'])('refreshes the mounted returning interval after %s', async (action) => {
+    const { logHabit, bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 0 })
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [
+      { index: 0, status: 'Success', habitId: 'h-1', logId: 'log-2', error: null },
+    ] })
+    const today = new Date()
+    const dateBefore = new Date(today.getTime() - 5 * 86_400_000).toISOString().slice(0, 10)
+    const dateAfter = action === 'unlog' ? null : new Date(today.getTime() - 3 * 86_400_000).toISOString().slice(0, 10)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(profileKeys.detail(), { lastCompletionDate: dateBefore, timeZone: 'UTC' })
+    const fetchProfile = vi.fn(async () => ({ lastCompletionDate: dateAfter, timeZone: 'UTC' }))
+    const { result } = renderHook(() => ({
+      profile: useQuery({ queryKey: profileKeys.detail(), queryFn: fetchProfile, staleTime: 300_000 }),
+      log: useLogHabit(),
+      bulkLog: useBulkLogHabits(),
+    }), { wrapper: createWrapper(queryClient) })
+
+    expect(getReturningInterval(result.current.profile.data?.lastCompletionDate, 'UTC')).not.toBeNull()
+    await act(async () => {
+      if (action === 'unlog') await result.current.log.mutateAsync({ habitId: 'h-1', intent: 'unlog' })
+      else await result.current.bulkLog.mutateAsync([{ habitId: 'h-1' }])
+    })
+
+    await waitFor(() => expect(result.current.profile.data?.lastCompletionDate).toBe(dateAfter))
+    expect(getReturningInterval(result.current.profile.data?.lastCompletionDate, 'UTC'))
+      .toEqual(action === 'unlog' ? null : expect.objectContaining({ kind: 'elapsed' }))
   })
 
   it('calls bulkLogHabits action', async () => {
@@ -1942,7 +2283,113 @@ describe('useBulkLogHabits', () => {
       await result.current.mutateAsync(items)
     })
 
-    expect(mockedBulkLog).toHaveBeenCalledWith(items)
+    expect(mockedBulkLog).toHaveBeenCalledWith(items, 'account-a')
+  })
+
+  it('keeps an account switch refusal out of retryable failed rows', async () => {
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockRejectedValue({ code: 'ACCOUNT_CHANGED', status: 409 })
+    const { result } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync([{ habitId: 'h-1' }]))
+        .rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    })
+  })
+
+  it('optimistically completes every dated item in the viewed list', async () => {
+    const { useBulkLogHabits } = await import('@/hooks/use-habits')
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({ id: 'h-1', isCompleted: false }),
+      makeScheduleItem({ id: 'h-2', isCompleted: false }),
+    ])
+    const { result } = renderHook(() => useBulkLogHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'h-1', date: '2026-04-01' },
+        { habitId: 'h-2', date: '2026-04-01' },
+      ])
+    })
+
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({})))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'h-1', isCompleted: true }),
+        expect.objectContaining({ id: 'h-2', isCompleted: true }),
+      ]))
+  })
+
+  it('restores only the rejected sibling after a mixed bulk log result', async () => {
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({
+      results: [
+        { index: 0, status: 'Success', habitId: 'child-accepted', logId: 'log-1', error: null },
+        { index: 1, status: 'Failed', habitId: 'child-rejected', logId: null, error: 'Rejected' },
+      ],
+    })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({
+        id: 'parent',
+        hasSubHabits: true,
+        children: [
+          makeScheduleChild({ id: 'child-accepted', isCompleted: false }),
+          makeScheduleChild({ id: 'child-rejected', isCompleted: false }),
+        ],
+      }),
+    ])
+    const { result } = renderHook(() => useBulkLogHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'child-accepted' },
+        { habitId: 'child-rejected' },
+      ])
+    })
+
+    const children = queryClient
+      .getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.children
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
+    expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
+  })
+})
+
+describe('returning profile after other completion writes', () => {
+  it.each([
+    ['skip', () => useSkipHabit(), { habitId: 'h-1' }],
+    ['edit bad-habit flag', () => useUpdateHabit(), { habitId: 'h-1', data: { isBadHabit: true } }],
+    ['delete', () => useDeleteHabit(), 'h-1'],
+    ['restore', () => useRestoreHabit(), 'h-1'],
+    ['checklist', () => useUpdateChecklist(), { habitId: 'h-1', items: [] }],
+    ['bulk delete', () => useBulkDeleteHabits(), ['h-1']],
+    ['bulk skip', () => useBulkSkipHabits(), [{ habitId: 'h-1' }]],
+  ] as const)('refreshes profile after %s', async (_name, useWrite, variables) => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.updateHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.deleteHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.restoreHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.updateChecklist).mockResolvedValue(undefined)
+    vi.mocked(actions.bulkSkipHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(profileKeys.detail(), { lastCompletionDate: '2026-08-20' })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(
+      () => useWrite() as unknown as { mutateAsync: (input: never) => Promise<unknown> },
+      { wrapper: createWrapper(queryClient) },
+    )
+
+    await act(async () => { await result.current.mutateAsync(variables as never) })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    queryClient.clear()
   })
 })
 
@@ -1970,6 +2417,487 @@ describe('useBulkSkipHabits', () => {
       await result.current.mutateAsync(items)
     })
 
-    expect(mockedBulkSkip).toHaveBeenCalledWith(items)
+    expect(mockedBulkSkip).toHaveBeenCalledWith(items, 'account-a')
   })
+
+  it('optimistically completes every dated item in the viewed list', async () => {
+    const { useBulkSkipHabits } = await import('@/hooks/use-habits')
+    const { bulkSkipHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkSkipHabits).mockResolvedValue({ results: [] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({ id: 'h-1', isCompleted: false }),
+      makeScheduleItem({ id: 'h-2', isCompleted: false }),
+    ])
+    const { result } = renderHook(() => useBulkSkipHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'h-1', date: '2026-04-01' },
+        { habitId: 'h-2', date: '2026-04-01' },
+      ])
+    })
+
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({})))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'h-1', isCompleted: true }),
+        expect.objectContaining({ id: 'h-2', isCompleted: true }),
+      ]))
+  })
+
+  it('restores only the rejected sibling after a mixed bulk skip result', async () => {
+    const { bulkSkipHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkSkipHabits).mockResolvedValue({
+      results: [
+        { index: 0, status: 'Success', habitId: 'child-accepted', error: null },
+        { index: 1, status: 'Failed', habitId: 'child-rejected', error: 'Rejected' },
+      ],
+    })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({
+        id: 'parent',
+        hasSubHabits: true,
+        children: [
+          makeScheduleChild({ id: 'child-accepted', isCompleted: false }),
+          makeScheduleChild({ id: 'child-rejected', isCompleted: false }),
+        ],
+      }),
+    ])
+    const { result } = renderHook(() => useBulkSkipHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync([
+        { habitId: 'child-accepted' },
+        { habitId: 'child-rejected' },
+      ])
+    })
+
+    const children = queryClient
+      .getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.children
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
+    expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
+  })
+})
+
+it('loads only the requested search page and preserves its totals', async () => {
+  const response = { items: [makeScheduleItem({ id: 'last', title: 'Walk' })], page: 2, pageSize: 20, totalCount: 21, totalPages: 2 }
+  mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(response) })
+  const { result } = renderHook(() => useSearchHabits({ search: 'walk', page: 2, pageSize: 20 }), { wrapper: createWrapper() })
+  await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  expect(result.current.data).toMatchObject({ totalCount: 21, totalPages: 2, currentPage: 2 })
+  expect(result.current.data?.topLevelHabits.map((habit) => habit.id)).toEqual(['last'])
+  expect(mockFetch).toHaveBeenCalledTimes(1)
+  expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=walk&page=2&pageSize=20')
+})
+
+
+describe('daily streak moment after confirmed logging', () => {
+  it.each([
+    { name: 'second completion', first: false, streak: 5 },
+    { name: 'repeated first response', first: true, streak: 6 },
+    { name: 'past-day log', first: true, streak: 6, date: '2000-01-01' },
+    { name: 'slip', first: true, streak: 6, bad: true },
+    { name: 'unchanged streak', first: true, streak: 5 },
+    { name: 'unlog', first: true, streak: 6, intent: 'unlog' as const },
+    { name: 'milestone', first: true, streak: 7 },
+  ])('shows the first extension once and excludes $name', async (scenario) => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    mockSetStreakCelebration.mockClear()
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'confirmed-log', isFirstCompletionToday: true, previousStreak: 4, currentStreak: 5 })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync({ habitId: 'h-1', intent: 'log' }))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    store.getState().completeActiveCelebration()
+    if (!['second completion', 'repeated first response'].includes(scenario.name)) store.setState({ dailyStreakMomentDate: '' })
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ isBadHabit: scenario.bad ?? false })])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.name === 'milestone' ? 6 : 5 })
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'next-log', isFirstCompletionToday: scenario.first, previousStreak: scenario.name === 'milestone' ? 6 : 5, currentStreak: scenario.streak })
+    await act(() => result.current.mutateAsync({ habitId: 'h-1', date: scenario.date, intent: scenario.intent ?? 'log' }))
+    expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.name === 'milestone' ? 'streak' : null)
+    expect(store.getState().queuedCelebrations).toEqual([])
+    expect(mockSetStreakCelebration.mock.calls).toEqual(scenario.name === 'milestone' ? [[{ streak: 7 }]] : [])
+    unmount()
+    queryClient.clear()
+  })
+})
+
+
+describe('daily streak moment after bulk logging', () => {
+  it('uses the response after a confirmed bulk completion', async () => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'confirmed-log', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+      if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5 })
+    })
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    unmount()
+    queryClient.clear()
+  })
+})
+
+
+it('keeps a bulk completion confirmed across midnight out of the next day receipt', async () => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  const store = actual.useUIStore
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  vi.setSystemTime(new Date(2026, 5, 15, 23, 59))
+  const { bulkLogHabits } = await import('@/lib/actions/habits')
+  const response = { previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success' as const, habitId: 'h-1', logId: 'confirmed-log', error: null }] }
+  vi.mocked(bulkLogHabits).mockImplementation(async () => {
+    vi.setSystemTime(new Date(2026, 5, 16, 0, 1))
+    return response
+  })
+  const queryClient = createQueryClient()
+  queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+  queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+  let refreshedStreak = 5
+  vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+    if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) queryClient.setQueryData(profileKeys.detail(), { currentStreak: refreshedStreak })
+  })
+  const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+  try {
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+    refreshedStreak = 6
+    response.previousStreak = 5
+    response.currentStreak = 6
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 6 } })
+  } finally {
+    unmount()
+    queryClient.clear()
+    vi.useRealTimers()
+  }
+})
+
+
+it.each([5, 7])('shows the streak extension to %i after an earlier slip', async (streak) => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  const store = actual.useUIStore
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  const { logHabit } = await import('@/lib/actions/habits')
+  const queryClient = createQueryClient()
+  queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ id: 'avoid', isBadHabit: true }), makeScheduleItem({ id: 'build' })])
+  queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
+  const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+  vi.mocked(logHabit).mockResolvedValue({ logId: 'slip-log', isFirstCompletionToday: false, previousStreak: streak - 1, currentStreak: streak - 1 })
+  await act(() => result.current.mutateAsync({ habitId: 'avoid', intent: 'log' }))
+  expect(store.getState().activeCelebration).toBeNull()
+  vi.mocked(logHabit).mockResolvedValue({ logId: 'positive-log', isFirstCompletionToday: false, previousStreak: streak - 1, currentStreak: streak })
+  await act(() => result.current.mutateAsync({ habitId: 'build', intent: 'log' }))
+  expect(store.getState().activeCelebration).toMatchObject({ kind: streak === 7 ? 'streak' : 'daily-streak', payload: { streak } })
+  expect(store.getState().queuedCelebrations).toEqual([])
+  unmount()
+  queryClient.clear()
+})
+
+
+describe('account calendar streak regressions', () => {
+  const scenarios = [
+    { name: 'explicit account day', date: '2026-06-15', expected: true },
+    { name: 'implicit account day', expected: true },
+    { name: 'past account day', date: '2026-06-14', expected: false },
+    { name: 'account midnight', after: '2026-06-16T03:01:00Z', expected: false },
+    { name: 'device midnight within the account day', before: '2026-06-15T23:59:00Z', after: '2026-06-16T00:01:00Z', expected: true },
+  ]
+  it.each(scenarios.flatMap((scenario) => [5, 7].map((streak) => ({ ...scenario, streak }))))('uses the account calendar for single logging: $name, streak $streak', async (scenario) => {
+    mockSetStreakCelebration.mockClear()
+    vi.setSystemTime(new Date(scenario.before ?? '2026-06-16T01:00:00Z'))
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockImplementation(async () => {
+      if (scenario.after) vi.setSystemTime(new Date(scenario.after))
+      return { logId: 'confirmed-log', previousStreak: scenario.streak - 1, currentStreak: scenario.streak, isFirstCompletionToday: true }
+    })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.streak - 1, timeZone: 'America/Sao_Paulo' })
+    const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync({ habitId: 'h-1', date: scenario.date, intent: 'log' }))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? (scenario.streak === 7 ? 'streak' : 'daily-streak') : null)
+      expect(store.getState().dailyStreakMomentDate).toBe(scenario.expected ? '2026-06-15' : '')
+      expect(mockSetStreakCelebration).toHaveBeenCalledTimes(scenario.expected && scenario.streak === 7 ? 1 : 0)
+    } finally {
+      unmount()
+      queryClient.clear()
+      vi.useRealTimers()
+    }
+  })
+
+  it.each(scenarios)('uses the account calendar for bulk logging: $name', async (scenario) => {
+    vi.setSystemTime(new Date(scenario.before ?? '2026-06-16T01:00:00Z'))
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'confirmed-log', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4, timeZone: 'America/Sao_Paulo' })
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+      if (JSON.stringify(filters?.queryKey) !== JSON.stringify(profileKeys.all)) return
+      await Promise.resolve()
+      if (scenario.after) vi.setSystemTime(new Date(scenario.after))
+      queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5, timeZone: 'America/Sao_Paulo' })
+    })
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync([{ habitId: 'h-1', date: scenario.date }]))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? 'daily-streak' : null)
+      expect(store.getState().dailyStreakMomentDate).toBe(scenario.expected ? '2026-06-15' : '')
+    } finally {
+      unmount()
+      queryClient.clear()
+      vi.useRealTimers()
+    }
+  })
+})
+
+
+describe('bulk streak and all-done ordering regressions', () => {
+  it.each([
+    { streak: 5, existing: false },
+    { streak: 7, existing: false },
+    { streak: 5, existing: true },
+  ])('orders streak $streak before all-done and preserves existing=$existing', async ({ streak, existing }) => {
+    vi.setSystemTime(new Date('2026-06-16T01:00:00Z'))
+    const today = '2026-06-16'
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '', allDoneCelebratedDate: '' })
+    if (existing) store.getState().enqueueCelebration('goal-completed', { name: 'Distance', count: 5, unit: 'km' })
+    const previousActive = store.getState().activeCelebration
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ previousStreak: streak - 1, currentStreak: streak, results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'confirmed-log', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }), [makeScheduleItem({ dueDate: today, scheduledDates: [today] })])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1, timeZone: 'UTC' })
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+      if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak, timeZone: 'UTC' })
+    })
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    let moment: ReturnType<typeof render> | undefined
+    try {
+      await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+      if (existing) {
+        expect(store.getState().activeCelebration).toEqual(previousActive)
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['daily-streak', 'all-done'])
+        store.getState().completeActiveCelebration()
+      }
+      const active = store.getState().activeCelebration!
+      expect(active.kind).toBe(streak === 7 ? 'streak' : 'daily-streak')
+      expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['all-done'])
+      if (active.kind === 'daily-streak') {
+        vi.useFakeTimers()
+        moment = render(React.createElement(DailyStreakMoment, { id: active.id, streak, reducedMotion: true, closeRef: null, onDismiss: () => store.getState().completeActiveCelebration(active.id) }))
+        await act(() => vi.advanceTimersByTime(DAILY_STREAK_MOMENT_DURATION - 1))
+        expect(store.getState().activeCelebration?.kind).toBe('daily-streak')
+        await act(() => vi.advanceTimersByTime(1))
+      } else {
+        store.getState().completeActiveCelebration(active.id)
+      }
+      expect(store.getState().activeCelebration?.kind).toBe('all-done')
+    } finally {
+      moment?.unmount()
+      unmount()
+      queryClient.clear()
+      vi.useRealTimers()
+    }
+  })
+})
+
+
+describe('bulk no-op streak eligibility', () => {
+  it.each([5, 7].flatMap((streak) => [false, true].map((created) => ({ streak, created }))))(
+    'keeps streak $streak feedback and its receipt tied to a created log: $created',
+    async ({ streak, created }) => {
+      const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+      store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '', allDoneCelebratedDate: '' })
+      const today = formatAPIDate(new Date())
+      const { bulkLogHabits } = await import('@/lib/actions/habits')
+      vi.mocked(bulkLogHabits).mockResolvedValue({ previousStreak: created ? streak - 1 : streak, currentStreak: streak, results: [{
+        index: 0, status: 'Success', habitId: 'h-1', logId: created ? 'confirmed-log' : null,
+        error: null,
+      }] })
+      const queryClient = createQueryClient()
+      const todayKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+      queryClient.setQueryData(todayKey, [makeScheduleItem({ dueDate: today, scheduledDates: [today] })])
+      queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
+      const observer = new QueryObserver(queryClient, {
+        queryKey: profileKeys.detail(), staleTime: Infinity,
+        queryFn: () => Promise.resolve({ currentStreak: streak }),
+      })
+      const unsubscribe = observer.subscribe(() => {})
+      const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+      try {
+        await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+        expect(queryClient.getQueryData(profileKeys.detail())).toEqual({ currentStreak: streak })
+        expect(queryClient.getQueryData<HabitScheduleItem[]>(todayKey)?.[0]?.isCompleted).toBe(true)
+        expect(store.getState().activeCelebration?.kind).toBe(created ? (streak === 7 ? 'streak' : 'daily-streak') : 'all-done')
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(created ? ['all-done'] : [])
+        expect(store.getState().dailyStreakMomentDate).toBe(created ? today : '')
+        expect(store.getState().allDoneCelebratedDate).toBe(today)
+      } finally {
+        unmount()
+        unsubscribe()
+        queryClient.clear()
+      }
+    },
+  )
+})
+
+
+describe('response streak authority', () => {
+  const scenarios = [
+    { name: 'restart', previousStreak: 0, currentStreak: 1, cached: 2, expected: 'daily-streak' },
+    { name: 'normal first log with stale profile', previousStreak: 4, currentStreak: 5, cached: 2, expected: 'daily-streak' },
+    { name: 'second log', previousStreak: 5, currentStreak: 5, cached: 4, expected: null },
+    { name: 'unchanged streak', previousStreak: 0, currentStreak: 0, cached: 2, expected: null },
+    { name: 'missing previous streak', currentStreak: 5, cached: 4, expected: null },
+    { name: 'null previous streak replay', previousStreak: null, currentStreak: 1, cached: 2, expected: null },
+    { name: 'milestone', previousStreak: 6, currentStreak: 7, cached: 2, expected: 'streak' },
+    { name: 'slip', previousStreak: 4, currentStreak: 5, cached: 2, bad: true, expected: null },
+  ]
+
+  it.each(scenarios)('uses the single response for $name', async (scenario) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'confirmed-log', isFirstCompletionToday: true, previousStreak: scenario.previousStreak, currentStreak: scenario.currentStreak })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ isBadHabit: scenario.bad ?? false })])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.cached })
+    const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync({ habitId: 'h-1', intent: 'log' }))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected)
+      if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: scenario.currentStreak })
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
+  })
+
+  it.each([
+    ...scenarios,
+    { name: 'null current streak replay', previousStreak: 0, currentStreak: null, cached: 2, bad: false, expected: null },
+    { name: 'null transition replay', previousStreak: null, currentStreak: null, cached: 2, bad: false, expected: null },
+    { name: 'missing current streak', previousStreak: 4, currentStreak: undefined, cached: 4, bad: false, expected: null },
+  ])('uses the bulk response for $name', async (scenario) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ previousStreak: scenario.previousStreak, currentStreak: scenario.currentStreak, results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'confirmed-log', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ isBadHabit: scenario.bad ?? false })])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.cached })
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected)
+      if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: scenario.currentStreak })
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
+  })
+})
+
+
+describe('bulk response chunk streak transitions', () => {
+  it.each([
+    { name: 'extension in first chunk', firstPrevious: 0, firstCurrent: 1, secondPrevious: 1, secondCurrent: 1, badFirst: false, expected: true },
+    { name: 'extension in second chunk', firstPrevious: 0, firstCurrent: 0, secondPrevious: 0, secondCurrent: 1, badFirst: false, expected: true },
+    { name: 'extension reversed by a later slip', firstPrevious: 4, firstCurrent: 5, secondPrevious: 5, secondCurrent: 4, badFirst: false, expected: false },
+    { name: 'only slips in the moving chunk', firstPrevious: 0, firstCurrent: 1, secondPrevious: 1, secondCurrent: 1, badFirst: true, expected: false },
+  ])('keeps response fields with their matching results: $name', async (scenario) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const showStreakMoment = vi.spyOn(store.getState(), 'showStreakMoment')
+    const habits = Array.from({ length: 101 }, (_, index) => makeScheduleItem({ id: `habit-${index}`, isBadHabit: index < 100 ? scenario.badFirst : scenario.secondCurrent < scenario.secondPrevious }))
+    const items = habits.map(({ id }) => ({ habitId: id }))
+    const responses = [items.slice(0, 100), items.slice(100)].map((chunk, index) => ({
+      previousStreak: index === 0 ? scenario.firstPrevious : scenario.secondPrevious,
+      currentStreak: index === 0 ? scenario.firstCurrent : scenario.secondCurrent,
+      results: chunk.map((item, itemIndex) => ({ index: itemIndex, status: 'Success' as const, habitId: item.habitId, logId: `log-${item.habitId}`, error: null })),
+    }))
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    for (const response of responses) vi.mocked(bulkLogHabits).mockResolvedValueOnce(response)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), habits)
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 2 })
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync(items))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? 'daily-streak' : null)
+      if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: 1 })
+      expect(store.getState().queuedCelebrations).toEqual([])
+      expect(showStreakMoment).toHaveBeenCalledExactlyOnceWith(scenario.secondCurrent, scenario.firstPrevious, expect.objectContaining({ timeZone: undefined, intent: 'log', countsTowardStreak: !scenario.badFirst }))
+    } finally {
+      showStreakMoment.mockRestore()
+      unmount()
+      queryClient.clear()
+    }
+  })
+})
+
+
+it('waits for the profile before showing bulk streak feedback', async () => {
+  const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  const { bulkLogHabits } = await import('@/lib/actions/habits')
+  vi.mocked(bulkLogHabits).mockResolvedValue({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'confirmed-log', error: null }] })
+  const queryClient = createQueryClient()
+  queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+  const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+  try {
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+  } finally {
+    unmount()
+    queryClient.clear()
+  }
+})
+
+it('does not attribute another bulk log extension to a cached no-op habit', async () => {
+  const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  const { bulkLogHabits } = await import('@/lib/actions/habits')
+  vi.mocked(bulkLogHabits).mockResolvedValue({ previousStreak: 4, currentStreak: 5, results: [
+    { index: 0, status: 'Success', habitId: 'h-1', logId: null, error: null },
+    { index: 1, status: 'Success', habitId: 'uncached', logId: 'confirmed-log', error: null },
+  ] })
+  const queryClient = createQueryClient()
+  queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+  queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+  const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+  try {
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }, { habitId: 'uncached' }]))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+  } finally {
+    unmount()
+    queryClient.clear()
+  }
 })

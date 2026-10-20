@@ -1,0 +1,134 @@
+
+export type BlockFrameState = 'loading' | 'resting' | 'acting' | 'partiallyFailed' | 'stale'
+
+export type BlockFrameItemStatus = 'done' | 'acting' | 'failed'
+
+export type BlockFrameStatusLabels = Readonly<Record<BlockFrameItemStatus, string>>
+
+export type BlockFrameItem = {
+  readonly id: string
+  readonly label: React.ReactNode
+  readonly wrapLabel?: boolean
+  readonly wrapMeta?: boolean
+  readonly meta?: string
+  readonly status?: BlockFrameItemStatus
+  readonly statusLabel?: string
+  readonly control?: React.ReactNode
+  readonly editable?: boolean
+  readonly proposed?: boolean
+  readonly irreversible?: boolean
+}
+
+type BlockFrameStaleArm = {
+  readonly state: 'stale'
+  readonly staleMessage: string
+  readonly onRefresh?: () => void
+  readonly refreshLabel?: string
+}
+
+type BlockFrameSettledArm = {
+  readonly state: Exclude<BlockFrameState, 'stale'>
+  readonly staleMessage?: never
+  readonly onRefresh?: never
+  readonly refreshLabel?: never
+}
+
+type BlockFrameItemEditArm =
+  | { readonly onEditItem: (itemId: string) => void; readonly editLabel: string }
+  | { readonly onEditItem?: never; readonly editLabel?: never }
+
+type BlockFrameCommon = {
+  readonly title: string
+  readonly wrapTitle?: boolean
+  readonly titleMode?: 'label' | 'typed'
+  readonly focusTitleOnMount?: boolean
+  readonly count?: React.ReactNode
+  readonly items: readonly BlockFrameItem[]
+  readonly body?: React.ReactNode
+  readonly actions?: React.ReactNode
+  readonly irreversibleLabel?: string
+  readonly confirmNote?: string
+  readonly proposedLabel?: string
+}
+
+export type BlockFrameProps = BlockFrameCommon &
+  (BlockFrameStaleArm | BlockFrameSettledArm) &
+  BlockFrameItemEditArm
+
+export type ResolvedBlockFrameRow = Readonly<{
+  item: BlockFrameItem
+  frameState: BlockFrameState
+  statusLabel?: string
+  irreversibleLabel?: string
+  proposedLabel?: string
+  editLabel?: string
+  onEditItem?: (itemId: string) => void
+}>
+
+export type MissingBlockFrameLabel =
+  | 'irreversibleLabel'
+  | 'confirmNote'
+  | 'proposedLabel'
+
+function isMissingLabel(label: string | undefined): boolean {
+  return label == null || label.trim().length === 0
+}
+
+export function findMissingBlockFrameLabels(
+  props: BlockFrameProps,
+): readonly MissingBlockFrameLabel[] {
+  const missingLabels: MissingBlockFrameLabel[] = []
+  const hasIrreversibleItem = props.items.some((item) => item.irreversible === true)
+
+  if (hasIrreversibleItem && isMissingLabel(props.irreversibleLabel)) {
+    missingLabels.push('irreversibleLabel')
+  }
+  if (hasIrreversibleItem && isMissingLabel(props.confirmNote)) {
+    missingLabels.push('confirmNote')
+  }
+  if (props.items.some((item) => item.proposed === true) && isMissingLabel(props.proposedLabel)) {
+    missingLabels.push('proposedLabel')
+  }
+
+  return missingLabels
+}
+
+export function resolveBlockFrameState(props: BlockFrameProps): {
+  missingLabels: readonly MissingBlockFrameLabel[]
+  hasIrreversibleItem: boolean
+  canRenderActions: boolean
+} {
+  const missingLabels = findMissingBlockFrameLabels(props)
+  return {
+    missingLabels,
+    hasIrreversibleItem: props.items.some(item => item.irreversible === true),
+    // WHY: Missing consequence labels must prevent execution. https://github.com/thomasluizon/orbit-tickets/issues/349
+    canRenderActions: missingLabels.length === 0 && props.state !== 'stale',
+  }
+}
+
+function resolveStatusLabel(
+  item: BlockFrameItem,
+  frameState: BlockFrameState,
+  labels: BlockFrameStatusLabels,
+): string | undefined {
+  const status = frameState === 'acting' ? 'acting' : item.status
+  if (status == null) return undefined
+  if (frameState === 'acting') return labels.acting
+  return item.statusLabel ?? labels[status]
+}
+
+export function resolveBlockFrameRows(
+  props: BlockFrameProps,
+  labels: BlockFrameStatusLabels,
+): readonly ResolvedBlockFrameRow[] {
+  return props.items.map((item) => ({
+    item,
+    frameState: props.state,
+    statusLabel: resolveStatusLabel(item, props.state, labels),
+    irreversibleLabel: props.irreversibleLabel,
+    proposedLabel: props.proposedLabel,
+    editLabel: props.editLabel,
+    onEditItem: props.onEditItem,
+  }))
+}

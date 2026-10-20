@@ -7,14 +7,13 @@ import {
   getWebPushStatusMessageKey,
   getWebPushStatusPresentation,
   getWebPushStatusTone,
-  shouldShowNativePushPrompt,
 } from '../utils/push-notification-settings'
 
 describe('push notification settings presenters', () => {
   it('maps web push statuses to shared tone classes', () => {
-    expect(getPushStatusToneClass(getWebPushStatusTone('denied'))).toBe('text-[var(--status-bad-text)]')
+    expect(getPushStatusToneClass(getWebPushStatusTone('denied'))).toBe('text-[var(--fg-3)]')
     expect(getPushStatusToneClass(getWebPushStatusTone('sync-failed'))).toBe('text-[var(--status-bad-text)]')
-    expect(getPushStatusToneClass(getWebPushStatusTone('registered'))).toBe('text-[var(--primary)]')
+    expect(getPushStatusToneClass(getWebPushStatusTone('registered'))).toBe('text-[var(--fg-3)]')
     expect(getPushStatusToneClass(getWebPushStatusTone('not-registered'))).toBe('text-[var(--fg-3)]')
   })
 
@@ -40,7 +39,7 @@ describe('push notification settings presenters', () => {
   it('builds a complete web push presentation snapshot', () => {
     expect(getWebPushStatusPresentation('registered', 'granted')).toEqual({
       messageKey: 'settings.notifications.registered',
-      tone: 'accent',
+      tone: 'muted',
     })
   })
 
@@ -53,7 +52,13 @@ describe('push notification settings presenters', () => {
         isRegistered: false,
       }),
     ).toBe('settings.notifications.deniedNative')
-    expect(getNativePushStatusTone('permission-denied', null)).toBe('critical')
+    expect(getNativePushStatusTone('permission-denied', null)).toBe('muted')
+    expect(getNativePushStatusPresentation({
+      permissionStatus: 'denied',
+      registrationStatus: 'idle',
+      isEnabled: false,
+      isRegistered: false,
+    })).toEqual({ messageKey: 'settings.notifications.deniedNative', tone: 'muted' })
   })
 
   it('maps native registration edge states to the expected translation keys', () => {
@@ -111,43 +116,4 @@ describe('push notification settings presenters', () => {
     })
   })
 
-  it('shows the native push prompt only after onboarding when Orbit is not yet registered', () => {
-    expect(
-      shouldShowNativePushPrompt({
-        hasCompletedOnboarding: false,
-        isDismissed: false,
-        isEnabled: false,
-        isRegistered: false,
-        isSupported: true,
-        permissionStatus: 'undetermined',
-        registrationStatus: 'permission-undetermined',
-      }),
-    ).toBe(false)
-
-    expect(
-      shouldShowNativePushPrompt({
-        hasCompletedOnboarding: true,
-        isDismissed: false,
-        isEnabled: false,
-        isRegistered: false,
-        isSupported: true,
-        permissionStatus: 'undetermined',
-        registrationStatus: 'permission-undetermined',
-      }),
-    ).toBe(true)
-  })
-
-  it('does not show the native push prompt after the user disables Orbit notifications', () => {
-    expect(
-      shouldShowNativePushPrompt({
-        hasCompletedOnboarding: true,
-        isDismissed: false,
-        isEnabled: false,
-        isRegistered: false,
-        isSupported: true,
-        permissionStatus: 'granted',
-        registrationStatus: 'disabled',
-      }),
-    ).toBe(false)
-  })
 })

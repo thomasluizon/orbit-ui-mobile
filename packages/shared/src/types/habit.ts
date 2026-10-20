@@ -2,7 +2,11 @@ import { z } from 'zod'
 import { habitLogSchema } from './calendar'
 import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
 
+export const habitScheduleSchema = z.enum(['OneTime', 'Recurring', 'Flexible', 'General'])
+export type HabitSchedule = z.infer<typeof habitScheduleSchema>
+
 export const frequencyUnitSchema = z.enum(['Day', 'Week', 'Month', 'Year'])
+export const MAX_HABIT_INTERVAL_WEEKS = 52
 
 export type FrequencyUnit = z.infer<typeof frequencyUnitSchema>
 
@@ -80,12 +84,15 @@ const linkedGoalInfoSchema = z.object({
 })
 
 const baseHabitFieldsSchema = z.object({
+  startDate: z.iso.date().optional(),
+  schedule: habitScheduleSchema.optional(),
   id: z.string(),
   title: z.string(),
   description: z.string().nullable(),
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.nullable(),
   frequencyQuantity: z.number().nullable(),
+  intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).nullable().optional(),
   isBadHabit: z.boolean(),
   isCompleted: z.boolean(),
   isGeneral: z.boolean(),
@@ -101,11 +108,15 @@ const baseHabitFieldsSchema = z.object({
 
 export const habitScheduleChildSchema: z.ZodType<{
   id: string
+  createdAtUtc?: string
+  startDate?: string
+  schedule?: HabitSchedule
   title: string
   description: string | null
   emoji?: string | null
   frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
+  intervalWeeks?: number | null
   isBadHabit: boolean
   isCompleted: boolean
   isGeneral: boolean
@@ -128,6 +139,7 @@ export const habitScheduleChildSchema: z.ZodType<{
   instances: HabitInstance[]
   searchMatches?: SearchMatchField[] | null
 }> = baseHabitFieldsSchema.extend({
+  createdAtUtc: z.string().optional(),
   scheduledDates: z.array(z.string()).optional(),
   isOverdue: z.boolean().optional(),
   tags: z.array(habitTagSchema),
@@ -184,11 +196,15 @@ export type PaginatedResponse<T> = {
 
 export const habitDetailChildSchema: z.ZodType<{
   id: string
+  createdAtUtc?: string
+  startDate?: string
+  schedule?: HabitSchedule
   title: string
   description: string | null
   emoji?: string | null
   frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
+  intervalWeeks?: number | null
   isBadHabit: boolean
   isCompleted: boolean
   isGeneral: boolean
@@ -203,6 +219,7 @@ export const habitDetailChildSchema: z.ZodType<{
   checklistItems: ChecklistItem[]
   children: HabitDetailChild[]
 }> = baseHabitFieldsSchema.extend({
+  createdAtUtc: z.string().optional(),
   isOverdue: z.boolean().optional(),
   children: z.lazy(() => z.array(habitDetailChildSchema)),
 })
@@ -222,6 +239,7 @@ export type HabitDetail = z.infer<typeof habitDetailSchema>
 
 export const normalizedHabitSchema = baseHabitFieldsSchema.extend({
   createdAtUtc: z.string(),
+  createdAtUtcIsInherited: z.boolean().optional(),
   parentId: z.string().nullable(),
   scheduledDates: z.array(z.string()),
   isOverdue: z.boolean(),
@@ -249,7 +267,7 @@ export const createHabitRequestSchema = z.object({
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
-  intervalWeeks: z.number().optional(),
+  intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
   days: z.array(z.string()).optional(),
   isBadHabit: z.boolean().optional(),
   isGeneral: z.boolean().optional(),
@@ -298,14 +316,14 @@ export const updateHabitRequestSchema = z.object({
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
-  intervalWeeks: z.number().optional(),
+  intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
   days: z.array(z.string()).optional(),
   isBadHabit: z.boolean(),
   isGeneral: z.boolean().optional(),
   isFlexible: z.boolean().optional(),
   dueDate: z.string().optional(),
-  dueTime: z.string().optional(),
-  dueEndTime: z.string().optional(),
+  dueTime: z.string().nullable().optional(),
+  dueEndTime: z.string().nullable().optional(),
   reminderEnabled: z.boolean().optional(),
   reminderTimes: z.array(z.number()).optional(),
   scheduledReminders: z.array(scheduledReminderTimeSchema).optional(),
@@ -343,6 +361,13 @@ export const logHabitRequestSchema = z.object({
 
 export type LogHabitRequest = z.infer<typeof logHabitRequestSchema>
 
+export const skipHabitRequestSchema = z.object({
+  date: z.string().nullable().optional(),
+  skipId: z.string().uuid().nullable().optional(),
+})
+
+export type SkipHabitRequest = z.infer<typeof skipHabitRequestSchema>
+
 export const linkedGoalUpdateSchema = z.object({
   goalId: z.string(),
   title: z.string(),
@@ -355,6 +380,7 @@ export type LinkedGoalUpdate = z.infer<typeof linkedGoalUpdateSchema>
 export const logHabitResponseSchema = z.object({
   logId: z.string(),
   isFirstCompletionToday: z.boolean(),
+  previousStreak: z.number().nullish(),
   currentStreak: z.number(),
   linkedGoalUpdates: z.array(linkedGoalUpdateSchema).nullish(),
   xpEarned: z.number().nullish(),
@@ -411,6 +437,7 @@ export const bulkHabitItemSchema: z.ZodType<{
   endDate?: string | null
   googleEventId?: string | null
   tags?: string[] | null
+  intervalWeeks?: number | null
 }> = z.object({
   title: z.string(),
   description: z.string().nullable().optional(),
@@ -433,6 +460,7 @@ export const bulkHabitItemSchema: z.ZodType<{
   endDate: z.string().nullable().optional(),
   googleEventId: z.string().nullable().optional(),
   tags: z.array(z.string()).nullable().optional(),
+  intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).nullable().optional(),
 })
 
 export type BulkHabitItem = z.infer<typeof bulkHabitItemSchema>
@@ -464,7 +492,6 @@ const bulkDeleteItemResultSchema = z.object({
   status: bulkItemStatusSchema,
   habitId: z.string(),
   error: z.string().nullable(),
-  cascadedHabitIds: z.array(z.string()).nullable().optional(),
 })
 
 export const bulkDeleteResponseSchema = z.object({
@@ -472,6 +499,10 @@ export const bulkDeleteResponseSchema = z.object({
 })
 
 export type BulkDeleteResponse = z.infer<typeof bulkDeleteResponseSchema>
+
+export type BulkMutationOutcome<TResponse> = TResponse & {
+  ambiguousIds: string[]
+}
 
 export const habitsFilterSchema = z.object({
   dateFrom: z.string().optional(),
@@ -512,6 +543,7 @@ export const createSubHabitRequestSchema = z.object({
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
+  intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
   days: z.array(z.string()).optional(),
   isBadHabit: z.boolean().optional(),
   dueDate: z.string().optional(),
@@ -553,6 +585,8 @@ const bulkLogItemResultSchema = z.object({
 })
 
 export const bulkLogResultSchema = z.object({
+  previousStreak: z.number().nullish(),
+  currentStreak: z.number().nullish(),
   results: z.array(bulkLogItemResultSchema),
 })
 

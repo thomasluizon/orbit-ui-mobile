@@ -11,18 +11,24 @@ import {
 
 const mocks = vi.hoisted(() => ({
   useQuery: vi.fn(),
+  useQueryClient: vi.fn(() => ({
+    cancelQueries: vi.fn(async () => {}),
+    getQueryData: vi.fn(),
+    setQueryData: vi.fn(),
+  })),
   apiClient: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
+  useQueryClient: mocks.useQueryClient,
 }))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
-function captureQueryFn(): () => Promise<CalendarEventsResult> {
+function useCapturedQueryFn(): () => Promise<CalendarEventsResult> {
   let captured: (() => Promise<CalendarEventsResult>) | null = null
   mocks.useQuery.mockImplementation(
     (config: { queryFn: () => Promise<CalendarEventsResult> }) => {
@@ -30,7 +36,8 @@ function captureQueryFn(): () => Promise<CalendarEventsResult> {
       return { data: undefined }
     },
   )
-  return () => captured!()
+  useCalendarEvents({ timeZone: 'UTC' })
+  return captured!
 }
 
 describe('mobile useCalendarEvents', () => {
@@ -39,22 +46,32 @@ describe('mobile useCalendarEvents', () => {
     mocks.apiClient.mockReset()
   })
 
-  it('registers the shared manual-fetch query key with retry disabled', () => {
+  it('separates cached event projections by account timezone', () => {
     mocks.useQuery.mockReturnValue({ data: undefined })
-    useCalendarEvents()
+    useCalendarEvents({ timeZone: 'UTC' })
+    useCalendarEvents({ timeZone: 'America/Los_Angeles' })
 
-    expect(mocks.useQuery).toHaveBeenCalledWith(
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
-        queryKey: [...calendarKeys.all, 'manual-fetch'],
-        retry: false,
+        queryKey: [...calendarKeys.all, 'manual-fetch', 'UTC'],
+        retry: expect.any(Function),
+      }),
+    )
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        queryKey: [...calendarKeys.all, 'manual-fetch', 'America/Los_Angeles'],
       }),
     )
   })
 
   it('returns a connected result with the fetched events', async () => {
-    const queryFn = captureQueryFn()
-    useCalendarEvents()
-    const events = [createMockCalendarSyncEvent({ id: 'a' }), createMockCalendarSyncEvent({ id: 'b' })]
+    const queryFn = useCapturedQueryFn()
+    const events = [
+      createMockCalendarSyncEvent({ id: 'a', isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' }),
+      createMockCalendarSyncEvent({ id: 'b', isImported: false }),
+    ]
     mocks.apiClient.mockResolvedValue(events)
 
     const result = await queryFn()
@@ -63,16 +80,15 @@ describe('mobile useCalendarEvents', () => {
       status: 'connected',
       events,
     })
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/calendar/events')
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/calendar/events?includeImported=true')
   })
 
   it.each([{}, [{ id: 1 }], null])('exposes a schema error for malformed events %j', async (body) => {
-    const queryFn = captureQueryFn()
-    useCalendarEvents()
+    const queryFn = useCapturedQueryFn()
     mocks.apiClient.mockResolvedValue(body)
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     const observer = new QueryObserver(queryClient, {
-      queryKey: [...calendarKeys.all, 'manual-fetch'],
+      queryKey: [...calendarKeys.all, 'manual-fetch', 'UTC'],
       queryFn,
     })
     const result = await observer.refetch()
@@ -84,8 +100,7 @@ describe('mobile useCalendarEvents', () => {
   })
 
   it('returns an empty connected list when no events are available', async () => {
-    const queryFn = captureQueryFn()
-    useCalendarEvents()
+    const queryFn = useCapturedQueryFn()
     mocks.apiClient.mockResolvedValue([])
 
     const result = await queryFn()
@@ -94,8 +109,7 @@ describe('mobile useCalendarEvents', () => {
   })
 
   it('maps a not-connected error to the not-connected status', async () => {
-    const queryFn = captureQueryFn()
-    useCalendarEvents()
+    const queryFn = useCapturedQueryFn()
     mocks.apiClient.mockRejectedValue(new Error('Google Calendar is not connected'))
 
     const result = await queryFn()
@@ -104,8 +118,7 @@ describe('mobile useCalendarEvents', () => {
   })
 
   it('maps an Unauthorized error to the not-connected status', async () => {
-    const queryFn = captureQueryFn()
-    useCalendarEvents()
+    const queryFn = useCapturedQueryFn()
     mocks.apiClient.mockRejectedValue(new Error('Unauthorized'))
 
     const result = await queryFn()
@@ -114,8 +127,7 @@ describe('mobile useCalendarEvents', () => {
   })
 
   it('rethrows unrelated network errors so the query surfaces them', async () => {
-    const queryFn = captureQueryFn()
-    useCalendarEvents()
+    const queryFn = useCapturedQueryFn()
     mocks.apiClient.mockRejectedValue(new Error('Internal server error'))
 
     await expect(queryFn()).rejects.toThrow('Internal server error')

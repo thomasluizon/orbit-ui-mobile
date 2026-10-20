@@ -1,19 +1,21 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import {
   ArchiveX,
-  CheckCircle2,
   PencilLine,
   RotateCw,
   Trash2,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { GoalActionRow } from '../goal-detail-sections'
+import { ListRow } from '@/components/ui/list-row'
 
 interface GoalActionFooterProps {
   isActive: boolean
+  isAbandoned: boolean
   isUpdatingStatus: boolean
-  onMarkCompleted: () => void
   onMarkAbandoned: () => void
   onReactivate: () => void
   onEdit: () => void
@@ -24,8 +26,8 @@ interface GoalActionFooterProps {
  *  current goal state plus edit and delete rows. */
 export function GoalActionFooter({
   isActive,
+  isAbandoned,
   isUpdatingStatus,
-  onMarkCompleted,
   onMarkAbandoned,
   onReactivate,
   onEdit,
@@ -34,39 +36,40 @@ export function GoalActionFooter({
   const t = useTranslations()
 
   return (
-    <div style={{ marginTop: 16, paddingBottom: 4 }}>
-      {isActive ? (
-        <>
-          <GoalActionRow
-            label={t('goals.detail.markCompleted')}
-            icon={CheckCircle2}
-            onClick={onMarkCompleted}
-            disabled={isUpdatingStatus}
-          />
-          <GoalActionRow
-            label={t('goals.detail.markAbandoned')}
-            icon={ArchiveX}
-            onClick={onMarkAbandoned}
-            disabled={isUpdatingStatus}
-          />
-        </>
-      ) : (
-        <GoalActionRow
-          label={t('goals.detail.reactivate')}
-          icon={RotateCw}
+    <div style={{ paddingBottom: SPACING.s4 }}>
+      <ListRow
+        compact={false}
+        title={t('goals.detail.edit')}
+        icon={<PencilLine size={24} strokeWidth={1.5} aria-hidden="true" />}
+        chevron={false}
+        onClick={onEdit}
+      />
+      {isAbandoned ? (
+        <ListRow
+          compact={false}
+          title={t('goals.detail.reactivate')}
+          icon={<RotateCw size={24} strokeWidth={1.5} aria-hidden="true" />}
+          chevron={false}
           onClick={onReactivate}
           disabled={isUpdatingStatus}
         />
-      )}
-      <GoalActionRow
-        label={t('goals.detail.edit')}
-        icon={PencilLine}
-        onClick={onEdit}
-      />
-      <GoalActionRow
-        label={t('goals.detail.delete')}
-        icon={Trash2}
-        destructive
+      ) : null}
+      {isActive ? (
+          <ListRow
+            compact={false}
+            title={t('goals.detail.markAbandoned')}
+            icon={<ArchiveX size={24} strokeWidth={1.5} aria-hidden="true" />}
+            chevron={false}
+            onClick={onMarkAbandoned}
+            disabled={isUpdatingStatus}
+          />
+      ) : null}
+      <ListRow
+        compact={false}
+        title={t('goals.detail.delete')}
+        icon={<Trash2 size={24} strokeWidth={1.5} aria-hidden="true" />}
+        danger
+        chevron={false}
         onClick={onDelete}
       />
     </div>

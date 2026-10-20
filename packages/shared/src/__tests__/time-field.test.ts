@@ -1,0 +1,109 @@
+import { describe, expect, it } from 'vitest'
+import {
+  changeTimeFieldInput,
+  commitTimeFieldPickerDraft,
+  formatTimeFieldInput,
+  initialTimeFieldPickerDraft,
+  presentTimeFieldValue,
+  reconcileTimeFieldInput,
+  parseTypedTimeFieldValue,
+  selectTimeFieldHour,
+  selectTimeFieldMinute,
+  selectTimeFieldPeriod,
+  toTime24,
+} from '../utils/time-field'
+
+describe('API time conversion', () => {
+  it.each([
+    ['21:00', '21:00'],
+    ['21:00:00', '21:00'],
+    ['00:30:59', '00:30'],
+    ['23:59:59', '23:59'],
+    ['21:00:00.000', '21:00'],
+    ['21:00:00.1230000', '21:00'],
+    ['22:30:45.5', '22:30'],
+    [null, ''],
+    [undefined, ''],
+    ['', ''],
+    ['9:00', ''],
+    ['24:00:00', ''],
+    ['21:60:00', ''],
+    ['21:00:60', ''],
+    ['21:00:00.', ''],
+    ['21:00:00.12345678', ''],
+    ['21:00.123', ''],
+    ['21:00 trailing', ''],
+    [' 21:00', ''],
+  ])('converts %s to the TimeField wire value %s', (value, expected) => {
+    expect(toTime24(value)).toBe(expected)
+  })
+
+  it('presents and opens a seconds-bearing API time at its stored hour and minute', () => {
+    const value = toTime24('21:00:00')
+    expect(presentTimeFieldValue(value, 'h23')).toBe('21:00')
+    expect(presentTimeFieldValue(value, 'h12')).toBe('9:00 pm')
+    expect(initialTimeFieldPickerDraft(value, new Date(2026, 7, 28, 9, 15))).toEqual({ hour24: 21, minute: 0 })
+  })
+})
+
+describe('time field input formatting', () => {
+  it('inserts the separator for a numeric keypad buffer and accepts pasted forms', () => {
+    expect(formatTimeFieldInput('1', '')).toBe('1')
+    expect(formatTimeFieldInput('19', '1')).toBe('19:')
+    expect(formatTimeFieldInput('193', '19:')).toBe('19:3')
+    expect(formatTimeFieldInput('1930', '')).toBe('19:30')
+    expect(formatTimeFieldInput('19:30', '')).toBe('19:30')
+    expect(formatTimeFieldInput('19::', '19:')).toBe('19:')
+  })
+
+  it('removes the preceding digit when backspace removes the separator', () => {
+    expect(formatTimeFieldInput('19', '19:')).toBe('1')
+  })
+
+  it('leaves invalid drafts visible for validation instead of filtering input', () => {
+    expect(formatTimeFieldInput('time', '')).toBe('time')
+    expect(formatTimeFieldInput('19300', '')).toBe('19300')
+  })
+
+  it('presents and parses both clock cycles while keeping a 24-hour wire value', () => {
+    expect(presentTimeFieldValue('19:30', 'h23')).toBe('19:30')
+    expect(presentTimeFieldValue('19:30', 'h12')).toBe('7:30 pm')
+    expect(presentTimeFieldValue('00:05', 'h12')).toBe('12:05 am')
+    expect(presentTimeFieldValue('', 'h12')).toBe('')
+    expect(parseTypedTimeFieldValue('7:30 pm', 'h12')).toBe('19:30')
+    expect(parseTypedTimeFieldValue('12:05 am', 'h12')).toBe('00:05')
+    expect(parseTypedTimeFieldValue('19:30', 'h23')).toBe('19:30')
+    expect(parseTypedTimeFieldValue('19:30', 'h12')).toBeNull()
+    expect(parseTypedTimeFieldValue('25:00', 'h23')).toBeNull()
+  })
+
+  it('keeps typed drafts and emits a wire value only after parsing', () => {
+    expect(changeTimeFieldInput('1930', '', 'h23')).toEqual({ draft: '19:30', parsed: '19:30', clear: false })
+    expect(changeTimeFieldInput('7:30 pm', '', 'h12')).toEqual({ draft: '7:30 pm', parsed: '19:30', clear: false })
+    expect(changeTimeFieldInput('7:', '', 'h12')).toEqual({ draft: '7:', parsed: null, clear: false })
+    expect(changeTimeFieldInput('', '7:30 pm', 'h12')).toEqual({ draft: '', parsed: null, clear: true })
+  })
+
+  it.each([
+    { draft: '08:00', previous: 'h12', next: 'h23', display: '08:00', parsed: '08:00' },
+    { draft: '8:13 pm', previous: 'h12', next: 'h23', display: '20:13', parsed: '20:13' },
+    { draft: '00:00', previous: 'h23', next: 'h12', display: '12:00 am', parsed: '00:00' },
+    { draft: '8:13 pm', previous: 'h23', next: 'h12', display: '8:13 pm', parsed: '20:13' },
+    { draft: '08:', previous: 'h12', next: 'h23', display: '08:', parsed: null },
+    { draft: '25:00', previous: 'h12', next: 'h23', display: '25:00', parsed: null },
+    { draft: '', previous: 'h12', next: 'h23', display: '', parsed: null },
+  ] as const)('reconciles "$draft" from $previous to $next without guessing an invalid time', ({ draft, previous, next, display, parsed }) => {
+    expect(reconcileTimeFieldInput(draft, previous, next)).toEqual({ draft: display, parsed })
+  })
+
+  it('keeps the picker draft in 24-hour time across hour, minute, and period choices', () => {
+    const initial = initialTimeFieldPickerDraft('19:30', new Date(0))
+    expect(initial).toEqual({ hour24: 19, minute: 30 })
+    const hour = selectTimeFieldHour(initial, 8, 'h12')
+    expect(hour.hour24).toBe(20)
+    const minute = selectTimeFieldMinute(hour, 45)
+    const morning = selectTimeFieldPeriod(minute, 'AM')
+    expect(commitTimeFieldPickerDraft(morning)).toBe('08:45')
+    expect(selectTimeFieldHour(initial, 9, 'h23').hour24).toBe(9)
+  })
+})

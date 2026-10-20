@@ -1,40 +1,52 @@
+import { SPACING } from '@orbit/shared/theme'
+import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
   forwardRef,
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactElement,
+  type RefObject,
 } from 'react'
 import {
   View,
+  Text,
   FlatList,
   RefreshControl,
-  type ListRenderItem,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
-import Animated, { FadeInDown } from 'react-native-reanimated'
 import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
 import { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import {
   buildHabitDateBuckets,
+  filterHabitViewRoots,
+  formatHabitDateBucketLabel,
+  canLogHabitOnDate,
   computeHabitReorderPositions,
+  computeParentSettlementDecision,
+  computeParentPromptDecision,
+  computeHabitDayProgress,
   computeParentPromptProgress,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   formatAPIDate,
+  formatAPIDateInTimeZone,
   getAllDoneOnDate,
-  getHabitEmptyStateKey,
-  hasHabitScheduleOnDate,
-  isHabitVisibleInAllView,
+  getTodayBoundary,
+  hasAncestorInSet,
+  type HabitResolution,
+  type HabitResolutionMode,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import {
@@ -49,34 +61,24 @@ import {
   useMoveHabitParent,
 } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
+import { useCurrentDate } from '@/app/(tabs)/use-today-date'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
+import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
-import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
-import { useTourStore } from '@/stores/tour-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
-import { HabitRow } from '@/components/habits/habit-row'
-import { useTourTarget } from '@/hooks/use-tour-target'
+import { HabitRow, type HabitRowProps } from '@/components/habits/habit-row'
+import { Skeleton } from '@/components/ui/skeleton'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
-import {
-  getEmptyHabitsMessage,
-  HabitListEmptyState,
-  SkeletonCard,
-} from './habit-list/empty-state'
-import {
-  formatDateGroupLabel,
-  HabitListDateGroupSection,
-  type HabitListDateGroup,
-} from './habit-list/date-group-section'
-import { DrillFooter, DrillHabitItem } from './habit-list/drill-panel'
-import { HabitListDrillView } from './habit-list/drill-view'
+import { HabitListAllDone, HabitListEmptyState, HabitListFrequencyEmptyState, HabitListNothingOpen } from './habit-list/empty-state'
+import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
+import { HabitDrill } from './habit-list/habit-drill'
 import {
   MoveParentDialog,
   type MoveParentOption,
@@ -89,38 +91,21 @@ import {
 } from './habit-list/tree-helpers'
 import { createStyles } from './habit-list/styles'
 import { subscribeBulkReplaySuccesses } from '@/lib/bulk-replay-events'
-
-/**
- * Wraps a HabitRow in a measurable View that registers itself with the tour
- * registry. v8's HabitRow has no internal tour-target prop so we anchor here
- * from the parent. Renders no extra layout — the wrapping View is a sibling
- * of the row, sized to fit content.
- */
-function HabitRowTourAnchor({
-  targetId,
-  children,
-}: Readonly<{ targetId: string; children: ReactElement }>) {
-  const anchorRef = useRef<View>(null)
-  useTourTarget(targetId, anchorRef)
-  return (
-    <View ref={anchorRef} collapsable={false}>
-      {children}
-    </View>
-  )
-}
+import { SearchEmpty } from '@/components/search/search-results'
 
 interface HabitListProps {
   view?: 'today' | 'all' | 'general'
   filters: HabitsFilter
   selectedDate?: Date
   showCompleted: boolean
+  onShowCompleted?: () => void
   searchQuery?: string
+  onClearSearch?: () => void
   isSelectMode?: boolean
   selectedHabitIds?: Set<string>
   listHeader?: ReactElement | null
   onCreatePress: () => void
   onSeeUpcoming?: () => void
-  onLogHabit?: (habit: NormalizedHabit) => void
   onDetailHabit?: (habit: NormalizedHabit) => void
   onEditHabit?: (
     habit: NormalizedHabit,
@@ -133,9 +118,76 @@ interface HabitListProps {
   /** Notified whenever the all-collapsed status changes. Parents can mirror
    * this in render-time state (refs cannot be read during render). */
   onAllCollapsedChange?: (allCollapsed: boolean) => void
+  onSurfaceOpenChange?: (open: boolean) => void
   /** Notified whenever the set of visible habit ids changes. Parents can
    * mirror this in render-time state. */
   onAllLoadedIdsChange?: (ids: Set<string>) => void
+}
+
+interface RowActionHandlers {
+  toggle: (habitId: string, intent: 'log' | 'unlog') => void
+  skip: (habit: NormalizedHabit) => void
+  reschedule: (habit: NormalizedHabit) => void
+  expand: (habitId: string) => void
+  delete: (habitId: string) => void
+  duplicate: (habit: NormalizedHabit) => void
+  edit: (habit: NormalizedHabit, isDrillCard: boolean) => void
+  move: (habitId: string) => void
+  addChild: (habitId: string) => void
+  drill: (habitId: string) => void
+  enterSelectMode: (habitId: string) => void
+  toggleSelection: (habitId: string) => void
+  detail: (habit: NormalizedHabit) => void
+}
+
+interface ActionRowProps extends Omit<HabitRowProps, 'actions'> {
+  canSkip: boolean
+  hasSubHabits: boolean
+  isDrillCard: boolean
+  onLongPressCard?: () => void
+  handlersRef: RefObject<RowActionHandlers>
+}
+
+function ActionRow({
+  habit,
+  canSkip,
+  hasSubHabits,
+  isDrillCard,
+  onLongPressCard,
+  handlersRef,
+  ...rowProps
+}: Readonly<ActionRowProps>) {
+  const latestRef = useRef({ habit, onLongPressCard })
+  useLayoutEffect(() => {
+    latestRef.current = { habit, onLongPressCard }
+  }, [habit, onLongPressCard])
+  const hasLongPress = Boolean(onLongPressCard)
+  const actions = useMemo(() => {
+    const habitId = habit.id
+    return {
+      onLog: () => handlersRef.current.toggle(habitId, 'log'),
+      onUnlog: () => handlersRef.current.toggle(habitId, 'unlog'),
+      onSkip: canSkip ? () => handlersRef.current.skip(latestRef.current.habit) : undefined,
+      onReschedule: habit.isOverdue
+        ? () => handlersRef.current.reschedule(latestRef.current.habit)
+        : undefined,
+      onToggleExpand: () => handlersRef.current.expand(habitId),
+      onDelete: () => handlersRef.current.delete(habitId),
+      onDuplicate: () => handlersRef.current.duplicate(latestRef.current.habit),
+      onEdit: () => handlersRef.current.edit(latestRef.current.habit, isDrillCard),
+      onMoveParent: () => handlersRef.current.move(habitId),
+      onAddSubHabit: () => handlersRef.current.addChild(habitId),
+      onDrillInto: hasSubHabits ? () => handlersRef.current.drill(habitId) : undefined,
+      onEnterSelectMode: () => handlersRef.current.enterSelectMode(habitId),
+      onDetail: () => handlersRef.current.detail(latestRef.current.habit),
+      onToggleSelection: () => handlersRef.current.toggleSelection(habitId),
+      onLongPressCard: hasLongPress
+        ? () => latestRef.current.onLongPressCard?.()
+        : undefined,
+    }
+  }, [canSkip, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
+
+  return <HabitRow {...rowProps} habit={habit} actions={actions} />
 }
 
 export interface HabitListHandle {
@@ -145,15 +197,10 @@ export interface HabitListHandle {
   expandAll: () => void
   markRecentlyCompleted: (habitId: string) => void
   checkAndPromptParentLog: (childHabitId: string) => void
-  settleBulkHabitResolutions: (
-    items: readonly { habitId: string; date?: string }[],
-    mode: 'log' | 'skip',
-  ) => void
+  settleBulkHabitResolutions: (resolutions: readonly HabitResolution[], date: string) => void
   refetch: () => void
-  scrollToOffset: (offset: number) => void
+  scrollToOffset: (offset: number, animated?: boolean) => void
 }
-
-const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 const SKELETON_KEYS = [
   'skeleton-1',
@@ -164,50 +211,254 @@ const SKELETON_KEYS = [
 ]
 const KEYBOARD_SHOULD_PERSIST_TAPS = 'handled'
 
-// react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, date-group-section, drill-view, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+interface ParentSettlementPrompt {
+  habit: NormalizedHabit
+  mode: 'log' | 'skip'
+  date: string
+}
+
+interface ParentPromptQueue {
+  date: string
+  prompts: ParentSettlementPrompt[]
+}
+
+function getCurrentParentPrompt(queue: ParentPromptQueue, date: string) {
+  if (queue.date !== date) return null
+  return queue.prompts[0] ?? null
+}
+
+function enqueueParentPrompt(
+  queue: ParentPromptQueue,
+  prompt: ParentSettlementPrompt,
+): ParentPromptQueue {
+  const prompts = queue.date === prompt.date ? queue.prompts : []
+  return { date: prompt.date, prompts: [...prompts, prompt] }
+}
+
+function removeParentPrompt(
+  queue: ParentPromptQueue,
+  habitId: string,
+  date: string,
+): ParentPromptQueue {
+  if (queue.date !== date) return queue
+  const prompts = queue.prompts.filter((prompt) => prompt.habit.id !== habitId)
+  return prompts.length === queue.prompts.length ? queue : { ...queue, prompts }
+}
+
+function removeQueuedParentPrompt(
+  queue: ParentPromptQueue,
+  prompt: ParentSettlementPrompt | null,
+): ParentPromptQueue {
+  if (!prompt) return queue
+  return removeParentPrompt(queue, prompt.habit.id, prompt.date)
+}
+
+function shiftParentPrompt(queue: ParentPromptQueue, date: string): ParentPromptQueue {
+  if (queue.date !== date) return queue
+  return { ...queue, prompts: queue.prompts.slice(1) }
+}
+
+interface ParentSettlementData {
+  getChildren: (id: string) => NormalizedHabit[]
+  visibility: ReturnType<typeof useHabitVisibility>
+  habitsById: Map<string, NormalizedHabit>
+  selectedDateStr: string
+  isListView: boolean
+}
+
+interface ParentSettlementOperation {
+  data: ParentSettlementData
+  date: string
+  confirmedResolutions: ConfirmedResolutionRecord
+  requiresLogConfirmation: boolean
+}
+
+interface ConfirmedResolutionRecord {
+  date: string
+  modes: Map<string, HabitResolutionMode>
+  skippedIds: Set<string>
+  activeSettlements: number
+  clearWhenIdle: boolean
+}
+
+function getParentPromptProgress(
+  habitId: string,
+  confirmedResolutions: ConfirmedResolutionRecord,
+  settlementData: ParentSettlementData | null,
+) {
+  if (!settlementData) return { done: 0, total: 0, loggedDone: 0 }
+  return computeParentPromptProgress({
+    parentId: habitId,
+    getChildren: settlementData.getChildren,
+    isRelevantToday: settlementData.visibility.isRelevantToday,
+    isDueOnSelectedDate: settlementData.visibility.isDueOnSelectedDate,
+    skippedIds: confirmedResolutions.skippedIds,
+    isListView: settlementData.isListView,
+    resolvedModes: confirmedResolutions.modes,
+  })
+}
+
+function clearPersistedResolutions(
+  confirmedResolutions: ConfirmedResolutionRecord,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+) {
+  for (const habitId of confirmedResolutions.modes.keys()) {
+    const habit = habitsById.get(habitId)
+    const hasFlexibleSkip = habit?.flexibleTarget != null &&
+      habit.flexibleCompleted != null &&
+      habit.flexibleCompleted >= habit.flexibleTarget &&
+      !habit.isLoggedInRange
+    if (!habit?.isCompleted && !habit?.isLoggedInRange && !hasFlexibleSkip) continue
+    confirmedResolutions.modes.delete(habitId)
+    confirmedResolutions.skippedIds.delete(habitId)
+  }
+}
+
+function refreshConfirmedResolutions(
+  confirmedResolutions: ConfirmedResolutionRecord,
+  hasQueuedParentPrompt: boolean,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+) {
+  if (hasQueuedParentPrompt) {
+    clearPersistedResolutions(confirmedResolutions, habitsById)
+    confirmedResolutions.clearWhenIdle = false
+    return
+  }
+  if (confirmedResolutions.activeSettlements === 0) {
+    confirmedResolutions.modes.clear()
+    confirmedResolutions.skippedIds.clear()
+    confirmedResolutions.clearWhenIdle = false
+    return
+  }
+  confirmedResolutions.clearWhenIdle = true
+}
+
+function createConfirmedResolutionRecord(date: string): ConfirmedResolutionRecord {
+  return {
+    date,
+    modes: new Map(),
+    skippedIds: new Set(),
+    activeSettlements: 0,
+    clearWhenIdle: false,
+  }
+}
+
+function getDeleteConfirmation(
+  habitId: string | null,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+  childrenByParent: ReadonlyMap<string, string[]>,
+) {
+  if (!habitId) return { name: '', descendantCount: 0 }
+  return {
+    name: habitsById.get(habitId)?.title ?? '',
+    descendantCount: collectSelectableDescendantIds(
+      habitId,
+      (descendantId) => childrenByParent.get(descendantId) ?? [],
+    ).length,
+  }
+}
+
+function getVisibleParentPrompt(
+  prompt: ParentSettlementPrompt | null,
+  selectedDate: string,
+): { id: string; name: string; mode: 'log' | 'skip' } | null {
+  if (!prompt || prompt.date !== selectedDate) return null
+  return { id: prompt.habit.id, name: prompt.habit.title, mode: prompt.mode }
+}
+
+function resolveParentSettlement(
+  prompt: ParentSettlementPrompt | null,
+  selectedDate: string,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+  getProgress: (parentId: string) => ReturnType<typeof computeParentPromptProgress>,
+): { parentId: string; mode: 'log' | 'skip'; date: string } | null {
+  if (!prompt || prompt.date !== selectedDate) return null
+  const mode = computeParentSettlementDecision(
+    habitsById.get(prompt.habit.id) ?? null,
+    getProgress(prompt.habit.id),
+    prompt.date,
+  )
+  return mode ? { parentId: prompt.habit.id, mode, date: prompt.date } : null
+}
+
+function renderAllDoneListHeader(
+  showAllDone: boolean,
+  header: ReactElement | null,
+  headerStyle: ReturnType<typeof createStyles>['allDoneHeader'],
+  onAction: (() => void) | undefined,
+): ReactElement | null {
+  if (!showAllDone) return header
+  return (
+    <View style={headerStyle}>
+      {header}
+      <HabitListAllDone onSeeUpcoming={onAction} />
+    </View>
+  )
+}
+
+function renderDayListEmptyState(
+  isCountLoaded: boolean,
+  accountCount: number,
+  showAllDone: boolean,
+  renderFirstRun: () => ReactElement,
+  sectionInsetStyle: ReturnType<typeof createStyles>['sectionInset'],
+  frequencyUnit: HabitsFilter['frequencyUnit'],
+): ReactElement | null {
+  if (frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={frequencyUnit} />
+  if (showAllDone) return null
+  if (isCountLoaded && accountCount === 0) return renderFirstRun()
+  return <View style={sectionInsetStyle}><HabitListNothingOpen /></View>
+}
+
+// react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, habit-drill, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   function HabitList(
     {
       view = 'today',
       filters,
-      selectedDate,
+      selectedDate: requestedDate,
       showCompleted,
+      onShowCompleted,
       searchQuery,
+      onClearSearch,
       isSelectMode,
       selectedHabitIds,
       listHeader = null,
       onCreatePress,
       onSeeUpcoming,
-      onLogHabit,
       onDetailHabit,
       onEditHabit,
       onScrollBeginDrag,
       onScroll,
       onAllCollapsedChange,
+      onSurfaceOpenChange,
       onAllLoadedIdsChange,
     },
     ref,
   ) {
+    const selectedDate = view === 'today' ? requestedDate : undefined
     const { t, i18n } = useTranslation()
-    const deviceLocale = i18n.language
+    const accountHabitCount = useHabitCountLoaded()
     const router = useRouter()
     const pathname = usePathname()
-    const prefersReducedMotion = usePrefersReducedMotion()
     const { profile } = useProfile()
+    const accountTimeZone = profile?.timeZone
+    const todayStr = useCurrentDate(accountTimeZone)
+    const settlementDateIsReadOnly = useCallback((date: string): boolean =>
+      !profile || getTodayBoundary(date, formatAPIDateInTimeZone(new Date(), profile.timeZone)) === 'read-only',
+    [profile])
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(
       () => createTokensV2(currentScheme, currentTheme),
       [currentScheme, currentTheme],
     )
     const styles = useMemo(() => createStyles(tokens), [tokens])
-    const bulkBarStyle = isSelectMode ? styles.listContentWithBulkBar : null
+    const clearance = useShellScrollerClearance()
+    const bulkBarStyle = { paddingBottom: clearance + (isSelectMode ? SPACING.s24 : SPACING.s0) }
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
-    const allViewListRef = useRef<FlatList<HabitListDateGroup>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
-    const scrollTo = useCallback((y: number) => {
-      scrollContainerRef.current?.scrollToOffset({ offset: y, animated: true })
-    }, [])
-    const { onTourScrollOffset } = useTourScrollContainer('/', scrollTo)
+    const stateListRef = useRef<FlatList<string>>(null)
+    const allListRef = useRef<FlatList<DragItem>>(null)
     const handleListScroll = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         onScroll?.(e.nativeEvent.contentOffset.y)
@@ -216,46 +467,20 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
     const handleMainListOffsetChange = useCallback(
       (offsetY: number) => {
-        onTourScrollOffset(offsetY)
         onScroll?.(offsetY)
       },
-      [onScroll, onTourScrollOffset],
+      [onScroll],
     )
-
-    const isTourActive = useTourStore((s) => s.isActive)
-    const tourStepIndex = useTourStore((s) => s.currentStepIndex)
-    useEffect(() => {
-      if (!isTourActive) return
-      const stepId = useTourStore.getState().getCurrentStep()?.id
-      if (!stepId) return
-      if (
-        stepId === 'habits-tabs' ||
-        stepId === 'habits-date-nav' ||
-        stepId === 'habits-streak' ||
-        stepId === 'habits-notifications'
-      ) {
-        const timer = setTimeout(() => {
-          scrollContainerRef.current?.scrollToOffset({
-            offset: 0,
-            animated: true,
-          })
-        }, 400)
-        return () => clearTimeout(timer)
-      }
-    }, [isTourActive, tourStepIndex])
 
     const { config: appConfig } = useConfig()
     const maxHabitDepth = appConfig.limits.maxHabitDepth
-    const habitsQuery = useHabits(filters)
+    const habitsQuery = useHabits(filters, habitViewQueryOptions(view, todayStr))
     const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
-    const tourCardHabitId = habitsById.has(TOUR_FEATURED_HABIT_ID)
-      ? TOUR_FEATURED_HABIT_ID
-      : topLevelHabits[0]?.id
-    const totalCount = habitsQuery.data?.totalCount ?? 0
     const isLoading = habitsQuery.isLoading
+    const isError = habitsQuery.isError
     const isFetching = habitsQuery.isFetching
     const refetch = habitsQuery.refetch
     const getChildren = habitsQuery.getChildren
@@ -264,8 +489,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         habitsQuery.data?.childrenByParent ?? new Map<string, string[]>(),
       [habitsQuery.data?.childrenByParent],
     )
+    const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
 
     const logMutation = useLogHabit()
+    const logMutateAsync = logMutation.mutateAsync
     const skipMutation = useSkipHabit()
     const deleteMutation = useDeleteHabit()
     const duplicateMutation = useDuplicateHabit()
@@ -275,31 +502,44 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
     const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
-    const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<
-      Set<string>
-    >(new Set())
+    const [recentlyCompletedDates, setRecentlyCompletedDates] = useState(
+      new Map<string, Set<string>>(),
+    )
+    const recentlyCompletedIds = useMemo(
+      () => getRecentlyCompletedIdsForDate(recentlyCompletedDates, selectedDateStr),
+      [recentlyCompletedDates, selectedDateStr],
+    )
+    const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
+      habitsById,
+      childrenByParent,
+      selectedDate: selectedDateStr,
+      searchQuery: searchQuery ?? '',
+      showCompleted,
+      recentlyCompletedIds,
+      recentlyCompletedDates,
+    }, view, todayStr)
+
+    useEffect(() => {
+      onSurfaceOpenChange?.(drill.currentParentId !== null)
+    }, [drill.currentParentId, onSurfaceOpenChange])
+    const pendingToggleKeysRef = useRef(new Set<string>())
     const promptedParentIdsRef = useRef(new Set<string>())
-    const skippedChildIdsRef = useRef(new Set<string>())
-    const bulkLoggedIdsRef = useRef(new Set<string>())
-    const promptDataRef = useRef<{
-      getChildren: (id: string) => NormalizedHabit[]
-      isListView: boolean
-      visibility: ReturnType<typeof useHabitVisibility>
-      habitsById: Map<string, NormalizedHabit>
-      selectedDateStr: string
-    } | null>(null)
-    const [showForceLogConfirm, setShowForceLogConfirm] = useState(false)
-    const [forceLogHabitId, setForceLogHabitId] = useState<string | null>(null)
-    const [showAutoLogParent, setShowAutoLogParent] = useState(false)
-    const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
-    const [autoLogParentMode, setAutoLogParentMode] = useState<'log' | 'skip'>('log')
+    const confirmedResolutionsRef = useRef(
+      createConfirmedResolutionRecord(selectedDateStr),
+    )
+    const [parentPromptQueue, setParentPromptQueue] = useState<ParentPromptQueue>({
+      date: selectedDateStr,
+      prompts: [],
+    })
+    const parentPrompt = getCurrentParentPrompt(parentPromptQueue, selectedDateStr)
+    const hasQueuedParentPrompt = parentPrompt !== null
+    const promptDataRef = useRef<ParentSettlementData | null>(null)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-    const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
-    const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
-    const [habitToDuplicate, setHabitToDuplicate] =
-      useState<NormalizedHabit | null>(null)
-    const [showSkipConfirm, setShowSkipConfirm] = useState(false)
-    const [habitToSkip, setHabitToSkip] = useState<string | null>(null)
+    const [deletePending, setDeletePending] = useState(false)
+    const [habitToDelete, setHabitToDelete] = useState<{
+      id: string; name: string; descendantCount: number
+    } | null>(null)
+    const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
     const [showSubHabitModal, setShowSubHabitModal] = useState(false)
     const [subHabitParent, setSubHabitParent] =
       useState<NormalizedHabit | null>(null)
@@ -311,6 +551,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [selectedMoveParentId, setSelectedMoveParentId] = useState<
       string | null
     >(null)
+    const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
     const selectedIds = useMemo(
       () => selectedHabitIds ?? new Set<string>(),
       [selectedHabitIds],
@@ -324,15 +565,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         ),
       [isSelectMode, recentlyCompletedIds, selectedIds],
     )
-    const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
     useEffect(() => {
       promptedParentIdsRef.current.clear()
-      skippedChildIdsRef.current.clear()
-      bulkLoggedIdsRef.current.clear()
-    }, [promptedParentIdsRef, selectedDateStr, skippedChildIdsRef])
-    const autoLogParentHabit = autoLogParentId
-      ? (habitsById.get(autoLogParentId) ?? null)
-      : null
+      confirmedResolutionsRef.current = createConfirmedResolutionRecord(selectedDateStr)
+    }, [selectedDateStr])
     const movingHabit = movingHabitId
       ? (habitsById.get(movingHabitId) ?? null)
       : null
@@ -345,14 +581,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       showCompleted,
       recentlyCompletedIds,
     })
-    const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
-      habitsById,
-      childrenByParent,
-      selectedDate: selectedDateStr,
-      searchQuery: searchQuery ?? '',
-      showCompleted,
-      recentlyCompletedIds,
-    }, view)
 
     const recentlyCompletedTimersRef = useRef(
       new Map<string, ReturnType<typeof setTimeout>>(),
@@ -368,38 +596,31 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
     }, [])
 
-    const markRecentlyCompleted = useCallback((habitId: string) => {
-      setRecentlyCompletedIds((previous) => new Set(previous).add(habitId))
+    const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
+      setRecentlyCompletedDates((previous) => addRecentCompletion(previous, habitId, date))
       const timers = recentlyCompletedTimersRef.current
-      const existing = timers.get(habitId)
+      const timerKey = `${habitId}:${date}`
+      const existing = timers.get(timerKey)
       if (existing) clearTimeout(existing)
       timers.set(
-        habitId,
+        timerKey,
         setTimeout(() => {
-          timers.delete(habitId)
-          setRecentlyCompletedIds((previous) => {
-            const next = new Set(previous)
-            next.delete(habitId)
-            return next
-          })
+          timers.delete(timerKey)
+          setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
         }, 1400),
       )
-    }, [])
+    }, [selectedDateStr])
 
-    const clearRecentlyCompleted = useCallback((habitId: string) => {
+    const clearRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
       const timers = recentlyCompletedTimersRef.current
-      const existing = timers.get(habitId)
+      const timerKey = `${habitId}:${date}`
+      const existing = timers.get(timerKey)
       if (existing) {
         clearTimeout(existing)
-        timers.delete(habitId)
+        timers.delete(timerKey)
       }
-      setRecentlyCompletedIds((previous) => {
-        if (!previous.has(habitId)) return previous
-        const next = new Set(previous)
-        next.delete(habitId)
-        return next
-      })
-    }, [])
+      setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
+    }, [selectedDateStr])
 
     const getVisibleChildren = useCallback(
       (parentId: string): NormalizedHabit[] =>
@@ -408,39 +629,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const visibleHabits = useMemo(() => {
-      if (view === 'today') {
-        return topLevelHabits.filter((habit) =>
-          visibility.hasVisibleContent(habit),
-        )
-      }
-
-      if (view === 'all') {
-        return topLevelHabits.filter((habit) =>
-          isHabitVisibleInAllView(habit, showCompleted),
-        )
-      }
-
-      return showCompleted
-        ? topLevelHabits
-        : topLevelHabits.filter(
-            (habit) => !habit.isCompleted || recentlyCompletedIds.has(habit.id),
-          )
+      return filterHabitViewRoots(topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility)
     // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is the extracted habitsQuery.data.topLevelHabits and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [recentlyCompletedIds, showCompleted, topLevelHabits, view, visibility])
-
-    const dateGroups = useMemo<HabitListDateGroup[]>(() => {
-      if (view !== 'all') return []
-
-      const today = formatAPIDate(new Date())
-      return buildHabitDateBuckets(visibleHabits, today).map((bucket) => ({
-        ...bucket,
-        label:
-          bucket.key === '__overdue__'
-            ? t('habits.overdue')
-            : formatDateGroupLabel(bucket.key, deviceLocale, t),
-      }))
-    // react-doctor-disable-next-line exhaustive-deps -- deviceLocale is the extracted i18n.language and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [deviceLocale, t, view, visibleHabits])
+    }, [topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility])
 
     const allLoadedIds = useMemo(() => {
       return collectVisibleHabitTreeIds(visibleHabits, getVisibleChildren)
@@ -496,11 +687,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const collapseAll = useCallback(() => {
       setCollapsedIds(new Set(expandableIds))
-    }, [expandableIds])
+    }, [expandableIds, setCollapsedIds])
 
     const expandAll = useCallback(() => {
       setCollapsedIds(new Set())
-    }, [])
+    }, [setCollapsedIds])
 
     const toggleExpand = useCallback((habitId: string) => {
       setCollapsedIds((prev) => {
@@ -512,7 +703,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         }
         return next
       })
-    }, [])
+    }, [setCollapsedIds])
 
     const [isDraggingList, setIsDraggingList] = useState(false)
     const [dragOverrideItems, setDragOverrideItems] = useState<
@@ -535,9 +726,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       autoCollapsedOnDragRef.current = null
     }, [])
 
+    const dateGroups = useMemo(() => view === 'all' ? buildHabitDateBuckets(visibleHabits, todayStr) : [], [view, visibleHabits, todayStr])
+    const groupHeadings = useMemo(() => new Map(dateGroups.map((bucket) => [bucket.habits[0]!.id, formatHabitDateBucketLabel(bucket.key, todayStr, i18n.language, t)])), [dateGroups, todayStr, i18n.language, t])
     const flatItems = useMemo<DragItem[]>(
-      () => buildFlatHabitItems(visibleHabits, collapsedIds, getVisibleChildren),
-      [visibleHabits, collapsedIds, getVisibleChildren],
+      () => buildFlatHabitItems(view === 'all' ? dateGroups.flatMap((bucket) => bucket.habits) : visibleHabits, collapsedIds, getVisibleChildren),
+      [view, dateGroups, visibleHabits, collapsedIds, getVisibleChildren],
     )
 
     const activeDragItems = dragOverrideItems ?? flatItems
@@ -548,18 +741,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [activeDragItems])
     const isDndEnabled = view !== 'all' && !isSelectMode
 
-    const isListView = view === 'all' || view === 'general'
-
     useEffect(() => {
       promptDataRef.current = {
         getChildren,
-        isListView,
         visibility,
         habitsById,
         selectedDateStr,
+        isListView: view !== 'today',
       }
     // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are the extracted habitsQuery members and already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [getChildren, isListView, visibility, habitsById, selectedDateStr])
+    }, [getChildren, visibility, habitsById, selectedDateStr, view])
 
     const childrenProgressMap = useMemo(() => {
       const map = new Map<string, { done: number; total: number }>()
@@ -568,36 +759,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         child: NormalizedHabit,
         computeFn: (id: string) => { done: number; total: number },
       ): { done: number; total: number } {
-        let done = 0
-        let total = 0
-
-        if (isListView || child.isGeneral) {
-          total += 1
-          if (child.isCompleted) {
-            done += 1
-          }
-        } else if (
-          !visibility.isRelevantToday(child) &&
-          !child.isOverdue &&
-          !child.isLoggedInRange
-        ) {
-          return computeFn(child.id)
-        } else if (
-          visibility.isDueOnSelectedDate(child) ||
-          child.isOverdue ||
-          child.isLoggedInRange
-        ) {
-          total += 1
-          if (child.isCompleted || child.isLoggedInRange) {
-            done += 1
-          }
-        }
-
-        const nestedProgress = computeFn(child.id)
-        done += nestedProgress.done
-        total += nestedProgress.total
-
-        return { done, total }
+        const ownProgress = computeHabitDayProgress([child], visibility.isDueOnSelectedDate, view)
+        const nested = computeFn(child.id)
+        return { done: ownProgress.done + nested.done, total: ownProgress.total + nested.total }
       }
 
       function compute(habitId: string): { done: number; total: number } {
@@ -635,7 +799,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
       return map
     // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are the extracted habitsQuery members and already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [getChildren, habitsById, isListView, visibility])
+    }, [getChildren, habitsById, visibility, view])
 
     const getChildrenProgress = useCallback(
       (habitId: string) => {
@@ -644,108 +808,324 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [childrenProgressMap],
     )
 
-    const getChildrenProgressForPrompt = useCallback((
-      habitId: string,
-      assumeCompletedId?: string,
-      assumeCompletedIds?: ReadonlySet<string>,
-    ) => {
-      const data = promptDataRef.current
-      if (!data) return { done: 0, total: 0, loggedDone: 0 }
-      return computeParentPromptProgress({
-        parentId: habitId,
-        getChildren: data.getChildren,
-        isRelevantToday: data.visibility.isRelevantToday,
-        isDueOnSelectedDate: data.visibility.isDueOnSelectedDate,
-        isListView: data.isListView,
-        skippedIds: skippedChildIdsRef.current,
-        assumeCompletedId,
-        assumeCompletedIds,
-      })
-    }, [])
-
     useEffect(() => {
+      const confirmedResolutions = confirmedResolutionsRef.current
+      refreshConfirmedResolutions(
+        confirmedResolutions,
+        hasQueuedParentPrompt,
+        promptDataRef.current?.habitsById ?? EMPTY_HABITS_BY_ID,
+      )
       for (const parentId of promptedParentIdsRef.current) {
-        const progress = getChildrenProgressForPrompt(parentId)
-        if (progress.total === 0 || progress.done < progress.total) {
+        const progress = getParentPromptProgress(
+          parentId,
+          confirmedResolutions,
+          promptDataRef.current,
+        )
+        const decision = computeParentPromptDecision(
+          promptDataRef.current?.habitsById.get(parentId) ?? null,
+          progress,
+          selectedDateStr,
+          promptedParentIdsRef.current,
+        )
+        if (decision.type === 'release') {
           promptedParentIdsRef.current.delete(parentId)
         }
       }
-    }, [getChildrenProgressForPrompt, habitsQuery.dataUpdatedAt])
+    }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt, selectedDateStr])
 
-    const checkAndPromptParentLog = useCallback(
-      (childHabitId: string, assumeCompletedIds?: ReadonlySet<string>) => {
-        const data = promptDataRef.current
-        if (!data) return
+    const recordHabitResolution = useCallback((
+      confirmedResolutions: ConfirmedResolutionRecord,
+      habitId: string,
+      mode: HabitResolutionMode,
+    ) => {
+      confirmedResolutions.modes.set(habitId, mode)
+      if (mode === 'skip') {
+        confirmedResolutions.skippedIds.add(habitId)
+      } else {
+        confirmedResolutions.skippedIds.delete(habitId)
+      }
+    }, [])
 
-        const childHabit = data.habitsById.get(childHabitId)
+    const finishParentSettlement = useCallback((
+      confirmedResolutions: ConfirmedResolutionRecord,
+    ) => {
+      confirmedResolutions.activeSettlements -= 1
+      if (confirmedResolutions.activeSettlements === 0 && confirmedResolutions.clearWhenIdle) {
+        confirmedResolutions.modes.clear()
+        confirmedResolutions.skippedIds.clear()
+        confirmedResolutions.clearWhenIdle = false
+      }
+    }, [])
+
+    const checkAndSettleParent = useCallback(
+      function settleParentForChild(
+        childHabitId: string,
+        confirmedResolutions: ConfirmedResolutionRecord,
+        settlementData: ParentSettlementData | null = promptDataRef.current,
+      ) {
+        if (!settlementData) return
+
+        const childHabit = settlementData.habitsById.get(childHabitId)
         if (!childHabit?.parentId) return
 
-        const parentHabit = data.habitsById.get(childHabit.parentId)
+        const parentHabit = settlementData.habitsById.get(childHabit.parentId)
         if (!parentHabit || parentHabit.isCompleted) return
-
-        const parentIsDueToday =
-          parentHabit.isGeneral ||
-          parentHabit.isOverdue ||
-          hasHabitScheduleOnDate(parentHabit, data.selectedDateStr)
-        if (!parentIsDueToday) return
-
-        const completedIds = new Set([
-          ...bulkLoggedIdsRef.current,
-          ...(assumeCompletedIds ?? []),
-        ])
-        const progress = getChildrenProgressForPrompt(parentHabit.id, childHabitId, completedIds)
-        if (progress.total > 0 && progress.done >= progress.total) {
-          if (!promptedParentIdsRef.current.has(parentHabit.id)) {
-            promptedParentIdsRef.current.add(parentHabit.id)
-            setAutoLogParentId(parentHabit.id)
-            setAutoLogParentMode(progress.loggedDone > 0 ? 'log' : 'skip')
-            setShowAutoLogParent(true)
-          }
-        } else {
+        if (settlementDateIsReadOnly(settlementData.selectedDateStr)) {
           promptedParentIdsRef.current.delete(parentHabit.id)
+          setParentPromptQueue((current) => removeParentPrompt(current, parentHabit.id, settlementData.selectedDateStr))
+          return
+        }
+
+        const decision = computeParentPromptDecision(
+          parentHabit,
+          getParentPromptProgress(
+            parentHabit.id,
+            confirmedResolutions,
+            settlementData,
+          ),
+          settlementData.selectedDateStr,
+          promptedParentIdsRef.current,
+        )
+        if (decision.type === 'open') {
+          confirmedResolutions.clearWhenIdle = false
+          promptedParentIdsRef.current.add(parentHabit.id)
+          setParentPromptQueue((current) => enqueueParentPrompt(current, {
+            habit: parentHabit,
+            mode: decision.mode,
+            date: settlementData.selectedDateStr,
+          }))
+        } else if (decision.type === 'release') {
+          promptedParentIdsRef.current.delete(parentHabit.id)
+          setParentPromptQueue((current) => removeParentPrompt(
+            current,
+            parentHabit.id,
+            settlementData.selectedDateStr,
+          ))
         }
       },
-      [getChildrenProgressForPrompt],
+      [
+        settlementDateIsReadOnly,
+        setParentPromptQueue,
+      ],
     )
 
-    const settleBulkHabitResolutions = useCallback((
-      items: readonly { habitId: string; date?: string }[],
-      mode: 'log' | 'skip',
-    ) => {
-      const currentItems = items.filter((item) => !item.date || item.date === selectedDateStr)
-      const completedIds = new Set(currentItems.map((item) => item.habitId))
-      for (const id of completedIds) {
-        if (mode === 'skip') skippedChildIdsRef.current.add(id)
-        else {
-          skippedChildIdsRef.current.delete(id)
-          bulkLoggedIdsRef.current.add(id)
+    const settleParentAutomatically = useCallback(
+      function settleParentForChild(
+        childHabitId: string,
+        operation: ParentSettlementOperation,
+      ) {
+        const childHabit = operation.data.habitsById.get(childHabitId)
+        if (!childHabit?.parentId) return
+        const parentHabit = operation.data.habitsById.get(childHabit.parentId)
+        if (!parentHabit) return
+
+        const decision = computeParentPromptDecision(
+          parentHabit,
+          getParentPromptProgress(
+            parentHabit.id,
+            operation.confirmedResolutions,
+            operation.data,
+          ),
+          operation.date,
+          promptedParentIdsRef.current,
+        )
+        if (decision.type === 'release') promptedParentIdsRef.current.delete(parentHabit.id)
+        if (decision.type !== 'open') return
+        const { mode } = decision
+
+        if (mode === 'log' && operation.requiresLogConfirmation) {
+          checkAndSettleParent(childHabitId, operation.confirmedResolutions, operation.data)
+          return
         }
-        markRecentlyCompleted(id)
+
+        if (settlementDateIsReadOnly(operation.date)) {
+          promptedParentIdsRef.current.delete(parentHabit.id)
+          return
+        }
+
+        promptedParentIdsRef.current.add(parentHabit.id)
+        operation.confirmedResolutions.activeSettlements += 1
+        markRecentlyCompleted(parentHabit.id, operation.date)
+        void (async () => {
+          try {
+            try {
+              if (mode === 'skip') {
+                await skipMutation.mutateAsync({
+                  habitId: parentHabit.id,
+                  date: operation.date,
+                })
+              } else {
+                await logMutateAsync({
+                  habitId: parentHabit.id,
+                  date: operation.date,
+                  intent: 'log',
+                })
+              }
+            } catch {
+              if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
+                promptedParentIdsRef.current.delete(parentHabit.id)
+                clearRecentlyCompleted(parentHabit.id, operation.date)
+              }
+              return
+            }
+
+            if (
+              promptDataRef.current?.selectedDateStr !== operation.date ||
+              confirmedResolutionsRef.current !== operation.confirmedResolutions
+            ) return
+            recordHabitResolution(operation.confirmedResolutions, parentHabit.id, mode)
+            settleParentForChild(parentHabit.id, operation)
+          } finally {
+            finishParentSettlement(operation.confirmedResolutions)
+          }
+        })()
+      },
+      [
+        clearRecentlyCompleted,
+        checkAndSettleParent,
+        finishParentSettlement,
+        logMutateAsync,
+        markRecentlyCompleted,
+        recordHabitResolution,
+        settlementDateIsReadOnly,
+        skipMutation,
+      ],
+    )
+
+    const checkAndPromptParentLog = useCallback((childHabitId: string) => {
+      const confirmedResolutions = confirmedResolutionsRef.current
+      recordHabitResolution(confirmedResolutions, childHabitId, 'log')
+      checkAndSettleParent(childHabitId, confirmedResolutions)
+    }, [checkAndSettleParent, recordHabitResolution])
+
+    const settleBulkHabitResolutions = useCallback((
+      resolutions: readonly HabitResolution[],
+      date: string,
+    ) => {
+      const settlementData = promptDataRef.current
+      if (!settlementData) return
+      for (const resolution of resolutions) {
+        markRecentlyCompleted(resolution.habitId, date)
       }
-      const promptedParents = new Set<string>()
-      for (const id of completedIds) {
-        const parentId = promptDataRef.current?.habitsById.get(id)?.parentId
-        if (!parentId || completedIds.has(parentId) || promptedParents.has(parentId)) continue
-        promptedParents.add(parentId)
-        checkAndPromptParentLog(id, completedIds)
+      if (selectedDateStr !== date || settlementData.selectedDateStr !== date) return
+      const confirmedResolutions = confirmedResolutionsRef.current
+      const resolvedIds = new Set(resolutions.map((resolution) => resolution.habitId))
+      for (const resolution of resolutions) {
+        recordHabitResolution(confirmedResolutions, resolution.habitId, resolution.mode)
       }
-    }, [checkAndPromptParentLog, markRecentlyCompleted, selectedDateStr])
+
+      const childIdByAffectedParent = new Map<string, string>()
+      for (const resolution of resolutions) {
+        if (hasAncestorInSet(resolution.habitId, habitsById, resolvedIds)) continue
+        const parentId = habitsById.get(resolution.habitId)?.parentId
+        if (parentId && !childIdByAffectedParent.has(parentId)) {
+          childIdByAffectedParent.set(parentId, resolution.habitId)
+        }
+      }
+
+      const operation: ParentSettlementOperation = {
+        data: settlementData,
+        date,
+        confirmedResolutions,
+        requiresLogConfirmation: false,
+      }
+      for (const childId of childIdByAffectedParent.values()) {
+        settleParentAutomatically(childId, operation)
+      }
+    }, [habitsById, markRecentlyCompleted, recordHabitResolution, selectedDateStr, settleParentAutomatically])
 
     useEffect(() => subscribeBulkReplaySuccesses((success) => {
       const available = promptDataRef.current?.habitsById
       const matched = success.items.filter((item) =>
         item.date === selectedDateStr && available?.has(item.habitId))
       const remaining = success.items.filter((item) =>
-        item.date && (item.date !== selectedDateStr || !available?.has(item.habitId)))
+        item.date !== selectedDateStr || !available?.has(item.habitId))
       if (matched.length > 0) {
-        settleBulkHabitResolutions(matched, success.type === 'bulkLogHabits' ? 'log' : 'skip')
+        const mode = success.type === 'bulkLogHabits' ? 'log' : 'skip'
+        settleBulkHabitResolutions(matched.map((item) => ({ habitId: item.habitId, mode })), selectedDateStr)
+        const selection = useUIStore.getState()
+        if (selection.isSelectMode) {
+          const resolvedIds = new Set(matched.map((item) => item.habitId))
+          const stillSelected = [...selection.selectedHabitIds].filter((id) => !resolvedIds.has(id))
+          if (stillSelected.length < selection.selectedHabitIds.size) {
+            if (stillSelected.length > 0) selection.selectAllHabits(stillSelected)
+            else selection.clearSelection()
+          }
+        }
       }
       return remaining.length === success.items.length ? false : remaining
     }), [habitsById, selectedDateStr, settleBulkHabitResolutions])
 
+    const confirmParentSettlement = useCallback(async () => {
+      const settlementData = promptDataRef.current
+      const confirmedResolutions = confirmedResolutionsRef.current
+      const settlement = resolveParentSettlement(
+        parentPrompt,
+        selectedDateStr,
+        settlementData?.habitsById ?? EMPTY_HABITS_BY_ID,
+        (parentId) => getParentPromptProgress(
+          parentId,
+          confirmedResolutions,
+          settlementData,
+        ),
+      )
+      setParentPromptQueue((current) => removeQueuedParentPrompt(current, parentPrompt))
+      if (!settlement) {
+        promptedParentIdsRef.current.delete(parentPrompt?.habit.id ?? '')
+        return
+      }
+      const { parentId, mode, date } = settlement
+      if (!settlementData) return
+      if (settlementDateIsReadOnly(date)) {
+        promptedParentIdsRef.current.delete(parentId)
+        return
+      }
+      confirmedResolutions.activeSettlements += 1
+      markRecentlyCompleted(parentId, date)
+      try {
+        try {
+          if (mode === 'skip') {
+            await skipMutation.mutateAsync({ habitId: parentId, date })
+          } else {
+            await logMutateAsync({
+              habitId: parentId,
+              date,
+              intent: 'log',
+            })
+          }
+        } catch {
+          if (confirmedResolutionsRef.current === confirmedResolutions) {
+            promptedParentIdsRef.current.delete(parentId)
+            clearRecentlyCompleted(parentId, date)
+          }
+          return
+        }
+
+        if (
+          promptDataRef.current?.selectedDateStr !== date ||
+          confirmedResolutionsRef.current !== confirmedResolutions
+        ) return
+        recordHabitResolution(confirmedResolutions, parentId, mode)
+        checkAndSettleParent(parentId, confirmedResolutions, settlementData)
+      } finally {
+        finishParentSettlement(confirmedResolutions)
+      }
+    }, [
+      checkAndSettleParent,
+      clearRecentlyCompleted,
+      finishParentSettlement,
+      logMutateAsync,
+      markRecentlyCompleted,
+      parentPrompt,
+      recordHabitResolution,
+      selectedDateStr,
+      settlementDateIsReadOnly,
+      skipMutation,
+      setParentPromptQueue,
+    ])
+
     const handleLogged = useCallback(
-      (habitId: string, markAsRecentlyCompleted = true) => {
-        skippedChildIdsRef.current.delete(habitId)
+      (habitId: string, markAsRecentlyCompleted: boolean) => {
         if (markAsRecentlyCompleted) {
           markRecentlyCompleted(habitId)
         }
@@ -755,127 +1135,94 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [checkAndPromptParentLog, markRecentlyCompleted],
     )
 
-    const handleDirectLog = useCallback(
-      async (habitId: string) => {
-        markRecentlyCompleted(habitId)
+    const handleDirectToggle = useCallback(
+      async (habitId: string, intent: 'log' | 'unlog') => {
+        if (!profile) return
+        const currentDate = new Date()
+        const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
+        const boundary = getTodayBoundary(selectedDateStr, accountToday)
+        const habit = habitsById.get(habitId)
+        if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||
+          (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, selectedDateStr, accountToday)))) return
+        const toggleKey = `${habitId}:${selectedDateStr}`
+        const pendingToggleKeys = pendingToggleKeysRef.current
+        if (pendingToggleKeys.has(toggleKey)) return
+
+        pendingToggleKeys.add(toggleKey)
+        if (intent === 'log') markRecentlyCompleted(habitId)
+        let mutationSucceeded = false
 
         try {
-          await logMutation.mutateAsync({ habitId })
-          handleLogged(habitId, false)
+          await logMutateAsync(
+            selectedDate
+              ? { habitId, date: selectedDateStr, intent }
+              : { habitId, intent },
+          )
+          mutationSucceeded = true
+          if (intent === 'log') handleLogged(habitId, false)
+          await refetch()
         } catch {
-          clearRecentlyCompleted(habitId)
+          if (!mutationSucceeded && intent === 'log') clearRecentlyCompleted(habitId)
+        } finally {
+          pendingToggleKeys.delete(toggleKey)
         }
       },
       [
         clearRecentlyCompleted,
         handleLogged,
-        logMutation,
+        habitsById,
+        logMutateAsync,
         markRecentlyCompleted,
+        accountTimeZone,
+        profile,
+        refetch,
+        selectedDate,
+        selectedDateStr,
       ],
     )
 
-    const confirmAutoLogParent = useCallback(async () => {
-      const parentId = autoLogParentId
-      if (!parentId) return
-
-      const mode = autoLogParentMode
-      setAutoLogParentId(null)
-      markRecentlyCompleted(parentId)
-
+    const skipHabit = useCallback(async (habit: NormalizedHabit) => {
+      if (!profile) return
+      const currentDate = new Date()
+      const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
+      const boundary = getTodayBoundary(selectedDateStr, accountToday)
+      if (boundary === 'read-only' || !canLogHabitOnDate(habit, selectedDateStr, accountToday)) return
+      const habitId = habit.id
+      const date = selectedDateStr
+      const settlementData = promptDataRef.current
+      const confirmedResolutions = confirmedResolutionsRef.current
       try {
-        if (mode === 'skip') {
-          skippedChildIdsRef.current.add(parentId)
-          await skipMutation.mutateAsync({ habitId: parentId })
-          checkAndPromptParentLog(parentId)
-        } else {
-          await logMutation.mutateAsync({ habitId: parentId })
-          handleLogged(parentId, false)
+        await skipMutation.mutateAsync({
+          habitId,
+          date,
+          onUndo: () => {
+            confirmedResolutions.modes.delete(habitId)
+            confirmedResolutions.skippedIds.delete(habitId)
+          },
+        })
+        if (
+          promptDataRef.current?.selectedDateStr !== date ||
+          confirmedResolutionsRef.current !== confirmedResolutions
+        ) return
+        recordHabitResolution(confirmedResolutions, habitId, 'skip')
+        if (settlementData) {
+          settleParentAutomatically(habitId, {
+            data: settlementData,
+            date,
+            confirmedResolutions,
+            requiresLogConfirmation: true,
+          })
         }
       } catch {
-        clearRecentlyCompleted(parentId)
       }
     }, [
-      autoLogParentId,
-      autoLogParentMode,
-      checkAndPromptParentLog,
-      clearRecentlyCompleted,
-      handleLogged,
-      logMutation,
-      markRecentlyCompleted,
+      accountTimeZone,
+      profile,
+      recordHabitResolution,
+      selectedDateStr,
+      settleParentAutomatically,
       skipMutation,
     ])
-
-    const promptForceLogParent = useCallback((habitId: string) => {
-      setForceLogHabitId(habitId)
-      setShowForceLogConfirm(true)
-    }, [])
-
-    const confirmForceLog = useCallback(async () => {
-      if (!forceLogHabitId) return
-
-      markRecentlyCompleted(forceLogHabitId)
-
-      try {
-        await logMutation.mutateAsync({ habitId: forceLogHabitId })
-        handleLogged(forceLogHabitId, false)
-      } catch {
-        clearRecentlyCompleted(forceLogHabitId)
-      } finally {
-        setForceLogHabitId(null)
-        setShowForceLogConfirm(false)
-      }
-    }, [
-      forceLogHabitId,
-      clearRecentlyCompleted,
-      handleLogged,
-      logMutation,
-      markRecentlyCompleted,
-    ])
-
-    const promptSkip = useCallback((habitId: string) => {
-      setHabitToSkip(habitId)
-      setShowSkipConfirm(true)
-    }, [])
-
-    const confirmSkip = useCallback(async () => {
-      if (!habitToSkip) return
-
-      const skippedId = habitToSkip
-      try {
-        await skipMutation.mutateAsync({ habitId: skippedId })
-        skippedChildIdsRef.current.add(skippedId)
-        markRecentlyCompleted(skippedId)
-        checkAndPromptParentLog(skippedId)
-      } catch {
-      } finally {
-        setHabitToSkip(null)
-        setShowSkipConfirm(false)
-      }
-    }, [
-      checkAndPromptParentLog,
-      habitToSkip,
-      markRecentlyCompleted,
-      skipMutation,
-    ])
-
-    const isPostponeAction = useMemo(() => {
-      if (!habitToSkip) return false
-      const habit = habitsById.get(habitToSkip)
-      return habit ? !habit.frequencyUnit : false
-    }, [habitToSkip, habitsById])
-
-    const skipConfirmMessage = useMemo(() => {
-      if (isPostponeAction) return t('habits.postponeConfirmMessage')
-
-      if (habitToSkip) {
-        const habit = habitsById.get(habitToSkip)
-        if (habit?.flexibleTarget != null) {
-          return t('habits.skipConfirmMessageFlexible')
-        }
-      }
-
-      return t('habits.skipConfirmMessage')
-    }, [habitToSkip, habitsById, isPostponeAction, t])
 
     const validateMoveTarget = useCallback(
       (targetParentId: string | null, draggedId: string) =>
@@ -921,29 +1268,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const promptDelete = useCallback((habitId: string) => {
-      setHabitToDelete(habitId)
+      setHabitToDelete({ id: habitId, ...getDeleteConfirmation(habitId, habitsById, childrenByParent) })
       setShowDeleteConfirm(true)
-    }, [])
-
-    const promptDuplicate = useCallback(
-      (habitId: string) => {
-        const habit = habitsById.get(habitId)
-        if (!habit) return
-        setHabitToDuplicate(habit)
-        setShowDuplicateConfirm(true)
-      },
-      [habitsById],
-    )
+    }, [habitsById, childrenByParent])
 
     const confirmDuplicate = useCallback(async () => {
       if (!habitToDuplicate) return
-      const id = habitToDuplicate.id
       try {
-        await duplicateMutation.mutateAsync(id)
+        await duplicateMutation.mutateAsync(habitToDuplicate.id)
       } catch {
       } finally {
         setHabitToDuplicate(null)
-        setShowDuplicateConfirm(false)
       }
     }, [duplicateMutation, habitToDuplicate])
 
@@ -1016,12 +1351,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const confirmDelete = useCallback(async () => {
       if (!habitToDelete) return
 
+      setDeletePending(true)
+      setShowDeleteConfirm(false)
+
       try {
-        await deleteMutation.mutateAsync(habitToDelete)
+        await deleteMutation.mutateAsync(habitToDelete.id)
       } catch {
       } finally {
-        setHabitToDelete(null)
-        setShowDeleteConfirm(false)
+        setDeletePending(false)
       }
     }, [deleteMutation, habitToDelete])
 
@@ -1058,7 +1395,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
         drag()
       },
-      [collapsedIds],
+      [collapsedIds, setCollapsedIds, setDragOverrideItems, setIsDraggingList],
     )
 
     const handleDragEnd = useCallback(
@@ -1106,20 +1443,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         refetch: () => {
           void refetch()
         },
-        scrollToOffset: (offset: number) => {
-          const target:
-            | { scrollToOffset?: (params: { offset: number; animated?: boolean }) => void }
-            | null =
-            scrollContainerRef.current ??
-            allViewListRef.current ??
-            drillListRef.current
-          try {
-            target?.scrollToOffset?.({
-              offset,
-              animated: true,
-            })
-          } catch {
-          }
+        scrollToOffset: (offset: number, animated = true) => {
+          const target = scrollContainerRef.current ?? allListRef.current ?? drillListRef.current ?? stateListRef.current
+          target?.scrollToOffset({ offset, animated })
         },
       }),
       // react-doctor-disable-next-line exhaustive-deps -- refetch is the extracted habitsQuery.refetch and already listed; the analyzer wants the qualified path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -1135,6 +1461,36 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
+    const rowActionHandlers: RowActionHandlers = {
+      toggle: (habitId, intent) => { void handleDirectToggle(habitId, intent) },
+      skip: (habit) => { void skipHabit(habit) },
+      reschedule: (habit) => {
+        setHabitToReschedule(habit)
+        setShowRescheduleSheet(true)
+      },
+      expand: toggleExpand,
+      delete: promptDelete,
+      duplicate: setHabitToDuplicate,
+      edit: (habit, isDrillCard) => onEditHabit?.(
+        habit,
+        isDrillCard ? () => drill.refreshCurrent() : undefined,
+      ),
+      move: openMoveParentDialog,
+      addChild: startAddSubHabit,
+      drill: (habitId) => { void drill.drillInto(habitId) },
+      enterSelectMode: (habitId) => {
+        if (!isSelectMode) toggleSelectMode()
+        toggleSelectionCascade(habitId, getDescendantIds)
+      },
+      toggleSelection: (habitId) =>
+        toggleSelectionCascade(habitId, getDescendantIds),
+      detail: (habit) => onDetailHabit?.(habit),
+    }
+    const rowActionHandlersRef = useRef(rowActionHandlers)
+    useLayoutEffect(() => {
+      rowActionHandlersRef.current = rowActionHandlers
+    })
+
     const renderHabitCard = useCallback(
       (
         habit: NormalizedHabit,
@@ -1144,7 +1500,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         options?: {
           isDrillCard?: boolean
           onLongPressCard?: () => void
-          tourTargetId?: string
+          panelEnd?: boolean
         },
       ) => {
         const progress = hasChildren
@@ -1152,157 +1508,40 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           : { done: 0, total: 0 }
 
         const row = (
-          <HabitRow
+          <ActionRow
             key={habit.id}
             habit={habit}
+            canSkip={canLogHabitOnDate(habit, selectedDateStr, todayStr)}
+            structuralColumn
             selectedDate={selectedDate}
-            depth={depth}
+            today={todayStr}
+            depth={depth === 0 ? 0 : 1}
+            panelEnd={options?.panelEnd}
             hasChildren={hasChildren}
             isExpanded={!collapsedIds.has(habit.id)}
             childrenDone={progress.done}
             childrenTotal={progress.total}
             isSelectMode={isSelectMode}
             isSelected={selectedIds.has(habit.id)}
-            actions={{
-              onLog: () => {
-                if (onLogHabit) {
-                  onLogHabit(habit)
-                  return
-                }
-                void handleDirectLog(habit.id)
-              },
-              onUnlog: () => logMutation.mutate({ habitId: habit.id }),
-              onSkip: () => {
-                promptSkip(habit.id)
-              },
-              onReschedule: habit.isOverdue
-                ? () => {
-                    setHabitToReschedule(habit)
-                    setShowRescheduleSheet(true)
-                  }
-                : undefined,
-              onToggleExpand: () => toggleExpand(habit.id),
-              onDelete: () => {
-                promptDelete(habit.id)
-              },
-              onDuplicate: () => promptDuplicate(habit.id),
-              onEdit: () =>
-                onEditHabit?.(
-                  habit,
-                  options?.isDrillCard
-                    ? () => drill.refreshCurrent()
-                    : undefined,
-                ),
-              onMoveParent: () => {
-                openMoveParentDialog(habit.id)
-              },
-              onAddSubHabit: () => {
-                startAddSubHabit(habit.id)
-              },
-              onDrillInto: hasSubHabits
-                ? () => {
-                    void drill.drillInto(habit.id)
-                  }
-                : undefined,
-              onForceLogParent: () => {
-                promptForceLogParent(habit.id)
-              },
-              onEnterSelectMode: () => {
-                if (!isSelectMode) toggleSelectMode()
-                toggleSelectionCascade(
-                  habit.id,
-                  getDescendantIds,
-                )
-              },
-              onDetail: () => onDetailHabit?.(habit),
-              onToggleSelection: () =>
-                toggleSelectionCascade(
-                  habit.id,
-                  getDescendantIds,
-                ),
-              onLongPressCard: options?.onLongPressCard,
-            }}
+            hasProAccess={profile?.hasProAccess !== false}
+            hasSubHabits={hasSubHabits}
+            isDrillCard={Boolean(options?.isDrillCard)}
+            onLongPressCard={options?.onLongPressCard}
+            handlersRef={rowActionHandlersRef}
           />
         )
-
-        if (options?.tourTargetId) {
-          return (
-            <HabitRowTourAnchor
-              key={habit.id}
-              targetId={options.tourTargetId}
-            >
-              {row}
-            </HabitRowTourAnchor>
-          )
-        }
 
         return row
       },
       [
         selectedDate,
+        selectedDateStr,
+        todayStr,
         collapsedIds,
         getChildrenProgress,
         isSelectMode,
         selectedIds,
-        onLogHabit,
-        logMutation,
-        promptSkip,
-        toggleExpand,
-        promptDelete,
-        promptDuplicate,
-        openMoveParentDialog,
-        startAddSubHabit,
-        drill,
-        handleDirectLog,
-        promptForceLogParent,
-        toggleSelectMode,
-        toggleSelectionCascade,
-        getDescendantIds,
-        onDetailHabit,
-        onEditHabit,
-      ],
-    )
-
-    const renderAllViewChildren = useCallback(
-      (parentId: string, depth: number) => {
-        function walk(
-          currentParentId: string,
-          currentDepth: number,
-        ): ReactElement[] | null {
-          if (
-            collapsedIds.has(currentParentId) ||
-            currentDepth >= maxHabitDepth
-          ) {
-            return null
-          }
-          const children = getVisibleChildren(currentParentId)
-          if (children.length === 0) return null
-
-          return children.map((child) => {
-            const visibleChildren = getVisibleChildren(child.id)
-            return (
-              <View key={child.id} style={styles.allViewChild}>
-                {renderHabitCard(
-                  child,
-                  currentDepth,
-                  visibleChildren.length > 0,
-                  child.hasSubHabits,
-                )}
-                {walk(child.id, currentDepth + 1)}
-              </View>
-            )
-          })
-        }
-
-        return walk(parentId, depth)
-      },
-      // react-doctor-disable-next-line exhaustive-deps -- maxHabitDepth is the extracted appConfig.limits.maxHabitDepth and already listed; the analyzer wants the qualified path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      [
-        collapsedIds,
-        getVisibleChildren,
-        maxHabitDepth,
-        renderHabitCard,
-        styles.allViewChild,
+        profile?.hasProAccess,
       ],
     )
 
@@ -1310,8 +1549,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
        react-native-draggable-flatlist cell fights the cell's own translateY transform
        and mis-positions rows. https://github.com/thomasluizon/orbit-ui-mobile/pull/486 */
     const renderItem = useCallback(
-      ({ item, drag }: RenderItemParams<DragItem>) =>
-        renderHabitCard(
+      ({ item, drag, getIndex }: RenderItemParams<DragItem>) => {
+        const index = getIndex() ?? 0
+        const nextItem = activeDragItems[index + 1]
+        return renderHabitCard(
           item.habit,
           item.depth,
           item.hasChildren,
@@ -1320,13 +1561,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             onLongPressCard: isDndEnabled
               ? () => prepareDrag(item, drag)
               : undefined,
-            tourTargetId:
-              item.habit.id === tourCardHabitId
-                ? 'tour-habit-card'
-                : undefined,
+            panelEnd: !nextItem || nextItem.depth === 0,
           },
-        ),
-      [isDndEnabled, prepareDrag, renderHabitCard, tourCardHabitId],
+        )
+      },
+      [
+        activeDragItems,
+        isDndEnabled,
+        prepareDrag,
+        renderHabitCard,
+      ],
     )
 
     const keyExtractor = useCallback((item: DragItem) => item.id, [])
@@ -1334,25 +1578,25 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const renderSkeletonItem = useCallback(
       () => (
         <View style={styles.sectionInset}>
-          <SkeletonCard styles={styles} />
+          <Skeleton variant="habit-row" label={t('common.loading')} />
         </View>
       ),
-      [styles],
+      [styles, t],
     )
 
     const renderEmptyState = useCallback(
-      (currentView: 'today' | 'all' | 'general') => (
+      () => searchQuery?.trim() ? <SearchEmpty query={searchQuery.trim()} onClearSearch={onClearSearch} onCreate={onCreatePress} /> : (
         <HabitListEmptyState
-          title={t(getHabitEmptyStateKey(currentView))}
-          description={getEmptyHabitsMessage(currentView, t)}
+          title={t(view === 'general' ? 'habits.emptyGeneral' : 'habits.emptyState')}
+          description={view === 'today' ? t('habits.noHabitsBody') : ''}
           askAstraLabel={t('habits.askAstra')}
-          onAskAstra={() => router.push('/chat')}
+          onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
           actionLabel={t('habits.createManually')}
           onAction={onCreatePress}
           variant="primary"
         />
       ),
-      [onCreatePress, router, t],
+      [onClearSearch, onCreatePress, searchQuery, t, view],
     )
 
     const listHeaderComponent = useMemo(
@@ -1375,79 +1619,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ),
       // react-doctor-disable-next-line exhaustive-deps -- isFetching/isLoading/refetch are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       [tokens.primary, insets.top, isFetching, isLoading, refetch],
-    )
-
-    const renderGroupSection = useCallback<ListRenderItem<HabitListDateGroup>>(
-      ({ item: group }) => (
-        <HabitListDateGroupSection
-          group={group}
-          overdueLabel={t('habits.overdue')}
-          renderHabit={(habit, index) => {
-            const children = getVisibleChildren(habit.id)
-            return (
-              <Animated.View
-                entering={
-                  prefersReducedMotion
-                    ? undefined
-                    : FadeInDown.duration(280).delay(Math.min(index, 8) * 40)
-                }
-              >
-                {renderHabitCard(
-                  habit,
-                  0,
-                  children.length > 0,
-                  habit.hasSubHabits,
-                )}
-                {renderAllViewChildren(habit.id, 1)}
-              </Animated.View>
-            )
-          }}
-        />
-      ),
-      [
-        getVisibleChildren,
-        prefersReducedMotion,
-        renderAllViewChildren,
-        renderHabitCard,
-        t,
-      ],
-    )
-
-    const renderDrillItem = useCallback<ListRenderItem<NormalizedHabit>>(
-      ({ item: child, index }) => (
-        <Animated.View
-          entering={
-            prefersReducedMotion
-              ? undefined
-              : FadeInDown.duration(280).delay(Math.min(index, 8) * 40)
-          }
-        >
-          <DrillHabitItem
-            child={child}
-            styles={styles}
-            getDrillChildren={drill.getDrillChildren}
-            renderHabitCard={renderHabitCard}
-          />
-        </Animated.View>
-      ),
-      [drill.getDrillChildren, prefersReducedMotion, renderHabitCard, styles],
-    )
-
-    const drillFooter = useMemo(
-      () => (
-        <DrillFooter
-          styles={styles}
-          label={t('habits.form.addSubHabit')}
-          onAddSubHabit={() => {
-            const parent = drill.currentParentId
-              ? (habitsById.get(drill.currentParentId) ?? null)
-              : null
-            setSubHabitParent(parent)
-            setShowSubHabitModal(true)
-          }}
-        />
-      ),
-      [drill.currentParentId, habitsById, styles, t],
     )
 
     const commonOverlays = (
@@ -1474,55 +1645,23 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListConfirmDialogs
           t={t}
           showDeleteConfirm={showDeleteConfirm}
-          onDeleteOpenChange={(open) => {
-            setShowDeleteConfirm(open)
-            if (!open) {
-              setHabitToDelete(null)
-            }
-          }}
+          deletePending={deletePending}
+          deleteHabitName={deleteConfirmation.name}
+          deleteDescendantCount={deleteConfirmation.descendantCount}
+          duplicateHabitName={habitToDuplicate?.title ?? null}
+          parentPrompt={getVisibleParentPrompt(parentPrompt, selectedDateStr)}
           onConfirmDelete={() => void confirmDelete()}
+          onDeleteClosed={() => setHabitToDelete(null)}
           onCancelDelete={() => {
             setHabitToDelete(null)
             setShowDeleteConfirm(false)
           }}
-          showDuplicateConfirm={showDuplicateConfirm}
-          onDuplicateOpenChange={(open) => {
-            setShowDuplicateConfirm(open)
-            if (!open) {
-              setHabitToDuplicate(null)
-            }
-          }}
-          duplicateName={habitToDuplicate?.title ?? ''}
           onConfirmDuplicate={() => void confirmDuplicate()}
-          onCancelDuplicate={() => {
-            setHabitToDuplicate(null)
-            setShowDuplicateConfirm(false)
-          }}
-          showSkipConfirm={showSkipConfirm}
-          onSkipOpenChange={setShowSkipConfirm}
-          isPostponeAction={isPostponeAction}
-          skipConfirmMessage={skipConfirmMessage}
-          onConfirmSkip={() => void confirmSkip()}
-          onCancelSkip={() => {
-            setHabitToSkip(null)
-            setShowSkipConfirm(false)
-          }}
-          showForceLogConfirm={showForceLogConfirm}
-          onForceLogOpenChange={setShowForceLogConfirm}
-          onConfirmForceLog={() => void confirmForceLog()}
-          onCancelForceLog={() => {
-            setForceLogHabitId(null)
-            setShowForceLogConfirm(false)
-          }}
-          showAutoLogParent={showAutoLogParent}
-          autoLogParentMode={autoLogParentMode}
-          onAutoLogParentOpenChange={setShowAutoLogParent}
-          autoLogParentName={autoLogParentHabit?.title ?? ''}
-          onConfirmAutoLogParent={() => void confirmAutoLogParent()}
-          onCancelAutoLogParent={() => {
-            setAutoLogParentId(null)
-            setShowAutoLogParent(false)
-          }}
+          onCancelDuplicate={() => setHabitToDuplicate(null)}
+          onConfirmParent={() => void confirmParentSettlement()}
+          onCancelParent={() => setParentPromptQueue(
+            (current) => shiftParentPrompt(current, selectedDateStr),
+          )}
         />
 
         <MoveParentDialog
@@ -1546,17 +1685,20 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (drill.currentParentId) {
       return (
         <>
-          <HabitListDrillView
+          <HabitDrill
             drill={drill}
             styles={styles}
+            t={t}
+            hasProAccess={profile?.hasProAccess !== false}
             listHeaderComponent={listHeaderComponent}
             drillListRef={drillListRef}
-            renderDrillItem={renderDrillItem}
-            drillFooter={drillFooter}
             refreshControl={refreshControl}
             onListScroll={handleListScroll}
             onScrollBeginDrag={onScrollBeginDrag}
             bulkBarStyle={bulkBarStyle}
+            renderHabitCard={renderHabitCard}
+            onAddSubHabit={startAddSubHabit}
+            onShowCompleted={onShowCompleted}
           />
           {commonOverlays}
         </>
@@ -1567,6 +1709,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return (
         <>
           <FlatList
+            ref={stateListRef}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
             data={SKELETON_KEYS}
             keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={(item) => item}
@@ -1578,6 +1723,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             ]}
             refreshControl={refreshControl}
             onScrollBeginDrag={onScrollBeginDrag}
+            accessibilityState={{ busy: true }}
             showsVerticalScrollIndicator={false}
           />
           {commonOverlays}
@@ -1585,36 +1731,28 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    if (
-      flatItems.length === 0 &&
-      totalCount > 0 &&
-      !showCompleted &&
-      view === 'today' &&
-      getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
-    ) {
+    if (isError && !habitsQuery.data) {
       return (
         <>
           <FlatList
+            ref={stateListRef}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
             data={[]}
             keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
-            keyExtractor={() => 'all-done'}
+            keyExtractor={() => 'load-error'}
             renderItem={undefined}
             ListHeaderComponent={listHeaderComponent}
             ListEmptyComponent={
-              <View style={styles.sectionInset}>
-                <HabitListEmptyState
-                  title={t('habits.allDoneToday')}
-                  description={t('habits.allDoneHint')}
-                  actionLabel={t('habits.seeUpcoming')}
-                  onAction={onSeeUpcoming}
-                  variant="secondary"
-                />
-              </View>
+              <HabitListEmptyState
+                title={t('habits.loadError')}
+                description=""
+                actionLabel={t('common.retry')}
+                onAction={() => void refetch()}
+                variant="secondary"
+              />
             }
-            contentContainerStyle={[
-              styles.listContent,
-              bulkBarStyle,
-            ]}
+            contentContainerStyle={[styles.listContent, bulkBarStyle]}
             refreshControl={refreshControl}
             onScrollBeginDrag={onScrollBeginDrag}
             showsVerticalScrollIndicator={false}
@@ -1624,35 +1762,46 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    if (view === 'all') {
-      return (
-        <>
-          <FlatList
-            ref={allViewListRef}
-            data={dateGroups}
-            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
-            keyExtractor={(item) => item.key}
-            renderItem={renderGroupSection}
-            ListHeaderComponent={listHeaderComponent}
-            ListEmptyComponent={renderEmptyState('all')}
-            contentContainerStyle={[
-              styles.groupedList,
-              bulkBarStyle,
-            ]}
-            refreshControl={refreshControl}
-            onScroll={handleListScroll}
-            scrollEventThrottle={16}
-            onScrollBeginDrag={onScrollBeginDrag}
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={10}
-            maxToRenderPerBatch={5}
-            windowSize={5}
-            removeClippedSubviews={true}
-          />
-          {commonOverlays}
-        </>
-      )
+    const showAllDone = view === 'today' && !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
+      selectedDateStr === todayStr &&
+      getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
+    const activeListHeader = renderAllDoneListHeader(
+      showAllDone,
+      listHeaderComponent,
+      styles.allDoneHeader,
+      onSeeUpcoming,
+    )
+
+    function renderCurrentViewEmptyState() {
+      if (searchQuery?.trim()) return renderEmptyState()
+      if (filters.frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={filters.frequencyUnit} />
+      if (view !== 'today') return renderEmptyState()
+      return renderDayListEmptyState(accountHabitCount.isLoaded, accountHabitCount.count, showAllDone, renderEmptyState, styles.sectionInset, filters.frequencyUnit)
     }
+
+    if (view === 'all') return <>
+      <FlatList
+        ref={allListRef}
+        testID="habit-list-all"
+        data={flatItems}
+        keyExtractor={keyExtractor}
+        renderItem={({ item, index }) => <>
+          {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: SPACING.s0 }]}>{groupHeadings.get(item.id)}</Text> : null}
+          {renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits, { panelEnd: !flatItems[index + 1] || flatItems[index + 1]!.depth === 0 })}
+        </>}
+        extraData={listExtraData}
+        keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
+        contentContainerStyle={[styles.listContent, bulkBarStyle]}
+        refreshControl={refreshControl}
+        ListHeaderComponent={listHeaderComponent}
+        ListEmptyComponent={renderCurrentViewEmptyState()}
+        onScroll={handleListScroll}
+        scrollEventThrottle={16}
+        onScrollBeginDrag={onScrollBeginDrag}
+        showsVerticalScrollIndicator={false}
+      />
+      {commonOverlays}
+    </>
 
     return (
       <>
@@ -1670,8 +1819,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           ]}
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}
-          ListHeaderComponent={listHeaderComponent}
-          ListEmptyComponent={renderEmptyState(view)}
+          ListHeaderComponent={activeListHeader}
+          ListEmptyComponent={renderCurrentViewEmptyState()}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
           onScrollOffsetChange={handleMainListOffsetChange}
           onScrollBeginDrag={onScrollBeginDrag}

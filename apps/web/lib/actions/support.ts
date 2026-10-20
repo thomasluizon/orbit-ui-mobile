@@ -1,6 +1,6 @@
 'use client'
 
 import * as serverActions from '@/app/actions/support'
-import { bindAccountServerAction } from '@/lib/client-action'
+import { bindServerAction } from '@/lib/client-action'
 
-export const sendSupportMessage = bindAccountServerAction(serverActions.sendSupportMessage)
+export const sendSupportMessage = bindServerAction(serverActions.sendSupportMessage)

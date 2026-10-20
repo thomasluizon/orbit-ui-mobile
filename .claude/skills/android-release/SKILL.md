@@ -39,18 +39,19 @@ from `main`. A binary is never promoted between tracks because its API base is f
 ## Design bundles
 
 Internal releases skip `publish-design-bundles` on every branch and build the selected branch's
-embedded bundle directly. They do not need EAS Update publication or its credentials.
+embedded bundle directly. Dispatch `redesign/main` to build Orbit Staging against
+`https://api-staging.useorbit.org`. The build runs after skipped publication, but never after failed
+or cancelled publication. Internal releases do not need EAS Update publication or its credentials.
 
-For open and production, one binary contains the native union for both designs and embeds the legacy
-JavaScript from `main`.
-The `publish-design-bundles` job checks out that exact release commit and `redesign/main`, installs
-both lockfiles, and runs `apps/mobile/scripts/check-design-bundles.js`. It refuses publication until
-the redesign branch contains the same native bridge, local modules, plugins, and switching adapter.
-The redesign's `lib/design-bundle-identity.ts` must declare `redesign`; `main` declares `legacy`.
-Land the redesign switch-back pull request before dispatching the first dual-design release.
-
-The job publishes Android updates to the `legacy` and `redesign` EAS channels, then the dependent
-build job builds and uploads the union binary. Both updates use the release version and versionCode.
+Open and production design releases run from `main`, embed legacy, and publish the `legacy` and
+`redesign` channels before building the native union. The publication job checks out that exact
+release commit and `redesign/main`, installs both lockfiles, and runs
+`redesign/apps/mobile/scripts/check-design-bundles.js`. This branch declares `redesign` in
+`lib/design-bundle-identity.ts` and carries the matching launch module, widget bridge, native versions
+and config plugins; `main` declares `legacy`. The preflight compares both native inventories and
+switching paths and rejects drift on either side before publication.
+After both publications succeed, the build job builds and uploads the union binary. Both updates use
+the release version and versionCode, so the installed app and the update agree on their version.
 The checked-out commits appear in the workflow summary. EAS CLI is pinned in the workflow; do not
 replace it with an unversioned invocation.
 
@@ -70,8 +71,9 @@ against the installed Expo source. Recheck that dependency when upgrading Expo.
 Expo selects cached updates by their full request headers, so an offline cold start stays on the
 embedded bundle. The native process guard permits one design reload, including across JavaScript
 reloads. The launch reads the saved account flag from SecureStore; sign-in and foreground refreshes
-save the next launch's choice. Sign-out selects legacy on the next cold launch. Header overrides keep
-Expo's anti-bricking measures enabled.
+save the next launch's choice under the same per-account SecureStore key in both designs.
+Signed-out launches select legacy on the next cold launch; a failed download keeps the running bundle.
+Header overrides keep Expo's anti-bricking measures enabled.
 
 Use EAS Update's free allowance while the account's updating users, bandwidth and storage fit it.
 Review current limits in [Expo pricing](https://expo.dev/pricing) and the account's **Billing > Usage**

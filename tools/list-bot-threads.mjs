@@ -5,6 +5,7 @@ import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { headActivityArgv, headActivityBoundary } from "./lib/readiness-receipt.mjs"
 
 const BOT_LOGIN = "pullfrog"
 
@@ -26,26 +27,29 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|lan
 
 Pullfrog reviews a pull request when it opens and re-reviews after every push, so a push alone is a
 reliable trigger. A review still counts only when its commit is the current head. The 900-second
-default is a carry-over bound that nobody has measured for Pullfrog. The one timing taken so far is
-148 seconds, from the request comment on pull request 711 to the submitted review of a one-file diff
-(2026-08-12).
+default is a safety bound, not a guaranteed review time.
 
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, reviewBody,
-threads[]. Errors go to stderr.
+checkConclusion, checkStatus, progressMarkers, threads[]. Errors go to stderr.
 
-  verdict  REVIEWED      a Pullfrog review OF THE CURRENT HEAD exists; threads[] may be empty,
+  verdict  REVIEWED      a Pullfrog verdict OF THE CURRENT HEAD exists; threads[] may be empty,
                          and a non-null reviewBody can still carry a finding
            CHANGES_REQUESTED  a review of the current head exists and requests changes
+           CHECK_FAILED  the latest completed pullfrog-approval check did not succeed
+           CHECK_PENDING an APPROVED review of this head exists but its pullfrog-approval check is
+                         still running at the end of the budget; the review fields are kept
            NO_REVIEW     no review of this head inside the budget. staleReviewCommit names
                          the commit an older review WAS given on, when there is one
 
-reviewBody carries the review body for EVERY accepted state except APPROVED, and is null when the
-body is empty. Triage it exactly like a thread: counts{} describes threads only, so "REVIEWED with
-zero threads" is a clean pull request only when reviewBody is null too.
+COMMENTED or CHANGES_REQUESTED with an empty body and no threads of its own is a progress marker.
+It increments progressMarkers and never supplies a review verdict. A completed pullfrog-approval
+check ends the wait and reports its conclusion. A clean pass requires the latest review of this
+head to be APPROVED and checkConclusion to be SUCCESS. checkStatus is COMPLETED, PENDING or ABSENT;
+an APPROVED review with an ABSENT check is REVIEWED, because an unprotected base publishes no check
+and the exact-head approval is its evidence. Triage a non-null reviewBody like a thread.
 
-A review is evidence about the commit it was given on and nothing else. One pinned to an older
-head is NOT accepted: after a push the newest review names the old commit until the re-review
-lands, and taking it would report REVIEWED for code Pullfrog never saw.
+A review pinned to an older head is NOT accepted. A review submitted no later than the current
+head's GitHub branch push is stale too, even when GitHub reports the later head's oid on it.
 
 A draft pull request is read exactly like any other one, because Pullfrog reviews drafts too.
 
@@ -54,7 +58,7 @@ A draft pull request is read exactly like any other one, because Pullfrog review
 Pullfrog publishes no severity, so every thread reports P1. The caller treats each finding as
 blocking until the caller triages it.
 
-exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, 2 usage or environment error`
+exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, CHECK_FAILED or CHECK_PENDING, 2 usage or environment error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -148,15 +152,18 @@ try {
 
 const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String){
   repository(owner:$owner,name:$repo){
+    nameWithOwner
     pullRequest(number:$pr){
-      number isDraft baseRefOid headRefOid
-      reviews(last:50){nodes{author{login} state submittedAt body commit{oid}}}
+      number isDraft baseRefOid headRefOid headRefName headRepository{nameWithOwner}
+      commits(last:1){nodes{commit{oid}}}
+      reviews(last:50){nodes{id author{login} state submittedAt body commit{oid}}}
       comments(last:100){nodes{createdAt url}}
+      statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion startedAt completedAt checkSuite{app{databaseId}}}}}}
       reviewThreads(first:100,after:$threadsAfter){
         pageInfo{hasNextPage endCursor}
         nodes{
           id isResolved isOutdated path line
-          comments(first:1){nodes{author{login} body}}
+          comments(first:1){nodes{author{login} body pullRequestReview{id}}}
         }
       }
     }
@@ -194,9 +201,13 @@ const readPullRequest = async () => {
     if (payload.errors?.length) fail(2, `gh api graphql reported: ${payload.errors.map((entry) => entry.message).join("; ")}`)
     const node = payload.data?.repository?.pullRequest
     if (!node) fail(2, `gh api graphql returned no pull request ${pullRequest}`)
+    node.repositoryName = payload.data.repository.nameWithOwner ?? null
+    const headCommit = node.commits?.nodes?.[0]?.commit
+    if (headCommit?.oid !== node.headRefOid) fail(2, "gh api graphql returned no head commit")
     const pageInfo = node.reviewThreads?.pageInfo
     if (typeof pageInfo?.hasNextPage !== "boolean" || !(typeof pageInfo.endCursor === "string" || pageInfo.endCursor === null)) fail(2, "gh api graphql returned no complete reviewThreads pageInfo")
     if (!Array.isArray(node.reviewThreads?.nodes)) fail(2, "gh api graphql returned no reviewThreads nodes array")
+    if (node.statusCheckRollup !== null && !Array.isArray(node.statusCheckRollup?.contexts?.nodes)) fail(2, "gh api graphql returned no statusCheckRollup contexts array")
     console.error(JSON.stringify({ event: "REVIEW_THREAD_PAGE_READ", pr: Number(pullRequest), page, headRefOid: node.headRefOid, hasNextPage: pageInfo.hasNextPage }))
     return node
   }
@@ -218,22 +229,17 @@ const readPullRequest = async () => {
     pages += 1
   }
   first.reviewThreads = { nodes, pageInfo, pages, complete: true }
+  let activities = null
+  if (first.headRepository?.nameWithOwner === first.repositoryName) {
+    const activityResponse = await gh(headActivityArgv(first.repositoryName, first.headRefName), "gh api repository activity")
+    try { activities = JSON.parse(activityResponse) } catch { /* An invalid page cannot prove a review current. */ }
+  }
+  first.headActivityBoundary = headActivityBoundary(activities, first.headRefOid, first.headRefName, first.repositoryName, first.headRepository?.nameWithOwner)
   return first
 }
 
-/**
- * Pullfrog publishes no severity. Pull request 711 is the only Pullfrog review in this repository
- * there is no measured shape to parse. Every finding therefore reports P1: the caller triages it or
- * treats it as blocking, and nothing is downgraded by a parser written against a guess.
- */
 const UNTRIAGED_SEVERITY = "P1"
 
-/**
- * The first line of prose in the thread, so a caller can triage without refetching the body.
- * Pullfrog writes markdown and embeds raw HTML: its review body on pull request 711 carried
- * `<sup>` and `<picture>` tags plus an HTML comment block of review metadata. Markdown markup and
- * HTML tags are both stripped, and the line is only accepted once something readable survives.
- */
 const claimOf = (body) => {
   if (typeof body !== "string") return ""
   const line = body
@@ -285,13 +291,29 @@ await awaitGraphqlBudget(deadline)
 let node = await readPullRequest()
 progress("REVIEW_STATE_READ", node, startedAt, deadline)
 
+/** GitHub can repoint reviews onto a later commit, so submission must follow the branch push. */
 const COMPLETED_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
-const botReviewOf = (payload) =>
-  (payload.reviews?.nodes ?? [])
+const currentHeadReviews = (payload) => {
+  const boundary = payload.headActivityBoundary?.time
+  return (payload.reviews?.nodes ?? [])
     .filter((review) => review.author?.login === botLogin)
-    .filter((review) => review.commit?.oid && review.commit.oid === payload.headRefOid)
-    .filter((review) => COMPLETED_REVIEW_STATES.has(review.state))
-    .at(-1)
+    .filter((review) => review.commit?.oid === payload.headRefOid && Number.isFinite(boundary) && submittedAtOf(review) > boundary)
+    .sort((left, right) => submittedAtOf(left) - submittedAtOf(right))
+}
+
+const reviewThreadsOf = (payload, review) => (payload.reviewThreads?.nodes ?? [])
+  .filter((thread) => thread.comments?.nodes?.[0]?.pullRequestReview?.id === review.id)
+
+const isProgressMarker = (payload, review) =>
+  review.state !== "APPROVED" && !(review.body ?? "").trim() && reviewThreadsOf(payload, review).length === 0
+
+const latestReviewOf = (payload) => currentHeadReviews(payload).at(-1)
+const progressMarkersOf = (payload) => currentHeadReviews(payload).filter((review) => COMPLETED_REVIEW_STATES.has(review.state) && isProgressMarker(payload, review)).length
+
+const approvalCheckOf = (payload) => (payload.statusCheckRollup?.contexts?.nodes ?? [])
+  .filter((check) => check?.__typename === "CheckRun" && check.name === "pullfrog-approval" && check.checkSuite?.app?.databaseId === 1768019)
+  .sort((left, right) => Date.parse(left.startedAt ?? "") - Date.parse(right.startedAt ?? ""))
+  .at(-1) ?? null
 
 /**
  * A missing or unparseable submittedAt sorts BELOW every real timestamp, so a review whose age
@@ -314,12 +336,17 @@ const answersTheRequest = (review) => requestCreatedAt !== null && submittedAtOf
  * converges.
  */
 const currentReviewOf = (payload) => {
-  const found = botReviewOf(payload)
-  if (!reReview || !found) return found
+  const found = latestReviewOf(payload)
+  if (!found || !COMPLETED_REVIEW_STATES.has(found.state)) return null
+  if (!reReview) return found
   return answersTheRequest(found) ? found : null
 }
 
 let review = currentReviewOf(node)
+if (review && isProgressMarker(node, review)) review = null
+let check = approvalCheckOf(node)
+const completedCheck = () => check?.status === "COMPLETED" && (!reReview || (requestCreatedAt !== null && Date.parse(check.completedAt ?? "") > requestCreatedAt))
+const finished = () => completedCheck() || (review && review.state !== "APPROVED")
 
 let requested = false
 let requestUrl = null
@@ -344,16 +371,24 @@ const bindRequestBoundary = (payload) => {
 }
 
 bindRequestBoundary(node)
+review = currentReviewOf(node)
+if (review && isProgressMarker(node, review)) review = null
 
-while (!review && Date.now() < deadline) {
+while (!finished() && Date.now() < deadline) {
   await sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   await awaitGraphqlBudget(deadline)
   if (Date.now() >= deadline) break
   node = await readPullRequest()
   bindRequestBoundary(node)
   review = currentReviewOf(node)
-  progress(review ? "REVIEW_ARRIVED" : "REVIEW_WAITING", node, startedAt, deadline)
+  if (review && isProgressMarker(node, review)) review = null
+  check = approvalCheckOf(node)
+  progress(finished() ? "REVIEW_ARRIVED" : "REVIEW_WAITING", node, startedAt, deadline)
 }
+
+const checkConclusion = completedCheck() ? check.conclusion : null
+const checkStatus = !check ? "ABSENT" : completedCheck() ? "COMPLETED" : "PENDING"
+const progressMarkers = progressMarkersOf(node)
 
 const threads = (node.reviewThreads?.nodes ?? [])
   .filter((thread) => thread.comments?.nodes?.[0]?.author?.login === botLogin)
@@ -383,12 +418,17 @@ if (!review) {
   const asked = requested
     ? '"@pullfrog review" WAS posted on this run and no review arrived inside the budget, so the absence is the reviewer\'s, not ours'
     : 'no "@pullfrog review" was posted on this run, so the reviewer may simply never have been triggered'
-  const note = stale
+  const activityBoundary = node.headActivityBoundary
+  const note = activityBoundary.reason
+    ? `${activityBoundary.reason}; no review can be proven current. ${asked}`
+    : stale && stale.commit?.oid !== node.headRefOid
     ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
-    : `no ${botLogin} review arrived; ${asked}; do not report this pull request as clean`
+    : stale && stale.commit?.oid === node.headRefOid && submittedAtOf(stale) <= activityBoundary.time
+      ? `the newest ${botLogin} review predates head ${node.headRefOid}; GitHub reported the later head on that review. ${asked}`
+    : `no completed ${botLogin} review of this head arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
+      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict: checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED" : "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, checkConclusion, checkStatus, progressMarkers, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
       null,
       2,
     ),
@@ -396,7 +436,9 @@ if (!review) {
   process.exit(1)
 }
 
-const verdict = review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
+const verdict = checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED"
+  : review.state === "APPROVED" && checkStatus === "PENDING" ? "CHECK_PENDING"
+  : review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
 
 const reviewBody = review.state === "APPROVED" ? null : (review.body ?? "").trim().slice(0, 4000) || null
 
@@ -412,6 +454,9 @@ console.log(
       baseRefOid: node.baseRefOid,
       headRefOid: node.headRefOid,
       reviewBody,
+      checkConclusion,
+      checkStatus,
+      progressMarkers,
       threadsComplete: node.reviewThreads.complete === true,
       counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length, pages: node.reviewThreads.pages },
       threads,
@@ -420,4 +465,4 @@ console.log(
     2,
   ),
 )
-process.exit(0)
+process.exit(verdict === "CHECK_FAILED" || verdict === "CHECK_PENDING" ? 1 : 0)

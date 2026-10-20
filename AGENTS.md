@@ -8,8 +8,13 @@ not fork. This file DEFERS to `CLAUDE.md` (same directory) for every repo conven
 before you write code. Your launch prompt already carries the objective, scope, caps, output
 contract, and the merge and push prohibitions; this file holds only what neither of those does.
 
-Beyond the gates `CLAUDE.md` names: `eslint-suppressions.json` and the dash and copy baselines
-may only shrink. The architecture map is generated and NOT committed (#470): run
+Write rules, docs and comments timelessly: no dates except load-bearing data, no names or
+attributions, no incident stories and no machine paths. `tools/check-timeless.mjs` enforces this.
+
+Beyond the gates `CLAUDE.md` names: the dash and copy baselines may only shrink, and there is no
+lint-suppression baseline at all. A `local/*` rule runs at `error` with zero violations, so a new
+violation fails on the spot; `Lint Severity` fails if anyone recreates a baseline or lowers a
+`local/*` rule to `warn`. The architecture map is generated and NOT committed (#470): run
 `node tools/arch-map.mjs` when you want to read it, and never commit its three artifacts. Never
 edit a gate baseline to admit a new violation; fix the violation.
 
@@ -59,8 +64,8 @@ Redact before you paste, always: never include a token, key, cookie, or credenti
 command you show, and replace any personal, customer, or account value with a placeholder.
 A pull request body is readable by everyone with repository access and is permanent.
 
-Existing reads and fixtures are not interface evidence. Confirm the live response shape before
-adding a field dependency.
+An invented response field can make a successful write look failed or silently skip a gate.
+Confirm the live shape before relying on it.
 
 ## Guardrails you must not trip
 
@@ -70,7 +75,7 @@ adding a field dependency.
 - Never perform an admin merge except while executing the canonical `/merge-prs` skill after the owner
   explicitly invokes it for an already-approved frozen PR set. That skill may use only
   `gh pr merge --admin --squash --match-head-commit <sha>` and must follow its preflight and exact-head
-  rules. In every other context, STOP and ask the owner to merge it himself. Direct merge APIs remain
+  rules. In every other context, STOP and ask the owner to merge it. Direct merge APIs remain
   forbidden without exception: no `PUT /repos/{owner}/{repo}/pulls/{number}/merge` and no GraphQL
   `mergePullRequest` mutation.
 - Never `git worktree remove --force`: on Windows it follows a junction and deletes the link

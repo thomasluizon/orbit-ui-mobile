@@ -1,12 +1,15 @@
 import React from 'react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
+import { holdAccount, replaceAccountWith, resetAuthStore } from '@/__tests__/support/account-change'
+import { getHeldAccountId } from '@/stores/auth-store'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 
 const pushMock = vi.fn()
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 const mocks = vi.hoisted(() => ({
@@ -15,14 +18,19 @@ const mocks = vi.hoisted(() => ({
   logHabit: vi.fn(),
   createGoal: vi.fn(),
   completeOnboarding: vi.fn(),
-  updateColorScheme: vi.fn(),
   updateWeekStartDay: vi.fn(),
   setQueryData: vi.fn(),
   invalidateQueries: vi.fn(),
+  showPersistentError: vi.fn(),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showPersistentError: mocks.showPersistentError }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: mocks.createHabit }),
+  useUpdateHabit: () => ({ mutateAsync: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: mocks.bulkCreate }),
   useLogHabit: () => ({ mutateAsync: mocks.logHabit }),
 }))
@@ -33,7 +41,6 @@ vi.mock('@/hooks/use-goals', () => ({
 
 vi.mock('@/lib/actions/profile', () => ({
   completeOnboarding: (...args: unknown[]) => mocks.completeOnboarding(...args),
-  updateColorScheme: (...args: unknown[]) => mocks.updateColorScheme(...args),
   updateWeekStartDay: (...args: unknown[]) => mocks.updateWeekStartDay(...args),
 }))
 
@@ -50,7 +57,6 @@ import {
   useBufferOnboardingActions,
   useLiveOnboardingActions,
   useOnboardingActions,
-  useOnboardingHasProAccess,
   useOnboardingIsLive,
   OnboardingActionsProvider,
   type OnboardingActions,
@@ -113,22 +119,23 @@ describe('buffer onboarding actions', () => {
     expect(habits[1]?.emoji).toBeUndefined()
   })
 
-  it('buffers the goal, week-start day, and color scheme', async () => {
+  it('buffers the goal and week-start day', async () => {
     const { result } = renderHook(() => useBufferOnboardingActions())
 
     await result.current.createGoal({ title: 'Read 12 books', targetValue: 12, unit: 'books' })
     await result.current.setWeekStartDay(1)
-    await result.current.setColorScheme('emerald')
 
     const state = useOnboardingDraftStore.getState()
     expect(state.goal?.title).toBe('Read 12 books')
     expect(state.weekStartDay).toBe(1)
-    expect(state.colorScheme).toBe('emerald')
   })
 })
 
 describe('live onboarding actions', () => {
-  beforeEach(() => {
+  afterEach(() => { vi.unstubAllGlobals() })
+  beforeEach(async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    await resetAuthStore()
     pushMock.mockReset()
     Object.values(mocks).forEach((fn) => fn.mockReset())
     mocks.createHabit.mockResolvedValue({ id: 'h-1' })
@@ -136,7 +143,6 @@ describe('live onboarding actions', () => {
     mocks.logHabit.mockResolvedValue(undefined)
     mocks.createGoal.mockResolvedValue(undefined)
     mocks.completeOnboarding.mockResolvedValue(undefined)
-    mocks.updateColorScheme.mockResolvedValue(undefined)
     mocks.updateWeekStartDay.mockResolvedValue(undefined)
   })
 
@@ -153,32 +159,110 @@ describe('live onboarding actions', () => {
     await result.current.logHabit('h-9')
     await result.current.createGoal({ title: 'Run 100km', targetValue: 100, unit: 'km' })
     expect(mocks.bulkCreate).toHaveBeenCalledWith({ habits: [{ title: 'Stretch' }] })
-    expect(mocks.logHabit).toHaveBeenCalledWith({ habitId: 'h-9' })
+    expect(mocks.logHabit).toHaveBeenCalledWith({ habitId: 'h-9', intent: 'log' })
     expect(mocks.createGoal).toHaveBeenCalledWith({ title: 'Run 100km', targetValue: 100, unit: 'km' })
   })
 
   it('optimistically patches the profile week-start day then persists and invalidates', async () => {
     const { result } = renderHook(() => useLiveOnboardingActions())
     await result.current.setWeekStartDay(0)
-    expect(mocks.updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 })
+    expect(mocks.updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 }, null)
     expect(mocks.invalidateQueries).toHaveBeenCalled()
     const updater = mocks.setQueryData.mock.calls[0]![1] as (old: unknown) => unknown
     expect(updater({ weekStartDay: 1 })).toMatchObject({ weekStartDay: 0 })
     expect(updater(undefined)).toBeUndefined()
   })
 
-  it('persists the color scheme', async () => {
+  it('does not invalidate the next account after the previous week-start save settles', async () => {
+    holdAccount('user-1')
+    vi.stubGlobal('fetch', vi.fn())
+    let finishSave!: () => void
+    mocks.updateWeekStartDay.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishSave = resolve
+    }))
     const { result } = renderHook(() => useLiveOnboardingActions())
-    await result.current.setColorScheme('violet')
-    expect(mocks.updateColorScheme).toHaveBeenCalledWith({ colorScheme: 'violet' })
+    let saving!: Promise<void>
+    act(() => { saving = result.current.setWeekStartDay(0) })
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishSave(); await saving })
+
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
   })
 
-  it('finishes onboarding and routes home even when completion fails', async () => {
-    mocks.completeOnboarding.mockRejectedValue(new Error('offline'))
+  it('records account completion without leaving the source or replacing its profile', async () => {
+    holdAccount('user-1')
+    const { result } = renderHook(() => useLiveOnboardingActions())
+    await result.current.recordCompletion()
+    expect(mocks.completeOnboarding).toHaveBeenCalledWith('user-1')
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps onboarding open when online completion fails', async () => {
+    mocks.completeOnboarding.mockRejectedValue(new Error('unavailable'))
+    const { result } = renderHook(() => useLiveOnboardingActions())
+    await expect(result.current.finishOnboarding()).rejects.toThrow('unavailable')
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
+  it('queues offline completion for the held account and enters the app', async () => {
+    holdAccount('user-1')
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     const { result } = renderHook(() => useLiveOnboardingActions())
     await result.current.finishOnboarding()
-    expect(mocks.setQueryData).toHaveBeenCalled()
+    expect(mocks.completeOnboarding).not.toHaveBeenCalled()
+    expect(localStorage.getItem('orbit_onboarding_completion_pending:user-1')).toBe('1')
     expect(pushMock).toHaveBeenCalledWith('/')
+    online.mockRestore()
+    localStorage.clear()
+  })
+
+  it('keeps onboarding open when the account switch guard refuses completion', async () => {
+    mocks.completeOnboarding.mockRejectedValue({ code: 'ACCOUNT_CHANGED', status: 409 })
+    const { result } = renderHook(() => useLiveOnboardingActions())
+
+    await expect(result.current.finishOnboarding()).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(mocks.showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'errorScreen.reload')
+  })
+
+  it('does not finish the previous account onboarding in the next account cache', async () => {
+    holdAccount('user-1')
+    vi.stubGlobal('fetch', vi.fn())
+    let finishCompletion!: () => void
+    mocks.completeOnboarding.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishCompletion = resolve
+    }))
+    const { result } = renderHook(() => useLiveOnboardingActions())
+    let finishing!: Promise<void>
+    act(() => { finishing = result.current.finishOnboarding() })
+
+    await replaceAccountWith('user-2')
+    await act(async () => {
+      finishCompletion()
+      await expect(finishing).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    })
+
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
+
+  })
+
+  it('rechecks the account after the recording continuation settles', async () => {
+    holdAccount('user-1')
+    mocks.completeOnboarding.mockImplementationOnce(() => {
+      queueMicrotask(() => queueMicrotask(() => queueMicrotask(() => holdAccount('user-2'))))
+      return Promise.resolve()
+    })
+    const { result } = renderHook(() => useLiveOnboardingActions())
+    await act(async () => { await result.current.finishOnboarding() })
+    expect(getHeldAccountId()).toBe('user-2')
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
   })
 
   it('seeds the chat draft and opens Astra on import', () => {
@@ -186,7 +270,7 @@ describe('live onboarding actions', () => {
     const { result } = renderHook(() => useLiveOnboardingActions())
     result.current.onImport?.()
     expect(setItem).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'onboarding.flow.meetAstra.importPrompt')
-    expect(pushMock).toHaveBeenCalledWith('/chat')
+    expect(pushMock).toHaveBeenCalledWith('/?astra=open')
     setItem.mockRestore()
   })
 })
@@ -200,22 +284,20 @@ describe('onboarding actions context provider', () => {
     )
   })
 
-  it('exposes the actions, pro access, and live flags to consumers', () => {
+  it('exposes the actions and live flag to consumers', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <OnboardingActionsProvider actions={actions} hasProAccess isLive={false}>
+      <OnboardingActionsProvider actions={actions} isLive={false}>
         {children}
       </OnboardingActionsProvider>
     )
     const { result } = renderHook(
       () => ({
         actions: useOnboardingActions(),
-        hasPro: useOnboardingHasProAccess(),
         isLive: useOnboardingIsLive(),
       }),
       { wrapper },
     )
     expect(result.current.actions).toBe(actions)
-    expect(result.current.hasPro).toBe(true)
     expect(result.current.isLive).toBe(false)
   })
 })

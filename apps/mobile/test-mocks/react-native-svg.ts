@@ -12,12 +12,31 @@ function createSvgComponent(name: string) {
   }
 }
 
-const Svg = createSvgComponent('Svg')
+function MockCircle(
+  {
+    children,
+    ...props
+  }: Readonly<{
+    children?: React.ReactNode
+    r?: number
+    [key: string]: unknown
+  }>,
+  ref: React.ForwardedRef<{ getTotalLength: () => number }>,
+) {
+  React.useImperativeHandle(
+    ref,
+    () => ({ getTotalLength: () => 2 * Math.PI * Number(props.r ?? 0) }),
+    [props.r],
+  )
+  return React.createElement('Circle', props, children)
+}
 
-export const Circle = createSvgComponent('Circle')
+export const Svg = createSvgComponent('Svg')
+
+export const Circle = React.forwardRef(MockCircle)
 export const Defs = createSvgComponent('Defs')
+export const G = createSvgComponent('G')
 export const Line = createSvgComponent('Line')
-export const LinearGradient = createSvgComponent('LinearGradient')
 export const Path = createSvgComponent('Path')
 export const Rect = createSvgComponent('Rect')
 export const Stop = createSvgComponent('Stop')

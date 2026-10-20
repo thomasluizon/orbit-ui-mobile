@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { BUTTON_SIZES, type ButtonSize } from '../theme'
 
-const SIZES: ButtonSize[] = ['sm', 'md', 'lg']
+const SIZES: ButtonSize[] = ['sm', 'md']
 
 describe('button geometry', () => {
-  it('exposes the sm/md/lg size scale', () => {
-    expect(Object.keys(BUTTON_SIZES).sort()).toEqual(['lg', 'md', 'sm'])
+  it('exposes the sm/md size scale', () => {
+    expect(Object.keys(BUTTON_SIZES).sort((left, right) => left.localeCompare(right))).toEqual([
+      'md',
+      'sm',
+    ])
   })
 
   it('keeps the medium pill geometry with an allowed icon size', () => {
@@ -18,14 +21,11 @@ describe('button geometry', () => {
     })
   })
 
-  it('scales height, padding, font, and gap monotonically sm < md < lg', () => {
-    const keys = ['height', 'paddingX', 'fontSize', 'gap'] as const
+  it('scales height, padding, font, icon, and gap monotonically sm < md', () => {
+    const keys = ['height', 'paddingX', 'fontSize', 'iconSize', 'gap'] as const
     for (const key of keys) {
       expect(BUTTON_SIZES.sm[key]).toBeLessThan(BUTTON_SIZES.md[key])
-      expect(BUTTON_SIZES.md[key]).toBeLessThan(BUTTON_SIZES.lg[key])
     }
-    expect(BUTTON_SIZES.sm.iconSize).toBeLessThan(BUTTON_SIZES.md.iconSize)
-    expect(BUTTON_SIZES.md.iconSize).toBeLessThanOrEqual(BUTTON_SIZES.lg.iconSize)
   })
 
   it('gives every size a complete, positive spec', () => {

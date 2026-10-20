@@ -1,4 +1,3 @@
-
 const { collectStaticStrings, getAttribute, getAttributeValueNode } = require('./_jsx-strings.cjs')
 
 const SPACE_CLASS_RE = /(?:^|\s|:)(space-[xy]-(?:\d+|px|\[[^\]]+\]))(?:\s|$)/

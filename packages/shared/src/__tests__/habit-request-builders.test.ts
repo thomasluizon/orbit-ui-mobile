@@ -76,6 +76,27 @@ describe('habit-request-builders', () => {
     }
   })
 
+  it('keeps fractional-second API times and their reminders through a title-only edit', () => {
+    const habit = createMockHabit({
+      dueTime: '21:00:00.1230000',
+      dueEndTime: '22:00:00.1230000',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      relativeReminders: [{ minutesBefore: 15 }],
+    })
+    const editor = buildEditHabitFormState(habit)
+    const form = { ...editor.formValues, title: 'Read before bed' }
+    const request = buildUpdateHabitRequest(form, false, editor.originalEndDate, editor.reminderTimes, [])
+
+    expect(request).toMatchObject({
+      title: 'Read before bed',
+      dueTime: '21:00',
+      dueEndTime: '22:00',
+      reminderEnabled: true,
+      relativeReminders: [{ minutesBefore: 15 }],
+    })
+  })
+
   it('round-trips before, at, after, and day-before reminders in one request field', () => {
     const form = makeFormData({
       dueTime: '09:00',
@@ -105,6 +126,7 @@ describe('habit-request-builders', () => {
         isFlexible: true,
         frequencyUnit: 'Week',
         frequencyQuantity: 3,
+        intervalWeeks: 3,
         dueTime: '08:30',
         dueEndTime: '09:00',
         reminderEnabled: true,
@@ -124,6 +146,7 @@ describe('habit-request-builders', () => {
       isFlexible: true,
       frequencyUnit: 'Week',
       frequencyQuantity: 3,
+      intervalWeeks: 3,
       dueTime: '08:30',
       dueEndTime: '09:00',
       reminderEnabled: true,
@@ -175,6 +198,7 @@ describe('habit-request-builders', () => {
       dueDate: '2026-04-08',
       frequencyUnit: 'Week',
       frequencyQuantity: 2,
+      intervalWeeks: 1,
       days: ['Monday', 'Wednesday'],
       endDate: '2026-12-31',
       reminderEnabled: true,
@@ -256,6 +280,7 @@ describe('habit-request-builders', () => {
       dueDate: '2026-04-08',
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
+      intervalWeeks: 1,
       dueTime: '06:30',
       dueEndTime: '06:45',
       reminderEnabled: true,
@@ -295,6 +320,7 @@ describe('habit-request-builders', () => {
       dueDate: '2026-04-08',
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
+      intervalWeeks: 1,
       reminderEnabled: true,
       reminderTimes: [],
       scheduledReminders: [{ when: 'same_day', time: '21:00' }],
@@ -306,7 +332,19 @@ describe('habit-request-builders', () => {
     })
   })
 
-  it('builds update requests with due-time reminders in the relative field', () => {
+  it('sends a preserved biweekly detail interval on save', () => {
+    const request = buildUpdateHabitRequest(
+      makeFormData({ frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2 }),
+      false,
+      '',
+      [],
+      [],
+    )
+
+    expect(request.intervalWeeks).toBe(2)
+  })
+
+  it('builds update requests with due-time reminders and leaves the scheduled store untouched', () => {
     const timedRequest = buildUpdateHabitRequest(
       makeFormData({
         dueTime: '10:00',

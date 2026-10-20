@@ -1,3 +1,5 @@
+import { randomUUID } from 'expo-crypto'
+import type { HabitListSnapshots } from '@orbit/shared/query'
 import {
   useMutation,
   useQueryClient,
@@ -7,9 +9,10 @@ import {
   goalKeys,
   gamificationKeys,
   profileKeys,
-  updateHabitListsForDate,
-  clearCachedOptimisticSkip,
+  applyCachedHabitSkip, rollbackDatedHabitLists,
   checkTodayAllDoneOrDefer,
+  clearCachedOptimisticSkip,
+  restoreCachedHabitSkip,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
 } from '@orbit/shared/query'
@@ -17,13 +20,18 @@ import { API } from '@orbit/shared/api'
 import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
 import {
   applyLinkedGoalUpdates,
-  buildOptimisticSkipPatch,
+  appendHabitDetailChild,
   buildSuccessfulLogPatch,
+  deriveBulkLogStreakTransition,
   findHabitInList,
-  formatAPIDate,
+  getAccountDay,
   getFriendlyErrorMessage,
   normalizeHabits,
   buildChildrenIndex,
+  optimisticSetCalendarHabitLog,
+  removeHabitDetailChild,
+  rollbackOptimisticCalendarHabitLog,
+  rollbackOptimisticHabitLogs,
   plural,
 } from '@orbit/shared/utils'
 import type {
@@ -45,14 +53,19 @@ import type {
   BulkLogResult,
   BulkSkipItemRequest,
   BulkSkipResult,
+  CalendarMonthResponse,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
+import type { HabitLog } from '@orbit/shared/types/calendar'
 import {
   cancelQueuedDeleteForUndo,
+  cancelQueuedSkipForUndo,
+  executeSkipUndo,
   createTempEntityId,
   isQueuedResult,
+  OfflineMutationPreflightError,
   type QueuedMarker,
 } from '@/lib/offline-mutations'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -61,7 +74,9 @@ import {
   optimisticInsertSubHabit,
   optimisticPatchHabit,
   optimisticRemoveHabits,
+  restoreDeletedHabits,
   optimisticReorderHabits,
+  optimisticSetDatedCompletion,
   optimisticToggleCompletion,
   optimisticUpdateChecklist,
 } from '@/lib/habit-optimistic-helpers'
@@ -73,13 +88,16 @@ import {
   buildOptimisticSubHabit,
   finalizeHabitMutation,
   optimisticMoveHabitParent,
+  restoreHabitCompletionForIds,
   restoreHabitLists,
   snapshotHabitLists,
   updateHabitLists,
+  updateHabitListsForDate,
 } from '@/lib/habit-mutation-helpers'
 import {
   getMilestoneShareStreakKey,
   getReviewMomentStreakKey,
+  isStreakCelebrationMilestone,
 } from '@orbit/shared/stores'
 import {
   isReviewMomentEligible,
@@ -92,39 +110,56 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { captureHabitLogged } from '@/lib/posthog'
+import { getAccountId } from '@/lib/account-scope'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
-type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
+type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string; __offlineDependsOn?: string[] }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
+type LogHabitMutationInput = {
+  habitId: string
+  date?: string
+  intent: 'log' | 'unlog'
+}
 type CreateSubHabitMutationInput = {
   parentId: string
   data: CreateSubHabitRequest
   __offlineTempId?: string
 }
-type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
+type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
 type RestoreHabitInput = string | { habitId: string; reconcileNotFound: true }
+type LogHabitSnapshot = {
+  occurrenceDate: string
+  previousLists: HabitListSnapshots
+  previousLogs: HabitLog[] | undefined
+  previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[]
+  hadPendingListRefetch: boolean
+  retryAllDoneDate: string | null
+}
+type OfflineBulkMutationOutcome<TResponse> = TResponse & {
+  ambiguousIds: string[]
+  offlineFailureIds: string[]
+}
 
-function reconcileBulkCompletion(
+type BulkLogMutationOutcome = OfflineBulkMutationOutcome<BulkLogResult> & {
+  streakResponses: BulkLogResult[]
+  hasConfirmedSuccess: boolean
+  queuedIds: string[]
+}
+type BulkSkipMutationOutcome = OfflineBulkMutationOutcome<BulkSkipResult> & {
+  queuedIds: string[]
+}
+type BulkDeleteMutationOutcome = OfflineBulkMutationOutcome<BulkDeleteResponse> & {
+  queuedDeletes: { habitId: string; mutationId: string }[]
+}
+
+function refreshProfileAfterLog(
   queryClient: ReturnType<typeof useQueryClient>,
-  result: { results: readonly { index: number; status: string; habitId: string }[] },
-  items: readonly { habitId: string; date?: string }[],
-  previousLists: HabitListSnapshots | undefined,
+  response: LogHabitResponse,
+  intent: 'log' | 'unlog',
 ): void {
-  if (!previousLists ||
-    (!isQueuedResult(result) && result.results.every((item) => item.status === 'Success'))) return
-  restoreHabitLists(queryClient, previousLists)
-  if (isQueuedResult(result)) return
-  const successfulImmediateIds = result.results.flatMap((entry) => {
-    const item = items[entry.index]
-    return entry.status === 'Success' && item?.habitId === entry.habitId && !item.date
-      ? [item.habitId]
-      : []
-  })
-  updateHabitLists(queryClient, (currentItems) =>
-    successfulImmediateIds.reduce(
-      (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
-      currentItems,
-    ),
-  )
+  if (intent === 'unlog' || response.xpEarned || response.newAchievementIds?.length) {
+    void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+  }
 }
 
 function selectedDescendantsInSnapshots(
@@ -158,22 +193,70 @@ export {
   useTotalHabitCount,
 } from './use-habit-queries'
 export { useCalendarData, useCalendarRange } from './use-calendar-data'
-export { useSummary } from './use-summary'
+
+function startsPositiveStreak(
+  countsTowardStreak: boolean,
+  response: Pick<LogHabitResponse, 'isFirstCompletionToday' | 'currentStreak'>,
+): boolean {
+  return countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0
+}
+
+function shouldCelebrateStreak(startsStreak: boolean, streak: number, isTodayLog: boolean): boolean {
+  return startsStreak && isTodayLog && isStreakCelebrationMilestone(streak)
+}
+
+function checkTodayCompletionAfterLogs(
+  queryClient: ReturnType<typeof useQueryClient>,
+  habitIds: string[],
+  today: string,
+  checkAllDoneCelebration: ReturnType<typeof useUIStore.getState>['checkAllDoneCelebration'],
+): void {
+  updateHabitListsForDate(queryClient, today, (habits) =>
+    habitIds.reduce((current, id) => {
+      const habit = findHabitInList(current, id)
+      return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
+    }, habits))
+  const habitsData = getTodayHabitList(queryClient, today)
+  if (!habitsData) return
+  const normalized = normalizeHabits(habitsData)
+  checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+}
+
+/** Returns the day to recheck after the list refetch, when the complete Today list is not settled yet. */
+function checkTodayCompletionAfterLog(
+  queryClient: ReturnType<typeof useQueryClient>,
+  variables: LogHabitMutationInput,
+  hadPendingListRefetch: boolean,
+  checkAllDoneCelebration: ReturnType<typeof useUIStore.getState>['checkAllDoneCelebration'],
+): string | null {
+  const timeZone = queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone
+  const today = getAccountDay(new Date(), timeZone)
+  if (variables.intent === 'unlog' || (variables.date && variables.date !== today)) return null
+  updateHabitListsForDate(queryClient, today, (habits) => {
+    const habit = findHabitInList(habits, variables.habitId)
+    return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
+  })
+  return checkTodayAllDoneOrDefer(queryClient, today, variables.date, hadPendingListRefetch,
+    (...args) => checkAllDoneCelebration(...args, timeZone))
+    ? today
+    : null
+}
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
-  const { showError } = useAppToast()
-  const { setStreakCelebration, checkAllDoneCelebration } = useUIStore.getState()
+  const { showInfo, showError } = useAppToast()
+  const { setStreakCelebration, showStreakMoment, checkAllDoneCelebration } = useUIStore.getState()
 
   return useMutation<
     LogHabitResponse | QueuedMarker,
     Error,
-    { habitId: string; date?: string },
-    { previousLists: HabitListSnapshots; hadPendingListRefetch: boolean; retryAllDoneDate: string | null }
+    LogHabitMutationInput,
+    LogHabitSnapshot
   >({
-    mutationFn: ({ habitId, date }) =>
-      performQueuedApiMutation<LogHabitResponse>({
+    mutationFn: ({ habitId, date }) => {
+      const occurrenceDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      return performQueuedApiMutation<LogHabitResponse>({
         type: 'logHabit',
         scope: 'habits',
         endpoint: API.habits.log(habitId),
@@ -181,40 +264,132 @@ export function useLogHabit() {
         payload: date ? { date } : undefined,
         entityType: 'habit',
         targetEntityId: habitId,
-      }),
+        dedupeKey: `habit-toggle:${habitId}:${occurrenceDate}`,
+      })
+    },
 
-    onMutate: ({ habitId, date }) => {
+    onMutate: ({ habitId, date, intent }) => {
+      const occurrenceDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
       const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
       /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      if (date) {
+        void queryClient.cancelQueries({ queryKey: habitKeys.logs(habitId) })
+        void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
+      }
 
       const previousLists = snapshotHabitLists(queryClient)
+      const previousLogs = date
+        ? queryClient.getQueryData<HabitLog[]>(habitKeys.logs(habitId))
+        : undefined
+      const previousCalendars = date
+        ? queryClient.getQueriesData<CalendarMonthResponse>({
+            queryKey: habitKeys.calendarPrefix(),
+          })
+        : []
 
-      if (!date) {
-        updateHabitListsForDate(queryClient, formatAPIDate(new Date()),
+      if (date) {
+        const completed = intent === 'log'
+        const optimisticLogId = `optimistic-log:${habitId}:${date}`
+        const createdAtUtc = new Date().toISOString()
+
+        queryClient.setQueryData<HabitLog[]>(habitKeys.logs(habitId), (old) => {
+          const logs = old ?? []
+          if (!completed) {
+            return logs.filter((log) => log.date !== date || log.value <= 0)
+          }
+          if (logs.some((log) => log.date === date && log.value > 0)) return logs
+          return [...logs, {
+            id: optimisticLogId,
+            date,
+            value: 1,
+            createdAtUtc,
+          }]
+        })
+        queryClient.setQueriesData<CalendarMonthResponse>(
+          { queryKey: habitKeys.calendarPrefix() },
+          (old) => old
+            ? optimisticSetCalendarHabitLog(
+                old,
+                habitId,
+                date,
+                completed,
+                optimisticLogId,
+                createdAtUtc,
+              )
+            : old,
+        )
+        updateHabitListsForDate(queryClient, date, (items) =>
+          optimisticSetDatedCompletion(
+            items,
+            habitId,
+            date,
+            completed,
+            optimisticLogId,
+          ), { includeUnfiltered: false })
+      } else {
+        updateHabitListsForDate(queryClient, occurrenceDate,
           (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      useReviewReminderStore
-        .getState()
-        .trackCompletion(date ?? formatAPIDate(new Date()))
-
-      return { previousLists, hadPendingListRefetch, retryAllDoneDate: null }
+      return { occurrenceDate, previousLists, previousLogs, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null }
     },
 
-    onError: (error, _vars, context) => {
-      if (context?.previousLists) {
+    onError: (error, variables, context) => {
+      if (context?.previousLists && !variables.date) {
         for (const [key, data] of context.previousLists) {
           if (data) {
             queryClient.setQueryData(key, data)
           }
         }
       }
-      showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit'))
+      if (context && variables.date) {
+        const date = variables.date
+        const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
+        rollbackDatedHabitLists(
+          queryClient,
+          context.previousLists,
+          variables.habitId,
+          date,
+          optimisticLogId,
+        )
+        queryClient.setQueryData<HabitLog[] | undefined>(
+          habitKeys.logs(variables.habitId),
+          (currentLogs) => rollbackOptimisticHabitLogs(
+            currentLogs,
+            context.previousLogs,
+            date,
+            optimisticLogId,
+          ),
+        )
+        for (const [key, previousCalendar] of context.previousCalendars) {
+          if (!previousCalendar) continue
+          queryClient.setQueryData<CalendarMonthResponse>(key, (currentCalendar) =>
+            currentCalendar
+              ? rollbackOptimisticCalendarHabitLog(
+                  currentCalendar,
+                  previousCalendar,
+                  variables.habitId,
+                  date,
+                  optimisticLogId,
+                )
+              : currentCalendar)
+        }
+      }
+      showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
     },
 
-    onSuccess: (response, variables, context: { hadPendingListRefetch: boolean; retryAllDoneDate: string | null } | undefined) => {
-      if (isQueuedResult(response)) {
+    onSuccess: (response, variables, context: LogHabitSnapshot | undefined) => {
+      const queuedResult = isQueuedResult(response)
+
+      if (variables.intent === 'log' && (!queuedResult || response.retained !== true)) {
+        useReviewReminderStore
+          .getState()
+          .trackCompletion(variables.date ?? getAccountDay(new Date()))
+      }
+
+      if (queuedResult) {
+        showInfo(t('todayAstra.offlineLog'))
         return
       }
 
@@ -226,10 +401,25 @@ export function useLogHabit() {
           .flatMap(([, items]) => items ?? []),
         variables.habitId,
       )
+      /**
+       * The CELEBRATION still needs a known good habit, and deliberately so: a bad habit's
+       * "streak" is consecutive abstinence, the opposite semantics, and an unresolvable habit
+       * cannot be shown to be either. Celebrating on a guess is user-visible harm.
+       */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
-      if (countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0) {
+      showStreakMoment(
+        response.currentStreak,
+        response.previousStreak ?? undefined,
+        { ...variables, date: context?.occurrenceDate ?? variables.date, timeZone: queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone, countsTowardStreak },
+      )
+      const startsStreak = startsPositiveStreak(countsTowardStreak, response)
+      const today = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      const isTodayLog = (context?.occurrenceDate ?? variables.date ?? today) === today
+      if (shouldCelebrateStreak(startsStreak, response.currentStreak, isTodayLog)) {
         setStreakCelebration({ streak: response.currentStreak })
+      }
+      if (startsStreak) {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
         )
@@ -244,7 +434,7 @@ export function useLogHabit() {
             useReviewReminderStore.getState(),
             queryClient.getQueryData<Profile>(profileKeys.detail())
               ?.hasCompletedOnboarding ?? false,
-            formatAPIDate(new Date()),
+            getAccountDay(new Date()),
           )
         ) {
           useEngagementPromptStore.getState().armReviewPrompt(reviewMomentKey)
@@ -263,28 +453,25 @@ export function useLogHabit() {
         })
       }
 
+      /**
+       * Rewards the server already granted are reconciled from the RESPONSE, with no list-cache
+       * requirement. The habit kind cannot change the answer here, so it is not consulted.
+       */
       if (response.xpEarned || response.newAchievementIds?.length) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
-        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       }
+      refreshProfileAfterLog(queryClient, response, variables.intent)
 
       if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
       }
 
-      const today = formatAPIDate(new Date())
-      if (!variables.date || variables.date === today) {
-        updateHabitListsForDate(queryClient, today, (habits) => {
-          const habit = findHabitInList(habits, variables.habitId)
-          return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
-        })
-      }
-      const shouldRetryAllDone = checkTodayAllDoneOrDefer(queryClient, today, variables.date,
+      const retryAllDoneDate = checkTodayCompletionAfterLog(queryClient, { ...variables, date: context?.occurrenceDate ?? variables.date },
         context?.hadPendingListRefetch ?? false, checkAllDoneCelebration)
-      if (context && shouldRetryAllDone) context.retryAllDoneDate = today
+      if (context) context.retryAllDoneDate = retryAllDoneDate
 
     },
 
@@ -297,63 +484,147 @@ export function useLogHabit() {
       return getTodayHabitListAfterRefetch(queryClient, today).then((habitsData) => {
         if (!habitsData) return
         const normalized = normalizeHabits(habitsData)
-        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today, queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
       })
     },
   })
 }
 
-export function useSkipHabit() {
+function captureSkipAccount() {
+  const accountId = getAccountId()
+  const generation = getAccountGeneration()
+  return { stillCurrent: () => accountId === getAccountId() && generation === getAccountGeneration() }
+}
+
+type SkipHabitInput = { habitId: string; date?: string; onUndo?: () => void; account?: ReturnType<typeof captureSkipAccount> }
+type UndoSkipInput = {
+  habitId: string
+  skipId: string
+  previousLists: HabitListSnapshots
+  occurrence: { date: string; postponed: boolean }
+  queuedMutationId?: string
+  onUndo?: () => void
+  account?: ReturnType<typeof captureSkipAccount>
+}
+
+function useUndoSkipHabit() {
   const queryClient = useQueryClient()
-
-  return useMutation<
-    void | QueuedMarker,
-    Error,
-    { habitId: string; date?: string },
-    { previousLists: HabitListSnapshots; skippedDate: string }
-  >({
-    mutationFn: ({ habitId, date }) =>
-      performQueuedApiMutation<void>({
-        type: 'skipHabit',
-        scope: 'habits',
-        endpoint: API.habits.skip(habitId),
-        method: 'POST',
-        payload: date ? { date } : undefined,
-        entityType: 'habit',
-        targetEntityId: habitId,
-      }),
-
-    onMutate: async ({ habitId, date }) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
-
-      const previousLists = snapshotHabitLists(queryClient)
-      const skippedDate = date ?? formatAPIDate(new Date())
-
-      /** Recurring skips complete the current occurrence; one-time skips postpone it. */
-      if (!date) {
-        updateHabitListsForDate(queryClient, skippedDate, (items) => {
-          const habit = findHabitInList(items, habitId)
-          if (!habit) return items
-          return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, skippedDate))
-        })
+  const { t } = useTranslation()
+  const showUndoToast = useUndoToast()
+  const undoSkip = useMutation<void | QueuedMarker, Error, UndoSkipInput>({
+    mutationFn: async (input) => {
+      input.account ??= captureSkipAccount()
+      if (!input.account.stillCurrent()) throw new Error('Account changed')
+      if (input.queuedMutationId) {
+        const outcome = await cancelQueuedSkipForUndo(input.queuedMutationId)
+        if (!input.account.stillCurrent()) throw new Error('Account changed')
+        if (outcome === 'cancelled') return
       }
-
-      return { previousLists, skippedDate }
+      return performQueuedApiMutation<void>({
+        type: 'undoSkipHabit', scope: 'habits', method: 'POST',
+        endpoint: API.habits.undoSkip(input.habitId, input.skipId),
+        payload: undefined, execute: executeSkipUndo, isCurrent: input.account.stillCurrent,
+        entityType: 'habit', targetEntityId: input.habitId,
+      })
     },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
-        for (const [key, data] of context.previousLists) {
-          if (data) queryClient.setQueryData(key, data)
-        }
-      }
+    onSuccess: (_result, input) => {
+      if (input.account && !input.account.stillCurrent()) return
+      input.onUndo?.()
+      restoreCachedHabitSkip(queryClient, input.previousLists, input.habitId, input.occurrence)
     },
-
-    onSettled: (data, error, { habitId }, context) => {
-      if (!error && context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
-      finalizeHabitMutation(queryClient, data, error, { habitId, includeCount: false, includeGoals: true })
+    onError: (error, input) => {
+      if (input.account && !input.account.stillCurrent()) return
+      showUndoToast(getFriendlyErrorMessage(error, t, 'undo.restoreFailed'), () => {
+        if (input.account && !input.account.stillCurrent()) return
+        undoSkip.mutate(input)
+      })
+    },
+    onSettled: (result, error, input) => {
+      if (input.account && !input.account.stillCurrent()) return
+      finalizeHabitMutation(queryClient, result, error, {
+        habitId: input.habitId, includeCount: false, includeGoals: true, includeProfile: true, includeGamification: true,
+      })
     },
   })
+  return undoSkip
+}
+
+export function useSkipHabit() {
+  const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const showUndoToast = useUndoToast()
+  const { showError } = useAppToast()
+  const undoSkip = useUndoSkipHabit()
+  const mutation = useMutation({
+    mutationFn: async (input: SkipHabitInput) => {
+      input.account ??= captureSkipAccount()
+      if (!input.account.stillCurrent()) throw new Error('Account changed')
+      const skipId = randomUUID()
+      const outcome = await performQueuedApiMutation<void>({
+        type: 'skipHabit', scope: 'habits', endpoint: API.habits.skip(input.habitId), method: 'POST',
+        isCurrent: input.account.stillCurrent,
+        payload: { date: input.date, skipId }, entityType: 'habit', targetEntityId: input.habitId,
+      })
+      return { skipId, outcome }
+    },
+    onMutate: async (input) => {
+      input.account ??= captureSkipAccount()
+      const account = input.account
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      if (!account.stillCurrent()) throw new Error('Account changed')
+      const { habitId, date } = input
+      const previousLists = snapshotHabitLists(queryClient)
+      const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
+        .find((habit) => habit !== null)
+      const skippedDate = date ?? getAccountDay(new Date())
+      applyCachedHabitSkip(queryClient, habitId, skippedDate)
+      return { previousLists, skippedDate, postponed: previous?.frequencyUnit === null, account }
+    },
+    onSuccess: ({ skipId, outcome }, { habitId, onUndo }, context) => {
+      if (!context.account.stillCurrent()) return
+      showUndoToast(t(context.postponed ? 'undo.habitPostponed' : 'undo.habitSkipped'), () => {
+        if (!context.account.stillCurrent()) return
+        undoSkip.mutate({ habitId, skipId, previousLists: context.previousLists,
+          occurrence: { date: context.skippedDate, postponed: context.postponed }, onUndo, account: context.account,
+          queuedMutationId: isQueuedResult(outcome) ? outcome.queuedMutationId : undefined })
+      })
+    },
+    onError: (error, input, context) => {
+      const account = context?.account ?? input.account
+      if (account && !account.stillCurrent()) return
+      if (context) restoreHabitLists(queryClient, context.previousLists)
+      showError(getFriendlyErrorMessage(error, t, 'undo.skipFailed'))
+    },
+    onSettled: (result, error, input, context) => {
+      const account = context?.account ?? input.account
+      if (account && !account.stillCurrent()) return
+      if (!error && context) clearCachedOptimisticSkip(queryClient, input.habitId, context.skippedDate)
+      finalizeHabitMutation(queryClient, result?.outcome, error, {
+        habitId: input.habitId, includeCount: false, includeGoals: true, includeProfile: true, includeGamification: true,
+      })
+    },
+  })
+  const scopeOptions = (
+    options: Parameters<typeof mutation.mutate>[1], account: ReturnType<typeof captureSkipAccount>,
+  ): Parameters<typeof mutation.mutate>[1] => options ? {
+    ...options,
+    onSuccess: (...arguments_) => { if (account.stillCurrent()) options.onSuccess?.(...arguments_) },
+    onError: (...arguments_) => { if (account.stillCurrent()) options.onError?.(...arguments_) },
+    onSettled: (...arguments_) => { if (account.stillCurrent()) options.onSettled?.(...arguments_) },
+  } : undefined
+  return {
+    ...mutation,
+    mutate: (input: SkipHabitInput, options?: Parameters<typeof mutation.mutate>[1]) => {
+      const account = captureSkipAccount()
+      mutation.mutate({ ...input, account }, scopeOptions(options, account))
+    },
+    mutateAsync: async (input: SkipHabitInput, options?: Parameters<typeof mutation.mutateAsync>[1]) => {
+      const account = captureSkipAccount()
+      const result = await mutation.mutateAsync({ ...input, account }, scopeOptions(options, account))
+      if (!account.stillCurrent()) throw new Error('Account changed')
+      return result
+    },
+  }
 }
 
 export function useCreateHabit() {
@@ -366,7 +637,7 @@ export function useCreateHabit() {
     { previousLists: HabitListSnapshots; tempId: string }
   >({
     mutationFn: async (input) => {
-      const { __offlineTempId, ...data } = input
+      const { __offlineTempId, __offlineDependsOn, ...data } = input
       const request = validateApiRequest(data, createHabitRequestSchema)
       const tempId = __offlineTempId ?? createTempEntityId('habit')
 
@@ -378,6 +649,7 @@ export function useCreateHabit() {
         payload: request,
         entityType: 'habit',
         clientEntityId: tempId,
+        dependsOn: __offlineDependsOn,
         queuedResultFactory: (mutationId) => ({
           id: tempId,
           queued: true,
@@ -392,6 +664,10 @@ export function useCreateHabit() {
       const previousLists = snapshotHabitLists(queryClient)
       const tempId = createTempEntityId('habit')
       data.__offlineTempId = tempId
+      const optimisticHabit = buildOptimisticHabit(queryClient, tempId, data)
+
+      updateHabitLists(queryClient, (items) => optimisticInsertHabit(items, optimisticHabit))
+
       return { previousLists, tempId }
     },
 
@@ -405,7 +681,7 @@ export function useCreateHabit() {
     },
 
     onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error),
+      finalizeHabitMutation(queryClient, data, error, { includeCount: true }),
   })
 }
 
@@ -415,10 +691,10 @@ export function useUpdateHabit() {
   return useMutation<
     void | QueuedMarker,
     Error,
-    { habitId: string; data: UpdateHabitRequest },
-    { previousLists: HabitListSnapshots }
+    { habitId: string; data: UpdateHabitRequest; dependsOn?: string[] },
+    { previousLists: HabitListSnapshots; previousDetail: HabitDetail | undefined }
   >({
-    mutationFn: async ({ habitId, data }) => {
+    mutationFn: async ({ habitId, data, dependsOn }) => {
       const request = validateApiRequest(data, updateHabitRequestSchema)
       return performQueuedApiMutation<void>({
         type: 'updateHabit',
@@ -428,30 +704,41 @@ export function useUpdateHabit() {
         payload: request,
         entityType: 'habit',
         targetEntityId: habitId,
+        dependsOn,
       })
     },
 
     onMutate: async ({ habitId, data }) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
+        queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId) }),
+        queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
+      ])
 
       const previousLists = snapshotHabitLists(queryClient)
+      const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(habitId))
       const patch = buildOptimisticHabitPatch(queryClient, data)
       updateHabitLists(queryClient, (items) =>
         optimisticPatchHabit(items, habitId, patch),
       )
+      queryClient.setQueryData<HabitDetail>(habitKeys.detail(habitId), (detail) =>
+        detail ? { ...detail, ...patch } : detail,
+      )
 
-      return { previousLists }
+      return { previousLists, previousDetail }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
+      if (context?.previousDetail) {
+        queryClient.setQueryData(habitKeys.detail(_variables.habitId), context.previousDetail)
+      }
     },
 
-    onSettled: (result, error, { habitId }) => {
-      finalizeHabitMutation(queryClient, result, error, { habitId })
-    },
+    onSettled: (data, error, { habitId }) =>
+      finalizeHabitMutation(queryClient, data, error, { habitId, includeProfile: true }),
   })
 }
 
@@ -482,7 +769,11 @@ export function useRestoreHabit() {
     },
 
     onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error, { includeGoals: true }),
+      finalizeHabitMutation(queryClient, data, error, {
+        includeGoals: true,
+        includeCount: true,
+        includeProfile: true,
+      }),
   })
 }
 
@@ -496,7 +787,7 @@ export function useDeleteHabit() {
     void | QueuedMarker,
     Error,
     string,
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; previousDetails: HabitDetailSnapshots }
   >({
     mutationFn: (habitId) =>
       performQueuedApiMutation<void>({
@@ -510,17 +801,30 @@ export function useDeleteHabit() {
       }),
 
     onMutate: async (habitId) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
+        queryClient.cancelQueries({ queryKey: habitKeys.details() }),
+      ])
 
       const previousLists = snapshotHabitLists(queryClient)
+      const previousDetails = queryClient.getQueriesData<HabitDetail>({
+        queryKey: habitKeys.details(),
+      })
       updateHabitLists(queryClient, (items) => optimisticRemoveHabits(items, [habitId]))
+      queryClient.setQueriesData<HabitDetail>(
+        { queryKey: habitKeys.details() },
+        (detail) => detail ? removeHabitDetailChild(detail, habitId) : detail,
+      )
 
-      return { previousLists }
+      return { previousLists, previousDetails }
     },
 
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
+      for (const [queryKey, detail] of context.previousDetails) {
+        if (detail) queryClient.setQueryData(queryKey, detail)
+      }
     },
 
     onSuccess: (data, habitId, context) => {
@@ -544,8 +848,17 @@ export function useDeleteHabit() {
       }, isQueuedResult(data) ? data.queuedMutationId : undefined)
     },
 
-    onSettled: (data, error, habitId) =>
-      finalizeHabitMutation(queryClient, data, error, { habitId, includeGoals: true }),
+    onSettled: (data, error, habitId) => {
+      if (!isQueuedResult(data)) {
+        void queryClient.invalidateQueries({ queryKey: habitKeys.details() })
+      }
+      finalizeHabitMutation(queryClient, data, error, {
+        habitId,
+        includeGoals: true,
+        includeCount: true,
+        includeProfile: true,
+      })
+    },
   })
 }
 
@@ -696,7 +1009,7 @@ export function useUpdateChecklist() {
     },
 
     onSettled: (data, error, variables) =>
-      finalizeHabitMutation(queryClient, data, error, { habitId: variables.habitId }),
+      finalizeHabitMutation(queryClient, data, error, { habitId: variables.habitId, includeProfile: true }),
   })
 }
 
@@ -707,7 +1020,7 @@ export function useCreateSubHabit() {
     void | QueuedMarker,
     Error,
     CreateSubHabitMutationInput,
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; previousDetail: HabitDetail | undefined }
   >({
     mutationFn: async ({ parentId, data, __offlineTempId }) => {
       const tempId = __offlineTempId ?? createTempEntityId('habit')
@@ -726,10 +1039,14 @@ export function useCreateSubHabit() {
     },
 
     onMutate: async (input) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
+        queryClient.cancelQueries({ queryKey: habitKeys.detail(input.parentId) }),
+      ])
 
       const { parentId, data } = input
       const previousLists = snapshotHabitLists(queryClient)
+      const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(parentId))
       const tempId = createTempEntityId('habit')
       input.__offlineTempId = tempId
       const optimisticChild = buildOptimisticSubHabit(queryClient, parentId, tempId, data)
@@ -740,17 +1057,24 @@ export function useCreateSubHabit() {
           optimisticChild,
         ),
       )
+      queryClient.setQueryData<HabitDetail>(habitKeys.detail(parentId), (detail) =>
+        detail ? appendHabitDetailChild(detail, tempId, data) : detail,
+      )
 
-      return { previousLists }
+      return { previousLists, previousDetail }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (_err, variables, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
+      if (context?.previousDetail) {
+        queryClient.setQueryData(habitKeys.detail(variables.parentId), context.previousDetail)
+      }
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
+    onSettled: (data, error, { parentId }) =>
+      finalizeHabitMutation(queryClient, data, error, { habitId: parentId }),
   })
 }
 
@@ -871,7 +1195,6 @@ export function useBulkCreateHabits() {
           items,
         ),
       )
-      adjustHabitCount(queryClient, optimisticHabits.length)
 
       return { previousLists, createdCount: optimisticHabits.length }
     },
@@ -879,11 +1202,10 @@ export function useBulkCreateHabits() {
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, -context.createdCount)
     },
 
     onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error),
+      finalizeHabitMutation(queryClient, data, error, { includeCount: true }),
   })
 }
 
@@ -894,143 +1216,211 @@ export function useBulkDeleteHabits() {
   const showUndoToast = useUndoToast()
 
   return useMutation<
-    BulkDeleteResponse,
+    BulkDeleteMutationOutcome,
     Error,
     string[],
-    { previousLists: HabitListSnapshots; deletedCount: number }
+    { previousLists: HabitListSnapshots }
   >({
-    mutationFn: (habitIds) =>
-      performQueuedApiMutation<BulkDeleteResponse, BulkDeleteResponse & QueuedMarker>({
-        type: 'bulkDeleteHabits',
-        scope: 'habits',
-        endpoint: API.habits.bulk,
-        method: 'DELETE',
-        payload: { habitIds },
-        queuedResultFactory: (mutationId) => ({
-          results: habitIds.map((habitId, index) => ({
-            index,
-            status: 'Success' as const,
+    mutationFn: async (habitIds) => {
+      const results: BulkDeleteResponse['results'] = []
+      const ambiguousIds: string[] = []
+      const offlineFailureIds: string[] = []
+      const queuedDeletes: BulkDeleteMutationOutcome['queuedDeletes'] = []
+      for (let index = 0; index < habitIds.length; index += 4) {
+        const chunk = habitIds.slice(index, index + 4)
+        const outcomes = await Promise.allSettled(chunk.map((habitId) =>
+          performQueuedApiMutation<void>({
+            type: 'bulkCascadeDeleteHabits',
+            scope: 'habits',
+            endpoint: API.habits.delete(habitId),
+            method: 'DELETE',
+            payload: null,
+            entityType: 'habit',
+            targetEntityId: habitId,
+          }),
+        ))
+        outcomes.forEach((outcome, itemIndex) => {
+          const habitId = chunk[itemIndex]
+          if (!habitId) return
+          if (outcome.status === 'rejected') {
+            if (outcome.reason instanceof OfflineMutationPreflightError) {
+              offlineFailureIds.push(habitId)
+            } else {
+              ambiguousIds.push(habitId)
+            }
+            return
+          }
+          if (isQueuedResult(outcome.value)) {
+            queuedDeletes.push({ habitId, mutationId: outcome.value.queuedMutationId })
+          }
+          results.push({
+            index: index + itemIndex,
+            status: 'Success',
             habitId,
             error: null,
-          })),
-          queued: true as const,
-          queuedMutationId: mutationId,
-        }),
-      }),
+          })
+        })
+      }
+      return { results, ambiguousIds, offlineFailureIds, queuedDeletes }
+    },
 
     onMutate: async (habitIds) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
       updateHabitLists(queryClient, (items) => optimisticRemoveHabits(items, habitIds))
-      adjustHabitCount(queryClient, -habitIds.length)
 
-      return { previousLists, deletedCount: habitIds.length }
+      return { previousLists }
     },
 
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, context.deletedCount)
     },
 
-    onSuccess: (result, _habitIds, context) => {
-      const deleted = result.results.filter((item) => item.status === 'Success')
-      if (isQueuedResult(result) || deleted.length !== _habitIds.length) {
-        restoreHabitLists(queryClient, context.previousLists)
-        adjustHabitCount(queryClient, context.deletedCount)
-        if (!isQueuedResult(result)) {
-          updateHabitLists(queryClient, (items) =>
-            optimisticRemoveHabits(items, deleted.map((item) => item.habitId)),
+    onSuccess: (result, _vars, context) => {
+      const failedIds = new Set(
+        result.results.flatMap((item) => item.status === 'Failed' ? [item.habitId] : []),
+      )
+      for (const habitId of result.offlineFailureIds) failedIds.add(habitId)
+      for (const queued of result.queuedDeletes) failedIds.add(queued.habitId)
+      if (failedIds.size > 0) {
+        for (const [key, snapshot] of context.previousLists) {
+          if (!snapshot) continue
+          queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>
+            current ? restoreDeletedHabits(current, snapshot, failedIds) : current,
           )
-          adjustHabitCount(queryClient, -deleted.length)
         }
       }
+      const deleted = result.results.filter((item) => item.status === 'Success')
       if (deleted.length === 0) return
-      const cascadedIds = new Set(deleted.flatMap((item) => item.cascadedHabitIds ?? []))
-      const selectedIds = new Set(deleted.map((item) => item.habitId))
-      const selectedDescendants = selectedDescendantsInSnapshots(context.previousLists, selectedIds)
-      const restoreIds = deleted.map((item) => item.habitId)
-        .filter((id) => !cascadedIds.has(id) && !selectedDescendants.has(id))
       const message = plural(t('undo.habitsDeleted', { count: deleted.length }), deleted.length)
       showUndoToast(message, () => {
-        if (isQueuedResult(result)) {
-          void cancelQueuedDeleteForUndo(result.queuedMutationId).then((outcome) => {
-            if (outcome !== 'replayed') {
-              void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+        void (async () => {
+          const queuedByHabit = new Map(result.queuedDeletes.map(({ habitId, mutationId }) => [habitId, mutationId]))
+          const locallyRestored = new Set<string>()
+          const serverRestoreIds = new Set<string>()
+          const droppedRestoreIds = new Set<string>()
+          await Promise.all(deleted.map(async (item) => {
+            const mutationId = queuedByHabit.get(item.habitId)
+            if (!mutationId) {
+              serverRestoreIds.add(item.habitId)
+              return
             }
+            const outcome = await cancelQueuedDeleteForUndo(mutationId)
+            if (outcome !== 'replayed') locallyRestored.add(item.habitId)
             if (outcome === 'dropped') {
-              useOfflineSyncStore.getState().dismissDrop(result.queuedMutationId)
-              for (const habitId of restoreIds) restoreHabit.mutate({ habitId, reconcileNotFound: true })
-            } else if (outcome === 'replayed' || outcome === 'uncertain') {
-              for (const habitId of restoreIds) restoreHabit.mutate(habitId)
+              useOfflineSyncStore.getState().dismissDrop(mutationId)
+              droppedRestoreIds.add(item.habitId)
+              serverRestoreIds.add(item.habitId)
             }
-          })
-          return
-        }
-        for (const habitId of restoreIds) restoreHabit.mutate(habitId)
+            if (outcome === 'replayed' || outcome === 'uncertain') serverRestoreIds.add(item.habitId)
+          }))
+          for (const [key, snapshot] of context.previousLists) {
+            if (!snapshot || locallyRestored.size === 0) continue
+            queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>
+              current ? restoreDeletedHabits(current, snapshot, locallyRestored) : current,
+            )
+          }
+          if (locallyRestored.size > 0) {
+            void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+            void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
+          }
+          const selectedDescendants = selectedDescendantsInSnapshots(context.previousLists, serverRestoreIds)
+          for (const habitId of serverRestoreIds) {
+            if (!selectedDescendants.has(habitId)) {
+              restoreHabit.mutate(droppedRestoreIds.has(habitId)
+                ? { habitId, reconcileNotFound: true }
+                : habitId)
+            }
+          }
+        })()
       })
     },
 
     onSettled: (data, error) =>
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
+        includeCount: true,
+        includeProfile: true,
       }),
   })
 }
 
 export function useBulkLogHabits() {
   const queryClient = useQueryClient()
-  const { checkAllDoneCelebration } = useUIStore.getState()
+  const { checkAllDoneCelebration, showStreakMoment } = useUIStore.getState()
 
   return useMutation<
-    BulkLogResult,
+    BulkLogMutationOutcome,
     Error,
     BulkLogItemRequest[],
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; occurrenceDate: string; account: ReturnType<typeof captureSkipAccount> }
   >({
-    mutationFn: (items) =>
-      performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
-        type: 'bulkLogHabits',
-        scope: 'habits',
-        endpoint: API.habits.bulkLog,
-        method: 'POST',
-        payload: { items },
-        queuedResultFactory: (mutationId) => ({
-          results: items.map((item, index) => ({
-            index,
-            status: 'Success' as const,
-            habitId: item.habitId,
-            logId: null,
-            error: null,
-          })),
-          queued: true as const,
-          queuedMutationId: mutationId,
-        }),
-      }),
+    mutationFn: async (items) => {
+      const results: BulkLogResult['results'] = []
+      const streakResponses: BulkLogResult[] = []
+      const ambiguousIds: string[] = []
+      const offlineFailureIds: string[] = []
+      const queuedIds: string[] = []
+      let hasConfirmedSuccess = false
+      for (let index = 0; index < items.length; index += 100) {
+        const chunk = items.slice(index, index + 100)
+        try {
+          const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
+            type: 'bulkLogHabits',
+            scope: 'habits',
+            endpoint: API.habits.bulkLog,
+            method: 'POST',
+            payload: { items: chunk },
+            queuedResultFactory: (mutationId) => ({
+              results: chunk.map((item, itemIndex) => ({
+                index: itemIndex,
+                status: 'Success' as const,
+                habitId: item.habitId,
+                logId: null,
+                error: null,
+              })),
+              queued: true as const,
+              queuedMutationId: mutationId,
+            }),
+          })
+          if (isQueuedResult(response)) queuedIds.push(...chunk.map((item) => item.habitId))
+          if (!isQueuedResult(response) && response.results.some((result) => result.status === 'Success')) {
+            hasConfirmedSuccess = true
+          }
+          const chunkResponse = { ...response, results: response.results.map((result) => ({ ...result, index: result.index + index })) }
+          if (!isQueuedResult(response)) streakResponses.push(chunkResponse)
+          results.push(...chunkResponse.results)
+        } catch (error: unknown) {
+          const failedIds = chunk.map((item) => item.habitId)
+          if (error instanceof OfflineMutationPreflightError) {
+            offlineFailureIds.push(...failedIds)
+          } else {
+            ambiguousIds.push(...failedIds)
+          }
+        }
+      }
+      return { results, streakResponses, ambiguousIds, offlineFailureIds, hasConfirmedSuccess, queuedIds }
+    },
 
     onMutate: async (items) => {
+      const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      const account = captureSkipAccount()
+
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      for (const item of items) {
-        useReviewReminderStore
-          .getState()
-          .trackCompletion(item.date ?? formatAPIDate(new Date()))
-      }
-      const immediateIds: string[] = []
-      for (const item of items) {
-        if (!item.date) immediateIds.push(item.habitId)
-      }
+      const completedIds = items.map((item) => item.habitId)
 
       updateHabitLists(queryClient, (currentItems) =>
-        immediateIds.reduce(
+        completedIds.reduce(
           (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
           currentItems,
         ),
       )
 
-      return { previousLists }
+      return { previousLists, account, occurrenceDate }
     },
 
     onError: (_err, _vars, context) => {
@@ -1039,26 +1429,46 @@ export function useBulkLogHabits() {
       }
     },
 
-    onSuccess: (result, items, context) => {
-      reconcileBulkCompletion(queryClient, result, items, context.previousLists)
-      if (isQueuedResult(result)) return
-      const today = formatAPIDate(new Date())
-      const successfulIds = result.results.flatMap((entry) => {
-        const item = items[entry.index]
-        return entry.status === 'Success' && item?.habitId === entry.habitId &&
-          (!item.date || item.date === today) ? [item.habitId] : []
-      })
-      if (successfulIds.length === 0) return
-      updateHabitListsForDate(queryClient, today, (habits) =>
-        successfulIds.reduce((current, id) => {
-          const habit = findHabitInList(current, id)
-          return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
-        }, habits))
-      const habitsData = getTodayHabitList(queryClient, today)
-      if (habitsData) {
-        const normalized = normalizeHabits(habitsData)
-        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+    onSuccess: (data, variables, context) => {
+      const profileRefresh = data.hasConfirmedSuccess
+        ? queryClient.invalidateQueries({ queryKey: profileKeys.all }) : null
+      const failedIds = new Set(
+        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
+      )
+      for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
+      for (const habitId of data.ambiguousIds) failedIds.add(habitId)
+      for (const habitId of data.queuedIds) failedIds.add(habitId)
+      restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
+
+      for (const result of data.results) {
+        if (result.status !== 'Success') continue
+        if (data.queuedIds.includes(result.habitId)) continue
+        const item = variables[result.index]
+        if (!item) continue
+        useReviewReminderStore
+          .getState()
+          .trackCompletion(item.date ?? context.occurrenceDate)
       }
+      const today = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      const successfulEntries = data.results.filter((entry) => {
+        const item = variables[entry.index]
+        return entry.status === 'Success' && !data.queuedIds.includes(entry.habitId) &&
+          item?.habitId === entry.habitId && (item.date ?? context.occurrenceDate) === today
+      })
+      const successfulIds = successfulEntries.map((entry) => entry.habitId)
+      if (successfulIds.length === 0) return
+      return profileRefresh?.then(() => {
+        const profile = queryClient.getQueryData<Profile>(profileKeys.detail())
+        if (!profile || !context.account.stillCurrent() || today !== getAccountDay(new Date(), profile.timeZone)) return
+        const { previousStreak, currentStreak, countsTowardStreak } = deriveBulkLogStreakTransition(
+          data.streakResponses,
+          successfulEntries,
+          context.previousLists.flatMap(([, habits]) => habits ?? []),
+        )
+        if (currentStreak !== undefined) showStreakMoment(currentStreak, previousStreak, { date: today, timeZone: profile.timeZone, intent: 'log', countsTowardStreak })
+        checkTodayCompletionAfterLogs(queryClient, successfulIds, today,
+          (habits, children, date) => checkAllDoneCelebration(habits, children, date, profile.timeZone))
+      })
     },
 
     onSettled: (data, error) =>
@@ -1073,41 +1483,58 @@ export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    BulkSkipResult,
+    BulkSkipMutationOutcome,
     Error,
     BulkSkipItemRequest[],
     { previousLists: HabitListSnapshots }
   >({
-    mutationFn: (items) =>
-      performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
-        type: 'bulkSkipHabits',
-        scope: 'habits',
-        endpoint: API.habits.bulkSkip,
-        method: 'POST',
-        payload: { items },
-        queuedResultFactory: (mutationId) => ({
-          results: items.map((item, index) => ({
-            index,
-            status: 'Success' as const,
-            habitId: item.habitId,
-            error: null,
-          })),
-          queued: true as const,
-          queuedMutationId: mutationId,
-        }),
-      }),
+    mutationFn: async (items) => {
+      const results: BulkSkipResult['results'] = []
+      const ambiguousIds: string[] = []
+      const offlineFailureIds: string[] = []
+      const queuedIds: string[] = []
+      for (let index = 0; index < items.length; index += 100) {
+        const chunk = items.slice(index, index + 100)
+        try {
+          const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
+            type: 'bulkSkipHabits',
+            scope: 'habits',
+            endpoint: API.habits.bulkSkip,
+            method: 'POST',
+            payload: { items: chunk },
+            queuedResultFactory: (mutationId) => ({
+              results: chunk.map((item, itemIndex) => ({
+                index: itemIndex,
+                status: 'Success' as const,
+                habitId: item.habitId,
+                error: null,
+              })),
+              queued: true as const,
+              queuedMutationId: mutationId,
+            }),
+          })
+          if (isQueuedResult(response)) queuedIds.push(...chunk.map((item) => item.habitId))
+          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+        } catch (error: unknown) {
+          const failedIds = chunk.map((item) => item.habitId)
+          if (error instanceof OfflineMutationPreflightError) {
+            offlineFailureIds.push(...failedIds)
+          } else {
+            ambiguousIds.push(...failedIds)
+          }
+        }
+      }
+      return { results, ambiguousIds, offlineFailureIds, queuedIds }
+    },
 
     onMutate: async (items) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      const immediateIds: string[] = []
-      for (const item of items) {
-        if (!item.date) immediateIds.push(item.habitId)
-      }
+      const completedIds = items.map((item) => item.habitId)
 
       updateHabitLists(queryClient, (currentItems) =>
-        immediateIds.reduce(
+        completedIds.reduce(
           (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
           currentItems,
         ),
@@ -1122,10 +1549,16 @@ export function useBulkSkipHabits() {
       }
     },
 
-    onSuccess: (result, items, context) => {
-      reconcileBulkCompletion(queryClient, result, items, context.previousLists)
+    onSuccess: (data, _vars, context) => {
+      const failedIds = new Set(
+        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
+      )
+      for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
+      for (const habitId of data.ambiguousIds) failedIds.add(habitId)
+      for (const habitId of data.queuedIds) failedIds.add(habitId)
+      restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
+    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error, { includeProfile: true }),
   })
 }

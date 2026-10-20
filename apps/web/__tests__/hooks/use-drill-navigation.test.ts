@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { createElement, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook as renderHookBase, act, waitFor, cleanup, type RenderHookOptions } from '@testing-library/react'
 import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 
 vi.mock('next-intl', () => ({
@@ -9,11 +11,33 @@ vi.mock('next-intl', () => ({
   },
 }))
 
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => ({ confirmSessionRefreshFailure: vi.fn(), recoverSessionRefreshFailure: vi.fn() }) },
+}))
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
+
+const clients: QueryClient[] = []
+
+function renderHook<Result, Props>(callback: (props: Props) => Result, options?: RenderHookOptions<Props>) {
+  const client = new QueryClient()
+  clients.push(client)
+  function Wrapper({ children }: Readonly<{ children: ReactNode }>) {
+    return createElement(QueryClientProvider, { client }, children)
+  }
+  return renderHookBase(callback, { ...options, wrapper: Wrapper })
+}
+
+afterEach(() => {
+  cleanup()
+  for (const client of clients) client.clear()
+  clients.length = 0
+  vi.useRealTimers()
+})
 
 function pressEscape() {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
@@ -57,7 +81,7 @@ function makeHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
   } as NormalizedHabit
 }
 
-function makeDetailResponse() {
+function makeDetailResponse(): HabitDetail {
   return {
     id: 'parent1',
     title: 'Parent',
@@ -112,51 +136,118 @@ describe('useDrillNavigation', () => {
     mockFetch.mockReset()
   })
 
-  it('hides current-day overdue detail-only children on an earlier selected date', async () => {
-    const response: HabitDetail = makeDetailResponse()
-    response.children = [{
-      ...response.children[0]!, id: 'overdue-child',
-      dueDate: '2025-01-02', isOverdue: true,
-    }]
-    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(response) })
-    const options = {
-      habitsById: new Map<string, NormalizedHabit>(),
-      childrenByParent: new Map<string, string[]>(),
-      selectedDate: '2025-01-01', searchQuery: '', showCompleted: false,
-      recentlyCompletedIds: new Set<string>(),
-    }
-    const { result } = renderHook(() => useDrillNavigation(new Map(), 0, options, 'today'))
+  it.each(['today', 'general'] as const)('leaves the all drill when changing to %s', async (view) => {
+    mockFetch.mockResolvedValue(Response.json(makeDetailResponse()))
+    const { result, rerender } = renderHook(
+      ({ view, habits }) => useDrillNavigation(habits, 0, undefined, view),
+      { initialProps: { view: 'all' as 'all' | 'today' | 'general', habits: habitsById } },
+    )
     await act(async () => { await result.current.drillInto('parent1') })
-
-    expect(result.current.drillChildren).toEqual([])
+    expect(result.current.currentParent?.id).toBe('parent1')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['child1'])
+    rerender({ view, habits: new Map() })
+    expect({ parent: result.current.currentParent, children: result.current.drillChildren }).toEqual({ parent: null, children: [] })
+    expect(result.current.drillStack).toEqual([])
+    rerender({ view: 'all', habits: habitsById })
+    expect(result.current.currentParentId).toBeNull()
+    expect(result.current.getDrillChildren('parent1')).toEqual([])
   })
 
-  it('filters completed one-time and recurring drill children with the selected date', async () => {
-    const date = '2025-01-15'
-    const response: HabitDetail = makeDetailResponse()
-    const child = response.children[0]!
-    response.children = [
-      { ...child, id: 'one-time', isCompleted: true },
-      { ...child, id: 'recurring', frequencyUnit: 'Day', isCompleted: true },
-    ]
-    const byId = new Map<string, NormalizedHabit>(response.children.map((child) => [
-      child.id,
-      makeHabit({
-        id: child.id, parentId: 'parent1', frequencyUnit: child.frequencyUnit,
-        isCompleted: child.isCompleted, isLoggedInRange: true,
-        scheduledDates: [date],
-      }),
-    ]))
+  it.each(['today', 'general'] as const)('cancels a pending all drill when changing to %s', async (view) => {
+    let resolveDetail = (_response: Response) => {}
+    mockFetch.mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveDetail = resolve }))
+    const { result, rerender } = renderHook(
+      ({ view }) => useDrillNavigation(habitsById, 0, undefined, view),
+      { initialProps: { view: 'all' as 'all' | 'today' | 'general' } },
+    )
+    let pending = Promise.resolve()
+    act(() => { pending = result.current.drillInto('parent1') })
+    expect(result.current.drillLoading).toBe(true)
+    rerender({ view })
+    expect(result.current.drillLoading).toBe(false)
+    await act(async () => {
+      resolveDetail(Response.json(makeDetailResponse()))
+      await pending
+    })
+    expect({ parent: result.current.currentParent, children: result.current.drillChildren }).toEqual({ parent: null, children: [] })
+    expect(result.current.drillError).toBe('')
+    rerender({ view: 'all' })
+    expect(result.current.getDrillChildren('parent1')).toEqual([])
+  })
+
+  it.each([429, 503])('keeps children loading until a %s recovery read returns', async (status) => {
+    vi.useFakeTimers()
+    mockFetch.mockResolvedValueOnce(Response.json(status === 503 ? { errorCode: 'UPSTREAM_STARTING' } : null, { status, headers: { 'Retry-After': '60' } }))
+      .mockResolvedValue(Response.json(makeDetailResponse()))
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+    act(() => { void result.current.drillInto('parent1') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+    expect(result.current.drillLoading).toBe(true)
+    expect(result.current.drillError).toBe('')
+    expect(mockFetch).toHaveBeenCalledOnce()
+    await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+    expect(result.current.drillLoading).toBe(false)
+    expect(result.current.drillError).toBe('')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['child1'])
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows a child read error only after the rate limit recovery window', async () => {
+    vi.useFakeTimers()
+    mockFetch.mockImplementation(async () => Response.json(null, { status: 429 }))
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+    act(() => { void result.current.drillInto('parent1') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(124_999) })
+    expect(result.current.drillLoading).toBe(true)
+    expect(result.current.drillError).toBe('')
+    await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+    expect(result.current.drillLoading).toBe(false)
+    expect(result.current.drillError).not.toBe('')
+    expect(mockFetch).toHaveBeenCalledTimes(7)
+  })
+
+  it('keeps a fetched overdue child on account Today when device Today differs', async () => {
+    const today = '2025-01-15'
+    const detail = makeDetailResponse()
+    detail.children = [{ ...detail.children[0]!, dueDate: '2025-01-14', isOverdue: true }]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(detail) })
     const options = {
-      habitsById: byId,
-      childrenByParent: new Map([['parent1', response.children.map((child) => child.id)]]),
+      habitsById, childrenByParent: new Map([['parent1', ['child1']]]),
+      selectedDate: today, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0, options, 'today', today))
+    await act(async () => { await result.current.drillInto('parent1') })
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['child1'])
+  })
+
+  it('hides completed one-time and logged recurring children until Show completed is enabled', async () => {
+    const date = '2025-01-15'
+    const detail = makeDetailResponse()
+    detail.children = [
+      { ...detail.children[0]!, id: 'one-time', isCompleted: true },
+      { ...detail.children[0]!, id: 'recurring', frequencyUnit: 'Day' },
+    ]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(detail) })
+    const byId = new Map<string, NormalizedHabit>([
+      ['one-time', makeHabit({ id: 'one-time', parentId: 'parent1', isCompleted: true,
+        scheduledDates: [date], isLoggedInRange: true })],
+      ['recurring', makeHabit({ id: 'recurring', parentId: 'parent1', frequencyUnit: 'Day',
+        scheduledDates: [date], isLoggedInRange: true,
+        instances: [{ date, status: 'Completed', logId: 'log-1' }] })],
+    ])
+    const options = {
+      habitsById: byId, childrenByParent: new Map([['parent1', ['one-time', 'recurring']]]),
       selectedDate: date, searchQuery: '', showCompleted: false,
       recentlyCompletedIds: new Set<string>(),
     }
-    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(response) })
+
     const hidden = renderHook(() => useDrillNavigation(byId, 0, options, 'today'))
     await act(async () => { await hidden.result.current.drillInto('parent1') })
     expect(hidden.result.current.drillChildren).toEqual([])
+    expect(hidden.result.current.hasUnfilteredChildren).toBe(true)
+    expect(hidden.result.current.canRevealCompletedChildren).toBe(true)
     hidden.unmount()
 
     const shown = renderHook(() => useDrillNavigation(byId, 0, {
@@ -166,6 +257,56 @@ describe('useDrillNavigation', () => {
     expect(shown.result.current.drillChildren.map((child) => child.id)).toEqual([
       'one-time', 'recurring',
     ])
+    expect(shown.result.current.completedCount).toBe(2)
+  })
+
+  it('counts a visible completed container only with selected-date evidence', async () => {
+    const date = '2025-01-15'
+    const detail = makeDetailResponse()
+    const active = { ...detail.children[0]!, id: 'active', dueDate: date }
+    const container = {
+      ...detail.children[0]!, id: 'container', isCompleted: true,
+      dueDate: '2025-01-14', children: [active],
+    }
+    detail.children = [container]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(detail) })
+    const byId = new Map<string, NormalizedHabit>([
+      ['container', makeHabit({
+        id: 'container', parentId: 'parent1', isCompleted: true,
+        dueDate: '2025-01-14', isLoggedInRange: false,
+      })],
+      ['active', makeHabit({
+        id: 'active', parentId: 'container', dueDate: date, scheduledDates: [date, '2025-01-16'],
+      })],
+    ])
+    const options = {
+      habitsById: byId,
+      childrenByParent: new Map([['parent1', ['container']], ['container', ['active']]]),
+      selectedDate: date, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    const pastCompletion = renderHook(() => useDrillNavigation(byId, 0, options, 'today'))
+    await act(async () => { await pastCompletion.result.current.drillInto('parent1') })
+    expect(pastCompletion.result.current.drillChildren.map((child) => child.id)).toEqual(['container'])
+    expect(pastCompletion.result.current.completedCount).toBe(0)
+    pastCompletion.unmount()
+
+    const recentCompletionDates = new Map([['container', new Set([date])]])
+    const justCompleted = renderHook(({ selectedDate }) => useDrillNavigation(byId, 0, {
+      ...options, selectedDate, recentlyCompletedIds: new Set(['container']),
+      recentlyCompletedDates: recentCompletionDates,
+    }, 'today'), { initialProps: { selectedDate: date } })
+    await act(async () => { await justCompleted.result.current.drillInto('parent1') })
+    expect(justCompleted.result.current.completedCount).toBe(1)
+    justCompleted.rerender({ selectedDate: '2025-01-16' })
+    expect(justCompleted.result.current.drillChildren.map((child) => child.id)).toEqual(['container'])
+    expect(justCompleted.result.current.completedCount).toBe(0)
+    recentCompletionDates.set('container', new Set([date, '2025-01-16']))
+    justCompleted.rerender({ selectedDate: '2025-01-16' })
+    expect(justCompleted.result.current.completedCount).toBe(1)
+    justCompleted.rerender({ selectedDate: date })
+    expect(justCompleted.result.current.completedCount).toBe(1)
   })
 
   it('starts with empty drill stack', () => {
@@ -254,6 +395,159 @@ describe('useDrillNavigation', () => {
     })
 
     expect(result.current.drillError).toBeTruthy()
+  })
+
+  it('keeps the active drill error when a stale drill fetch succeeds later', async () => {
+    const stale: { resolve: (response: unknown) => void } = { resolve: () => undefined }
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Server error' }),
+      })
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    act(() => { staleDrill = result.current.drillInto('parent1') })
+    act(() => { result.current.drillBack() })
+    await act(async () => { await result.current.drillInto('parent2') })
+    expect(result.current.drillError).not.toBe('')
+
+    await act(async () => {
+      stale.resolve({ ok: true, json: () => Promise.resolve(makeDetailResponse()) })
+      await staleDrill
+    })
+
+    expect(result.current.currentParentId).toBe('parent2')
+    expect(result.current.drillError).not.toBe('')
+  })
+
+  it('keeps the latest same-parent failure when an older visit succeeds later', async () => {
+    const stale: { resolve: (response: unknown) => void } = { resolve: () => undefined }
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Server error' }),
+      })
+    const { result } = renderHook(() => useDrillNavigation(new Map(), 0))
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    act(() => { staleDrill = result.current.drillInto('parent1') })
+    act(() => { result.current.drillBack() })
+    await act(async () => { await result.current.drillInto('parent1') })
+    const latestError = result.current.drillError
+    expect(latestError).not.toBe('')
+    expect(result.current.drillChildren).toEqual([])
+
+    await act(async () => {
+      stale.resolve({ ok: true, json: () => Promise.resolve(makeDetailResponse()) })
+      await staleDrill
+    })
+
+    expect(result.current.currentParentId).toBe('parent1')
+    expect(result.current.drillError).toBe(latestError)
+    expect(result.current.currentParent).toBeNull()
+    expect(result.current.drillChildren).toEqual([])
+    expect(result.current.drillLoading).toBe(false)
+  })
+
+  it('keeps the latest same-parent success when an older visit succeeds later', async () => {
+    const stale: { resolve: (response: unknown) => void } = { resolve: () => undefined }
+    const freshDetail = makeDetailResponse()
+    freshDetail.title = 'Fresh Parent'
+    freshDetail.children[0]!.id = 'fresh'
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(freshDetail) })
+    const { result } = renderHook(() => useDrillNavigation(new Map(), 0))
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    act(() => { staleDrill = result.current.drillInto('parent1') })
+    act(() => { result.current.drillBack() })
+    await act(async () => { await result.current.drillInto('parent1') })
+    expect(result.current.currentParent?.title).toBe('Fresh Parent')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['fresh'])
+
+    await act(async () => {
+      stale.resolve({ ok: true, json: () => Promise.resolve(makeDetailResponse()) })
+      await staleDrill
+    })
+    expect(result.current.currentParent?.title).toBe('Fresh Parent')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['fresh'])
+    expect(result.current.drillLoading).toBe(false)
+  })
+
+  it('finishes loading when an automatic refresh supersedes the initial fetch', async () => {
+    const stale: { resolve: (response: unknown) => void } = { resolve: () => undefined }
+    const freshDetail = makeDetailResponse()
+    freshDetail.children[0]!.id = 'fresh'
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(freshDetail) })
+    const { result, rerender } = renderHook(
+      ({ updated }) => useDrillNavigation(new Map(), updated),
+      { initialProps: { updated: 1 } },
+    )
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    act(() => { staleDrill = result.current.drillInto('parent1') })
+    expect(result.current.drillLoading).toBe(true)
+    rerender({ updated: 2 })
+    await waitFor(() => expect(result.current.drillChildren.map((child) => child.id)).toEqual(['fresh']))
+    expect(result.current.drillLoading).toBe(false)
+
+    await act(async () => {
+      stale.resolve({ ok: true, json: () => Promise.resolve(makeDetailResponse()) })
+      await staleDrill
+    })
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['fresh'])
+    expect(result.current.drillLoading).toBe(false)
+  })
+
+  it('shows an automatic refresh failure while the initial fetch is pending', async () => {
+    const stale: { resolve: (response: unknown) => void } = { resolve: () => undefined }
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Server error' }),
+      })
+    const { result, rerender } = renderHook(
+      ({ updated }) => useDrillNavigation(new Map(), updated),
+      { initialProps: { updated: 1 } },
+    )
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    act(() => { staleDrill = result.current.drillInto('parent1') })
+    rerender({ updated: 2 })
+    await waitFor(() => expect(result.current.drillError).not.toBe(''))
+    expect(result.current.drillLoading).toBe(false)
+
+    await act(async () => {
+      stale.resolve({ ok: true, json: () => Promise.resolve(makeDetailResponse()) })
+      await staleDrill
+    })
+    expect(result.current.drillError).not.toBe('')
+    expect(result.current.drillChildren).toEqual([])
+  })
+
+  it('clears a failed drill after Retry loads its children', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ error: 'Server error' }),
+    }).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(makeDetailResponse()),
+    })
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+
+    await act(async () => { await result.current.drillInto('parent1') })
+    expect(result.current.drillError).not.toBe('')
+
+    await act(async () => { await result.current.refreshCurrent() })
+
+    expect(result.current.drillError).toBe('')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['child1'])
   })
 
   it('pops one drill level on Escape (mirrors mobile hardware back)', async () => {

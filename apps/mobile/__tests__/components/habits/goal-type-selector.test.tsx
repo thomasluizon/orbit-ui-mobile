@@ -1,0 +1,76 @@
+import React, { useState } from 'react'
+import { act, create } from 'react-test-renderer'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GoalType } from '@orbit/shared/types/goal'
+import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
+import { createStyles } from '@/components/habits/create-goal-from-habit/styles'
+import { createTokensV2 } from '@/lib/theme'
+import { __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}))
+
+const tokens = createTokensV2('purple', 'dark')
+const styles = createStyles(tokens)
+
+function Selector({ onChange }: Readonly<{ onChange: (value: GoalType) => void }>) {
+  const [value, setValue] = useState<GoalType>('Standard')
+  return withFocusProvenance(
+    <GoalTypeSelector
+      styles={styles}
+      goalType={value}
+      onTypeChange={(nextValue) => {
+        setValue(nextValue)
+        onChange(nextValue)
+      }}
+    />
+  )
+}
+
+describe('GoalTypeSelector', () => {
+  it('uses the shared segmented control', () => {
+    let tree: any
+    void act(() => {
+      tree = create(<Selector onChange={vi.fn()} />)
+    })
+    expect(tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.testID === 'segmented-control-enabled',
+    )).toHaveLength(1)
+  })
+
+  beforeEach(() => {
+    __resetTestHostConfig()
+  })
+
+  it('selects the option reached by native focus', () => {
+    const onChange = vi.fn()
+    let tree: any
+    void act(() => {
+      tree = create(<Selector onChange={onChange} />)
+    })
+    const radios = (): any[] => tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+    expect(radios().map((option) => option.props.focusable)).toEqual([true, true])
+    void act(() => focusHost(tree, radios()[0]))
+    void act(() => focusHost(tree, radios()[1]))
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
+    void act(() => focusHost(tree, radios()[0]))
+    expect(onChange).toHaveBeenLastCalledWith('Standard')
+  })
+
+  it('keeps touch selection unchanged', () => {
+    const onChange = vi.fn()
+    let tree: any
+    void act(() => {
+      tree = create(<Selector onChange={onChange} />)
+    })
+    const streak = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )[1]!
+    void act(() => streak.props.onPress())
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
+  })
+})

@@ -11,19 +11,19 @@ export async function GET() {
     const session = await resolveServerSession()
     if (!session.token || !session.expiresAt) {
       return NextResponse.json(
-        { expiresAt: null, refreshFailed: session.refreshFailed === true },
+        { expiresAt: null, userId: null, refreshFailed: session.refreshFailed === true },
         { status: 401 },
       )
     }
 
     return NextResponse.json({
       expiresAt: session.expiresAt,
+      userId: getAccountIdFromToken(session.token),
       refreshFailed: false,
-      accountId: getAccountIdFromToken(session.token),
     })
   } catch {
     return NextResponse.json(
-      { expiresAt: null, refreshFailed: false },
+      { expiresAt: null, userId: null, refreshFailed: false },
       { status: 500 },
     )
   }

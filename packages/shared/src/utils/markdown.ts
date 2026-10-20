@@ -1,3 +1,23 @@
+import { decode } from 'html-entities'
+import type { Token, Tokens } from 'marked'
+
+type ImageLabelToken = Tokens.Br | Tokens.Codespan | Tokens.Del | Tokens.Em | Tokens.Escape
+  | Tokens.Image | Tokens.Link | Tokens.Strong | Tokens.Tag | Tokens.Text
+
+function imageLabelText(tokens: Token[]): string {
+  return (tokens as ImageLabelToken[]).map((token) => {
+    if (token.type === 'image') return getMarkdownImageLabel(token)
+    if ('tokens' in token && token.tokens) return imageLabelText(token.tokens)
+    if (token.type === 'br') return '\n'
+    if (token.type === 'text' && !token.escaped) return decode(token.text, { scope: 'strict' })
+    return token.text
+  }).join('')
+}
+
+export function getMarkdownImageLabel({ title, tokens }: Pick<Tokens.Image, 'text' | 'title' | 'tokens'>): string {
+  return imageLabelText(tokens) || title || ''
+}
+
 /**
  * Flattens a markdown snippet into plain inline text for compact previews
  * (e.g. the habit row's description line): strips emphasis/code markers,

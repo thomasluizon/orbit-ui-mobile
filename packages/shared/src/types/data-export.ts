@@ -11,6 +11,7 @@ const exportedSettingsSchema = z.object({
   timeZone: z.string().nullable(),
   language: z.string().nullable(),
   weekStartDay: z.number(),
+  uses24HourClock: z.boolean().nullable().optional(),
   themePreference: z.string().nullable(),
   colorScheme: z.string().nullable(),
   aiSummaryEnabled: z.boolean(),

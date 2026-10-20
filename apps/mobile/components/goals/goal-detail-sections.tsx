@@ -1,9 +1,13 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useState, useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Repeat } from 'lucide-react-native'
-import type { Goal } from '@orbit/shared/types/goal'
+import { ListRow } from '@/components/ui/list-row'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
+import { formatGoalHistoryDelta, formatGoalHistoryNumber } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useTranslation } from 'react-i18next'
 
 const HISTORY_PREVIEW_COUNT = 3
 
@@ -16,64 +20,88 @@ interface GoalProgressHistoryEntry {
 
 interface GoalProgressHistorySectionProps {
   entries: GoalProgressHistoryEntry[]
+  target: number
+  unit: string
   formatDate: (dateStr: string) => string
-  renderEntryLabel: (entry: GoalProgressHistoryEntry) => string
   showAllLabel: string
   showLessLabel: string
 }
 
+function getDeltaPresentation(entry: GoalProgressHistoryEntry) {
+  if (entry.value > entry.previousValue) return 'history-delta-positive'
+  if (entry.value < entry.previousValue) return 'history-delta-negative'
+  return 'history-delta-zero'
+}
+
 export function GoalProgressHistorySection({
   entries,
+  target,
+  unit,
   formatDate,
-  renderEntryLabel,
   showAllLabel,
   showLessLabel,
 }: Readonly<GoalProgressHistorySectionProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [showAllHistory, setShowAllHistory] = useState(false)
 
   const visibleEntries = useMemo(
-    () => (showAllHistory ? entries : entries.slice(-HISTORY_PREVIEW_COUNT)),
+    () => (showAllHistory ? entries : entries.slice(0, HISTORY_PREVIEW_COUNT)),
     [entries, showAllHistory],
   )
 
   if (entries.length === 0) return null
 
   return (
-    <View>
-      {visibleEntries.map((entry) => (
-        <View
-          key={`${entry.createdAtUtc}-${entry.value}`}
-          style={styles.historyEntry}
-        >
-          <View style={styles.historyEntryHeader}>
-            <Text style={styles.historyDate}>
-              {formatDate(entry.createdAtUtc)}
-            </Text>
-            <Text style={styles.historyValue}>{renderEntryLabel(entry)}</Text>
+    <View accessibilityRole="list">
+      {visibleEntries.map((entry) => {
+        const deltaTestId = getDeltaPresentation(entry)
+        const date = formatDate(entry.createdAtUtc)
+        const formattedDelta = formatGoalHistoryDelta(entry.previousValue, entry.value, i18n.language)
+        const current = formatGoalHistoryNumber(entry.value, i18n.language)
+        const formattedTarget = formatGoalHistoryNumber(target, i18n.language)
+        const accessibilityLabel = [
+          t('goals.detail.historyDate', { date }),
+          t('goals.detail.historyDelta', { delta: formattedDelta, unit }),
+          t('goals.detail.historyProgress', { current, target: formattedTarget, unit }),
+          entry.note,
+        ].filter(Boolean).join('. ')
+        return (
+          <View
+            key={`${entry.createdAtUtc}-${entry.value}`}
+            accessible
+            accessibilityLabel={accessibilityLabel}
+            style={styles.historyEntry}
+          >
+            <View style={styles.historyEntryHeader}>
+              <Text testID="history-date" style={styles.historyDate}>
+                {date}
+              </Text>
+              <Text testID={deltaTestId} style={styles.historyDelta}>{formattedDelta}</Text>
+              <Text testID="history-progress" style={styles.historyProgress}>{current} / {formattedTarget}</Text>
+            </View>
+            {entry.note ? (
+              <Text style={styles.historyNote}>{entry.note}</Text>
+            ) : null}
           </View>
-          {entry.note ? (
-            <Text style={styles.historyNote}>{entry.note}</Text>
-          ) : null}
-        </View>
-      ))}
+        )
+      })}
       {entries.length > HISTORY_PREVIEW_COUNT ? (
         <Pressable
           onPress={() => setShowAllHistory((prev) => !prev)}
-          hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           style={({ pressed }) => [
             styles.toggleAll,
-            pressed && { opacity: 0.7 },
+            pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
           ]}
           accessibilityRole="button"
           accessibilityLabel={showAllHistory ? showLessLabel : showAllLabel}
+          accessibilityState={{ expanded: showAllHistory }}
         >
           <Text style={styles.toggleAllText}>
-            {showAllHistory
-              ? showLessLabel
-              : `${showAllLabel} (${entries.length})`}
+            {showAllHistory ? showLessLabel : showAllLabel}
           </Text>
         </Pressable>
       ) : null}
@@ -83,18 +111,30 @@ export function GoalProgressHistorySection({
 
 interface GoalLinkedHabitsSectionProps {
   title: string
+  emptyLabel: string
   linkedHabits: NonNullable<Goal['linkedHabits']>
+  habitAdherence: GoalMetrics['habitAdherence']
+  formatValue: (currentStreak: number) => string
+  onOpenHabit: (habitId: string) => void
 }
 
 export function GoalLinkedHabitsSection({
   title,
+  emptyLabel,
   linkedHabits,
+  habitAdherence,
+  formatValue,
+  onOpenHabit,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
-
-  if (linkedHabits.length === 0) return null
+  const adherenceByHabitId = useMemo(
+    () => new Map(habitAdherence.map((metrics) => [metrics.habitId, metrics])),
+    [habitAdherence],
+  )
 
   return (
     <View
@@ -102,16 +142,25 @@ export function GoalLinkedHabitsSection({
       accessibilityRole="list"
       accessibilityLabel={title}
     >
-      {linkedHabits.map((habit) => (
-        <View key={habit.id} style={styles.linkedRow}>
-          <View style={styles.linkedWell}>
-            <Repeat size={18} strokeWidth={1.8} color={tokens.fg2} />
-          </View>
-          <Text style={styles.linkedTitle} numberOfLines={1}>
-            {habit.title}
-          </Text>
-        </View>
-      ))}
+      {linkedHabits.length === 0 ? (
+        <Text style={styles.emptyLabel}>{emptyLabel}</Text>
+      ) : linkedHabits.map((habit) => {
+        const adherence = adherenceByHabitId.get(habit.id)
+        const value = adherence ? formatValue(adherence.currentStreak) : undefined
+        const description = adherence ? t('goals.metrics.weeklyAdherence', { percent: formatGoalHistoryNumber(Math.round(adherence.weeklyCompletionRate), locale) }) : undefined
+        return (
+          <ListRow
+            compact={false}
+            key={habit.id}
+            title={habit.title}
+            textMode="personal"
+            value={value}
+            description={description}
+            accessibilityLabel={[habit.title, description, value].filter(Boolean).join(', ')}
+            onClick={() => onOpenHabit(habit.id)}
+          />
+        )
+      })}
     </View>
   )
 }
@@ -119,71 +168,68 @@ export function GoalLinkedHabitsSection({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     historyEntry: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
-      gap: 3,
+      paddingHorizontal: SPACING.s0,
+      paddingVertical: SPACING.s8,
+      gap: 4,
     },
     historyEntryHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       gap: 12,
     },
     historyDate: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 11,
+      fontFamily: 'GeistMono_400Regular',
+      fontSize: 12,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
+      flex: 1,
+      minWidth: 0,
     },
-    historyValue: {
-      fontFamily: 'Roboto_500Medium',
+    historyDelta: {
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
-      color: tokens.fg1,
+      color: tokens.fg2,
       fontVariant: ['tabular-nums'],
+      minWidth: 32,
+      textAlign: 'right',
+    },
+    historyProgress: {
+      fontFamily: 'GeistMono_400Regular',
+      fontSize: 12,
+      color: tokens.fg3,
+      fontVariant: ['tabular-nums'],
+      minWidth: 56,
+      textAlign: 'right',
     },
     historyNote: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
       color: tokens.fg2,
+      flexShrink: 1,
     },
     toggleAll: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
+      borderRadius: 999,
+      overflow: 'hidden',
+      minHeight: TOUCH_TARGET_MIN,
+      minWidth: TOUCH_TARGET_MIN,
+      justifyContent: 'center',
+      paddingHorizontal: SPACING.s12,
+      paddingVertical: SPACING.s8,
     },
     toggleAllText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 14,
       color: tokens.fg1,
     },
     linkedList: {
     },
-    linkedRow: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-    },
-    linkedWell: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    linkedTitle: {
-      flex: 1,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 16,
-      color: tokens.fg1,
+    emptyLabel: {
+      color: tokens.fg3,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      paddingHorizontal: SPACING.s0,
+      paddingVertical: SPACING.s8,
     },
   })
 }

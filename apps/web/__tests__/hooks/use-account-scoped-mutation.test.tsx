@@ -1,126 +1,267 @@
+import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ReactNode } from 'react'
-import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-import { bindAccountServerAction } from '@/lib/client-action'
-import { toast } from 'sonner'
-import { setApiFetchTranslate } from '@/lib/api-fetch'
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+const heldAccount = { id: 'account-a' as string | null }
+const accountGeneration = { current: 0 }
+const showPersistentError = vi.hoisted(() => vi.fn())
 
-const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError }) }))
 
 vi.mock('@/stores/auth-store', () => ({
-  getHeldAccountId: () => account.id,
-  getAccountGeneration: () => account.generation,
-  useAuthStore: { getState: () => ({
-    isAuthenticated: account.id !== null,
-    recoverSessionRefreshFailure: async () => {},
-  }) },
+  getHeldAccountId: () => heldAccount.id,
+  useAuthStore: { getState: () => ({ isAuthenticated: heldAccount.id !== null }) },
 }))
+vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => accountGeneration.current }))
 
-function deferred() {
-  let release!: () => void
-  const promise = new Promise<void>((resolve) => { release = resolve })
-  return { promise, release }
+const { useAccountScopedMutation } = await import('@/hooks/use-account-scoped-mutation')
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+  }
 }
 
 describe('useAccountScopedMutation', () => {
   beforeEach(() => {
-    account.id = 'account-a'
-    account.generation = 1
-    vi.mocked(toast.error).mockClear()
-    setApiFetchTranslate((key) => key)
+    heldAccount.id = 'account-a'
+    accountGeneration.current = 0
   })
 
-  it('keeps the click account through an asynchronous optimistic step', async () => {
-    const gate = deferred()
-    const entered = deferred()
-    const seenAccounts: Array<string | null> = []
-    const boundAction = bindAccountServerAction(async (
-      _input: string,
-      intendedAccountId: string | null,
-    ) => {
-      seenAccounts.push(intendedAccountId)
-      return { ok: true as const, data: intendedAccountId }
-    })
-    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  it('carries the account the tab held when mutate was called', async () => {
+    const seenAccounts: (string | null)[] = []
+    const { result } = renderHook(
+      () => useAccountScopedMutation({
+        mutationFn: (habitId: string, intendedAccountId) => {
+          seenAccounts.push(intendedAccountId)
+          return Promise.resolve(habitId)
+        },
+      }),
+      { wrapper: createWrapper() },
+    )
 
+    result.current.mutate('habit-1')
+
+    await waitFor(() => expect(seenAccounts).toEqual(['account-a']))
+  })
+
+  it('reads the account before onMutate awaits, not after', async () => {
+    let releaseOnMutate: (() => void) | undefined
+    const onMutateReached = new Promise<void>((resolve) => {
+      releaseOnMutate = resolve
+    })
+    const seenAccounts: (string | null)[] = []
+
+    const { result } = renderHook(
+      () => useAccountScopedMutation({
+        mutationFn: (habitId: string, intendedAccountId) => {
+          seenAccounts.push(intendedAccountId)
+          return Promise.resolve(habitId)
+        },
+        onMutate: async () => {
+          await onMutateReached
+          return undefined
+        },
+      }),
+      { wrapper: createWrapper() },
+    )
+
+    result.current.mutate('habit-1')
+
+    heldAccount.id = 'account-b'
+    releaseOnMutate?.()
+
+    await waitFor(() => expect(seenAccounts).toEqual(['account-a']))
+  })
+
+  it('keeps a refused account A rollback out of account B cache', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const onSettled = vi.fn()
+    queryClient.setQueryData(['profile'], 'account-a-profile')
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
     const { result } = renderHook(() => useAccountScopedMutation({
-      mutationFn: (input: string) => boundAction(input),
+      mutationFn: async (_id: string) => { throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 }) },
+      onError: () => queryClient.setQueryData(['profile'], 'account-a-profile'),
+      onSettled,
+    }), { wrapper })
+
+    result.current.mutate('habit-1')
+    heldAccount.id = 'account-b'
+    queryClient.clear()
+    queryClient.setQueryData(['profile'], 'account-b-profile')
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(queryClient.getQueryData(['profile'])).toBe('account-b-profile')
+    expect(onSettled).not.toHaveBeenCalled()
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'errorScreen.reload')
+  })
+
+  it('removes an optimistic write resumed after another account loaded', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    let releaseCancel: (() => void) | undefined
+    const cancelFinished = new Promise<void>((resolve) => { releaseCancel = resolve })
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async () => undefined,
       onMutate: async () => {
-        entered.release()
-        await gate.promise
-        queryClient.setQueryData(['habits'], 'account-a optimistic row')
+        await cancelFinished
+        queryClient.setQueryData(['templates'], (old: string[] | undefined) =>
+          [...(old ?? []), 'account-a-placeholder'])
       },
     }), { wrapper })
 
-    act(() => { result.current.mutate('delete') })
-    await entered.promise
-    account.id = 'account-b'
-    account.generation = 2
-    queryClient.setQueryData(['habits'], 'account-b rows')
-    await act(async () => { gate.release(); await waitFor(() => expect(seenAccounts).toEqual(['account-a'])) })
+    result.current.mutate(undefined)
+    heldAccount.id = 'account-b'
+    accountGeneration.current += 1
+    queryClient.clear()
+    queryClient.setQueryData(['templates'], ['account-b-template'])
+    releaseCancel?.()
 
-    expect(queryClient.getQueryData(['habits'])).not.toBe('account-a optimistic row')
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(queryClient.getQueryData<string[]>(['templates']) ?? []).not.toContain('account-a-placeholder')
   })
 
-  it('invalidates retained data after a same-account generation change', async () => {
-    const gate = deferred()
-    const entered = deferred()
+  it('reconciles a completed write after re-login to the same account', async () => {
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    queryClient.setQueryData(['goals'], ['old-goal'])
+    let releaseWrite: (() => void) | undefined
+    const writeFinished = new Promise<void>((resolve) => { releaseWrite = resolve })
     const { result } = renderHook(() => useAccountScopedMutation({
-      mutationFn: async () => { entered.release(); await gate.promise },
+      mutationFn: async () => { await writeFinished },
+      onSettled: () => { void queryClient.invalidateQueries({ queryKey: ['goals'] }) },
     }), { wrapper })
 
-    act(() => { result.current.mutate() })
-    await entered.promise
-    account.generation = 2
-    await act(async () => { gate.release(); await waitFor(() => expect(invalidate).toHaveBeenCalled()) })
+    result.current.mutate(undefined)
+    accountGeneration.current += 1
+    releaseWrite?.()
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(queryClient.getQueryState(['goals'])?.isInvalidated).toBe(true)
   })
 
   it('reconciles a write that started before the first session check adopted the account', async () => {
-    account.id = null
-    const gate = deferred()
-    const entered = deferred()
+    heldAccount.id = null
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    let releaseWrite: (() => void) | undefined
+    let writeStarted: (() => void) | undefined
+    const writeFinished = new Promise<void>((resolve) => { releaseWrite = resolve })
+    const entered = new Promise<void>((resolve) => { writeStarted = resolve })
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
     const { result } = renderHook(() => useAccountScopedMutation({
-      mutationFn: async () => { entered.release(); await gate.promise },
+      mutationFn: async () => { writeStarted?.(); await writeFinished },
     }), { wrapper })
 
-    act(() => { result.current.mutate() })
-    await entered.promise
-    account.id = 'account-a'
-    account.generation = 2
-    await act(async () => { gate.release(); await waitFor(() => expect(invalidate).toHaveBeenCalled()) })
+    act(() => { result.current.mutate(undefined) })
+    await entered
+    heldAccount.id = 'account-a'
+    accountGeneration.current += 1
+    await act(async () => { releaseWrite?.() })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(invalidate).toHaveBeenCalled()
   })
 
-  it('clears optimistic data and reports an account refusal without local error state', async () => {
+  it('removes optimistic account A cache when the cookie changed before this tab learned', async () => {
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-    queryClient.setQueryData(['habits'], 'optimistic account-a row')
-    const onError = vi.fn()
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    queryClient.setQueryData(['profile'], 'account-a-profile')
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
     const { result } = renderHook(() => useAccountScopedMutation({
-      mutationFn: async () => { throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }) },
-      onError,
+      mutationFn: async (_id: string) => { throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 }) },
+      onError: () => queryClient.setQueryData(['profile'], 'account-a-profile'),
     }), { wrapper })
 
-    await act(async () => {
-      await expect(result.current.mutateAsync(undefined)).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
-    })
+    result.current.mutate('habit-1')
 
-    expect(queryClient.getQueryData(['habits'])).toBeUndefined()
-    expect(onError).not.toHaveBeenCalled()
-    expect(toast.error).toHaveBeenCalledWith('errors.api.accountChanged', expect.objectContaining({ id: 'account-changed' }))
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(queryClient.getQueryData(['profile'])).toBeUndefined()
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'errorScreen.reload')
+  })
+
+  it('hands every callback the caller variables, without the account wrapper', async () => {
+    const seen: Record<string, unknown> = {}
+    const { result } = renderHook(
+      () => useAccountScopedMutation({
+        mutationFn: (habitId: string) => Promise.resolve(`logged:${habitId}`),
+        onMutate: (variables) => {
+          seen.onMutate = variables
+          return { snapshot: 'previous' }
+        },
+        onSuccess: (data, variables) => {
+          seen.onSuccessData = data
+          seen.onSuccess = variables
+        },
+        onSettled: (_data, _error, variables, onMutateResult) => {
+          seen.onSettled = variables
+          seen.onSettledContext = onMutateResult
+        },
+      }),
+      { wrapper: createWrapper() },
+    )
+
+    result.current.mutate('habit-1')
+
+    await waitFor(() => expect(seen.onSettled).toBe('habit-1'))
+    expect(seen.onMutate).toBe('habit-1')
+    expect(seen.onSuccess).toBe('habit-1')
+    expect(seen.onSuccessData).toBe('logged:habit-1')
+    expect(seen.onSettledContext).toEqual({ snapshot: 'previous' })
+  })
+
+  it('hands a per-call onSuccess the caller variables too', async () => {
+    const perCallSuccess = vi.fn()
+    const { result } = renderHook(
+      () => useAccountScopedMutation({
+        mutationFn: (habitId: string) => Promise.resolve(habitId),
+      }),
+      { wrapper: createWrapper() },
+    )
+
+    result.current.mutate('habit-1', { onSuccess: perCallSuccess })
+
+    await waitFor(() => expect(perCallSuccess).toHaveBeenCalled())
+    expect(perCallSuccess.mock.calls[0]?.[1]).toBe('habit-1')
+  })
+
+  it('reports the caller variables rather than the account wrapper', async () => {
+    const { result } = renderHook(
+      () => useAccountScopedMutation({
+        mutationFn: (habitId: string) => Promise.resolve(habitId),
+      }),
+      { wrapper: createWrapper() },
+    )
+
+    await result.current.mutateAsync('habit-1')
+
+    await waitFor(() => expect(result.current.variables).toBe('habit-1'))
+  })
+
+  it('passes null intent through when the tab has no account to compare', async () => {
+    heldAccount.id = null
+    const seenAccounts: (string | null)[] = []
+    const { result } = renderHook(
+      () => useAccountScopedMutation({
+        mutationFn: (habitId: string, intendedAccountId) => {
+          seenAccounts.push(intendedAccountId)
+          return Promise.resolve(habitId)
+        },
+      }),
+      { wrapper: createWrapper() },
+    )
+
+    await expect(result.current.mutateAsync('habit-1')).resolves.toBe('habit-1')
+
+    expect(seenAccounts).toEqual([null])
   })
 })

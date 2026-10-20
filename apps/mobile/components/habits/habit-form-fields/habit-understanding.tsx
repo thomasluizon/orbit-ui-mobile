@@ -1,0 +1,308 @@
+import { TypedTextInput } from '@/components/ui/typed-text-input'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
+import { useMemo, useState, type Ref } from 'react'
+import { StyleSheet, Text, type TextInput, View } from 'react-native'
+import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
+import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
+import { segmentHabitPhrase } from '@orbit/shared/utils'
+import { Minus, Plus } from '@/components/ui/icons'
+import { Proposed } from '@/components/ui/proposed'
+import { createTokensV2, radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { HabitEmojiSelector } from './habit-emoji-selector'
+import { createStyles as createFormStyles } from './styles'
+
+type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
+  inputRef?: Ref<TextInput>
+  isSuggestionDisabled?: boolean
+}
+
+function useEmojiProposal(onSuggestEmoji: HabitUnderstandingProps['onSuggestEmoji'], onEmojiSelect: HabitUnderstandingProps['onEmojiSelect']) {
+  const [emojiProposed, setEmojiProposed] = useState(false)
+  async function suggestEmoji() {
+    const result = await onSuggestEmoji?.()
+    if (result?.setup) setEmojiProposed(true)
+  }
+  function selectEmoji(value: string) {
+    setEmojiProposed(false)
+    onEmojiSelect(value)
+  }
+  return { emojiProposed, selectEmoji, requestEmoji: onSuggestEmoji ? () => { void suggestEmoji() } : undefined }
+}
+
+export function HabitUnderstanding({
+  inputRef,
+  onSuggestEmoji,
+  canSuggestEmoji = false,
+  isEmojiSuggesting = false,
+  emojiSuggestionHint,
+  emojiSuggestionError,
+  value,
+  error,
+  emoji,
+  days,
+  daily = false,
+  dayOptions,
+  quantity,
+  mode,
+  sentence,
+  consumed,
+  proposed = false,
+  scheduleLocked = false,
+  showCountCorrection = true,
+  onValueChange,
+  onEmojiSelect,
+  isSuggestionDisabled = false,
+  onToggleDay,
+  onQuantityChange,
+  labels,
+}: Readonly<HabitUnderstandingWithDisabledEmojiProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
+  const [focused, setFocused] = useState(false)
+  const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
+  const hasValue = value.trim().length > 0
+  const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
+  const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
+
+  const emojiControl = (
+    <Proposed inset keepMounted proposed={emojiProposed} scope="field" label={labels.proposed}>
+      <HabitEmojiSelector
+        selectedEmoji={emoji}
+        tokens={tokens}
+        styles={formStyles}
+        wellSize={46}
+        onSelect={selectEmoji}
+        onSuggest={requestEmoji}
+        canSuggest={canSuggestEmoji}
+        isSuggesting={isEmojiSuggesting}
+        isDisabled={isSuggestionDisabled || isEmojiSuggesting}
+        suggestionHint={emojiSuggestionHint}
+        suggestionError={emojiSuggestionError}
+      />
+    </Proposed>
+  )
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>{labels.field}</Text>
+        <View style={[styles.inputLayer, {
+          borderColor: focused ? tokens.primary : tokens.borderControl,
+          borderWidth: focused ? 2 : 1,
+        }]}>
+          <Text aria-hidden pointerEvents="none" style={styles.inputMirror}>
+            {hasValue ? segments.map((segment, index) => (
+              <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
+                {segment.text}
+              </Text>
+            )) : labels.placeholder}
+          </Text>
+          <TypedTextInput
+            ref={inputRef}
+            value={value}
+            multiline
+            maxLength={200}
+            spellCheck={false}
+            accessibilityLabel={labels.field}
+            accessibilityHint={error}
+            accessibilityState={{ disabled: false }}
+            placeholder={labels.placeholder}
+            placeholderTextColor={tokens.fg3}
+            selectionColor={tokens.primary}
+            style={styles.input}
+            onChangeText={onValueChange}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+          />
+        </View>
+        {error ? (
+          <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
+        ) : null}
+      </View>
+
+      {onSuggestEmoji && !showPreview ? emojiControl : null}
+
+      {showPreview ? (
+        <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
+          <View accessibilityLabel={labels.understood} style={styles.preview}>
+            <View style={styles.previewHeader}>
+              {emojiControl}
+              <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
+            </View>
+            <Text style={[styles.sentence, proposed ? { color: tokens.fg3 } : null]}>{sentence}</Text>
+            <ScheduleCorrections proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
+          </View>
+        </Proposed>
+      ) : null}
+      {hasValue && sentence === null ? (
+        <View style={{ gap: 16 }}>
+          <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: SPACING.s12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 }}>{labels.unresolved}</Text>
+          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+type AppTokens = ReturnType<typeof createTokensV2>
+
+function createStyles(tokens: AppTokens) {
+  return StyleSheet.create({
+    container: { gap: 24 },
+    fieldGroup: { gap: 8 },
+    label: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
+    inputLayer: {
+      minHeight: 92,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: tokens.borderControl,
+      backgroundColor: tokens.bgField,
+    },
+    inputMirror: {
+      minHeight: 90,
+      color: 'transparent',
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 23,
+      padding: SPACING.s16,
+    },
+    input: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      minHeight: 90,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 23,
+      padding: SPACING.s16,
+      textAlignVertical: 'top',
+    },
+    consumed: {
+      backgroundColor: tokens.bgWell,
+      color: tokens.hairlineStrong,
+      textDecorationLine: 'underline',
+    },
+    error: { color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 },
+    preview: {
+      gap: 16,
+      padding: SPACING.s24,
+      borderRadius: radius.xl,
+      outlineWidth: 1,
+      outlineOffset: -1,
+      outlineColor: tokens.hairline,
+      outlineStyle: 'solid',
+      backgroundColor: tokens.bgCard,
+    },
+    previewHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
+    sentence: {
+      color: tokens.fg1,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 17,
+      lineHeight: 24,
+    },
+    days: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+    day: { overflow: 'hidden', alignItems: 'center', borderRadius: radius.full, height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN },
+    dayIdle: { backgroundColor: tokens.bgWell, borderColor: tokens.hairline, borderWidth: 1 },
+    daySelected: { backgroundColor: tokens.primaryDim },
+    dayText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
+    dayTextSelected: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
+    stepper: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    stepButton: {
+      overflow: 'hidden',
+      alignItems: 'center',
+      backgroundColor: tokens.bgWell,
+      borderColor: tokens.hairline,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      height: TOUCH_TARGET_MIN,
+      justifyContent: 'center',
+      width: TOUCH_TARGET_MIN,
+    },
+    quantity: {
+      color: tokens.fg1,
+      fontFamily: 'GeistMono_500Medium',
+      fontSize: 20,
+      minWidth: 28,
+      textAlign: 'center',
+      fontVariant: ['tabular-nums'],
+    },
+    pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
+    disabled: { opacity: 0.4 },
+  })
+}
+
+interface ScheduleCorrectionProps extends Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'labels' | 'proposed'> {
+  showCount: boolean
+  tokens: AppTokens
+  styles: ReturnType<typeof createStyles>
+}
+
+function ScheduleCorrections({ proposed = false, days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels, tokens, styles }: Readonly<ScheduleCorrectionProps>) {
+  return (
+    <>
+      <View accessibilityLabel={labels.days} style={styles.days}>
+        {dayOptions.map((day) => {
+          const selected = daily || days.includes(day.value)
+          return (
+            <Pressable focusInset selectionRingWidth={1.5} selectionRingColor={proposed ? tokens.fg3 : tokens.primary} key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? proposed ? { backgroundColor: tokens.bgWell } : styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
+              <Text style={selected && !proposed ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>
+            </Pressable>
+          )
+        })}
+      </View>
+      {showCount ? (
+        <View style={styles.stepper}>
+          <Pressable accessibilityRole="button" accessibilityLabel={labels.less} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(Math.max(1, quantity - 1))}>
+            <Minus size={20} strokeWidth={2} color={tokens.fg2} />
+          </Pressable>
+          <Text style={[styles.quantity, proposed ? { color: tokens.fg3 } : null]}>{quantity}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={labels.more} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(quantity + 1)}>
+            <Plus size={20} strokeWidth={2} color={tokens.fg2} />
+          </Pressable>
+          <Text numberOfLines={1} style={styles.meta}>{labels.count(quantity)}</Text>
+        </View>
+      ) : null}
+    </>
+  )
+}
+
+export function HabitRepeatInterval({ visible, intervalWeeks, scheduleLocked = false, onIntervalWeeksChange, labels }: Readonly<HabitRepeatIntervalProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  if (!visible) return null
+  return (
+    <View style={styles.stepper}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={labels.repeatLess}
+        disabled={scheduleLocked || intervalWeeks <= 1}
+        style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]}
+        onPress={() => onIntervalWeeksChange(Math.max(1, intervalWeeks - 1))}
+      >
+        <Minus size={20} strokeWidth={2} color={tokens.fg2} />
+      </Pressable>
+      <Text style={styles.quantity}>{intervalWeeks}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={labels.repeatMore}
+        disabled={scheduleLocked || intervalWeeks >= MAX_HABIT_INTERVAL_WEEKS}
+        style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]}
+        onPress={() => onIntervalWeeksChange(Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks + 1))}
+      >
+        <Plus size={20} strokeWidth={2} color={tokens.fg2} />
+      </Pressable>
+      <Text numberOfLines={1} style={styles.meta}>{labels.repeat(intervalWeeks)}</Text>
+    </View>
+  )
+}

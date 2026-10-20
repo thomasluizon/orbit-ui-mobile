@@ -1,3 +1,3 @@
 import type { AppDesign } from './design-bundle'
 
-export const BUNDLE_DESIGN: AppDesign = 'legacy'
+export const BUNDLE_DESIGN: AppDesign = 'redesign'

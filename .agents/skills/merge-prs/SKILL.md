@@ -1,6 +1,6 @@
 ---
 name: merge-prs
-description: Merge a frozen set of already-approved PRs after /orchestrate, with optional PR links or conversation-context discovery; admin-squash merges in dependency order, updates Linear, and cleans only target branches/worktrees.
+description: Merge a frozen set of already-approved PRs after /orchestrate, with optional PR links or conversation-context discovery; admin-squash merges in dependency order, updates the GitHub ticket, and cleans only target branches/worktrees.
 ---
 
 # merge-prs

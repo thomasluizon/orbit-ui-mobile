@@ -28,7 +28,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn(),
   useQueryClient: vi.fn(() => ({ invalidateQueries: mocks.invalidateQueries })),
   useMutation: (options: MutationOptions) => ({
-    mutate: async (variables: string) => {
+    mutateAsync: async (variables: string) => {
       const result = await options.mutationFn(variables)
       await options.onSuccess?.(result, variables, undefined)
     },
@@ -66,13 +66,15 @@ describe('mobile useReportEvent', () => {
     mocks.apiClient.mockReset()
   })
 
-  it('posts the event key and celebrates each granted achievement on success', async () => {
+  it('posts the event key and refreshes granted achievements without celebrating', async () => {
     mocks.apiClient.mockResolvedValue({
       granted: [{ id: 'show_off', xpReward: 75 }],
     })
 
     const mutation = await callHook(() => useReportEvent())
-    await mutation.mutate('card_shared')
+    await TestRenderer.act(async () => {
+      await mutation.mutateAsync('card_shared')
+    })
 
     expect(mocks.apiClient).toHaveBeenCalledWith(
       API.gamification.reportEvent,
@@ -82,10 +84,7 @@ describe('mobile useReportEvent', () => {
       },
       reportEventResponseSchema,
     )
-    expect(mocks.enqueueCelebration).toHaveBeenCalledWith('achievement', {
-      achievementId: 'show_off',
-      xpReward: 75,
-    })
+    expect(mocks.enqueueCelebration).not.toHaveBeenCalled()
     expect(mocks.invalidateQueries).toHaveBeenCalled()
   })
 
@@ -93,7 +92,9 @@ describe('mobile useReportEvent', () => {
     mocks.apiClient.mockResolvedValue({ granted: [] })
 
     const mutation = await callHook(() => useReportEvent())
-    await mutation.mutate('wrapped_viewed')
+    await TestRenderer.act(async () => {
+      await mutation.mutateAsync('wrapped_viewed')
+    })
 
     expect(mocks.enqueueCelebration).not.toHaveBeenCalled()
     expect(mocks.invalidateQueries).toHaveBeenCalled()

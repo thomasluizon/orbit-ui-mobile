@@ -1,10 +1,13 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
+
+import { useState, useCallback, useEffect, useId, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
@@ -14,9 +17,10 @@ import {
 } from '@orbit/shared/utils'
 import {
   buildGoalTitle,
+  getFirstGoalDraftFieldError,
+  getGoalDraftFieldErrorKeys,
   isStreakGoal,
   parseGoalTargetValue,
-  validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 import { EditGoalDeadlineField } from './edit-goal-modal/edit-goal-deadline-field'
@@ -63,7 +67,12 @@ export function EditGoalModal({
   const [targetValue, setTargetValue] = useState(() => String(goal.targetValue))
   const [unit, setUnit] = useState(() => goal.unit)
   const [deadline, setDeadline] = useState(() => goal.deadline ?? '')
+  const backendErrors = useBackendFieldErrors({ description, targetValue, unit }, { description: 'Title', targetValue: 'TargetValue', unit: 'Unit' })
   const [submitted, setSubmitted] = useState(false)
+  const [focusRequest, setFocusRequest] = useState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
+  const descriptionRef = useRef<HTMLInputElement>(null)
+  const targetRef = useRef<HTMLInputElement>(null)
+  const unitRef = useRef<HTMLInputElement>(null)
 
   const isSubmitting = updateGoal.isPending
   const isDirty =
@@ -71,26 +80,33 @@ export function EditGoalModal({
     targetValue !== String(goal.targetValue) ||
     unit !== goal.unit ||
     deadline !== (goal.deadline ?? '')
+  const { sheetRef, closeSheet } = useSheetHost()
+  const formId = useId()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => onOpenChange(false),
+    onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
 
-  const fieldErrors = useMemo(() => {
+  const localFieldErrors = useMemo(() => {
     if (!submitted) return {}
+    const keys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
     const errs: Record<string, string> = {}
-    const errorKey = validateGoalDraftInput(description, targetValue, unit)
-    if (errorKey) {
-      const translated = translateErrorKey(translate, errorKey)
-      if (translated) {
-        if (errorKey === 'goals.form.targetValueRequired') errs.targetValue = translated
-        else if (errorKey === 'goals.form.unitRequired' || errorKey === 'goals.form.unitTooLong') errs.unit = translated
-        else if (errorKey === 'goals.form.titleRequired' || errorKey === 'goals.form.titleTooLong') errs.description = translated
-        else errs._form = translated
-      }
+    for (const field of ['description', 'targetValue', 'unit'] as const) {
+      const key = keys[field]
+      if (!key) continue
+      const translated = translateErrorKey(translate, key)
+      if (translated) errs[field] = translated
     }
     return errs
   }, [submitted, description, targetValue, unit, translate])
+
+  const fieldErrors = { ...localFieldErrors, ...backendErrors.fieldErrors }
+
+  useEffect(() => {
+    if (focusRequest?.field === 'description') descriptionRef.current?.focus()
+    else if (focusRequest?.field === 'targetValue') targetRef.current?.focus()
+    else if (focusRequest?.field === 'unit') unitRef.current?.focus()
+  }, [focusRequest])
 
   const [previousSession, setPreviousSession] = useState<{ open: boolean; id: string | null }>({
     open,
@@ -105,6 +121,7 @@ export function EditGoalModal({
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
+      backendErrors.clearBackendErrors()
     }
   }
 
@@ -113,12 +130,12 @@ export function EditGoalModal({
       e.preventDefault()
       setSubmitted(true)
 
-      const err = translateErrorKey(
-        translate,
-        validateGoalDraftInput(description, targetValue, unit),
-      )
+      const errorKeys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
+      const firstError = getFirstGoalDraftFieldError(errorKeys)
+      const err = translateErrorKey(translate, firstError?.key ?? null)
       if (err) {
         showError(err)
+        if (firstError) setFocusRequest({ field: firstError.field })
         return
       }
 
@@ -135,34 +152,46 @@ export function EditGoalModal({
         }
 
         await updateGoal.mutateAsync({ goalId: goal.id, data: request })
-        onOpenChange(false)
+        closeSheet(() => onOpenChange(false))
       } catch (error: unknown) {
+        const { field, handled } = backendErrors.reportBackendErrors(error)
+        if (field) setFocusRequest({ field })
+        if (handled) return
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
       }
     },
-    [deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
+    [backendErrors, closeSheet, deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
   )
 
   const unitSuffix = goal.unit ? `  ·  ${goal.unit}` : ''
 
   return (
     <>
-      <AppOverlay
-        open={open}
-        onOpenChange={onOpenChange}
-        title={t('goals.detail.edit')}
-        canDismiss={dismissGuard.canDismiss}
-        isDirty={isDirty}
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
+        title={t('goals.detail.edit')}
+        actions={(
+          <ActionRow>
+            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton size="sm" formId={formId} disabled={isSubmitting} loading={isSubmitting}>
+              {t('common.save')}
+            </PillButton>
+          </ActionRow>
+        )}
       >
-        <form onSubmit={(e) => void onSubmit(e)} noValidate>
-          <div className="t-eyebrow" style={{ padding: '10px 0' }}>
+        <form id={formId} onSubmit={(e) => void onSubmit(e)} noValidate>
+          <div className="t-eyebrow" style={{ padding: "var(--orbit-space-12) var(--orbit-space-0)" }}>
             {isStreak
               ? t('goals.form.typeStreak')
               : `${t('goals.form.typeStandard')}${unitSuffix}`}
           </div>
 
-          <div style={{ padding: '6px 0 0' }}>
+          <div style={{ padding: "var(--orbit-space-8) var(--orbit-space-0) var(--orbit-space-0)" }}>
             <FieldWell
               label={t('goals.form.description')}
               id="edit-goal-description"
@@ -171,6 +200,7 @@ export function EditGoalModal({
               placeholder={t('goals.form.descriptionPlaceholder')}
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
               error={fieldErrors.description}
+              inputRef={descriptionRef}
               onChange={setDescription}
             />
           </div>
@@ -180,49 +210,19 @@ export function EditGoalModal({
             targetValue={targetValue}
             unit={unit}
             fieldErrors={fieldErrors}
+            targetRef={targetRef}
+            unitRef={unitRef}
             onChangeTarget={setTargetValue}
             onChangeUnit={setUnit}
           />
 
           <EditGoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
-
-          <div
-            className="flex items-center"
-            style={{
-              gap: 12,
-              padding: '18px 0 8px',
-            }}
-          >
-            <PillButton
-              variant="ghost"
-              className="flex-1"
-              onClick={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-              type="submit"
-              className="flex-1"
-              disabled={isSubmitting}
-              busy={isSubmitting}
-            >
-              {t('common.save')}
-            </PillButton>
-          </div>
         </form>
-      </AppOverlay>
-      <ConfirmDialog
+      </Sheet>) : null}
+      <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss()
-        }}
-        title={t('common.discardChangesTitle')}
-        description={t('common.discardChangesDescription')}
-        confirmLabel={t('common.discard')}
-        cancelLabel={t('common.keepEditing')}
-        onConfirm={dismissGuard.confirmDismiss}
-        onCancel={dismissGuard.cancelDismiss}
-        variant="warning"
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
     </>
   )

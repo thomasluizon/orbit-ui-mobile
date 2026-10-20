@@ -14,6 +14,7 @@ export function buildMcpConfigJson(endpointUrl: string, apiKeyPlaceholder = 'YOU
   return `{
   "mcpServers": {
     "orbit": {
+      "type": "http",
       "url": "${endpointUrl}",
       "headers": {
         "Authorization": "Bearer ${apiKeyPlaceholder}"

@@ -1,6 +1,6 @@
 import { computeHabitFutureHint, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import type { StatusDotState } from '@/components/ui/status-dot'
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { HabitRowMetaPart } from './habit-row-content'
 import type { HabitRowActions } from './habit-row'
 
@@ -9,16 +9,16 @@ export function resolveHabitRowDotState(
   isDoneForRange: boolean,
   isBadHabit: boolean,
   isOverdue: boolean,
-): StatusDotState {
-  if (isDoneForRange) return 'done'
+): HabitStatus {
   if (isBadHabit) return 'bad'
+  if (isDoneForRange) return 'done'
   if (isOverdue) return 'overdue'
   return 'empty'
 }
 
 interface BuildHabitRowMetaPartsParams {
   habit: NormalizedHabit
-  frequencyLabel: string
+  childProgress?: { done: number; total: number }
   isOverdue: boolean
   selectedDateStr: string
   todayStr: string
@@ -27,11 +27,10 @@ interface BuildHabitRowMetaPartsParams {
   locale?: string | null
 }
 
-/** Builds the inline meta tokens (frequency, due-time, checklist progress, overdue,
- *  future hint) rendered between a habit row's title and trailing status. */
+/** Parent completion or single-row timing and status metadata. */
 export function buildHabitRowMetaParts({
   habit,
-  frequencyLabel,
+  childProgress,
   isOverdue,
   selectedDateStr,
   todayStr,
@@ -40,16 +39,16 @@ export function buildHabitRowMetaParts({
   locale,
 }: BuildHabitRowMetaPartsParams): HabitRowMetaPart[] {
   const metaParts: HabitRowMetaPart[] = []
-  if (!habit.isGeneral && frequencyLabel) metaParts.push(frequencyLabel)
-  if (habit.dueTime) {
+  if (childProgress && childProgress.total > 0) {
+    metaParts.push(t('habits.rowProgress', childProgress))
+  } else if (habit.dueTime) {
     const due = displayTime(habit.dueTime)
     metaParts.push(habit.dueEndTime ? `${due} - ${displayTime(habit.dueEndTime)}` : due)
   }
-  if (habit.checklistItems.length > 0) {
-    const checked = habit.checklistItems.filter((item) => item.isChecked).length
-    metaParts.push(`${checked}/${habit.checklistItems.length}`)
+  if (isOverdue && !habit.isCompleted) metaParts.push({ kind: 'overdue' })
+  if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {
+    metaParts.push({ kind: 'bad' })
   }
-  if (isOverdue) metaParts.push({ kind: 'overdue' })
   if (!habit.isCompleted && selectedDateStr === todayStr) {
     const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
     if (futureHint) metaParts.push({ kind: 'future', label: futureHint })
@@ -59,23 +58,30 @@ export function buildHabitRowMetaParts({
 
 interface BuildHabitRowAccessibilityLabelParams {
   title: string
-  dotState: StatusDotState
+  dotState: HabitStatus
+  metaParts?: HabitRowMetaPart[]
   linkedGoal: boolean
   showStreak: boolean
   streak: number
   t: HabitCardTranslationAdapter
 }
 
-/** Assembles the row's screen-reader label (title, status, linked-goal, streak). */
+/** Assembles the row's screen-reader label with distinct visible metadata. */
 export function buildHabitRowAccessibilityLabel({
   title,
   dotState,
+  metaParts = [],
   linkedGoal,
   showStreak,
   streak,
   t,
 }: BuildHabitRowAccessibilityLabelParams): string {
   const parts = [title, t(`habits.statusDot.${dotState}` as const)]
+  for (const part of metaParts) {
+    if (typeof part === 'string') parts.push(part)
+    else if (part.kind === 'overdue' && dotState !== 'overdue') parts.push(t('habits.overdue'))
+    else if (part.kind === 'bad' && dotState !== 'bad') parts.push(t('habits.statusDot.bad'))
+  }
   if (linkedGoal) parts.push(t('habits.detail.linkedGoal'))
   if (showStreak) parts.push(`🔥 ${streak}`)
   return parts.join(', ')

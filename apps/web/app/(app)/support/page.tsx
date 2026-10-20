@@ -1,152 +1,231 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { unmappedBackendFormError } from '@orbit/shared/hooks'
+import { extractBackendFieldErrors, getBackendFieldError } from '@orbit/shared/utils'
+
+import { useState, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
-import { buildSupportRequestBody, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import {
+  buildSupportRequestBody,
+  attachSupportVersion,
+  getFriendlyErrorMessage,
+  getSupportMessageFit,
+  getSupportMessageMaxLength,
+  getSupportSendReasonKey,
+  normalizeSupportSubjectId,
+  SUPPORT_SUBJECT_OPTIONS,
+  type SupportSubjectId,
+} from '@orbit/shared/utils'
 import { sendSupportMessage } from '@/lib/actions/support'
-import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
-import { reportsAccountChanged } from '@/app/actions/action-result'
-import { AppBar } from '@/components/ui/app-bar'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import {
+  forgetStoredSupportDraft,
+  readStoredSupportDraft,
+  writeStoredSupportDraft,
+} from '@/lib/support-draft-storage'
+import { PageHeader } from '@/components/ui/page-header'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
+import { getAppVersion } from '@/lib/app-version'
 
-const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
+interface SupportDraft {
+  subject: SupportSubjectId | null
+  message: string
+}
+
+function readSupportDraft(): SupportDraft {
+  const stored = readStoredSupportDraft()
+  if (!stored) return { subject: null, message: '' }
+  try {
+    const draft = JSON.parse(stored) as Record<string, unknown>
+    return {
+      subject: normalizeSupportSubjectId(draft.subject),
+      message: typeof draft.message === 'string' ? draft.message : '',
+    }
+  } catch {
+    forgetStoredSupportDraft()
+    return { subject: null, message: '' }
+  }
+}
 
 export default function SupportPage() {
   const t = useTranslations()
+  const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
   const { profile } = useProfile()
   const { isOnline } = useOffline()
 
-  const initialDraft = (() => {
-    if (typeof localStorage === 'undefined') {
-      return { subject: '', message: '' }
-    }
-    const stored = localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
-    if (!stored) return { subject: '', message: '' }
-    try {
-      const draft = JSON.parse(stored) as Partial<Record<'subject' | 'message', string>>
-      return {
-        subject: draft.subject ?? '',
-        message: draft.message ?? '',
-      }
-    } catch {
-      localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
-      return { subject: '', message: '' }
-    }
-  })()
+  const [initialDraft] = useState(readSupportDraft)
+  const draftRef = useRef(initialDraft)
   const [subject, setSubject] = useState(initialDraft.subject)
   const [message, setMessage] = useState(initialDraft.message)
   const [isSending, setIsSending] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [validationMessage, setValidationMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [subjectError, setSubjectError] = useState<string | null>(null)
+  const [messageError, setMessageError] = useState<string | null>(null)
+  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
+  const [messageFocusRequest, setMessageFocusRequest] = useState(0)
 
-  useEffect(() => {
-    const draft = { subject, message }
-    const hasDraft = Object.values(draft).some((value) => value.trim().length > 0)
-    if (!hasDraft) {
-      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
-      return
-    }
-    globalThis.localStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
-  }, [message, subject])
+  useResetOnAccountChange(() => {
+    draftRef.current = { subject: null, message: '' }
+    setSubject(null)
+    setMessage('')
+    setSuccess(false)
+    setError(null)
+    setValidationMessage(null)
+    setSubjectError(null)
+    setMessageError(null)
+  })
+
+  const resolvedEmail = profile?.email || ''
+  const hasSubject = subject !== null
+  const hasMessage = Boolean(message.trim())
+  const appVersion = getAppVersion()
+  const messageFit = getSupportMessageFit(message, appVersion)
+  const messageMaxLength = Math.max(getSupportMessageMaxLength(appVersion), message.length)
+  const messageOverLimitHint = messageFit.fits
+    ? null
+    : t('profile.support.messageOverLimit', { overage: messageFit.overage })
+  const disabledReasonKey = getSupportSendReasonKey({
+    hasMessage,
+    hasProfile: Boolean(profile),
+    hasSubject,
+    isOnline,
+    isSending,
+    messageFits: messageFit.fits,
+  })
+  const disabledReason = disabledReasonKey ? t(disabledReasonKey) : null
+
+  const persistDraft = useCallback((change: Partial<typeof initialDraft>) => {
+    draftRef.current = { ...draftRef.current, ...change }
+    writeStoredSupportDraft(JSON.stringify(draftRef.current))
+  }, [])
+
+  const validateFields = useCallback(() => {
+    const nextSubjectError = subject ? null : t('profile.support.subjectRequired')
+    const nextMessageError = !message.trim()
+      ? t('profile.support.messageRequired')
+      : messageOverLimitHint
+    setSubjectError(nextSubjectError)
+    setMessageError(nextMessageError)
+    if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
+    else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
+    return !nextSubjectError && !nextMessageError
+  }, [message, messageOverLimitHint, subject, t])
 
   const handleSend = useCallback(async () => {
-    if (!isOnline) return
-    if (!subject.trim() || !message.trim()) return
-    const intent = captureAccountIntent()
+    if (isSending || !isOnline) return
+    if (!validateFields() || !profile) return
+    const selectedSubject = SUPPORT_SUBJECT_OPTIONS.find((option) => option.id === subject)
+    if (!selectedSubject) return
 
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     setIsSending(true)
     setError(null)
+    setValidationMessage(null)
     setSuccess(false)
 
     try {
       const payload = buildSupportRequestBody(profile, {
-        name: '',
-        email: '',
-        subject,
-        message,
+        subject: t(selectedSubject.labelKey),
+        message: attachSupportVersion(message, appVersion),
       })
-      await intent.run(() => sendSupportMessage(payload))
-      if (!intent.stillCurrent()) { reportAccountChanged(); return }
+      await sendSupportMessage(payload, intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setError(t('errors.api.accountChanged'))
+        return
+      }
       setSuccess(true)
-      setSubject('')
+      draftRef.current = { subject: null, message: '' }
+      setSubject(null)
       setMessage('')
-      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+      forgetStoredSupportDraft()
     } catch (err: unknown) {
-      if (reportsAccountChanged(err)) reportAccountChanged()
-      if (!intent.stillCurrent()) return
+      const subjectFailure = getBackendFieldError(err, 'Subject')
+      const messageFailure = getBackendFieldError(err, 'Message')
+      if (extractBackendFieldErrors(err)) {
+        const generalFailure = unmappedBackendFormError(err, ['Subject', 'Message'])
+        setError(generalFailure ?? null)
+        setValidationMessage(generalFailure ?? null)
+        setSubjectError(subjectFailure ?? null)
+        setMessageError(messageFailure ?? null)
+        if (subjectFailure) setSubjectFocusRequest((request) => request + 1)
+        else if (messageFailure) setMessageFocusRequest((request) => request + 1)
+        return
+      }
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
       setIsSending(false)
     }
-  }, [isOnline, message, profile, subject, t])
+  }, [appVersion, isOnline, isSending, message, profile, subject, t, validateFields])
 
-  const disabled = isSending || !subject.trim() || !message.trim() || !isOnline
+  const disabled = isSending || !isOnline
 
   return (
-    <div className="md:mx-auto md:max-w-[900px]">
-      <div className="flex flex-col min-h-[100dvh]">
-        <AppBar
-          back
-          backLabel={t('common.backToProfile')}
+    <div className="min-w-0 md:w-full md:max-w-[620px]">
+      <div className="flex flex-col">
+        <PageHeader
+          backLabel={backLabel}
           onBack={() => goBackOrFallback('/profile')}
           title={t('profile.support.title')}
         />
-        <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: '16px 20px' }}>
-          {!isOnline && (
-            <div className="mb-4">
-              <OfflineUnavailableState
-                title={t('offline.title')}
-                description={t('offline.description')}
-                compact
-              />
-            </div>
-          )}
-
+        <div className="min-h-0 flex-1 px-4 pt-4">
+          <p role="status" aria-live="polite" className="sr-only">
+            {success ? t('profile.support.success') : ''}
+          </p>
           {success ? (
-            <SupportSuccessState />
+            <SupportSuccessState
+              email={resolvedEmail}
+              onBack={() => router.push('/about')}
+            />
           ) : (
-            <div>
+            <div className="min-w-0 md:max-w-[520px]">
               <SupportForm
+                email={resolvedEmail}
                 subject={subject}
                 message={message}
+                appVersion={appVersion}
+                messageMaxLength={messageMaxLength}
+                messageOverLimitHint={messageOverLimitHint}
                 error={error}
+                validationMessage={validationMessage}
+                subjectError={subjectError}
+                messageError={messageError}
                 isSending={isSending}
+                isOnline={isOnline}
                 disabled={disabled}
-                onSubjectChange={setSubject}
-                onMessageChange={setMessage}
+                disabledReason={disabledReason}
+                subjectFocusRequest={subjectFocusRequest}
+                messageFocusRequest={messageFocusRequest}
+                onSubjectChange={(next) => {
+                  setSubject(next)
+                  setSubjectError(null)
+                  persistDraft({ subject: next })
+                }}
+                onSubjectBlur={() => {
+                  if (!subject) setSubjectError(t('profile.support.subjectRequired'))
+                }}
+                onMessageChange={(next) => {
+                  setMessage(next)
+                  setMessageError(null)
+                  persistDraft({ message: next })
+                }}
+                onMessageBlur={() => {
+                  if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
+                }}
                 onSend={() => void handleSend()}
               />
-              <aside
-                className="hidden md:flex md:flex-col"
-                style={{ gap: 12, paddingTop: 28 }}
-              >
-                <p
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 14,
-                    lineHeight: 1.55,
-                    color: 'var(--fg-3)',
-                  }}
-                >
-                  {t('profile.support.description')}
-                </p>
-                <p
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 14,
-                    lineHeight: 1.55,
-                    color: 'var(--fg-3)',
-                  }}
-                >
-                  {t('profile.support.successHint')}
-                </p>
-              </aside>
             </div>
           )}
         </div>

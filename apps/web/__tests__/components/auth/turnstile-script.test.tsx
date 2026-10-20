@@ -19,13 +19,17 @@ it('shows a retry after script failure, then accepts a token from the reloaded w
     return script!
   })
   expect(firstScript.src).toContain('render=explicit')
+  expect(screen.getByRole('alert')).toBeEmptyDOMElement()
   fireEvent.error(firstScript)
-  expect(await screen.findByRole('alert')).toHaveTextContent('auth.turnstileFailed')
-  expect(onToken).toHaveBeenLastCalledWith(null)
+  await waitFor(() => {
+    expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
+    expect(onToken).toHaveBeenLastCalledWith(null)
+  })
 
   fireEvent.click(screen.getByRole('button', { name: 'auth.turnstileRetry' }))
   const retryScript = await waitFor(() => {
     const script = document.querySelector<HTMLScriptElement>('script[src^="https://challenges.cloudflare.com/turnstile/"]')
+    expect(script).not.toBeNull()
     expect(script).not.toBe(firstScript)
     return script!
   })

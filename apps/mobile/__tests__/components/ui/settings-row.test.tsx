@@ -1,18 +1,29 @@
 import React from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 
-import { Switch } from '@/components/ui/settings-row'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { BarChart3, Home } from '@/components/ui/icons'
+import { ListRow } from '@/components/ui/list-row'
+import { Switch } from '@/components/ui/switch'
+import { createTokensV2 } from '@/lib/theme'
+
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { measureProfileRow, replayProfileTitleLayout } from '../../support/profile-row-geometry'
+import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
+
+afterEach(__resetTestHostConfig)
 
 const TestRenderer = require('react-test-renderer')
 
 describe('Switch', () => {
-  it('fires onToggle when pressed', () => {
-    const onToggle = vi.fn()
+  it('fires onChange with the next state when pressed', () => {
+    const onChange = vi.fn()
     let tree: any
 
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <Switch on={false} onToggle={onToggle} accessibilityLabel="Dark theme" />,
+        <Switch checked={false} onChange={onChange} label="Dark theme" />,
       )
     })
 
@@ -20,13 +31,15 @@ describe('Switch', () => {
       (node: any) => node.props.accessibilityRole === 'switch',
     )
     expect(control.props.accessibilityLabel).toBe('Dark theme')
-    expect(control.props.accessibilityState).toEqual({ checked: false, disabled: false })
+    expect(control.props.accessibilityState).toEqual({ checked: false })
+    const track = control.findAll((node: { props: Record<string, unknown> }) => node.props['data-slot'] === 'switch-track')[0]
+    expect(track.props.style[1].backgroundColor).toBe(createTokensV2('purple', 'dark').trackEmpty)
 
     TestRenderer.act(() => {
       control.props.onPress()
     })
 
-    expect(onToggle).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith(true)
   })
 
   it('exposes the on state as checked', () => {
@@ -34,13 +47,73 @@ describe('Switch', () => {
 
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <Switch on onToggle={() => {}} accessibilityLabel="Dark theme" />,
+        <Switch checked onChange={() => {}} label="Dark theme" />,
       )
     })
 
     const control = tree.root.find(
       (node: any) => node.props.accessibilityRole === 'switch',
     )
-    expect(control.props.accessibilityState).toEqual({ checked: true, disabled: false })
+    expect(control.props.accessibilityState).toEqual({ checked: true })
+  })
+})
+
+describe('SettingsRow', () => {
+  it('clips the pressed fill inside its whole row hit area', () => {
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(<ListRow textMode="label" title="Account" onClick={() => {}} />) })
+    const row = tree.root.find((node: any) => node.props.accessibilityRole === 'button' && node.findAllByProps({ children: 'Account' }).length > 0)
+    const body = StyleSheet.flatten(row.props.style)
+    expect(body).toMatchObject({ minHeight: 52, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, overflow: 'hidden' })
+    TestRenderer.act(() => row.props.onPressIn())
+    const fill = () => StyleSheet.flatten(row.findAllByProps({ 'data-slot': 'list-row-fill' })[0].props.style)
+    expect(fill()).toMatchObject({ borderRadius: 12, top: 4, bottom: 4, left: 4, right: 4, backgroundColor: createTokensV2('purple', 'dark').bgHover })
+    TestRenderer.act(() => row.props.onPressOut())
+    expect(fill().backgroundColor).toBe('transparent')
+  })
+
+  it('draws the canonical ListRow leading icon geometry', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <ListRow textMode="label" title="Account" icon={<Home size={24} strokeWidth={1.5} />} chevron={false} />,
+      )
+    })
+
+    const icon = tree.root.findByType('Home')
+    const iconSlot = tree.root.findAllByType('View').find(
+      (node: any) => StyleSheet.flatten(node.props.style)?.width === 28,
+    )
+    expect(icon.props.size).toBe(24)
+    expect(icon.props.strokeWidth).toBe(1.5)
+    expect(StyleSheet.flatten(iconSlot?.props.style)).toMatchObject({ width: 28 })
+  })
+})
+
+describe('SettingsRow switch geometry', () => {
+  it.each([1, 2])('centres usage analytics at font scale %s', async (fontScale) => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
+    const title = ptBR.profile.analytics.title
+    let tree!: ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }
+    await act(() => { tree = create(<ListRow textMode="label" title={title} icon={<BarChart3 size={24} />} toggle={{ checked: true, onChange: () => {} }} />) as typeof tree })
+    try {
+      await replayProfileTitleLayout(tree, 288, fontScale)
+      const geometry = measureProfileRow(tree.toJSON(), 288, fontScale)
+      const label = geometry.texts.find((text) => text.label === title)!
+      const control = geometry.controls.filter((control) => control.accessibilityLabel === title).at(-1)!
+      const track = geometry.parts.find((part) => part.slot === 'switch-track')!
+      expect(control.height).toBeGreaterThanOrEqual(48)
+      expect(label.clipped).toBe(false)
+      if (label.lines === 1) {
+        expect(Math.abs(label.top + label.height / 2 - control.top - control.height / 2)).toBeLessThanOrEqual(1)
+        if (fontScale === 1) expect(geometry.height).toBe(52)
+        else expect(geometry.height).toBeGreaterThan(52)
+      } else {
+        expect(fontScale).toBe(2)
+        expect(Math.abs(label.top + label.height / label.lines / 2 - track.top - track.height / 2)).toBeLessThanOrEqual(1)
+        expect(geometry.height).toBeGreaterThan(52)
+      }
+    } finally { await act(() => tree.update(<></>)) }
   })
 })

@@ -1,6 +1,13 @@
+import type { HabitScheduleItem } from '../types/habit'
+
+export type HabitListKey = readonly ['habits', 'list', ...unknown[]]
+export type HabitListSnapshots = readonly (readonly [HabitListKey, HabitScheduleItem[] | undefined])[]
+
 export const habitKeys = {
   all: ['habits'] as const,
   lists: () => [...habitKeys.all, 'list'] as const,
+  searches: () => [...habitKeys.all, 'search'] as const,
+  search: (filters: Record<string, unknown>) => [...habitKeys.searches(), filters] as const,
   list: (filters: Record<string, unknown>) => [...habitKeys.lists(), filters] as const,
   listTotalCount: (filters: Record<string, unknown>) => [...habitKeys.all, 'listTotalCount', filters] as const,
   count: () => [...habitKeys.all, 'count'] as const,
@@ -17,7 +24,8 @@ export const habitKeys = {
     timeBucket
       ? [...habitKeys.all, 'summary', from, to, locale, timeBucket] as const
       : [...habitKeys.all, 'summary', from, to, locale] as const,
-  retrospective: (period: string) => [...habitKeys.all, 'retrospective', period] as const,
+  retrospectivePrefix: () => [...habitKeys.all, 'retrospective'] as const,
+  retrospective: (period: string) => [...habitKeys.retrospectivePrefix(), period] as const,
   rescheduleSuggestion: (id: string) => [...habitKeys.all, 'reschedule-suggestion', id] as const,
   trends: (range: string) => [...habitKeys.all, 'trends', range] as const,
 }
@@ -54,13 +62,11 @@ export const gamificationKeys = {
   all: ['gamification'] as const,
   profile: () => [...gamificationKeys.all, 'profile'] as const,
   achievements: () => [...gamificationKeys.all, 'achievements'] as const,
-  streak: () => [...gamificationKeys.all, 'streak'] as const,
-  recap: (period: string, closedMonth?: { year: number; month: number } | null) => [
-    ...gamificationKeys.all,
-    'recap',
-    period,
-    ...(period === 'month' && closedMonth ? [closedMonth.year, closedMonth.month] : []),
-  ] as const,
+  streak: (timeZone: string | null) => [...gamificationKeys.all, 'streak', timeZone] as const,
+  recapPrefix: () => [...gamificationKeys.all, 'recap'] as const,
+  recap: (period: string, year?: number, month?: number): readonly (string | number)[] => year === undefined || month === undefined
+    ? [...gamificationKeys.recapPrefix(), period] as const
+    : [...gamificationKeys.recapPrefix(), period, year, month] as const,
   streakHistory: () => [...gamificationKeys.all, 'streak-history'] as const,
   xpHistory: (range: string) => [...gamificationKeys.all, 'xp-history', range] as const,
 }
@@ -112,4 +118,15 @@ export const versionCheckKeys = {
 export const uploadMutationKeys = {
   all: ['uploads'] as const,
   sign: () => [...uploadMutationKeys.all, 'sign'] as const,
+}
+
+export const proactiveKeys = {
+  all: ['proactive'] as const,
+  current: () => [...proactiveKeys.all, 'current'] as const,
+  status: (id: string) => [...proactiveKeys.all, 'status', id] as const,
+}
+
+export const connectionKeys = {
+  all: ['connections'] as const,
+  notion: () => [...connectionKeys.all, 'notion'] as const,
 }

@@ -10,41 +10,10 @@ import { getIsYearlyPro } from './profile-selectors'
 export type UpgradeEntitlementRequirement = 'pro' | 'yearlyPro'
 export type UpgradeEntitlementMode = 'redirect' | 'mixed'
 
-export type UpgradeIconKey =
-  | 'flame'
-  | 'messageSquare'
-  | 'palette'
-  | 'shieldCheck'
-  | 'barChart3'
-
-/**
- * Pro availability of a comparison-matrix feature: `true` on any paid plan,
- * `'yearly'` when only the yearly plan unlocks it, `false` when Pro never gets it.
- */
-export type UpgradeProState = 'yearly' | true | false
-
 export interface UpgradeAccessSnapshot {
   hasProAccess: boolean
   isLifetimePro?: boolean | null
   subscriptionInterval?: string | null
-}
-
-export interface UpgradePlanFeature {
-  key: string
-  iconKey: UpgradeIconKey
-}
-
-export interface UpgradeFeatureMatrixRow {
-  key: string
-  type: 'boolean' | 'text'
-  free?: boolean
-  pro?: UpgradeProState
-}
-
-export interface UpgradeFeatureMatrixCategory {
-  category: string
-  iconKey: UpgradeIconKey
-  features: UpgradeFeatureMatrixRow[]
 }
 
 export interface UpgradeEntitlementResolution {
@@ -59,60 +28,33 @@ export interface UpgradeDenialInput {
   reason?: string | null
 }
 
-export const DEFAULT_FREE_COLOR_SCHEME: ColorScheme = 'purple'
+export const DEFAULT_FREE_COLOR_SCHEME: ColorScheme = 'orange'
 
-export const UPGRADE_PRO_FEATURES: UpgradePlanFeature[] = [
-  { key: 'unlimited', iconKey: 'flame' },
-  { key: 'ai', iconKey: 'messageSquare' },
-  { key: 'goals', iconKey: 'barChart3' },
-  { key: 'themes', iconKey: 'palette' },
-]
-
-export const UPGRADE_YEARLY_EXTRA_FEATURES: UpgradePlanFeature[] = [
-  { key: 'retrospective', iconKey: 'barChart3' },
-]
-
-export const UPGRADE_FEATURE_CATEGORIES: UpgradeFeatureMatrixCategory[] = [
-  {
-    category: 'habits',
-    iconKey: 'flame',
-    features: [
-      { key: 'habits', type: 'text' },
-      { key: 'subHabits', type: 'boolean', free: false, pro: true },
-      { key: 'goals', type: 'boolean', free: false, pro: true },
-    ],
-  },
-  {
-    category: 'ai',
-    iconKey: 'messageSquare',
-    features: [
-      { key: 'ai', type: 'text' },
-      { key: 'summary', type: 'boolean', free: false, pro: true },
-      { key: 'slipAlerts', type: 'boolean', free: false, pro: true },
-      { key: 'proactiveCheckins', type: 'boolean', free: false, pro: true },
-      { key: 'apiKeys', type: 'boolean', free: false, pro: true },
-    ],
-  },
-  {
-    category: 'insights',
-    iconKey: 'barChart3',
-    features: [
-      { key: 'streaks', type: 'boolean', free: true, pro: true },
-      { key: 'xpLevels', type: 'boolean', free: true, pro: true },
-      { key: 'streakFreeze', type: 'boolean', free: true, pro: true },
-      { key: 'achievements', type: 'boolean', free: false, pro: true },
-      { key: 'retrospective', type: 'boolean', free: false, pro: 'yearly' },
-    ],
-  },
-  {
-    category: 'personalization',
-    iconKey: 'palette',
-    features: [
-      { key: 'colors', type: 'text' },
-      { key: 'calendarImport', type: 'boolean', free: false, pro: true },
-    ],
-  },
-]
+export function getUpgradeTierReservation(
+  interval: 'monthly' | 'yearly',
+  t: (key: string, params?: Record<string, string>) => string,
+): {
+  interval: 'monthly' | 'yearly'
+  name: string
+  price: string
+  period: string
+  heroLine: string | undefined
+  secondLine: string | undefined
+  couponLine: string
+} {
+  const pendingValue = t('upgrade.plans.loading')
+  return {
+    interval,
+    name: t(`upgrade.plans.${interval}.name`),
+    price: pendingValue,
+    period: t(`upgrade.plans.${interval}.period`),
+    heroLine: interval === 'yearly' ? t('upgrade.plans.yearly.heroLine') : undefined,
+    secondLine: interval === 'yearly'
+      ? t('upgrade.plans.yearly.equivalent', { price: pendingValue, percent: pendingValue })
+      : undefined,
+    couponLine: t('upgrade.plans.coupon.line', { percent: pendingValue }),
+  }
+}
 
 function normalizeRequirement(
   requirement: string | null | undefined,
@@ -153,15 +95,10 @@ export function canAccessEntitlement(
 }
 
 export function resolveAccessibleColorScheme(
-  colorScheme: string | null | undefined,
-  hasProAccess: boolean,
+  _colorScheme: string | null | undefined,
+  _hasProAccess: boolean,
 ): ColorScheme {
-  const normalized = colorScheme as ColorScheme | null | undefined
-  if (!normalized) return DEFAULT_FREE_COLOR_SCHEME
-  if (!hasProAccess && normalized !== DEFAULT_FREE_COLOR_SCHEME) {
-    return DEFAULT_FREE_COLOR_SCHEME
-  }
-  return normalized
+  return DEFAULT_FREE_COLOR_SCHEME
 }
 
 function inferRequirementFromReason(reason: string | null | undefined): UpgradeEntitlementRequirement | null {

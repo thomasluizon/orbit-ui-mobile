@@ -1,17 +1,18 @@
-export type ColorScheme = 'purple' | 'blue' | 'green' | 'rose' | 'orange' | 'cyan'
+export type { ColorScheme } from '../types/profile'
 
 export type SchemeMode = 'dark' | 'light'
 
 export interface SchemeAccent {
   primary: string
+  primaryHover: string
   primaryPressed: string
+  primarySoft: string
+  primaryText: string
+  primaryDim: string
   primaryRgb: string
 }
 
 export interface ColorSchemeDefinition {
   accent: Record<SchemeMode, SchemeAccent>
   fgOnPrimary: Record<SchemeMode, string>
-  neutralHue: number
-  chromaScaleBg: number
-  chromaScaleFg: number
 }

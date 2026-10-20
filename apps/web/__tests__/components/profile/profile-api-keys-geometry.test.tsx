@@ -1,0 +1,189 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, render } from '@testing-library/react'
+import { createTranslator } from 'next-intl'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { listRowValueCases } from '@orbit/shared/test-support/list-row-values'
+import { ListRow } from '@/components/ui/list-row'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { PushDevicesRow } from '@/components/profile/push-devices-row'
+import { ProfileNotificationsContent } from '@/app/(app)/profile/_components/profile-notifications-content'
+import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
+
+const settings = vi.hoisted(() => ({ locale: 'en' as 'en' | 'pt-BR', consent: false }))
+
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { ...profileFixture, marketingEmailConsent: settings.consent }, patchProfile: vi.fn() }) }))
+vi.mock('@/hooks/use-account-scoped-mutation', () => ({ useAccountScopedMutation: () => ({ isPending: false, mutate: vi.fn() }) }))
+vi.mock('@/hooks/use-push-notification-preferences', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-push-notification-preferences')>(),
+  usePushNotificationPreferences: () => ({ supported: true, permission: 'default', status: 'not-registered', loading: false, togglePush: vi.fn() }),
+}))
+vi.mock('@/hooks/use-push-subscriptions', () => ({ usePushSubscriptions: () => ({ count: 1, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn() }) }))
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next-intl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next-intl')>()
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  const ptBR = (await import('@orbit/shared/i18n/pt-BR.json')).default
+  return {
+    ...actual,
+    useLocale: () => settings.locale,
+    useTranslations: () => actual.createTranslator({ locale: settings.locale, messages: settings.locale === 'en' ? messages : ptBR }),
+  }
+})
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/lib/actions/api-keys', () => ({ requestApiKeyCreationChallenge: vi.fn() }))
+vi.mock('@/hooks/use-api-key-management', () => ({
+  useApiKeyManagement: () => ({
+    apiKeysQuery: { isLoading: false, error: null, refetch: vi.fn() },
+    apiKeys: [],
+    canCreateKey: true,
+    createGrantAvailable: true,
+    createKeyError: null,
+    clearCreateKeyError: vi.fn(),
+    revokingKeyId: null,
+    setRevokingKeyId: vi.fn(),
+    revokeKeyMutation: { mutate: vi.fn(), isPending: false },
+    handleCreateKey: vi.fn(),
+  }),
+}))
+
+
+describe('Profile API key row geometry', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => [0, 1, 3].map((count) => ({ locale, count }))))('separates title and meta for $count keys in $locale at 412px', async ({ locale, count }) => {
+    settings.locale = locale as 'en' | 'pt-BR'
+    const t = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    const title = t('profile.apiKeys.open')
+    const value = count === 0 ? t('profile.apiKeys.noKeys') : t('profile.apiKeys.activeCount', { count })
+    let container!: HTMLElement
+    await act(async () => { ({ container } = render(<QueryClientProvider client={new QueryClient()}><div style={{ padding: 16 }}><ProfileApiKeys profile={{ ...profileFixture, hasProAccess: true, activeApiKeyCount: count }} unlocked={false} /></div></QueryClientProvider>)) })
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.evaluate(({ title, value }) => {
+        const spans = [...document.querySelectorAll('span')]
+        const titleElement = spans.find((span) => span.textContent === title && span.children.length === 0)!
+        const valueElement = spans.find((span) => span.textContent === value && span.children.length === 0)!
+        const titleBox = titleElement.getBoundingClientRect()
+        const valueBox = valueElement.getBoundingClientRect()
+        const titleRange = document.createRange()
+        titleRange.selectNodeContents(titleElement)
+        const valueRange = document.createRange()
+        valueRange.selectNodeContents(valueElement)
+        const style = getComputedStyle(valueElement)
+        return {
+          fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight), letterSpacing: parseFloat(style.letterSpacing),
+          gap: Math.max(valueBox.top - titleBox.bottom, valueBox.left - titleBox.right),
+          stacked: valueBox.top >= titleBox.bottom,
+          titleLines: titleRange.getClientRects().length, valueLines: valueRange.getClientRects().length,
+          contained: valueBox.right <= 412 && titleBox.left >= 0,
+        }
+      }, { title, value })
+      expect(measured, JSON.stringify(measured)).toMatchObject({ fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, titleLines: 1, valueLines: 1, contained: true })
+      expect(measured.gap).toBeGreaterThanOrEqual(12)
+      expect(measured.stacked).toBe(locale === 'pt-BR' && count === 0)
+    } finally { await page.close() }
+  })
+
+  it.each(['en', 'pt-BR'])('keeps every value caller inside its row at 412px in %s', async (locale) => {
+    const t = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    const cases = listRowValueCases(locale, (key, values) => t(key as Parameters<typeof t>[0], values))
+    const { container } = render(<div style={{ padding: 16 }}>{cases.map(({ surface, props, statusRing }) => <div key={surface} data-surface={surface}><ListRow {...props} onClick={() => {}} trailing={statusRing ? <span style={{ width: 24, height: 24 }} /> : undefined} /></div>)}</div>)
+    const page = await browser.newPage({ viewport: { width: 412, height: 2400 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.evaluate(() => [...document.querySelectorAll('[data-surface]')].map((surface) => {
+        const title = surface.querySelector('[data-slot="list-row-title"]')!
+        const value = surface.querySelector<HTMLElement>('[data-slot="list-row-value"]')!
+        const titleBox = title.getBoundingClientRect()
+        const valueBox = value.getBoundingClientRect()
+        const rowBox = surface.getBoundingClientRect()
+        const style = getComputedStyle(value)
+        return { surface: surface.getAttribute('data-surface'), size: parseFloat(style.fontSize), gap: Math.max(valueBox.top - titleBox.bottom, valueBox.left - titleBox.right), contained: valueBox.right <= rowBox.right && valueBox.left >= rowBox.left, overflowing: value.scrollWidth > value.clientWidth, textOverflow: style.textOverflow, overflow: style.overflow, whiteSpace: style.whiteSpace }
+      }))
+      expect(measured).toHaveLength(cases.length)
+      for (const row of measured) {
+        expect(row.size, row.surface!).toBe(12)
+        expect(row.gap, row.surface!).toBeGreaterThanOrEqual(12)
+        expect(row.contained, row.surface!).toBe(true)
+        const truncates = cases.find(({ surface }) => surface === row.surface)!.truncatesValue === true
+        expect(row.overflowing, row.surface!).toBe(truncates)
+        if (truncates) expect(row).toMatchObject({ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' })
+      }
+    } finally { await page.close() }
+  })
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 1440].flatMap((width) => [1, 2].map((textScale) => ({ locale, width, textScale })))))('keeps the notification label and switch readable in $locale at $width px and $textScale text scale', async ({ locale, width, textScale }) => {
+    settings.locale = locale as 'en' | 'pt-BR'
+    const { container } = render(<div style={{ padding: 16 }}><PushDevicesRow count={5} max={5} currentDeviceRegistered={false} supported loading={false} error={false} permission="default" status="not-registered" onToggle={() => {}} onRetry={() => {}} /></div>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.evaluate((textScale) => {
+        const title = document.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+        const control = document.querySelector<HTMLElement>('[role="switch"]')!
+        document.documentElement.style.fontSize = `${16 * textScale}px`
+        const titleBox = title.getBoundingClientRect()
+        const switchBox = control.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
+        const range = document.createRange()
+        range.selectNodeContents(title)
+        const style = getComputedStyle(title)
+        const rowBox = title.closest('.orbit-list-row-shell')!.getBoundingClientRect()
+        return { lines: range.getClientRects().length, textOverflow: style.textOverflow, unclipped: titleBox.top >= rowBox.top && titleBox.bottom <= rowBox.bottom, rowHeight: rowBox.height, titleFits: title.scrollWidth <= title.clientWidth, firstLineAligned: Math.abs(titleBox.top + parseFloat(style.lineHeight) / 2 - switchBox.top - switchBox.height / 2) <= 1, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
+      }, textScale)
+      expect(measured.textOverflow).not.toBe('ellipsis')
+      expect(measured.unclipped).toBe(true)
+      expect(measured.firstLineAligned).toBe(true)
+      if (textScale === 1) expect(measured.lines).toBe(1)
+      else expect(measured.rowHeight).toBeGreaterThan(52)
+      expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 28, switches: 1 })
+      expect(measured.text).not.toContain('5 of 5')
+      expect(measured.text).not.toContain('5 de 5')
+    } finally { await page.close() }
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1352].flatMap((width) => [true, false].map((consent) => ({ locale, width, consent })))))('aligns answered email consent $consent with the device switch in $locale at $width px', async ({ locale, width, consent }) => {
+    settings.locale = locale as 'en' | 'pt-BR'
+    settings.consent = consent
+    const { container } = render(<div style={{ padding: 16 }}><ProfileNotificationsContent /></div>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.evaluate(() => [...document.querySelectorAll('.orbit-list-row-shell')].map((element) => {
+        const row = element.getBoundingClientRect()
+        const control = element.querySelector('[role="switch"]')!
+        const bounds = control.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
+        const title = element.querySelector('[data-slot="list-row-title"]')!
+        return { height: row.height, top: row.top, bottom: row.bottom, right: bounds.right, inset: row.right - bounds.right, controlHeight: bounds.height, titleClipped: title.scrollWidth > title.clientWidth, checked: control.getAttribute('aria-checked') }
+      }))
+      expect(measured).toHaveLength(2)
+      expect(measured[0]!.checked).toBe(String(consent))
+      for (const row of measured) {
+        expect(row, JSON.stringify(measured)).toMatchObject({ height: 52, inset: 16, controlHeight: 28, titleClipped: false })
+      }
+      expect(measured[0]!.right).toBe(measured[1]!.right)
+      expect(measured[1]!.top - measured[0]!.bottom).toBe(24)
+    } finally { await page.close() }
+  })
+
+})

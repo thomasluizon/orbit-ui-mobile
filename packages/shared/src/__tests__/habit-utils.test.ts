@@ -4,30 +4,11 @@ import {
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   determineHabitDayStatus,
-  getHabitEmptyStateKey,
   hasAncestorInSet,
 } from '../utils/habits'
 import type { CalendarDayEntry } from '../types/calendar'
-import type {
-  CalendarMonthResponse,
-  HabitScheduleChild,
-  HabitScheduleItem,
-} from '../types/habit'
-import { createMockHabitScheduleChild, createMockHabitScheduleItem } from './factories'
-
-describe('getHabitEmptyStateKey', () => {
-  it('returns the general key for general view', () => {
-    expect(getHabitEmptyStateKey('general')).toBe('habits.emptyGeneral')
-  })
-
-  it('returns the today key for today view', () => {
-    expect(getHabitEmptyStateKey('today')).toBe('habits.noDueToday')
-  })
-
-  it('returns the all key for all view', () => {
-    expect(getHabitEmptyStateKey('all')).toBe('habits.noHabitsYet')
-  })
-})
+import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from './factories'
+import type { CalendarMonthResponse, HabitScheduleChild, HabitScheduleItem } from '../types/habit'
 
 describe('determineHabitDayStatus', () => {
   it('returns completed when the habit was logged', () => {
@@ -53,7 +34,114 @@ describe('determineHabitDayStatus', () => {
 })
 
 describe('buildCalendarDayMap', () => {
-  it('builds entries with statuses, due time, and one-time flag', () => {
+  it.each([
+    { isFlexible: true, isGrandchild: false },
+    { isFlexible: false, isGrandchild: false },
+    { isFlexible: true, isGrandchild: true },
+    { isFlexible: false, isGrandchild: true },
+  ])('shows the exact logged day for an instance-free descendant: %j', ({ isFlexible, isGrandchild }) => {
+    const descendant = {
+      ...createMockHabit({
+        id: 'descendant',
+        isFlexible,
+        isCompleted: !isFlexible,
+        frequencyUnit: isFlexible ? 'Week' : null,
+        frequencyQuantity: isFlexible ? 1 : null,
+        dueDate: '2026-04-04',
+        scheduledDates: isFlexible ? ['2026-04-04', '2026-04-05', '2026-04-06'] : ['2026-04-05'],
+        isLoggedInRange: true,
+      }),
+      children: [],
+    }
+    const children = isGrandchild
+      ? [{ ...createMockHabit({ id: 'child' }), children: [descendant] }]
+      : [descendant]
+    const parent = {
+      ...createMockHabit({ scheduledDates: [], dueTime: '08:00', hasSubHabits: true }),
+      children,
+      linkedGoals: [],
+    }
+    const dayMap = buildCalendarDayMap({
+      habits: [parent],
+      logs: {
+        descendant: [
+          { id: 'before-range', date: '2026-03-31', value: 1, createdAtUtc: '2026-03-31T08:00:00Z' },
+          { id: 'positive', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' },
+          { id: 'after-range', date: '2026-05-01', value: 1, createdAtUtc: '2026-05-01T08:00:00Z' },
+          { id: 'skip', date: '2026-04-06', value: 0, createdAtUtc: '2026-04-06T08:00:00Z' },
+        ],
+      },
+    }, { from: '2026-04-01', to: '2026-04-30' }, new Date('2026-04-07T12:00:00'))
+
+    expect([...dayMap.keys()]).toEqual(['2026-04-05'])
+    expect(dayMap.get('2026-04-05')).toEqual([{
+      habitId: descendant.id,
+      title: descendant.title,
+      status: 'completed',
+      isBadHabit: false,
+      dueTime: descendant.dueTime ?? null,
+      isOneTime: !isFlexible,
+    }])
+  })
+
+  it('keeps one entry per descendant across duplicate logs and instance logs', () => {
+    const child = {
+      ...createMockHabit({ id: 'child', instances: [
+        { date: '2026-04-05', status: 'Completed', logId: 'positive' },
+      ] }),
+      children: [],
+    }
+    const sibling = { ...createMockHabit({ id: 'sibling', isFlexible: true }), children: [] }
+    const dayMap = buildCalendarDayMap({
+      habits: [{ ...createMockHabit({ scheduledDates: [], hasSubHabits: true }), children: [child, sibling], linkedGoals: [] }],
+      logs: {
+        child: [
+          { id: 'positive', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' },
+          { id: 'duplicate', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T09:00:00Z' },
+        ],
+        sibling: [{ id: 'sibling-log', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' }],
+      },
+    }, { from: '2026-04-01', to: '2026-04-30' })
+
+    expect(dayMap.get('2026-04-05')).toEqual([
+      expect.objectContaining({ habitId: 'child', status: 'completed' }),
+      expect.objectContaining({ habitId: 'sibling', status: 'completed' }),
+    ])
+  })
+
+  it('preserves instance log dates when descendant dictionary entries are absent', () => {
+    const dayMap = buildCalendarDayMap({
+      habits: [{
+        ...createMockHabit({ scheduledDates: [] }),
+        children: [{ ...createMockHabit({ id: 'child', instances: [
+          { date: '2026-04-05', status: 'Completed', logId: 'positive' },
+          { date: '2026-04-06', status: 'Pending', logId: null },
+        ] }), children: [] }],
+        linkedGoals: [],
+      }],
+      logs: {},
+    }, { from: '2026-04-01', to: '2026-04-30' })
+
+    expect([...dayMap.keys()]).toEqual(['2026-04-05'])
+    expect(dayMap.get('2026-04-05')).toEqual([expect.objectContaining({ habitId: 'child', status: 'completed' })])
+  })
+
+  it('adds no descendant entry for an unlogged or skipped descendant', () => {
+    const dayMap = buildCalendarDayMap({
+      habits: [{
+        ...createMockHabit({ scheduledDates: [] }),
+        children: [{ ...createMockHabit({ id: 'child', instances: [
+          { date: '2026-04-05', status: 'Completed', logId: 'skip' },
+        ] }), children: [] }],
+        linkedGoals: [],
+      }],
+      logs: { child: [{ id: 'skip', date: '2026-04-05', value: 0, createdAtUtc: '2026-04-05T08:00:00Z' }] },
+    }, { from: '2026-04-01', to: '2026-04-30' })
+
+    expect(dayMap).toEqual(new Map())
+  })
+
+  it('builds top-level entries without counting a skip or logged sub-habit as a completion', () => {
     const calendarMonth: CalendarMonthResponse = {
       habits: [
         {
@@ -74,15 +162,44 @@ describe('buildCalendarDayMap', () => {
           position: 0,
           checklistItems: [],
           createdAtUtc: '2026-04-01T00:00:00Z',
-          scheduledDates: ['2026-04-05', '2026-04-06'],
+          scheduledDates: ['2026-04-04', '2026-04-05', '2026-04-06'],
           isOverdue: false,
           reminderEnabled: false,
           reminderTimes: [],
           scheduledReminders: [],
           slipAlertEnabled: false,
           tags: [],
-          children: [],
-          hasSubHabits: false,
+          children: [
+            {
+              id: 'child-1',
+              title: 'Walk uphill',
+              description: null,
+              frequencyUnit: 'Day',
+              frequencyQuantity: 1,
+              isBadHabit: false,
+              isCompleted: false,
+              isGeneral: false,
+              isFlexible: false,
+              days: [],
+              dueDate: '2026-04-06',
+              dueTime: null,
+              dueEndTime: null,
+              endDate: null,
+              position: 0,
+              checklistItems: [],
+              scheduledDates: ['2026-04-06'],
+              isOverdue: false,
+              tags: [],
+              children: [],
+              hasSubHabits: false,
+              flexibleTarget: null,
+              flexibleCompleted: null,
+              isLoggedInRange: true,
+              instances: [],
+              searchMatches: null,
+            },
+          ],
+          hasSubHabits: true,
           flexibleTarget: null,
           flexibleCompleted: null,
           linkedGoals: [],
@@ -124,15 +241,15 @@ describe('buildCalendarDayMap', () => {
         },
       ],
       logs: {
-        'habit-1': [{ id: 'log-1', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' }],
+        'habit-1': [
+          { id: 'skip-1', date: '2026-04-04', value: 0, createdAtUtc: '2026-04-04T08:00:00Z' },
+          { id: 'log-1', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' },
+        ],
+        'child-1': [{ id: 'child-log', date: '2026-04-06', value: 1, createdAtUtc: '2026-04-06T08:00:00Z' }],
       },
     }
 
-    const dayMap = buildCalendarDayMap(
-      calendarMonth,
-      { from: '2026-04-01', to: '2026-04-30' },
-      new Date('2026-04-05T12:00:00'),
-    )
+    const dayMap = buildCalendarDayMap(calendarMonth, { from: '2026-04-01', to: '2026-04-30' }, new Date('2026-04-05T12:00:00'))
 
     expect(dayMap.get('2026-04-05')).toEqual([
       {
@@ -156,6 +273,14 @@ describe('buildCalendarDayMap', () => {
     ])
     expect(dayMap.get('2026-04-04')).toEqual([
       {
+        habitId: 'habit-1',
+        title: 'Morning walk',
+        status: 'missed',
+        isBadHabit: false,
+        dueTime: '08:00',
+        isOneTime: false,
+      },
+      {
         habitId: 'habit-2',
         title: 'Passport renewal',
         status: 'missed',
@@ -166,6 +291,81 @@ describe('buildCalendarDayMap', () => {
     ])
   })
 
+  it('excludes general habits even when the response carries scheduled dates', () => {
+    const calendarMonth: CalendarMonthResponse = {
+      habits: [
+        {
+          id: 'general-habit',
+          title: 'Read whenever',
+          description: null,
+          frequencyUnit: null,
+          frequencyQuantity: null,
+          isBadHabit: false,
+          isCompleted: false,
+          isGeneral: true,
+          isFlexible: false,
+          days: [],
+          dueDate: '2026-04-05',
+          dueTime: null,
+          dueEndTime: null,
+          endDate: null,
+          position: 0,
+          checklistItems: [],
+          createdAtUtc: '2026-04-01T00:00:00Z',
+          scheduledDates: ['2026-04-05'],
+          isOverdue: false,
+          reminderEnabled: false,
+          reminderTimes: [],
+          scheduledReminders: [],
+          slipAlertEnabled: false,
+          tags: [],
+          children: [
+            {
+              id: 'child-1',
+              title: 'Walk uphill',
+              description: null,
+              frequencyUnit: 'Day',
+              frequencyQuantity: 1,
+              isBadHabit: false,
+              isCompleted: false,
+              isGeneral: false,
+              isFlexible: false,
+              days: [],
+              dueDate: '2026-04-06',
+              dueTime: null,
+              dueEndTime: null,
+              endDate: null,
+              position: 0,
+              checklistItems: [],
+              scheduledDates: ['2026-04-06'],
+              isOverdue: false,
+              tags: [],
+              children: [],
+              hasSubHabits: false,
+              flexibleTarget: null,
+              flexibleCompleted: null,
+              isLoggedInRange: true,
+              instances: [],
+              searchMatches: null,
+            },
+          ],
+          hasSubHabits: true,
+          flexibleTarget: null,
+          flexibleCompleted: null,
+          linkedGoals: [],
+          instances: [],
+          searchMatches: null,
+        },
+      ],
+      logs: {
+        'general-habit': [
+          { id: 'general-log', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' },
+        ],
+      },
+    }
+
+    expect(buildCalendarDayMap(calendarMonth, { from: '2026-04-01', to: '2026-04-30' }, new Date('2026-04-05T12:00:00'))).toEqual(new Map())
+  })
   it('drops lookback instances that fall before the requested range', () => {
     const overdueParent = createMockHabitScheduleItem({
       id: 'parent',

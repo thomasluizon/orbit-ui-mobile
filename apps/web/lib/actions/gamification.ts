@@ -1,6 +1,7 @@
 'use client'
 
 import * as serverActions from '@/app/actions/gamification'
-import { bindAccountServerAction } from '@/lib/client-action'
+import { bindServerAction } from '@/lib/client-action'
 
-export const reportAchievementEvent = bindAccountServerAction(serverActions.reportAchievementEvent)
+export const reportAchievementEvent = bindServerAction(serverActions.reportAchievementEvent)
+export const repairStreakGap = bindServerAction(serverActions.repairStreakGap)

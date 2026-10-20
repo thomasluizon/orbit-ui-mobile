@@ -1,4 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { IntlMessageFormat } from 'intl-messageformat'
+import {
+  isLiteralElement,
+  isNumberElement,
+  isPluralElement,
+  isPoundElement,
+  isSelectElement,
+  parse,
+  type MessageFormatElement,
+} from '@formatjs/icu-messageformat-parser'
 import {
   defaultLocale,
   loadLocale,
@@ -8,6 +18,8 @@ import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 
 type JsonValue = string | { [key: string]: JsonValue }
+
+const compareStrings = (left: string, right: string) => left.localeCompare(right)
 
 function flatten(value: JsonValue, prefix = ''): Map<string, string> {
   const out = new Map<string, string>()
@@ -25,13 +37,98 @@ function flatten(value: JsonValue, prefix = ''): Map<string, string> {
 }
 
 function placeholderNames(value: string): Set<string> {
-  const names = new Set<string>()
-  const matches = value.matchAll(/\{(\w+)\}/g)
-  for (const match of matches) {
-    const name = match[1]
-    if (name !== undefined) names.add(name)
+  return new Set(allMessageElements(parse(value, { ignoreTag: true }))
+    .filter((element) => !isLiteralElement(element) && !isPoundElement(element))
+    .map((element) => element.value))
+}
+
+function allMessageElements(elements: MessageFormatElement[]): MessageFormatElement[] {
+  return elements.flatMap((element) => {
+    if (isPluralElement(element) || isSelectElement(element)) {
+      return [element, ...Object.values(element.options).flatMap((option) => allMessageElements(option.value))]
+    }
+    return [element]
+  })
+}
+
+function pluralAtZero(elements: MessageFormatElement[]): MessageFormatElement[] {
+  return elements.map((element) => {
+    if (!isPluralElement(element) && !isSelectElement(element)) return element
+    const options = Object.fromEntries(Object.entries(element.options).map(([key, option]) => [
+      key, { value: pluralAtZero(option.value) },
+    ]))
+    if (isPluralElement(element)) options['=0'] = options.other!
+    return { ...element, options }
+  })
+}
+
+describe('Portuguese ICU zero plurals', () => {
+  const messages = [...flatten(ptBR)].map(([key, message]) => ({
+    key, message, elements: parse(message, { ignoreTag: true }),
+  })).filter(({ elements }) => allMessageElements(elements).some(isPluralElement))
+  const customZeroMessages = new Map([
+    ['wrapped.slides.streak.caption', 'Seu próximo registro começa uma nova sequência.'],
+    ['progressScreen.streak.covered', 'Um congelamento cobriu date. Não resta nenhum.'],
+    ['progressScreen.streak.automaticCovered', 'O Orbit cobriu date automaticamente com um congelamento. Não resta nenhum.'],
+    ['chat.toolResult.deletedHabits', 'Apaguei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.deletedHabitsPartial', 'Apaguei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.loggedHabits', 'Registrei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.loggedHabitsPartial', 'Registrei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.rescheduledHabits', 'Reagendei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.rescheduledHabitsPartial', 'Reagendei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.skippedHabits', 'Pulei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.skippedHabitsPartial', 'Pulei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedEmojis', 'Atualizei os emojis de 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedEmojisPartial', 'Atualizei os emojis de 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedHabits', 'Atualizei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedHabitsPartial', 'Atualizei 0 de 0 hábitos. Nenhum ficou de fora.'],
+  ])
+
+  it('requires an explicit zero arm in every Portuguese plural, including nested arguments', () => {
+    const missing = messages.flatMap(({ key, elements }) => allMessageElements(elements)
+      .filter(isPluralElement)
+      .filter((element) => element.options['=0'] === undefined)
+      .map((element) => `${key}:${element.value}`))
+
+    expect(messages.length).toBeGreaterThan(0)
+    expect(missing).toEqual([])
+  })
+
+  it.each(messages)('renders $key with zero using plural copy or its custom zero message', ({ key, message, elements }) => {
+    const values = Object.fromEntries(allMessageElements(elements)
+      .filter((element) => !isLiteralElement(element) && !isPoundElement(element))
+      .map((element) => [element.value, isPluralElement(element) || isNumberElement(element) ? 0 : element.value]))
+    const expected = customZeroMessages.get(key)
+      ?? new IntlMessageFormat(pluralAtZero(elements), 'pt-BR').format(values)
+
+    expect(new IntlMessageFormat(message, 'pt-BR').format(values)).toBe(expected)
+  })
+})
+
+function unsafeIcuApostropheOffsets(value: string): number[] {
+  const offsets: number[] = []
+
+  for (let index = 0; index < value.length;) {
+    if (value[index] !== "'") {
+      index += 1
+      continue
+    }
+
+    const start = index
+    while (value[index] === "'") index += 1
+    const hasUnpairedApostrophe = (index - start) % 2 === 1
+    const quotesLiteralBrace = hasUnpairedApostrophe
+      && (value[index] === '{' || value[index] === '}')
+      && value[index + 1] === "'"
+    if (quotesLiteralBrace) {
+      index += 2
+      continue
+    }
+    const bordersIcuSyntax = value[index] === '{' || value[index] === '}' || value[index] === '#'
+    if (hasUnpairedApostrophe && bordersIcuSyntax) offsets.push(start)
   }
-  return names
+
+  return offsets
 }
 
 describe('shared i18n exports', () => {
@@ -53,9 +150,105 @@ describe('shared i18n exports', () => {
   })
 })
 
+function isInstructionOrFormatExample(value: string): boolean {
+  return value.trim().split(/\s+/).length >= 2
+    || /\d|^HH:MM$|^(?:e\.g\.|ex[.:])|^\S+@\S+\.\S+$/.test(value)
+    || value === 'ORBIT'
+}
+
+describe('bad-habit logging instructions', () => {
+  it.each([
+    { locale: 'en', messages: en, hint: 'A habit you want to avoid. Log each slip.' },
+    { locale: 'pt-BR', messages: ptBR, hint: 'Um hábito que você quer evitar. Registre cada deslize.' },
+  ])('says a bad habit is logged when it happens in $locale', ({ messages, hint }) => {
+    expect(messages.habits.form.habitTypeAvoidHint).toBe(hint)
+  })
+
+  it.each([
+    { locale: 'en', messages: en, instruction: 'Log each slip.', cleanDays: 'each day without slips', occurrence: 'Log a slip' },
+    { locale: 'pt-BR', messages: ptBR, instruction: 'Registre cada deslize.', cleanDays: 'cada dia sem deslizes', occurrence: 'Se registrar um deslize' },
+  ])('uses the same slip vocabulary in help and streak goals in $locale', ({ messages, instruction, cleanDays, occurrence }) => {
+    expect(messages.onboarding.featureGuide.habitsSection.badHabitsDesc).toContain(instruction)
+    expect(messages.goals.form.typeStreakHintBad).toContain(cleanDays)
+    expect(messages.goals.form.typeStreakHintBad).toContain(occurrence)
+  })
+})
+
 describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
+
+  it.each([['en', enFlat], ['pt-BR', ptFlat]])('uses instructions or format examples for every %s placeholder', (_locale, catalog) => {
+    const violations = [...catalog].filter(([key, value]) => /placeholder$/i.test(key) && !isInstructionOrFormatExample(value))
+    expect(violations).toEqual([])
+  })
+
+  it('rejects a bare assistant name as a placeholder', () => {
+    expect(isInstructionOrFormatExample('Astra')).toBe(false)
+  })
+
+  it.each([en, ptBR])('keeps the idle composer words in its accessible name', (catalog) => {
+    expect(catalog.shell.composer.inputLabel).toBe(catalog.shell.composer.placeholder)
+  })
+
+  it('keeps internal habit type names out of copy while retaining the named General view', () => {
+    const otherMeanings = new Set([
+      'preferences.general',
+      'chat.insight.overview',
+      'privacy.intro.body',
+      'onboarding.featureGuide.astraSection.cannotDoDesc',
+      'referral.drawer.disclaimer',
+    ])
+    for (const [key, value] of ptFlat) {
+      if (otherMeanings.has(key)) continue
+      expect(value, `pt-BR: ${key}`).not.toMatch(/recorrente|flexíve(l|is)|tarefas? únicas?/i)
+      if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
+        expect(value, `pt-BR: ${key}`).not.toMatch(/\bgera(l|is)\b/i)
+      }
+    }
+    for (const [key, value] of enFlat) {
+      if (otherMeanings.has(key)) continue
+      expect(value, `en: ${key}`).not.toMatch(/\brecurring\b|\bflexible\b|\bone-time\b/i)
+      if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
+        expect(value, `en: ${key}`).not.toMatch(/\bgeneral\b/i)
+      }
+    }
+  })
+
+  it.each([en, ptBR])('uses the invalid-email example in the sign-in placeholder', (catalog) => {
+    expect(catalog.auth.errors.invalidEmail).toContain(catalog.auth.emailPlaceholder)
+  })
+
+  it('labels the Progresso streak tier tile in both locales', () => {
+    expect(en.streakDisplay.detail.tierTileLabel).toBe('Streak tier')
+    expect(ptBR.streakDisplay.detail.tierTileLabel).toBe('Nível da sequência')
+  })
+
+  it.each([en, ptBR])('keeps both consent links in a valid complete template', (catalog) => {
+    const template = catalog.auth.legalConsent
+    const links = [...template.matchAll(/<([a-z]+)>([^<>]+)<\/\1>/g)]
+    expect(links.map((match) => match[1] ?? '').sort(compareStrings)).toEqual(['privacy', 'terms'])
+    expect(template.replace(/<([a-z]+)>([^<>]+)<\/\1>/g, '')).not.toMatch(/[<>]/)
+  })
+
+  it.each([['en', en], ['pt-BR', ptBR]] as const)('keeps legal document names consistent in %s', (_locale, catalog) => {
+    const legalCopy = [...flatten(catalog)].filter(([key]) =>
+      /^(?:terms|privacy|about|onboarding)\./.test(key) || key === 'auth.legalConsent',
+    )
+    const oldNames = legalCopy.filter(([, value]) =>
+      /terms of service|termos de serviço/i.test(value)
+      || /Privacy Policy|Política de Privacidade/.test(value),
+    )
+
+    expect(oldNames).toEqual([])
+    expect(catalog.terms.intro.body).toContain(catalog.terms.title.toLowerCase())
+  })
+
+  it('uses lowercase Portuguese month names in legal update lines', () => {
+    for (const document of [ptBR.terms, ptBR.privacy]) {
+      expect(document.lastUpdated).toMatch(/^Última atualização: [a-zç]+ de \d{4}$/)
+    }
+  })
 
   it('describes Undo after deleting habits or a goal in both locales', () => {
     for (const [locale, undoLabel, permanence] of [
@@ -65,6 +258,7 @@ describe('i18n locale parity', () => {
       for (const message of [
         locale.habits.deleteConfirmMessage,
         ...locale.habits.bulkDeleteMessage.split(' | '),
+        ...locale.habits.deleteListConfirmMessage.split(' | '),
         locale.goals.detail.deleteConfirm,
       ]) {
         expect(message.toLowerCase()).toContain(undoLabel)
@@ -73,13 +267,40 @@ describe('i18n locale parity', () => {
     }
   })
 
+  it('keeps zero, one, and many forms for habit deletion in both locales', () => {
+    for (const locale of [en, ptBR]) {
+      const [zero, one, many] = locale.habits.deleteListConfirmMessage.split(' | ')
+      expect(locale.habits.deleteListConfirmMessage.split(' | ')).toHaveLength(3)
+      expect(zero).toContain('{name}')
+      expect(zero).not.toContain('{count}')
+      expect(one).toContain('{count}')
+      expect(many).toContain('{count}')
+    }
+    expect(en.habits.deleteConfirmTitle).toBe('Delete this habit?')
+    expect(ptBR.habits.deleteConfirmTitle).toBe('Apagar este hábito?')
+    expect(en.habits.deleteHabit).toBe('Delete habit')
+    expect([ptBR.habits.deleteHabit, ptBR.habits.detail.delete, ptBR.undo.habitDeleted]).toEqual(['Apagar hábito', 'Apagar hábito', 'Hábito apagado'])
+  })
+
   it('describes the Astra daily limit without promising an upgrade removes it', () => {
     expect(en.chat.limitReachedError).toContain('tomorrow')
-    expect(ptBR.chat.limitReachedError).toContain('amanhã')
+    expect(ptBR.chat.limitReachedError).toMatch(/amanhã/i)
     for (const locale of [en, ptBR]) {
       expect(locale.errors.api.astraLimit).toBe(locale.chat.limitReachedError)
       expect(locale.chat.limitReachedError).not.toMatch(/upgrade|pro\b/i)
     }
+  })
+
+  it('uses feminine agreement for Astra throughout the Portuguese catalog', () => {
+    for (const [key, value] of ptFlat) {
+      if (!value.includes('Astra')) continue
+      expect(value, key).not.toMatch(/\b(?:o|ao|do|no|pelo) Astra\b/i)
+    }
+    expect(ptBR.astraRail.title).toBe('Copilota Astra')
+    expect(ptBR.astraRail.subtitle).toBe('Sua copilota de hábitos')
+    expect(ptBR.upgrade.outcomes.noticing).toMatch(/^A Astra percebe\b/)
+    expect(ptBR.terms.ai.body).toContain('uma assistente de IA (Astra)')
+    expect(ptBR.privacy.dataCollected.chat).toContain('com a assistente de IA do Orbit')
   })
 
   it('separates timed-out mobile copy from confirmed web sign-out copy', () => {
@@ -103,11 +324,16 @@ describe('i18n locale parity', () => {
     const enKeys = new Set(enFlat.keys())
     const ptKeys = new Set(ptFlat.keys())
 
-    const missingInPt = [...enKeys].filter((key) => !ptKeys.has(key)).sort()
-    const missingInEn = [...ptKeys].filter((key) => !enKeys.has(key)).sort()
+    const missingInPt = [...enKeys].filter((key) => !ptKeys.has(key)).sort(compareStrings)
+    const missingInEn = [...ptKeys].filter((key) => !enKeys.has(key)).sort(compareStrings)
 
     expect(missingInPt).toEqual([])
     expect(missingInEn).toEqual([])
+  })
+
+  it('counts ICU arguments without mistaking plural option text for placeholders', () => {
+    expect([...placeholderNames('Delete {count, plural, one {habit} other {habits}}?')]).toEqual(['count'])
+    expect([...placeholderNames('{count, plural, one {{name} leaves.} other {{name} and # others leave.}}')].sort(compareStrings)).toEqual(['count', 'name'])
   })
 
   it('has matching placeholder names per key across en and pt-BR', () => {
@@ -116,14 +342,46 @@ describe('i18n locale parity', () => {
     for (const [key, enValue] of enFlat) {
       const ptValue = ptFlat.get(key)
       if (ptValue === undefined) continue
-      const enNames = [...placeholderNames(enValue)].sort()
-      const ptNames = [...placeholderNames(ptValue)].sort()
+      const enNames = [...placeholderNames(enValue)].sort(compareStrings)
+      const ptNames = [...placeholderNames(ptValue)].sort(compareStrings)
       if (enNames.join('|') !== ptNames.join('|')) {
         mismatches.push({ key, en: enNames, pt: ptNames })
       }
     }
 
     expect(mismatches).toEqual([])
+  })
+
+  it('escapes apostrophes bordering ICU syntax in every locale message', () => {
+    const violations: string[] = []
+
+    for (const [locale, messages] of [['en', enFlat], ['pt-BR', ptFlat]] as const) {
+      for (const [key, value] of messages) {
+        for (const offset of unsafeIcuApostropheOffsets(value)) {
+          violations.push(`${locale}:${key}@${offset}`)
+        }
+      }
+    }
+
+    expect(violations).toEqual([])
+  })
+
+  it.each([
+    { locale: 'en', message: "Remind me to '{'habit'}' at '{'time'}'.", expected: 'Remind me to {habit} at {time}.' },
+    { locale: 'pt-BR', message: "Me lembre de '{'hábito'}' às '{'hora'}'.", expected: 'Me lembre de {hábito} às {hora}.' },
+  ])('accepts paired literal-brace quotes without treating them as unsafe apostrophes in $locale', ({ locale, message, expected }) => {
+    expect(new IntlMessageFormat(message, locale).format()).toBe(expected)
+    expect(unsafeIcuApostropheOffsets(message)).toEqual([])
+  })
+
+  it('flags an unpaired apostrophe before an ICU closing brace', () => {
+    const key = 'apostropheBeforeClosingBrace'
+    const value = "{count, plural, one {day'} other {days}}"
+    const violations = unsafeIcuApostropheOffsets(value).map(
+      (offset) => `fixture:${key}@${offset}`,
+    )
+
+    expect(violations).toEqual(['fixture:apostropheBeforeClosingBrace@24'])
   })
 
   it('does not expose retired relationship translation groups', () => {
@@ -143,6 +401,23 @@ describe('i18n locale parity', () => {
     }
   })
 
+  it('keeps goal filter copy under the Progress screen namespace', () => {
+    for (const locale of [en, ptBR]) {
+      const localeRecord = locale as Record<string, unknown>
+      const goals = localeRecord.goals as Record<string, unknown>
+
+      expect(goals).not.toHaveProperty('filters')
+      expect(locale.progressScreen.goals.filterEmpty).toBeTruthy()
+      expect(locale.progressScreen.goals.clearFilter).toBeTruthy()
+    }
+  })
+
+  it('uses apagar for Portuguese deletion verbs', () => {
+    const offenders = [...ptFlat].filter(([, value]) => /\bexclu(?:ir|indo|íd[oa]s?|[aioe]\w*)\b/i.test(value)).map(([key]) => key)
+
+    expect(offenders).toEqual([])
+  })
+
   it('keeps sharing and referral guide rows under rewards', () => {
     for (const flat of [enFlat, ptFlat]) {
       expect(flat.get('onboarding.featureGuide.rewardsSection.milestoneShareTitle')).toBeTruthy()
@@ -150,11 +425,17 @@ describe('i18n locale parity', () => {
     }
   })
 
-  it('labels every coach-mark tour section in both locales', () => {
-    for (const flat of [enFlat, ptFlat]) {
-      expect(flat.get('tour.sections.coach-today')).toBeTruthy()
-      expect(flat.get('tour.sections.coach-astra')).toBeTruthy()
-      expect(flat.get('tour.sections.coach-calendar')).toBeTruthy()
+})
+
+
+describe('Calendar any-time overflow names', () => {
+  it.each([{ locale: 'en', messages: en, singular: 'habit', plural: 'habits' }, { locale: 'pt-BR', messages: ptBR, singular: 'hábito', plural: 'hábitos' }])('names the hidden habits and includes the visible count in $locale', ({ locale, messages, singular, plural }) => {
+    const label = new IntlMessageFormat(messages.calendar.timeGrid.moreCountLabel, locale)
+    const visible = new IntlMessageFormat(messages.calendar.timeGrid.moreCount, locale)
+    for (const count of [0, 1, 2, 7]) {
+      const accessibleName = String(label.format({ count }))
+      expect(accessibleName.startsWith(String(visible.format({ count })))).toBe(true)
+      expect(accessibleName).toContain(count === 1 ? singular : plural)
     }
   })
 })

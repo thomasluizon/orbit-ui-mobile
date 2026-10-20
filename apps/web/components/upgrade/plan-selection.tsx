@@ -1,74 +1,315 @@
+import { ProBenefits } from './pro-benefits'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { UPGRADE_PRO_FEATURES } from '@orbit/shared/utils/upgrade'
-import { PlanCard } from '@/components/upgrade/plan-card'
-import { formatPrice, monthlyEquivalent, useSubscriptionPlans } from '@/hooks/use-subscription-plans'
+import { AnimatePresence, domMax, LazyMotion, m, useReducedMotion } from 'motion/react'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { getUpgradeTierReservation } from '@orbit/shared/utils/upgrade'
+import { Badge } from '@/components/ui/badge'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  formatPrice,
+  monthlyEquivalent,
+  useSubscriptionPlans,
+} from '@/hooks/use-subscription-plans'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 
 interface PlanSelectionProps {
-  plans: NonNullable<ReturnType<typeof useSubscriptionPlans>['plans']>
+  plans: ReturnType<typeof useSubscriptionPlans>['plans']
+  isLoading: boolean
+  isError: boolean
+  isOnline: boolean
   discountedAmount: (amount: number) => number
-  trialActive: boolean
-  checkoutLoading: string | null
+  checkoutLoading: SubscriptionInterval | null
+  checkoutDisabled?: boolean
   onCheckout: (interval: SubscriptionInterval) => void
-  onStayFree: () => void
+  onRetry: () => void
   t: ReturnType<typeof useTranslations>
+}
+
+interface Tier {
+  interval: SubscriptionInterval
+  name: string
+  price: string
+  period: string
+  heroLine?: string
+  secondLine?: string
+  couponLine?: string
+}
+
+function PlanLoadMotion({
+  stateKey,
+  children,
+  reduced,
+}: Readonly<{ stateKey: string; children: ReactNode; reduced: boolean }>) {
+  return (
+    <LazyMotion features={domMax}>
+      <AnimatePresence initial={false} mode="popLayout">
+        <m.div
+          key={stateKey}
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduced
+            ? { opacity: 1 }
+            : {
+                opacity: 0,
+                transition: {
+                  duration: motionDurations.routeExit / 1000,
+                  ease: motionEasings.exit,
+                },
+              }}
+          transition={reduced
+            ? { duration: 0 }
+            : {
+                duration: motionDurations.base / 1000,
+                ease: motionEasings.enter,
+              }}
+          data-motion-purpose="preventing a jarring change"
+        >
+          {children}
+        </m.div>
+      </AnimatePresence>
+    </LazyMotion>
+  )
 }
 
 export function PlanSelection({
   plans,
+  isLoading,
+  isError,
+  isOnline,
   discountedAmount,
-  trialActive,
   checkoutLoading,
+  checkoutDisabled = false,
   onCheckout,
-  onStayFree,
+  onRetry,
   t,
 }: Readonly<PlanSelectionProps>) {
-  const yearlyAmount = discountedAmount(plans.yearly.unitAmount)
-  const monthlyAmount = discountedAmount(plans.monthly.unitAmount)
-  const yearlySavings = Math.max(0, monthlyAmount * 12 - yearlyAmount)
-  const period = t('upgrade.plans.monthly.period')
-  const proCtaLabel = trialActive ? t('upgrade.convert.trialCta') : t('upgrade.convert.freeCta')
-  const marquee = UPGRADE_PRO_FEATURES.map((feature) => t(`upgrade.plans.proFeatures.${feature.key}`))
+  const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
+  const prefersReducedMotion = Boolean(useReducedMotion())
+  const checkoutPending = checkoutLoading !== null
 
-  return (
-    <div className="grid grid-cols-1 items-stretch stagger-enter" style={{ gap: 16 }}>
-      <PlanCard
-        variant="free"
-        name={t('upgrade.free')}
-        price={formatPrice(0, plans.currency)}
-        period={period}
-        sub={t('upgrade.plans.free.note')}
-        ctaLabel={t('upgrade.convert.stayFree')}
-        onCta={onStayFree}
-      />
-      <PlanCard
-        variant="hero"
-        name={t('upgrade.plans.yearly.name')}
-        badge={t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
-        price={formatPrice(monthlyEquivalent(yearlyAmount), plans.currency)}
-        period={period}
-        sub={t('upgrade.plans.yearly.billedSave', {
-          price: formatPrice(yearlyAmount, plans.currency),
-          amount: formatPrice(yearlySavings, plans.currency),
-        })}
-        heroLine={t('upgrade.plans.yearly.heroLine')}
-        ctaLabel={proCtaLabel}
-        onCta={() => onCheckout('yearly')}
-        busy={checkoutLoading === 'yearly'}
-        ctaTestId="paywall-checkout"
-      />
-      <PlanCard
-        variant="anchor"
-        name={t('upgrade.plans.monthly.name')}
-        price={formatPrice(monthlyAmount, plans.currency)}
-        period={period}
-        sub={t('upgrade.plans.monthly.note')}
-        features={marquee}
-        ctaLabel={t('upgrade.plans.monthly.cta')}
-        onCta={() => onCheckout('monthly')}
-        busy={checkoutLoading === 'monthly'}
+  const selectInterval = (interval: string) => {
+    if (interval !== 'monthly' && interval !== 'yearly') return
+    setSelectedInterval(interval)
+  }
+
+  const intervalControl = (
+    <div className="min-[1024px]:w-full min-[1024px]:max-w-[320px]">
+      <SegmentedControl
+        label={t('upgrade.plans.intervalLabel')}
+        options={[
+          { value: 'monthly', label: t('upgrade.plans.interval.monthly') },
+          { value: 'yearly', label: t('upgrade.plans.interval.annual') },
+        ]}
+        value={selectedInterval}
+        onChange={selectInterval}
+        disabled={checkoutPending}
+        fullWidth
       />
     </div>
+  )
+
+  if (isLoading) {
+    return (
+      <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
+        <div className="flex flex-col gap-4">
+          {intervalControl}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {(['yearly', 'monthly'] as const).map((interval) => (
+              <TierReservation key={interval} interval={interval} t={t}>
+                <div className="flex flex-col gap-3">
+                  {[0, 1, 2].map((rowIndex) => (
+                    <Skeleton
+                      key={rowIndex}
+                      variant="settings"
+                      label={t('upgrade.plans.loading')}
+                    />
+                  ))}
+                </div>
+              </TierReservation>
+            ))}
+          </div>
+        </div>
+      </PlanLoadMotion>
+    )
+  }
+
+  if (isError && !plans && isOnline) {
+    return (
+      <PlanLoadMotion stateKey="error" reduced={prefersReducedMotion}>
+        <div className="flex flex-col gap-4">
+          {intervalControl}
+          <ErrorState
+            message={t('upgrade.plans.error')}
+            action={
+              <>
+                {/* eslint-disable-next-line local/max-button-words -- The granted Pro drawing requires the three-word retry label in pt-BR. */}
+                <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>
+              </>
+            }
+          />
+        </div>
+      </PlanLoadMotion>
+    )
+  }
+
+  if (!plans) return null
+
+  const yearlyAmount = discountedAmount(plans.yearly.unitAmount)
+  const annualTier: Tier = {
+    interval: 'yearly',
+    name: t('upgrade.plans.yearly.name'),
+    price: formatPrice(yearlyAmount, plans.currency),
+    period: t('upgrade.plans.yearly.period'),
+    heroLine: t('upgrade.plans.yearly.heroLine'),
+    secondLine: t('upgrade.plans.yearly.equivalent', {
+      price: formatPrice(monthlyEquivalent(yearlyAmount), plans.currency),
+      percent: plans.savingsPercent,
+    }),
+    couponLine: plans.couponPercentOff
+      ? t('upgrade.plans.coupon.line', { percent: plans.couponPercentOff })
+      : undefined,
+  }
+  const monthlyTier: Tier = {
+    interval: 'monthly',
+    name: t('upgrade.plans.monthly.name'),
+    price: formatPrice(discountedAmount(plans.monthly.unitAmount), plans.currency),
+    period: t('upgrade.plans.monthly.period'),
+    couponLine: plans.couponPercentOff
+      ? t('upgrade.plans.coupon.line', { percent: plans.couponPercentOff })
+      : undefined,
+  }
+  const tiers = selectedInterval === 'yearly'
+    ? [annualTier, monthlyTier]
+    : [monthlyTier, annualTier]
+
+  return (
+    <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
+      <div className="flex flex-col items-stretch gap-4">
+        {intervalControl}
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
+          {tiers.map((tier) => (
+            <TierCard
+              key={tier.interval}
+              tier={tier}
+              recommended={tier.interval === 'yearly'}
+              selected={tier.interval === selectedInterval}
+              loading={checkoutLoading === tier.interval}
+              disabled={checkoutPending || checkoutDisabled}
+              onCheckout={onCheckout}
+              t={t}
+            />
+          ))}
+        </div>
+      </div>
+    </PlanLoadMotion>
+  )
+}
+
+function TierReservation({ interval, t, children }: Readonly<{
+  interval: SubscriptionInterval
+  t: ReturnType<typeof useTranslations>
+  children: ReactNode
+}>) {
+  const measurementRef = useRef<HTMLDivElement>(null)
+  const reservationRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const element = measurementRef.current
+    const reservation = reservationRef.current
+    if (!element || !reservation) return
+    const measure = () => { reservation.style.minHeight = `${element.offsetHeight}px` }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  return (
+    <div ref={reservationRef} data-tier-reservation={interval} style={{ display: 'grid' }}>
+      <div
+        aria-hidden="true"
+        inert
+        style={{ gridArea: '1 / 1', visibility: 'hidden', minWidth: 0, alignSelf: 'start' }}
+        data-tier-measurement={interval}
+        ref={measurementRef}
+      >
+        <TierCard
+          tier={getUpgradeTierReservation(interval, t)}
+          recommended={interval === 'yearly'}
+          selected={false}
+          loading={false}
+          disabled
+          measurement
+          onCheckout={() => {}}
+          t={t}
+        />
+      </div>
+      <div style={{ gridArea: '1 / 1', minWidth: 0, display: 'grid' }}>{children}</div>
+    </div>
+  )
+}
+
+function TierCard({
+  tier,
+  recommended,
+  selected,
+  loading,
+  disabled,
+  measurement = false,
+  onCheckout,
+  t,
+}: Readonly<{
+  tier: Tier
+  recommended: boolean
+  selected: boolean
+  loading: boolean
+  disabled: boolean
+  measurement?: boolean
+  onCheckout: (interval: SubscriptionInterval) => void
+  t: ReturnType<typeof useTranslations>
+}>) {
+  return (
+    <section
+      data-tier={measurement ? undefined : tier.interval}
+      data-tier-content={measurement ? undefined : tier.interval}
+      data-selected={measurement ? undefined : selected || undefined}
+      className="flex min-w-0 flex-col gap-2 rounded-[var(--r-card)] p-6"
+      style={{
+        background: selected ? 'var(--primary-dim)' : 'var(--bg-card)',
+        boxShadow: selected
+          ? 'inset 0 0 0 1.5px var(--primary)'
+          : 'inset 0 0 0 1px var(--hairline)',
+      }}
+    >
+      <div className="flex flex-col gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h3 className="min-w-0 flex-1 text-[17px] font-medium leading-[1.3]">{tier.name}</h3>
+          {recommended ? (
+            <Badge>{t('upgrade.plans.recommended')}</Badge>
+          ) : null}
+        </div>
+        <p className="font-display text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">
+          {tier.price}<span className="font-sans text-base font-normal" style={{ color: selected ? 'var(--fg-2)' : 'var(--fg-3)' }}>{tier.period}</span>
+        </p>
+        {tier.heroLine ? <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{tier.heroLine}</p> : null}
+        {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums" style={{ color: selected ? 'var(--fg-2)' : 'var(--fg-3)' }}>{tier.secondLine}</p> : null}
+        {tier.couponLine ? <p className="text-sm leading-[1.5] text-[var(--fg-2)]">{tier.couponLine}</p> : null}
+      </div>
+      <ProBenefits t={t} />
+      <div className="pt-2">
+        <PillButton
+          variant={selected ? 'primary' : 'ghost'}
+          loading={loading}
+          disabled={disabled}
+          accessibleName={t(recommended ? 'upgrade.plans.checkoutLabelRecommended' : 'upgrade.plans.checkoutLabel', { interval: tier.name })}
+          onClick={() => onCheckout(tier.interval)}
+        >
+          {t('upgrade.plans.cta')}
+        </PillButton>
+      </div>
+    </section>
   )
 }

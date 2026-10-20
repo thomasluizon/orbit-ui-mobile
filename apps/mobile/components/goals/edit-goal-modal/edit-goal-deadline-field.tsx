@@ -1,7 +1,8 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { Pressable, Text, View } from 'react-native'
-import { Plus, X } from 'lucide-react-native'
+import { Plus, X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
-import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { DateField } from '@/components/ui/date-field'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import { isGoalDeadlinePast } from '@orbit/shared/utils/goal-form'
 import type { EditGoalStyles, EditGoalTokens } from './styles'
@@ -19,6 +20,7 @@ export function EditGoalDeadlineField({
   deadline,
   onChangeDeadline,
 }: Readonly<EditGoalDeadlineFieldProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   return (
     <View>
@@ -32,12 +34,12 @@ export function EditGoalDeadlineField({
         <View>
           <View style={styles.deadlineRow}>
             <View style={styles.deadlinePicker}>
-              <AppDatePicker value={deadline} onChange={onChangeDeadline} />
+              <DateField value={deadline} onChange={onChangeDeadline} />
             </View>
             <Pressable
               style={({ pressed }) => [
                 styles.removeDeadlineButton,
-                pressed && { opacity: 0.7 },
+                pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
               ]}
               onPress={() => onChangeDeadline('')}
               accessibilityRole="button"
@@ -56,14 +58,14 @@ export function EditGoalDeadlineField({
         <Pressable
           style={({ pressed }) => [
             styles.addDeadlineButton,
-            pressed && { opacity: 0.7 },
+            pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
           ]}
           onPress={() => onChangeDeadline(formatAPIDate(new Date()))}
           hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel={t('goals.form.addDeadline')}
         >
-          <Plus size={14} color={tokens.fg1} strokeWidth={1.8} />
+          <Plus size={16} color={tokens.fg1} strokeWidth={1.8} />
           <Text style={styles.addDeadlineText}>
             {t('goals.form.addDeadline')}
           </Text>

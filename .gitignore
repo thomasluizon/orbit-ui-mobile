@@ -18,15 +18,6 @@ dist/
 .vscode/
 .idea/
 .claude/worktrees/
-# Plans are the contract source the committed work orders point at (their
-# generatedFrom frontmatter): ignoring the whole dir left every fresh checkout
-# with plan bundles whose Tier and acceptance criteria named a file that did
-# not exist. The *.plan.md files ride the branch; everything else stays local.
-# The ** idiom is load-bearing: git never descends into an excluded DIRECTORY to
-# evaluate a nested negation, so `.claude/plans/*` would have swallowed
-# .claude/plans/completed/ whole - which is exactly where implement/SKILL.md
-# files a finished plan. Re-including the directories is what lets the negation
-# reach the plans inside them.
 .claude/plans/**
 !.claude/plans/**/
 !.claude/plans/**/*.plan.md
@@ -47,6 +38,9 @@ Thumbs.db
 coverage/
 coverage-*/
 
+# Lighthouse reports (shared local and CI output)
+/.lighthouseci/
+
 # Mutation testing (StrykerJS)
 .stryker-tmp/
 packages/shared/.stryker-tmp/
@@ -63,12 +57,10 @@ apps/web/e2e/.results/
 .tmp/
 temporary screenshots/
 
-# Screenshots are bulk binary evidence: regenerable, never committed.
-# The DURABLE evidence the oracle reads - the surface inventory, the defect
-# reports and the human sign-off - lives in .claude/manifests/ and IS
-# committed. Ignoring it was the mechanism behind "attempt N+1 rediscovers
-# attempt N": six sessions each rebuilt a denominator the last one had
-# already derived, because nothing survived the session boundary.
+# Local diagnostic artifacts stay uncommitted. Visual completion comes from
+# the owner reviewing the running surface on seeded data, not screenshot files.
+# The surface inventory in .claude/manifests/ stays committed so coverage
+# tooling and later sessions share the same surface list.
 .artifacts/
 
 # Expo
@@ -93,8 +85,11 @@ apps/mobile/ios/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+# The Codex CLI writes this diagnostic into its working directory.
+error.log
 
 .claude/sweeps/
+.claude/drift-review-state.json
 
 # foglamp scan (edit token in scan.lock.json is a secret)
 .foglamp/
@@ -108,10 +103,7 @@ yarn-error.log*
 .orca-*
 .agent-scratch-*
 
-# Generated architecture map (thomasluizon/orbit-tickets#470). Committing a whole-file
-# regeneration and gating on its exact bytes made the pair conflict on every pair of parallel
-# branches; PR 842 alone paid three base merges and three review cycles for it. Produce them with
-# `node tools/arch-map.mjs`, which is the path CLAUDE.md names, or take the CI build artifact.
 /architecture.json
 /architecture.html
 /architecture.mmd
+/.claude/manifests/feature-parity.json

@@ -1,71 +1,92 @@
-import type { ReactNode } from 'react'
+import { cloneElement, isValidElement, useContext, useState, type Ref } from 'react'
+import { ActionRowContext } from './action-row'
+import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
-  type StyleProp,
   type ViewStyle,
+  type View,
 } from 'react-native'
-import { BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
-import { createTokensV2, darkenHex, primaryGlow, radius } from '@/lib/theme'
+import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
+import { createTokensV2, mixHex, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 
-interface PillButtonProps {
-  variant?: ButtonVariant
-  size?: ButtonSize
-  onPress?: () => void
-  disabled?: boolean
-  busy?: boolean
-  fullWidth?: boolean
-  glow?: boolean
-  leading?: ReactNode
-  accessibilityLabel?: string
-  /** Omit (with a `leading` icon + `accessibilityLabel`) for an icon-only square control. */
-  children?: ReactNode
-  style?: StyleProp<ViewStyle>
-}
+const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
-export function PillButton({
-  variant = 'primary',
-  size = 'md',
-  onPress,
-  disabled = false,
-  busy = false,
-  fullWidth = false,
-  glow = true,
-  leading,
-  accessibilityLabel,
-  children,
-  style,
-}: Readonly<PillButtonProps>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  const sizeSpec = BUTTON_SIZES[size]
-  const hasLabel = children !== undefined && children !== null && children !== ''
-  const iconOnly = !hasLabel && leading != null
-
-  const textColorByVariant: Record<ButtonVariant, string> = {
+function buttonTextColors(tokens: ReturnType<typeof createTokensV2>, quiet: boolean): Record<ButtonVariant, string> {
+  return {
     primary: tokens.fgOnPrimary,
     secondary: tokens.bg,
-    ghost: tokens.fg1,
+    ghost: quiet ? tokens.fg2 : tokens.fg1,
     destructive: tokens.fgOnBad,
+    caution: tokens.fgOnOverdue,
   }
+}
 
+/** The canonical five-variant pill action in the shared two-size geometry. */
+export function Button({
+  buttonRef,
+  minimumHeight,
+  expanded,
+  elevated = false,
+  variant = 'primary',
+  size: requestedSize = 'sm',
+  onClick,
+  onFocus,
+  onBlur,
+  onHoverIn,
+  onHoverOut,
+  disabled = false,
+  loading = false,
+  focusableWhenLoading = false,
+  children,
+  accessibleName,
+  iconOnly,
+  matchedWidth = false,
+  label,
+  leadingIcon,
+  brand,
+  hint,
+  accessibilityRole = 'button',
+  quiet = false,
+}: Readonly<ButtonProps & { buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const size = useContext(ActionRowContext) ? 'sm' : requestedSize
+  const sizeSpec = BUTTON_SIZES[size]
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const nativelyDisabled = disabled || (loading && !focusableWhenLoading)
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+
+  const textColorByVariant = buttonTextColors(tokens, quiet)
+  const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColorByVariant[variant])
+
+  const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
+  const ghostFill = elevated ? tokens.bgElev : 'transparent'
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
-      return { backgroundColor: tokens.fg1 }
+      return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
     }
     if (variant === 'ghost') {
+      const active = pressed || (hovered && !disabled && !loading)
       return {
-        backgroundColor: pressed ? tokens.bgCard : 'transparent',
+        backgroundColor: active ? ghostPressedFill : ghostFill,
         borderWidth: 1.5,
         borderColor: tokens.hairlineStrong,
       }
     }
     if (variant === 'destructive') {
       return {
-        backgroundColor: pressed ? darkenHex(tokens.statusBad, 0.15) : tokens.statusBad,
+        backgroundColor: pressed ? mixHex(tokens.statusBad, tokens.fg1, 0.15) : tokens.statusBad,
+      }
+    }
+    if (variant === 'caution') {
+      return {
+        backgroundColor: pressed ? mixHex(tokens.statusOverdue, '#000000', 0.15) : tokens.statusOverdue,
       }
     }
     return {
@@ -73,77 +94,79 @@ export function PillButton({
     }
   }
 
-  const quietsOnPress = variant === 'secondary'
-
   return (
     <Pressable
-      onPress={busy ? undefined : onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled, busy }}
+      ref={buttonRef}
+      hitSlop={size === 'sm' && (!iconOnly || (minimumHeight ?? 0) < TOUCH_TARGET_MIN) ? SMALL_PILL_HIT_PADDING : undefined}
+      onPress={loading ? undefined : onClick}
+      onFocus={() => { setFocused(true); onFocus?.() }}
+      onBlur={() => { setFocused(false); onBlur?.() }}
+      onHoverIn={() => { setHovered(true); onHoverIn?.() }}
+      onHoverOut={() => { setHovered(false); onHoverOut?.() }}
+      disabled={nativelyDisabled}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={iconOnly ? label : accessibleName}
+      accessibilityHint={hint}
+      accessibilityState={{ disabled: nativelyDisabled, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
+      testID={`button-${variant}-${size}`}
       style={({ pressed }) => [
         styles.base,
         iconOnly
-          ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
-          : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
-        variantStyle(pressed),
-        variant === 'primary' && glow && !disabled ? primaryGlow(tokens) : null,
-        fullWidth ? styles.fullWidth : null,
-        disabled ? styles.disabled : null,
-        pressed && quietsOnPress ? styles.pressedQuiet : null,
-        pressed ? styles.pressedScale : null,
-        style,
+          ? { height: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), width: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), paddingHorizontal: SPACING.s0, gap: 0 }
+          : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
+        brand === 'google' ? { paddingHorizontal: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingStart: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : null,
+        variantStyle(pressed && !disabled && !loading),
+        focused ? { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: 2 } : null,
+        disabled && !loading ? styles.disabled : null,
+        pressed && !disabled && !loading && !prefersReducedMotion ? styles.pressedScale : null,
       ]}
     >
-      {busy ? (
+      {loading ? (
         <ActivityIndicator size="small" color={textColorByVariant[variant]} />
-      ) : (
-        leading
+      ) : iconOnly ? children : leadingGlyph}
+      {iconOnly ? null : (
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.label,
+            { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
+          ]}
+        >
+          {children}
+        </Text>
       )}
-      {hasLabel &&
-        // react-doctor-disable-next-line no-polymorphic-children -- deliberate label-or-node API: a string/number child renders as the themed label, any other node renders as-is; matches the web PillButton contract https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-        (typeof children === 'string' || typeof children === 'number' ? (
-          <Text
-            style={[
-              styles.label,
-              { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
-              busy ? styles.labelBusy : null,
-            ]}
-          >
-            {children}
-          </Text>
-        ) : (
-          children
-        ))}
     </Pressable>
   )
 }
 
+/** Native navigation with the same visual contract as PillButton. */
+export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; children: string }>) {
+  return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
+}
+
 const styles = StyleSheet.create({
   base: {
+    minHeight: SMALL_PILL_VISIBLE_MIN,
+    minWidth: SMALL_PILL_VISIBLE_MIN,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.full,
-  },
-  fullWidth: {
-    alignSelf: 'stretch',
-    width: '100%',
+    overflow: 'hidden',
   },
   disabled: {
     opacity: 0.4,
   },
-  pressedQuiet: {
-    opacity: 0.85,
-  },
   pressedScale: {
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: 0.96 }],
   },
   label: {
-    fontFamily: 'Rubik_500Medium',
-  },
-  labelBusy: {
-    opacity: 0.6,
+    fontFamily: 'Geist_500Medium',
   },
 })
+
+export { Button as PillButton }
+
+function buttonLeadingGlyph(icon: React.ReactNode, color: string) {
+  return isValidElement<{ color?: string }>(icon) ? cloneElement(icon, { color }) : icon
+}

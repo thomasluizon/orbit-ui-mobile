@@ -1,15 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createElement } from 'react'
-import { act, render, renderHook, screen } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
+import { useVersionGateStore } from '@/stores/version-gate-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
 
 const mocks = vi.hoisted(() => ({
   confirmPendingOperation: vi.fn(),
   executePendingOperation: vi.fn(),
   issuePendingOperationStepUp: vi.fn(),
   verifyPendingOperationStepUp: vi.fn(),
+  revisePendingOperation: vi.fn(),
+  refreshPendingOperation: vi.fn(),
 }))
+
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -21,16 +27,12 @@ vi.mock('@/app/actions/chat', () => ({
   executePendingOperation: mocks.executePendingOperation,
   issuePendingOperationStepUp: mocks.issuePendingOperationStepUp,
   verifyPendingOperationStepUp: mocks.verifyPendingOperationStepUp,
+  revisePendingOperation: mocks.revisePendingOperation,
+  refreshPendingOperation: mocks.refreshPendingOperation,
 }))
 
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
-import { setApiFetchTranslate } from '@/lib/api-fetch'
-import { toast } from 'sonner'
 import { setAccountEventOrigin } from '@/lib/account-event-origin'
-import { useVersionGateStore } from '@/stores/version-gate-store'
-import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
-
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 function makeExecution(summary: string): AgentExecuteOperationResponse {
   return {
@@ -47,14 +49,16 @@ function makeExecution(summary: string): AgentExecuteOperationResponse {
 
 describe('useChatPendingOperations', () => {
   beforeEach(() => {
-    setAccountEventOrigin('chat-connection')
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setAccountEventOrigin('chat-connection')
     setApiFetchTranslate((key) => key)
-    vi.mocked(toast.error).mockClear()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
     mocks.confirmPendingOperation.mockReset()
     mocks.executePendingOperation.mockReset()
     mocks.issuePendingOperationStepUp.mockReset()
     mocks.verifyPendingOperationStepUp.mockReset()
+    mocks.revisePendingOperation.mockReset()
+    mocks.refreshPendingOperation.mockReset()
   })
 
   afterEach(() => {
@@ -86,6 +90,60 @@ describe('useChatPendingOperations', () => {
     expect(outcome).toMatchObject({ ok: true })
   })
 
+  it('revises without confirming or executing', async () => {
+    const response = { isSuccess: true, error: null, pendingOperationId: 'pending-1',
+      cancelled: false, preview: { changes: [], changeTargetCount: 1, items: [], previewFingerprint: 'next' } }
+    mocks.revisePendingOperation.mockResolvedValue({ ok: true, data: response })
+    const onExecuted = vi.fn(async () => {})
+    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
+    const request = { previewFingerprint: 'current', items: [{ itemId: 'habit-1', edits: { emoji: 'B' } }] }
+    let outcome: Awaited<ReturnType<typeof result.current.revisePendingOperationForBubble>> | null = null
+    await act(async () => { outcome = await result.current.revisePendingOperationForBubble('pending-1', request) })
+    expect(mocks.revisePendingOperation).toHaveBeenCalledWith('pending-1', request, JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }))
+    expect(outcome).toEqual({ ok: true, result: response })
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
+    expect(onExecuted).not.toHaveBeenCalled()
+  })
+
+  it('refreshes a preview without confirming or executing', async () => {
+    const preview = { changes: [], changeTargetCount: 1, items: [], previewFingerprint: 'next' }
+    const response = { isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false, preview }
+    mocks.refreshPendingOperation.mockResolvedValue({ ok: true, data: response })
+    const onExecuted = vi.fn(async () => {})
+    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
+    let outcome: Awaited<ReturnType<typeof result.current.refreshPendingOperationForBubble>> | null = null
+    await act(async () => { outcome = await result.current.refreshPendingOperationForBubble('pending-1') })
+    expect(mocks.refreshPendingOperation).toHaveBeenCalledWith('pending-1', JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }))
+    expect(outcome).toEqual({ ok: true, result: response })
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
+    expect(onExecuted).not.toHaveBeenCalled()
+  })
+
+  it('keeps account changes separate from stale preview conflicts', async () => {
+    mocks.refreshPendingOperation.mockResolvedValue({ ok: false, status: 409, code: 'ACCOUNT_CHANGED',
+      error: 'The signed in account changed before this request ran', sessionRefreshFailed: false })
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
+    let outcome: Awaited<ReturnType<typeof result.current.refreshPendingOperationForBubble>> | null = null
+    await act(async () => { outcome = await result.current.refreshPendingOperationForBubble('pending-1') })
+    expect(outcome).toEqual({ ok: false, error: 'errors.api.accountChanged' })
+  })
+
+  it('does not forward an execution that returns after the account changes', async () => {
+    let resolveExecution!: (value: { ok: true; data: AgentExecuteOperationResponse }) => void
+    mocks.confirmPendingOperation.mockResolvedValue({ ok: true, data: { confirmationToken: 'token-1' } })
+    mocks.executePendingOperation.mockReturnValue(new Promise((resolve) => { resolveExecution = resolve }))
+    const onExecuted = vi.fn(async () => {})
+    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
+
+    const pending = result.current.confirmAndExecutePendingOperation('pending-1')
+    await vi.waitFor(() => expect(mocks.executePendingOperation).toHaveBeenCalledOnce())
+    advanceAccountGeneration()
+    resolveExecution({ ok: true, data: makeExecution('Created') })
+
+    await expect(pending).resolves.toEqual({ ok: false, error: 'errors.api.accountChanged' })
+    expect(onExecuted).not.toHaveBeenCalled()
+  })
+
   it('stops at confirm failure without executing', async () => {
     mocks.confirmPendingOperation.mockResolvedValue({
       ok: false,
@@ -105,19 +163,36 @@ describe('useChatPendingOperations', () => {
     expect(outcome).toMatchObject({ ok: false, error: 'chat.sendError' })
   })
 
+  it('shows reload guidance when confirmation was refused after an account switch', async () => {
+    mocks.confirmPendingOperation.mockResolvedValue({
+      ok: false,
+      error: 'The signed in account changed before this request ran',
+      status: 409,
+      code: 'ACCOUNT_CHANGED',
+      sessionRefreshFailed: false,
+    })
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
+
+    let outcome: Awaited<ReturnType<typeof result.current.confirmAndExecutePendingOperation>> | null = null
+    await act(async () => {
+      outcome = await result.current.confirmAndExecutePendingOperation('pending-1')
+    })
+
+    expect(outcome).toEqual({ ok: false, error: 'errors.api.accountChanged' })
+    expect(mocks.executePendingOperation).not.toHaveBeenCalled()
+  })
+
   it('offers the reload prompt when a chat action is no longer recognized', async () => {
-    render(createElement(UpdateAvailableBanner))
     mocks.confirmPendingOperation.mockRejectedValue(new UnrecognizedActionError('Unknown action'))
     const onExecuted = vi.fn(async () => {})
     const { result } = renderHook(() => useChatPendingOperations(onExecuted))
     const onUnexpectedOutcome = vi.fn()
 
     void result.current.confirmAndExecutePendingOperation('pending-1').then(onUnexpectedOutcome, onUnexpectedOutcome)
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
-    expect(screen.getByRole('button', { name: 'errors.api.reload' })).toBeInTheDocument()
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(useVersionGateStore.getState().reloadReason).toBe('appUpdated')
+    expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(mocks.executePendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
     expect(onUnexpectedOutcome).not.toHaveBeenCalled()
@@ -181,9 +256,13 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.verifyStepUpForBubble('pending-2', 'challenge-2', '123456', 'token-2')
     })
 
-    const intent = JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' })
-    expect(mocks.verifyPendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'challenge-2', '123456', intent)
-    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2', intent)
+    expect(mocks.verifyPendingOperationStepUp).toHaveBeenCalledWith(
+      'pending-2',
+      'challenge-2',
+      '123456',
+      JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }),
+    )
+    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2', JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }))
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Done'))
     expect(outcome).toMatchObject({ ok: true })
   })
@@ -205,32 +284,5 @@ describe('useChatPendingOperations', () => {
     expect(mocks.executePendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
     expect(outcome).toMatchObject({ ok: false, error: 'chat.sendError' })
-  })
-
-  it.each([
-    ['confirm', 'confirmAndExecutePendingOperation'],
-    ['execute', 'confirmAndExecutePendingOperation'],
-    ['challenge', 'prepareStepUpForBubble'],
-    ['verify', 'verifyStepUpForBubble'],
-  ])('stops and reports a %s account refusal', async (stage, flow) => {
-    const refusal = { ok: false, error: 'Account changed', status: 409, code: 'ACCOUNT_CHANGED', sessionRefreshFailed: false }
-    mocks.confirmPendingOperation.mockResolvedValue(stage === 'confirm' ? refusal : { ok: true, data: { confirmationToken: 'token' } })
-    mocks.executePendingOperation.mockResolvedValue(refusal)
-    mocks.issuePendingOperationStepUp.mockResolvedValue(refusal)
-    mocks.verifyPendingOperationStepUp.mockResolvedValue(refusal)
-    const onExecuted = vi.fn(async () => {})
-    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
-
-    await act(async () => {
-      const action = flow === 'confirmAndExecutePendingOperation'
-        ? result.current.confirmAndExecutePendingOperation('pending-1')
-        : flow === 'prepareStepUpForBubble'
-          ? result.current.prepareStepUpForBubble('pending-1')
-          : result.current.verifyStepUpForBubble('pending-1', 'challenge', '123456', 'token')
-      const outcome = await action
-      expect(outcome).toMatchObject({ ok: false, error: 'errors.api.accountChanged' })
-    })
-    expect(onExecuted).not.toHaveBeenCalled()
-    expect(toast.error).toHaveBeenCalled()
   })
 })

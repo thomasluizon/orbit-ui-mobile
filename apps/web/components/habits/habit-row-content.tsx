@@ -1,111 +1,38 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
-import { stripInlineMarkdown } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
-const MAX_VISIBLE_TAGS = 3
-
 /** Inline meta token rendered between dots in the row's meta strip.
- *  String tokens render in fg-3; tagged tokens get status color. */
+ *  String tokens follow the row body's interaction color; tagged tokens get status color. */
 export type HabitRowMetaToken =
   | string
   | { kind: 'overdue'; label: string }
+  | { kind: 'bad'; label: string }
   | { kind: 'future'; label: string }
 
 interface HabitRowContentProps {
   habit: NormalizedHabit
   titleSize: number
   titleColor: string
-  isDone: boolean
+  expanded?: boolean
   meta: HabitRowMetaToken[]
-  showStreak: boolean
-  streak?: number
 }
 
-/** Middle column of a habit row: title, description, inline meta + streak, and tags. */
+/** Middle column of a habit row: title and the single caller-composed meta line. */
 export function HabitRowContent({
   habit,
   titleSize,
   titleColor,
-  isDone,
+  expanded = false,
   meta,
-  showStreak,
-  streak,
 }: Readonly<HabitRowContentProps>) {
+  const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
+  const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
   return (
-    <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
-      <TitleText title={habit.title} size={titleSize} color={titleColor} strikethrough={isDone} />
-      {habit.description?.trim() && (
-        <span
-          className="overflow-hidden whitespace-nowrap text-ellipsis"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--fg-3)',
-            lineHeight: 1.3,
-          }}
-        >
-          {stripInlineMarkdown(habit.description)}
-        </span>
-      )}
-      {(meta.length > 0 || showStreak) && (
-        <span className="flex items-center" style={{ gap: 8 }}>
-          {meta.length > 0 && <MetaStrip tokens={meta} />}
-          {showStreak && (
-            <span
-              className="shrink-0"
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                color: 'var(--status-overdue-text)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              🔥 {streak}
-            </span>
-          )}
-        </span>
-      )}
-      {habit.tags.length > 0 && (
-        <span className="flex items-center overflow-hidden" style={{ gap: 8, marginTop: 1 }}>
-          {habit.tags.slice(0, MAX_VISIBLE_TAGS).map((tag) => (
-            <span
-              key={tag.id}
-              className="inline-flex items-center shrink-0 min-w-0"
-              style={{ gap: 5, maxWidth: 132 }}
-            >
-              <span
-                aria-hidden="true"
-                className="rounded-full shrink-0"
-                style={{ width: 6, height: 6, background: tag.color }}
-              />
-              <span
-                className="truncate"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 12,
-                  color: 'var(--fg-3)',
-                  lineHeight: 1.2,
-                }}
-              >
-                {tag.name}
-              </span>
-            </span>
-          ))}
-          {habit.tags.length > MAX_VISIBLE_TAGS && (
-            <span
-              className="shrink-0"
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                color: 'var(--fg-3)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              +{habit.tags.length - MAX_VISIBLE_TAGS}
-            </span>
-          )}
-        </span>
-      )}
+    <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
+      <TitleText expanded={expanded} title={habit.title} size={titleSize} color={titleColor} />
+      {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
+      {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>
   )
 }
@@ -113,55 +40,51 @@ export function HabitRowContent({
 const TITLE_TEXT_STYLE_BASE = {
   fontFamily: 'var(--font-sans)',
   fontWeight: 500,
-  textDecorationStyle: 'solid',
-  textDecorationColor: 'var(--fg-4)',
-  textDecorationThickness: 1,
   lineHeight: 1.25,
   letterSpacing: '-0.005em',
-  overflowWrap: 'anywhere',
 } as const
 
 interface TitleTextProps {
+  expanded?: boolean
   title: string
   size: number
   color: string
-  strikethrough: boolean
 }
 
-export function TitleText({ title, size, color, strikethrough }: Readonly<TitleTextProps>) {
+export function TitleText({ title, size, color, expanded }: Readonly<TitleTextProps>) {
   return (
-    <span
-      className="flex-shrink min-w-0 overflow-hidden line-clamp-2"
+    <PersonalText expanded={expanded}
+      className="flex-shrink min-w-0"
       style={{
         ...TITLE_TEXT_STYLE_BASE,
-        fontSize: size,
+        fontSize: `${size / 16}rem`,
         color,
-        textDecorationLine: strikethrough ? 'line-through' : 'none',
       }}
     >
       {title}
-    </span>
+    </PersonalText>
   )
 }
 
 interface MetaStripProps {
   tokens: HabitRowMetaToken[]
+  expanded?: boolean
 }
 
-export function MetaStrip({ tokens }: Readonly<MetaStripProps>) {
+export function MetaStrip({ tokens, expanded = false }: Readonly<MetaStripProps>) {
   return (
     <span
-      className="min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
+      data-habit-row-meta=""
+      className={`habit-row-meta block min-w-0 ${expanded ? 'whitespace-normal' : 'overflow-hidden whitespace-nowrap text-ellipsis'}`}
       style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        color: 'var(--fg-3)',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '0.75rem',
         fontVariantNumeric: 'tabular-nums',
       }}
     >
       {tokens.map((token, i) => (
         <Fragment key={metaTokenKey(token, i)}>
-          {i > 0 && <span style={{ margin: '0 6px', color: 'var(--fg-3)' }}>·</span>}
+          {i > 0 && <span style={{ margin: "var(--orbit-space-0) var(--orbit-space-4)" }}>·</span>}
           {renderMetaToken(token)}
         </Fragment>
       ))}
@@ -176,6 +99,10 @@ function metaTokenKey(token: HabitRowMetaToken, index: number): string {
 
 function renderMetaToken(token: HabitRowMetaToken): ReactNode {
   if (typeof token === 'string') return token
-  const color = token.kind === 'overdue' ? 'var(--status-overdue-text)' : undefined
+  const color = token.kind === 'overdue'
+    ? 'var(--status-overdue-text)'
+    : token.kind === 'bad'
+      ? 'var(--status-bad-text)'
+      : undefined
   return <span style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
 }

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { wrapServerAction } from '@/app/actions/action-result'
+import { createApiClientError } from '@orbit/shared'
 import { createElement } from 'react'
-import { toast } from 'sonner'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
@@ -21,11 +23,10 @@ const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation
 
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => account.id,
-  getAccountGeneration: () => account.generation,
   useAuthStore: { getState: () => ({ recoverSessionRefreshFailure: vi.fn(async () => {}) }) },
 }))
+vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => account.generation }))
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), dismiss: vi.fn() } }))
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     if (key === 'errors.api.accountChanged') return en.errors.api.accountChanged
@@ -42,8 +43,7 @@ describe('client account intent', () => {
     setAccountEventOrigin(null)
     account.id = 'account-a'
     account.generation = 1
-    vi.mocked(toast.error).mockClear()
-    vi.mocked(toast.dismiss).mockClear()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
     reloadMock.mockReset()
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     Object.defineProperty(globalThis, 'location', {
@@ -68,7 +68,7 @@ describe('client account intent', () => {
     })
   })
 
-  it('keeps the account and generation from the action start', () => {
+  it('keeps the account and generation from the action start', async () => {
     const intent = captureAccountIntent()
     expect(intent.intendedAccountId).toBe('account-a')
     expect(intent.stillCurrent()).toBe(true)
@@ -77,43 +77,43 @@ describe('client account intent', () => {
     expect(intent.stillCurrent()).toBe(false)
   })
 
-  it('shows account-specific reload guidance for an account refusal', () => {
+  it('shows account-specific reload guidance for an account refusal', async () => {
     reportAccountChanged()
 
-    expect(toast.error).toHaveBeenCalledWith(en.errors.api.accountChanged, expect.objectContaining({
-      id: 'account-changed',
-      duration: Infinity,
-      action: expect.objectContaining({ label: en.errors.api.reload }),
-    }))
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
+      kind: 'neutral', message: en.errors.api.accountChanged, actionLabel: en.errors.api.reload,
+    })
   })
 
-  it('keeps account-changed guidance visible after its toast is dismissed', () => {
+  it('keeps account-changed guidance visible after its toast is dismissed', async () => {
     render(createElement(UpdateAvailableBanner))
+    await act(async () => {})
     act(() => reportAccountChanged())
-    toast.dismiss('account-changed')
+    act(() => useAppToastStore.getState().dismissToast())
 
     expect(screen.getByText(en.errors.api.accountChanged)).toBeInTheDocument()
-    expect(screen.queryByLabelText('common.dismiss')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'versionUpdate.laterCta' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: en.errors.api.reload }))
     expect(reloadMock).toHaveBeenCalledOnce()
   })
 
-  it('shows account-changed guidance after the version banner was dismissed', () => {
+  it('shows account-changed guidance after the version banner was dismissed', async () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     render(createElement(UpdateAvailableBanner))
-    fireEvent.click(screen.getByLabelText('common.dismiss'))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await act(async () => {})
+    fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
 
     act(() => reportAccountChanged())
     expect(screen.getByText(en.errors.api.accountChanged)).toBeInTheDocument()
   })
 
-  it('reports only account refusals from fire-and-forget actions', () => {
+  it('reports only account refusals from fire-and-forget actions', async () => {
     reportAccountChangedIfNeeded(new Error('network'))
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
 
     reportAccountChangedIfNeeded({ code: 'ACCOUNT_CHANGED' })
-    expect(toast.error).toHaveBeenCalledWith(en.errors.api.accountChanged, expect.any(Object))
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe(en.errors.api.accountChanged)
   })
 
   it('reports and stops an account refusal before callers can apply success state', async () => {
@@ -121,40 +121,56 @@ describe('client account intent', () => {
       ok: false, error: 'Account changed', status: 409,
       code: 'ACCOUNT_CHANGED', sessionRefreshFailed: false,
     })).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
-    expect(toast.error).toHaveBeenCalledWith(en.errors.api.accountChanged, expect.any(Object))
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe(en.errors.api.accountChanged)
   })
 
   it('offers a reload when the current server does not recognize the action', async () => {
-    render(createElement(UpdateAvailableBanner))
     const action = runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action')))
     const onUnexpectedRejection = vi.fn()
     void action.catch(onUnexpectedRejection)
 
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(screen.getByRole('status')).toHaveTextContent(en.errors.api.appUpdated)
-    expect(screen.getByRole('button', { name: en.errors.api.reload })).toBeInTheDocument()
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(useVersionGateStore.getState().reloadReason).toBe('appUpdated')
+    expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(onUnexpectedRejection).not.toHaveBeenCalled()
   })
 
-  it('keeps app-updated guidance visible with a reload action', async () => {
+  it('keeps app-updated guidance visible after its toast is dismissed', async () => {
     render(createElement(UpdateAvailableBanner))
+    await act(async () => {})
     const action = runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action')))
     const onUnexpectedRejection = vi.fn()
     void action.catch(onUnexpectedRejection)
 
     expect(await screen.findByText(en.errors.api.appUpdated)).toBeInTheDocument()
+    act(() => useAppToastStore.getState().dismissToast())
     expect(screen.getByText(en.errors.api.appUpdated)).toBeInTheDocument()
-    expect(screen.queryByLabelText('common.dismiss')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'versionUpdate.laterCta' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: en.errors.api.reload }))
     expect(reloadMock).toHaveBeenCalledOnce()
     expect(onUnexpectedRejection).not.toHaveBeenCalled()
   })
 
+  it('shows upgrade guidance from the real serialized failure producer', async () => {
+    await expect(runServerAction(wrapServerAction(async () => {
+      throw createApiClientError(426, null, 'Upgrade required')
+    }))).rejects.toMatchObject({ status: 426 })
+    expect(useVersionGateStore.getState().upgradeRequired).toBe(true)
+  })
+
   it('leaves network failures for the existing connection error path', async () => {
     const networkError = new TypeError('Failed to fetch')
     await expect(runServerAction(Promise.reject(networkError))).rejects.toBe(networkError)
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
   })
+})
+
+
+it('preserves validation fields and paired codes through the action boundary', async () => {
+  const { verificationValidationResponses } = await import('@orbit/shared/test-support/validation-fixtures')
+  const payload = verificationValidationResponses['pt-BR']
+  const result = await wrapServerAction(async () => { throw createApiClientError(400, payload, 'Fallback') })
+  expect(result).toMatchObject({ ok: false, fieldErrors: payload.errors, errorDetails: payload.errorDetails })
+  await expect(runServerAction(Promise.resolve(result))).rejects.toMatchObject({ fieldErrors: payload.errors, errorDetails: payload.errorDetails })
 })

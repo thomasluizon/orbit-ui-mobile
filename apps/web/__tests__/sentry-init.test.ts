@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as Sentry from '@sentry/nextjs'
+import { beforeSendEvent } from '@/lib/sentry-scrub'
 
 vi.mock('@sentry/nextjs', () => ({
   init: vi.fn(),
   captureRouterTransitionStart: vi.fn(),
 }))
+
+/** Retains the real scrubber across entry-module resets so cold loading finishes during collection. */
+vi.mock('@/lib/sentry-scrub', (importOriginal) => importOriginal())
+
+let initialization: Promise<unknown> | undefined
 
 beforeEach(() => {
   vi.resetModules()
@@ -12,8 +18,13 @@ beforeEach(() => {
   vi.stubEnv('NODE_ENV', 'production')
 })
 
-afterEach(() => {
-  vi.unstubAllEnvs()
+afterEach(async () => {
+  try {
+    await initialization
+  } finally {
+    initialization = undefined
+    vi.unstubAllEnvs()
+  }
 })
 
 describe.each([
@@ -27,8 +38,8 @@ describe.each([
       vi.stubEnv('NEXT_PUBLIC_SENTRY_ENVIRONMENT', environment)
       vi.stubEnv(dsnKey, 'https://public@example.com/1')
 
-      await initialize()
-      const { beforeSendEvent } = await import('@/lib/sentry-scrub')
+      initialization = initialize()
+      await initialization
 
       expect(Sentry.init).toHaveBeenCalledExactlyOnceWith({
         dsn: 'https://public@example.com/1',
@@ -45,7 +56,8 @@ describe.each([
     vi.stubEnv('NEXT_PUBLIC_SENTRY_ENVIRONMENT', 'staging')
     vi.stubEnv(dsnKey, dsn)
 
-    await initialize()
+    initialization = initialize()
+    await initialization
 
     expect(Sentry.init).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
       dsn,

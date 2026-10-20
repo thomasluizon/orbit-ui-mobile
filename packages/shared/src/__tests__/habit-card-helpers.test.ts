@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { createMockHabit } from './factories'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import { parseAPIDate } from '../utils/dates'
 import {
   canLogHabitOnDate,
   computeHabitCardStatus,
-  computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitMatchBadges,
+  getHabitLogDateDecision,
+  getHabitLogDateConfirmationKeys,
 } from '../utils/habit-card-helpers'
 
 function createTranslator() {
@@ -20,6 +23,24 @@ function createTranslator() {
 }
 
 describe('habit card helpers', () => {
+  it('uses permanent removal copy only for an unlog before a known child creation date', () => {
+    const child = createMockHabit({
+      parentId: 'parent-1',
+      createdAtUtc: '2025-01-08T12:00:00Z',
+      createdAtUtcIsInherited: false,
+      frequencyUnit: 'Day',
+    })
+
+    const decision = getHabitLogDateDecision(child, '2025-01-07', '2025-01-10', 'UTC', false, 'unlog')
+
+    expect(decision).toBe('confirm-permanent-unlog')
+    expect(getHabitLogDateConfirmationKeys('unlog', decision === 'confirm-permanent-unlog')).toEqual({
+      message: 'habits.detail.logDateConfirmPermanentUnlogMessage',
+      action: 'habits.detail.logDateConfirmUnlog',
+    })
+    expect(getHabitLogDateConfirmationKeys('unlog', false).message).toBe('habits.detail.logDateConfirmUnlogMessage')
+  })
+
   it('derives the overdue status for an overdue one-time task', () => {
     const habit = createMockHabit({
       isCompleted: false,
@@ -52,7 +73,7 @@ describe('habit card helpers', () => {
     expect(computeHabitCardStatus(monthly, new Date('2025-01-02'))).toBe('overdue')
   })
 
-  it('builds frequency and flexible progress labels', () => {
+  it('builds flexible frequency labels', () => {
     const translator = createTranslator()
     const habit = createMockHabit({
       isGeneral: false,
@@ -60,32 +81,49 @@ describe('habit card helpers', () => {
       frequencyQuantity: 2,
       days: [],
       isFlexible: true,
-      flexibleTarget: 3,
-      flexibleCompleted: 1,
     })
 
     expect(computeHabitFrequencyLabel(habit, translator)).toContain(
       'habits.frequency.flexibleLabel',
     )
-    expect(computeHabitFlexibleProgressLabel(habit, translator)).toContain(
-      'habits.frequency.flexibleProgress',
-    )
   })
 
-  it('builds search match badges for non-title matches only', () => {
-    const translator = createTranslator()
-    const habit = createMockHabit({
-      searchMatches: [
-        { field: 'tag', value: 'a very long tag value that should be truncated' },
-        { field: 'child', value: 'child habit' },
-        { field: 'title', value: 'ignored title match' },
-      ],
+  it('omits a frequency label when the habit has no schedule', () => {
+    const translate = createTranslator()
+    expect(computeHabitFrequencyLabel(createMockHabit({ frequencyUnit: null, isGeneral: false }), translate)).toBeNull()
+    expect(computeHabitFrequencyLabel(createMockHabit({ frequencyUnit: 'Day', isGeneral: true }), translate)).toBeNull()
+  })
+
+  it.each([
+    { messages: ptBR, expected: 'Todo dia' },
+    { messages: en, expected: 'Every day' },
+  ])('shows $expected for daily and all-seven fixed-day row metadata', ({ messages, expected }) => {
+    const translate = (key: string) => {
+      if (key === 'habits.frequency.everyDay') return messages.habits.frequency.everyDay
+      if (key.startsWith('dates.daysShort.')) {
+        const day = key.slice('dates.daysShort.'.length) as keyof typeof messages.dates.daysShort
+        return messages.dates.daysShort[day]
+      }
+      return key
+    }
+    const daily = createMockHabit({ frequencyUnit: 'Day', frequencyQuantity: 1, days: [] })
+    const everyFixedDay = createMockHabit({
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     })
 
-    expect(computeHabitMatchBadges('habit', habit, translator)).toEqual([
-      { label: 'habits.search.matchTag({"value":"a very long tag valu..."})' },
-      { label: 'habits.search.matchChild({"value":"child habit"})' },
-    ])
+    expect(computeHabitFrequencyLabel(daily, translate)).toBe(expected)
+    expect(computeHabitFrequencyLabel(everyFixedDay, translate)).toBe(expected)
+  })
+
+  it.each([
+    { field: 'title' as const, value: null },
+    { field: 'description' as const, value: null },
+    { field: 'tag' as const, value: 'a long tag value that stays intact' },
+    { field: 'child' as const, value: 'Walk to the shop' },
+  ])('preserves the structured $field match', (match) => {
+    expect(computeHabitMatchBadges('walk', createMockHabit({ searchMatches: [match] }))).toEqual([match])
   })
 
   it('marks optimistic habits as due today when only scheduledDates are present', () => {
@@ -232,46 +270,9 @@ describe('habit card helpers', () => {
     ).toBe('a | b | c | d')
   })
 
-  it('builds flexible progress labels and returns null for non-flexible habits', () => {
-    const translator = createTranslator()
-
-    expect(
-      computeHabitFlexibleProgressLabel(
-        createMockHabit({
-          isFlexible: true,
-          frequencyUnit: null,
-          flexibleTarget: null,
-          frequencyQuantity: 4,
-          flexibleCompleted: 2,
-        }),
-        translator,
-      ),
-    ).toContain('"target":4')
-    expect(
-      computeHabitFlexibleProgressLabel(
-        createMockHabit({
-          isFlexible: false,
-        }),
-        translator,
-      ),
-    ).toBeNull()
-  })
-
-  it('returns description match badges and no badges when search input is empty', () => {
-    const translator = createTranslator()
-
-    expect(
-      computeHabitMatchBadges(
-        'habit',
-        createMockHabit({
-          searchMatches: [{ field: 'description', value: 'deeper context' }],
-        }),
-        translator,
-      ),
-    ).toEqual([{ label: 'habits.search.matchDescription' }])
-    expect(
-      computeHabitMatchBadges('', createMockHabit({ searchMatches: null }), translator),
-    ).toEqual([])
+  it('omits match lines when there is no query or no metadata', () => {
+    expect(computeHabitMatchBadges('', createMockHabit({ searchMatches: [{ field: 'title', value: null }] }))).toEqual([])
+    expect(computeHabitMatchBadges('walk', createMockHabit({ searchMatches: null }))).toEqual([])
   })
 })
 
@@ -326,6 +327,47 @@ describe('canLogHabitOnDate', () => {
   it('rejects dates older than the overdue window', () => {
     const oneTime = createMockHabit({ frequencyUnit: null })
     expect(canLogHabitOnDate(oneTime, '2025-01-01', today)).toBe(false)
+  })
+})
+
+describe('getHabitLogDateDecision', () => {
+  const today = '2025-01-10'
+  const recurring = createMockHabit({ createdAtUtc: '2025-01-03T12:00:00Z', frequencyUnit: 'Day' })
+
+  it('blocks API rejected past and future dates', () => {
+    expect(getHabitLogDateDecision(recurring, '2025-01-02', today, 'UTC')).toBe('block')
+    expect(getHabitLogDateDecision(recurring, '2025-01-11', today, 'UTC')).toBe('block')
+  })
+
+  it('keeps the accepted backfill window immediate', () => {
+    expect(getHabitLogDateDecision(recurring, '2025-01-03', today, 'UTC')).toBe('write')
+    expect(getHabitLogDateDecision(recurring, '2025-01-09', today, 'UTC')).toBe('write')
+  })
+
+  it('confirms accepted dates the app never offers', () => {
+    const oneTime = createMockHabit({ createdAtUtc: '2025-01-09T12:00:00Z', frequencyUnit: null })
+    expect(getHabitLogDateDecision(oneTime, '2025-01-08', today, 'UTC')).toBe('confirm')
+    expect(getHabitLogDateDecision(oneTime, '2025-05-01', today, 'UTC')).toBe('confirm')
+    expect(getHabitLogDateDecision(oneTime, '2025-01-08', today, 'UTC', true)).toBe('write')
+    expect(getHabitLogDateDecision(recurring, '2025-01-11', today, 'UTC', true)).toBe('block')
+    expect(getHabitLogDateDecision(undefined, today, today, 'UTC', true)).toBe('block')
+  })
+
+  it('confirms a past date for a child with an unknown creation time', () => {
+    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-01T12:00:00Z', createdAtUtcIsInherited: true, frequencyUnit: 'Day' })
+    expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC')).toBe('confirm')
+    expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC', true)).toBe('write')
+    expect(getHabitLogDateDecision(child, today, today, 'UTC')).toBe('write')
+  })
+
+  it('blocks dates before a child was created and writes accepted dates immediately', () => {
+    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-08T12:00:00Z', createdAtUtcIsInherited: false, dueDate: '2025-01-01', frequencyUnit: 'Day' })
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC')).toBe('block')
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', true)).toBe('block')
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', false, 'unlog')).toBe('confirm-permanent-unlog')
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', true, 'unlog')).toBe('write')
+    expect(getHabitLogDateDecision(child, '2025-01-08', today, 'UTC')).toBe('write')
+    expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC')).toBe('write')
   })
 })
 

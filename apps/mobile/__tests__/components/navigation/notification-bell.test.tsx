@@ -1,228 +1,691 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
+import { Resvg } from '@resvg/resvg-js'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { createMockNotification, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-
+import en from '@orbit/shared/i18n/en.json'
+import pt from '@orbit/shared/i18n/pt-BR.json'
+import { Menu } from '@/components/ui/menu'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { NotificationInbox } from '@/components/navigation/notification-inbox'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { NotificationDetailModal } from '@/components/navigation/notification-detail-modal'
+import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
+import { createTokensV2 } from '@/lib/theme'
+import { useUIStore } from '@/stores/ui-store'
+import { useChatStore } from '@/stores/chat-store'
+import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
-
-const mocks = vi.hoisted(() => ({
-  notifications: [] as NotificationItem[],
-  isLoading: false,
-  isError: false,
-  markAllAsRead: vi.fn(),
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({
+  resources: { en: { translation: en }, 'pt-BR': { translation: pt } },
+  lng: 'en', fallbackLng: 'en', initAsync: false,
+})
+const state = vi.hoisted(() => ({
+  notifications: [] as NotificationItem[], unreadCount: 0, isLoading: false, isError: false,
+  locale: 'en', mode: 'dark', pathname: '/', push: vi.fn(), replace: vi.fn(), back: vi.fn(), refetch: vi.fn(), mark: vi.fn(), markAll: vi.fn(),
+  remove: vi.fn(), clear: vi.fn(),
 }))
-
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push, replace: state.replace }), usePathname: () => state.pathname }))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => state.back }))
+vi.mock('react-native-safe-area-context', async () => {
+  const { View } = await import('react-native')
+  return { SafeAreaView: View }
+})
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: state.mode }),
+}))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
-    i18n: { language: 'en' },
+    t: (key: string, values?: Record<string, unknown>) => testI18n.getFixedT(state.locale)(key, values),
   }),
 }))
-
 vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({
-    notifications: mocks.notifications,
-    isLoading: mocks.isLoading,
-    isError: mocks.isError,
-    refetch: vi.fn(),
-  }),
-  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
-  useMarkAllNotificationsRead: () => ({ mutate: mocks.markAllAsRead }),
-  useDeleteNotification: () => ({ mutate: vi.fn() }),
-  useDeleteAllNotifications: () => ({ mutate: vi.fn() }),
+  useNotifications: () => ({ ...state }),
+  useMarkNotificationRead: () => ({ mutate: state.mark }),
+  useMarkAllNotificationsRead: () => ({ mutate: state.markAll }),
+  useDeleteNotification: () => ({ mutate: state.remove, mutateAsync: (id: string) => Promise.resolve(state.remove(id)) }),
+  useDeleteAllNotifications: () => ({ mutate: state.clear }),
+}))
+vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
+vi.mock('@/lib/api-client', () => ({
+  apiClient: (path: string) => Promise.resolve(path === API.proactive.current ? createMockProactiveItem() : undefined),
 }))
 
-vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showQueued: vi.fn(), showError: vi.fn() }),
-}))
-
-const EMPTY_PENDING_DELETES: string[] = []
-const noopUnsubscribe = () => {}
-
-vi.mock('@/lib/pending-notification-deletes', () => ({
-  subscribePendingNotificationDeleteIds: () => noopUnsubscribe,
-  getPendingNotificationDeleteIdsSnapshot: () => EMPTY_PENDING_DELETES,
-  cancelPendingNotificationDelete: vi.fn(),
-  queuePendingNotificationDelete: vi.fn(() => true),
-}))
-
-vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
-}))
-
-vi.mock('@/lib/theme', () => ({
-  createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
-  tintFromPrimary: () => 'rgba(127,70,247,0.06)',
-}))
-
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? React.createElement('Sheet', null, children) : null,
-}))
-
-vi.mock('@/components/ui/drawer-content-inset', () => ({
-  withDrawerContentInset: (style: unknown) => style,
-}))
-
-vi.mock('@/components/navigation/notification-detail-modal', () => ({
-  NotificationDetailModal: () => null,
-}))
-
-vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: () => null,
-}))
-
-type FlatListNode = {
-  props: {
-    data: NotificationItem[]
-    keyExtractor: (item: NotificationItem) => string
-    renderItem: (info: { item: NotificationItem; index: number }) => React.ReactElement
-    ListEmptyComponent?: React.ReactNode
-    ListHeaderComponent?: React.ReactNode
-  }
+type Node = {
+  type: unknown
+  props: { onClose?: () => void; title?: string; accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; size?: number; color?: string; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void; onPress?: () => void; accessibilityState?: { busy?: boolean } }
+  parent: Node | null
+  findAll: (predicate: (node: Node) => boolean) => Node[]
 }
-
-function render() {
-  let tree: {
-    root: {
-      findByType: (type: string) => { props: { onPress?: () => void; accessibilityLabel?: string } }
-      findAll: (
-        predicate: (node: { props: { accessibilityLabel?: string; children?: React.ReactNode } }) => boolean,
-      ) => { props: { onPress?: () => void } }[]
-      findAllByType: (type: string) => FlatListNode[]
-    }
-  } | null = null
-  TestRenderer.act(() => {
-    tree = TestRenderer.create(React.createElement(NotificationBell))
-  })
+type Tree = { root: Node; update: (element: React.ReactNode) => void; unmount: () => void }
+let trees: Tree[] = []
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+function render(element: React.ReactNode = <><NotificationInbox /><NotificationDeleteNotice /></>): Tree {
+  let tree: Tree
+  TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>) })
+  trees.push(tree!)
   return tree!
 }
-
-function openSheetAndGetList(tree: ReturnType<typeof render>): FlatListNode {
-  const bell = tree.root.findByType('Pressable')
-  TestRenderer.act(() => {
-    bell.props.onPress?.()
-  })
-  const lists = tree.root.findAllByType('FlatList')
-  if (lists.length !== 1) {
-    throw new Error(`expected exactly one FlatList, found ${lists.length}`)
-  }
-  return lists[0]!
+function hosts(tree: Tree, type: string, label?: string) {
+  return tree.root.findAll((node) => node.type === type && (label === undefined || node.props.accessibilityLabel === label))
 }
-
+function deleteFromSheet(tree: Tree, title: string, target = 'Progress') {
+  const messages = state.locale === 'en' ? en : pt
+  press(tree, `${title}. ${messages.notifications.unread}. ${state.locale === 'en' ? target : messages.nav.progress}`)
+  press(tree, state.locale === 'en' ? en.notifications.delete : pt.notifications.delete)
+}
+function press(tree: Tree, label: string) {
+  const messages = state.locale === 'en' ? en : pt
+  if ([messages.notifications.markAllReadMenu, messages.notifications.deleteAll].includes(label) && hosts(tree, 'Pressable', label).length === 0 && text(tree, label).length === 0) {
+    press(tree, messages.notifications.options)
+  }
+  const button = hosts(tree, 'Pressable', label)[0] ?? hosts(tree, 'Pressable').find(
+    (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
+  )
+  expect(button, label).toBeDefined()
+  TestRenderer.act(() => button!.props.onPress?.())
+}
+function text(tree: Tree, value: string) {
+  return hosts(tree, 'Text').filter((node) => node.props.children === value)
+}
+function testId(tree: Tree, id: string) {
+  return tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === id)
+}
+function refresh(tree: Tree) {
+  TestRenderer.act(() => tree.update(<QueryClientProvider client={queryClient}><NotificationInbox /><NotificationDeleteNotice /></QueryClientProvider>))
+}
+function seed(count: number) {
+  state.notifications = Array.from({ length: count }, (_, index) => createMockNotification({
+    id: String(index), title: `Alert ${index}`, url: '/progress', isRead: false,
+  }))
+  state.unreadCount = count
+}
 beforeEach(() => {
-  mocks.notifications = []
-  mocks.isLoading = false
-  mocks.isError = false
-  mocks.markAllAsRead.mockReset()
+  useUIStore.setState({ astraConversationOpen: false })
+  useChatStore.setState({ messages: [], proactiveOutcomes: {} })
+  vi.useFakeTimers()
+  vi.clearAllMocks()
+  resetPendingNotificationDeletesForTests()
+  Object.assign(state, { notifications: [], unreadCount: 0, isLoading: false, isError: false, locale: 'en', mode: 'dark', pathname: '/' })
+  state.mark.mockImplementation((id: string) => {
+    state.notifications = state.notifications.map((item) => item.id === id ? { ...item, isRead: true } : item)
+    state.unreadCount -= 1
+  })
+  state.markAll.mockImplementation(() => {
+    state.notifications = state.notifications.map((item) => ({ ...item, isRead: true }))
+    state.unreadCount = 0
+  })
+  state.remove.mockImplementation((id: string) => {
+    state.notifications = state.notifications.filter((item) => item.id !== id)
+    state.unreadCount -= 1
+  })
+  state.clear.mockImplementation(() => { state.notifications = []; state.unreadCount = 0 })
+})
+afterEach(() => {
+  sheetTestControls.defer(false)
+  TestRenderer.act(() => trees.forEach((tree) => tree.unmount()))
+  trees = []
+  queryClient.clear()
+  resetPendingNotificationDeletesForTests()
+  vi.useRealTimers()
 })
 
-describe('NotificationBell list rendering', () => {
-  it.each(['/social?tab=buddies', '/public-profile/123', '/u/thomas'])(
-    'hides %s from the list and unread badge while preserving other rows',
-    (url) => {
-      mocks.notifications = [
+describe('mobile alerts', () => {
+  it.each(['/social?tab=buddies', '/public-profile/123', '/u/example'])(
+    'hides retired %s from the inbox and badge while preserving active rows', (url) => {
+      state.notifications = [
         createMockNotification({ id: 'streak', title: 'Streak saved', url: '/streak' }),
         createMockNotification({ id: 'retired', title: 'Retired notification', url }),
         createMockNotification({ id: 'celebration', title: 'Achievement earned', isRead: true }),
+        createMockNotification({ id: 'unknown', title: 'Unknown destination', url: '/unknown' }),
       ]
-
-      const tree = render()
-      expect(tree.root.findByType('Pressable').props.accessibilityLabel)
-        .toBe('notifications.bellWithCount:{"count":1}')
-      const list = openSheetAndGetList(tree)
-      expect(list.props.data.map((item) => item.id)).toEqual(['streak', 'celebration'])
-      const markAllRead = tree.root.findAll(
-        (node) => node.props.accessibilityLabel === 'notifications.markAllRead',
-      )[0]!
-      TestRenderer.act(() => { markAllRead.props.onPress?.() })
-      expect(mocks.markAllAsRead).toHaveBeenCalledOnce()
+      state.unreadCount = 3
+      const tree = render(<><NotificationBell /><NotificationInbox /></>)
+      expect(hosts(tree, 'Pressable', 'Alerts, 2 unread')).toHaveLength(1)
+      expect(text(tree, 'Retired notification')).toHaveLength(0)
+      for (const title of ['Streak saved', 'Achievement earned', 'Unknown destination']) {
+        expect(hosts(tree, 'Pressable').filter((node) => node.props.accessibilityLabel?.startsWith(`${title}.`))).toHaveLength(1)
+      }
+      press(tree, en.notifications.markAllReadMenu)
+      expect(state.markAll).toHaveBeenCalledOnce()
     },
   )
 
-  it('shows the empty state and no unread badge when every notification is retired', () => {
-    mocks.notifications = ['/social?tab=buddies', '/public-profile/123', '/u/thomas'].map(
+  it('shows the empty inbox and no unread badge when every row is retired', () => {
+    state.notifications = ['/social?tab=buddies', '/public-profile/123', '/u/example'].map(
       (url, index) => createMockNotification({ id: `retired-${index}`, url }),
     )
+    state.unreadCount = 3
+    const tree = render(<><NotificationBell /><NotificationInbox /></>)
+    expect(hosts(tree, 'Pressable', 'Alerts')).toHaveLength(1)
+    expect(testId(tree, 'notification-count')).toHaveLength(0)
+    expect(text(tree, en.notifications.empty)).toHaveLength(1)
+    expect(hosts(tree, 'Pressable', en.notifications.options)).toHaveLength(0)
+  })
 
+  it.each(['dark', 'light'] as const)('keeps the bell transparent until hover, press or focus in %s', (mode) => {
+    state.mode = mode
+    state.unreadCount = 25
+    const tree = render(<NotificationBell />)
+    const button = () => hosts(tree, 'Pressable', 'Alerts, 25 unread')[0]!
+    const surface = (pressed = false) => {
+      const style = button().props.style
+      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+    }
+    const tokens = createTokensV2('purple', mode)
+    expect(surface()).toMatchObject({ backgroundColor: 'transparent', minWidth: 48, minHeight: 48, borderRadius: 999 })
+    expect(surface(true).backgroundColor).toBe(tokens.bgHover)
+    TestRenderer.act(() => button().props.onHoverIn?.())
+    expect(surface().backgroundColor).toBe(tokens.bgHover)
+    TestRenderer.act(() => button().props.onFocus?.())
+    TestRenderer.act(() => button().props.onHoverOut?.())
+    expect(surface().backgroundColor).toBe(tokens.bgHover)
+    expect(surface(true).backgroundColor).toBe(tokens.bgHover)
+    TestRenderer.act(() => button().props.onBlur?.())
+    expect(surface().backgroundColor).toBe('transparent')
+    expect(testId(tree, 'notification-count')[0]!.props.children).toBe('9+')
+  })
+  it.each(['dark', 'light'].flatMap((mode) =>
+    ['row body', 'row timestamp', 'row target', 'detail body', 'detail metadata'].map((field) => ({ mode, field })),
+  ))('resolves rendered $field to fg2 in $mode', ({ mode, field }) => {
+    state.mode = mode
+    vi.setSystemTime(new Date('2026-09-06T12:00:00Z'))
+    state.notifications = [createMockNotification({ title: 'Reminder', body: 'Time for a walk',
+      url: '/calendar', isRead: false, createdAtUtc: '2026-09-06T11:55:00Z' })]
     const tree = render()
-    expect(tree.root.findByType('Pressable').props.accessibilityLabel).toBe('notifications.bell')
-    const list = openSheetAndGetList(tree)
-    expect(list.props.data).toEqual([])
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'notifications.markAllRead'))
-      .toHaveLength(0)
-    let emptyTree: ReturnType<typeof render> | null = null
-    TestRenderer.act(() => {
-      emptyTree = TestRenderer.create(list.props.ListEmptyComponent)
-    })
-    expect(emptyTree!.root.findAll((node) => node.props.children === 'notifications.empty').length)
-      .toBeGreaterThan(0)
+    const labels = { 'row body': 'Time for a walk', 'row timestamp': '5 min ago', 'row target': 'Calendar',
+      'detail body': 'Time for a walk', 'detail metadata': '5 min ago · Calendar' }
+    if (field.startsWith('detail')) press(tree, 'Reminder. unread. Calendar')
+    const matches = hosts(tree, 'Text').filter((node) =>
+      React.Children.toArray(node.props.children as React.ReactNode)
+        .filter((child) => typeof child === 'string' || typeof child === 'number').join('') === labels[field as keyof typeof labels],
+    )
+    const element = field.startsWith('detail') ? matches.at(-1)! : matches[0]!
+    const foreground = (StyleSheet.flatten(element.props.style) as { color: string }).color
+    const tokens = createTokensV2('purple', mode as 'dark' | 'light')
+    expect(foreground, field).toBe(tokens.fg2)
+    const surfaces = field.startsWith('detail') ? [[tokens.bgSheet]]
+      : [[tokens.bg], [tokens.bg, tokens.bgCard], [tokens.bg, tokens.bgCard, tokens.bgHover]]
+    for (const layers of surfaces) expect(contrastOnSurface(foreground, layers)).toBeGreaterThanOrEqual(4.5)
   })
 
-  it('renders notifications through a FlatList instead of a ScrollView', () => {
-    mocks.notifications = [
-      createMockNotification({ id: 'n-1', title: 'Streak saved' }),
-      createMockNotification({ id: 'n-2', title: 'New achievement' }),
-    ]
-
+  it.each(['dark', 'light'] as const)('shows retry press feedback and restores its resting surface on release in %s', (mode) => {
+    state.mode = mode
+    state.isError = true
     const tree = render()
-    expect(tree.root.findAllByType('ScrollView')).toHaveLength(0)
-
-    const list = openSheetAndGetList(tree)
-    expect(list.props.data).toHaveLength(2)
-    expect(list.props.keyExtractor(mocks.notifications[0]!)).toBe('n-1')
+    expect(text(tree, en.notifications.loadError)).toHaveLength(1)
+    const retry = hosts(tree, 'Pressable', en.common.retry)[0]!
+    const surface = (pressed: boolean) => {
+      const style = retry.props.style
+      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style).backgroundColor
+    }
+    const resting = surface(false)
+    const pressed = surface(true)
+    expect(pressed, 'Retry must visibly change its surface while pressed').not.toBe(resting)
+    const tokens = createTokensV2('purple', mode)
+    const label = retry.findAll((node) => node.type === 'Text' && node.props.children === en.common.retry)[0]!
+    const { color: foreground } = StyleSheet.flatten(label.props.style) as { color: string }
+    expect(contrastOnSurface(foreground, [tokens.bg, pressed])).toBeGreaterThanOrEqual(4.5)
+    expect(surface(false), 'Retry must restore its resting surface after release').toBe(resting)
   })
 
-  it('renders each row via renderItem with the title and body as its label', () => {
-    mocks.notifications = [createMockNotification({ id: 'n-1', title: 'Streak saved' })]
-
-    const list = openSheetAndGetList(render())
-    const rowElement = list.props.renderItem({ item: mocks.notifications[0]!, index: 0 })
-    let rowTree: {
-      root: {
-        findAll: (
-          predicate: (node: { props: Record<string, unknown> }) => boolean,
-        ) => unknown[]
-      }
-    } | null = null
-    TestRenderer.act(() => {
-      rowTree = TestRenderer.create(rowElement)
+  it.each(['dark', 'light'] as const)('shows an inset focus indicator until the row loses focus in %s', (mode) => {
+    state.mode = mode
+    seed(1)
+    const tree = render()
+    const row = () => hosts(tree, 'Pressable', 'Alert 0. unread. Progress')[0]!
+    const rowStyle = (pressed = false) => {
+      const style = row().props.style
+      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+    }
+    const restingStyle = rowStyle()
+    expect(restingStyle.outlineWidth).toBeUndefined()
+    TestRenderer.act(() => row().props.onFocus?.())
+    const tokens = createTokensV2('purple', mode)
+    expect(rowStyle().outlineColor, 'Focus must retain the accent semantic').toBe(tokens.primary)
+    expect(rowStyle().borderColor, 'Focus companion must be a solid border on Android API 24 and later').toBe(tokens.fg1)
+    expect(rowStyle()).toMatchObject({
+      outlineWidth: 2, outlineOffset: -3, outlineStyle: 'solid',
+      borderWidth: 4, borderStyle: 'solid', padding: 12,
     })
-    const labeled = rowTree!.root.findAll(
-      (node) =>
-        node.props.accessibilityLabel === 'Streak saved. Time to complete your habit!',
-    )
-    expect(labeled.length).toBeGreaterThan(0)
-  })
-
-  it('passes an empty data set and an empty-state component when there are no notifications', () => {
-    mocks.notifications = []
-
-    const list = openSheetAndGetList(render())
-    expect(list.props.data).toHaveLength(0)
-    expect(list.props.ListEmptyComponent).toBeTruthy()
-  })
-
-  it('renders a load-error state with a retry control when the query fails', () => {
-    mocks.isError = true
-
-    const list = openSheetAndGetList(render())
-    let emptyTree: {
-      root: {
-        findAll: (
-          predicate: (node: { props: Record<string, unknown> }) => boolean,
-        ) => unknown[]
+    expect(rowStyle().boxShadow).toBeUndefined()
+    expect(restingStyle).toMatchObject({ borderWidth: 4, borderColor: 'transparent', padding: 12 })
+    const companion = rowStyle().borderColor as string
+    expect(contrastOnSurface(rowStyle().outlineColor, [companion])).toBeGreaterThanOrEqual(3)
+    expect(contrastOnSurface(companion, [tokens.bg])).toBeGreaterThanOrEqual(3)
+    for (const pressed of [false, true]) {
+      const focusedStyle = rowStyle(pressed)
+      expect(focusedStyle.borderColor).toBe(companion)
+      expect(focusedStyle.boxShadow).toBeUndefined()
+      for (const layers of [[tokens.bg], [tokens.bg, tokens.bgCard]]) {
+        if (focusedStyle.backgroundColor) layers.push(focusedStyle.backgroundColor)
+        expect.soft(contrastOnSurface(companion, layers)).toBeGreaterThanOrEqual(3)
       }
-    } | null = null
-    TestRenderer.act(() => {
-      emptyTree = TestRenderer.create(list.props.ListEmptyComponent)
-    })
-    const retryControls = emptyTree!.root.findAll(
-      (node) => node.props.accessibilityLabel === 'common.retry',
-    )
-    expect(retryControls.length).toBeGreaterThan(0)
+    }
+    TestRenderer.act(() => row().props.onBlur?.())
+    expect(rowStyle().outlineWidth).toBeUndefined()
+    expect(rowStyle().boxShadow).toBeUndefined()
+    expect(rowStyle()).toEqual(restingStyle)
   })
+
+  it.each([
+    ['/', null, 'Home'], ['/calendar-sync', null, 'CalendarDays'], ['/streak', null, 'LayoutDashboard'],
+    ['/profile', null, 'User'], ['/', 'a12b34cd-1234-4567-89ab-123456789abc', 'CircleDot'],
+  ] as const)('shows the destination glyph at 16px for %s with habit %s', (url, habitId, glyph) => {
+    state.notifications = [createMockNotification({ title: 'Reminder', url, habitId, isRead: false })]
+    const tree = render()
+    const row = hosts(tree, 'Pressable').find((node) => node.props.accessibilityLabel?.startsWith('Reminder. unread.'))!
+    const icons = row.findAll((node) => node.type === glyph)
+    expect(icons).toHaveLength(1)
+    expect(icons[0]!.props).toMatchObject({ size: 16, color: createTokensV2('purple', 'dark').fg3 })
+  })
+
+  it('uses canonical ghost list and read actions and a destructive detail delete', () => {
+    seed(1)
+    const tree = render()
+    const action = (label: string) => hosts(tree, 'Pressable').find(
+      (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
+    )!
+    press(tree, en.notifications.options)
+    for (const label of [en.notifications.markAllReadMenu, en.notifications.deleteAll]) {
+      expect(action(label).props.accessibilityRole).toBe('menuitem')
+    }
+    press(tree, 'attempt-dismiss')
+    press(tree, 'Alert 0. unread. Progress')
+    expect(action(en.notifications.markAsRead).props.testID).toBe('button-ghost-sm')
+    expect(action('Delete').props.testID).toBe('button-destructive-sm')
+  })
+
+  it('keeps detail actions in the pinned sheet slot when a long body scrolls', () => {
+    const longBody = Array.from({ length: 80 }, (_, index) => `Line ${index + 1}`).join('\n')
+    const tree = render(<NotificationDetailModal
+      open
+      notification={createMockNotification({ body: longBody, url: '/progress', isRead: false })}
+      onClose={vi.fn()}
+      onMarkAsRead={vi.fn()}
+      onDelete={vi.fn()}
+    />)
+    const body = testId(tree, 'sheet-body-slot')[0]!
+    const actions = testId(tree, 'sheet-actions-slot')[0]!
+
+    expect(body.findAll((node) => node.type === 'Text' && node.props.children === longBody)).toHaveLength(1)
+    expect(body.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+    for (const label of ['Open in Progress', en.notifications.markAsRead, en.notifications.delete]) {
+      expect(actions.findAll((node) => node.type === 'Text' && node.props.children === label)).toHaveLength(1)
+    }
+  })
+
+  it('keeps rejected destinations out of the detail actions', () => {
+    const tree = render(<NotificationDetailModal
+      open
+      notification={createMockNotification({ url: '//evil.com', isRead: false })}
+      onClose={vi.fn()}
+      onMarkAsRead={vi.fn()}
+      onDelete={vi.fn()}
+    />)
+    const actionLabels = testId(tree, 'sheet-actions-slot')[0]!.findAll((node) => node.type === 'Text')
+      .map((node) => node.props.children)
+
+    expect(actionLabels).toEqual([en.notifications.markAsRead, en.notifications.delete])
+  })
+
+  it.each([
+    ['en', 'Mark all read', 'Mark as read'],
+    ['pt-BR', 'Marcar lidos', 'Marcar como lido'],
+  ] as const)('keeps bulk and single read actions distinct in %s', (locale, bulkLabel, singleLabel) => {
+    state.locale = locale
+    seed(1)
+    const tree = render()
+    const messages = locale === 'en' ? en : pt
+
+    press(tree, messages.notifications.options)
+    expect(tree.root.findAll((node) => node.type === Menu)[0]!.props.title).toBe(messages.notifications.options)
+    expect(text(tree, bulkLabel)).toHaveLength(1)
+    press(tree, 'attempt-dismiss')
+    press(tree, `Alert 0. ${messages.notifications.unread}. ${messages.nav.progress}`)
+    const singleActions = hosts(tree, 'Pressable').filter((node) =>
+      node.findAll(
+        (child) => child.type === 'Text' && child.props.children === singleLabel,
+      ).length > 0,
+    )
+    expect(singleActions).toHaveLength(1)
+    expect(bulkLabel).not.toBe(singleLabel)
+  })
+
+  it('identifies the queued delete with a neutral trash glyph beside undo', () => {
+    seed(1)
+    const tree = render()
+    deleteFromSheet(tree, 'Alert 0')
+    const notice = testId(tree, 'toast-neutral')[0]!
+    const icons = notice.findAll((node) => node.type === 'Trash2')
+    expect(icons).toHaveLength(1)
+    expect(icons[0]!.props).toMatchObject({ size: 20, color: createTokensV2('purple', 'dark').fg2 })
+    expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(1)
+  })
+  it.each(['en', 'pt-BR'])('omits the on-page inbox bell in %s', (locale) => {
+    state.locale = locale
+    state.pathname = '/notifications'
+    seed(2)
+    const tree = render()
+    expect(testId(tree, 'notification-count')).toHaveLength(0)
+    press(tree, locale === 'en' ? en.notifications.options : pt.notifications.options)
+    expect(text(tree, locale === 'en' ? en.notifications.markAllReadMenu : pt.notifications.markAllReadMenu)).toHaveLength(1)
+  })
+  it('renders the standalone bell passively on the current inbox route', () => {
+    state.pathname = '/notifications'
+    const tree = render(<NotificationBell />)
+    expect(hosts(tree, 'Pressable', 'Alerts')).toHaveLength(0)
+    expect(hosts(tree, 'View', 'Alerts')[0]!.props.accessibilityRole).toBe('image')
+  })
+  it('pushes the inbox and keeps zero absent', () => {
+    const tree = render(<NotificationBell />)
+    press(tree, 'Alerts')
+    expect(state.push).toHaveBeenCalledWith('/notifications')
+    expect(testId(tree, 'notification-count')).toHaveLength(0)
+  })
+  it('closes Astra before the header bell opens the inbox', () => {
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = render(<NotificationBell />)
+    press(tree, 'Alerts')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(state.push).toHaveBeenCalledWith('/notifications')
+  })
+  it.each([false, true])('preserves Astra until guarded bell navigation is confirmed with discard=%s', (discard) => {
+    const onNavigate = vi.fn<(action: () => void) => void>()
+    function GuardedBell() {
+      useHabitCreateNavigationGuard({ active: true, leaving: false, onNavigate })
+      return <NotificationBell />
+    }
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = render(<GuardedBell />)
+    press(tree, 'Alerts')
+    expect(onNavigate).toHaveBeenCalledOnce()
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(state.push).not.toHaveBeenCalled()
+    expect(state.replace).not.toHaveBeenCalled()
+    if (discard) {
+      TestRenderer.act(() => onNavigate.mock.calls[0]![0]())
+      expect(useUIStore.getState().astraConversationOpen).toBe(false)
+      expect(state.replace).toHaveBeenCalledExactlyOnceWith('/notifications')
+    }
+  })
+  it.each(['dark', 'light'] as const)('keeps a neutral capped count while loading in %s', (mode) => {
+    state.mode = mode
+    state.unreadCount = 25
+    state.isLoading = true
+    const tree = render(<NotificationBell />)
+    const badge = testId(tree, 'notification-count')[0]!
+    expect(badge.props.children).toBe('9+')
+    const tokens = createTokensV2('purple', mode)
+    expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, minHeight: 20, borderRadius: 8 })
+    const buttons = hosts(tree, 'Pressable', 'Alerts, 25 unread')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]!.findAll((node) => node.type === 'Text' && node.props.testID === 'notification-count')).toHaveLength(1)
+    let markerParent = badge.parent
+    while (markerParent && markerParent.type !== 'View') markerParent = markerParent.parent
+    expect(markerParent?.props).toMatchObject({ pointerEvents: 'none', accessible: false, importantForAccessibility: 'no-hide-descendants' })
+    expect(StyleSheet.flatten(markerParent?.props.style as StyleProp<ViewStyle>).overflow).not.toBe('hidden')
+  })
+  it.each([1, 9])('shows the count %s below the cap', (count) => {
+    state.unreadCount = count
+    expect(testId(render(<NotificationBell />), 'notification-count')[0]!.props.children).toBe(count)
+  })
+  it('renders an empty inbox without an action and a visible back affordance', () => {
+    const tree = render()
+    expect(text(tree, 'Nothing to see here')).toHaveLength(1)
+    expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', en.notifications.markAllReadMenu)).toHaveLength(0)
+    press(tree, en.common.back)
+    expect(state.back).toHaveBeenCalledWith('/')
+  })
+  it('reserves three skeleton lines per row and exposes busy state', () => {
+    state.isLoading = true
+    const tree = render()
+    expect(testId(tree, 'notification-skeleton-line')).toHaveLength(15)
+    const list = hosts(tree, 'View', 'Alerts').find((node) => node.findAll((child) => child.props.testID === 'notification-skeleton-line').length > 0)
+    expect(list!.props.accessibilityState).toEqual({ busy: true })
+    expect(text(tree, 'Nothing to see here')).toHaveLength(0)
+  })
+  it('offers retry on a load failure', () => {
+    state.isError = true
+    const tree = render()
+    expect(text(tree, en.notifications.loadError)).toHaveLength(1)
+    press(tree, en.common.retry)
+    expect(state.refetch).toHaveBeenCalledOnce()
+  })
+  it.each([1, 50])('renders all %s returned items', (count) => {
+    seed(count)
+    expect(testId(render(), 'notification-unread')).toHaveLength(count)
+  })
+  it('retains unread until marked and distinguishes it without colour', () => {
+    seed(1)
+    const tree = render()
+    expect(testId(tree, 'notification-unread-dot')).toHaveLength(1)
+    expect(StyleSheet.flatten(testId(tree, 'notification-title').find((node) => node.type === 'Text')!.props.style)).toMatchObject({ fontFamily: 'Geist_500Medium' })
+    press(tree, 'Alert 0. unread. Progress')
+    expect(state.mark).not.toHaveBeenCalled()
+    press(tree, en.notifications.markAsRead)
+    refresh(tree)
+    expect(testId(tree, 'notification-unread-dot')).toHaveLength(0)
+    expect(testId(tree, 'notification-dot-column')).toHaveLength(1)
+    expect(StyleSheet.flatten(testId(tree, 'notification-title').find((node) => node.type === 'Text')!.props.style)).toMatchObject({ fontFamily: 'Geist_400Regular' })
+    expect(hosts(tree, 'Pressable', en.notifications.markAsRead)).toHaveLength(0)
+  })
+  it.each(['en', 'pt-BR'])('announces the title, read state and habit destination in %s', (locale) => {
+    state.locale = locale
+    const messages = locale === 'en' ? en : pt
+    state.notifications = [createMockNotification({ title: 'Reminder', url: '/', habitId: 'a12b34cd-1234-4567-89ab-123456789abc', isRead: false })]
+    state.unreadCount = 1
+    const tree = render()
+    expect(hosts(tree, 'Pressable', `Reminder. ${messages.notifications.unread}. ${messages.notifications.habit}`)).toHaveLength(1)
+    state.notifications[0] = { ...state.notifications[0]!, isRead: true }
+    refresh(tree)
+    expect(hosts(tree, 'Pressable', `Reminder. ${messages.notifications.read}. ${messages.notifications.habit}`)).toHaveLength(1)
+  })
+
+  it('marks all read and removes only the mark action', () => {
+    seed(2)
+    const tree = render()
+    press(tree, en.notifications.markAllReadMenu)
+    refresh(tree)
+    expect(hosts(tree, 'Pressable', en.notifications.markAllReadMenu)).toHaveLength(0)
+    expect(testId(tree, 'notification-read')).toHaveLength(2)
+    press(tree, en.notifications.options)
+    expect(text(tree, 'Clear all')).toHaveLength(1)
+  })
+  it.each(['en', 'pt-BR'])('deletes through the sibling row action with Undo in %s', (locale) => {
+    state.locale = locale
+    const messages = locale === 'en' ? en : pt
+    const deleteLabel = `${locale === 'en' ? 'Delete' : 'Apagar'}: Alert 0`
+    const bodyLabel = `Alert 0. ${messages.notifications.unread}. ${messages.nav.progress}`
+    const siblingLabel = `Alert 1. ${messages.notifications.unread}. ${messages.nav.progress}`
+    seed(2)
+    const tree = render()
+    expect(hosts(tree, 'Pressable', deleteLabel)).toHaveLength(1)
+    const body = hosts(tree, 'Pressable', bodyLabel)[0]!
+    expect(body.findAll((node) => node.props.accessibilityLabel === deleteLabel)).toHaveLength(0)
+    const remove = hosts(tree, 'Pressable', deleteLabel)[0]!
+    expect(remove.parent?.parent).toBe(body.parent?.parent)
+    const style = remove.props.style
+    expect(StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style))
+      .toMatchObject({ width: 48, minHeight: 48, flexShrink: 0 })
+    press(tree, deleteLabel)
+    expect(text(tree, messages.notifications.markAsRead)).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', siblingLabel)).toHaveLength(1)
+    expect(hosts(tree, 'Pressable', bodyLabel)).toHaveLength(0)
+    expect(state.remove).not.toHaveBeenCalled()
+    TestRenderer.act(() => vi.advanceTimersByTime(4000))
+    press(tree, messages.notifications.deleteUndo)
+    expect(hosts(tree, 'Pressable', bodyLabel)).toHaveLength(1)
+    expect(hosts(tree, 'Pressable', messages.notifications.deleteUndo)).toHaveLength(0)
+    TestRenderer.act(() => vi.advanceTimersByTime(5000))
+    expect(state.remove).not.toHaveBeenCalled()
+    press(tree, deleteLabel)
+    TestRenderer.act(() => vi.advanceTimersByTime(5000))
+    expect(hosts(tree, 'Pressable', messages.notifications.deleteUndo)).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', bodyLabel)).toHaveLength(0)
+    expect(state.remove).toHaveBeenCalledOnce()
+  })
+  it.each([
+    ['en', 'All 50 alerts leave the list. There is no way to undo this.'],
+    ['pt-BR', 'Os 50 avisos saem da lista. Não há como desfazer.'],
+  ])('confirms the full scope and irreversible clear in %s', (locale, confirmBody) => {
+    state.locale = locale
+    seed(50)
+    const messages = locale === 'en' ? en : pt
+    const tree = render()
+    press(tree, messages.notifications.deleteAll)
+    expect(text(tree, confirmBody)).toHaveLength(1)
+    const confirmation = tree.root.findAll((node) => node.type === ConfirmSheet)[0]!
+    const title = confirmation.props.title!
+    const glyphs = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="100"><text x="0" y="44" font-family="Geist" font-size="44">${title}</text></svg>`, {
+      font: { fontFiles: [require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')], loadSystemFonts: false },
+    }).getBBox()
+    expect(glyphs).not.toBeNull()
+    expect(glyphs!.width).toBeLessThanOrEqual(320 - 2 * 24 - 16 - 48)
+    for (const action of confirmation.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith('button-') === true)) {
+      const style = action.props.style
+      const bounds = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
+      expect(bounds.minHeight).toBeGreaterThanOrEqual(48)
+      expect(bounds.height).toBeUndefined()
+    }
+    expect(state.clear).not.toHaveBeenCalled()
+    press(tree, messages.common.cancel)
+    expect(testId(tree, 'notification-unread')).toHaveLength(50)
+    deleteFromSheet(tree, 'Alert 0')
+    press(tree, messages.notifications.deleteAll)
+    press(tree, messages.notifications.deleteAllAction)
+    refresh(tree)
+    expect(text(tree, messages.notifications.empty)).toHaveLength(1)
+    expect(hosts(tree, 'Pressable', messages.notifications.deleteUndo)).toHaveLength(0)
+    TestRenderer.act(() => vi.advanceTimersByTime(5000))
+    expect(state.remove).not.toHaveBeenCalled()
+  })
+  it.each([
+    ['en', 'The alert leaves the list. There is no way to undo this.'],
+    ['pt-BR', 'O aviso sai da lista. Não há como desfazer.'],
+  ])('names the one visible alert in the clear confirmation in %s', (locale, confirmBody) => {
+    state.locale = locale
+    seed(1)
+    const messages = locale === 'en' ? en : pt
+    const tree = render()
+    press(tree, messages.notifications.deleteAll)
+    expect(text(tree, confirmBody)).toHaveLength(1)
+  })
+
+  it('groups the small intrinsic detail actions at the trailing edge', () => {
+    const tree = render(<NotificationDetailModal open
+      notification={createMockNotification({ url: '/progress', isRead: false })}
+      onClose={vi.fn()} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
+    const slot = testId(tree, 'sheet-actions-slot')[0]!
+    const row = slot.findAll((node) => node.type === 'View' && node.props.testID === 'action-row')[0]
+    expect(row).toBeDefined()
+    expect(StyleSheet.flatten(row!.props.style as StyleProp<ViewStyle>)).toMatchObject({
+      flexDirection: 'row', justifyContent: 'flex-end', gap: 12,
+    })
+    expect(slot.findAll((node) => node.type === 'Text' && typeof node.props.children === 'string')
+      .map((node) => node.props.children))
+      .toEqual([en.notifications.markAsRead, 'Open in Progress', en.notifications.delete])
+    expect(slot.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).flex === 1)).toHaveLength(0)
+  })
+
+  it.each([
+    ['goal deadline in English', 'Read 10 books', "Your goal is due tomorrow - you're at 3/10 books"],
+    ['goal deadline in Portuguese', 'Ler 10 livros', 'Sua meta termina amanhã. Progresso: 3/10 livros'],
+    ['streak freeze in English', 'Streak protected', 'We used a freeze to keep your 7-day streak alive after a day with no check-ins.'],
+    ['streak freeze in Portuguese', 'Sequência protegida', 'Usamos um congelamento para manter sua sequência de 7 dias depois de um dia sem registro.'],
+    ['achievement', 'New achievement: First Orbit', 'Create your first habit (+25 XP)'],
+    ['level up', 'You reached level 3', 'Keep the streak going.'],
+  ])('leads the %s row to Progress and opens it from the sheet', (_kind, title, body) => {
+    state.notifications = [createMockNotification({ title, body, url: '/progress', habitId: null, isRead: false })]
+    state.unreadCount = 1
+    const tree = render()
+    const rows = hosts(tree, 'Pressable', `${title}. unread. Progress`)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.findAll((node) => node.type === 'LayoutDashboard')).toHaveLength(1)
+    expect(rows[0]!.findAll((node) => node.type === 'Text' && node.props.children === en.nav.progress)).toHaveLength(1)
+    press(tree, `${title}. unread. Progress`)
+    press(tree, 'Open in Progress')
+    expect(state.push).toHaveBeenCalledWith('/progress')
+  })
+
+  it.each([
+    ['/streak', '/progress/streak', en.nav.progress], ['/', '/', en.nav.today],
+    ['/calendar', '/calendar', en.nav.calendar], ['/profile', '/profile', en.nav.profile],
+    ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', en.notifications.habit, 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/', en.nav.today],
+    ['/calendar-sync?mode=review', '/calendar?mode=review', en.nav.calendar],
+  ])('navigates from detail %s to the target after closing', async (url, destination, labelTarget, habitId: string | null = null) => {
+    sheetTestControls.defer(true)
+    const onClose = vi.fn()
+    const tree = render(<NotificationDetailModal open notification={createMockNotification({ url, habitId })}
+      onClose={onClose} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
+    const label = en.notifications.openIn.replace('{target}', labelTarget)
+    const target = hosts(tree, 'Pressable').find((node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0)!
+    TestRenderer.act(() => target.props.onPress?.())
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(state.push).not.toHaveBeenCalled()
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+
+    await TestRenderer.act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(state.push).toHaveBeenCalledWith(destination)
+    expect(state.push).toHaveBeenCalledTimes(1)
+    expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')
+    expect(useChatStore.getState().messages).toEqual(url === '/chat'
+      ? [expect.objectContaining({ role: 'ai', content: createMockProactiveItem().text })]
+      : [])
+  })
+
+  it.each([
+    ['en', '5 min ago · Calendar'],
+    ['pt-BR', 'há 5 min · Calendário'],
+  ])('renders the complete detail metadata with one middle dot in %s', (locale, metadata) => {
+    state.locale = locale
+    vi.setSystemTime(new Date('2026-09-06T12:00:00Z'))
+    state.notifications = [createMockNotification({
+      title: 'Reminder', url: '/calendar', isRead: false, createdAtUtc: '2026-09-06T11:55:00Z',
+    })]
+    const messages = locale === 'en' ? en : pt
+    const tree = render()
+    press(tree, `Reminder. ${messages.notifications.unread}. ${messages.nav.calendar}`)
+    const renderedText = hosts(tree, 'Text').map((node) =>
+      React.Children.toArray(node.props.children as React.ReactNode)
+        .filter((child) => typeof child === 'string' || typeof child === 'number').join(''),
+    )
+    expect(renderedText).toContain(metadata)
+  })
+})
+
+it.each(['dark', 'light'] as const)('keeps the row delete focus and pressed feedback distinct in %s', (mode) => {
+  state.mode = mode
+  seed(2)
+  const tree = render()
+  const button = () => hosts(tree, 'Pressable', 'Delete: Alert 0')[0]!
+  const style = (pressed: boolean) => {
+    const current = button().props.style
+    return StyleSheet.flatten(typeof current === 'function' ? current({ pressed }) : current)
+  }
+  const tokens = createTokensV2('purple', mode)
+  expect(style(false).outlineWidth).toBeUndefined()
+  TestRenderer.act(() => button().props.onFocus?.())
+  expect(style(false)).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary, borderColor: tokens.fg1 })
+  expect(style(true).backgroundColor).toBe(tokens.bgHover)
+  expect(contrastOnSurface(tokens.primary, [tokens.fg1])).toBeGreaterThanOrEqual(3)
+  expect(contrastOnSurface(tokens.statusBad, [tokens.bg, tokens.bgCard, tokens.bgHover])).toBeGreaterThanOrEqual(3)
+  TestRenderer.act(() => button().props.onBlur?.())
+  expect(style(false).outlineWidth).toBeUndefined()
 })

@@ -1,3 +1,4 @@
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
@@ -11,13 +12,12 @@ import type { BulkHabitItem, CreateHabitRequest } from '@orbit/shared/types/habi
 import type { CreateGoalRequest } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
-import type { ColorScheme } from '@orbit/shared/theme'
-import { useBulkCreateHabits, useCreateHabit, useLogHabit } from '@/hooks/use-habits'
+import { useBulkCreateHabits, useCreateHabit, useLogHabit, useUpdateHabit } from '@/hooks/use-habits'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { useProfile } from '@/hooks/use-profile'
-import { useAppTheme } from '@/lib/use-app-theme'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { useUIStore } from '@/stores/ui-store'
 
 /**
  * The mode-blind action surface the onboarding step components call. The pre-auth
@@ -25,19 +25,19 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
  * supplies live TanStack/profile mutations. `onImport` is omitted pre-auth.
  */
 export interface OnboardingActions {
-  createHabit: (input: CreateHabitRequest) => Promise<{ id: string; title: string }>
+  createHabit: (input: CreateHabitRequest, accountTimezoneDependency?: string) => Promise<{ id: string; title: string }>
+  updateHabit: (habitId: string, input: CreateHabitRequest, accountTimezoneDependency?: string) => Promise<void>
   createHabitsBulk: (items: BulkHabitItem[]) => Promise<void>
   logHabit: (habitId: string) => Promise<void>
   createGoal: (input: CreateGoalRequest) => Promise<void>
   setWeekStartDay: (day: OnboardingWeekStartDay) => Promise<void>
-  setColorScheme: (scheme: string) => Promise<void>
+  deferPushRegistration: () => void
   finishOnboarding: () => Promise<void>
   onImport?: () => void
 }
 
 interface OnboardingActionsContextValue {
   actions: OnboardingActions
-  hasProAccess: boolean
   isLive: boolean
 }
 
@@ -46,18 +46,16 @@ const OnboardingActionsContext = createContext<OnboardingActionsContextValue | n
 /** Provides the active onboarding action set (pre-auth buffering or post-auth live) to the steps below. */
 export function OnboardingActionsProvider({
   actions,
-  hasProAccess,
   isLive,
   children,
 }: Readonly<{
   actions: OnboardingActions
-  hasProAccess: boolean
   isLive: boolean
   children: ReactNode
 }>) {
   const value = useMemo(
-    () => ({ actions, hasProAccess, isLive }),
-    [actions, hasProAccess, isLive],
+    () => ({ actions, isLive }),
+    [actions, isLive],
   )
   return (
     <OnboardingActionsContext.Provider value={value}>
@@ -79,11 +77,6 @@ export function useOnboardingActions(): OnboardingActions {
   return useOnboardingActionsContext().actions
 }
 
-/** Whether the current onboarding mode grants Pro-gated steps (goal step, color scheme). */
-export function useOnboardingHasProAccess(): boolean {
-  return useOnboardingActionsContext().hasProAccess
-}
-
 /** Whether onboarding is running post-auth (live). False in the pre-auth buffering flow. */
 export function useOnboardingIsLive(): boolean {
   return useOnboardingActionsContext().isLive
@@ -99,39 +92,25 @@ export function useBufferOnboardingActions(): OnboardingActions {
         const index = useOnboardingDraftStore.getState().bufferHabit(input)
         return Promise.resolve({ id: String(index), title: input.title })
       },
+      updateHabit: (habitId, input) => {
+        useOnboardingDraftStore.getState().replaceHabit(Number(habitId), input)
+        return Promise.resolve()
+      },
       createHabitsBulk: (items) => {
         const store = useOnboardingDraftStore.getState()
-        for (const item of items) {
-          store.bufferHabit({
-            title: item.title,
-            ...(item.emoji != null ? { emoji: item.emoji } : {}),
-            ...(item.frequencyUnit != null ? { frequencyUnit: item.frequencyUnit } : {}),
-            ...(item.frequencyQuantity != null
-              ? { frequencyQuantity: item.frequencyQuantity }
-              : {}),
-            ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
-          })
-        }
+        for (const item of items) store.bufferHabit({
+          title: item.title,
+          ...(item.emoji != null ? { emoji: item.emoji } : {}),
+          ...(item.frequencyUnit != null ? { frequencyUnit: item.frequencyUnit } : {}),
+          ...(item.frequencyQuantity != null ? { frequencyQuantity: item.frequencyQuantity } : {}),
+          ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
+        })
         return Promise.resolve()
       },
-      logHabit: (habitId) => {
-        useOnboardingDraftStore
-          .getState()
-          .bufferFirstLog(Number(habitId), formatAPIDate(new Date()))
-        return Promise.resolve()
-      },
-      createGoal: (input) => {
-        useOnboardingDraftStore.getState().bufferGoal(input)
-        return Promise.resolve()
-      },
-      setWeekStartDay: (day) => {
-        useOnboardingDraftStore.getState().bufferWeekStartDay(day)
-        return Promise.resolve()
-      },
-      setColorScheme: (scheme) => {
-        useOnboardingDraftStore.getState().bufferColorScheme(scheme)
-        return Promise.resolve()
-      },
+      logHabit: (habitId) => { useOnboardingDraftStore.getState().bufferFirstLog(Number(habitId), formatAPIDate(new Date())); return Promise.resolve() },
+      createGoal: (input) => { useOnboardingDraftStore.getState().bufferGoal(input); return Promise.resolve() },
+      setWeekStartDay: (day) => { useOnboardingDraftStore.getState().bufferWeekStartDay(day); return Promise.resolve() },
+      deferPushRegistration: () => useOnboardingDraftStore.getState().markPushPermissionGranted(),
       finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
         router.replace('/login?from=onboarding')
@@ -148,45 +127,37 @@ export function useLiveOnboardingActions(): OnboardingActions {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const createHabit = useCreateHabit()
+  const updateHabit = useUpdateHabit()
   const bulkCreateHabits = useBulkCreateHabits()
   const logHabit = useLogHabit()
   const createGoal = useCreateGoal()
   const { patchProfile } = useProfile()
-  const { applyScheme } = useAppTheme()
 
   return useMemo<OnboardingActions>(
     () => ({
-      createHabit: async (input) => {
-        const created = await createHabit.mutateAsync(input)
+      createHabit: async (input, accountTimezoneDependency) => {
+        const created = await createHabit.mutateAsync(accountTimezoneDependency
+          ? { ...input, __offlineDependsOn: [accountTimezoneDependency] } : input)
         return { id: created.id, title: input.title }
       },
-      createHabitsBulk: async (items) => {
-        await bulkCreateHabits.mutateAsync({ habits: items })
-      },
-      logHabit: async (habitId) => {
-        await logHabit.mutateAsync({ habitId })
-      },
-      createGoal: async (input) => {
-        await createGoal.mutateAsync(input)
-      },
-      setWeekStartDay: async (day) => {
-        await performQueuedApiMutation({
-          type: 'setWeekStartDay',
-          scope: 'profile',
-          endpoint: API.profile.weekStartDay,
-          method: 'PUT',
-          payload: { weekStartDay: day },
-          dedupeKey: 'onboarding-week-start-day',
+      updateHabit: async (habitId, input, accountTimezoneDependency) => {
+        await updateHabit.mutateAsync({
+          habitId,
+          data: { ...input, isBadHabit: false, isGeneral: input.isGeneral ?? false, isFlexible: input.isFlexible ?? false, dueTime: input.dueTime ?? null },
+          ...(accountTimezoneDependency ? { dependsOn: [accountTimezoneDependency] } : {}),
         })
+      },
+      createHabitsBulk: async (items) => { await bulkCreateHabits.mutateAsync({ habits: items }) },
+      logHabit: async (habitId) => { await logHabit.mutateAsync({ habitId, intent: 'log' }) },
+      createGoal: async (input) => { await createGoal.mutateAsync(input) },
+      setWeekStartDay: async (day) => {
+        await performQueuedApiMutation({ type: 'setWeekStartDay', scope: 'profile', endpoint: API.profile.weekStartDay, method: 'PUT', payload: { weekStartDay: day }, dedupeKey: 'onboarding-week-start-day' })
         patchProfile({ weekStartDay: day })
       },
-      setColorScheme: (scheme) => {
-        applyScheme(scheme as ColorScheme)
-        return Promise.resolve()
-      },
+      deferPushRegistration: () => undefined,
       finishOnboarding: async () => {
-        try {
-          await performQueuedApiMutation({
+        const generation = getAccountGeneration()
+        await performQueuedApiMutation({
             type: 'completeOnboarding',
             scope: 'profile',
             endpoint: API.profile.onboarding,
@@ -194,7 +165,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
             payload: undefined,
             dedupeKey: 'profile-onboarding-complete',
           })
-        } catch {}
+        if (getAccountGeneration() !== generation) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )
@@ -206,20 +177,21 @@ export function useLiveOnboardingActions(): OnboardingActions {
             CHAT_DRAFT_STORAGE_KEY,
             t('onboarding.flow.meetAstra.importPrompt'),
           )
-          router.replace('/chat')
+          useUIStore.getState().setAstraConversationOpen(true)
+          router.replace('/(tabs)')
         })()
       },
     }),
     [
-      applyScheme,
+      createHabit,
       bulkCreateHabits,
       createGoal,
-      createHabit,
       logHabit,
       patchProfile,
       queryClient,
       router,
       t,
+      updateHabit,
     ],
   )
 }

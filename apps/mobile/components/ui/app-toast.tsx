@@ -1,270 +1,249 @@
-import { useEffect, useMemo, useRef, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
+import type { ToastProps } from '@orbit/shared/contracts/feedback'
+import { SPACING, TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
-  // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  Animated,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native'
-import { Bell, Check, Clock, X } from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { schemes, zLayers } from '@orbit/shared/theme'
-import type { ThemeMode } from '@orbit/shared/types/profile'
-import { toAnimatedEasing } from '@/lib/motion'
-import {
-  createTokensV2,
-  easings,
-  lightenHex,
-  shadowsV2,
-  tintFromPrimary,
-  type AppTokensV2,
-} from '@/lib/theme'
+import { Check, X } from '@/components/ui/icons'
+import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useUIStore } from '@/stores/ui-store'
+import { PillButton } from './pill-button'
 import { resolveCenteredOverlayFrame } from './centered-overlay-frame'
 
-const TOAST_DURATION_MS = 4500
-const ACTION_TOAST_DURATION_MS = 6000
-
-type Variant = 'success' | 'error' | 'info' | 'queued'
-
-interface VariantStyle {
-  icon: LucideIcon
-  tint: string
-  discBg: string
+function resolveActionColor(
+  kind: ToastProps['kind'],
+  pressed: boolean,
+  rest: string,
+  tokens: ReturnType<typeof createTokensV2>,
+) {
+  if (!pressed) return rest
+  return kind === 'lost' ? tokens.fg1 : tokens.fg2
 }
 
-/**
- * Toast per the toast-success/error/info/queued artboards: solid sheet card,
- * radius 18, leading 32px status icon disc, Rubik 15/500 message, optional
- * accent action. Preserves the existing store contract (queue + variants,
- * including the offline `queued` kind).
- */
-export function AppToast({ placement = 'overlay' }: Readonly<{
-  placement?: 'overlay' | 'slot'
+function resolveActionOutline(focused: boolean, color: string) {
+  return focused ? {
+    outlineWidth: 2,
+    outlineStyle: 'solid' as const,
+    outlineColor: color,
+    outlineOffset: 2,
+  } : undefined
+}
+
+function WorkingMark({ color }: Readonly<{ color: string }>) {
+  return (
+    <View style={styles.workingMark} testID="toast-working-mark" accessibilityElementsHidden>
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <View style={[styles.dot, { backgroundColor: color }]} />
+    </View>
+  )
+}
+
+function useToastSwipe(props: { actionLabel?: string; persistent?: boolean; onDismiss?: () => void }, dismiss: () => void) {
+  const canDismiss = !props.persistent || Boolean(props.onDismiss)
+  const swipeEnabled = Boolean(props.actionLabel) && canDismiss
+  const swipe = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) => swipeEnabled
+      && Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onPanResponderRelease: (_event, gesture) => {
+      if (swipeEnabled && Math.abs(gesture.dx) >= 48 && Math.abs(gesture.dx) > Math.abs(gesture.dy)) dismiss()
+    },
+  }), [swipeEnabled, dismiss])
+  return { swipe, canDismiss }
+}
+
+function ToastClose({ visible, dismiss, onFocus, onBlur, color }: Readonly<{
+  visible: boolean; dismiss: () => void; onFocus: () => void; onBlur: () => void; color: string
 }>) {
-  const insets = useSafeAreaInsets()
-  const { width: screenWidth } = useWindowDimensions()
-  const overlayFrame = resolveCenteredOverlayFrame(screenWidth, 420)
+  const { t } = useTranslation()
+  if (!visible) return null
+  return (
+    <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss} onFocus={onFocus} onBlur={onBlur}>
+      <X size={20} color={color} />
+    </PillButton>
+  )
+}
+
+/** Stable Android live-region feedback. It owns no position, scrim, focus, or z-index. */
+export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void; persistent?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const currentToast = useAppToastStore((state) => state.currentToast)
-  const dismissToast = useAppToastStore((state) => state.dismissToast)
-  const triggerAction = useAppToastStore((state) => state.triggerAction)
-  const translateY = useMemo(() => new Animated.Value(48), [])
-  const opacity = useMemo(() => new Animated.Value(0), [])
-  const scale = useMemo(() => new Animated.Value(0.96), [])
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [announcedMessage, setAnnouncedMessage] = useState('')
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [actionPressed, setActionPressed] = useState(false)
+  const [actionFocused, setActionFocused] = useState(false)
+  const lossColors = { background: tokens.bg, action: tokens.primarySoft }
+  const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
+  const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
-  const clearTimer = useCallback(() => {
-    if (dismissTimerRef.current) {
-      clearTimeout(dismissTimerRef.current)
-      dismissTimerRef.current = null
-    }
-  }, [])
+  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss, props.persistent)
+  const { swipe, canDismiss } = useToastSwipe(props, dismiss)
 
-  const hideToast = useCallback(() => {
-    clearTimer()
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: 48,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 0.96,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      dismissToast()
-    })
-  }, [clearTimer, dismissToast, opacity, scale, translateY])
-
-  // react-doctor-disable-next-line effect-needs-cleanup -- the effect returns clearTimer, which clears the setTimeout stored in dismissTimerRef (indirected so hideToast can also cancel it); the separate unmount effect below is a belt-and-suspenders guard https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
-    if (!currentToast) {
-      clearTimer()
-      translateY.setValue(48)
-      opacity.setValue(0)
-      scale.setValue(0.96)
-      return
-    }
+    const timer = setTimeout(() => setAnnouncedMessage(props.message), 0)
+    return () => clearTimeout(timer)
+  }, [props.message])
 
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 280,
-        easing: toAnimatedEasing(easings.out),
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 220,
-        easing: toAnimatedEasing(easings.out),
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1,
-        duration: 280,
-        easing: toAnimatedEasing(easings.out),
-        useNativeDriver: true,
-      }),
-    ]).start()
-
-    clearTimer()
-    dismissTimerRef.current = setTimeout(
-      hideToast,
-      currentToast.actionLabel ? ACTION_TOAST_DURATION_MS : TOAST_DURATION_MS,
-    )
-
-    return clearTimer
-  }, [clearTimer, currentToast, hideToast, opacity, scale, translateY])
-
-  useEffect(() => clearTimer, [clearTimer])
-
-  if (!currentToast) return null
-
-  const variantStyle = getVariantStyle(currentToast.variant, tokens, currentTheme)
-  const Icon = variantStyle.icon
+  if (dismissed) return null
 
   return (
-    <Animated.View
-      pointerEvents="box-none"
+    <View
+      {...swipe.panHandlers}
+      accessible={!props.actionLabel}
+      accessibilityLiveRegion={props.kind === 'lost' ? 'assertive' : 'polite'}
+      accessibilityRole={props.kind === 'lost' ? 'alert' : undefined}
+      accessibilityLabel={
+        props.kind === 'lost' && announcedMessage
+          ? `${announcedMessage}. ${props.detail}`
+          : announcedMessage
+      }
+      focusable={false}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={[
-        placement === 'overlay' ? styles.container : styles.slot,
-        placement === 'overlay' ? overlayFrame : null,
+        styles.toast,
         {
-          bottom: placement === 'overlay' ? insets.bottom + 12 : undefined,
-          opacity,
-          transform: [{ translateY }, { scale }],
+          backgroundColor: colors.background,
+          borderColor: props.outlined ? tokens.fg3 : tokens.hairline,
         },
       ]}
-      accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
+      testID={`toast-${props.kind}`}
     >
-      <Pressable
-        style={[
-          styles.toast,
-          {
-            backgroundColor: tokens.bgSheet,
-            borderColor: tokens.hairline,
-          },
-        ]}
-        onPress={hideToast}
-        accessibilityRole="button"
-      >
-        <View style={[styles.iconDisc, { backgroundColor: variantStyle.discBg }]}>
-          <Icon size={17} color={variantStyle.tint} strokeWidth={2.4} />
+      {props.kind === 'working' ? <WorkingMark color={tokens.fg2} /> : null}
+      {props.kind === 'done' ? (
+        <View
+          style={[styles.doneMark, { backgroundColor: tokens.statusDone }]}
+          testID="toast-done-mark"
+          accessibilityElementsHidden
+        >
+          <Check size={16} strokeWidth={2.4} color={tokens.bg} />
         </View>
-        <Text style={[styles.message, { color: tokens.fg1 }]}>
-          {currentToast.message}
-        </Text>
-        {currentToast.actionLabel ? (
-          <Pressable onPress={triggerAction} hitSlop={8} style={styles.actionButton} accessibilityRole="button">
-            <Text style={[styles.actionText, { color: tokens.primarySoft }]}>
-              {currentToast.actionLabel}
+      ) : null}
+      {(props.kind === 'neutral' || props.kind === 'lost') && props.icon ? (
+        <View style={styles.icon} accessibilityElementsHidden>
+          {props.icon}
+        </View>
+      ) : null}
+
+      <View style={[styles.copy, props.actionLabel ? styles.actionCopy : null]}>
+        <Text style={[styles.message, { color: tokens.fg1 }]}>{announcedMessage}</Text>
+        {props.kind === 'lost' && announcedMessage ? (
+          <Text style={[styles.detail, { color: tokens.fg3 }]}>{props.detail}</Text>
+        ) : null}
+      </View>
+
+      {props.actionLabel ? (
+        <View style={styles.controls}>
+          <Pressable
+            onPress={props.onAction}
+            onPressIn={() => setActionPressed(true)}
+            onPressOut={() => setActionPressed(false)}
+            onFocus={() => { setFocused(true); setActionFocused(true) }}
+            onBlur={() => { setFocused(false); setActionPressed(false); setActionFocused(false) }}
+            accessibilityRole="button"
+            accessibilityLabel={props.actionLabel}
+            style={[styles.action, resolveActionOutline(actionFocused, tokens.fg1)]}
+            testID="toast-action"
+          >
+            <Text style={[styles.actionText, {
+              color: resolveActionColor(props.kind, actionPressed, colors.action, tokens),
+            }]}>
+              {props.actionLabel}
             </Text>
           </Pressable>
-        ) : null}
-      </Pressable>
-    </Animated.View>
+          <ToastClose visible={canDismiss} dismiss={dismiss} color={tokens.fg2} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
+        </View>
+      ) : null}
+    </View>
   )
 }
 
-function hexWithAlpha(hex: string, alpha: number): string {
-  const alphaByte = Math.round(alpha * 255)
-    .toString(16)
-    .padStart(2, '0')
-  return `${hex}${alphaByte}`
-}
+/** Legacy root mount. The host owns placement and adapts the queue to the prop-driven Toast. */
+export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placement?: 'overlay' | 'slot' | 'sheet'; sheetId?: string }>) {
+  const insets = useSafeAreaInsets()
+  const { width: screenWidth } = useWindowDimensions()
+  const overlayFrame = resolveCenteredOverlayFrame(screenWidth, 420)
+  const currentToast = useAppToastStore((state) => state.currentToast)
+  const triggerAction = useAppToastStore((state) => state.triggerAction)
+  const dismissToast = useAppToastStore((state) => state.dismissToast)
+  const toastId = currentToast?.id
+  const dismiss = useCallback(() => { if (toastId !== undefined) dismissToast(toastId) }, [dismissToast, toastId])
+  const topOverlayId = useUIStore((state) => state.openOverlayIds.at(-1))
 
-function getVariantStyle(
-  variant: Variant,
-  tokens: AppTokensV2,
-  themeMode: ThemeMode,
-): VariantStyle {
-  const isLight = themeMode === 'light'
+  if (placement === 'sheet') {
+    if (!sheetId || topOverlayId !== sheetId) return null
+  } else if (topOverlayId?.startsWith('sheet:')) return null
+  if (!currentToast) return null
 
-  switch (variant) {
-    case 'success': {
-      const successAccent = schemes.green.accent[isLight ? 'light' : 'dark']
-      return {
-        icon: Check,
-        tint: successAccent.primary,
-        discBg: `rgba(${successAccent.primaryRgb}, 0.16)`,
-      }
-    }
-    case 'info':
-      return {
-        icon: Bell,
-        tint: tokens.primarySoft,
-        discBg: tintFromPrimary(tokens, 0.18),
-      }
-    case 'queued':
-      return {
-        icon: Clock,
-        tint: tokens.fg2,
-        discBg: hexWithAlpha(tokens.fg1, 0.1),
-      }
-    default:
-      return {
-        icon: X,
-        tint: isLight ? tokens.statusBad : lightenHex(tokens.statusBad, 0.35),
-        discBg: hexWithAlpha(tokens.statusBad, 0.16),
-      }
-  }
+  const toast = currentToast.toast
+  const hostedToast =
+    (toast.kind === 'neutral' || toast.kind === 'lost') && toast.actionLabel
+      ? { ...toast, onAction: triggerAction }
+      : toast
+
+  if (placement !== 'overlay') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'sheet'} />
+
+  return (
+    <View pointerEvents="box-none" style={[styles.host, styles.overlay, overlayFrame, { bottom: insets.bottom + 16 }]}>
+      <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} />
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     position: 'absolute',
-    zIndex: zLayers.toast,
   },
-  slot: {
-    width: '100%',
-    paddingHorizontal: 16,
+  host: {
     zIndex: zLayers.toast,
   },
   toast: {
+    width: '100%',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 12,
+    rowGap: 0,
     borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    ...shadowsV2.shadow3,
+    borderRadius: radius.xl,
+    padding: SPACING.s16,
+    ...shadowsV2.shadow2,
   },
-  iconDisc: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
+  workingMark: { flexDirection: 'row', gap: 4 },
+  dot: { width: 4, height: 4, borderRadius: radius.full },
+  doneMark: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  message: {
-    flex: 1,
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 15,
-  },
-  actionButton: {
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-  },
+  icon: { flexShrink: 0 },
+  copy: { flex: 1, gap: 4 },
+  actionCopy: { flexBasis: '50%' },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 12, marginStart: 'auto', flexShrink: 0 },
+  message: { fontFamily: 'Geist_500Medium', fontSize: 14 },
+  detail: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  action: { padding: SPACING.s8, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN },
   actionText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 14,
+    textDecorationLine: 'underline',
   },
 })

@@ -1,5 +1,7 @@
 import { useState, type ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { StyleSheet, type TextStyle } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
 
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 
@@ -7,6 +9,8 @@ interface RenderedInput {
   props: {
     onChangeText: (value: string) => void
     onFocus: (event: unknown) => void
+    onBlur: (event: unknown) => void
+    style: unknown
     value: string
   }
 }
@@ -51,6 +55,57 @@ function renderInput(value: string, onChangeText = vi.fn()) {
 }
 
 describe('BottomSheetAppTextInput', () => {
+  it('replaces a caller border while focused and preserves caller spacing', () => {
+    let tree!: RenderedTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <BottomSheetAppTextInput value="" style={{ borderWidth: 0, borderColor: 'transparent', paddingHorizontal: 8 }} />,
+      )
+    })
+    const input = () => tree.root.findByType('TextInput')
+    const rest = StyleSheet.flatten(input().props.style as TextStyle)
+    expect(rest.borderWidth).toBe(0)
+    expect(rest.paddingHorizontal).toBe(8)
+
+    TestRenderer.act(() => input().props.onFocus({}))
+    expect(StyleSheet.flatten(input().props.style as TextStyle)).toMatchObject({
+      borderWidth: 2,
+      borderColor: createTokensV2('orange', 'light').primary,
+      paddingHorizontal: 8,
+    })
+
+    TestRenderer.act(() => input().props.onBlur({}))
+    expect(StyleSheet.flatten(input().props.style as TextStyle).borderWidth).toBe(0)
+  })
+
+  it('lets a parent field own the focus border', () => {
+    let tree!: RenderedTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <BottomSheetAppTextInput value="" focusBorder={false} style={{ borderWidth: 0 }} />,
+      )
+    })
+    const input = () => tree.root.findByType('TextInput')
+    TestRenderer.act(() => input().props.onFocus({}))
+    expect(StyleSheet.flatten(input().props.style as TextStyle).borderWidth).toBe(0)
+  })
+
+  it('closes caller-specific border gaps while focused', () => {
+    let tree!: RenderedTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <BottomSheetAppTextInput value="" style={{ borderRightWidth: 0, borderBottomWidth: 1, borderBottomColor: 'transparent' }} />,
+      )
+    })
+    const input = () => tree.root.findByType('TextInput')
+    TestRenderer.act(() => input().props.onFocus({}))
+    expect(StyleSheet.flatten(input().props.style as TextStyle)).toMatchObject({
+      borderRightWidth: 2,
+      borderBottomWidth: 2,
+      borderBottomColor: createTokensV2('orange', 'light').primary,
+    })
+  })
+
   it('accepts a parent clear while focused', () => {
     const input = renderInput('Checklist item')
 

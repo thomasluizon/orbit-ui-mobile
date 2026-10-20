@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
-import { Mail } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
 import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -17,10 +17,12 @@ import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 
 const SETTLE_DELAY_MS = 500
 
-function enterAnimation(delayMs: number) {
-  return FadeInDown.duration(220).delay(delayMs).reduceMotion(ReduceMotion.System)
-}
-
+/**
+ * One-time LGPD-lawful marketing-email consent nudge. Shows once onboarding is complete, the
+ * armed slot holds a consent prompt, and no celebration is in flight — deliberately skipping
+ * the shared 14-day cooldown while still recording the prompt so other prompts treat it as
+ * recent.
+ */
 export function MarketingConsentPrompt() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -38,10 +40,22 @@ export function MarketingConsentPrompt() {
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const isArmed = armedPrompt?.kind === 'consent'
   const [visible, setVisible] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visible) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visible, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   const mutation = useMutation({
     mutationFn: (enabled: boolean) =>
@@ -74,7 +88,7 @@ export function MarketingConsentPrompt() {
     if (visible || !isArmed || celebrationInFlight || anotherOverlayOpen) return
 
     settleTimerRef.current = setTimeout(() => {
-      if (hasOpenPromptBlockingOverlay(useUIStore.getState())) return
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(
         MARKETING_CONSENT_MILESTONE_KEY,
         new Date().toISOString(),
@@ -85,108 +99,56 @@ export function MarketingConsentPrompt() {
     return () => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
-  }, [isArmed, celebrationInFlight, anotherOverlayOpen, visible, markEngagementPrompted])
+  }, [isArmed, celebrationInFlight, anotherOverlayOpen, visible, markEngagementPrompted, promptId])
 
   function answer(enabled: boolean) {
-    setVisible(false)
-    mutation.mutate(enabled)
+    closeSheet(() => {
+      setVisible(false)
+      mutation.mutate(enabled)
+    })
   }
 
   return (
-    <BottomSheetModal
-      open={visible}
+    visible ? (<Sheet
+      ref={sheetRef}
+      open
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}
-      snapPoints={['55%']}
-      contentManagesScroll
-    >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.Text entering={enterAnimation(70)} style={styles.eyebrow}>
-          {t('marketingConsent.prompt.eyebrow')}
-        </Animated.Text>
-        <Animated.View entering={enterAnimation(0)} style={styles.heroDisc}>
-          <Mail size={30} strokeWidth={1.8} color={tokens.primarySoft} />
-        </Animated.View>
-        <Animated.Text entering={enterAnimation(70)} style={styles.body}>
-          {t('marketingConsent.prompt.body')}
-        </Animated.Text>
-        <Animated.View entering={enterAnimation(140)} style={styles.actions}>
-          <PillButton fullWidth onPress={() => answer(true)}>
+      actions={(
+        <ActionRow>
+          <PromptQuietAction
+            accessibleName={t('marketingConsent.prompt.decline')}
+            onClick={() => answer(false)}
+          >
+            {t('marketingConsent.prompt.decline')}
+          </PromptQuietAction>
+          <PillButton size="sm" onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
-          <Pressable
-            onPress={() => answer(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t('marketingConsent.prompt.decline')}
-            style={({ pressed }) => [
-              styles.laterButton,
-              pressed ? styles.laterButtonPressed : null,
-            ]}
-          >
-            <Text style={styles.laterText}>
-              {t('marketingConsent.prompt.decline')}
-            </Text>
-          </Pressable>
-        </Animated.View>
-      </ScrollView>
-    </BottomSheetModal>
+        </ActionRow>
+      )}
+    >
+      <View style={styles.content}>
+        <Text style={styles.body}>
+          {t('marketingConsent.prompt.body')}
+        </Text>
+      </View>
+    </Sheet>) : null
   )
 }
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     content: {
       alignItems: 'center',
-      paddingHorizontal: 24,
-      paddingTop: 8,
-      paddingBottom: 24,
-      gap: 16,
-    },
-    eyebrow: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.96,
-      textTransform: 'uppercase',
-      color: tokens.fg3,
-    },
-    heroDisc: {
-      width: 64,
-      height: 64,
-      borderRadius: 999,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: tintFromPrimary(tokens, 0.15),
     },
     body: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      maxWidth: 420,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    actions: {
-      alignSelf: 'stretch',
-      gap: 8,
-      paddingTop: 4,
-    },
-    laterButton: {
-      alignItems: 'center',
-      paddingVertical: 12,
-    },
-    laterButtonPressed: {
-      opacity: 0.6,
-    },
-    laterText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
     },
   })
 }

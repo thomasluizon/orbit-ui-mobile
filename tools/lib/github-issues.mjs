@@ -251,15 +251,17 @@ export const resolveTicket = (reference) => {
       if (!/^ORB-[1-9]\d*$/.test(identifier) || !ticketsByIdentifier.has(identifier)) {
         throw new Error(`Unknown migrated ticket ${trimmed}; refusing to guess a GitHub issue number`)
       }
-      return { number: ticketsByIdentifier.get(identifier), identifier }
+      return { number: ticketsByIdentifier.get(identifier), identifier, reference: identifier }
     }
     const match = /^#?([1-9]\d*)$/.exec(trimmed)
     if (!match) throw new Error(`Ticket reference must be ORB-N, #N, or N, got ${JSON.stringify(reference)}`)
     const number = positiveIssueNumber(Number(match[1]))
-    return { number, identifier: identifiersByNumber.get(number) ?? null }
+    const identifier = identifiersByNumber.get(number) ?? null
+    return { number, identifier, reference: identifier ?? `#${number}` }
   }
   const number = positiveIssueNumber(reference)
-  return { number, identifier: identifiersByNumber.get(number) ?? null }
+  const identifier = identifiersByNumber.get(number) ?? null
+  return { number, identifier, reference: identifier ?? `#${number}` }
 }
 
 export const readTicket = async (number, { withProjectItem = true } = {}) => {
@@ -338,10 +340,6 @@ export const readComments = async (number) => {
     .sort((first, second) => first.createdAt.localeCompare(second.createdAt))
 }
 
-/**
- * Replace one ticket body. Comments also reach the worker through `compose-prompt.mjs`, but the
- * body is the work order itself (D2): a correction to the order belongs here, not in an errata
- */
 export const updateBody = async (number, body) => {
   positiveIssueNumber(number)
   if (typeof body !== "string" || body.trim().length === 0) throw new Error("GitHub issue body must be a non-empty string")
@@ -515,6 +513,36 @@ export const createTicket = async ({ title, body, labels, milestone = null, stat
   }
 
   return { ...created, title, milestone, status }
+}
+
+/** Add an issue created outside this adapter to the configured project without changing its fields. */
+export const addTicketToProject = async (number) => {
+  positiveIssueNumber(number)
+  const { tickets, repos } = readOrchestratorConfig()
+  const ticket = await readTicket(number)
+  const labels = ticket.labels.map((label) => label.name)
+  const routingLabels = labels.filter((name) => name.startsWith("repo:"))
+  const configuredLabels = Object.keys(repos).map((key) => `repo:${key}`)
+  let routingError
+  if (routingLabels.length === 0) routingError = "no routing label was found"
+  else if (routingLabels.length > 1) routingError = "multiple routing labels were found"
+  else if (!configuredLabels.includes(routingLabels[0])) routingError = "an unconfigured routing label was found"
+  if (routingError) {
+    throw new Error(`Ticket #${number}: ${routingError}; labels found: ${labels.join(", ") || "none"}; expected exactly one of ${configuredLabels.join(", ")}`)
+  }
+  if (ticket.projectItemId) {
+    return { number: ticket.number, url: ticket.url, title: ticket.title, added: false }
+  }
+  await runGh([
+    "project",
+    "item-add",
+    String(tickets.projectNumber),
+    "--owner",
+    tickets.projectOwner,
+    "--url",
+    ticket.url,
+  ])
+  return { number: ticket.number, url: ticket.url, title: ticket.title, added: true }
 }
 
 export const preflightTicketCompletion = async (number) => {

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useWindowDimensions } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
 import { scheduleOnRN } from 'react-native-worklets'
+import { CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO } from '@orbit/shared/utils'
 
 interface UseHorizontalSwipeOptions {
   onSwipeLeft: () => void
@@ -41,7 +42,7 @@ export function useHorizontalSwipe({
           const dy = event.translationY
           const vx = event.velocityX / 1000
 
-          if (Math.abs(dx) <= Math.abs(dy) * 1.2) return
+          if (Math.abs(dx) <= Math.abs(dy) * CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO) return
           if (Math.abs(dx) <= minDistance) return
           if (Math.abs(vx) < minVelocity) return
 

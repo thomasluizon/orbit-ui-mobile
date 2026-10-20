@@ -1,7 +1,85 @@
 export { achievementEmoji } from './achievement-emoji'
+export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
+export { submitApiKeyCreation, openApiKeyScopeOrStartStepUp, type ApiKeyCreationAdapter } from './api-key-creation'
+export { habitInitial } from './habit-initial'
+export { mapCompletionSeries } from './completion-series'
+export { getRadioNavigationIndex } from './radio-navigation'
 export { createClientId } from './client-id'
-export { parseAPIDate, formatAPIDate } from './dates'
-export { getAllDoneOnDate, isHabitLoggedOnDate } from './all-done'
+export { getAllDoneOnDate, isHabitLoggedOnDate, isHabitSkippedOnDate } from './all-done'
+export {
+  buildAccountScopedStorageKey,
+  readAccountScopedFlag,
+  type AccountScopedFlagState,
+} from './account-scoped-storage'
+export {
+  parseAPIDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  getAccountDay,
+  getAccountDateTime,
+  millisecondsUntilNextDay,
+  nowDate,
+  resolveHabitDetailRouteDate,
+  type AccountDateTime,
+} from './dates'
+export {
+  buildHabitHistoryMonth,
+  appendHabitDetailChild,
+  buildHabitDetailChildDateModel,
+  getHabitDetailChildUnavailableReasonKey,
+  getHabitDetailChildCompletionReason,
+  getAvailableHabitDetailScopedChild,
+  buildHabitDetailUpdateRequest,
+  createHabitDetailWriteQueue,
+  createAccountScopedHabitDetailWriteQueue,
+  buildHabitDetailHeaderSummary,
+  isHabitDetailCompletionDisabled,
+  buildHabitDetailSchedulePatch,
+  buildHabitDetailTimePatch,
+  canInlineEditHabitSchedule,
+  buildHabitStripModel,
+  canNavigateHabitHistoryBack,
+  canNavigateHabitHistoryForward,
+  getHabitDaysWithoutLog,
+  HABIT_SLIPPING_RATE_LIMIT,
+  getHabitHistoryLog,
+  getHabitStartDate,
+  habitHistoryCutoff,
+  isHabitHistoryMonthLoaded,
+  isHabitCompletedOnDate,
+  isHabitSlipping,
+  buildHabitDetailReminderRows,
+  hasAuthoritativeHabitRelationshipState,
+  HABIT_DETAIL_FREQUENCY_UNITS,
+  HABIT_DETAIL_WEEKDAYS,
+  mergeHabitDetailWithScopedHabit,
+  parseHabitHistoryDate,
+  removeHabitDetailChild,
+  shouldResetHabitChecklist,
+  shouldShowHabitMetrics,
+  type HabitHistoryDay,
+  type HabitDetailChildDateModel,
+  type HabitStripModel,
+} from './habit-detail-flow'
+export { buildCalendarMonthModel, deriveCalendarStats, calendarMonthForDay } from './calendar-month'
+export {
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_GRID_GAP_CONTENT_BREAKPOINT,
+  formatCalendarMonthHeading,
+  formatCalendarSpanEnds,
+  resolveCalendarMonthDisplayState,
+  type CalendarMonthDisplayState,
+} from './calendar-month-state'
+export {
+  buildDayCellAccessibleName,
+  getDayStripStateWord,
+  resolveDayCellOutcome,
+} from './date-surfaces'
+export type {
+  CalendarMonthDay,
+  CalendarMonthModel,
+  CalendarMonthStats,
+} from './calendar-month'
 export { getTimezoneList } from './timezones'
 export { isValidEmail } from './email'
 export { isRecord } from './is-record'
@@ -17,6 +95,11 @@ export {
   resolveAuthLoginErrorKey,
   VERIFICATION_CODE_LENGTH,
   type AuthLoginErrorInput,
+  recordLoginFailure,
+  deriveLoginEmailSubmission,
+  formatLoginCountdown,
+  type LoginAttempts,
+  type LoginCodeFailure,
 } from './auth-login'
 export {
   ApiClientError,
@@ -25,8 +108,11 @@ export {
   extractBackendError,
   extractBackendErrorCode,
   extractBackendFieldErrors,
+  extractBackendErrorDetails,
+  getBackendFieldError,
   extractBackendRequestId,
   extractBackendStatus,
+  isPayGateError,
   getErrorMessage,
   getFriendlyErrorKey,
   getFriendlyErrorMessage,
@@ -34,21 +120,56 @@ export {
   validateApiResponse,
   validateApiRequest,
 } from './error-utils'
-export { resolveFlag } from './config'
-export { stripInlineMarkdown } from './markdown'
+export { isFeatureEnabled, resolveFlag } from './config'
+export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
+export {
+  resolveShellDestination,
+  resolveShellChrome,
+  SHELL_DESTINATION_ROUTES,
+} from './shell-destinations'
+export type {
+  ShellDestinationId,
+  ShellDestinationRoute,
+} from './shell-destinations'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {
+  CALENDAR_NOT_CONNECTED_ERROR_CODE,
+  CALENDAR_RECONNECT_REQUIRED_ERROR_CODE,
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  calendarImportEventsKey,
+  calendarImportVisibleCount,
+  isCalendarImportConnected,
+  resolveCalendarEventsGrantRevocation,
+  resolveCalendarImportEvents,
+  resolveCalendarImportSelection,
+  runCalendarSyncNowWithFeedback,
+  type CalendarEventsGrantRevocationAction,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  filterCalendarSyncEventsByDate,
+  formatCalendarSyncTimestamp,
+  getCalendarSyncImportIssue,
+  getCalendarSyncImportIssueMessageKey,
   isCalendarAutoSyncStatusReconnectRequired,
+  isCalendarSyncConnectionActive,
+  shouldPromptForCalendarConnection,
+  resolveCalendarImportConnectionStep,
+  shouldOpenCalendarImportSheet,
+  calendarImportRouteRequestKey,
+  calendarImportTitleKey,
+  selectInitialCalendarImportEvent,
+  isCalendarSyncEventImportable,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  resolveCalendarSyncEndDate,
+  reconcileCalendarAutoSyncGrantRevocation,
 } from './calendar-sync'
 export type {
   CalendarSyncEvent,
+  CalendarSyncImportIssue,
+  CalendarSyncImportIssueMessageKey,
   CalendarSyncParsedRecurrence,
   CalendarSyncTranslationAdapter,
 } from './calendar-sync'
@@ -75,6 +196,16 @@ export {
   HABIT_EMOJI_CATEGORIES,
   HABIT_EMOJI_OPTIONS,
 } from './habit-emoji-options'
+export { readHabitPhrase, segmentHabitPhrase } from './habit-phrase-parser'
+export { getHabitPhraseTitle } from './habit-phrase-title'
+export type { AppliedHabitPhraseFields } from './habit-phrase-title'
+export type {
+  HabitPhraseCadence,
+  HabitPhraseRead,
+  HabitPhraseSegment,
+  HabitPhraseToken,
+  HabitPhraseTokenKind,
+} from './habit-phrase-parser'
 export {
   applyHabitFormMode,
   buildEditHabitFormState,
@@ -94,25 +225,60 @@ export type {
 } from './habit-form-state'
 export {
   buildHabitDaysList,
+  buildHabitAstraFallbackCopy,
+  applyHabitEmojiSuggestion,
+  buildHabitEmojiSuggestionAvailability,
   buildHabitFormPatchFromSuggestion,
+  buildHabitUnderstandingLabels,
+  buildHabitUnderstandingSentence,
+  clearHabitFormProposalSection,
+  createHabitFormController,
+  createHabitFormSuggestionRevision,
+  EMPTY_HABIT_FORM_PROPOSAL,
+  applyHabitDayCorrection,
+  applyHabitPhraseRead,
+  applyHabitQuantityCorrection,
+  formatHabitReminderLabel,
   buildHabitFrequencyUnits,
   coalesceFormText,
   HABIT_REMINDER_PRESETS,
   formatHabitTimeInput,
   getHabitFormFlags,
+  isHabitDailySchedule,
+  habitFeaturePlan,
+  hasHabitFormProposal,
+  isHabitAstraLimitReached,
   normalizeHabitFormData,
+  toggleHabitDaySelection,
+  releaseHabitPhraseOwnership,
+  requestHabitFormProposal,
+  getHabitDisplayStartDate,
+  resolveHabitStartDate,
+  shouldShowHabitAstraFallback,
   isValidHabitTimeInput,
   validateHabitFormInput,
 } from './habit-form-helpers'
 export type {
+  HabitDayOption,
   HabitFormSuggestionPatch,
+  HabitFormCommonProps,
+  HabitFormController,
+  HabitFormControllerOptions,
+  HabitFormProposal,
+  HabitFormSuggestionRevision,
+  HabitPhraseFormOwnership,
+  HabitUnderstandingLabels,
+  HabitUnderstandingProps,
+  HabitRepeatIntervalProps,
+  HabitScheduleFieldsProps,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'
 export {
   canLogHabitOnDate,
+  getHabitLogDateDecision,
+  getHabitLogDateConfirmationKeys,
   computeHabitCardStatus,
-  computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitMatchBadges,
@@ -123,31 +289,60 @@ export type {
   HabitCardTranslationAdapter,
 } from './habit-card-helpers'
 export { formatHabitDetailSummary } from './habit-detail-summary'
+export { buildRescheduleProposalLabels, type RescheduleProposalLabels } from './reschedule-proposal'
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
   capitalizeFirstLetter,
-  detectDefaultTimeFormat,
+  resolveHourCycle,
+  createTimeDisplay,
   formatLocaleDate,
+  formatLocaleDayMonth,
+  formatCalendarDayTitle,
+  formatCalendarAgendaHeading,
+  formatWeekdayLabels,
+  formatCalendarWeekday,
   formatLocaleDateTime,
   formatLocaleTime,
-  formatDeviceDate,
-  formatDeviceDateTime,
-  formatDeviceTime,
   getSystemLocale,
   resolveSupportedLocale,
   resolveSystemLocale,
   splitMonthYear,
 } from './locale-format'
+export type { TimeDisplay } from './locale-format'
+export {
+  DAY_PERIODS,
+  formatTimeParts,
+  from12Hour,
+  HOURS_12,
+  HOURS_24,
+  MINUTES,
+  padTimePart,
+  parseTimeParts,
+  to12Hour,
+} from './time-parts'
+export type { DayPeriod, TimeParts } from './time-parts'
 export { buildYearRange } from './year-range'
-export { filterRecurringEntries } from './calendar-entries'
+export {
+  CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
+  filterRecurringDayMap,
+  filterRecurringEntries,
+  resolveCalendarEventsDisplayState,
+  calendarEntryOutcome,
+  isCalendarGridScrollMovement,
+  orderCalendarDayEntries,
+} from './calendar-entries'
+export type { CalendarEventsDisplayState } from './calendar-entries'
 export {
   CALENDAR_MONTH_MAX_RANGE_DAYS,
-  clampRangeToMaxDays,
+  buildCalendarRangeModel,
   MAX_RANGE_DAYS,
+  resolveCalendarRangeEnd,
   splitCalendarMonthRange,
 } from './calendar-range'
-export type { CalendarRangeChunk, ClampedRange } from './calendar-range'
+export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
+export { habitListQueryFilters, shouldFetchAllHabitPages, habitViewQueryOptions } from './habit-list-pagination-core'
 export {
   buildHabitQueryString,
   buildUrlWithQuery,
@@ -159,6 +354,15 @@ export {
   formatPrice,
   monthlyEquivalent,
 } from './subscription-pricing'
+export { resolveSubscriptionScreen, resolveUpgradeHeader } from './subscription-screen'
+export { subscriptionSummary } from './subscription-summary'
+export type {
+  ResolveSubscriptionScreenInput,
+  SubscriptionPortalState,
+  SubscriptionScreenContent,
+  SubscriptionScreenModel,
+  SubscriptionScreenState,
+} from './subscription-screen'
 export {
   APP_VERSION_HEADER,
   buildClientTimeZoneHeaders,
@@ -166,39 +370,51 @@ export {
   getClientTimeZone,
 } from './client-context'
 export { isVersionBelow } from './version'
+export {
+  changeTimeFieldInput,
+  commitTimeFieldPickerDraft,
+  formatTimeFieldInput,
+  initialTimeFieldPickerDraft,
+  presentTimeFieldValue,
+  reconcileTimeFieldInput,
+  parseTypedTimeFieldValue,
+  selectTimeFieldHour,
+  selectTimeFieldMinute,
+  selectTimeFieldPeriod,
+  toTime24,
+} from './time-field'
+export { buildPreferencePickerModel } from './preference-picker'
+export type { PreferencePicker, PreferencePickerModel, PreferencePickerValues } from './preference-picker'
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin } from './referral'
 export {
-  canSnapshotOnboardingEntry,
+  canRepeatOnboardingScheduleWeeks,
+  clampOnboardingRepeatWeeks,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
-  getOnboardingHabitFrequencyLabelKey,
-  getOnboardingNextStep,
-  getOnboardingPreviousStep,
-  ONBOARDING_COMPLETE_HABIT_STEP,
-  ONBOARDING_COMPLETE_STEP,
-  ONBOARDING_CREATE_GOAL_STEP,
-  ONBOARDING_CREATE_HABIT_STEP,
-  ONBOARDING_FEATURES_STEP,
-  ONBOARDING_GOAL_SUGGESTIONS,
-  ONBOARDING_HABIT_FREQUENCIES,
-  ONBOARDING_HABIT_SUGGESTIONS,
-  ONBOARDING_TEMPLATE_PACKS_STEP,
+  buildOnboardingHabitInput,
+  buildOnboardingScheduleFromPhrase,
+  buildOnboardingScheduleFromSuggestion,
+  changeOnboardingScheduleMode,
+  toggleOnboardingScheduleDay,
+  getOnboardingCompleteCopy,
+  getOnboardingScheduleMode,
+  getOnboardingReminderPreviewTime,
+  getOnboardingRemindCopy,
+  isOnboardingHabitDueToday,
+  ONBOARDING_DONE_STEP,
+  ONBOARDING_PRO_STEP,
+  ONBOARDING_PRO_PENDING_KEY,
+  TRIAL_EXPIRED_SEEN_KEY,
+  resolveOnboardingPlan,
+  ONBOARDING_REMIND_STEP,
+  ONBOARDING_STARTERS,
+  ONBOARDING_WHAT_STEP,
+  ONBOARDING_WHEN_STEP,
   ONBOARDING_TOTAL_STEPS,
-  ONBOARDING_WEEK_START_OPTIONS,
-  resolveRetainedOnboarding,
-  shouldHideOnboardingFooter,
+  ONBOARDING_REMINDER_MINUTES,
+  shouldRequestOnboardingSuggestion,
 } from './onboarding'
-export type { RetainedOnboardingAction } from './onboarding'
-export {
-  buildBulkItemsFromPack,
-  getTemplatePackById,
-  TEMPLATE_PACKS,
-  templatePackDescriptionKey,
-  templatePackHabitTitleKey,
-  templatePackNameKey,
-  templatePackTagKey,
-} from './template-packs'
-export type { TemplatePack, TemplatePackHabit } from './template-packs'
+export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode } from './onboarding'
 export {
   isMissingBillingError,
   isMissingBillingStatus,
@@ -206,7 +422,6 @@ export {
 export {
   PLAY_BASE_PLAN_MONTHLY,
   PLAY_BASE_PLAN_YEARLY,
-  PLAY_PACKAGE_NAME,
   PLAY_REFERRAL_OFFER_TAG,
   PLAY_SUBSCRIPTION_PRODUCT_ID,
   playBasePlanToInterval,
@@ -215,7 +430,6 @@ export {
 export {
   applyLinkedGoalUpdates,
   buildChildrenIndex,
-  computeDayProgress,
   habitDetailToNormalized,
   normalizeHabitQueryData,
   normalizeHabits,
@@ -227,21 +441,29 @@ export {
 } from './habit-picker'
 export type { HabitPickerOption } from './habit-picker'
 export {
-  buildHabitDateBuckets,
+  computeHabitDayProgress,
+  computeParentSettlementDecision,
+  computeParentPromptDecision,
   computeParentPromptProgress,
 } from './habit-list-progress'
 export type {
-  HabitDateBucket,
+  HabitResolution,
+  HabitResolutionMode,
   ParentPromptProgress,
   ParentPromptProgressOptions,
+  ParentSettlementDecision,
+  ParentPromptDecision,
 } from './habit-list-progress'
 export {
   buildGoalTitle,
+  getFirstGoalDraftFieldError,
+  getGoalDraftFieldErrorKeys,
   isGoalDeadlinePast,
   parseGoalTargetValue,
   validateGoalDraftInput,
   validateGoalProgressInput,
 } from './goal-form'
+export type { GoalDraftFieldError, GoalDraftFieldErrorKeys } from './goal-form'
 export {
   createEmptyNotificationsResponse,
   deleteNotificationFromList,
@@ -252,15 +474,17 @@ export {
   snapshotNotificationList,
 } from './notification-cache'
 export { formatNotificationRelativeTime } from './notification-time'
-export type { NotificationGlyph } from './notification-actions'
+export { getReturningInterval, type ReturningInterval } from './returning-interval'
 export {
-  getNotificationDestination,
   getNotificationDetailActionVisibility,
-  getNotificationGlyph,
+  getNotificationDestination,
+  getNotificationTargetKey,
+  getNotificationInboxState,
   isRetiredNotification,
-  isViewableNotificationUrl,
   RETIRED_NOTIFICATION_URL_PREFIXES,
+  isViewableNotificationUrl,
   resolveNotificationUrl,
+  shouldShowTodayAstraSurface,
 } from './notification-actions'
 export {
   buildTempGoal,
@@ -274,8 +498,9 @@ export {
   updateGoalStatusItem,
 } from './goal-mutations'
 export {
+  formatGoalHistoryDelta,
+  formatGoalHistoryNumber,
   formatGoalMetricsDate,
-  getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from './goal-metrics'
 export { normalizeGoalQueryData } from './goal-query'
@@ -296,21 +521,16 @@ export {
   getTrialUrgent,
 } from './profile-selectors'
 export {
-  ENGAGEMENT_SLOT_PRIORITY,
-  resolveEngagementSlot,
-} from './engagement-slot'
-export type {
-  EngagementSlotCard,
-  EngagementSlotEligibility,
-} from './engagement-slot'
-export {
   getAgentCapabilityLabelKey,
+  getAgentOperationLabelKey,
   getAgentPolicyReasonKey,
 } from './agent-pending-operation'
+export { coalesceAgentOperationOutcomes } from './agent-operation-outcomes'
+export type { AgentOperationOutcome } from './agent-operation-outcomes'
 export {
   calculateXpProgress,
+  xpRequiredForLevel,
   deriveGamificationProfileState,
-  deriveNextRewardCarrot,
   detectCrossedStreakMilestones,
   detectGamificationMilestones,
   deriveStreakFreezeState,
@@ -324,38 +544,38 @@ export {
 export type {
   GamificationMilestoneState,
   GamificationProfileDerivedState,
-  NextRewardCarrotState,
   StreakFreezeDerivedState,
   StreakFreezeFallback,
 } from './gamification-selectors'
 export {
   buildCalendarDayMap,
+  optimisticSetCalendarHabitLog,
+  rollbackOptimisticCalendarHabitLog,
+  rollbackOptimisticHabitLogs,
+  buildUnresolvedBulkFailures,
+  rebaseSelectedIds,
   computeHabitReorderPositions,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   DEFAULT_OVERDUE_WINDOW_DAYS,
   determineHabitDayStatus,
-  getHabitEmptyStateKey,
   hasAncestorInSet,
   hasHabitScheduleOnDate,
   isWithinOverdueWindow,
 } from './habits'
-export {
-  buildHabitCalendarDayCells,
-  buildHabitCalendarWeekdayKeys,
-  buildHabitLogDateSet,
-} from './habit-calendar'
 export { buildStreakWeekDays } from './streak-week'
-export { AI_SUMMARY_CLAMP_CHARS } from './ai-summary'
+export {
+  canNavigateToNextDay,
+  getDayOffset,
+  getTodayBoundary,
+  isCalendarDayLoggable,
+  type TodayBoundary,
+} from './today-date'
 export type {
   HabitHierarchyNode,
   HabitReorderPosition,
   ReorderableHabitItem,
 } from './habits'
-export type {
-  HabitCalendarDayCell,
-  HabitCalendarWeekdayKey,
-} from './habit-calendar'
 export {
   loadDrillChildren,
   mergeDrillChildrenMap,
@@ -371,15 +591,18 @@ export {
   getTomorrowDateString,
   optimisticPatchHabit,
   optimisticRemoveHabits,
+  optimisticSetDatedCompletion,
   withChildren,
 } from './habit-optimistic'
 export type { HabitTreeNode } from './habit-optimistic'
-export { highlightText } from './highlight-text'
-export type { HighlightSegment } from './highlight-text'
 export { initialsOf } from './name-initials'
+export { ABOUT_DESTINATIONS } from './about-navigation'
 export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
+  getBreakdownCadenceKey,
+  isBreakdownNoWriteRejection,
+  nextBreakdownCadence,
 } from './breakdown-suggestion'
 export type { BreakdownEditableHabit } from './breakdown-suggestion'
 export {
@@ -389,10 +612,12 @@ export {
   resetPendingNotificationDeletesForTests,
   subscribePendingNotificationDeleteIds,
 } from './pending-notification-deletes'
+export { createSessionScopedRunner } from './session-scope'
 export {
   createHabitVisibilityHelpers,
   filterMoveTargetsBySearch,
   getChildrenFromIndex,
+  isHabitDoneForRange,
   isCompletedOneTimeHabit,
   isHabitSelectableAsMoveTarget,
   isHabitVisibleInAllView,
@@ -404,26 +629,46 @@ export type {
 } from './habit-visibility'
 export {
   buildRetrospectiveRequestUrl,
-  getRetrospectiveCacheKey,
-  RETROSPECTIVE_CACHE_PREFIX,
-  RETROSPECTIVE_PERIODS,
+  getBestRetrospectiveWeekdayKey,
 } from './retrospective'
 export type {
   RetrospectivePeriod,
   RetrospectiveResponse,
+  RetrospectiveWeekdayKey,
 } from './retrospective'
 export {
   buildRecapRequestUrl,
-  getClosedMonthFromWrappedParams,
   buildShareCardStats,
+  buildProgressShareCardStats,
+  buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,
+  parseWrappedRouteSelection,
   RECAP_SHARE_PERIODS,
+  SHARE_CARD_FILE_NAME,
+  SHARE_CARD_HEIGHT,
+  SHARE_CARD_WIDTH,
+  WRAPPED_WEEKDAY_KEYS,
   recapPeriodLabelKey,
 } from './share-card'
-export type { ClosedMonth, RecapSharePeriod, ShareCardStat } from './share-card'
-export { buildWrappedSlides } from './wrapped'
-export type { WrappedSlide, WrappedSlideId } from './wrapped'
+export type {
+  ClosedRecapMonth,
+  RecapSharePeriod,
+  ShareCardStat,
+  ShareCardWeekday,
+  WrappedRouteSelection,
+} from './share-card'
+export {
+  buildWrappedSlides,
+  formatClosedWrappedMonth,
+  getWeeklyConsistencyReading,
+  getWrappedWeekdayValues,
+} from './wrapped'
+export type {
+  WeeklyConsistencyReading,
+  WrappedSlide,
+  WrappedSlideId,
+} from './wrapped'
 export {
   canAccessEntitlement,
   DEFAULT_FREE_COLOR_SCHEME,
@@ -431,9 +676,6 @@ export {
   resolveUpgradeEntitlementDenial,
   resolveUpgradeEntitlementFromError,
   resolveUpgradeEntitlementFromPolicyDenial,
-  UPGRADE_FEATURE_CATEGORIES,
-  UPGRADE_PRO_FEATURES,
-  UPGRADE_YEARLY_EXTRA_FEATURES,
 } from './upgrade'
 export type {
   UpgradeAccessSnapshot,
@@ -441,13 +683,9 @@ export type {
   UpgradeEntitlementMode,
   UpgradeEntitlementRequirement,
   UpgradeEntitlementResolution,
-  UpgradeFeatureMatrixCategory,
-  UpgradeFeatureMatrixRow,
-  UpgradeIconKey,
-  UpgradePlanFeature,
-  UpgradeProState,
 } from './upgrade'
 export {
+  buildClockFormatOptions,
   buildWeekStartOptions,
   LANGUAGE_OPTIONS,
 } from './preferences-options'
@@ -477,40 +715,66 @@ export {
 } from './fresh-start'
 export {
   buildSupportRequestBody,
+  normalizeSupportSubjectId,
+  SUPPORT_API_MESSAGE_MAX_LENGTH,
+  attachSupportVersion,
+  buildSupportVersionSuffix,
+  getSupportMessageMaxLength,
+  getSupportMessageFit,
+  getSupportSendReasonKey,
+  SUPPORT_SUBJECT_OPTIONS,
 } from './support'
 export type {
   SupportFormFields,
   SupportProfileFields,
   SupportRequestBody,
+  SupportSubjectId,
 } from './support'
 export {
+  achievementGlyphKey,
+  buildGoalMovePositions,
+  buildProtectedDayLabels,
+  filterProgressGoals,
+  formatStreakDate,
+  formatStreakRepairDates,
+  getProgressGoalLabelKey,
+  deriveStreakRepairState,
+  getStreakRepairErrorMessageKey,
+  getGoalDeadlinePresentation,
+  getGamificationLevelTitleKey,
+  PROGRESS_GOAL_FILTERS,
+  visibleProgressAchievements,
+} from './progress'
+export type {
+  AchievementGlyphKey,
+  GoalDeadlineState,
+  ProgressGoalFilter,
+  StreakRepairState,
+} from './progress'
+export {
   PROFILE_NAV_ITEMS,
-  isProfileNavItemLocked,
-  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
+export { buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from './profile-preferences'
 export type {
-  ProfileNavHintContext,
   ProfileNavHintMode,
   ProfileNavIconKey,
   ProfileNavItem,
   ProfileNavSection,
-  ProfileNavTranslationAdapter,
   ProfileNavVariant,
 } from './profile-navigation'
+export * from './step-up'
 export {
   getNativePushStatusMessageKey,
   getNativePushStatusPresentation,
   getNativePushStatusTone,
   getPushStatusToneClass,
-  shouldShowNativePushPrompt,
   getWebPushStatusMessageKey,
   getWebPushStatusPresentation,
   getWebPushStatusTone,
 } from './push-notification-settings'
 export type {
   NativePushPermissionStatus,
-  NativePushPromptSnapshot,
   NativePushRegistrationStatus,
   NativePushStatusSnapshot,
   PushStatusPresentation,
@@ -518,3 +782,38 @@ export type {
   WebPushPermission,
   WebPushPreferenceStatus,
 } from './push-notification-settings'
+
+export { searchCommands, type SearchCommandPage, type SearchCommandId } from './search-commands'
+export { buildCommandHabitList, type CommandHabitEntry } from './command-habit-list'
+
+export * from './error-surface'
+export * from './proposed-tint-core'
+
+export { buildSearchEntries, buildSearchMatchLines, type SearchMatchLine } from './search-presentation'
+
+export { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitCreateReturnPath, type HabitCreateRouteInput } from './habit-create-navigation'
+
+export { DESTINATION_ICONS, SHELL_DESTINATION_IDS, getDestinationForLabel, getDestinationForCommand } from './destination-icons'
+export type { DestinationIconName } from './destination-icons'
+
+export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
+
+export { formatWeekdaySchedule } from './weekday-schedule'
+
+export { resolveHabitAccessibleStatus } from './habit-row-status'
+
+export { proactiveActionLabelKey, getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot } from './proactive'
+export { buildHabitViewFilters, type HabitViewFiltersInput } from './habit-view-filters'
+
+export { buildHabitDateBuckets, type HabitDateBucket } from './habit-list-progress'
+
+export { filterHabitViewRoots } from './habit-visibility'
+
+export { formatHabitDateBucketLabel } from './habit-list-progress'
+
+export { loadHabitListSchedule, mergeHabitListSchedule } from './habit-list-schedule'
+
+export { getSetupChecklist } from './setup-checklist'
+
+export { getSummaryFirstSentence } from './summary-sentence'
+export { deriveBulkLogStreakTransition } from './bulk-log-streak'

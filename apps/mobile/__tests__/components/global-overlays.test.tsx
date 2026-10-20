@@ -26,16 +26,6 @@ const TestRenderer: TestRendererApi = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true
 
-const runtime = vi.hoisted(() => ({
-  expoGo: false,
-  constants: { executionEnvironment: 'standalone', expoGoConfig: { name: 'Orbit' } },
-}))
-
-vi.mock('expo-constants', () => ({ default: runtime.constants }))
-vi.mock('expo', () => ({ isRunningInExpoGo: () => runtime.expoGo }))
-vi.mock('@/components/ui/push-prompt', () => ({
-  PushPrompt: () => React.createElement('PushPrompt'),
-}))
 vi.mock('@/components/onboarding/onboarding-flow', () => ({
   OnboardingFlow: 'OnboardingFlow',
 }))
@@ -47,18 +37,6 @@ vi.mock('@/components/onboarding/calendar-import-prompt', () => ({
 }))
 vi.mock('@/components/onboarding/astra-import-prompt', () => ({
   AstraImportPrompt: 'AstraImportPrompt',
-}))
-vi.mock('@/components/gamification/achievement-toast', () => ({
-  AchievementToast: 'AchievementToast',
-}))
-vi.mock('@/components/gamification/all-done-celebration', () => ({
-  AllDoneCelebration: 'AllDoneCelebration',
-}))
-vi.mock('@/components/gamification/goal-completed-celebration', () => ({
-  GoalCompletedCelebration: 'GoalCompletedCelebration',
-}))
-vi.mock('@/components/gamification/level-up-overlay', () => ({
-  LevelUpOverlay: 'LevelUpOverlay',
 }))
 vi.mock('@/components/referral/referral-prompt', () => ({
   ReferralPrompt: 'ReferralPrompt',
@@ -72,15 +50,6 @@ vi.mock('@/components/marketing-consent/marketing-consent-prompt', () => ({
 vi.mock('@/components/review-moment/review-moment-sheet', () => ({
   ReviewMomentSheet: 'ReviewMomentSheet',
 }))
-vi.mock('@/components/gamification/streak-celebration', () => ({
-  StreakCelebration: 'StreakCelebration',
-}))
-vi.mock('@/components/gamification/streak-freeze-celebration', () => ({
-  StreakFreezeCelebration: 'StreakFreezeCelebration',
-}))
-vi.mock('@/components/gamification/welcome-back-toast', () => ({
-  WelcomeBackToast: 'WelcomeBackToast',
-}))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: 'ExpiryWarning' }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({
   TrialExpiredModal: 'TrialExpiredModal',
@@ -88,16 +57,14 @@ vi.mock('@/components/ui/trial-expired-modal', () => ({
 vi.mock('@/components/version-update-drawer', () => ({
   VersionUpdateDrawer: 'VersionUpdateDrawer',
 }))
-vi.mock('@/components/tour/tour-provider', () => ({ TourProvider: 'TourProvider' }))
-vi.mock('@/components/tour/tour-overlay', () => ({ TourOverlay: 'TourOverlay' }))
-
 const onboardingActionsStub: OverlayLayerProps['onboardingActions'] = {
   createHabit: () => Promise.resolve({ id: '', title: '' }),
+  updateHabit: () => Promise.resolve(),
   createHabitsBulk: () => Promise.resolve(),
   logHabit: () => Promise.resolve(),
   createGoal: () => Promise.resolve(),
   setWeekStartDay: () => Promise.resolve(),
-  setColorScheme: () => Promise.resolve(),
+  deferPushRegistration: () => undefined,
   finishOnboarding: () => Promise.resolve(),
 }
 
@@ -106,25 +73,18 @@ function buildProps(
 ): OverlayLayerProps {
   return {
     hasCompletedOnboarding: false,
-    hasProAccess: false,
-    canViewGamification: false,
     showRetainedOnboarding: false,
     onboardingActions: onboardingActionsStub,
-    leveledUp: false,
-    newLevel: null,
-    onClearLevelUp: () => {},
-    streakFreezeRef: () => {},
     ...overrides,
   }
 }
 
 async function renderLayer(
   overrides: Partial<OverlayLayerProps> = {},
-  Layer = OverlayLayer,
 ): Promise<TestInstance> {
   let instance!: TestInstance
   await TestRenderer.act(() => {
-    instance = TestRenderer.create(<Layer {...buildProps(overrides)} />)
+    instance = TestRenderer.create(<OverlayLayer {...buildProps(overrides)} />)
   })
   return instance
 }
@@ -136,17 +96,10 @@ function isMounted(instance: TestInstance, overlayType: string): boolean {
 const ALWAYS_MOUNTED = [
   'ExpiryWarning',
   'TrialExpiredModal',
-  'StreakFreezeCelebration',
   'VersionUpdateDrawer',
-  'TourProvider',
-  'TourOverlay',
 ]
 
 const GAMIFICATION_OVERLAYS = [
-  'StreakCelebration',
-  'AllDoneCelebration',
-  'GoalCompletedCelebration',
-  'WelcomeBackToast',
   'MarketingConsentPrompt',
   'ReferralPrompt',
   'MilestoneSharePrompt',
@@ -186,67 +139,12 @@ describe('OverlayLayer mount matrix', () => {
     const preOnboarding = await renderLayer({ hasCompletedOnboarding: false })
     const postOnboarding = await renderLayer({
       hasCompletedOnboarding: true,
-      hasProAccess: true,
-      canViewGamification: true,
     })
 
     for (const overlay of GAMIFICATION_OVERLAYS) {
       expect(isMounted(preOnboarding, overlay)).toBe(false)
       expect(isMounted(postOnboarding, overlay)).toBe(true)
     }
-  })
-
-  it('gates the lazily-loaded push prompt on onboarding completion', async () => {
-    const preOnboarding = await renderLayer({ hasCompletedOnboarding: false })
-    const postOnboarding = await renderLayer({ hasCompletedOnboarding: true })
-
-    expect(isMounted(preOnboarding, 'PushPrompt')).toBe(false)
-    expect(isMounted(postOnboarding, 'PushPrompt')).toBe(true)
-  })
-
-  it('does not mount the push prompt in Expo Go', async () => {
-    runtime.expoGo = true
-    runtime.constants.executionEnvironment = 'storeClient'
-    vi.resetModules()
-
-    try {
-      const { OverlayLayer: ExpoGoLayer } = await import('@/components/global-overlays')
-      const instance = await renderLayer({ hasCompletedOnboarding: true }, ExpoGoLayer)
-      expect(isMounted(instance, 'PushPrompt')).toBe(false)
-    } finally {
-      runtime.expoGo = false
-      runtime.constants.executionEnvironment = 'standalone'
-    }
-  })
-
-  it('gates the achievement toast on pro access', async () => {
-    const withoutPro = await renderLayer({
-      hasCompletedOnboarding: true,
-      hasProAccess: false,
-    })
-    const withPro = await renderLayer({
-      hasCompletedOnboarding: true,
-      hasProAccess: true,
-    })
-
-    expect(isMounted(withoutPro, 'AchievementToast')).toBe(false)
-    expect(isMounted(withPro, 'AchievementToast')).toBe(true)
-  })
-
-  it('gates the level-up overlay on gamification visibility', async () => {
-    const hidden = await renderLayer({
-      hasCompletedOnboarding: true,
-      canViewGamification: false,
-    })
-    const visible = await renderLayer({
-      hasCompletedOnboarding: true,
-      canViewGamification: true,
-      leveledUp: true,
-      newLevel: 4,
-    })
-
-    expect(isMounted(hidden, 'LevelUpOverlay')).toBe(false)
-    expect(isMounted(visible, 'LevelUpOverlay')).toBe(true)
   })
 
   it('gates the retained onboarding flow on the retention guard', async () => {
@@ -256,5 +154,28 @@ describe('OverlayLayer mount matrix', () => {
     expect(isMounted(withoutRetention, 'OnboardingFlow')).toBe(false)
     expect(isMounted(withRetention, 'OnboardingFlow')).toBe(true)
     expect(isMounted(withRetention, 'OnboardingActionsProvider')).toBe(true)
+  })
+
+  it('shows only the pending final step after a signed-out flush', async () => {
+    const instance = await renderLayer({ hasCompletedOnboarding: true, showPendingPro: true })
+    expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')).toHaveLength(1)
+    expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')[0]!.props.finalStepOnly).toBe(true)
+    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) expect(isMounted(instance, overlay)).toBe(false)
+  })
+
+  it('waits for the account flag before showing another message', async () => {
+    const instance = await renderLayer({ hasCompletedOnboarding: true, pendingProLoaded: false })
+    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) expect(isMounted(instance, overlay)).toBe(false)
+  })
+
+  it('keeps first-run prompts behind retained onboarding', async () => {
+    const instance = await renderLayer({
+      hasCompletedOnboarding: true,
+      showRetainedOnboarding: true,
+    })
+    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) {
+      expect(isMounted(instance, overlay)).toBe(false)
+    }
+    expect(isMounted(instance, 'OnboardingFlow')).toBe(true)
   })
 })

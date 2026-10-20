@@ -1,18 +1,8 @@
 import React from 'react'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
-
-vi.mock('lucide-react-native', () => {
-  const ReactModule = require('react')
-  const createIcon = (name: string) => (props: Record<string, unknown>) =>
-    ReactModule.createElement(name, props)
-  return {
-    CheckCheck: createIcon('CheckCheck'),
-    SquareX: createIcon('SquareX'),
-  }
-})
-
 import { createTokensV2 } from '@/lib/theme'
-import { SelectAllToggle } from '@/app/calendar-sync-select-all-toggle'
+import { SelectAllToggle } from '@/components/calendar-sync/calendar-sync-select-all-toggle'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -50,6 +40,17 @@ function getButton(tree: ReturnType<typeof renderToggle>) {
 }
 
 describe('mobile SelectAllToggle', () => {
+  it('paints the whole enabled target without invisible slop', () => {
+    const button = getButton(renderToggle(false, vi.fn()))
+    const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    expect(button.props.disabled).toBeUndefined()
+    expect(button.props.accessibilityState).toEqual({ selected: false })
+    expect(button.props.hitSlop).toBeUndefined()
+    expect(StyleSheet.flatten(style({ pressed: false })).opacity).toBeUndefined()
+    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent' })
+    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 48, height: 48, backgroundColor: tokens.bgHover })
+  })
+
   it('exposes the select-all label when nothing is selected', () => {
     const tree = renderToggle(false, vi.fn())
     expect(getButton(tree).props.accessibilityLabel).toBe(selectAllLabel)

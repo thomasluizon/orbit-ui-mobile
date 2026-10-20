@@ -48,7 +48,6 @@ describe('mobile back navigation helpers', () => {
   it('maps top-level app screens to deterministic Android fallbacks', () => {
     expect(getAndroidBackFallbackRoute('/chat')).toBe('/')
     expect(getAndroidBackFallbackRoute('/profile')).toBe('/')
-    expect(getAndroidBackFallbackRoute('/preferences')).toBe('/profile')
   })
 
   it('uses auth-aware privacy fallbacks', () => {
@@ -63,19 +62,35 @@ describe('mobile back navigation helpers', () => {
   it('reuses the upgrade origin route when available', () => {
     expect(
       getAndroidBackFallbackRoute('/upgrade', {
-        upgradeFrom: '/achievements',
+        upgradeFrom: '/progress',
       }),
-    ).toBe('/achievements')
+    ).toBe('/progress')
     expect(
       getAndroidBackFallbackRoute('/upgrade', {
-        upgradeFrom: ['/retrospective'],
+        upgradeFrom: ['/progress'],
       }),
-    ).toBe('/retrospective')
+    ).toBe('/progress')
     expect(getAndroidBackFallbackRoute('/upgrade')).toBe('/profile')
   })
 
   it('leaves unknown routes to the native back behavior', () => {
     expect(getAndroidBackFallbackRoute('/login')).toBeNull()
+    expect(getAndroidBackFallbackRoute('/streak')).toBeNull()
     expect(getAndroidBackFallbackRoute('/unknown')).toBeNull()
   })
+
+  it.each(['/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications'])('returns a directly linked %s to Perfil on Android back', (path) => {
+    expect(getAndroidBackFallbackRoute(path)).toBe('/profile')
+  })
+
+  it.each(['/progress/streak', '/progress/goals', '/progress/achievements'])('returns a directly linked %s to Progresso without stack history', (path) => {
+    const router = createRouterMock()
+    const fallback = getAndroidBackFallbackRoute(path)
+    expect(fallback).toBe('/progress')
+    if (fallback) dismissOrFallback(router, fallback)
+    expect(router.dismissTo).toHaveBeenCalledWith('/progress')
+    expect(router.dismiss).not.toHaveBeenCalled()
+    expect(router.push).not.toHaveBeenCalled()
+  })
+
 })

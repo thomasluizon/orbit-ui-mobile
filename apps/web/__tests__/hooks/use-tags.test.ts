@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -81,10 +82,31 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
   }
 }
 
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
+})
+
 describe('web tag hooks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
+  it('invalidates every search page after renaming a tag without applying array updates to pages', async () => {
+    const { updateTag } = await import('@/lib/actions/tags')
+    vi.mocked(updateTag).mockResolvedValue(undefined)
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const keys = [habitKeys.search({ search: 'Health', page: 1 }), habitKeys.search({ search: 'Focus', page: 2 })]
+    const response = { items: [makeHabit()], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }
+    for (const key of keys) queryClient.setQueryData(key, response)
+    queryClient.setQueryData(habitKeys.list({}), response.items)
+    const { result } = renderHook(() => useUpdateTag(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync({ tagId: 'tag-1', name: 'Focus', color: '#00ff00' }))
+    for (const key of keys) {
+      await waitFor(() => expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true))
+      expect(queryClient.getQueryData(key)).toEqual(response)
+    }
+    queryClient.clear()
+  })
+
 
   it('leaves Today with no tags when the list query rejects', async () => {
     const { getTags } = await import('@/lib/actions/tags')
@@ -213,7 +235,7 @@ describe('web tag hooks', () => {
       })
     })
 
-    expect(suggestTags).toHaveBeenCalledWith('Morning run', null, 'en')
+    expect(suggestTags).toHaveBeenCalledWith('Morning run', null, 'en', 'account-a')
     expect(returned).toEqual(response)
   })
 
@@ -279,7 +301,7 @@ describe('web tag hooks', () => {
       performUndo()
     })
 
-    await waitFor(() => expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1'))
+    await waitFor(() => expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1', 'account-a'))
   })
 
   it('restores a tag, invalidates tag and habit lists, and confirms', async () => {
@@ -299,7 +321,7 @@ describe('web tag hooks', () => {
       await result.current.mutateAsync('tag-1')
     })
 
-    expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1')
+    expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1', 'account-a')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: tagKeys.all })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')

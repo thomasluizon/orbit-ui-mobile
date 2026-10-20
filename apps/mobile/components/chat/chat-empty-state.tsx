@@ -1,30 +1,25 @@
-import { forwardRef } from "react";
-import { View, Text } from "react-native";
+import { forwardRef, type ReactElement } from "react";
+import { ScrollView, View, Text } from "react-native";
 import { useTranslation } from "react-i18next";
-import { AstraAvatar } from "@/components/ui/astra-avatar";
-import { SuggestionChips } from "@/components/chat/suggestion-chips";
-import type { ChatStyles } from "@/app/chat.styles";
+import { EmptyState } from "@/components/ui/empty-state";
+import type { ChatStyles } from "@/components/chat/conversation.styles";
 
 interface ChatEmptyStateProps {
   styles: ChatStyles;
-  onSelectSuggestion: (suggestion: string) => void;
+  browseAction?: ReactElement;
 }
 
 export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
-  function ChatEmptyState({ styles, onSelectSuggestion }, ref) {
+  function ChatEmptyState({ styles, browseAction }, ref) {
     const { t } = useTranslation();
-
     return (
       <View ref={ref} style={styles.emptyState}>
-        <View style={styles.emptyContent}>
-          <AstraAvatar size={84} animate style={styles.emptyAvatarGlow} />
-          <Text style={styles.emptyTitle}>{t("chat.empty.title")}</Text>
-          <Text style={styles.emptyText}>{t("chat.suggestion.prompt")}</Text>
-          <SuggestionChips onSelect={onSelectSuggestion} />
+        <ScrollView contentContainerStyle={styles.emptyContent} keyboardShouldPersistTaps="handled">
+          <EmptyState mark="astra" title={t("chat.empty.title")} action={browseAction} />
           <Text style={styles.aiDisclaimer}>
             {t("aiDisclosure.notMedicalAdvice")}
           </Text>
-        </View>
+        </ScrollView>
       </View>
     );
   },

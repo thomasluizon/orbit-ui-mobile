@@ -1,6 +1,9 @@
 'use client'
 
+import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useTranslations } from 'next-intl'
+import type { MouseEvent } from 'react'
 import type { Goal, GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import {
   GoalLinkedHabitsSection,
@@ -8,54 +11,39 @@ import {
 } from '../goal-detail-sections'
 
 interface GoalDetailCollectionsProps {
-  isStreak: boolean
   linkedHabits: NonNullable<Goal['linkedHabits']>
+  habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence']
   entries: GoalDetailWithMetrics['goal']['progressHistory']
+  target: Goal['targetValue']
   unit: Goal['unit']
   formatDate: (dateStr: string) => string
+  onLinkedHabitNavigate?: (habitId: string, event: MouseEvent<HTMLElement>) => void
 }
 
-/** Progress-history and linked-habits cluster; streak goals lead with linked
- *  habits, standard goals lead with progress history. */
 export function GoalDetailCollections({
-  isStreak,
   linkedHabits,
+  habitAdherence,
   entries,
+  target,
   unit,
   formatDate,
+  onLinkedHabitNavigate,
 }: Readonly<GoalDetailCollectionsProps>) {
   const t = useTranslations()
 
   return (
     <>
-      {isStreak && linkedHabits.length > 0 && (
-        <GoalLinkedHabitsSection
-          title={t('goals.linkedHabits')}
-          linkedHabits={linkedHabits}
-        />
-      )}
-
-      <GoalProgressHistorySection
-        title={t('goals.progressHistory')}
-        entries={entries}
-        formatDate={formatDate}
-        renderEntryLabel={(entry) =>
-          t('goals.progressEntry', {
-            previous: entry.previousValue,
-            value: entry.value,
-            unit,
-          })
-        }
-        showAllLabel={t('goals.detail.showAllHistory')}
-        showLessLabel={t('goals.detail.showLessHistory')}
+      <GoalLinkedHabitsSection
+        title={t('goals.linkedHabits')}
+        emptyLabel={t('goals.noLinkedHabits')}
+        linkedHabits={linkedHabits}
+        habitAdherence={habitAdherence}
+        formatValue={(currentStreak) => t('goals.detail.linkedHabitStreak', { count: currentStreak })}
+        onLinkedHabitNavigate={onLinkedHabitNavigate}
+        notice={linkedHabits.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}
       />
-
-      {!isStreak && (
-        <GoalLinkedHabitsSection
-          title={t('goals.linkedHabits')}
-          linkedHabits={linkedHabits}
-        />
-      )}
+      <GoalProgressHistorySection title={t('goals.progressHistory')} entries={entries} target={target} unit={unit} formatDate={formatDate}
+        showAllLabel={t('goals.detail.showAllHistory', { count: entries.length })} showLessLabel={t('goals.detail.showLessHistory')} />
     </>
   )
 }

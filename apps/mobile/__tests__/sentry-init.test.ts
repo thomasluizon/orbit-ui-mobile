@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as Sentry from '@sentry/react-native'
 
 vi.mock('@sentry/react-native', () => ({ init: vi.fn() }))
+vi.unmock('@/lib/sentry')
 
 beforeEach(() => {
   vi.resetModules()

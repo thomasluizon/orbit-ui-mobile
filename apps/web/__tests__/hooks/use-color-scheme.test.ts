@@ -1,14 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook as renderTestingHook, act } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import React from 'react'
+import { renderToString } from 'react-dom/server'
+import { hydrateRoot } from 'react-dom/client'
 
-const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
-vi.mock('@/stores/auth-store', () => ({
-  getHeldAccountId: () => account.id,
-  getAccountGeneration: () => account.generation,
-}))
+const heldAccount = vi.hoisted(() => ({ id: null as string | null }))
+const accountGeneration = vi.hoisted(() => ({ current: 0 }))
+const showPersistentError = vi.hoisted(() => vi.fn())
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError }) }))
+vi.mock('@/stores/auth-store', () => ({ getHeldAccountId: () => heldAccount.id }))
+vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => accountGeneration.current }))
 
 vi.mock('@/lib/actions/profile', () => ({
-  updateColorScheme: vi.fn().mockResolvedValue(undefined),
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -48,7 +54,10 @@ Object.defineProperty(document, 'cookie', {
   configurable: true,
 })
 
-const mockSetProperty = vi.fn()
+let bootstrapTheme = ''
+const mockSetProperty = vi.fn((property: string, value: string) => {
+  if (property === 'color-scheme') bootstrapTheme = value
+})
 const mockClassList = {
   add: vi.fn(),
   remove: vi.fn(),
@@ -56,7 +65,7 @@ const mockClassList = {
 
 Object.defineProperty(document, 'documentElement', {
   value: {
-    style: { setProperty: mockSetProperty },
+    style: { setProperty: mockSetProperty, get colorScheme() { return bootstrapTheme } },
     classList: mockClassList,
   },
   writable: true,
@@ -66,33 +75,63 @@ Object.defineProperty(document, 'documentElement', {
 vi.spyOn(document, 'querySelector').mockImplementation(() => null)
 
 import { useColorScheme } from '@/hooks/use-color-scheme'
-import { updateThemePreference } from '@/lib/actions/profile'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+
+let queryClient: QueryClient
+
+function Wrapper({ children }: { children: React.ReactNode }) {
+  return React.createElement(QueryClientProvider, { client: queryClient }, children)
+}
+
+function renderHook<Result>(hook: () => Result) {
+  return renderTestingHook(hook, { wrapper: Wrapper })
+}
 
 describe('useColorScheme', () => {
+  it('hydrates the dark toggle before revealing a stored light theme', async () => {
+    mockCookies['orbit_theme_mode'] = 'light'
+    const html = renderToString(React.createElement(Wrapper, null, React.createElement(ThemeToggle)))
+    expect(html).toContain('settings.theme.switchToLight')
+    const container = document.createElement('div')
+    container.innerHTML = html
+    document.body.append(container)
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    await act(async () => {
+      root = hydrateRoot(container, React.createElement(Wrapper, null, React.createElement(ThemeToggle)), { onRecoverableError: recoverableError })
+    })
+    expect(recoverableError).not.toHaveBeenCalled()
+    expect(container.querySelector('button')).toHaveAttribute('aria-label', 'settings.theme.switchToDark')
+    await act(async () => root?.unmount())
+    container.remove()
+  })
   beforeEach(() => {
-    account.id = 'account-a'
-    account.generation = 1
-    vi.mocked(updateThemePreference).mockReset().mockResolvedValue(undefined)
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     mockCookies = {}
+    bootstrapTheme = ''
+    heldAccount.id = null
+    accountGeneration.current = 0
+    showPersistentError.mockClear()
     mockSetProperty.mockClear()
     mockClassList.add.mockClear()
     mockClassList.remove.mockClear()
   })
 
-  it('defaults to purple scheme', () => {
+  it('uses the granted scheme', () => {
     const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('purple')
+    expect(result.current.currentScheme).toBe('orange')
+  })
+
+  it('replaces a stored scheme cookie with the granted scheme', () => {
+    mockCookies['orbit_color_scheme'] = 'rose'
+    const { result } = renderHook(() => useColorScheme())
+    expect(result.current.currentScheme).toBe('orange')
+    expect(mockCookies['orbit_color_scheme']).toBe('orange')
   })
 
   it('defaults to dark theme', () => {
     const { result } = renderHook(() => useColorScheme())
     expect(result.current.currentTheme).toBe('dark')
-  })
-
-  it('reads scheme from cookie', () => {
-    mockCookies['orbit_color_scheme'] = 'blue'
-    const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('blue')
   })
 
   it('reads theme from cookie', () => {
@@ -101,30 +140,13 @@ describe('useColorScheme', () => {
     expect(result.current.currentTheme).toBe('light')
   })
 
-  it('ignores invalid scheme from cookie', () => {
-    mockCookies['orbit_color_scheme'] = 'invalid'
+  it.each([undefined, 'dark'])('preserves the server light theme with cookie %s', (cookieTheme) => {
+    bootstrapTheme = 'light'
+    if (cookieTheme) mockCookies['orbit_theme_mode'] = cookieTheme
     const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('purple')
-  })
-
-  it('applyScheme updates current scheme', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.applyScheme('green')
-    })
-
-    expect(result.current.currentScheme).toBe('green')
-  })
-
-  it('applyScheme sets cookie', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.applyScheme('rose')
-    })
-
-    expect(mockCookies['orbit_color_scheme']).toBe('rose')
+    expect(result.current.currentTheme).toBe('light')
+    expect(mockSetProperty).toHaveBeenCalledWith('color-scheme', 'light')
+    expect(mockClassList.add).not.toHaveBeenCalledWith('dark')
   })
 
   it('applyTheme updates current theme', () => {
@@ -137,18 +159,51 @@ describe('useColorScheme', () => {
     expect(result.current.currentTheme).toBe('light')
   })
 
-  it('does not roll back theme after a same-account session change', async () => {
-    let rejectUpdate: (error: Error) => void = () => {}
-    vi.mocked(updateThemePreference).mockReturnValueOnce(new Promise<void>((_resolve, reject) => {
+  it.each(['applyTheme', 'syncThemeFromProfile'] as const)('shares %s changes with another mounted hook', (update) => {
+    const chooser = renderHook(() => useColorScheme())
+    const preferences = renderHook(() => useColorScheme())
+
+    act(() => chooser.result.current[update]('light'))
+
+    expect(chooser.result.current.currentTheme).toBe('light')
+    expect(preferences.result.current.currentTheme).toBe('light')
+    act(() => preferences.result.current.toggleTheme())
+    expect(chooser.result.current.currentTheme).toBe('dark')
+    expect(preferences.result.current.currentTheme).toBe('dark')
+  })
+
+  it('does not restore the old theme after another account replaces the tab', async () => {
+    const { updateThemePreference } = await import('@/lib/actions/profile')
+    let rejectUpdate: ((error: unknown) => void) | undefined
+    vi.mocked(updateThemePreference).mockImplementationOnce(() => new Promise((_resolve, reject) => {
       rejectUpdate = reject
     }))
+    heldAccount.id = 'account-a'
     const { result } = renderHook(() => useColorScheme())
-    act(() => { result.current.applyTheme('light') })
-    account.generation++
-    await act(async () => { rejectUpdate(new Error('old session')); await Promise.resolve() })
 
-    expect(result.current.currentTheme).toBe('light')
+    act(() => result.current.applyTheme('light'))
+    heldAccount.id = 'account-b'
+    await act(async () => rejectUpdate?.({ code: 'ACCOUNT_CHANGED', status: 409 }))
+
     expect(mockCookies['orbit_theme_mode']).toBe('light')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'errorScreen.reload')
+  })
+
+  it('does not restore an old theme after re-login to the same account', async () => {
+    const { updateThemePreference } = await import('@/lib/actions/profile')
+    let rejectUpdate: ((error: unknown) => void) | undefined
+    vi.mocked(updateThemePreference).mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      rejectUpdate = reject
+    }))
+    heldAccount.id = 'account-a'
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => result.current.applyTheme('light'))
+    accountGeneration.current += 1
+    await act(async () => rejectUpdate?.(new Error('Network failed')))
+
+    expect(mockCookies['orbit_theme_mode']).toBe('light')
+    expect(result.current.currentTheme).toBe('light')
   })
 
   it('toggleTheme switches between dark and light', () => {
@@ -167,47 +222,6 @@ describe('useColorScheme', () => {
     })
 
     expect(result.current.currentTheme).toBe('dark')
-  })
-
-  it('syncSchemeFromProfile updates scheme when DB differs', () => {
-    const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('purple')
-
-    act(() => {
-      result.current.syncSchemeFromProfile('cyan')
-    })
-
-    expect(result.current.currentScheme).toBe('cyan')
-  })
-
-  it('syncSchemeFromProfile ignores null', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.syncSchemeFromProfile(null)
-    })
-
-    expect(result.current.currentScheme).toBe('purple')
-  })
-
-  it('syncSchemeFromProfile ignores invalid scheme', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.syncSchemeFromProfile('nonexistent')
-    })
-
-    expect(result.current.currentScheme).toBe('purple')
-  })
-
-  it('syncSchemeFromProfile does nothing when schemes match', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.syncSchemeFromProfile('purple')
-    })
-
-    expect(result.current.currentScheme).toBe('purple')
   })
 
   it('syncThemeFromProfile updates theme when DB differs', () => {
@@ -300,7 +314,7 @@ describe('useColorScheme', () => {
       result.current.detectAndSaveThemeIfNeeded(null)
     })
 
-    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' })
+    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' }, null)
   })
 
   it('detectAndSaveThemeIfNeeded persists detected theme when DB is undefined', async () => {
@@ -314,7 +328,7 @@ describe('useColorScheme', () => {
       result.current.detectAndSaveThemeIfNeeded(undefined)
     })
 
-    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' })
+    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' }, null)
   })
 
   it('applyTheme persists to DB by default', async () => {
@@ -328,7 +342,7 @@ describe('useColorScheme', () => {
       result.current.applyTheme('light')
     })
 
-    expect(mock).toHaveBeenCalledWith({ themePreference: 'light' })
+    expect(mock).toHaveBeenCalledWith({ themePreference: 'light' }, null)
   })
 
   it('applyTheme skips persistence when persistToDb is false', async () => {

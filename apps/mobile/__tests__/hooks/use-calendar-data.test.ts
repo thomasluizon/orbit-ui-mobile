@@ -111,6 +111,12 @@ describe('useCalendarData (mobile)', () => {
     )
   })
 
+  it('rejects a malformed calendar response at the query boundary', async () => {
+    renderCalendarData(new Date(2025, 0, 1))
+    mocks.apiClient.mockResolvedValue({})
+    await expect(mocks.captured.at(-1)!.queryFn()).rejects.toMatchObject({ name: 'ZodError' })
+  })
+
   it('builds a dayMap with completed status from logs', () => {
     mocks.data = {
       habits: [buildHabit()],

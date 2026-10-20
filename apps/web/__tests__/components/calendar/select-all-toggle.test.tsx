@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
-import { SelectAllToggle } from '@/app/(app)/calendar-sync/_components/select-all-toggle'
+import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 
 const selectAllLabel = 'Select all'
 const deselectAllLabel = 'Deselect all'

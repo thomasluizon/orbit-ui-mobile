@@ -1,169 +1,62 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, Share2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import {
-  AnimatePresence,
-  domAnimation,
-  LazyMotion,
-  m,
-  useReducedMotion,
-} from 'motion/react'
-import {
-  isRecapShareEmpty,
-  RECAP_SHARE_PERIODS,
-  recapPeriodLabelKey,
-  type RecapSharePeriod,
-} from '@orbit/shared/utils'
-import { resolveMotionPreset } from '@orbit/shared/theme'
-import { useRecap } from '@/hooks/use-recap'
+import { isRecapShareEmpty, type RecapSharePeriod } from '@orbit/shared/utils'
+import { useWrapped } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
-import { AppOverlay } from '@/components/ui/app-overlay'
-import { Chip } from '@/components/ui/chip'
+import { Sheet } from '@/components/ui/sheet'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { Download, Share2 } from '@/components/ui/icons'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ShareCard } from './share-card'
 
 interface ShareCardSheetProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  displayName?: string
+  onClose: () => void
 }
 
-/** Recap share preview: period selector → recap fetch → branded ShareCard + share/download. Reused by Profile + Retrospective. */
-export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<ShareCardSheetProps>) {
+function ShareCardFeedback({ hasError, savedFileName }: Readonly<{ hasError: boolean; savedFileName: string | null }>) {
+  const t = useTranslations()
+  return (
+    <div className={hasError || savedFileName ? 'pt-section-gap' : undefined}>
+      <p role="alert" className="text-base text-[var(--status-bad-text)]">{hasError ? t('shareCard.shareError') : ''}</p>
+      <p role="status" className="text-sm text-[var(--fg-2)]">{!hasError && savedFileName ? t('shareCard.saved', { file: savedFileName }) : ''}</p>
+    </div>
+  )
+}
+
+export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const t = useTranslations()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
-  const { data: recap, isLoading, isError, refetch } = useRecap(period, open)
-  const { captureRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
-  const prefersReducedMotion = useReducedMotion()
-  const cardEnterMotion = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
-
-  const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
-  const showCard = !isLoading && !isError && recap && !isEmpty
-
-  function handleShare() {
-    if (!recap) return
-    void share({
-      shareTitle: t('shareCard.shareTitle'),
-      shareText: t('shareCard.shareText'),
-      url: recap.shareDeepLink,
-    })
-  }
+  const { recap, isLoading, isError, refetch } = useWrapped(period, { enabled: true })
+  const { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download, resetFeedback } = useShareCard()
+  const isEmpty = recap ? isRecapShareEmpty(recap.metrics, 0) : false
+  const ready = Boolean(recap && !isLoading && !isError && !isEmpty)
+  const disabled = !ready || isSharing
+  const actions = <>
+    <PillButton variant={canShareFiles ? 'ghost' : 'primary'} disabled={disabled} loading={isSharing} onClick={() => void download()} leadingIcon={<Download size={16} strokeWidth={2} aria-hidden="true" />}>{t('shareCard.download')}</PillButton>
+    {canShareFiles ? <PillButton disabled={disabled} loading={isSharing} onClick={() => {
+      if (recap) void share({ shareTitle: t('shareCard.shareTitle'), shareText: t('shareCard.shareText'), url: recap.shareDeepLink })
+    }} leadingIcon={<Share2 size={16} strokeWidth={2} aria-hidden="true" />}>{t('shareCard.share')}</PillButton> : null}
+  </>
 
   return (
-    <AppOverlay open={open} onOpenChange={onOpenChange} title={t('shareCard.title')}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 4 }}>
-        <div
-          className="flex items-center [justify-content:safe_center]"
-          style={{ gap: 6, overflowX: 'auto' }}
-        >
-          {RECAP_SHARE_PERIODS.map((value) => (
-            <Chip
-              key={value}
-              active={period === value}
-              onClick={() => setPeriod(value)}
-              ariaLabel={t(recapPeriodLabelKey(value))}
-            >
-              {t(recapPeriodLabelKey(value))}
-            </Chip>
-          ))}
+    <Sheet title={t('shareCard.share')} accessibleTitle={t('shareCard.title')} onClose={onClose} actions={actions}>
+      <div className="min-w-0">
+        <div className="flex min-w-0 flex-col gap-section-gap">
+          <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
+          {isLoading || (!recap && !isError) ? <div role="progressbar" aria-busy="true" aria-label={t('shareCard.loading')} className="flex min-h-[640px] flex-col justify-center gap-section-gap">
+            {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
+          </div> : null}
+          {isError ? <ErrorState message={t('shareCard.error')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : null}
+          {!isLoading && !isError && isEmpty ? <EmptyState title={t('shareCard.empty')} /> : null}
+          {ready && recap ? <ShareCard ref={captureRef} recap={recap} variant="progress" /> : null}
         </div>
-
-        {isLoading && (
-          <div className="flex flex-col items-center" style={{ gap: 14 }} aria-hidden="true">
-            <div
-              className="skeleton-pulse w-full rounded-[20px]"
-              style={{ maxWidth: 360, height: 430, background: 'var(--bg-elev-2)' }}
-            />
-            <div
-              className="skeleton-pulse w-full rounded-full"
-              style={{ maxWidth: 360, height: 54, background: 'var(--bg-elev-2)' }}
-            />
-          </div>
-        )}
-
-        {!isLoading && isError && (
-          <div className="flex flex-col items-center" style={{ gap: 12, padding: '24px 0' }}>
-            <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 14, color: 'var(--status-bad)' }}>
-              {t('shareCard.error')}
-            </p>
-            <PillButton variant="ghost" onClick={() => void refetch()}>
-              {t('common.retry')}
-            </PillButton>
-          </div>
-        )}
-
-        {!isLoading && !isError && recap && isEmpty && (
-          <div className="flex flex-col items-center" style={{ gap: 14, padding: '24px 0' }}>
-            <SatelliteGlyph />
-            <p style={{ margin: 0, textAlign: 'center', fontSize: 14, color: 'var(--fg-3)' }}>
-              {t('shareCard.empty')}
-            </p>
-          </div>
-        )}
-
-        <LazyMotion features={domAnimation}>
-        <AnimatePresence initial={false}>
-          {showCard && (
-            <m.div
-              className="flex flex-col"
-              style={{ gap: 16 }}
-              initial={{ opacity: 0, y: cardEnterMotion.shift }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                transition: {
-                  duration: cardEnterMotion.enterDuration / 1000,
-                  ease: cardEnterMotion.enterEasing,
-                },
-              }}
-            >
-              <div className="flex justify-center">
-                <ShareCard ref={captureRef} recap={recap} displayName={displayName} />
-              </div>
-
-              {hasError && (
-                <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 13, color: 'var(--status-bad)' }}>
-                  {t('shareCard.shareError')}
-                </p>
-              )}
-
-              <div className="flex w-full" style={{ gap: 10, maxWidth: 360, marginInline: 'auto' }}>
-                {canShareFiles && (
-                  <PillButton
-                    className="flex-1"
-                    busy={isSharing}
-                    disabled={isSharing}
-                    onClick={handleShare}
-                    leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
-                  >
-                    {t('shareCard.share')}
-                  </PillButton>
-                )}
-                <PillButton
-                  className="flex-1"
-                  variant={canShareFiles ? 'ghost' : 'primary'}
-                  busy={isSharing}
-                  disabled={isSharing}
-                  onClick={() => void download()}
-                  leading={
-                    <Download
-                      size={18}
-                      strokeWidth={1.8}
-                      color={canShareFiles ? 'var(--fg-1)' : 'var(--fg-on-primary)'}
-                    />
-                  }
-                >
-                  {t('shareCard.download')}
-                </PillButton>
-              </div>
-            </m.div>
-          )}
-        </AnimatePresence>
-        </LazyMotion>
+        <ShareCardFeedback hasError={hasError} savedFileName={savedFileName} />
       </div>
-    </AppOverlay>
+    </Sheet>
   )
 }

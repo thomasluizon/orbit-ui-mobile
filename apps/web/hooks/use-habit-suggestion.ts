@@ -1,7 +1,5 @@
 'use client'
 
-import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
 import {
@@ -10,6 +8,7 @@ import {
   type HabitSetupSuggestionRequest,
 } from '@orbit/shared/types/habit'
 import { suggestHabitSetup } from '@/lib/actions/habits'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 
 /**
  * Requests an AI setup suggestion (emoji, schedule, sub-habit breakdown) for a habit title and
@@ -20,8 +19,8 @@ export function useHabitSuggestion() {
   const queryClient = useQueryClient()
 
   return useAccountScopedMutation<HabitSetupSuggestion, Error, HabitSetupSuggestionRequest>({
-    mutationFn: async (data) =>
-      habitSetupSuggestionSchema.parse(await suggestHabitSetup(data)),
+    mutationFn: async (data, intendedAccountId) =>
+      habitSetupSuggestionSchema.parse(await suggestHabitSetup(data, intendedAccountId)),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })
       void queryClient.invalidateQueries({ queryKey: profileKeys.detail() })

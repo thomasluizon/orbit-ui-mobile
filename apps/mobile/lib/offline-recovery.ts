@@ -1,17 +1,9 @@
 import type { PersistedQueuedMutation } from '@orbit/shared/types/sync'
-import {
-  getMutationScope,
-  hasPendingOfflineDependencies,
-} from './offline-mutations'
+import { getMutationScope, hasPendingOfflineDependencies, isAutomaticReplayBlocked } from './offline-mutations'
 
 export function getRecoveryDate(mutation: PersistedQueuedMutation): string | null {
   const payload = mutation.payload
-  if (
-    payload &&
-    typeof payload === 'object' &&
-    'date' in payload &&
-    typeof payload.date === 'string'
-  ) {
+  if (payload && typeof payload === 'object' && 'date' in payload && typeof payload.date === 'string') {
     return payload.date
   }
   return mutation.dedupeKey?.match(/\d{4}-\d{2}-\d{2}$/)?.[0] ?? null
@@ -26,7 +18,7 @@ export function needsHabitCreation(mutation: PersistedQueuedMutation): boolean {
 }
 
 export function canRetryDroppedMutation(mutation: PersistedQueuedMutation): boolean {
-  return Boolean(getMutationScope(mutation.type)) &&
+  return Boolean(getMutationScope(mutation.type)) && !isAutomaticReplayBlocked(mutation.type) &&
     !hasPendingOfflineDependencies(mutation)
 }
 
@@ -46,14 +38,9 @@ export function getRecoveryMessage(
 ): string {
   if (needsHabitCreation(mutation)) {
     if (mutation.type === 'logHabit') {
-      return translate('common.syncOrphaned', {
-        date: getRecoveryDate(mutation) ?? translate('common.syncUnknownDate'),
-      })
+      return translate('common.syncOrphaned', { date: getRecoveryDate(mutation) ?? translate('common.syncUnknownDate') })
     }
     return translate('common.syncHabitNotCreated', { item })
   }
-  return translate(
-    mutation.type === 'logHabit' ? 'common.syncDropped' : 'common.syncChangeDropped',
-    { item },
-  )
+  return translate(mutation.type === 'logHabit' ? 'common.syncDropped' : 'common.syncChangeDropped', { item })
 }

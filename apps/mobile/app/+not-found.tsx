@@ -1,55 +1,26 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { ScrollView, Text, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
+import { PillLink } from '@/components/ui/pill-button'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { errorSurfaceStyles as styles } from '@/components/ui/error-surface-styles'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export default function NotFoundScreen() {
+  const { width } = useWindowDimensions()
   const { t } = useTranslation()
+  const clearance = useShellScrollerClearance()
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-
   return (
-    <View style={[styles.root, { backgroundColor: tokens.bg }]}>
-      <SatelliteGlyph size={104} />
-      <Text style={[styles.title, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
-      <Text style={[styles.description, { color: tokens.fg2 }]}>
-        {t('notFoundPage.description')}
-      </Text>
-      <View style={styles.cta}>
-        <PillButton onPress={() => router.replace('/')}>{t('common.goHome')}</PillButton>
-      </View>
-    </View>
+    <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={[styles.root, clearance > 0 ? { paddingBottom: clearance } : undefined]}>
+      <OrbitMark size={40} />
+      <Text accessibilityRole="header" textBreakStrategy="simple" android_hyphenationFrequency="none" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
+      <Text style={[styles.body, { color: tokens.fg2 }]}>{t('notFoundPage.description')}</Text>
+      <PillLink onPress={() => router.replace('/')}>{t('notFoundPage.action')}</PillLink>
+    </ScrollView>
   )
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 36,
-    paddingVertical: 64,
-  },
-  title: {
-    marginTop: 18,
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 22,
-    lineHeight: 29,
-    textAlign: 'center',
-  },
-  description: {
-    marginTop: 8,
-    maxWidth: 300,
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  cta: {
-    marginTop: 24,
-  },
-})

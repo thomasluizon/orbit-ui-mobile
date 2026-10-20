@@ -3,8 +3,10 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { getChatTextFileValidationError } from '@orbit/shared/chat'
+import { useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
-interface SelectedChatTextFile {
+export interface SelectedChatTextFile {
   name: string
   content: string
 }
@@ -19,6 +21,7 @@ export function useChatTextFileAttachment(setSendError: (message: string | null)
   }
 
   async function handleTextFileSelect(event: ChangeEvent<HTMLInputElement>) {
+    const startingAccountGeneration = getAccountGeneration()
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
@@ -38,9 +41,11 @@ export function useChatTextFileAttachment(setSendError: (message: string | null)
 
     try {
       const content = await file.text()
+      if (getAccountGeneration() !== startingAccountGeneration) return
       setSendError(null)
       setSelectedTextFile({ name: file.name, content })
     } catch {
+      if (getAccountGeneration() !== startingAccountGeneration) return
       setSendError(t('chat.fileReadError'))
     }
   }
@@ -48,6 +53,8 @@ export function useChatTextFileAttachment(setSendError: (message: string | null)
   function removeTextFile() {
     setSelectedTextFile(null)
   }
+
+  useResetOnAccountChange(removeTextFile)
 
   return {
     textFileInputRef,

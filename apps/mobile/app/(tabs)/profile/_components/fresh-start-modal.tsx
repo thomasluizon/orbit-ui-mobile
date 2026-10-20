@@ -1,19 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { SPACING } from '@orbit/shared/theme'
+import { useState } from 'react'
+import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import { resetAccountQueries } from '@orbit/shared/query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Check, RotateCcw, X } from 'lucide-react-native'
+import { Check, RotateCcw, X } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
+import { resetAccountQueries } from '@orbit/shared/query'
 import {
+  buildAccountScopedStorageKey,
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
+import { useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   buildQueuedMutation,
   createQueuedAck,
@@ -23,69 +27,32 @@ import {
 import * as offlineQueue from '@/lib/offline-queue'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { clearPersistedQueryCache } from '@/lib/query-client'
-import { accountStorageKey } from '@/lib/account-storage-key'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
-import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
+import { ActionRow } from '@/components/ui/action-row'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
-function AmberPillButton({
-  label,
-  onPress,
-  disabled = false,
-}: Readonly<{
-  label: string
-  onPress: () => void
-  disabled?: boolean
-}>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
 
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      style={({ pressed }) => [
-        dangerPillStyles.base,
-        { backgroundColor: tokens.statusOverdue },
-        disabled ? dangerPillStyles.disabled : null,
-        pressed && !disabled ? dangerPillStyles.pressed : null,
-      ]}
-    >
-      <Text style={[dangerPillStyles.label, { color: tokens.fgOnOverdue }]}>
-        {label}
-      </Text>
-    </Pressable>
-  )
+/**
+ * Lets the trial notice appear again for this account. The pre-rename key goes with it, because
+ * left behind it answers for every account and keeps suppressing the notice this reset restores.
+ */
+async function removeScopedTrialExpiredFlag(accountId: string | null): Promise<void> {
+  const keys = [TRIAL_EXPIRED_SEEN_STORAGE_KEY]
+  if (accountId !== null) {
+    keys.push(buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId))
+  }
+  await AsyncStorage.multiRemove(keys)
 }
 
-const dangerPillStyles = StyleSheet.create({
-  base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-    borderRadius: 999,
-    paddingVertical: 15,
-    paddingHorizontal: 26,
-    width: '100%',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  label: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 16,
-  },
-})
+function accountStillCurrent(accountGeneration: number, accountId: string | null): boolean {
+  const auth = useAuthStore.getState()
+  return getAccountGeneration() === accountGeneration &&
+    auth.sessionPhase === 'signed-in' && (auth.user?.userId ?? null) === accountId
+}
 
 interface FreshStartModalProps {
   open: boolean
@@ -93,33 +60,36 @@ interface FreshStartModalProps {
 }
 
 export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps>) {
+  const { sheetRef, closeSheet } = useSheetHost()
   const { t } = useTranslation()
   const router = useRouter()
   const queryClient = useQueryClient()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
-  const [showFreshStartAnim, setShowFreshStartAnim] = useState(false)
   const [resetStep, setResetStep] = useState<'info' | 'confirm'>('info')
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
-  const previousOpen = useRef(open)
-  useEffect(() => {
-    const wasOpen = previousOpen.current
-    previousOpen.current = open
-    if (open && !wasOpen) void Promise.resolve().then(() => {
+  const [prevOpen, setPrevOpen] = useState(open)
+
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
       setResetStep('info')
       setResetConfirmText('')
       setResetError('')
       setResetLoading(false)
-    })
-  }, [open])
+    }
+  }
 
   const isResetConfirmed = resetConfirmText.trim().toUpperCase() === 'ORBIT'
 
   async function handleResetAccount() {
-    if (!isResetConfirmed) return
+    const resetAccount = getAccountGeneration()
+    const accountId = useAuthStore.getState().user?.userId ?? null
+    const isCurrentAccount = () => accountStillCurrent(resetAccount, accountId)
+    if (!isResetConfirmed || accountId === null || !isCurrentAccount()) return
     setResetLoading(true)
     setResetError('')
     try {
@@ -138,8 +108,12 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
       const result = await queueOrExecute<ResetMutationResult, ResetMutationResult>({
         mutation: queuedResetMutation,
+        isCurrent: isCurrentAccount,
         execute: async (mutation) => {
-          await apiClient(mutation.endpoint, { method: mutation.method })
+          await apiClient(mutation.endpoint, {
+            method: mutation.method,
+            isCurrent: isCurrentAccount,
+          })
           return {
             queued: false,
             queuedMutationId: queuedResetMutation.id,
@@ -147,49 +121,108 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         },
         queuedResult: createQueuedAck(queuedResetMutation.id),
       })
+      if (!isCurrentAccount()) return
 
       offlineQueue.clear()
       await useOfflineSyncStore.getState().clearDrops()
+      if (!isCurrentAccount()) return
       if (isQueuedResult(result)) {
         offlineQueue.enqueue(queuedResetMutation)
       }
+      await useOfflineSyncStore.getState().clearDrops()
+      if (!isCurrentAccount()) return
 
       await Promise.all([
         clearChecklistTemplates(),
-        AsyncStorage.removeItem(accountStorageKey('orbit_trial_expired_seen')),
+        removeScopedTrialExpiredFlag(accountId),
       ])
+      if (!isCurrentAccount()) return
       void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
-      onClose()
-      setShowFreshStartAnim(true)
+      if (!isCurrentAccount()) return
+      closeSheet(() => {
+        if (!isCurrentAccount()) return
+        onClose()
+        void resetAccountQueries(queryClient, 'signed-in')
+        router.replace('/(tabs)')
+      })
     } catch (err: unknown) {
+      if (!isCurrentAccount()) return
       const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
       setResetError(msg)
     } finally {
-      setResetLoading(false)
+      if (isCurrentAccount()) setResetLoading(false)
     }
-  }
-
-  function handleFreshStartComplete() {
-    setShowFreshStartAnim(false)
-    void resetAccountQueries(queryClient, 'signed-in')
-    router.replace('/(tabs)')
   }
 
   const deletedItems = buildFreshStartDeletedItems(t)
   const preservedItems = buildFreshStartPreservedItems(t)
+  const confirmButtonLabel = t('profile.freshStart.deleteData')
 
   return (
     <>
-      <BottomSheetModal
-        open={open}
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
         onClose={onClose}
         title={
           resetStep === 'info'
             ? t('profile.freshStart.heading')
             : t('profile.freshStart.confirmHeading')
         }
-        snapPoints={['85%']}
+        actions={
+          resetStep === 'info' ? (
+              <ActionRow>
+                <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>
+                  {t('common.cancel')}
+                </PillButton>
+                <PillButton
+                  size="sm"
+                  variant="caution"
+                  accessibleName={t('profile.freshStart.reviewDeletion')}
+                  onClick={() => setResetStep('confirm')}
+                >
+                  {t('profile.freshStart.reviewDeletion')}
+                </PillButton>
+              </ActionRow>
+            ) : (
+              <>
+                {resetError ? (
+                  <Text
+                    accessibilityRole="alert"
+                    style={[
+                      styles.errorTextSmall,
+                      { color: tokens.statusBadText, width: '100%' },
+                    ]}
+                  >
+                    {resetError}
+                  </Text>
+                ) : null}
+                <ActionRow>
+                  <PillButton
+                    size="sm"
+                    variant="ghost"
+                    disabled={resetLoading}
+                    onClick={() => closeSheet()}
+                  >
+                    {t('common.cancel')}
+                  </PillButton>
+                  <PillButton
+                    size="sm"
+                    variant="caution"
+                    accessibleName={confirmButtonLabel}
+                    disabled={!isResetConfirmed || resetLoading}
+                    loading={resetLoading}
+                    onClick={() => {
+                      void handleResetAccount()
+                    }}
+                  >
+                    {confirmButtonLabel}
+                  </PillButton>
+                </ActionRow>
+              </>
+            )
+        }
       >
         {resetStep === 'info' ? (
           <View style={styles.body}>
@@ -200,7 +233,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                   { backgroundColor: `${tokens.statusOverdue}24` },
                 ]}
               >
-                <RotateCcw size={34} color={tokens.statusOverdue} strokeWidth={1.8} />
+                <RotateCcw size={24} color={tokens.statusOverdue} strokeWidth={1.8} />
               </View>
               <Text
                 style={[
@@ -224,7 +257,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 </Text>
                 {deletedItems.map((item) => (
                   <View key={item} style={styles.boxItem}>
-                    <X size={14} color={tokens.statusBad} strokeWidth={1.8} />
+                    <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
                     <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
                       {item}
                     </Text>
@@ -243,23 +276,13 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 </Text>
                 {preservedItems.map((item) => (
                   <View key={item} style={styles.boxItem}>
-                    <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
+                    <Check size={16} color={tokens.statusDone} strokeWidth={1.8} />
                     <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
                       {item}
                     </Text>
                   </View>
                 ))}
               </View>
-            </View>
-
-            <View style={styles.modalActions}>
-              <AmberPillButton
-                label={t('common.continue')}
-                onPress={() => setResetStep('confirm')}
-              />
-              <PillButton variant="ghost" fullWidth onPress={onClose}>
-                {t('common.cancel')}
-              </PillButton>
             </View>
           </View>
         ) : (
@@ -272,14 +295,19 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             >
               {t('profile.freshStart.confirmInstruction')}
             </Text>
+            <Text style={[styles.confirmLabel, { color: tokens.fg2 }]}>
+              {t('profile.freshStart.confirmLabel')}
+            </Text>
             <AppTextInput
               style={styles.confirmInput}
               value={resetConfirmText}
               onChangeText={setResetConfirmText}
               placeholder={t('profile.freshStart.confirmPlaceholder')}
+              accessibilityLabel={t('profile.freshStart.confirmLabel')}
               placeholderTextColor={tokens.fg3}
               autoCapitalize="characters"
               autoCorrect={false}
+              autoFocus
               textAlign="center"
               returnKeyType="done"
               onSubmitEditing={() => {
@@ -288,57 +316,22 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 }
               }}
             />
-            {resetError ? (
-              <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
-                {resetError}
-              </Text>
-            ) : null}
-            <View style={styles.modalActions}>
-              <AmberPillButton
-                label={
-                  resetLoading
-                    ? t('profile.freshStart.processing')
-                    : t('profile.freshStart.confirmButton')
-                }
-                disabled={!isResetConfirmed || resetLoading}
-                onPress={() => {
-                  void handleResetAccount()
-                }}
-              />
-              <PillButton
-                variant="ghost"
-                fullWidth
-                disabled={resetLoading}
-                onPress={onClose}
-              >
-                {t('common.cancel')}
-              </PillButton>
-            </View>
           </View>
         )}
-      </BottomSheetModal>
-
-      {showFreshStartAnim && (
-        <FreshStartAnimation onComplete={handleFreshStartComplete} />
-      )}
+      </Sheet>) : null}
     </>
   )
 }
 
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: 22,
-    paddingBottom: 8,
+    paddingBottom: SPACING.s8,
     gap: 16,
   },
   modalDescription: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
     lineHeight: 23,
-  },
-  modalActions: {
-    gap: 12,
-    paddingTop: 8,
   },
 
   listRow: {
@@ -349,11 +342,11 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderRadius: 16,
-    padding: 16,
+    padding: SPACING.s16,
     gap: 8,
   },
   boxLabel: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     letterSpacing: 0.96,
     textTransform: 'uppercase',
@@ -364,16 +357,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   boxItemText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 18,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 19.6,
     flex: 1,
   },
 
   destructiveHero: {
     alignItems: 'center',
     gap: 16,
-    paddingTop: 4,
+    paddingTop: SPACING.s4,
   },
   destructiveHeroCircle: {
     width: 80,
@@ -384,12 +377,16 @@ const styles = StyleSheet.create({
   },
 
   confirmInput: {
-    fontFamily: 'Roboto_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 16,
   },
+  confirmLabel: {
+    fontFamily: 'Geist_500Medium',
+    fontSize: 14,
+  },
   errorTextSmall: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
     textAlign: 'center',
   },
 })

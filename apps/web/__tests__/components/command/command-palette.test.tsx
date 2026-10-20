@@ -1,5 +1,13 @@
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
+import { runServerAction } from '@/lib/client-action'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { useVersionGateStore } from '@/stores/version-gate-store'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import { useState, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
@@ -17,7 +25,8 @@ vi.stubGlobal(
 const mockPush = vi.fn()
 const mockSetPaletteOpen = vi.fn()
 const mockSetActiveView = vi.fn()
-let paletteOpen = true
+const mockLogHabitMutate = vi.fn()
+const mockSkipHabitMutate = vi.fn()
 
 interface NormalizedHabitQueryData {
   topLevelHabits: NormalizedHabit[]
@@ -32,7 +41,6 @@ interface HabitsQueryState {
 }
 
 let habitsQuery: HabitsQueryState
-const mockUseHabits = vi.fn()
 
 function buildQueryData(habits: NormalizedHabit[]): NormalizedHabitQueryData {
   const habitsById = new Map(habits.map((habit) => [habit.id, habit]))
@@ -51,10 +59,12 @@ function buildQueryData(habits: NormalizedHabit[]): NormalizedHabitQueryData {
 }
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) =>
+    key === 'command.groups.destinations' ? 'Destinations' : key,
 }))
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: mockPush }),
 }))
 
@@ -62,37 +72,53 @@ vi.mock('@/hooks/use-is-client', () => ({
   useIsClient: () => true,
 }))
 
-vi.mock('@/stores/shell-store', () => ({
-  useShellStore: (selector: (state: { paletteOpen: boolean; setPaletteOpen: typeof mockSetPaletteOpen }) => unknown) =>
-    selector({ paletteOpen, setPaletteOpen: mockSetPaletteOpen }),
-}))
-
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setActiveView: typeof mockSetActiveView }) => unknown) =>
-    selector({ setActiveView: mockSetActiveView }),
-}))
-
+vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
 vi.mock('@/hooks/use-habits', () => ({
-  useHabits: (...args: unknown[]) => mockUseHabits(...args),
-  useLogHabit: () => ({ mutate: vi.fn() }),
-  useSkipHabit: () => ({ mutate: vi.fn() }),
+  useLogHabit: () => ({ mutate: mockLogHabitMutate }),
+  useSkipHabit: () => ({ mutate: mockSkipHabitMutate }),
 }))
 
-import { CommandPalette } from '@/components/command/command-palette'
+import {
+  CommandPalette,
+  CommandPaletteBackground,
+} from '@/components/command/command-palette'
+import { Sheet } from '@/components/ui/sheet'
+import { AppToastHost } from '@/components/ui/app-toast-host'
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { useShellStore } from '@/stores/shell-store'
+import { useUIStore } from '@/stores/ui-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 
 const NavIcon = () => <svg data-testid="nav-icon" />
 const navItems = [
-  { id: 'calendar', label: 'Calendar', icon: NavIcon, onSelect: () => mockPush('/calendar') },
-]
+  { id: 'hoje', label: 'Today', icon: NavIcon, onSelect: () => mockPush('/') },
+  { id: 'calendario', label: 'Calendar', icon: NavIcon, onSelect: () => mockPush('/calendar') },
+  { id: 'progresso', label: 'Progress', icon: NavIcon, onSelect: () => mockPush('/progress') },
+  { id: 'perfil', label: 'Profile', icon: NavIcon, onSelect: () => mockPush('/profile') },
+] as const
 
-function renderPalette() {
-  return render(
-    <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} onCreateGoal={vi.fn()} />,
-  )
+async function renderPaletteContent(content: ReactNode) {
+  const view = render(content)
+  if (useShellStore.getState().paletteOpen) await screen.findByRole('combobox')
+  return view
+}
+
+async function renderPalette() {
+  return renderPaletteContent(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
 }
 
 beforeEach(() => {
-  paletteOpen = true
+  useUIStore.setState({ openOverlayIds: [], setActiveView: mockSetActiveView })
+  useAppToastStore.setState({ currentToast: null, queue: [] })
+  mockSetPaletteOpen.mockImplementation((value: boolean) => {
+    useShellStore.setState({ paletteOpen: value })
+  })
+  useShellStore.setState({
+    paletteOpen: true,
+    setPaletteOpen: mockSetPaletteOpen,
+  })
   habitsQuery = {
     data: buildQueryData([
       createMockHabit({ id: 'h1', title: 'Run', emoji: '🏃', isOverdue: true }),
@@ -101,61 +127,235 @@ beforeEach(() => {
     isSuccess: true,
   }
   mockPush.mockClear()
+  mockLogHabitMutate.mockClear()
+  mockSkipHabitMutate.mockClear()
   mockSetPaletteOpen.mockClear()
   mockSetActiveView.mockClear()
-  mockUseHabits.mockReset()
-  mockUseHabits.mockImplementation(() => habitsQuery)
 })
 
 describe('CommandPalette', () => {
-  it('uses the Today list until search needs one bounded result page', () => {
-    renderPalette()
-    expect(mockUseHabits).toHaveBeenCalledWith(
-      expect.objectContaining({ dateFrom: expect.any(String), dateTo: expect.any(String) }),
-    )
-    expect(mockUseHabits).not.toHaveBeenCalledWith({})
-
-    fireEvent.change(screen.getByPlaceholderText('command.placeholder'), { target: { value: 'run' } })
-    expect(mockUseHabits).toHaveBeenCalledWith({ search: 'run', page: 1, pageSize: 50 }, true)
+  it('announces a stale action once inside the active dialog', async () => {
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setApiFetchTranslate((key) => key)
+    mockSkipHabitMutate.mockImplementation(() => { void runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action'))) })
+    await renderPaletteContent(<CommandPaletteBackground><UpdateAvailableBanner /><AppToastHost /><CommandPalette navItems={navItems} onCreateHabit={vi.fn()} /></CommandPaletteBackground>)
+    const dialog = screen.getByRole('dialog')
+    const region = dialog.querySelector('[data-update-live-region]')
+    expect(region).toBeEmptyDOMElement()
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    await act(async () => { fireEvent.click(screen.getByText('Run')) })
+    expect(region).toHaveTextContent('errors.api.appUpdated')
+    expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
+    expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
+    expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
   })
-  it('renders the search input when the palette is open', () => {
-    renderPalette()
-    expect(screen.getByPlaceholderText('command.placeholder')).toBeInTheDocument()
+
+  it('renders the search input when the palette is open', async () => {
+    await renderPalette()
+    expect(
+      screen.getByRole('combobox', { name: 'command.placeholder' }),
+    ).toHaveAttribute('placeholder', 'command.placeholder')
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
   })
 
-  it('names the dialog after the palette title instead of the input placeholder', () => {
-    renderPalette()
+  it('names the dialog after the palette title instead of the input placeholder', async () => {
+    await renderPalette()
     expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
   })
 
-  it('does not render the menu when the palette is closed', () => {
-    paletteOpen = false
-    renderPalette()
+  it('does not render the menu when the palette is closed', async () => {
+    useShellStore.setState({ paletteOpen: false })
+    await renderPalette()
     expect(screen.queryByPlaceholderText('command.placeholder')).not.toBeInTheDocument()
   })
 
-  it('runs a navigate command through router.push and closes', () => {
-    renderPalette()
+  it('runs a navigate command through router.push and closes', async () => {
+    await renderPalette()
     fireEvent.click(screen.getByText('Calendar'))
     expect(mockPush).toHaveBeenCalledWith('/calendar')
     expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
   })
 
-  it('jumps to a searched habit via router.push', () => {
-    renderPalette()
-    fireEvent.click(screen.getByText('Run'))
-    expect(mockSetActiveView).toHaveBeenCalledWith('today')
-    expect(mockPush).toHaveBeenCalledWith('/')
+  it('renders habits, actions, and destinations in that order', async () => {
+    await renderPalette()
+    const groups = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-command-group]'),
+    )
+
+    expect(groups.map((group) => group.dataset.commandGroup)).toEqual([
+      'habits',
+      'create',
+      'actions',
+      'destinations',
+    ])
+    expect(screen.getByText('Destinations')).toBeInTheDocument()
   })
 
-  it('closes when Escape is pressed', () => {
-    renderPalette()
-    fireEvent.keyDown(document, { key: 'Escape' })
+  it('offers exactly the four shell destinations', async () => {
+    await renderPalette()
+    const destinationGroup = document.querySelector<HTMLElement>(
+      '[data-command-group="destinations"]',
+    )
+
+    expect(destinationGroup).not.toBeNull()
+    expect(
+      Array.from(destinationGroup?.querySelectorAll('[cmdk-item]') ?? []).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual(['Today', 'Calendar', 'Progress', 'Profile'])
+  })
+
+  it('jumps to a searched habit via router.push', async () => {
+    await renderPalette()
+    fireEvent.click(screen.getByText('Run'))
+    expect(mockPush).toHaveBeenCalledWith('/habits/h1')
+  })
+
+  it('leaves a failed log to the mutation error toast', async () => {
+    await renderPalette()
+    fireEvent.click(screen.getByText('command.logHabit'))
+    fireEvent.click(screen.getByText('Run'))
+    expect(mockLogHabitMutate).toHaveBeenCalledWith(
+      { habitId: 'h1', intent: 'log' },
+      { onSuccess: expect.any(Function) },
+    )
+  })
+
+  it('keeps failed Skip feedback inside the palette while its mutation settles', async () => {
+    mockSkipHabitMutate.mockImplementation((_input, callbacks: { onError: (error: Error) => void }) => {
+      callbacks.onError(new Error('Skip failed'))
+    })
+    await renderPaletteContent(
+      <CommandPaletteBackground>
+        <div data-shell-notice=""><AppToastHost /></div>
+        <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+      </CommandPaletteBackground>,
+    )
+
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    fireEvent.click(screen.getByText('Run'))
+
+    const palette = screen.getByRole('dialog', { name: 'command.title' })
+    expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
+    await waitFor(() => expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('errors.updateHabit'))
+    expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveAttribute('aria-live', 'polite')
+    expect(mockSkipHabitMutate).toHaveBeenCalledOnce()
+  })
+
+  it('shows the account-change Reload notice from a failed Skip mutation inside the palette', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async (_input: { habitId: string }) => {
+        throw Object.assign(new Error('Account changed'), { code: ACCOUNT_CHANGED_ERROR_CODE, status: 409 })
+      },
+    }), { wrapper })
+    mockSkipHabitMutate.mockImplementation((input, callbacks) => result.current.mutate(input, callbacks))
+    await renderPaletteContent(
+      <CommandPaletteBackground>
+        <div data-shell-notice=""><AppToastHost /></div>
+        <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+      </CommandPaletteBackground>,
+    )
+
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    fireEvent.click(screen.getByText('Run'))
+
+    const palette = screen.getByRole('dialog', { name: 'command.title' })
+    await waitFor(() => expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('errors.api.accountChanged'))
+    expect(palette).toContainElement(screen.getByRole('button', { name: 'errorScreen.reload' }))
+    expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
+  })
+
+  it('keeps account-change Reload operable inside the open palette', async () => {
+    const user = userEvent.setup()
+    const reload = vi.fn()
+    mockSkipHabitMutate.mockImplementation(() => {
+      useAppToastStore.getState().showToast({
+        kind: 'neutral', message: 'Account changed', actionLabel: 'Reload', onAction: reload,
+      })
+    })
+    await renderPaletteContent(
+      <CommandPaletteBackground>
+        <div data-shell-notice=""><AppToastHost /></div>
+        <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+      </CommandPaletteBackground>,
+    )
+
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    fireEvent.click(screen.getByText('Run'))
+
+    const palette = screen.getByRole('dialog', { name: 'command.title' })
+    const background = document.querySelector('[data-command-palette-background]')
+    expect(background).toHaveAttribute('inert')
+    expect(mockSkipHabitMutate).toHaveBeenCalledWith(
+      { habitId: 'h1' }, expect.objectContaining({ onError: expect.any(Function) }),
+    )
+    await waitFor(() => expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Account changed'))
+    const reloadButton = screen.getByRole('button', { name: 'Reload' })
+    reloadButton.focus()
+    expect(reloadButton).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(reload).toHaveBeenCalledOnce()
+    expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
+  })
+
+  it('closes when Escape is pressed in the focused search input', async () => {
+    const user = userEvent.setup()
+    await renderPalette()
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveFocus())
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
   })
 
-  it('shows the key-hint footer with the back hint only on a sub-page', () => {
-    renderPalette()
+  it('backs out of a command page before Escape closes the overlay', async () => {
+    const user = userEvent.setup()
+    await renderPalette()
+    await user.click(screen.getByText('command.logHabit'))
+
+    await user.keyboard('{Escape}')
+
+    expect(screen.getByText('command.createHabit')).toBeInTheDocument()
+    expect(mockSetPaletteOpen).not.toHaveBeenCalled()
+    expect(screen.getByRole('combobox')).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it.each(['log', 'skip'] as const)('keeps the field focused after clicking %s', async (page) => {
+    const user = userEvent.setup()
+    await renderPalette()
+    await user.click(screen.getByText(`command.${page}Habit`))
+    const input = screen.getByRole('combobox')
+    expect(input).toHaveFocus()
+    await user.keyboard('ab')
+    expect(input).toHaveValue('ab')
+  })
+
+  it('keeps the field focused after Enter opens the skip page', async () => {
+    const user = userEvent.setup()
+    await renderPalette()
+    const input = screen.getByRole('combobox')
+    await waitFor(() => expect(input).toHaveFocus())
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{Enter}')
+    expect(screen.getByText('command.page.skip')).toBeInTheDocument()
+    expect(input).toHaveFocus()
+    await user.keyboard('ab')
+    expect(input).toHaveValue('ab')
+  })
+
+  it('renders one keycap per hint and the check command glyph', async () => {
+    await renderPalette()
+    expect(Array.from(document.querySelectorAll('kbd'), (key) => key.textContent)).toEqual(['↑↓', '↵', 'esc'])
+    expect(screen.getByText('command.hints.select')).toHaveClass('lowercase')
+    expect(screen.getByText('command.logHabit').closest('[cmdk-item]')?.querySelector('svg')).toHaveClass('tabler-icon-check')
+  })
+
+  it('shows the key-hint footer with the back hint only on a sub-page', async () => {
+    await renderPalette()
     expect(screen.getByText('command.hints.navigate')).toBeInTheDocument()
     expect(screen.getByText('command.hints.select')).toBeInTheDocument()
     expect(screen.getByText('command.hints.close')).toBeInTheDocument()
@@ -163,22 +363,130 @@ describe('CommandPalette', () => {
 
     fireEvent.click(screen.getByText('command.logHabit'))
 
-    expect(screen.getByText('command.hints.back')).toBeInTheDocument()
+    expect(screen.queryByText('command.hints.close')).not.toBeInTheDocument()
+    expect(screen.getAllByText('command.hints.back')).toHaveLength(1)
   })
 
-  it('returns from a sub-page through the breadcrumb back button', () => {
-    renderPalette()
+  it('does not open over a Sheet that already owns modal focus', async () => {
+    function SheetFirstHarness() {
+      const [sheetOpen, setSheetOpen] = useState(true)
+      useKeyboardShortcuts()
+      return (
+        <>
+          {sheetOpen ? (
+            <Sheet title="Sheet owner" onClose={() => setSheetOpen(false)}>
+              <button type="button" autoFocus>Sheet action</button>
+            </Sheet>
+          ) : null}
+          <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+        </>
+      )
+    }
+
+    useShellStore.setState({ paletteOpen: false })
+    await renderPaletteContent(<SheetFirstHarness />)
+    const sheetDialog = await screen.findByRole('dialog', { name: 'Sheet owner' })
+
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+
+    expect(useShellStore.getState().paletteOpen).toBe(false)
+    expect(screen.queryByRole('dialog', { name: 'command.title' })).not.toBeInTheDocument()
+    expect(sheetDialog).toContainElement(document.activeElement as HTMLElement)
+  })
+
+  it('yields focus and Escape to a Sheet opened above the palette', async () => {
+    const user = userEvent.setup()
+    function PaletteFirstHarness() {
+      const [sheetOpen, setSheetOpen] = useState(false)
+      return (
+        <>
+          <button type="button" onClick={() => setSheetOpen(true)}>Open sheet</button>
+          <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+          {sheetOpen ? (
+            <Sheet title="Sheet owner" onClose={() => setSheetOpen(false)}>
+              <button type="button">Sheet action</button>
+            </Sheet>
+          ) : null}
+        </>
+      )
+    }
+
+    await renderPaletteContent(<PaletteFirstHarness />)
+    const paletteInput = screen.getByPlaceholderText('command.placeholder')
+    await waitFor(() => expect(paletteInput).toHaveFocus())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open sheet' }))
+    const sheetDialog = await screen.findByRole('dialog', { name: 'Sheet owner' })
+    act(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
+    await waitFor(() => expect(sheetDialog.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Still here'))
+    expect(document.querySelector('[aria-label="command.title"] [role="status"]:not([data-update-live-region])')).toBeNull()
+    await waitFor(() =>
+      expect(sheetDialog).toContainElement(document.activeElement as HTMLElement),
+    )
+
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sheet owner' })).toBeNull())
+    expect(screen.getByRole('dialog', { name: 'command.title' }).querySelector('[role="status"]:not([data-update-live-region])')).toBeInTheDocument()
+    expect(mockSetPaletteOpen).not.toHaveBeenCalledWith(false)
+    await waitFor(() => expect(paletteInput).toHaveFocus())
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
+  })
+
+  it('returns from a sub-page through the breadcrumb back button', async () => {
+    await renderPalette()
     fireEvent.click(screen.getByText('command.skipHabit'))
     expect(screen.queryByText('command.createHabit')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('common.back'))
 
     expect(screen.getByText('command.createHabit')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('command.placeholder')).toHaveFocus()
   })
 
-  it('does not claim no results while the habits query is still loading', () => {
+  it('drops isolation and closes the palette when upgrade removes its owner', async () => {
+    const route = (pathname: '/' | '/upgrade') => (
+      <CommandPaletteBackground>
+        <main>{pathname}</main>
+        {pathname === '/' ? (
+          <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+        ) : null}
+      </CommandPaletteBackground>
+    )
+    const { rerender } = await renderPaletteContent(
+      route('/'),
+    )
+    const background = document.querySelector('[data-command-palette-background]')
+
+    expect(background).toHaveAttribute('inert')
+    expect(background).toHaveAttribute('aria-hidden', 'true')
+
+    rerender(route('/upgrade'))
+
+    await waitFor(() => {
+      expect(background).not.toHaveAttribute('inert')
+      expect(background).not.toHaveAttribute('aria-hidden')
+      expect(useShellStore.getState().paletteOpen).toBe(false)
+    })
+
+    rerender(route('/'))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(background).not.toHaveAttribute('inert')
+  })
+
+  it('does not expose the removed create goal command', async () => {
+    await renderPalette()
+
+    expect(screen.queryByText('command.createGoal')).not.toBeInTheDocument()
+  })
+
+  it('does not claim no results while the habits query is still loading', async () => {
     habitsQuery = { data: undefined, isPending: true, isSuccess: false }
-    renderPalette()
+    await renderPalette()
     fireEvent.click(screen.getByText('command.logHabit'))
 
     expect(screen.queryByText('command.empty')).not.toBeInTheDocument()
@@ -186,7 +494,7 @@ describe('CommandPalette', () => {
   })
 
   it('focuses the search input on open and keeps Tab inside the panel', async () => {
-    renderPalette()
+    await renderPalette()
     const input = screen.getByPlaceholderText('command.placeholder')
     await waitFor(() => expect(input).toHaveFocus())
 
@@ -200,13 +508,13 @@ describe('CommandPalette', () => {
     document.body.appendChild(trigger)
     trigger.focus()
 
-    const { rerender } = renderPalette()
+    const { rerender } = await renderPalette()
     await waitFor(() =>
       expect(screen.getByPlaceholderText('command.placeholder')).toHaveFocus(),
     )
 
-    paletteOpen = false
-    rerender(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} onCreateGoal={vi.fn()} />)
+    useShellStore.setState({ paletteOpen: false })
+    rerender(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
 
     expect(trigger).toHaveFocus()
     trigger.remove()

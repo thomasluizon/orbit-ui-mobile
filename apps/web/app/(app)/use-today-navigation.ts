@@ -1,27 +1,30 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
-import { addDays, subDays, isToday, isYesterday, isTomorrow } from 'date-fns'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { addDays, subDays } from 'date-fns'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { formatAPIDate, formatLocaleDate } from '@orbit/shared/utils'
+import { canNavigateToNextDay, formatAPIDate, formatLocaleDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
+import { useProfile } from '@/hooks/use-profile'
 import { useToday } from './today-provider'
 
 export interface TodayDateNavBundle {
-  dateLabel: string
+  shortDayName: string
+  dayName: string
+  numericDate: string
   isTodaySelected: boolean
-  slideDirection: 'left' | 'right'
-  animateDateChange: boolean
+  nextDisabled: boolean
   onGoToPreviousDay: () => void
   onGoToToday: () => void
   onGoToNextDay: () => void
   previousLabel: string
-  todayLabel: string
+  goToTodayLabel: string
   nextLabel: string
 }
 
 export interface TodayNavigation {
+  today: string
   selectedDate: Date
   dateStr: string
   isTodaySelected: boolean
@@ -30,21 +33,23 @@ export interface TodayNavigation {
   dateNav: TodayDateNavBundle
 }
 
+function subscribeToHydrationToday() {
+  return () => {}
+}
+
 /**
  * Owns the Today screen's selected day and its navigation controls: resolves the
  * `?date=` deep link over the rolling `today`, derives the humanised date label,
  * and exposes the prev/today/next handlers plus the shared prop bundle consumed by
  * both the mobile and desktop date-navigation rows. Pure extraction of TodayPage.
  */
-export function useTodayNavigation(): TodayNavigation {
+export function useTodayNavigation(initialToday: string): TodayNavigation {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
   const searchParams = useSearchParams()
   const setActiveView = useUIStore((s) => s.setActiveView)
-
-  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
-  const [hasNavigatedDate, setHasNavigatedDate] = useState(false)
+  const { profile } = useProfile()
 
   const dateParam = searchParams.get('date')
   const pinnedDateStr = useMemo(() => {
@@ -52,7 +57,12 @@ export function useTodayNavigation(): TodayNavigation {
     return null
   }, [dateParam])
 
-  const today = useToday()
+  const localToday = useToday(profile?.timeZone)
+  const today = useSyncExternalStore(
+    subscribeToHydrationToday,
+    () => localToday,
+    () => initialToday,
+  )
   const selectedDateStr = pinnedDateStr ?? today
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
@@ -61,63 +71,64 @@ export function useTodayNavigation(): TodayNavigation {
   )
 
   const goToPreviousDay = useCallback(() => {
-    setSlideDirection('left')
-    setHasNavigatedDate(true)
     router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`)
   }, [router, selectedDate])
 
   const goToNextDay = useCallback(() => {
-    setSlideDirection('right')
-    setHasNavigatedDate(true)
+    if (!canNavigateToNextDay(formatAPIDate(selectedDate), today)) return
     router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`)
-  }, [router, selectedDate])
+  }, [router, selectedDate, today])
 
   const goToToday = useCallback(() => {
-    setSlideDirection(selectedDate > new Date() ? 'left' : 'right')
-    setHasNavigatedDate(true)
     setActiveView('today')
     router.push('/')
-  }, [router, selectedDate, setActiveView])
+  }, [router, setActiveView])
 
-  const dateLabel = useMemo(() => {
-    if (isToday(selectedDate)) return t('dates.today')
-    if (isYesterday(selectedDate)) return t('dates.yesterday')
-    if (isTomorrow(selectedDate)) return t('dates.tomorrow')
-    return formatLocaleDate(selectedDate, locale, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }, [selectedDate, t, locale])
+  const dayName = useMemo(() => {
+    if (selectedDateStr === today) return t('dates.today')
+    const todayDate = new Date(`${today}T00:00:00`)
+    if (selectedDateStr === formatAPIDate(subDays(todayDate, 1))) return t('dates.yesterday')
+    if (selectedDateStr === formatAPIDate(addDays(todayDate, 1))) return t('dates.tomorrow')
+    const weekday = formatLocaleDate(selectedDate, locale, { weekday: 'long' })
+    return weekday.charAt(0).toLocaleUpperCase(locale) + weekday.slice(1)
+  }, [selectedDateStr, today, selectedDate, locale, t])
+  const numericDate = useMemo(
+    () => formatLocaleDayMonth(selectedDate, locale),
+    [selectedDate, locale],
+  )
 
-  const isTodaySelected = isToday(selectedDate)
+  const isTodaySelected = selectedDateStr === today
 
   const dateNav = useMemo<TodayDateNavBundle>(
     () => ({
-      dateLabel,
+      shortDayName: formatLocaleDate(selectedDate, locale, { weekday: 'short' }),
+      dayName,
+      numericDate,
       isTodaySelected,
-      slideDirection,
-      animateDateChange: hasNavigatedDate,
+      nextDisabled: !canNavigateToNextDay(formatAPIDate(selectedDate), today),
       onGoToPreviousDay: goToPreviousDay,
       onGoToToday: goToToday,
       onGoToNextDay: goToNextDay,
       previousLabel: t('dates.previousDay'),
-      todayLabel: t('dates.goToToday'),
+      goToTodayLabel: t('dates.goToToday'),
       nextLabel: t('dates.nextDay'),
     }),
     [
-      dateLabel,
+      dayName,
+      numericDate,
       isTodaySelected,
-      slideDirection,
-      hasNavigatedDate,
       goToPreviousDay,
       goToToday,
       goToNextDay,
       t,
+      selectedDate,
+      today,
+      locale,
     ],
   )
 
   return {
+    today,
     selectedDate,
     dateStr: formatAPIDate(selectedDate),
     isTodaySelected,

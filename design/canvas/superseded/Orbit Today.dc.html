@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 2 · hoje · a matriz completa</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Hoje · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" fab="{{ fabEl }}" sheets="{{ sheetsEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:24px 16px 0">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <p style="font-family:var(--font-mono);font-size:var(--fs-xs);font-weight:500;color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ datePre }}<span data-mock="true">16</span>{{ datePost }}</p>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tTitle }}</h1>
+          </div>
+          <sc-if value="{{ hasLevel }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px">
+                <span style="font-size:var(--fs-sm);font-weight:500">{{ tLevel }} <span data-mock="true" style="font-variant-numeric:tabular-nums">12</span></span>
+                <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums;white-space:nowrap;flex:0 0 auto"><span data-mock="true">{{ doneCount }}</span> {{ tOf }} <span data-mock="true">{{ totalCount }}</span> {{ tToday }} · <span data-mock="true">620 / 1000</span></span>
+              </div>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ProgressBar" value="{{ xp }}" max="{{ xpMax }}" label="{{ tLevelFull }}" hint-size="100%,8px"></x-import>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n7 }}" label="{{ tLoading }}" hint-size="100%,540px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,260px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capAction }}" hint-size="100%,88px"></x-import>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" disabled="{{ true }}" hint-size="auto,36px">{{ tCreate }}</x-import>
+                <span data-mock="true" style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tCapReason }}</span>
+              </div>
+            </div>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-if value="{{ isMany }}" hint-placeholder-val="{{ false }}">
+              <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums"><span data-mock="true">{{ habitCount }}</span> {{ tHabits }}</p>
+            </sc-if>
+            <sc-if value="{{ showPlainList }}" hint-placeholder-val="{{ true }}">
+              <sc-for list="{{ habits }}" as="h" hint-placeholder-count="7">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ h.icon }}" title="{{ h.title }}" meta="{{ h.meta }}" status="{{ h.status }}" dc-props="{{ h.extra }}" on-click="{{ h.onClick }}" on-menu="{{ h.onMenu }}" menu-label="{{ h.menuLabel }}" hint-size="100%,68px"></x-import>
+                  <sc-if value="{{ h.expanded }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;padding-bottom:4px">
+                      <sc-for list="{{ h.subs }}" as="sh" hint-placeholder-count="3">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" depth="{{ n1 }}" icon="{{ sh.icon }}" title="{{ sh.title }}" status="{{ sh.status }}" on-click="{{ sh.onClick }}" on-menu="{{ sh.onMenu }}" menu-label="{{ sh.menuLabel }}" hint-size="100%,48px"></x-import>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </sc-if>
+          </div>
+          <sc-if value="{{ isTooMany }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div style="position:sticky;top:0;z-index:1;background:var(--bg);padding-block:8px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tSearch }}" placeholder="{{ searchPh }}" value="{{ query }}" on-change="{{ setQuery }}" hint-size="100%,80px"></x-import>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ pageHabits }}" as="h" hint-placeholder-count="8">
+                  <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ h.icon }}" title="{{ h.title }}" meta="{{ h.meta }}" status="{{ h.status }}" on-click="{{ h.onClick }}" on-menu="{{ h.onMenu }}" menu-label="{{ h.menuLabel }}" hint-size="100%,68px"></x-import>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums">{{ pageInfo }}</span>
+                <div style="display:flex;gap:8px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" disabled="{{ prevDisabled }}" on-click="{{ prevPage }}" hint-size="auto,36px">{{ tPrev }}</x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" disabled="{{ nextDisabled }}" on-click="{{ nextPage }}" hint-size="auto,36px">{{ tNext }}</x-import>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Hoje · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="hoje" on-create="{{ wideCreate }}" create-label="{{ tCreate }}" account="Thomas" rail="{{ railEl }}" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <p style="font-family:var(--font-mono);font-size:var(--fs-xs);font-weight:500;color:var(--fg-3);letter-spacing:var(--track-label);text-transform:uppercase">{{ datePre }}<span data-mock="true">16</span>{{ datePost }}</p>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">{{ tTitle }}</h1>
+          </div>
+          <sc-if value="{{ hasLevel }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px">
+              <span style="font-size:var(--fs-sm);font-weight:500">{{ tLevel }} <span data-mock="true" style="font-variant-numeric:tabular-nums">12</span></span>
+              <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums;white-space:nowrap;flex:0 0 auto"><span data-mock="true">{{ doneCount }}</span> {{ tOf }} <span data-mock="true">{{ totalCount }}</span> {{ tToday }} · <span data-mock="true">620 / 1000</span></span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n7 }}" label="{{ tLoading }}" hint-size="100%,540px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,260px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capAction }}" hint-size="100%,88px"></x-import>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" size="sm" disabled="{{ true }}" hint-size="auto,36px">{{ tCreate }}</x-import>
+                <span data-mock="true" style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tCapReason }}</span>
+              </div>
+            </div>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-if value="{{ isMany }}" hint-placeholder-val="{{ false }}">
+              <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums"><span data-mock="true">{{ habitCount }}</span> {{ tHabits }}</p>
+            </sc-if>
+            <sc-if value="{{ showPlainList }}" hint-placeholder-val="{{ true }}">
+              <sc-for list="{{ habits }}" as="h" hint-placeholder-count="7">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ h.icon }}" title="{{ h.title }}" meta="{{ h.meta }}" status="{{ h.status }}" dc-props="{{ h.extra }}" on-click="{{ h.onClick }}" on-menu="{{ h.onMenu }}" menu-label="{{ h.menuLabel }}" hint-size="100%,68px"></x-import>
+                  <sc-if value="{{ h.expanded }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;padding-bottom:4px">
+                      <sc-for list="{{ h.subs }}" as="sh" hint-placeholder-count="3">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" depth="{{ n1 }}" icon="{{ sh.icon }}" title="{{ sh.title }}" status="{{ sh.status }}" on-click="{{ sh.onClick }}" on-menu="{{ sh.onMenu }}" menu-label="{{ sh.menuLabel }}" hint-size="100%,48px"></x-import>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </sc-if>
+          </div>
+          <sc-if value="{{ isTooMany }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div style="position:sticky;top:0;z-index:1;background:var(--bg);padding-block:8px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tSearch }}" placeholder="{{ searchPh }}" value="{{ query }}" on-change="{{ setQuery }}" hint-size="100%,80px"></x-import>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ pageHabits }}" as="h" hint-placeholder-count="8">
+                  <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ h.icon }}" title="{{ h.title }}" meta="{{ h.meta }}" status="{{ h.status }}" on-click="{{ h.onClick }}" on-menu="{{ h.onMenu }}" menu-label="{{ h.menuLabel }}" hint-size="100%,68px"></x-import>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3);font-variant-numeric:tabular-nums">{{ pageInfo }}</span>
+                <div style="display:flex;gap:8px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" disabled="{{ prevDisabled }}" on-click="{{ prevPage }}" hint-size="auto,36px">{{ tPrev }}</x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" disabled="{{ nextDisabled }}" on-click="{{ nextPage }}" hint-size="auto,36px">{{ tNext }}</x-import>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+      {{ sheetsEl }}
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = Object.assign({
+    s1:'done', s2:'empty', s3:'overdue', s4:'frozen', s5:'skip',
+    s6a:'done', s6b:'done', s6c:'done', s7a:'done', s7b:'empty', s7c:'skip',
+    e1:'done', e2:'empty', e3:'empty', e4:'skip', e5:'empty',
+    x6:false, x7:true, menuFor:null, createOpen:false, name:'',
+    query:'', page:0,
+    cv:{mode:'dark', width:'412', state:'default', locale:'pt-BR'}
+  }, Object.fromEntries(Array.from({length:23}, (_, i) => ['tm'+i, ['empty','done','empty','skip','empty'][i%5]])));
+  defs = [
+    {k:'s1', icon:'💧', pt:'Água da manhã', en:'Morning water', mp:'08:00 · 12 dias', me:'08:00 · 12 days', mm:true},
+    {k:'s2', icon:'🥗', pt:'Almoço em casa', en:'Lunch at home', mp:'12:30', me:'12:30', mm:true},
+    {k:'s3', icon:'🏃', pt:'Correr', en:'Run', mp:'18:30 · atrasado', me:'18:30 · overdue', mm:true},
+    {k:'s4', icon:'📖', pt:'Ler 20 páginas', en:'Read 20 pages', mp:'congelado', me:'frozen'},
+    {k:'s5', icon:'🧘', pt:'Meditar', en:'Meditate', mp:'pulado', me:'skipped'},
+    {x:'x6', icon:'☀️', pt:'Rotina da manhã', en:'Morning routine', subs:[
+      {k:'s6a', icon:'🛏️', pt:'Arrumar a cama', en:'Make the bed'},
+      {k:'s6b', icon:'🤸', pt:'Alongar', en:'Stretch'},
+      {k:'s6c', icon:'☕', pt:'Café sem açúcar', en:'Coffee without sugar'}]},
+    {x:'x7', icon:'🌙', pt:'Rotina da noite', en:'Evening routine', subs:[
+      {k:'s7a', icon:'🪥', pt:'Escovar os dentes', en:'Brush your teeth'},
+      {k:'s7b', icon:'📓', pt:'Diário', en:'Journal'},
+      {k:'s7c', icon:'🧴', pt:'Cuidar da pele', en:'Skincare'}]}
+  ];
+  extras = [
+    {k:'e1', icon:'💊', pt:'Vitamina D', en:'Vitamin D', mp:'09:00', me:'09:00', mm:true},
+    {k:'e2', icon:'🚶', pt:'Caminhada', en:'Walk', mp:'07:30 · 5 dias', me:'07:30 · 5 days', mm:true},
+    {k:'e3', icon:'🧹', pt:'Arrumar a mesa', en:'Tidy the desk', mp:'19:00', me:'19:00', mm:true},
+    {k:'e4', icon:'💤', pt:'Dormir às 23h', en:'Sleep by 11pm', mp:'pulado', me:'skipped'},
+    {k:'e5', icon:'🎧', pt:'Podcast em inglês', en:'English podcast', mp:'20:00', me:'20:00', mm:true}
+  ];
+  tmDefs = [
+    ['💧','Água da manhã','Morning water','08:00'],
+    ['🥗','Almoço em casa','Lunch at home','12:30'],
+    ['🏃','Correr','Run','18:30'],
+    ['📖','Ler 20 páginas','Read 20 pages','21:00'],
+    ['🧘','Meditar','Meditate','07:00'],
+    ['☀️','Rotina da manhã','Morning routine','06:30'],
+    ['🌙','Rotina da noite','Evening routine','22:00'],
+    ['💊','Vitamina D','Vitamin D','09:00'],
+    ['🚶','Caminhada','Walk','07:30'],
+    ['🧹','Arrumar a mesa','Tidy the desk','19:00'],
+    ['💤','Dormir às 23h','Sleep by 11pm','23:00'],
+    ['🎧','Podcast em inglês','English podcast','20:00'],
+    ['💧','Beber 2L de água','Drink 2L of water','o dia todo','all day'],
+    ['🍬','Sem açúcar','No sugar','o dia todo','all day'],
+    ['📚','Inglês 15 min','English 15 min','19:30'],
+    ['💪','Flexões','Push-ups','17:00'],
+    ['🌱','Regar as plantas','Water the plants','08:30'],
+    ['✍️','Três gratidões','Three gratitudes','21:30'],
+    ['🧴','Protetor solar','Sunscreen','08:15'],
+    ['📵','Sem telas às 22h','No screens at 10pm','22:00'],
+    ['📞','Ligar para a mãe','Call mom','18:00'],
+    ['🗓️','Planejar o dia','Plan the day','06:45'],
+    ['🛏️','Arrumar a cama','Make the bed','06:35']
+  ];
+  log(k){ this.setState(s => s[k]==='frozen' ? null : {[k]: s[k]==='done' ? 'empty' : 'done'}); }
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      title:'Today', datePre:'Saturday, August ', datePost:'', level:'Level', of:'of', today:'today', habits:'habits',
+      create:'Create habit', name:'Habit name', ph:'Morning water', cancel:'Cancel', doCreate:'Create',
+      edit:'Edit', skip:'Skip today', freeze:'Freeze', archive:'Archive', more:'More options for',
+      emptyTitle:'No habits yet', errMsg:'Could not load your habits. Check your connection and try again.',
+      retry:'Try again', capMsg:'Limit of 10 habits. Archive a habit to create another.', capReason:'Limit of 10 habits.',
+      loading:'Loading', search:'Search habits', searchPh:'Habit name', prev:'Previous', next:'Next', rangeA:'to',
+      noResults:'no results', doneToday:'done today', streak:'current streak', week:'this week',
+      proposal:'proposal · accept or cut each module',
+      r1:'the day at a glance; goes neutral when complete', r2:'the most checked number after today', r3:'the week without a chart',
+      streakVal:'12 days', weekVal:'38 of 77', tabs:['Today','Goals','Astra','Profile']
+    } : {
+      title:'Hoje', datePre:'sábado, ', datePost:' de agosto', level:'Nível', of:'de', today:'hoje', habits:'hábitos',
+      create:'Criar hábito', name:'Nome do hábito', ph:'Água da manhã', cancel:'Cancelar', doCreate:'Criar',
+      edit:'Editar', skip:'Pular hoje', freeze:'Congelar', archive:'Arquivar', more:'Mais opções de',
+      emptyTitle:'Nenhum hábito ainda', errMsg:'Não foi possível carregar seus hábitos. Verifique sua conexão e tente de novo.',
+      retry:'Tentar de novo', capMsg:'Limite de 10 hábitos. Arquive um hábito para criar outro.', capReason:'Limite de 10 hábitos.',
+      loading:'Carregando', search:'Buscar hábito', searchPh:'Nome do hábito', prev:'Anterior', next:'Próxima', rangeA:'a',
+      noResults:'nenhum resultado', doneToday:'feitos hoje', streak:'sequência atual', week:'nesta semana',
+      proposal:'proposta · aceite ou corte cada módulo',
+      r1:'o dia num relance; fica neutro ao completar', r2:'o número mais checado depois de hoje', r3:'a semana sem um gráfico',
+      streakVal:'12 dias', weekVal:'38 de 77', tabs:['Hoje','Metas','Astra','Perfil']
+    };
+    const cstate = cv.state;
+    const isLoading = cstate==='loading', isEmpty = cstate==='empty', isError = cstate==='error',
+      isCap = cstate==='at capacity', isMany = cstate==='many', isTooMany = cstate==='too many';
+    const isWide = cv.width==='wide';
+    const mockEl = t => E('span', {'data-mock':'true'}, t);
+    const dn = a => a.filter(v => v==='done').length;
+    const mk = k => () => this.log(k);
+    const openMenu = (k,t) => () => this.setState({menuFor:{k,t}});
+    const item = d => { const t = en?d.en:d.pt, m = en?(d.me||d.mp):d.mp;
+      return {icon:d.icon, title:t, meta: m ? (d.mm?mockEl(m):m) : undefined, status:st[d.k],
+        onClick:mk(d.k), onMenu:openMenu(d.k,t), menuLabel:T.more+' '+t, extra:{}}; };
+    const trail = (open,status) => (DS.Icon && DS.StatusRing) ? E('span',
+      {style:{display:'flex',alignItems:'center',gap:8}},
+      E(DS.Icon,{name:open?'caret-down':'chevron-right',filled:open,size:20,color:'var(--fg-3)'}),
+      E(DS.StatusRing,{status})) : undefined;
+    const famItem = d => { const t = en?d.en:d.pt, sts = d.subs.map(s=>st[s.k]), c = dn(sts);
+      const fs = c===sts.length ? 'done' : 'empty', open = st[d.x];
+      return {icon:d.icon, title:t, meta:mockEl(c+' '+T.of+' '+sts.length), status:fs,
+        onClick:()=>this.setState(s=>({[d.x]:!s[d.x]})), onMenu:openMenu(null,t), menuLabel:T.more+' '+t,
+        extra:{trailing:trail(open,fs)}, expanded:open,
+        subs:d.subs.map(s=>{ const stt = en?s.en:s.pt; return {icon:s.icon, title:stt, status:st[s.k],
+          onClick:mk(s.k), onMenu:openMenu(s.k,stt), menuLabel:T.more+' '+stt}; })}; };
+    let activeDefs = this.defs;
+    if (isMany) activeDefs = this.defs.concat(this.extras);
+    if (isCap) activeDefs = this.defs.concat(this.extras.slice(0,3));
+    const habits = activeDefs.map(d => d.subs ? famItem(d) : item(d));
+    let leafSt = [];
+    if (isTooMany) leafSt = this.tmDefs.map((_,i)=>st['tm'+i]);
+    else activeDefs.forEach(d => d.subs ? d.subs.forEach(s=>leafSt.push(st[s.k])) : leafSt.push(st[d.k]));
+    const doneCount = dn(leafSt), totalCount = leafSt.length;
+    const tmItems = this.tmDefs.map((a,i)=>{ const t = en?a[2]:a[1], m = en?(a[4]||a[3]):a[3], k = 'tm'+i;
+      return {icon:a[0], title:t, meta:/\d/.test(m)?mockEl(m):m, status:st[k],
+        onClick:mk(k), onMenu:openMenu(k,t), menuLabel:T.more+' '+t}; });
+    const q = st.query.trim().toLowerCase();
+    const filtered = q ? tmItems.filter(h=>h.title.toLowerCase().includes(q)) : tmItems;
+    const per = 8, pages = Math.max(1, Math.ceil(filtered.length/per)), page = Math.min(st.page, pages-1);
+    const pageHabits = filtered.slice(page*per, page*per+per);
+    const pageInfo = filtered.length
+      ? (page*per+1)+' '+T.rangeA+' '+Math.min(filtered.length,(page+1)*per)+' '+T.of+' '+filtered.length
+      : T.noResults;
+    const closeMenu = ()=>this.setState({menuFor:null});
+    const closeCreate = ()=>this.setState({createOpen:false});
+    const openCreate = ()=>this.setState({createOpen:true});
+    const setMenuStatus = v => ()=>this.setState(s => (s.menuFor && s.menuFor.k) ? {[s.menuFor.k]:v, menuFor:null} : {menuFor:null});
+    const menuSheet = DS.Sheet ? E(DS.Sheet, {open:!!st.menuFor, title:st.menuFor?st.menuFor.t:'', onClose:closeMenu},
+      E('div',{style:{display:'flex',flexDirection:'column',paddingBottom:24}},
+        E(DS.ListRow,{icon:'pencil',title:T.edit,chevron:false,onClick:closeMenu}),
+        E(DS.ListRow,{icon:'player-skip-forward',title:T.skip,chevron:false,onClick:setMenuStatus('skip')}),
+        E(DS.ListRow,{icon:'snowflake',title:T.freeze,chevron:false,onClick:setMenuStatus('frozen')}),
+        E(DS.ListRow,{icon:'archive',title:T.archive,chevron:false,onClick:closeMenu}))) : null;
+    const createSheet = (DS.Sheet && DS.Button && DS.Input) ? E(DS.Sheet, {open:st.createOpen, title:T.create, onClose:closeCreate,
+      actions:E(React.Fragment,null,
+        E(DS.Button,{variant:'ghost',size:'sm',onClick:closeCreate},T.cancel),
+        E(DS.Button,{size:'sm',onClick:()=>this.setState({createOpen:false,name:''})},T.doCreate))},
+      E('div',{style:{paddingBottom:8}},
+        E(DS.Input,{label:T.name,placeholder:T.ph,value:st.name,onChange:e=>this.setState({name:e.target.value})}))) : null;
+    const sheetsEl = E(React.Fragment, null, menuSheet, createSheet);
+    const showFab = cstate==='default' || isMany || isTooMany;
+    const fabEl = (showFab && DS.Fab) ? E(DS.Fab,{label:T.create,onClick:openCreate}) : null;
+    const tabs = [
+      {id:'hoje',label:T.tabs[0],icon:'home'},
+      {id:'metas',label:T.tabs[1],icon:'target'},
+      {id:'astra',label:T.tabs[2],astra:true},
+      {id:'perfil',label:T.tabs[3],icon:'user'}];
+    const tabBarEl = DS.TabBar ? E(DS.TabBar,{items:tabs,activeId:'hoje'}) : null;
+    const hasLevel = cstate==='default' || isMany || isTooMany || isCap;
+    const pct = totalCount ? Math.round(doneCount/totalCount*100) : 0;
+    const reason = t => E('span',{style:{fontSize:12,color:'var(--fg-4)',lineHeight:1.4}}, t);
+    const skel = k => E(DS.Skeleton,{key:k,variant:'stat-tile',rows:1,label:T.loading});
+    const railEl = (isLoading && DS.Skeleton)
+      ? E('div',{style:{display:'flex',flexDirection:'column',gap:12}}, skel(1), skel(2), skel(3))
+      : (hasLevel && DS.StatTile && DS.ProgressRing)
+      ? E('div',{'data-proposal':'true',style:{display:'flex',flexDirection:'column',gap:12}},
+          E('p',{style:{fontFamily:'var(--font-mono)',fontSize:'var(--fs-xs)',color:'var(--fg-4)',letterSpacing:'.06em',textTransform:'uppercase'}}, T.proposal),
+          E('div',{style:{display:'flex',flexDirection:'column',gap:4}},
+            E('div',{style:{background:'var(--bg-card)',borderRadius:'var(--r-card)',boxShadow:'inset 0 0 0 1px var(--hairline)',padding:16,display:'flex',alignItems:'center',gap:16}},
+              E(DS.ProgressRing,{value:pct,size:64,label:T.doneToday}),
+              E('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+                E('span',{style:{fontFamily:'var(--font-display)',fontSize:24,fontWeight:600,fontVariantNumeric:'tabular-nums',lineHeight:1}}, mockEl(String(doneCount)),' '+T.of+' ',mockEl(String(totalCount))),
+                E('span',{style:{fontSize:'var(--fs-sm)',color:'var(--fg-2)',lineHeight:1.3}}, T.doneToday))),
+            reason(T.r1)),
+          E('div',{style:{display:'flex',flexDirection:'column',gap:4}}, E(DS.StatTile,{value:mockEl(T.streakVal),label:T.streak}), reason(T.r2)),
+          E('div',{style:{display:'flex',flexDirection:'column',gap:4}}, E(DS.StatTile,{value:mockEl(T.weekVal),label:T.week}), reason(T.r3)))
+      : null;
+    const emptyAction = DS.Button ? E(DS.Button,{size:'sm',variant:isWide?'ghost':'primary',onClick:openCreate}, T.create) : null;
+    const errAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>{
+      this.setState(s=>({cv:{...s.cv,state:'loading'}}));
+      setTimeout(()=>this.setState(s=>s.cv.state==='loading'?{cv:{...s.cv,state:'default'}}:null), 900);
+    }}, T.retry) : null;
+    const capAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>{}}, T.archive) : null;
+    return {
+      mode:cv.mode, cv, setCv:next=>this.setState({cv:next,page:0,menuFor:null,createOpen:false}),
+      cvStates:['default','loading','empty','error','at capacity','many','too many'],
+      is412:!isWide, isWide, tabs, wideCreate:isCap?undefined:openCreate,
+      tTitle:T.title, datePre:T.datePre, datePost:T.datePost,
+      tLevel:T.level, tLevelFull:T.level+' 12', tOf:T.of, tToday:T.today, tHabits:T.habits,
+      tCreate:T.create, tSearch:T.search, searchPh:T.searchPh, tPrev:T.prev, tNext:T.next,
+      tLoading:T.loading, tEmptyTitle:T.emptyTitle, tErrMsg:T.errMsg, tCapReason:T.capReason,
+      hasLevel, isLoading, isEmpty, isError, isCap, isMany, isTooMany,
+      showPlainList:cstate==='default' || isMany || isCap,
+      habits, habitCount:habits.length, doneCount, totalCount, xp:620, xpMax:1000,
+      pageHabits, pageInfo, query:st.query,
+      setQuery:e=>this.setState({query:e.target.value,page:0}),
+      prevPage:()=>this.setState(s=>({page:Math.max(0,s.page-1)})),
+      nextPage:()=>this.setState(s=>({page:s.page+1})),
+      prevDisabled:page===0, nextDisabled:page>=pages-1,
+      sheetsEl, fabEl, tabBarEl, railEl,
+      emptyAction, errAction, capAction, capMsgEl:mockEl(T.capMsg),
+      n1:1, n7:7
+    };
+  }
+}
+</script>
+</body>
+</html>

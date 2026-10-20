@@ -44,31 +44,32 @@ export function owningRepository(startPath) {
   return null
 }
 
-/** The hook's own repository plus configured siblings of the primary checkout. */
+/** The hook's own repository plus the configured sibling repositories. */
 export function declaredRepoRoots(hookRepoRoot) {
   try {
     const config = JSON.parse(readFileSync(resolve(hookRepoRoot, ".claude", "orchestrator.json"), "utf8"))
-    const owner = owningRepository(hookRepoRoot)
-    const primary = owner?.root ?? hookRepoRoot
-    const configured = Object.values(config?.repos ?? {})
-      .filter((repoPath) => typeof repoPath === "string")
-      .map((repoPath) => resolve(primary, repoPath))
+    const primaryRoot = owningRepository(hookRepoRoot)?.root ?? hookRepoRoot
+    const configured = Object.values(config?.repos ?? {}).filter(
+      (repoPath) => typeof repoPath === "string",
+    ).map((repoPath) => resolve(primaryRoot, repoPath))
     return [hookRepoRoot, ...configured]
   } catch {
     return [hookRepoRoot]
   }
 }
 
-/** Does `path` sit inside a declared root, directly or through a linked worktree of one? */
-const withinDeclaredRoot = (path, repoRoots) => repoRoots.some((repoRoot) => {
-  if (withinRoot(path, repoRoot)) return true
+const canonical = (path) => {
   try {
-    return withinRoot(realpathSync.native(path), realpathSync.native(repoRoot))
+    return realpathSync.native(path)
   } catch {
-    return false
+    return path
   }
-})
+}
 
+const withinDeclaredRoot = (path, repoRoots) =>
+  repoRoots.some((repoRoot) => withinRoot(path, repoRoot) || withinRoot(canonical(path), canonical(repoRoot)))
+
+/** Does `path` sit inside a declared root, directly or through a linked worktree of one? */
 export function belongsToDeclaredRepo(path, repoRoots) {
   if (withinDeclaredRoot(path, repoRoots)) return true
   const owner = owningRepository(path)

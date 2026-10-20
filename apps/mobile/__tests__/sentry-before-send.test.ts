@@ -7,6 +7,7 @@ vi.mock('@sentry/react-native', () => ({
   captureException: vi.fn(),
 }))
 
+vi.unmock('@/lib/sentry')
 const { scrubEvent } = await import('@/lib/sentry')
 
 function makeEvent(): ErrorEvent {

@@ -1,6 +1,12 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
+import { useUIStore } from '@/stores/ui-store'
+import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -45,31 +51,12 @@ vi.mock('@/lib/theme', () => ({
   tintFromPrimary: () => 'rgba(0,0,0,0.15)',
 }))
 
-vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({
-    open,
-    children,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    onClose?: () => void
-  }) => (open ? React.createElement('BottomSheetOpen', {}, children) : null),
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onPress,
-  }: {
-    children: React.ReactNode
-    onPress?: () => void
-  }) => React.createElement('PillButtonStub', { onPress }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButtonStub', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
-
-import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
-import { useUIStore } from '@/stores/ui-store'
-import { useReferralPromptStore } from '@/stores/referral-prompt-store'
-import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -98,7 +85,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], showCreateModal: false, openOverlayIds: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 describe('MarketingConsentPrompt (mobile)', () => {
@@ -146,7 +133,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
 
   it('renders nothing when no consent prompt is armed', async () => {
     const tree = await render()
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('does not render when a different kind is armed', async () => {
@@ -156,19 +143,38 @@ describe('MarketingConsentPrompt (mobile)', () => {
       await Promise.resolve()
     })
     await settle()
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('shows after the settle delay and records markEngagementPrompted', async () => {
     const tree = await renderArmed()
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
 
     await settle()
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(1)
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
     expect(useReferralPromptStore.getState().promptedMilestoneKeys).toContain(
       MARKETING_CONSENT_MILESTONE_KEY,
     )
+  })
+
+  it('pins Accept and Decline in the sheet footer, never in the scrolling body', async () => {
+    const tree = await renderArmed()
+    await settle()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['marketingConsent.prompt.decline', 'marketingConsent.prompt.accept'])
+    expectSmallSheetActions(tree.root)
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('uses a quiet ghost pill for Decline', async () => {
+    const tree = await renderArmed()
+    await settle()
+    const quiet = tree.root.findAll((node: any) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'marketingConsent.prompt.decline')[0]!
+    expect(quiet.props.variant).toBe('ghost')
+    expect(quiet.props.quiet).toBe(true)
   })
 
   it('stays hidden while a celebration is in flight', async () => {
@@ -179,35 +185,31 @@ describe('MarketingConsentPrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
 
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
-  it('waits for the create modal to close before showing the armed prompt', async () => {
-    useUIStore.getState().setShowCreateModal(true)
+  it('waits for an open sheet before offering consent', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
     const tree = await renderArmed()
     await settle()
-
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
-    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(
-      MARKETING_CONSENT_MILESTONE_KEY,
-    )
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
+    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(MARKETING_CONSENT_MILESTONE_KEY)
 
     await TestRenderer.act(async () => {
-      useUIStore.getState().setShowCreateModal(false)
+      useUIStore.getState().unregisterOpenOverlay('already-open')
       await Promise.resolve()
     })
     await settle()
-
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(1)
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
   })
 
   it('opts in through the offline queue and patches the profile on accept', async () => {
     const tree = await renderArmed()
     await settle()
 
-    const [accept] = findByType(tree, 'PillButtonStub')
+    const accept = findByType(tree, 'PillButtonStub').find((node) => node.props.variant !== 'ghost')
     await TestRenderer.act(async () => {
-      accept!.props.onPress?.()
+      ;(accept!.props.onClick as (() => void) | undefined)?.()
       await Promise.resolve()
     })
 
@@ -220,7 +222,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
       }),
     )
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: true })
-    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
   it('opts out through the offline queue on decline', async () => {

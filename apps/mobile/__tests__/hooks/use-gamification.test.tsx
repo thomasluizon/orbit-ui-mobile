@@ -1,10 +1,15 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockGamificationProfile } from '@orbit/shared/__tests__/factories'
+import { createMockGamificationProfile, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
+import { gamificationKeys } from '@orbit/shared/query'
 import type { StreakInfo } from '@orbit/shared/types/gamification'
+import { streakInfoSchema } from '@orbit/shared/types/gamification'
+import { QueryClient } from '@tanstack/query-core'
 
 import {
   useGamificationProfile,
+  useRepairStreak,
   useStreakFreeze,
   useStreakInfo,
 } from '@/hooks/use-gamification'
@@ -26,13 +31,27 @@ const mocks = vi.hoisted(() => {
   }
 
   const queryClient = {
+    cancelQueries: vi.fn(async () => {}),
     invalidateQueries: vi.fn(async () => {}),
+    fetchQuery: vi.fn(() => Promise.resolve(state.streakInfo)),
   }
+  const useQueryClient = vi.fn<() => QueryClient | typeof queryClient>(() => queryClient)
 
   return {
     state,
     queryClient,
-    useQuery: vi.fn(({ queryKey }: { queryKey: readonly unknown[] }) => {
+    useQuery: vi.fn(({ queryKey, enabled = true }: {
+      queryKey: readonly unknown[]
+      enabled?: boolean
+    }) => {
+      if (!enabled) {
+        return {
+          data: undefined,
+          isLoading: false,
+          isError: false,
+          error: null,
+        }
+      }
       const keyText = JSON.stringify(queryKey)
       if (keyText.includes('streak')) {
         return {
@@ -50,12 +69,14 @@ const mocks = vi.hoisted(() => {
         error: null,
       }
     }),
-    useQueryClient: vi.fn(() => queryClient),
+    useQueryClient,
+    useMutation: vi.fn((options: unknown) => options),
     apiClient: vi.fn(),
   }
 })
 
 vi.mock('@tanstack/react-query', () => ({
+  useMutation: mocks.useMutation,
   useQuery: mocks.useQuery,
   useQueryClient: mocks.useQueryClient,
 }))
@@ -114,6 +135,7 @@ describe('mobile useGamificationProfile', () => {
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.useQuery.mockClear()
     mocks.useQueryClient.mockClear()
+    mocks.useMutation.mockClear()
     mocks.apiClient.mockClear()
   })
 
@@ -192,27 +214,125 @@ describe('mobile useStreakInfo and streak freeze', () => {
   })
 
   it('returns streak data from the cache', async () => {
-    const hook = await renderHookValue(() => useStreakInfo())
+    const hook = await renderHookValue(() => useStreakInfo('America/Sao_Paulo'))
 
     expect(hook.value.data?.currentStreak).toBe(7)
     expect(hook.value.data?.freezesAvailable).toBe(2)
   })
 
+  it('loads UTC-fallback streak info when the persisted timezone is null', async () => {
+    const hook = await renderHookValue(() => useStreakInfo(null))
+
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: gamificationKeys.streak(null),
+        enabled: true,
+      }),
+    )
+    expect(hook.value.data?.currentStreak).toBe(7)
+  })
+
   it('passes enabled false to the streak query when disabled', async () => {
-    await renderHookValue(() => useStreakInfo(false))
+    await renderHookValue(() => useStreakInfo('America/Sao_Paulo', false))
 
     expect(mocks.useQuery).toHaveBeenCalledWith(
       expect.objectContaining({ enabled: false }),
     )
   })
 
-  it('derives freeze state from provided profile data while streak loads', async () => {
+  it.each([0, 2])('keeps the bank empty until the streak response supplies %i freezes', async (bank) => {
+    mocks.useQuery.mockReturnValueOnce({ data: undefined, isLoading: true, isError: false, error: null })
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
     const hook = await renderHookValue(() =>
-      useStreakFreeze({ streakFreezesAvailable: 1, currentStreak: 4 }),
+      useStreakFreeze(
+        profile,
+        'America/Sao_Paulo',
+      ),
     )
 
-    expect(hook.value.freezesAvailable).toBe(2)
+    expect(hook.value.streakInfo).toBeNull()
+    expect(hook.value.streakFreezesAccumulated).toBe(0)
+    expect(hook.value.freezesAvailable).toBe(0)
+    expect(hook.value.currentStreak).toBe(4)
+    expect(hook.value.canFreeze).toBe(false)
+
+    mocks.state.streakInfo = { ...mocks.state.streakInfo, streakFreezesAccumulated: bank, freezesAvailableToUse: bank }
+    await hook.rerender()
+    expect(hook.value.streakFreezesAccumulated).toBe(bank)
+    expect(hook.value.freezesAvailable).toBe(bank)
     expect(hook.value.currentStreak).toBe(7)
-    expect(hook.value.canFreeze).toBe(true)
+    expect(hook.value.canFreeze).toBe(bank > 0)
+  })
+
+  it('keeps freezes unavailable when the streak query is disabled', async () => {
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
+    const hook = await renderHookValue(() => useStreakFreeze(profile, 'America/Sao_Paulo', false))
+    expect(hook.value.streakFreezesAccumulated).toBe(0)
+    expect(hook.value.freezesAvailable).toBe(0)
+    expect(hook.value.canFreeze).toBe(false)
+  })
+})
+
+describe('mobile useRepairStreak', () => {
+  beforeEach(() => {
+    mocks.apiClient.mockReset()
+    mocks.useMutation.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
+    mocks.queryClient.cancelQueries.mockClear()
+    mocks.queryClient.fetchQuery.mockClear()
+  })
+
+  it('posts exactly the selected dates and validates the streak response', async () => {
+    mocks.apiClient.mockResolvedValue(mocks.state.streakInfo)
+    await renderHookValue(() => useRepairStreak('America/Sao_Paulo'))
+    const options = mocks.useMutation.mock.calls[0]![0] as {
+      mutationFn: (dates: string[]) => Promise<StreakInfo>
+    }
+
+    await options.mutationFn(['2026-09-04', '2026-09-05'])
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      API.gamification.repairStreakGap,
+      { method: 'POST', body: JSON.stringify({ dates: ['2026-09-04', '2026-09-05'] }) },
+      streakInfoSchema,
+    )
+  })
+
+  it('reconciles a conflict with a distinct read while an older streak read is pending', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: false } } })
+    const queryKey = gamificationKeys.streak('America/Sao_Paulo')
+    const staleStreak = { ...mocks.state.streakInfo, repairableGapDates: ['2026-09-04'] }
+    const refreshedStreak = { ...mocks.state.streakInfo, repairableGapDates: [] }
+    let resolveOlderRead!: (streakInfo: StreakInfo) => void
+    const olderTransport = vi.fn(() => new Promise<StreakInfo>((resolve) => {
+      resolveOlderRead = resolve
+    }))
+    queryClient.setQueryData(queryKey, staleStreak)
+    const olderRead = queryClient.fetchQuery({
+      queryKey,
+      queryFn: olderTransport,
+      staleTime: 0,
+    }).catch(() => undefined)
+    await Promise.resolve()
+    expect(olderTransport).toHaveBeenCalledOnce()
+    let resolveRecovery: ((streakInfo: StreakInfo) => void) | undefined
+    mocks.apiClient.mockReturnValue(new Promise<StreakInfo>((resolve) => {
+      resolveRecovery = resolve
+    }))
+    mocks.useQueryClient.mockReturnValueOnce(queryClient)
+    await renderHookValue(() => useRepairStreak('America/Sao_Paulo'))
+    const options = mocks.useMutation.mock.calls[0]![0] as {
+      onError: (error: unknown) => Promise<void>
+    }
+
+    const reconciliation = options.onError({ status: 409 })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    resolveOlderRead(staleStreak)
+    resolveRecovery?.(refreshedStreak)
+    await reconciliation
+    await olderRead
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.gamification.streak, undefined, streakInfoSchema)
+    expect(queryClient.getQueryData(queryKey)).toEqual(refreshedStreak)
   })
 })

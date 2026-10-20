@@ -112,6 +112,24 @@ describe('createChatSseParser', () => {
 })
 
 describe('consumeChatSseStream', () => {
+  it('dispatches each tool step before the final response', async () => {
+    const steps: { domain: string; access: string }[] = []
+    const outcome = await consumeChatSseStream(
+      chunksOf(
+        frame('{"type":"step","domain":"habits","access":"read"}') +
+          frame('{"type":"step","domain":"goals","access":"write"}') +
+          frame('{"type":"final","response":{"aiMessage":"Done","actions":[]}}'),
+      ),
+      { onDelta: () => {}, onReset: () => {}, onStep: (step) => steps.push(step) },
+    )
+
+    expect(steps).toEqual([
+      { domain: 'habits', access: 'read' },
+      { domain: 'goals', access: 'write' },
+    ])
+    expect(outcome.kind).toBe('final')
+  })
+
   it('dispatches deltas and resolves on the final event, ignoring trailing chunks', async () => {
     const deltas: string[] = []
     const rounds: number[] = []

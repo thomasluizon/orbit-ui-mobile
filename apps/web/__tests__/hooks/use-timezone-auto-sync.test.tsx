@@ -1,11 +1,15 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { profileKeys } from '@orbit/shared/query'
+import { gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showPersistentError: vi.fn() }),
+}))
+
 const TestRenderer = require('react-test-renderer')
-const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -14,6 +18,7 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     getQueryData: vi.fn(() => state.profile),
+    invalidateQueries: vi.fn(async () => {}),
     setQueryData: vi.fn((
       _queryKey: readonly unknown[],
       updater: Profile | ((old: Profile | undefined) => Profile | undefined),
@@ -32,17 +37,13 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
   useQueryClient: mocks.useQueryClient,
 }))
 
 vi.mock('@/lib/actions/profile', () => ({
   updateTimezone: mocks.updateTimezone,
-}))
-
-vi.mock('@/stores/auth-store', () => ({
-  getHeldAccountId: () => account.id,
-  getAccountGeneration: () => account.generation,
 }))
 
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
@@ -67,12 +68,11 @@ async function renderHookHarness(profile: Profile | undefined) {
 
 describe('web useTimezoneAutoSync', () => {
   beforeEach(() => {
-    account.id = 'account-a'
-    account.generation = 1
     detectedTimeZone = 'UTC'
     mocks.state.profile = createMockProfile()
     mocks.queryClient.getQueryData.mockClear()
     mocks.queryClient.setQueryData.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
     mocks.useQueryClient.mockClear()
     mocks.updateTimezone.mockClear()
 
@@ -84,32 +84,36 @@ describe('web useTimezoneAutoSync', () => {
     )
   })
 
-  it('updates the cached profile when the detected timezone changes on mount', async () => {
-    mocks.state.profile = createMockProfile({ timeZone: 'UTC' })
+  it('sets the detected timezone when the account has none', async () => {
+    mocks.state.profile = createMockProfile({ timeZone: null })
     detectedTimeZone = 'America/Sao_Paulo'
 
     const renderer = await renderHookHarness(mocks.state.profile)
 
-    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' }, null)
     expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(
       profileKeys.detail(),
       expect.any(Function),
     )
     expect(mocks.state.profile.timeZone).toBe('America/Sao_Paulo')
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: gamificationKeys.all,
+      refetchType: 'none',
+    })
 
     await TestRenderer.act(async () => {
       renderer?.unmount()
     })
   })
 
-  it('does not update when the timezone is unchanged or still UTC', async () => {
+  it('does not overwrite a saved timezone', async () => {
     mocks.state.profile = createMockProfile({ timeZone: 'Europe/London' })
-    detectedTimeZone = 'Europe/London'
+    detectedTimeZone = 'America/New_York'
 
     const renderer = await renderHookHarness(mocks.state.profile)
     expect(mocks.updateTimezone).not.toHaveBeenCalled()
 
-    detectedTimeZone = 'UTC'
+    detectedTimeZone = 'Pacific/Kiritimati'
     await TestRenderer.act(async () => {
       globalThis.window.dispatchEvent(new Event('focus'))
       await Promise.resolve()
@@ -121,7 +125,7 @@ describe('web useTimezoneAutoSync', () => {
     })
   })
 
-  it('syncs again when the browser regains focus in a new timezone', async () => {
+  it('preserves a saved timezone when the browser regains focus elsewhere', async () => {
     mocks.state.profile = createMockProfile({ timeZone: 'Europe/London' })
     detectedTimeZone = 'Europe/London'
 
@@ -134,31 +138,11 @@ describe('web useTimezoneAutoSync', () => {
       await Promise.resolve()
     })
 
-    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/New_York' })
-    expect(mocks.state.profile.timeZone).toBe('America/New_York')
+    expect(mocks.updateTimezone).not.toHaveBeenCalled()
+    expect(mocks.state.profile.timeZone).toBe('Europe/London')
 
     await TestRenderer.act(async () => {
       renderer?.unmount()
     })
-  })
-
-  it('does not overwrite the next account profile after a delayed timezone write', async () => {
-    let finishUpdate: () => void = () => {}
-    mocks.updateTimezone.mockImplementationOnce(() => new Promise<undefined>((resolve) => {
-      finishUpdate = () => resolve(undefined)
-    }))
-    mocks.state.profile = createMockProfile({ timeZone: 'UTC' })
-    detectedTimeZone = 'America/Sao_Paulo'
-    const renderer = await renderHookHarness(mocks.state.profile)
-    expect(mocks.updateTimezone).toHaveBeenCalledTimes(1)
-
-    account.id = 'account-b'
-    account.generation++
-    mocks.state.profile = createMockProfile({ timeZone: 'Europe/London' })
-    await TestRenderer.act(async () => { finishUpdate(); await Promise.resolve() })
-
-    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
-    expect(mocks.state.profile.timeZone).toBe('Europe/London')
-    await TestRenderer.act(async () => { renderer?.unmount() })
   })
 })

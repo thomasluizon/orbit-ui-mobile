@@ -1,0 +1,1 @@
+export const INTERACTION_FILL_CLEARANCE = 4

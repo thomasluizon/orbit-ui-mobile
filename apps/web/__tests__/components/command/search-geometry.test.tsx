@@ -1,0 +1,307 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import SearchPage from '@/app/(app)/search/page'
+import { CommandPalette } from '@/components/command/command-palette'
+import { useShellStore } from '@/stores/shell-store'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+
+const mocks = vi.hoisted(() => ({ wide: false, query: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }) }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => mocks.query() }))
+vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: vi.fn(), isPending: false }), useSkipHabit: () => ({ mutate: vi.fn(), isPending: false }) }))
+vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
+
+const cases = [320, 412, 640, 1352].flatMap((width) =>
+  ['en', 'pt-BR'].flatMap((locale) => [1, 3].map((count) => ({ width, locale, count }))),
+)
+
+async function expectMatchContrast(page: Awaited<ReturnType<Browser['newPage']>>, index: number, surface: string, labels: string[], context: Record<string, unknown>) {
+  const row = page.locator('[cmdk-item]').nth(index)
+  for (const state of ['rest', 'hover', 'focus']) {
+    await page.mouse.move(0, 0)
+    await page.locator('[cmdk-input]').focus()
+    if (state === 'hover') await row.hover()
+    if (state === 'focus' && surface === 'search') {
+      await row.focus()
+      expect(await row.evaluate((element) => element === document.activeElement)).toBe(true)
+    }
+    const measured = await row.evaluate((element, matchLabels) => {
+      for (const animation of element.getAnimations()) animation.finish()
+      const match = [...element.querySelectorAll('span')].find((span) => span.childElementCount === 0 && matchLabels.includes(span.textContent.trim()))!
+      const fragment = match.parentElement!.querySelector('[data-personal-text]')
+      const layers = []
+      for (let ancestor: Element | null = match; ancestor; ancestor = ancestor.parentElement) layers.unshift(getComputedStyle(ancestor).backgroundColor)
+      return { label: getComputedStyle(match).color, fragment: fragment ? getComputedStyle(fragment).color : null, layers, fontSize: getComputedStyle(match).fontSize }
+    }, labels)
+    const evidence = JSON.stringify({ ...context, surface, index, state, measured })
+    expect(measured.fontSize).toBe('12px')
+    expect(contrastOnSurface(measured.label, measured.layers), evidence).toBeGreaterThanOrEqual(4.5)
+    if (measured.fragment) {
+      expect(contrastOnSurface(measured.fragment, measured.layers), evidence).toBeGreaterThanOrEqual(4.5)
+      expect(contrastOnSurface(measured.fragment, measured.layers), evidence).toBeGreaterThan(contrastOnSurface(measured.label, measured.layers))
+    }
+  }
+}
+
+describe('search result geometry in Chromium', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn()
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1352].flatMap((width) => ['en', 'pt-BR'].flatMap((locale) =>
+    (['light', 'dark'] as const).flatMap((theme) => ['search', 'palette'].map((surface) => ({ width, locale, theme, surface }))),
+  )))('keeps match text readable on $surface in $theme at $width in $locale', async ({ width, locale, theme, surface }) => {
+    mocks.wide = width >= WIDE_DESKTOP_BREAKPOINT
+    const messages = locale === 'en' ? en : ptBR
+    const habits = [
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'stretch', title: 'Stretch', searchMatches: [{ field: 'tag', value: 'walking' }] }),
+    ]
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    useShellStore.setState({ paletteOpen: surface === 'palette' })
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>{surface === 'search' ? <SearchPage /> : <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />}</NextIntlClientProvider>)
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    await screen.findByText('“walking”')
+    const themeVariables = resolveWebThemeVariables('orange', theme)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      for (const selectedIndex of [0, 1]) {
+        if (selectedIndex === 1) fireEvent.keyDown(input, { key: 'ArrowDown' })
+        const rows = screen.getAllByRole('option')
+        expect(rows[selectedIndex]).toHaveAttribute('data-selected', 'true')
+        expect(rows[1 - selectedIndex]).toHaveAttribute('data-selected', 'false')
+        const markup = surface === 'palette' ? screen.getByRole('dialog').outerHTML : container.innerHTML
+        await page.setContent(`<style>${stylesheet}</style>${markup}`)
+        await page.evaluate((variables) => {
+          for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+          document.body.style.backgroundColor = 'var(--bg)'
+        }, themeVariables)
+        for (const index of [0, 1]) await expectMatchContrast(page, index, surface, [messages.habits.search.matchTitle, messages.habits.search.matchTag], { theme, selectedIndex })
+      }
+    } finally { await page.close() }
+  })
+
+  it.each((['light', 'dark'] as const).flatMap((theme) =>
+    (['outside', 'inactive', 'active'] as const).map((pointer) => ({ theme, pointer })),
+  ))('keeps keyboard selection visible with pointer $pointer in $theme', async ({ theme, pointer }) => {
+    const habits = [
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'description', value: null }] }),
+    ]
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    await screen.findByRole('option', { name: /Open Run/ })
+    const page = await browser.newPage({ viewport: { width: 840, height: 915 } })
+    try {
+      for (const selectedIndex of [0, 1]) {
+        if (selectedIndex === 1) fireEvent.keyDown(input, { key: 'ArrowDown' })
+        expect(screen.getAllByRole('option')[selectedIndex]).toHaveAttribute('aria-selected', 'true')
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate((variables) => {
+          for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+          document.body.style.backgroundColor = 'var(--bg)'
+        }, resolveWebThemeVariables('orange', theme))
+        const expectedTransitionProperty = ['background-color', 'none'][selectedIndex]
+        expect(await page.getByRole('option').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).transitionProperty))).toEqual([expectedTransitionProperty, expectedTransitionProperty])
+        await page.mouse.move(0, 0)
+        if (pointer !== 'outside') await page.getByRole('option').nth(pointer === 'active' ? selectedIndex : 1 - selectedIndex).hover()
+        for (const index of [0, 1]) {
+          const selected = index === selectedIndex
+          const hovered = pointer === 'active' ? selected : pointer === 'inactive' && !selected
+          const row = page.getByRole('option').nth(index)
+          const paint = await row.evaluate((element, state) => {
+            element.getAnimations().forEach((animation) => animation.finish())
+            const probe = document.createElement('span')
+            probe.style.backgroundColor = state.selected ? 'var(--primary-dim)' : state.hovered ? 'var(--bg-hover)' : 'var(--bg-card)'
+            probe.style.boxShadow = state.selected ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline-ghost)'
+            element.append(probe)
+            const expected = getComputedStyle(probe)
+            const actual = getComputedStyle(element)
+            const measured = { background: actual.backgroundColor, shadow: actual.boxShadow.split(/, (?=rgba?\()/).filter((layer) => !layer.startsWith('rgba(0, 0, 0, 0) ')), expectedBackground: expected.backgroundColor, expectedShadow: expected.boxShadow }
+            probe.remove()
+            return measured
+          }, { selected, hovered })
+          expect.soft(paint.background, JSON.stringify({ theme, pointer, selectedIndex, index, paint })).toBe(paint.expectedBackground)
+          expect.soft(paint.shadow).toEqual([paint.expectedShadow])
+          expect(await row.getAttribute('aria-selected')).toBe(String(selected))
+        }
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1280].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('fades pointer hover both ways and keeps keyboard paint instant at $width in $locale', async ({ width, locale }) => {
+    const habits = [
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'title', value: null }] }),
+    ]
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    await screen.findByRole('option', { name: /Run/ })
+    fireEvent.keyDown(input, { key: 'Home' })
+    fireEvent.pointerMove(screen.getAllByRole('option')[1]!)
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'no-preference' })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate((variables) => {
+        for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+        document.body.style.backgroundColor = 'var(--bg)'
+      }, resolveWebThemeVariables('orange', 'dark'))
+      await page.mouse.move(0, 0)
+      const row = page.getByRole('option').nth(1)
+      const measureTransition = () => row.evaluate(async (element) => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const transitions = element.getAnimations().filter((animation): animation is CSSTransition => animation instanceof CSSTransition)
+        const measured = { property: getComputedStyle(element).transitionProperty, transitions: transitions.map((animation) => ({ property: animation.transitionProperty, duration: animation.effect!.getTiming().duration, easing: animation.effect!.getTiming().easing })) }
+        await Promise.all(transitions.map((animation) => animation.finished))
+        return measured
+      })
+      for (const hovered of [true, false]) {
+        if (hovered) await row.hover()
+        else await page.mouse.move(0, 0)
+        const measured = await measureTransition()
+        expect.soft(measured.property).toBe('background-color')
+        expect.soft(measured.transitions).toEqual([{ property: 'background-color', duration: 380, easing: 'cubic-bezier(0.2, 0, 0, 1)' }])
+      }
+      fireEvent.keyDown(input, { key: 'ArrowDown' })
+      const command = container.querySelector('[cmdk-root]')!
+      const selected = screen.getAllByRole('option').map((option) => option.getAttribute('aria-selected'))
+      expect(selected).toEqual(['false', 'true'])
+      const paint = await page.evaluate(({ modality, selected }) => {
+        const root = document.querySelector('[cmdk-root]')!
+        if (modality !== null) root.setAttribute('data-input-modality', modality)
+        return [...document.querySelectorAll('[cmdk-item]')].map((element, index) => {
+          element.setAttribute('data-selected', selected[index]!)
+          element.setAttribute('aria-selected', selected[index]!)
+          return element
+        }).map((element) => {
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = element.getAttribute('aria-selected') === 'true' ? 'var(--primary-dim)' : 'var(--bg-card)'
+          element.append(probe)
+          const measured = { transitions: element.getAnimations().length, background: getComputedStyle(element).backgroundColor, expected: getComputedStyle(probe).backgroundColor }
+          probe.remove()
+          return measured
+        })
+      }, { modality: command.getAttribute('data-input-modality'), selected })
+      for (const rowPaint of paint) {
+        expect(rowPaint.transitions).toBe(0)
+        expect(rowPaint.background).toBe(rowPaint.expected)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1280].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('paints a trim-preserving query selection reset without transitions at $width in $locale', async ({ width, locale }) => {
+    const habits = [
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'title', value: null }] }),
+    ]
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    await screen.findByRole('option', { name: /Run/ })
+    const rows = screen.getAllByRole('option')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(rows[1]).toHaveAttribute('aria-selected', 'true')
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))) })
+    const command = container.querySelector('[cmdk-root]')!
+    expect(command).toHaveAttribute('data-input-modality', 'pointer')
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'no-preference' })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate((variables) => {
+        for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+        document.body.style.backgroundColor = 'var(--bg)'
+      }, resolveWebThemeVariables('orange', 'dark'))
+      await page.mouse.move(0, 0)
+      await page.getByRole('option').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor))
+
+      fireEvent.change(input, { target: { value: 'walk ' } })
+
+      expect(screen.getAllByRole('option')).toEqual(rows)
+      expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
+      const selected = rows.map((option) => option.getAttribute('aria-selected'))
+      expect(selected).toEqual(['true', 'false'])
+      const paint = await page.evaluate(({ modality, selected }) => {
+        document.querySelector('[cmdk-root]')!.setAttribute('data-input-modality', modality!)
+        const elements = [...document.querySelectorAll('[cmdk-item]')]
+        elements.forEach((element, index) => {
+          element.setAttribute('data-selected', selected[index]!)
+          element.setAttribute('aria-selected', selected[index]!)
+        })
+        return elements.map((element) => {
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = element.getAttribute('aria-selected') === 'true' ? 'var(--primary-dim)' : 'var(--bg-card)'
+          element.append(probe)
+          const measured = { property: getComputedStyle(element).transitionProperty, transitions: element.getAnimations().length, background: getComputedStyle(element).backgroundColor, expected: getComputedStyle(probe).backgroundColor }
+          probe.remove()
+          return measured
+        })
+      }, { modality: command.getAttribute('data-input-modality'), selected })
+      for (const rowPaint of paint) {
+        expect.soft(rowPaint.property).toBe('none')
+        expect.soft(rowPaint.transitions).toBe(0)
+        expect.soft(rowPaint.background).toBe(rowPaint.expected)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each(cases)('aligns $count result rows with the field at $width in $locale', async ({ width, locale, count }) => {
+    mocks.wide = width >= WIDE_DESKTOP_BREAKPOINT
+    const habits = Array.from({ length: count }, (_, index) => createMockHabit({ id: `walk-${index}`, title: `Walk ${index}`, searchMatches: [{ field: 'title', value: null }] }))
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: count, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><SearchPage /></NextIntlClientProvider>)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
+    await screen.findByRole('option', { name: /Walk 0/ })
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const measured = await page.evaluate(() => {
+        const input = document.querySelector('[cmdk-input]')!.getBoundingClientRect()
+        return {
+          field: { left: input.left, right: input.right },
+          rows: [...document.querySelectorAll('[data-command-result]')].map((row) => {
+            const bounds = row.getBoundingClientRect()
+            return { left: bounds.left, right: bounds.right, height: bounds.height }
+          }),
+          documentWidth: document.documentElement.scrollWidth,
+        }
+      })
+      expect(measured.rows).toHaveLength(count)
+      expect(measured.field.left).toBe(16)
+      expect(measured.field.right).toBe(Math.min(width, 620) - 16)
+      expect(measured.documentWidth).toBe(width)
+      for (const row of measured.rows) {
+        expect(row.left, JSON.stringify(measured)).toBe(measured.field.left)
+        expect(row.right, JSON.stringify(measured)).toBe(measured.field.right)
+        expect(row.height).toBeGreaterThanOrEqual(48)
+      }
+    } finally { await page.close() }
+  })
+})

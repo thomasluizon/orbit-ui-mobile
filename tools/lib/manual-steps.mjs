@@ -1,4 +1,3 @@
-
 import { inScopeSections, sectionsOf } from "./ticket-executability.mjs"
 
 /** A section heading whose body describes work done after, and outside, the merge. */
@@ -30,31 +29,16 @@ const PLATFORMS = [
   { key: "vercel", pattern: /(?<![\w.-])Vercel(?![\w.-])/, label: "Vercel" },
 ]
 
-/**
- * Evidence that a clause acts outside the repository. A platform name is the strongest signal; the
- * rest cover the cases that name no vendor at all, such as #13's "verified by a live query" against
- * the production database.
- */
 const OUTSIDE_THE_REPO = [
   ...PLATFORMS.map((platform) => platform.pattern),
   /\bdashboard\b/i,
   /\bconsole\b/i,
   /\benv(?:ironment)? var(?:iable)?s?\b/i,
-  /**
-   * "set" has to LEAD the clause. Anchored anywhere, it matched "storing the granted scope set per
-   * key" on #18, which is a sentence about a data model, not an instruction to anybody.
-   */
   /^set\b[^.]*\b(?:key|secret|token|credential|env|variable)\b/i,
   /\blive (?:query|read|check)\b/i,
   /\bproduction (?:database|query|read)\b/i,
 ]
 
-/**
- * The Linear migration footer and its collapsed reference list are provenance, not work. They sit
- * after the last heading, so they land inside whichever section came last, which on a 6.2 body is
- * usually Rollout. Left in, #144 handed over its own Linear URL as a step because the slug contains
- * the word "stripe".
- */
 const FOOTER = /\n\s*(?:<sub>Migrated from Linear|<details><summary>|---\s*\n\s*<sub>)/
 
 /** A configuration key in .NET section:key form, backticked or bare. */
@@ -85,11 +69,6 @@ const clausesOf = (text) => {
     .filter((clause) => clause.length > 0)
 }
 
-/**
- * The lines elsewhere in the ticket that talk about the same identifier. This is where the
- * confirmation comes from: #81's Expected behaviour already says what "it took effect" looks like,
- * so the step quotes the ticket instead of a guess about what PostHog shows.
- */
 const evidenceFor = (identifier, sections, manualHeadings) => {
   const needle = identifier.replaceAll(":", "__")
   const found = []
@@ -105,10 +84,6 @@ const evidenceFor = (identifier, sections, manualHeadings) => {
   return found
 }
 
-/**
- * Render's dashboard, in Render's own words. Source: render.com/docs/configure-environment-variables,
- * ("Save only") leaves the variable saved and the service still running without it.
- */
 const renderEnvironmentVariableDetail = (identifier, repo) => {
   const dotnet = repo === "api" && identifier.includes(":")
   const key = dotnet ? identifier.replaceAll(":", "__") : identifier

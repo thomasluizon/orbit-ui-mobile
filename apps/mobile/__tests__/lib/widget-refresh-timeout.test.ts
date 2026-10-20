@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import {
   WIDGET_REFRESH_TIMEOUT_MS,
   shouldShowColdSkeleton,
 } from '@/lib/widget-refresh-timeout'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 describe('shouldShowColdSkeleton', () => {
   it('keeps the skeleton up when signed in and never synced', () => {

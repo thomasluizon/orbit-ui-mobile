@@ -49,4 +49,10 @@ describe('useOffline', () => {
     })
     expect(result.current.isOnline).toBe(true)
   })
+  it('exposes connection state without claiming to hold queued changes', () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    const { result } = renderHook(() => useOffline())
+    expect(result.current).toEqual({ isOnline: false })
+  })
+
 })

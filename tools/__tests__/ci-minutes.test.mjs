@@ -12,13 +12,15 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (path) => readFileSync(resolve(root, path), "utf8")
 const workflow = (path) => yaml.load(read(`.github/workflows/${path}.yml`))
 
-function selectsAndroidJob(job, track, result = "success", cancelled = false) {
+function selectsAndroidJob(job, track, result = "success", cancelled = false, branch = "main") {
   const condition = (job.if ?? "success()").replace(/^\$\{\{\s*|\s*\}\}$/g, "")
   const context = {
     inputs: { track },
+    github: { ref_name: branch },
     needs: { "publish-design-bundles": { result, outputs: {} } },
     always: () => true,
     cancelled: () => cancelled,
+    failure: () => result === "failure",
     success: () => result === "success" && !cancelled,
   }
   const checksStatus = /\b(always|cancelled|failure|success)\s*\(/.test(condition)
@@ -27,7 +29,9 @@ function selectsAndroidJob(job, track, result = "success", cancelled = false) {
 
 test("internal Android releases skip design publication", () => {
   const jobs = workflow("android-release").jobs
-  assert.equal(selectsAndroidJob(jobs["publish-design-bundles"], "internal"), false)
+  for (const branch of ["main", "redesign/main", "feature/release"]) {
+    assert.equal(selectsAndroidJob(jobs["publish-design-bundles"], "internal", "success", false, branch), false, branch)
+  }
 })
 
 test("internal Android builds run after skipped publication", () => {
@@ -44,7 +48,7 @@ test("internal Android builds run after skipped publication", () => {
 test("open and production Android builds require successful guarded design publication", () => {
   const jobs = workflow("android-release").jobs
   const publication = jobs["publish-design-bundles"]
-  assert.ok(publication.steps.some((step) => step.run === "node legacy/apps/mobile/scripts/check-design-bundles.js legacy redesign"))
+  assert.ok(publication.steps.some((step) => step.run === "node redesign/apps/mobile/scripts/check-design-bundles.js legacy redesign"))
   for (const track of ["open", "production"]) {
     assert.equal(selectsAndroidJob(publication, track), true, track)
     assert.equal(selectsAndroidJob(jobs["release-android"], track, "success"), true, track)
@@ -70,6 +74,30 @@ test("Android release branch guards accept internal on every branch and require 
       }
     }
   }
+})
+
+test("the layout check rejects failed, cancelled and skipped prerequisites", () => {
+  const layout = workflow("layout")
+  const aggregate = Object.values(layout.jobs).find((job) => job.name === "Upgrade layout geometry")
+  assert.equal(aggregate.if, "${{ always() }}")
+  assert.deepEqual(aggregate.needs, ["build", "shards"])
+  const step = aggregate.steps.find((candidate) => candidate.env?.BUILD_RESULT)
+  assert.equal(step.env.BUILD_RESULT, "${{ needs.build.result }}")
+  assert.equal(step.env.SHARD_RESULT, "${{ needs.shards.result }}")
+  for (const build of ["success", "failure", "cancelled", "skipped"]) {
+    for (const shards of ["success", "failure", "cancelled", "skipped"]) {
+      const result = spawnSync("bash", ["-e", "-c", step.run], {
+        env: { ...process.env, BUILD_RESULT: build, SHARD_RESULT: shards },
+      })
+      assert.equal(result.status === 0, build === "success" && shards === "success", `${build}, ${shards}`)
+    }
+  }
+  assert.equal(layout.jobs.shards.strategy["fail-fast"], false)
+  assert.deepEqual(layout.jobs.shards.strategy.matrix.shard, [1, 2, 3])
+  assert.equal(layout.jobs.shards.needs, "build")
+  assert.equal(layout.jobs.shards.steps.some((step) => step.run?.includes("build:hermetic")), false)
+  assert.ok(layout.jobs.shards.steps.some((step) => step.run?.includes("--shard=${{ matrix.shard }}/3")))
+  assert.ok(layout.on.pull_request.paths.includes("apps/web/**"))
 })
 
 test("CI gives sequential workspace suites the host while local worker caps stay bounded", () => {
@@ -138,4 +166,18 @@ test("mutation reporting stays off PRs and executes the full nightly set", () =>
   assert.ok(Object.hasOwn(mutation.on, "workflow_dispatch"))
   assert.ok(mutation.jobs.nightly.steps.some((step) => step.run === "npm run mutation -- --force"))
   assert.ok(mutation.jobs.nightly.steps.some((step) => step.with?.name === "mutation-report-nightly"))
+})
+
+test("parallel layout leaves local scheduling unchanged", () => {
+  for (const ci of [false, true]) {
+    const env = { ...process.env, LAYOUT: "1" }
+    if (ci) env.CI = "true"
+    else delete env.CI
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e",
+      "import config from './apps/web/playwright.config.ts'; const layout = config.default ?? config; console.log(JSON.stringify({workers:layout.workers, fullyParallel:layout.fullyParallel}))"], {
+      cwd: root, env, encoding: "utf8",
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(JSON.parse(result.stdout), { workers: ci ? 2 : 1, fullyParallel: ci })
+  }
 })

@@ -9,7 +9,8 @@ export async function getUserCalendars(): Promise<ServerActionResult<unknown>> {
 }
 
 export async function setSelectedCalendars(
-  calendarIds: string[], intendedAccountId: string | null
+  calendarIds: string[],
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<unknown>> {
   return wrapServerAction(() => serverAuthMutate(API.calendar.selectedCalendars, {
     method: 'PUT',
@@ -18,7 +19,8 @@ export async function setSelectedCalendars(
 }
 
 export async function setCalendarAutoSync(
-  enabled: boolean, intendedAccountId: string | null
+  enabled: boolean,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<unknown>> {
   return wrapServerAction(() => serverAuthMutate(API.calendar.autoSync, {
     method: 'PUT',
@@ -26,19 +28,29 @@ export async function setCalendarAutoSync(
   }, intendedAccountId))
 }
 
-export async function runCalendarSyncNow(intendedAccountId: string | null): Promise<ServerActionResult<unknown>> {
-  return wrapServerAction(() => serverAuthMutate(API.calendar.autoSyncRun, { method: 'POST' }, intendedAccountId))
+export async function runCalendarSyncNow(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<unknown>> {
+  return wrapServerAction(
+    () => serverAuthMutate(API.calendar.autoSyncRun, { method: 'POST' }, intendedAccountId),
+  )
 }
 
 export async function dismissCalendarSuggestion(
-  suggestionId: string, intendedAccountId: string | null
+  suggestionId: string,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(
     API.calendar.autoSyncDismissSuggestion(suggestionId),
-    { method: 'PUT' }, intendedAccountId,
+    { method: 'PUT' },
+    intendedAccountId,
   ))
 }
 
-export async function dismissCalendarImport(intendedAccountId: string | null): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.calendar.dismiss, { method: 'PUT' }, intendedAccountId))
+export async function dismissCalendarImport(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(
+    () => serverAuthMutate(API.calendar.dismiss, { method: 'PUT' }, intendedAccountId),
+  )
 }

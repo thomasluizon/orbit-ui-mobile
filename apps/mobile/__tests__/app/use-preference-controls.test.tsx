@@ -14,14 +14,12 @@ const mocks = vi.hoisted(() => ({
   patchProfile: vi.fn(),
   changeLanguage: vi.fn(),
   language: 'en',
-  routerPush: vi.fn(),
-  applyScheme: vi.fn(),
   applyTheme: vi.fn(),
   performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
-  invalidateQueries: vi.fn(() => Promise.resolve()),
+  invalidateQueries: vi.fn(async () => {}),
   getItem: vi.fn((_key: string): Promise<string | null> => Promise.resolve(null)),
-  setItem: vi.fn((_key: string, _value: string) => Promise.resolve()),
-  removeItem: vi.fn((_key: string) => Promise.resolve()),
+  setItem: vi.fn(async (_key: string, _value: string) => {}),
+  removeItem: vi.fn(async (_key: string) => {}),
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -39,10 +37,6 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('expo-router', () => ({
-  useRouter: () => ({ push: mocks.routerPush }),
-}))
-
 vi.mock('@tanstack/react-query', () => ({
   useMutation: vi.fn((config: unknown) => config),
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
@@ -58,7 +52,6 @@ vi.mock('@/lib/queued-api-mutation', () => ({
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
-    applyScheme: mocks.applyScheme,
     applyTheme: mocks.applyTheme,
     currentTheme: 'dark',
     currentScheme: 'purple',
@@ -126,8 +119,6 @@ describe('usePreferenceControls', () => {
     mocks.language = 'en'
     mocks.patchProfile.mockClear()
     mocks.changeLanguage.mockClear()
-    mocks.routerPush.mockClear()
-    mocks.applyScheme.mockClear()
     mocks.applyTheme.mockClear()
     mocks.performQueuedApiMutation.mockReset()
     mocks.performQueuedApiMutation.mockResolvedValue(undefined)
@@ -214,6 +205,43 @@ describe('usePreferenceControls', () => {
     )
   })
 
+  it('queues the clock choice and restores the previous value on failure', async () => {
+    mocks.profile = makeProfile({ uses24HourClock: true })
+    const hook = await renderControls()
+    const mutation = asMutation(hook.current.clockFormatMutation)
+    const context = mutation.onMutate?.(false)
+    expect(mocks.patchProfile).toHaveBeenCalledWith({ uses24HourClock: false })
+    expect(context).toEqual({ previous: true })
+    await mutation.mutationFn(false)
+    expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setClockFormat', scope: 'profile', endpoint: API.profile.clockFormat,
+      method: 'PUT', payload: { uses24HourClock: false }, dedupeKey: 'profile-clock-format',
+    }))
+    mutation.onError?.(new Error('offline'), false, context)
+    expect(mocks.patchProfile).toHaveBeenLastCalledWith({ uses24HourClock: true })
+  })
+
+  it('writes the selected timezone through the offline queue', async () => {
+    mocks.profile = makeProfile({ timeZone: 'UTC' })
+    const hook = await renderControls()
+    const timeZoneMutation = asMutation(hook.current.timeZoneMutation)
+
+    const context = timeZoneMutation.onMutate?.('America/Sao_Paulo')
+    await timeZoneMutation.mutationFn('America/Sao_Paulo')
+
+    expect(context).toEqual({ previous: 'UTC' })
+    expect(mocks.patchProfile).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'setTimeZone',
+        endpoint: API.profile.timezone,
+        method: 'PUT',
+        payload: { timeZone: 'America/Sao_Paulo' },
+        dedupeKey: 'profile-timezone',
+      }),
+    )
+  })
+
   it('invalidates the habit caches after the week-start mutation settles', async () => {
     const hook = await renderControls()
 
@@ -228,49 +256,6 @@ describe('usePreferenceControls', () => {
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
     })
-  })
-
-  it('routes a free user to upgrade only after the picker sheet dismisses', async () => {
-    mocks.profile = makeProfile({ hasProAccess: false })
-    const hook = await renderControls()
-
-    TestRenderer.act(() => {
-      hook.current.handleSchemeChange('blue')
-    })
-
-    expect(mocks.routerPush).not.toHaveBeenCalled()
-    expect(mocks.applyScheme).not.toHaveBeenCalled()
-
-    TestRenderer.act(() => {
-      hook.current.runPickerExitAction()
-    })
-
-    expect(mocks.routerPush).toHaveBeenCalledTimes(1)
-    expect(mocks.applyScheme).not.toHaveBeenCalled()
-  })
-
-  it('applies a scheme for a pro user without routing to upgrade', async () => {
-    mocks.profile = makeProfile({ hasProAccess: true })
-    const hook = await renderControls()
-
-    TestRenderer.act(() => {
-      hook.current.handleSchemeChange('blue')
-    })
-
-    expect(mocks.applyScheme).toHaveBeenCalledWith('blue')
-    expect(mocks.routerPush).not.toHaveBeenCalled()
-  })
-
-  it('lets a free user keep the default purple scheme', async () => {
-    mocks.profile = makeProfile({ hasProAccess: false })
-    const hook = await renderControls()
-
-    TestRenderer.act(() => {
-      hook.current.handleSchemeChange('purple')
-    })
-
-    expect(mocks.applyScheme).toHaveBeenCalledWith('purple')
-    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
   it('applies a theme change only when the mode actually differs', async () => {

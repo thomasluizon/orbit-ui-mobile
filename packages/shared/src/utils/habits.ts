@@ -1,24 +1,12 @@
 import { differenceInCalendarDays, isAfter, isSameDay } from 'date-fns'
 import { parseAPIDate } from './dates'
-import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
-import type {
-  CalendarMonthResponse,
-  HabitScheduleChild,
-  HabitScheduleItem,
-} from '../types/habit'
+import type { CalendarDayEntry, HabitDayStatus, HabitLog } from '../types/calendar'
+import type { CalendarMonthResponse, HabitScheduleChild, HabitScheduleItem } from '../types/habit'
 
 interface HabitScheduleMatchSource {
   dueDate?: string | null
   scheduledDates?: string[] | null
   instances?: Array<{ date: string }> | null
-}
-
-type HabitEmptyStateView = 'today' | 'all' | 'general'
-
-export function getHabitEmptyStateKey(view: HabitEmptyStateView): string {
-  if (view === 'general') return 'habits.emptyGeneral'
-  if (view === 'today') return 'habits.noDueToday'
-  return 'habits.noHabitsYet'
 }
 
 export function determineHabitDayStatus(
@@ -49,16 +37,13 @@ export function buildCalendarDayMap(
   const map = new Map<string, CalendarDayEntry[]>()
   const isInRange = (dateStr: string) => dateStr >= range.from && dateStr <= range.to
 
-  const logsByHabit = new Map<string, Set<string>>()
-  for (const [habitId, habitLogs] of Object.entries(calendarMonth.logs)) {
-    const dateSet = new Set<string>()
-    for (const log of habitLogs) {
-      dateSet.add(log.date)
-    }
-    logsByHabit.set(habitId, dateSet)
-  }
+  const logsByHabit = new Map(Object.entries(calendarMonth.logs).map(([habitId, habitLogs]) => [
+    habitId,
+    new Set(habitLogs.filter((log) => log.value > 0).map((log) => log.date)),
+  ]))
 
   for (const habit of calendarMonth.habits) {
+    if (habit.isGeneral) continue
     const instanceDates =
       Array.isArray(habit.instances) && habit.instances.length > 0
         ? habit.instances.map((instance) => instance.date)
@@ -73,7 +58,7 @@ export function buildCalendarDayMap(
     }
 
     const ownDates = new Set(dates)
-    for (const { descendant, date } of collectDescendantLogs(habit.children)) {
+    for (const { descendant, date } of collectDescendantLogs(habit.children, logsByHabit)) {
       if (isInRange(date) && !ownDates.has(date)) {
         appendCalendarEntry(map, date, descendant, 'completed')
       }
@@ -101,21 +86,92 @@ function appendCalendarEntry(
   map.set(dateStr, entries)
 }
 
-/**
- * The month response lists only top-level habits in `logs`, so a sub-habit's
- * log reaches the client as an instance carrying its `logId`. A completed or
- * flexible sub-habit has no instances, so its logs wait on the API change in
- * https://github.com/thomasluizon/orbit-tickets/issues/984.
- */
 function collectDescendantLogs(
   children: HabitScheduleChild[],
+  logsByHabit: ReadonlyMap<string, ReadonlySet<string>>,
 ): Array<{ descendant: HabitScheduleChild; date: string }> {
-  return children.flatMap((child) => [
-    ...child.instances
+  return children.flatMap((child) => {
+    const dates = logsByHabit.get(child.id) ?? new Set(child.instances
       .filter((instance) => instance.logId !== null)
-      .map((instance) => ({ descendant: child, date: instance.date })),
-    ...collectDescendantLogs(child.children),
-  ])
+      .map((instance) => instance.date))
+    return [
+      ...[...dates].map((date) => ({ descendant: child, date })),
+      ...collectDescendantLogs(child.children, logsByHabit),
+    ]
+  })
+}
+
+export function optimisticSetCalendarHabitLog(
+  calendarMonth: CalendarMonthResponse,
+  habitId: string,
+  date: string,
+  logged: boolean,
+  optimisticLogId: string,
+  createdAtUtc: string,
+): CalendarMonthResponse {
+  const currentLogs = calendarMonth.logs[habitId] ?? []
+  const hasActiveLog = currentLogs.some((log) => log.date === date && log.value > 0)
+  if (logged === hasActiveLog) return calendarMonth
+
+  const nextLogs = logged
+    ? [...currentLogs, { id: optimisticLogId, date, value: 1, createdAtUtc }]
+    : currentLogs.filter((log) => log.date !== date || log.value <= 0)
+
+  return {
+    ...calendarMonth,
+    logs: {
+      ...calendarMonth.logs,
+      [habitId]: nextLogs,
+    },
+  }
+}
+
+export function rollbackOptimisticHabitLogs(
+  currentLogs: HabitLog[] | undefined,
+  previousLogs: HabitLog[] | undefined,
+  date: string,
+  optimisticLogId: string,
+): HabitLog[] | undefined {
+  if (!currentLogs) return currentLogs
+
+  const previousActiveLogs = previousLogs?.filter(
+    (log) => log.date === date && log.value > 0,
+  ) ?? []
+  if (previousActiveLogs.length > 0) {
+    const hasLaterActiveLog = currentLogs.some(
+      (log) => log.date === date && log.value > 0,
+    )
+    return hasLaterActiveLog ? currentLogs : [...currentLogs, ...previousActiveLogs]
+  }
+
+  const nextLogs = currentLogs.filter((log) => log.id !== optimisticLogId)
+  if (nextLogs.length === currentLogs.length) return currentLogs
+  return nextLogs.length === 0 && previousLogs === undefined ? undefined : nextLogs
+}
+
+export function rollbackOptimisticCalendarHabitLog(
+  currentCalendar: CalendarMonthResponse,
+  previousCalendar: CalendarMonthResponse,
+  habitId: string,
+  date: string,
+  optimisticLogId: string,
+): CalendarMonthResponse {
+  const currentLogs = currentCalendar.logs[habitId] ?? []
+  const nextLogs = rollbackOptimisticHabitLogs(
+    currentLogs,
+    previousCalendar.logs[habitId] ?? [],
+    date,
+    optimisticLogId,
+  )
+  if (nextLogs === currentLogs) return currentCalendar
+
+  return {
+    ...currentCalendar,
+    logs: {
+      ...currentCalendar.logs,
+      [habitId]: nextLogs ?? [],
+    },
+  }
 }
 
 export function hasHabitScheduleOnDate(
@@ -228,10 +284,41 @@ export function hasAncestorInSet(
   return false
 }
 
+export function buildUnresolvedBulkFailures<TItem, TResult>(
+  items: readonly TItem[],
+  startIndex: number,
+  error: unknown,
+  buildFailure: (item: TItem, index: number, message: string) => TResult,
+): TResult[] {
+  const message = error instanceof Error ? error.message : String(error)
+  return items.map((item, offset) => buildFailure(item, startIndex + offset, message))
+}
+
+export function rebaseSelectedIds(
+  authoritativeIds: readonly string[],
+  baselineIds: readonly string[],
+  editedIds: readonly string[],
+): string[] {
+  const baseline = new Set(baselineIds)
+  const edited = new Set(editedIds)
+  const rebased = authoritativeIds.filter((id) => !baseline.has(id) || edited.has(id))
+  const rebasedSet = new Set(rebased)
+
+  for (const id of editedIds) {
+    if (!baseline.has(id) && !rebasedSet.has(id)) {
+      rebased.push(id)
+      rebasedSet.add(id)
+    }
+  }
+
+  return rebased
+}
+
 export interface ReorderableHabitItem {
   id: string
   parentId: string | null
   position?: number | null
+  createdAtUtc?: string
 }
 
 export interface HabitReorderPosition {
@@ -241,13 +328,17 @@ export interface HabitReorderPosition {
 
 /**
  * Sort siblings deterministically by their current stored position,
- * pushing null/undefined positions to the end and breaking ties by id.
+ * pushing null/undefined positions to the end and preserving creation order.
+ * Inputs without creation metadata break ties by id.
  */
 function sortSiblingsByPosition<T extends ReorderableHabitItem>(siblings: T[]): T[] {
   return [...siblings].sort((a, b) => {
     const aPos = a.position ?? Number.MAX_SAFE_INTEGER
     const bPos = b.position ?? Number.MAX_SAFE_INTEGER
     if (aPos !== bPos) return aPos - bPos
+    if (a.createdAtUtc !== undefined || b.createdAtUtc !== undefined) {
+      return (a.createdAtUtc ?? '').localeCompare(b.createdAtUtc ?? '')
+    }
     return a.id.localeCompare(b.id)
   })
 }
@@ -312,6 +403,11 @@ function siblingsToPositions(siblings: ReorderableHabitItem[]): HabitReorderPosi
   return siblings.map((sibling, index) => ({ habitId: sibling.id, position: index }))
 }
 
+/**
+ * Computes the new position list after a drag-and-drop reorder. Drag reorder is
+ * **position-only and same-parent**: the payload carries no parentId and the API renumbers
+ * by position, so a drag never re-parents (that is a separate "move to parent" flow).
+ */
 export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
   items: T[],
   oldIndex: number,

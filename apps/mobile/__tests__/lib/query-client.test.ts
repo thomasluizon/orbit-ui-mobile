@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { configKeys } from '@orbit/shared/query'
+import { configKeys, gamificationKeys, habitKeys, notificationKeys } from '@orbit/shared/query'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createApiClientError } from '@orbit/shared/utils'
 
 import {
   queryClient,
@@ -45,9 +47,57 @@ describe('mobile query client', () => {
     expect(defaults.mutations?.retry).toBe(false)
     expect(defaults.queries?.refetchOnWindowFocus).toBe(true)
     expect(defaults.queries?.refetchOnReconnect).toBe(true)
-    expect(retry(0, new Error('status 401'))).toBe(false)
     expect(retry(2, new Error('network'))).toBe(true)
     expect(retry(3, new Error('network'))).toBe(false)
+  })
+
+  it('persists and restores the unread count before notification consumers mount', async () => {
+    await setQueryCacheScope('user-1')
+    const notifications = { items: [createMockNotification({ isRead: false })], unreadCount: 15 }
+    queryClient.setQueryData(notificationKeys.lists(), notifications, { updatedAt: 123 })
+    await persistQueryCache()
+    const persisted = setItemMock.mock.calls[0]![1] as string
+    queryClient.clear()
+    getItemMock.mockResolvedValue(persisted)
+    await restoreQueryCache()
+    expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(notifications)
+    expect(queryClient.getQueryState(notificationKeys.lists())?.dataUpdatedAt).toBe(123)
+  })
+
+  it.each([
+    createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized'),
+    createApiClientError(403, { error: 'Pro access required', errorCode: 'PAY_GATE' }, 'Forbidden'),
+  ])('does not retry a final response with status $status', (error) => {
+    const retry = queryClient.getDefaultOptions().queries?.retry as (
+      failureCount: number,
+      error: Error
+    ) => boolean
+
+    expect(retry(0, error)).toBe(false)
+  })
+
+  it.each([
+    habitKeys.retrospective('month'),
+    gamificationKeys.profile(),
+  ])('settles a gated query on the first response: %s', async (...queryKey) => {
+    vi.useFakeTimers()
+    const client = queryClient
+    const error = createApiClientError(403, { error: 'Pro access required', errorCode: 'PAY_GATE' }, 'Forbidden')
+    const queryFn = vi.fn().mockRejectedValue(error)
+    const result = client.fetchQuery({ queryKey, queryFn }).catch((failure: unknown) => failure)
+
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      expect(client.getQueryState(queryKey)?.status).toBe('error')
+      expect(client.getQueryState(queryKey)?.error).toBe(error)
+      await vi.advanceTimersByTimeAsync(8000)
+      expect(queryFn).toHaveBeenCalledTimes(1)
+      expect(await result).toBe(error)
+    } finally {
+      client.clear()
+      await vi.advanceTimersByTimeAsync(8000)
+      vi.useRealTimers()
+    }
   })
 
   it('persists only successful query results under the active account scope', async () => {
@@ -190,4 +240,47 @@ describe('mobile query client', () => {
     expect(removeItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-1')
     expect(removeItemMock).toHaveBeenCalledWith('@orbit/query-cache')
   })
+})
+
+it('keeps a 429 read pending until the retry returns data', async () => {
+  vi.useFakeTimers()
+  const client = queryClient
+  const queryKey = habitKeys.list({})
+  const error = Object.assign(createApiClientError(429, null, 'Unavailable'), { retryAfter: '60' })
+  const queryFn = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(['Recovered'])
+  const states: string[] = []
+  const unsubscribe = client.getQueryCache().subscribe(() => {
+    const status = client.getQueryState(queryKey)?.status
+    if (status) states.push(status)
+  })
+  const result = client.fetchQuery({ queryKey, queryFn }).catch((failure: unknown) => failure)
+  try {
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(client.getQueryState(queryKey)?.status).toBe('pending')
+    expect(queryFn).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await result).toEqual(['Recovered'])
+    expect(states).not.toContain('error')
+    queryFn.mockRejectedValueOnce(error).mockResolvedValue(['Updated'])
+    const refetch = client.fetchQuery({ queryKey, queryFn, staleTime: 0 })
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(client.getQueryData(queryKey)).toEqual(['Recovered'])
+    expect(client.getQueryState(queryKey)?.status).toBe('success')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await refetch).toEqual(['Updated'])
+    const exhaustedKey = habitKeys.list({ search: 'exhausted' })
+    const exhausted = client.fetchQuery({
+      queryKey: exhaustedKey,
+      queryFn: () => Promise.reject(createApiClientError(429, null, 'Unavailable')),
+    }).catch((failure: unknown) => failure)
+    await vi.advanceTimersByTimeAsync(124_999)
+    expect(client.getQueryState(exhaustedKey)?.status).toBe('pending')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await exhausted).toMatchObject({ status: 429 })
+    expect(client.getQueryState(exhaustedKey)?.status).toBe('error')
+  } finally {
+    unsubscribe()
+    client.clear()
+    vi.useRealTimers()
+  }
 })

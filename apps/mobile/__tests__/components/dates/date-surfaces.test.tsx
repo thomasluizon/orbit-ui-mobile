@@ -1,0 +1,246 @@
+import React from 'react'
+import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { describe, expect, it, vi } from 'vitest'
+import type { DayCellWords } from '@orbit/shared/contracts/dates'
+import { DayCell } from '@/components/dates/day-cell'
+import { DayStrip } from '@/components/dates/day-strip'
+import { EventRow } from '@/components/dates/event-row'
+import { MonthGrid } from '@/components/dates/month-grid'
+import { measureDaySurface, type GeometryHost } from '@/__tests__/support/calendar-grid-geometry'
+import { createTokensV2 } from '@/lib/theme'
+
+interface TestNode {
+  type: unknown
+  props: Record<string, unknown>
+  children: (TestNode | string)[]
+  findAll(predicate: (node: TestNode) => boolean): TestNode[]
+}
+
+interface TestTree {
+  root: {
+    findByProps(props: Record<string, unknown>): TestNode
+    findAllByProps(props: Record<string, unknown>): TestNode[]
+    findAll(predicate: (node: TestNode) => boolean): TestNode[]
+  }
+  toJSON(): unknown
+}
+
+interface TestRendererApi {
+  create(element: React.ReactNode): TestTree
+  act(callback: () => void): void
+}
+
+const TestRenderer: TestRendererApi = require('react-test-renderer')
+const cellWords: DayCellWords = {
+  none: 'none',
+  partial: 'partial',
+  full: 'full',
+  notScheduled: 'not scheduled',
+  of: 'of',
+  today: 'today',
+  readOnly: 'read only',
+}
+
+function render(element: React.ReactNode): TestTree {
+  let tree!: TestTree
+  TestRenderer.act(() => {
+    tree = TestRenderer.create(element)
+  })
+  return tree
+}
+
+describe('DayStrip', () => {
+  it('renders habit entries in order with caller words and the strip label', () => {
+    const tree = render(
+      <DayStrip
+        scope="habit"
+        days={['done', 'missed', 'not-scheduled']}
+        labels={['Mon 1', 'Tue 2', 'Wed 3']}
+        words={{ done: 'complete', missed: 'missed', notScheduled: 'rest' }}
+        label="Habit history"
+      />,
+    )
+    const strip = tree.root.findByProps({ testID: 'day-strip-habit' })
+    expect(strip.props.accessibilityLabel).toBe('Habit history')
+    expect(tree.root.findByProps({ accessibilityLabel: 'Mon 1, complete' })).toBeTruthy()
+    expect(tree.root.findByProps({ accessibilityLabel: 'Wed 3, rest' })).toBeTruthy()
+    expect(tree.root.findByProps({ testID: 'day-strip-cell-done' })).toBeTruthy()
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'day-strip-cell-missed' }).props.style as StyleProp<ViewStyle>).borderColor).toBe(
+      createTokensV2('purple', 'dark').statusEmpty,
+    )
+    expect(tree.root.findByProps({ testID: 'day-strip-cell-not-scheduled' })).toBeTruthy()
+  })
+
+  it('marks only the account today entry as current', () => {
+    const tree = render(
+      <DayStrip
+        scope="account"
+        days={['active', 'frozen', 'missed', 'today']}
+        words={{ active: 'active', frozen: 'protected', missed: 'missed', today: 'today' }}
+        label="Account streak"
+      />,
+    )
+    const today = tree.root.findByProps({ testID: 'day-strip-cell-today' })
+    expect(today.props.accessibilityState).toEqual({ selected: true })
+    expect(tree.root.findByProps({ testID: 'day-strip-cell-active' }).props.accessibilityState).toEqual({ selected: false })
+    const frozen = tree.root.findByProps({ testID: 'day-strip-cell-frozen' })
+    const frozenStyle = StyleSheet.flatten(frozen.props.style as StyleProp<ViewStyle>)
+    expect(frozenStyle.backgroundColor).toBe('#C9C9CC')
+  })
+})
+
+describe('DayCell', () => {
+  it.each([false, true].flatMap((selected) => ['press', 'hover'].map((phase) => ({ selected, phase }))))('replaces the well on $phase with selected=$selected', ({ selected, phase }) => {
+    const tokens = createTokensV2('purple', 'dark')
+    const tree = render(<DayCell day={12} loggable selected={selected} today words={cellWords} scheduled={4} done={1} onPress={() => {}} />)
+    const cell = tree.root.findByProps({ testID: 'day-cell-partial' })
+    const circleStyle = () => StyleSheet.flatten(tree.root.findByProps({ testID: 'day-circle' }).props.style as StyleProp<ViewStyle>)
+    expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgWell)
+    const activate = cell.props[phase === 'press' ? 'onPressIn' : 'onHoverIn']
+    const deactivate = cell.props[phase === 'press' ? 'onPressOut' : 'onHoverOut']
+    expect(activate).toBeTypeOf('function')
+    TestRenderer.act(() => { (activate as () => void)() })
+    expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : 'transparent')
+    const fills = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'day-press-fill')
+    expect(fills).toHaveLength(selected ? 0 : 1)
+    for (const fill of fills) expect(StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(tokens.bgHover)
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'day-today-ring' }).props.style as StyleProp<ViewStyle>)).toMatchObject({ borderColor: tokens.primary, borderWidth: 2 })
+    TestRenderer.act(() => { (deactivate as () => void)() })
+    expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgWell)
+    expect(tree.root.findAllByProps({ testID: 'day-press-fill' })).toHaveLength(0)
+  })
+
+  it('centres today and its status mark in a wide habit history slot', () => {
+    const tree = render(<View style={{ width: 97 }}><DayCell day={11} today habitHistory scheduled={1} done={1} words={cellWords} /></View>)
+    const boxes = measureDaySurface(tree.toJSON() as GeometryHost, 97)
+    const ring = boxes.find((box) => box.testID === 'day-today-ring')!
+    const disc = boxes.find((box) => box.testID === 'day-disc')!
+    expect(ring.width).toBe(44)
+    expect(ring.height).toBe(44)
+    expect(disc.width).toBe(34)
+    expect(disc.height).toBe(34)
+    expect(ring.centerX).toBe(48.5)
+    expect(disc.centerX).toBe(ring.centerX)
+    expect(disc.centerY).toBe(ring.centerY)
+  })
+
+  it('renders a loggable button and presses once', () => {
+    const onPress = vi.fn()
+    const tree = render(<DayCell day={12} label="March 12" loggable words={cellWords} scheduled={4} done={1} onPress={onPress} />)
+    const cell = tree.root.findByProps({ testID: 'day-cell-partial' })
+    expect(cell.props.accessibilityRole).toBe('button')
+    expect(cell.props.accessibilityLabel).toBe('March 12, partial 1 of 4')
+    TestRenderer.act(() => {
+      ;(cell.props.onPress as () => void)()
+    })
+    expect(onPress).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders read-only, unscheduled, and outside outcomes from counts', () => {
+    const unscheduled = render(<DayCell day={14} label="March 14" words={cellWords} done={0} scheduled={0} />)
+    expect(unscheduled.root.findByProps({ testID: 'day-cell-not-scheduled' }).props.accessibilityLabel).toBe(
+      'March 14, not scheduled, read only',
+    )
+    const unscheduledDisc = unscheduled.root.findByProps({ testID: 'day-disc' })
+    expect(StyleSheet.flatten(unscheduledDisc.props.style as StyleProp<ViewStyle>).backgroundColor).toBe('transparent')
+
+    const outside = render(<DayCell day={30} label="April 30" words={cellWords} outsideMonth />)
+    const outsideCell = outside.root.findByProps({ testID: 'day-cell-none-outside-month' })
+    expect(outsideCell.props.accessibilityElementsHidden).toBe(true)
+    expect(outsideCell.props.onPress).toBeUndefined()
+  })
+
+  it('draws the partial arc from the exact completion fraction', () => {
+    const oneThird = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={1} />)
+    const oneThirdArc = oneThird.root.findAll(
+      (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
+    )[0]
+    const oneThirdTrack = oneThird.root.findAll(
+      (node) => node.type === 'Circle' && node.props.strokeDasharray === undefined,
+    )[0]
+    expect(oneThirdTrack?.props.stroke).toBe(createTokensV2('purple', 'dark').statusEmpty)
+    expect(oneThirdArc?.props.strokeDasharray).toEqual([Math.PI * 32 / 3, Math.PI * 32])
+
+    const twoThirds = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={2} />)
+    const twoThirdsArc = twoThirds.root.findAll(
+      (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
+    )[0]
+    expect(twoThirdsArc?.props.strokeDasharray).toEqual([Math.PI * 32 * 2 / 3, Math.PI * 32])
+  })
+
+  it('uses the quiet habit-history treatment for completed, missed, and unscheduled days', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const completed = render(<DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} habitHistory />)
+    const completedText = completed.root.findAll((node) => node.type === 'Text' && node.props.children === 15)[0]
+    expect(StyleSheet.flatten(completedText?.props.style as StyleProp<TextStyle>).color).toBe(tokens.bg)
+
+    const missed = render(<DayCell day={16} label="March 16" words={cellWords} done={0} scheduled={1} habitHistory />)
+    const missedDots = missed.root.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 3)
+    expect(missedDots).toHaveLength(1)
+    expect(StyleSheet.flatten(missedDots[0]?.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(tokens.statusEmpty)
+
+    const unscheduled = render(<DayCell day={17} label="March 17" words={cellWords} done={0} scheduled={0} habitHistory />)
+    const quietDisc = unscheduled.root
+      .findAll((node) => node.type === 'View')
+      .map((node) => StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>))
+      .find((style) => style.opacity !== undefined)
+    expect(quietDisc?.opacity).toBeCloseTo(0.4)
+  })
+})
+
+describe('MonthGrid', () => {
+  it('takes its column count from labels and keeps child order', () => {
+    const five = render(
+      <MonthGrid weekdayLabels={['M', 'T', 'W', 'T', 'F']} label="Work week">
+        <Text>one</Text><Text>two</Text>
+      </MonthGrid>,
+    )
+    expect(five.root.findByProps({ testID: 'month-grid-5-columns' }).props.accessibilityLabel).toBe('Work week')
+    const serialized = JSON.stringify(five.toJSON())
+    expect(serialized.indexOf('one')).toBeLessThan(serialized.indexOf('two'))
+
+    const seven = render(<MonthGrid weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']}><Text>day</Text></MonthGrid>)
+    expect(seven.root.findByProps({ testID: 'month-grid-7-columns' })).toBeTruthy()
+  })
+
+  it('omits the header for an empty label list and keeps children', () => {
+    const tree = render(<MonthGrid weekdayLabels={[]}><Text>day</Text></MonthGrid>)
+    expect(tree.root.findAllByProps({ testID: 'month-grid-header' })).toHaveLength(0)
+    expect(tree.root.findByProps({ testID: 'month-grid-days' }).children).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'day')).toHaveLength(1)
+  })
+
+  it('uses the same gap on both axes and keeps seven slots in one row', () => {
+    const tree = render(
+      <MonthGrid weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} gap={0}>
+        {Array.from({ length: 7 }, (_, day) => <Text key={day}>{day + 1}</Text>)}
+      </MonthGrid>,
+    )
+    const headerStyle = tree.root.findByProps({ testID: 'month-grid-header' }).props.style
+    const daysStyle = tree.root.findByProps({ testID: 'month-grid-days' }).props.style
+    const row = tree.root.findByProps({ testID: 'month-grid-row-0' })
+    expect(headerStyle).toEqual(expect.arrayContaining([expect.objectContaining({ columnGap: 0 })]))
+    expect(daysStyle).toEqual(expect.objectContaining({ rowGap: 0 }))
+    expect(row.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ columnGap: 0 })]))
+    const slots = row.findAll(
+      (node) => node.type === 'View' && (node.props.style as { flex?: number }).flex === 1,
+    )
+    expect(slots).toHaveLength(7)
+    expect(7 * 44).toBeLessThanOrEqual(320 - 8)
+  })
+})
+
+describe('EventRow', () => {
+  it('renders timed and all-day events without controls', () => {
+    const timed = render(<EventRow time="09:00" title="Standup" source="Work" />)
+    const timedRow = timed.root.findByProps({ testID: 'event-row-timed' })
+    expect(timedRow.props.accessibilityLabel).toBe('09:00, Standup, Work')
+    expect(timed.root.findAllByProps({ accessibilityRole: 'button' })).toHaveLength(0)
+
+    const allDay = render(<EventRow allDayLabel="All day" title="Holiday" source="Personal" />)
+    expect(allDay.root.findByProps({ testID: 'event-row-all-day' }).props.accessibilityLabel).toBe(
+      'All day, Holiday, Personal',
+    )
+    expect(allDay.root.findAllByProps({ accessibilityRole: 'button' })).toHaveLength(0)
+  })
+})

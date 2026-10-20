@@ -39,6 +39,7 @@ export const useOnboardingDraftStore = create<OnboardingDraftStore>()(
           ...(accountId !== null && draft.accountKey !== accountId
             ? migrateOnboardingDraft(null)
             : draft),
+          onboardingLocallyDone: current.onboardingLocallyDone || draft.onboardingLocallyDone || accountId !== null,
         }
       },
       onRehydrateStorage: () => () => {

@@ -1,26 +1,27 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import {
-  Pressable,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native'
+import { SPACING } from '@orbit/shared/theme'
+import { InsetFocusPressable as Pressable, type InsetFocusPressableProps } from '@/components/ui/inset-focus-pressable'
+import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
+import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canLogHabitOnDate,
   computeHabitCardStatus,
-  computeHabitFrequencyLabel,
   formatAPIDate,
+  getTodayBoundary,
+  isHabitDoneForRange,
+  resolveHabitAccessibleStatus,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { AnchoredMenu, useAnchoredMenu } from '@/components/ui/anchored-menu'
-import { HabitRowContent } from './habit-row-content'
+import { Menu, useAnchoredMenu } from '@/components/ui/menu'
+import { ChevronDown } from '@/components/ui/icons'
+import { Checkbox } from '@/components/ui/checkbox'
+import { HabitRowContent, HabitRowMetaStrip } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
-import { HabitRowMenuBody } from './habit-row-menu'
 import {
   buildHabitRowAccessibilityLabel,
   buildHabitRowMetaParts,
@@ -46,94 +47,229 @@ export interface HabitRowActions {
   onToggleSelection?: () => void
   onAddSubHabit?: () => void
   onToggleExpand?: () => void
-  onForceLogParent?: () => void
   onEnterSelectMode?: () => void
   onLongPressCard?: () => void
 }
 
 const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
-const HABIT_ROW_MARGIN_BOTTOM = 10
 
-function resolveTrailingLayout(
+function buildMenuItems(
+  actions: HabitRowActions,
   isSelectMode: boolean,
-  trailingContent: ReactNode,
-) {
-  if (isSelectMode) {
-    return {
-      cardPaddingRight: 0,
-      bodyPaddingRight: 16,
-      bodyTrailingContent: trailingContent,
-      siblingTrailingContent: null,
-    }
+  completionReadOnly: boolean,
+  hasProAccess: boolean,
+  isOverdue: boolean,
+  hasSubHabits: boolean,
+  t: (key: string) => string,
+): MenuItem[] {
+  const items: MenuItem[] = []
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask', badge: hasProAccess ? undefined : 'Pro' })
+  if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
+  if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
+  if (actions.onReschedule && isOverdue && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule'), icon: 'calendar-time' })
+  if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
+  if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
+  if (actions.onEnterSelectMode && !isSelectMode) {
+    items.push({ id: 'select', label: t('common.select'), icon: 'checkbox' })
   }
-  return {
-    cardPaddingRight: 8,
-    bodyPaddingRight: 0,
-    bodyTrailingContent: null,
-    siblingTrailingContent: trailingContent,
+  if (actions.onDrillInto && hasSubHabits) items.push({ id: 'drill', label: t('habits.actions.openSubHabits'), icon: 'list-tree' })
+  if (actions.onDelete) {
+    items.push({ id: 'delete', label: t('habits.actions.delete'), icon: 'trash', destructive: true })
   }
+  return items
 }
 
-interface HabitRowProps {
+function runMenuAction(actions: HabitRowActions, id: string): void {
+  const handlers: Record<string, (() => void) | undefined> = {
+    add: actions.onAddSubHabit,
+    move: actions.onMoveParent,
+    skip: actions.onSkip,
+    reschedule: actions.onReschedule,
+    edit: actions.onEdit,
+    duplicate: actions.onDuplicate,
+    select: actions.onEnterSelectMode,
+    drill: actions.onDrillInto,
+    delete: actions.onDelete,
+  }
+  handlers[id]?.()
+}
+
+export interface HabitRowProps {
   habit: NormalizedHabit
   selectedDate?: Date
-  /** 0 = parent row, >0 = child row (renders tree line connector). */
-  depth?: number
+  today?: string
+  /** Two inline display levels. Deeper data descendants are clamped to level 1 by the list. */
+  depth?: 0 | 1
+  structuralColumn?: boolean
   isSelectMode?: boolean
   isSelected?: boolean
   hasChildren?: boolean
   isExpanded?: boolean
+  completionReadOnly?: boolean
+  completionReason?: string
+  completionStatusUnavailable?: boolean
   childrenDone?: number
   childrenTotal?: number
   actions?: HabitRowActions
   style?: StyleProp<ViewStyle>
+  panelEnd?: boolean
+  hasProAccess?: boolean
 }
 
-/**
- * Habit row: emoji · title · inline meta · trailing status dot.
- */
+function HabitRowStructuralColumn({
+  hasChildren,
+  expanded,
+  actions,
+  tokens,
+  collapseLabel,
+  expandLabel,
+}: Readonly<{
+  hasChildren: boolean
+  expanded: boolean
+  actions: HabitRowActions
+  tokens: ReturnType<typeof createTokensV2>
+  collapseLabel: string
+  expandLabel: string
+}>) {
+  if (!hasChildren) return null
+  return (
+    <Pressable
+      onPress={actions.onToggleExpand}
+      accessibilityRole="button"
+      accessibilityLabel={expanded ? collapseLabel : expandLabel}
+      accessibilityState={{ expanded }}
+      style={({ pressed }) => [
+        styles.structuralColumn,
+        pressed
+          ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }
+          : null,
+      ]}
+    >
+      <View style={{ transform: [{ rotate: expanded ? '0deg' : '-90deg' }] }}>
+        <ChevronDown size={20} color={tokens.fg3} strokeWidth={1.8} />
+      </View>
+    </Pressable>
+  )
+}
+
+function renderHabitRowPrimaryButton({ supportingMeta, bodyLayout, bgHover, children, ...props }: Readonly<InsetFocusPressableProps & {
+  supportingMeta: boolean
+  bodyLayout: ViewStyle
+  bgHover: string
+}>) {
+  return (
+    <Pressable {...props} style={({ pressed }) => [
+      styles.bodyButton,
+      bodyLayout,
+      supportingMeta ? StyleSheet.absoluteFill : null,
+      pressed ? [styles.bodyButtonPressed, { backgroundColor: bgHover }] : null,
+    ]}>
+      {supportingMeta ? null : children}
+    </Pressable>
+  )
+}
+
+function resolveTitleColor(
+  child: boolean,
+  tokens: ReturnType<typeof createTokensV2>,
+): string {
+  return child ? tokens.fg2 : tokens.fg1
+}
+
+function resolveBodyPressAction(
+  selectMode: boolean,
+  actions: HabitRowActions,
+): (() => void) | undefined {
+  return selectMode ? actions.onToggleSelection : actions.onDetail
+}
+
+function useBodyPressFeedback(
+  tokens: ReturnType<typeof createTokensV2>,
+) {
+  const [pressed, setPressed] = useState(false)
+  return {
+    metaColor: pressed ? tokens.fg2 : tokens.fg3,
+    outlineColor: pressed ? tokens.hairlineStrong : tokens.hairline,
+    onPressIn: () => setPressed(true),
+    onPressOut: () => setPressed(false),
+  }
+}
+
+function buildRowStyle({
+  child,
+  selected,
+  tokens,
+}: Readonly<{
+  child: boolean
+  selected: boolean
+  tokens: ReturnType<typeof createTokensV2>
+}>): ViewStyle {
+  return {
+    minHeight: child ? 52 : 68,
+    backgroundColor: selected ? tokens.selectionBg : tokens.bgCard,
+    borderRadius: 20,
+  }
+}
+
+function habitRowSpacing(panelEnd: boolean): ViewStyle {
+  return { paddingBottom: panelEnd ? SPACING.s12 : SPACING.s4 }
+}
+
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export function HabitRow({
+export const HabitRow = memo(function HabitRow({
   habit,
   selectedDate,
+  today,
   depth = 0,
+  structuralColumn = false,
   isSelectMode = false,
   isSelected = false,
   hasChildren = false,
   isExpanded = false,
+  completionReadOnly: completionReadOnlyOverride,
+  completionReason: completionReasonOverride,
+  completionStatusUnavailable = false,
   childrenDone = 0,
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
   style,
+  panelEnd = true,
+  hasProAccess = true,
 }: Readonly<HabitRowProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
+  const { fontScale } = useWindowDimensions()
+  const largeText = fontScale > 1.3
+  const supportingMeta = showSupportingMeta(largeText, childrenTotal)
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const { displayTime } = useTimeFormat()
 
-  const isChild = depth > 0
-  const todayStr = formatAPIDate(new Date())
-  const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
+  const isChild = depth === 1
+  const todayStr = today ?? formatAPIDate(new Date())
+  const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
 
-  const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
+  const isDoneForRange = isHabitDoneForRange(habit)
   const status = useMemo(
     () => computeHabitCardStatus(habit, selectedDate),
     [habit, selectedDate],
   )
 
-  const frequencyLabel = useMemo(
-    () => computeHabitFrequencyLabel(habit, t),
-    [habit, t],
-  )
-
   const isOverdue = status === 'overdue'
   const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
+  const boundary = getTodayBoundary(selectedDateStr, todayStr)
+  const completionReadOnly = completionReadOnlyOverride ?? (boundary === 'read-only' || (boundary === 'future' && !canLog))
+  const completionReason = completionReasonOverride ?? (boundary === 'read-only'
+    ? t('habits.todayBoundary.readOnly')
+    : boundary === 'future' ? t('habits.todayBoundary.future') : undefined)
 
   const metaParts = buildHabitRowMetaParts({
     habit,
-    frequencyLabel,
-    isOverdue,
+    childProgress: { done: childrenDone, total: childrenTotal },
+    isOverdue: habit.isOverdue,
     selectedDateStr,
     todayStr,
     displayTime,
@@ -141,8 +277,7 @@ export function HabitRow({
     locale,
   })
 
-  const streak = habit.currentStreak ?? 0
-  const showStreak = streak >= 2 && !isChild && !isSelectMode
+  const futureHint = metaParts.find((part): part is { kind: 'future'; label: string } => typeof part !== 'string' && part.kind === 'future')
 
   const dotState = resolveHabitRowDotState(isDoneForRange, habit.isBadHabit, isOverdue)
 
@@ -151,172 +286,209 @@ export function HabitRow({
   const {
     anchorRef: menuButtonRef,
     visible: menuVisible,
-    isClosing: menuIsClosing,
-    openRevision: menuOpenRevision,
-    anchorRect: menuAnchorRect,
-    open: openMenu,
-    close: closeMenu,
-    finishClose: finishMenuClose,
+    open: openAnchoredMenu,
+    close: closeAnchoredMenu,
   } = useAnchoredMenu()
-  const [rowPressed, setRowPressed] = useState(false)
-
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
+  const menuItems = useMemo(
+    () => buildMenuItems(actions, isSelectMode, completionReadOnly, hasProAccess, isOverdue, habit.hasSubHabits, t),
+    [actions, completionReadOnly, habit.hasSubHabits, hasProAccess, isOverdue, isSelectMode, t],
+  )
 
-  const handlePress = () => {
-    if (isSelectMode) {
-      actions.onToggleSelection?.()
-    } else {
-      actions.onDetail?.()
-    }
-  }
+  const openMenu = useCallback(() => {
+    openAnchoredMenu()
+  }, [openAnchoredMenu])
 
+  const closeMenu = useCallback(() => {
+    closeAnchoredMenu()
+  }, [closeAnchoredMenu])
+
+  const handlePress = resolveBodyPressAction(isSelectMode, actions)
+  const bodyPressFeedback = useBodyPressFeedback(tokens)
+  const toggleStatusAction = isDoneForRange ? actions.onUnlog : actions.onLog
   const handleToggleStatus = () => {
-    if (isDoneForRange) {
-      actions.onUnlog?.()
-    } else {
-      actions.onLog?.()
-    }
+    if (!completionReadOnly) toggleStatusAction?.()
   }
 
-  const titleSize = isChild ? 14 : 16
+  const bodyLayout = habitRowBodyLayout(isChild, largeText)
+  const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 22
-  const wellSize = isChild ? 36 : 46
-  const wellRadius = isChild ? 12 : 14
+  const wellSize = isChild ? 32 : 46
+  const wellRadius = 12
 
-  const titleColor = isDoneForRange ? tokens.fg3 : tokens.fg1
+  const titleColor = resolveTitleColor(isChild, tokens)
+  const rowStyle = buildRowStyle({
+    child: isChild,
+    selected: isSelected,
+    tokens,
+  })
 
-  const linkedGoal = (habit.linkedGoals?.length ?? 0) > 0
+  const knownRowAccessibilityLabel = buildHabitRowAccessibilityLabel({
+    title: habit.title,
+    dotState: resolveHabitAccessibleStatus(dotState, isDoneForRange),
+    metaParts,
+    linkedGoal: false,
+    showStreak: false,
+    streak: 0,
+    t,
+  })
+  const rowAccessibilityLabel = completionStatusUnavailable ? habit.title : knownRowAccessibilityLabel
 
-  const rowAccessibilityLabel = useMemo(
-    () =>
-      buildHabitRowAccessibilityLabel({
-        title: habit.title,
-        dotState,
-        linkedGoal,
-        showStreak,
-        streak,
-        t,
-      }),
-    // react-doctor-disable-next-line exhaustive-deps -- streak is the extracted habit.currentStreak and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [habit.title, dotState, linkedGoal, showStreak, streak, t],
+  const primaryContent = (
+    <>
+      <HabitRowLeading
+        habitTitle={habit.title}
+        emoji={emoji}
+        emojiSize={emojiSize}
+        wellSize={wellSize}
+        wellRadius={wellRadius}
+        monogramColor={bodyPressFeedback.metaColor}
+        tokens={tokens}
+      />
+
+      <HabitRowContent expanded={isSelectMode && isSelected}
+        habit={habit}
+        titleSize={titleSize}
+        titleColor={titleColor}
+        metaColor={bodyPressFeedback.metaColor}
+        metaParts={metaParts}
+        metaOnSupportingLine={supportingMeta}
+        tokens={tokens}
+      />
+    </>
   )
+  const primaryButton = renderHabitRowPrimaryButton({
+    onPress: handlePress,
+    onPressIn: bodyPressFeedback.onPressIn,
+    onPressOut: bodyPressFeedback.onPressOut,
+    onLongPress: isSelectMode ? undefined : actions.onLongPressCard,
+    delayLongPress: 500,
+    accessibilityRole: 'button',
+    accessibilityLabel: rowAccessibilityLabel,
+    accessibilityHint: futureHint?.label,
+    supportingMeta,
+    bodyLayout,
+    bgHover: tokens.bgHover,
+    children: primaryContent,
+  })
+  const rowContents = (
+    <>
+        {structuralColumn && isSelectMode ? (
+          <Pressable onPress={actions.onToggleSelection} accessibilityRole="checkbox"
+            accessibilityLabel={habit.title} accessibilityState={{ checked: isSelected }}
+            style={({ pressed }) => [styles.structuralColumn,
+              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
+            <Checkbox checked={isSelected} onChange={() => actions.onToggleSelection?.()} as="span" />
+          </Pressable>
+        ) : null}
+        {structuralColumn ? (
+          <HabitRowStructuralColumn
+            hasChildren={hasChildren}
+            expanded={isExpanded}
+            actions={actions}
+            tokens={tokens}
+            collapseLabel={t('common.collapse')}
+            expandLabel={t('common.expand')}
+          />
+        ) : null}
 
-  const indentPx = depth * 16
-  const trailingContent = (
-    <HabitRowTrailing
-      habit={habit}
-      isSelectMode={isSelectMode}
-      hasChildren={hasChildren}
-      childrenDone={childrenDone}
-      childrenTotal={childrenTotal}
-      linkedGoal={linkedGoal}
-      isDoneForRange={isDoneForRange}
-      canLog={canLog}
-      dotState={dotState}
-      hasMenuActions={hasMenuActions}
-      menuButtonRef={menuButtonRef}
-      actions={actions}
-      tokens={tokens}
-      onToggleStatus={handleToggleStatus}
-      onOpenMenu={openMenu}
-    />
+        <HabitRowTrailing
+            habit={habit}
+          depth={depth}
+          isSelectMode={isSelectMode}
+          hasChildren={hasChildren}
+          childrenDone={childrenDone}
+          childrenTotal={childrenTotal}
+          isDoneForRange={isDoneForRange}
+          canLog={canLog}
+          dotState={dotState}
+          hasMenuActions={hasMenuActions}
+          menuButtonRef={menuButtonRef}
+          actions={actions}
+          tokens={tokens}
+          onToggleStatus={handleToggleStatus}
+          onOpenMenu={openMenu}
+          menuVisible={menuVisible}
+          completionReadOnly={completionReadOnly}
+          completionReason={completionReason}
+          completionStatusUnavailable={completionStatusUnavailable}
+        />
+    </>
   )
-  const trailingLayout = resolveTrailingLayout(isSelectMode, trailingContent)
 
   return (
-    <View style={style}>
-      <View
-        style={[
-          styles.row,
-          {
-            backgroundColor: isSelected
-              ? tokens.bgSunk
-              : rowPressed
-                ? tokens.bgElevPressed
-                : tokens.bgCard,
-            borderColor: rowPressed ? tokens.hairlineStrong : tokens.hairline,
-            marginLeft: 20 + indentPx,
-            marginRight: 20,
-            marginBottom: HABIT_ROW_MARGIN_BOTTOM,
-            paddingVertical: 0,
-            paddingHorizontal: 0,
-            paddingRight: trailingLayout.cardPaddingRight,
-          },
-          rowPressed ? styles.rowPressed : null,
-        ]}
-      >
-        <Pressable
-          onPress={handlePress}
-          onPressIn={() => setRowPressed(true)}
-          onPressOut={() => setRowPressed(false)}
-          onLongPress={
-            isSelectMode ? undefined : actions.onLongPressCard
-          }
-          delayLongPress={300}
-          accessibilityRole="button"
-          accessibilityLabel={rowAccessibilityLabel}
-          style={[
-            styles.row,
-            {
-              flex: 1,
-              minWidth: 0,
-              paddingRight: trailingLayout.bodyPaddingRight,
-              borderWidth: 0,
-              borderRadius: 0,
-            },
-          ]}
-        >
-          <HabitRowLeading
-            habitTitle={habit.title}
-            emoji={emoji}
-            emojiSize={emojiSize}
-            wellSize={wellSize}
-            wellRadius={wellRadius}
-            isSelectMode={isSelectMode}
-            isSelected={isSelected}
-            hasChildren={hasChildren}
-            isExpanded={isExpanded}
-            onToggleSelection={actions.onToggleSelection}
-            onToggleExpand={actions.onToggleExpand}
-            tokens={tokens}
-          />
-
-          <HabitRowContent
-            habit={habit}
-            titleSize={titleSize}
-            titleColor={titleColor}
-            isDoneForRange={isDoneForRange}
-            metaParts={metaParts}
-            showStreak={showStreak}
-            streak={streak}
-            tokens={tokens}
-          />
-          {trailingLayout.bodyTrailingContent}
-        </Pressable>
-
-        {trailingLayout.siblingTrailingContent}
-      </View>
+    <View style={habitRowSpacing(panelEnd)}>
+      <HabitRowLayout largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}
+        rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
+        metaColor={bodyPressFeedback.metaColor} tokens={tokens}>
+        {rowContents}
+      </HabitRowLayout>
 
       {hasMenuActions ? (
-        <AnchoredMenu
-          visible={menuVisible}
-          isClosing={menuIsClosing}
-          openRevision={menuOpenRevision}
-          anchorRect={menuAnchorRect}
+        <Menu
+          open={menuVisible}
+          anchorRef={menuButtonRef}
           onClose={closeMenu}
-          onCloseComplete={finishMenuClose}
-          width={208}
-          estimatedHeight={actions.onDrillInto ? 340 : 296}
-        >
-          <HabitRowMenuBody
-            actions={actions}
-            isSelectMode={isSelectMode}
-            close={closeMenu}
-            t={t}
-            tokens={tokens}
-          />
-        </AnchoredMenu>
+          title={habit.title || t('habits.actions.menuTitle')}
+          titleMode={rowMenuTitleMode(habit.title)}
+          items={menuItems}
+          onSelect={(id) => runMenuAction(actions, id)}
+        />
       ) : null}
     </View>
   )
+})
+
+function rowMenuTitleMode(title: string | null | undefined) {
+  return title ? 'typed' : 'label'
+}
+
+function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
+  largeText: boolean
+  isChild: boolean
+  supportingMeta: boolean
+  rowStyle: StyleProp<ViewStyle>
+  outlineColor: string
+  primaryButton: ReactNode
+  primaryContent: ReactNode
+  metaParts: Parameters<typeof HabitRowContent>[0]['metaParts']
+  metaColor: string
+  tokens: ReturnType<typeof createTokensV2>
+  children: ReactNode
+}>) {
+  return (
+    <View testID="habit-row" style={[largeText ? null : styles.row, rowStyle]}>
+      {supportingMeta ? primaryButton : null}
+      {largeText ? (
+        <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8 }]}>
+          {supportingMeta ? (
+            <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+              style={[styles.bodyButton, habitRowBodyLayout(isChild, largeText)]}>
+              {primaryContent}
+            </View>
+          ) : primaryButton}
+          {children}
+        </View>
+      ) : <>{primaryButton}{children}</>}
+      {supportingMeta ? (
+        <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+          style={{ flexDirection: 'row', gap: 12, paddingLeft: SPACING.s8, paddingBottom: SPACING.s8 }}>
+          <View style={{ width: 48 }} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} expanded />
+          </View>
+        </View>
+      ) : null}
+      <View testID="habit-row-outline" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+        style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 1, borderRadius: 20, borderColor: outlineColor }} />
+    </View>
+  )
+}
+
+function habitRowBodyLayout(isChild: boolean, largeText: boolean): ViewStyle {
+  return { paddingVertical: largeText ? SPACING.s0 : (isChild ? SPACING.s4 : SPACING.s8), paddingLeft: SPACING.s8, alignItems: largeText ? 'flex-start' : 'center' }
+}
+
+function showSupportingMeta(largeText: boolean, childrenTotal: number): boolean {
+  return largeText && childrenTotal > 0
 }

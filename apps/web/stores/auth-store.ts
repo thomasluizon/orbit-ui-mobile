@@ -1,10 +1,24 @@
+import { fetchWithUpgradeGuidance } from '@/lib/api-fetch'
+import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import * as Sentry from '@sentry/nextjs'
 import { resetAccountQueries } from '@orbit/shared/query'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
-import { startAccountScopedSession } from '@/lib/account-scoped-state'
-import { withSessionCookieLock } from '@/lib/session-cookie-lock'
+import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
+import {
+  announceAccountToOtherTabs,
+  subscribeToAccountSignal,
+} from '@/lib/cross-tab-account-signal'
+import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
 import { getQueryClient } from '@/lib/query-client'
+import { advanceAccountGeneration, advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
+import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
+import { useChatStore } from './chat-store'
+import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { withSessionCookieLock } from '@/lib/session-cookie-lock'
+import { startAccountScopedSession as resetAccountScopedState } from '@/lib/account-scoped-state'
+import { setAccountId } from '@/lib/account-scope'
+import { setUIAccountScope } from './ui-store'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 import { clearDesignCookie } from '@/lib/design-cookie'
 
@@ -12,29 +26,7 @@ const EXPIRY_CHECK_INTERVAL = 60 * 1000
 const SESSION_RECOVERY_CHECK_LIMIT = 3
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
-let sessionOwnershipEpoch = 0
 let loginsWaitingForLogout = 0
-let accountGeneration = 0
-let accountSwitchPending = false
-
-export function getAccountGeneration(): number {
-  return accountGeneration
-}
-
-function reloadWhenCookieReplacesAccount(
-  heldAccountId: string | null,
-  cookieAccountId: string | null,
-): boolean {
-  if (!heldAccountId || !cookieAccountId || heldAccountId === cookieAccountId) return false
-  if (!accountSwitchPending) {
-    accountSwitchPending = true
-    accountGeneration += 1
-    void resetAccountQueries(getQueryClient(), 'signed-in')
-    startAccountScopedSession(heldAccountId, cookieAccountId)
-    if ('location' in globalThis) globalThis.location.reload()
-  }
-  return true
-}
 
 export async function withCookieSettingLogin<T>(task: () => Promise<T>): Promise<T> {
   loginsWaitingForLogout += 1
@@ -44,21 +36,130 @@ export async function withCookieSettingLogin<T>(task: () => Promise<T>): Promise
     loginsWaitingForLogout -= 1
   }
 }
+let sessionReadVersion = 0
 
-function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
-  const next = sessionRevalidationQueue.then(task, task)
+let lastObservedAccountId: string | null = null
+
+/**
+ * The auth cookie belongs to every tab at once, so a sign in elsewhere replaces the account
+ * under a tab that keeps running. Account-scoped state and queries reset on transitions,
+ * including teardown, so a replacement account cannot inherit the previous one.
+ */
+function startAccountScopedSession(nextAccountId: string | null, preserveAnonymousDraft = false): void {
+  const accountChanged = nextAccountId !== null && nextAccountId !== lastObservedAccountId
+  if (accountChanged && lastObservedAccountId !== null) resetPostHogUser()
+  if (nextAccountId !== null) {
+    resetAccountScopedState(lastObservedAccountId, nextAccountId, preserveAnonymousDraft)
+  }
+  if (nextAccountId !== null) sessionReadVersion += 1
+  advanceSessionEpoch()
+  if (nextAccountId !== null) lastObservedAccountId = nextAccountId
+  clearPendingNotificationDeletes()
+  if (nextAccountId !== null) forgetPreviousAccountContent()
+  if (accountChanged) identifyPostHogUser(nextAccountId)
+}
+
+/**
+ * Drops every unsent thing the previous account left in this tab. Both drafts live under one
+ * key with no account in it, so one of them left behind is the next person reading, and
+ * sending, text that is not theirs.
+ */
+function forgetPreviousAccountContent(mode: 'signed-in' | 'signed-out' = 'signed-in'): void {
+  void resetAccountQueries(getQueryClient(), mode)
+  useChatStore.getState().resetAccountScopedChat()
+  forgetStoredSupportDraft()
+  advanceAccountGeneration()
+}
+
+function clearAccountScopedSessionState(): void {
+  if (lastObservedAccountId !== null) resetPostHogUser()
+  startAccountScopedSession(null)
+  clearStepUpState()
+}
+
+/**
+ * Ends the session in this tab, with nothing of the account left behind and no request sent.
+ * A sign out in one tab signs the browser out of all of them, so a tab that hears about it
+ * has to reach the state the tab that pressed the button reaches, not a lesser version of
+ * it.
+ */
+function endSessionLocally(): void {
+  clearDesignCookie()
+  useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+  sessionReadVersion += 1
+  clearAccountScopedSessionState()
+  resetAccountScopedState(lastObservedAccountId, null)
+  forgetPreviousAccountContent('signed-out')
+  lastObservedAccountId = null
+  sessionRecoveryUser = null
+  useOnboardingDraftStore.getState().reset()
+}
+
+/**
+ * Reads the account the cookie now names. A first check resets only if the cookie differs
+ * from the account named by the server render; that render's data already belongs to the
+ * matching account.
+ */
+function adoptSessionAccount(userId: string | null): boolean {
+  if (userId === null) return false
+  if (lastObservedAccountId === userId) return false
+  if (lastObservedAccountId === null) {
+    bindStepUpStateToAccount(userId)
+    startAccountScopedSession(userId)
+    return true
+  }
+
+  bindStepUpStateToAccount(userId)
+  startAccountScopedSession(userId)
+  return true
+}
+
+/**
+ * Reports the account this tab holds, which is the account any intent formed here belongs
+ * to. The client counters cannot stand in for this: they count what THIS tab knows, and the
+ * defect is that the cookie already changed and the tab does not know yet.
+ */
+export function getHeldAccountId(): string | null {
+  return lastObservedAccountId
+}
+
+export function seedRenderedAccount(accountId: string): void {
+  if (lastObservedAccountId !== null) return
+  bindStepUpStateToAccount(accountId)
+  lastObservedAccountId = accountId
+  setAccountId(accountId)
+  setUIAccountScope(accountId)
+}
+
+/**
+ * Reports the held account to a component and re-renders it when that account arrives. The
+ * first session check can leave `user` null while the held account is known, so subscribers
+ * read the held id from the store notification.
+ */
+export function useHeldAccountId(): string | null {
+  return useSyncExternalStore(useAuthStore.subscribe, getHeldAccountId, getHeldAccountId)
+}
+
+function queueSessionRevalidation(task: (requestVersion: number) => Promise<void>): Promise<void> {
+  const requestVersion = sessionReadVersion
+  const next = sessionRevalidationQueue.then(
+    () => task(requestVersion),
+    () => task(requestVersion),
+  )
   sessionRevalidationQueue = next.catch(() => {})
   return next
 }
 
 interface AuthState {
   isAuthenticated: boolean
+  sessionInactive: boolean
   user: User | null
-  heldAccountId: string | null
   expiresAt: number | null
   sessionRefreshFailed: boolean
 
   setAuth: (loginResponse: LoginResponse) => void
+  adoptServerAccount: (accountId: string) => void
+  adoptAccountFromSignal: (accountId: string | null) => void
   confirmSessionRefreshFailure: () => Promise<void>
   recoverSessionRefreshFailure: () => Promise<void>
   checkSession: () => Promise<void>
@@ -67,7 +168,7 @@ interface AuthState {
 }
 
 type SessionSnapshot =
-  | { kind: 'active'; expiresAt: number; accountId: string | null }
+  | { kind: 'active'; expiresAt: number; userId: string | null }
   | { kind: 'inactive' }
   | { kind: 'rejected' }
   | { kind: 'retryable' }
@@ -75,7 +176,7 @@ type SessionSnapshot =
 async function readCurrentSession(): Promise<SessionSnapshot> {
   let response: Response
   try {
-    response = await fetch('/api/auth/session')
+    response = await fetchWithUpgradeGuidance('/api/auth/session')
   } catch {
     return { kind: 'retryable' }
   }
@@ -91,35 +192,32 @@ async function readCurrentSession(): Promise<SessionSnapshot> {
 
   if (!response.ok) return { kind: 'retryable' }
 
-  const session = (await response.json()) as { expiresAt: number | null; accountId?: string | null }
+  const session = (await response.json()) as { expiresAt: number | null; userId?: string | null }
   return typeof session.expiresAt === 'number'
-    ? { kind: 'active', expiresAt: session.expiresAt, accountId: session.accountId ?? null }
+    ? { kind: 'active', expiresAt: session.expiresAt, userId: session.userId ?? null }
     : { kind: 'inactive' }
 }
 
 function getActiveSessionUser(accountId: string | null, user: User | null): User | null {
-  if (user?.userId === accountId) return user
-  return sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
+  if (user && user.userId === accountId) return user
+  return sessionRecoveryUser && sessionRecoveryUser.userId === accountId ? sessionRecoveryUser : null
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
+  sessionInactive: false,
   user: null,
-  heldAccountId: null,
   expiresAt: null,
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
-    if (get().heldAccountId && get().heldAccountId !== loginResponse.userId) resetPostHogUser()
-    sessionOwnershipEpoch += 1
-    accountSwitchPending = false
-    accountGeneration += 1
-    void resetAccountQueries(getQueryClient(), 'signed-in')
-    startAccountScopedSession(get().heldAccountId, loginResponse.userId, true)
+
     sessionRecoveryUser = null
+    bindStepUpStateToAccount(loginResponse.userId)
+    startAccountScopedSession(loginResponse.userId, true)
     set({
       isAuthenticated: true,
-      heldAccountId: loginResponse.userId,
+      sessionInactive: false,
       user: {
         userId: loginResponse.userId,
         name: loginResponse.name,
@@ -127,43 +225,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
       sessionRefreshFailed: false,
     })
-    identifyPostHogUser(loginResponse.userId)
+    announceAccountToOtherTabs(loginResponse.userId)
   },
 
-  confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+  adoptServerAccount: (accountId: string) => {
+    if (get().sessionInactive || lastObservedAccountId !== null) return
+    adoptSessionAccount(accountId)
+    set({ isAuthenticated: true, sessionInactive: false, user: null, sessionRefreshFailed: false })
+  },
+
+  /**
+   * Signals trigger cookie reconciliation before publishing authentication or account scope.
+   * Their account ids can arrive after later writes, so neither name nor sign-out is proof.
+   */
+  adoptAccountFromSignal: () => {
+    sessionReadVersion += 1
+    void get().checkSession()
+  },
+
+  confirmSessionRefreshFailure: () => queueSessionRevalidation(async (requestVersion) => {
+    if (sessionReadVersion !== requestVersion) return
     if (get().sessionRefreshFailed) return
-    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
-    if (checkEpoch !== sessionOwnershipEpoch) return
+    if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'active') {
-      if (reloadWhenCookieReplacesAccount(get().heldAccountId, session.accountId)) return
-      const accountId = session.accountId ?? get().heldAccountId
-      if (get().heldAccountId !== accountId) {
-        accountGeneration += 1
-        void resetAccountQueries(getQueryClient(), 'signed-in')
-        startAccountScopedSession(get().heldAccountId, accountId)
-      }
-      const user = getActiveSessionUser(accountId, get().user)
+      adoptSessionAccount(session.userId)
+      const user = getActiveSessionUser(session.userId ?? getHeldAccountId(), get().user)
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
-        heldAccountId: accountId,
+        sessionInactive: false,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
-      if (accountId) identifyPostHogUser(accountId)
       return
     }
     if (session.kind === 'inactive') {
-      resetPostHogUser()
-      startAccountScopedSession(get().heldAccountId, null)
-      accountGeneration += 1
-      void resetAccountQueries(getQueryClient(), 'signed-out')
-      sessionRecoveryUser = null
+      endSessionLocally()
       set({
         isAuthenticated: false,
-        heldAccountId: null,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -172,9 +274,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     if (session.kind === 'rejected') {
       sessionRecoveryUser ??= get().user
-      resetPostHogUser()
+      clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
+        sessionInactive: false,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: true,
@@ -182,39 +285,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   }),
 
-  recoverSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+  recoverSessionRefreshFailure: () => queueSessionRevalidation(async (requestVersion) => {
+    if (sessionReadVersion !== requestVersion) return
     if (!get().sessionRefreshFailed) return
 
-    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
-    if (checkEpoch !== sessionOwnershipEpoch) return
+    if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'active') {
-      if (reloadWhenCookieReplacesAccount(get().heldAccountId, session.accountId)) return
-      const accountId = session.accountId ?? get().heldAccountId
-      if (get().heldAccountId !== accountId) {
-        accountGeneration += 1
-        void resetAccountQueries(getQueryClient(), 'signed-in')
-        startAccountScopedSession(get().heldAccountId, accountId)
-      }
-      const user = getActiveSessionUser(accountId, get().user)
+      adoptSessionAccount(session.userId)
+      const user = getActiveSessionUser(session.userId ?? getHeldAccountId(), get().user)
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
-        heldAccountId: accountId,
+        sessionInactive: false,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
-      if (accountId) identifyPostHogUser(accountId)
     } else if (session.kind === 'inactive') {
-      resetPostHogUser()
-      startAccountScopedSession(get().heldAccountId, null)
-      accountGeneration += 1
-      void resetAccountQueries(getQueryClient(), 'signed-out')
-      sessionRecoveryUser = null
+      endSessionLocally()
       set({
         isAuthenticated: false,
-        heldAccountId: null,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -223,44 +315,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }),
 
   checkSession: async () => {
-    if (get().sessionRefreshFailed) {
-      await get().recoverSessionRefreshFailure()
-      return
-    }
-    const checkEpoch = sessionOwnershipEpoch
+    const requestVersion = sessionReadVersion
     const session = await readCurrentSession()
-    if (checkEpoch !== sessionOwnershipEpoch) return
+    if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'rejected') {
-      await get().confirmSessionRefreshFailure()
+      if (!get().sessionRefreshFailed) await get().confirmSessionRefreshFailure()
       return
     }
     if (session.kind === 'active') {
-      if (reloadWhenCookieReplacesAccount(get().heldAccountId, session.accountId)) return
-      const accountId = session.accountId ?? get().heldAccountId
-      if (get().heldAccountId !== accountId) {
-        accountGeneration += 1
-        void resetAccountQueries(getQueryClient(), 'signed-in')
-        startAccountScopedSession(get().heldAccountId, accountId)
-      }
-      const user = getActiveSessionUser(accountId, get().user)
+      adoptSessionAccount(session.userId)
+      const user = getActiveSessionUser(session.userId ?? getHeldAccountId(), get().user)
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
-        heldAccountId: accountId,
+        sessionInactive: false,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
-      if (accountId) identifyPostHogUser(accountId)
     } else if (session.kind === 'inactive') {
-      resetPostHogUser()
-      startAccountScopedSession(get().heldAccountId, null)
-      accountGeneration += 1
-      void resetAccountQueries(getQueryClient(), 'signed-out')
-      sessionRecoveryUser = null
+      if (get().sessionInactive) return
+      endSessionLocally()
       set({
         isAuthenticated: false,
-        heldAccountId: null,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -268,9 +346,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  /**
+   * Watches the session two ways. The cross-tab signal arrives the moment another tab replaces the
+   * account, and the poll stays as the detector for any browser or context the signal never
+   * reaches. The poll is the safety net, not the mechanism, so neither one is removed.
+   */
   startExpiryMonitor: () => {
     void get().checkSession()
     let remainingRecoveryChecks = SESSION_RECOVERY_CHECK_LIMIT
+
+    const stopAccountSignal = subscribeToAccountSignal((accountId) => {
+      get().adoptAccountFromSignal(accountId)
+    })
 
     const intervalId = setInterval(() => {
       if (get().sessionRefreshFailed) {
@@ -281,57 +368,56 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return
       }
       remainingRecoveryChecks = SESSION_RECOVERY_CHECK_LIMIT
-      if (!get().isAuthenticated) {
+      const { isAuthenticated, sessionInactive } = get()
+      if (!isAuthenticated && sessionInactive) {
         return
       }
 
       void get().checkSession()
     }, EXPIRY_CHECK_INTERVAL)
 
-    return () => clearInterval(intervalId)
+    return () => {
+      stopAccountSignal()
+      clearInterval(intervalId)
+    }
   },
 
   logout: async () => {
-    const logoutEpoch = sessionOwnershipEpoch
-    const logoutAccountId = get().heldAccountId
+    const logoutEpoch = getSessionEpoch()
+    const logoutAccountId = getHeldAccountId()
+    let teardownEpoch: number | null
     try {
-      await withSessionCookieLock(async () => {
-        if (logoutEpoch !== sessionOwnershipEpoch) return
+      teardownEpoch = await withSessionCookieLock(async () => {
+        if (logoutEpoch !== getSessionEpoch()) return null
         await import('@/hooks/use-push-notification-preferences')
           .then((module) => module.releasePushSubscription(logoutAccountId))
           .catch((error: unknown) => Sentry.captureException(error))
+        if (logoutEpoch !== getSessionEpoch()) return null
+        endSessionLocally()
         try {
-          await fetch('/api/auth/logout', { method: 'POST' })
+          await fetchWithUpgradeGuidance('/api/auth/logout', { method: 'POST' })
         } catch {
         }
+        endSessionLocally()
+        const currentTeardownEpoch = getSessionEpoch()
+        set({
+          isAuthenticated: false,
+          sessionInactive: true,
+          user: null,
+          expiresAt: null,
+          sessionRefreshFailed: false,
+        })
+        announceAccountToOtherTabs(null)
+        return currentTeardownEpoch
       })
     } catch {
       return
     }
 
-    if (logoutEpoch !== sessionOwnershipEpoch) return
+    if (teardownEpoch === null || teardownEpoch !== getSessionEpoch()) return
 
-    clearDesignCookie()
-    sessionOwnershipEpoch += 1
-    accountSwitchPending = false
-    accountGeneration += 1
-    void resetAccountQueries(getQueryClient(), 'signed-out')
-    startAccountScopedSession(get().heldAccountId, null)
-    sessionRecoveryUser = null
-    resetPostHogUser()
-    set({
-      isAuthenticated: false,
-      heldAccountId: null,
-      user: null,
-      expiresAt: null,
-      sessionRefreshFailed: false,
-    })
     if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
     }
   },
 }))
-
-export function getHeldAccountId(): string | null {
-  return useAuthStore.getState().heldAccountId
-}

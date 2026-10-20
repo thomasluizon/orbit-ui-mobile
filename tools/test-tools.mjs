@@ -2,14 +2,23 @@
 
 import { existsSync, readdirSync } from "node:fs"
 import { dirname, join } from "node:path"
+import { performance } from "node:perf_hooks"
 import { fileURLToPath } from "node:url"
+
+const startedAt = performance.now()
+let assertionCount = () => 0
+process.on("exit", () => {
+  const elapsedSeconds = (performance.now() - startedAt) / 1000
+  console.log(`Assertions: ${assertionCount()} | Elapsed: ${elapsedSeconds.toFixed(3)}s`)
+})
 
 const USAGE = `usage: test-tools.mjs
 
-  Executes every script in tools/ and asserts its CLI contract and decision paths.
-  Takes no arguments; hermetic (no network, no worktree, no ticket system).
+  Executes scripts in tools/ and asserts their CLI contract and decision paths.
+  With no --only flags, runs the complete gate. Hermetic: no network, worktree, or ticket system.
 
-  --help, -h  print this usage and exit 0
+  --only <name>  run one registered case module; repeat to select more
+  --help, -h     print this usage and exit 0
 
 exit codes: 0 every check passed, 1 a failing check, 2 usage error`
 
@@ -18,21 +27,9 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
   process.exit(0)
 }
 
-if (process.argv.length > 2) {
-  console.error(`test-tools: takes no arguments, got: ${process.argv.slice(2).join(" ")}\n`)
-  console.error(USAGE)
-  process.exit(2)
-}
-
 const TOOLS_DIR = dirname(fileURLToPath(import.meta.url))
 const SELF = "test-tools.mjs"
 const LIB_DIR = join(TOOLS_DIR, "lib")
-
-// Loaded after the CLI contract, so --help and a bad argument stage no fixture root.
-const { BASH, T, assertionTally, beginToolScope, check, configure, endToolScope, failureCount, orphanCaseKeys, stage, toolPath } =
-  await import("./__tests__/_harness.mjs")
-
-configure({ toolsDir: TOOLS_DIR, self: SELF })
 
 /**
  * Each covered unit's decision-path module: [path under tools/, module under tools/__tests__/].
@@ -40,29 +37,48 @@ configure({ toolsDir: TOOLS_DIR, self: SELF })
  * universal contract to check and this registry is the only coverage it can carry.
  */
 const CASE_MODULES = [
+  ["lib/background-runs.mjs", "background-runs"],
+  ["add-ticket-to-project.mjs", "add-ticket-to-project"],
   ["android-emulator.mjs", "android-emulator"],
   ["arch-map.mjs", "arch-map"],
   ["board-view.mjs", "board-view"],
+  ["check-calibration.mjs", "check-calibration"],
+  ["check-feature-parity.mjs", "check-feature-parity"],
   ["check-dashes.mjs", "check-dashes"],
   ["check-docker-registries.mjs", "check-docker-registries"],
+  ["check-dependency-edits.mjs", "check-dependency-edits"],
+  ["check-gradients.mjs", "check-gradients"],
+  ["check-gate-charter.mjs", "check-gate-charter"],
+  ["check-hermetic-web-build.mjs", "check-hermetic-web-build"],
+  ["check-surface-scope.mjs", "check-surface-scope"],
   ["check-timeless.mjs", "check-timeless"],
+  ["check-i18n-usage.mjs", "check-i18n-usage"],
+  ["check-lockup-crop.mjs", "check-lockup-crop"],
+  ["check-lint-severity.mjs", "check-lint-severity"],
   ["check-push-target.mjs", "check-push-target"],
   ["check-review-harness.mjs", "check-review-harness"],
   ["check-root-allowlist.mjs", "check-root-allowlist"],
-  ["check-suppressions-ratchet.mjs", "check-suppressions-ratchet"],
+  ["check-sonar-paths.mjs", "check-sonar-paths"],
   ["check-workspace-overrides.mjs", "check-workspace-overrides"],
+  ["materialize-cloud-result.mjs", "materialize-cloud-result"],
+  ["merge-review-batch-body.mjs", "merge-review-batch-body"],
   ["comment-ticket.mjs", "comment-ticket"],
   ["compose-prompt.mjs", "compose-prompt"],
+  ["collect-session-evidence.mjs", "collect-session-evidence"],
   ["complete-ticket.mjs", "complete-ticket"],
   ["create-milestone.mjs", "create-milestone"],
   ["create-ticket.mjs", "create-ticket"],
+  ["create-worktree.mjs", "create-worktree"],
+  ["generate-brand-assets.mjs", "generate-brand-assets"],
   ["generate-performance-workflow.mjs", "generate-performance-workflow"],
   ["label-ticket.mjs", "label-ticket"],
   ["relate-ticket.mjs", "relate-ticket"],
   ["launch-worker.mjs", "launch-worker"],
   ["wait-ci.mjs", "wait-ci"],
+  ["submit-cloud-worker.mjs", "submit-cloud-worker"],
   ["wait-release.mjs", "wait-release"],
   ["lib/admission.mjs", "admission"],
+  ["lib/cloud-worker.mjs", "cloud-worker"],
   ["lib/orchestrator-config.mjs", "orchestrator-config"],
   ["lib/performance-measurement.mjs", "performance-measurement"],
   ["lib/bounded-process.mjs", "bounded-process"],
@@ -70,29 +86,86 @@ const CASE_MODULES = [
   ["lib/github-issues.mjs", "github-issues"],
   ["lib/github-rate-limit.mjs", "github-rate-limit"],
   ["lib/github-target.mjs", "github-target"],
+  ["lib/handoff-prompt.mjs", "handoff-prompt"],
   ["lib/identifier-ledger.mjs", "identifier-ledger"],
+  ["lib/integration-branch.mjs", "integration-branch"],
   ["lib/manual-steps.mjs", "manual-steps"],
   ["lib/readiness-receipt.mjs", "readiness-receipt"],
+  ["lib/research-run.mjs", "research-run"],
+  ["lib/review-harness.mjs", "review-harness"],
   ["lib/run-state.mjs", "run-state"],
+  ["lib/session-context.mjs", "session-context"],
+  ["lib/session-chain.mjs", "session-chain"],
+  ["lib/progress-window.mjs", "progress-window-core"],
+  ["progress-window.mjs", "progress-window"],
+  ["relay-session.mjs", "relay-session"],
   ["lib/ticket-executability.mjs", "ticket-executability"],
+  ["lib/win-spawn-target.mjs", "win-spawn-target"],
   ["list-bot-threads.mjs", "list-bot-threads"],
   ["orca-web-port.mjs", "orca-web-port"],
   ["plan-queue.mjs", "plan-queue"],
   ["record-readiness.mjs", "record-readiness"],
+  ["run-status.mjs", "run-status"],
+  ["start-relay-successor.mjs", "start-relay-successor"],
   ["record-gh-fixtures.mjs", "record-gh-fixtures"],
+  ["record-classifier-fixtures.mjs", "record-classifier-fixtures"],
   ["release-plan.mjs", "release-plan"],
   ["redesign-coverage.mjs", "redesign-coverage"],
+  ["reseed-calibration.mjs", "reseed-calibration"],
   ["resolve-bot-thread.mjs", "resolve-bot-thread"],
   ["salvage-worker.mjs", "salvage-worker"],
-  ["sync-issue-state.mjs", "sync-issue-state"],
   ["surface-manifest.mjs", "surface-manifest"],
+  ["sync-issue-state.mjs", "sync-issue-state"],
   ["teardown-worktree.mjs", "teardown-worktree"],
   ["update-ticket.mjs", "update-ticket"],
   ["verify-delivery.mjs", "verify-delivery"],
+  ["test-tools.mjs", "test-tools"],
 ]
 
+const REPOSITORY_CASE_MODULES = [
+  [".maestro/protected-route-redirect.yaml", "protected-route-redirect"],
+]
+
+const requestedModules = []
+for (let index = 2; index < process.argv.length; index++) {
+  const argument = process.argv[index]
+  if (argument !== "--only") {
+    console.error(`test-tools: unknown option: ${argument}\n`)
+    console.error(USAGE)
+    process.exit(2)
+  }
+  const name = process.argv[++index]
+  if (!name || name.startsWith("-")) {
+    console.error("test-tools: --only requires a case-module name\n")
+    console.error(USAGE)
+    process.exit(2)
+  }
+  requestedModules.push(name)
+}
+
+const validModules = CASE_MODULES.map(([, module]) => module)
+const unknownModules = [...new Set(requestedModules.filter((name) => !validModules.includes(name)))]
+if (unknownModules.length > 0) {
+  console.error(`test-tools: unknown case module(s): ${unknownModules.join(", ")}`)
+  console.error(`Valid case modules: ${validModules.join(", ")}`)
+  process.exit(2)
+}
+
+const requestedSet = new Set(requestedModules)
+const selectedCaseModules = requestedSet.size === 0
+  ? CASE_MODULES
+  : CASE_MODULES.filter(([, module]) => requestedSet.has(module))
+const selectedFiles = new Set(selectedCaseModules.map(([file]) => file))
+
+// Loaded after CLI validation, so --help and a bad argument stage no fixture root.
+const { BASH, T, assertionTally, beginToolScope, check, configure, endToolScope, failureCount, orphanCaseKeys, stage, toolPath } =
+  await import("./__tests__/_harness.mjs")
+
+configure({ toolsDir: TOOLS_DIR, self: SELF })
+assertionCount = () => Object.values(assertionTally()).reduce((total, count) => total + count, 0)
+
 const gateCases = {}
-for (const [file, module] of CASE_MODULES) {
+for (const [file, module] of selectedCaseModules) {
   const loaded = await import(`./__tests__/${module}.mjs`)
   if (typeof loaded.cases !== "function") {
     console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
@@ -101,51 +174,87 @@ for (const [file, module] of CASE_MODULES) {
   gateCases[file] = loaded.cases
 }
 
+const repositoryCases = {}
+for (const [file, module] of requestedSet.size === 0 ? REPOSITORY_CASE_MODULES : []) {
+  const loaded = await import(`./__tests__/${module}.mjs`)
+  if (typeof loaded.cases !== "function") {
+    console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
+    process.exit(1)
+  }
+  repositoryCases[file] = loaded.cases
+}
+
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
+  "progress-window.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "start-relay-successor.mjs": { argv: ["--launch", "invalid"], status: 2 },
+  "relay-session.mjs": { argv: ["--model", "untrusted"], status: 2 },
+  "add-ticket-to-project.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "android-emulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "board-view.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-feature-parity.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-calibration.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-docker-registries.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-timeless.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-dependency-edits.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-gradients.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-gate-charter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-hermetic-web-build.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-surface-scope.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-i18n-usage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-lockup-crop.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-lint-severity.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-review-harness.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-root-allowlist.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-sonar-paths.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-workspace-overrides.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "comment-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "compose-prompt.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "collect-session-evidence.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "complete-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "relate-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "create-milestone.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "create-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "create-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "generate-brand-assets.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "generate-performance-workflow.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "label-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "launch-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "wait-ci.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "materialize-cloud-result.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "merge-review-batch-body.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "wait-release.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "list-bot-threads.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "orca-web-port.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "plan-queue.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "run-status.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "record-readiness.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "record-classifier-fixtures.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "record-gh-fixtures.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "release-plan.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "reseed-calibration.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "resolve-bot-thread.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "salvage-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "sync-issue-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "sync-issue-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "submit-cloud-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "update-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "verify-delivery.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
 }
 
-console.log("# structural coverage")
 const scripts = readdirSync(TOOLS_DIR)
   .filter((file) => /\.(mjs|sh|ps1)$/.test(file) && file !== SELF)
   .sort()
+const libraries = existsSync(LIB_DIR) ? readdirSync(LIB_DIR).filter((file) => file.endsWith(".mjs")).sort() : []
+const registeredCaseFiles = new Set(CASE_MODULES.map(([file]) => file))
+const contractScripts = requestedSet.size === 0 ? scripts : scripts.filter((file) => selectedFiles.has(file))
+console.log("# structural coverage")
 const uncovered = scripts.filter((file) => !INVALID_INPUT[file])
 T(
   `every tools/ script has coverage (${scripts.length} scripts)`,
@@ -153,20 +262,13 @@ T(
   `no COVERAGE entry for: ${uncovered.join(", ")}\n     Add one to INVALID_INPUT (and a CASE_MODULES row plus a tools/__tests__ module if it has decision paths) in tools/${SELF}.`,
 )
 T("the coverage guard actually enumerated scripts", scripts.length > 0, "tools/ resolved to zero scripts, so this gate proved nothing")
-/**
- * The reverse direction, and the one a deletion breaks: a row naming a script that no longer
- * exists is dead weight that reads as coverage. The harness rebuild deleted 29 tools at once and
- * every one of their rows stayed behind, so this fails rather than printing a note.
- */
 const staleRows = Object.keys(INVALID_INPUT).filter((file) => !scripts.includes(file))
 T(
   "every COVERAGE entry names a tools/ script that exists",
   staleRows.length === 0,
   `INVALID_INPUT rows with no tools/ script: ${staleRows.join(", ")}\n     Delete the row, or restore the script it claims to cover.`,
 )
-
-const libraries = existsSync(LIB_DIR) ? readdirSync(LIB_DIR).filter((file) => file.endsWith(".mjs")).sort() : []
-const uncoveredLibraries = libraries.filter((file) => !gateCases[`lib/${file}`])
+const uncoveredLibraries = libraries.filter((file) => !registeredCaseFiles.has(`lib/${file}`))
 T(
   `every tools/lib/ module has a case module (${libraries.length} modules)`,
   uncoveredLibraries.length === 0,
@@ -174,8 +276,8 @@ T(
 )
 
 console.log("\n# universal contract (tools/CONVENTIONS.md)")
-T("a real bash is resolvable", Boolean(BASH) || !scripts.some((file) => file.endsWith(".sh")), "no working bash found; set ORBIT_BASH to one (the PATH bash on Windows is the WSL stub)")
-for (const file of scripts) {
+T("a real bash is resolvable", Boolean(BASH) || !contractScripts.some((file) => file.endsWith(".sh")), "no working bash found; set ORBIT_BASH to one (the PATH bash on Windows is the WSL stub)")
+for (const file of contractScripts) {
   if (file.endsWith(".sh") && !BASH) continue
   check(file, "--help exits 0 with usage on stdout", ["--help"], { status: 0, stdout: /usage|Usage/ })
   const invalid = INVALID_INPUT[file]
@@ -199,31 +301,47 @@ T(
   orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(",") === "absent.mjs",
   `orphanCaseKeys reported ${orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(", ")} instead of absent.mjs`,
 )
-const orphanedCaseKeys = orphanCaseKeys(Object.keys(gateCases), TOOLS_DIR)
+const orphanedCaseKeys = orphanCaseKeys(CASE_MODULES.map(([file]) => file), TOOLS_DIR)
 T(
   "every registered case key names a real tools/ file",
   orphanedCaseKeys.length === 0,
   `CASE_MODULES rows with no tools/ file: ${orphanedCaseKeys.join(", ")}\n     A skipped key exits 0 while its cases never run. Delete the row or restore the file.`,
 )
+
 for (const [file, cases] of Object.entries(gateCases)) {
   if (orphanedCaseKeys.includes(file)) continue
   beginToolScope(file)
   await cases()
   endToolScope()
 }
-
-console.log("\n# assertion coverage")
-const tally = assertionTally()
-for (const [tool, count] of Object.entries(tally).sort(([left], [right]) => left.localeCompare(right))) {
-  console.log(`${String(count).padStart(4)}  ${tool}`)
+const missingRepositoryCaseFiles = Object.keys(repositoryCases).filter(
+  (file) => !existsSync(join(TOOLS_DIR, "..", file)),
+)
+T(
+  "every registered repository case key names a file that exists",
+  missingRepositoryCaseFiles.length === 0,
+  `repository case rows with no file: ${missingRepositoryCaseFiles.join(", ")}`,
+)
+for (const [file, cases] of Object.entries(repositoryCases)) {
+  beginToolScope(file)
+  await cases()
+  endToolScope()
 }
-const silent = Object.keys(gateCases).filter((file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0))
+
+const tally = assertionTally()
+const expectedCaseFiles = [...Object.keys(gateCases), ...Object.keys(repositoryCases)]
+const silent = expectedCaseFiles.filter((file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0))
 T(
   "every registered case module ran at least one assertion",
   silent.length === 0,
   `case modules that asserted nothing: ${silent.join(", ")}\n     An assertion that stops running prints nothing at all. Restore the cases.`,
 )
 
+const printedTally = assertionTally()
 const failures = failureCount()
+console.log("\n# assertion coverage")
+for (const [tool, count] of Object.entries(printedTally).sort(([left], [right]) => left.localeCompare(right))) {
+  console.log(`${String(count).padStart(4)}  ${tool}`)
+}
 console.log(`\n${failures === 0 ? "ORBIT TOOLS GATE OK" : `ORBIT TOOLS GATE FAILED (${failures})`}`)
 process.exit(failures === 0 ? 0 : 1)

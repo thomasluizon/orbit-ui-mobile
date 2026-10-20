@@ -1,3 +1,4 @@
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import type { useRouter } from 'next/navigation'
 import type { useTranslations } from 'next-intl'
 import {
@@ -23,6 +24,7 @@ class AuthFetchError extends Error {
 
 interface AuthErrorState {
   message: string
+  key: string
 }
 
 export function getCookieValue(name: string): string | undefined {
@@ -64,23 +66,23 @@ export function mergeRequestIdIntoBody(body: unknown, requestId: string | null):
 export function resolveLoginErrorState(
   err: unknown,
   t: ReturnType<typeof useTranslations>,
-  source: 'google' | 'magic-code' = 'magic-code',
+  source: 'google' | 'magic-code' | 'send' = 'magic-code',
 ): AuthErrorState {
   const status = isAuthFetchError(err) ? err.status : undefined
   const body = isAuthFetchError(err) ? err.body : err
   const backendMessage = extractAuthBackendMessage(body)
   const key = resolveAuthLoginErrorKey({ status, backendMessage, raw: err, source })
 
-  return { message: t(key) }
+  return { key, message: t(key) }
 }
 
 export async function fetchAuthEndpoint(
   url: string,
   body: Record<string, unknown>,
 ): Promise<unknown> {
-  const request = () => fetch(url, {
+  const request = () => fetchWithThrottle(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Accept-Language': typeof body.language === 'string' ? body.language : 'en' },
     body: JSON.stringify(body),
   })
   const response = url === '/api/auth/verify-code'
@@ -100,19 +102,13 @@ export async function handleVerifySuccess(
   loginResponse: LoginResponse,
   referralCode: string | undefined,
   setAuth: (lr: LoginResponse) => void,
-  setSuccessMessage: (msg: string | null) => void,
-  t: ReturnType<typeof useTranslations>,
   router: ReturnType<typeof useRouter>,
   getReturnUrl: () => string,
 ) {
   setAuth(loginResponse)
   await hydrateProfilePresentation()
   if (referralCode) {
-    localStorage.setItem('orbit_referral_applied', '1')
     document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
-  }
-  if (loginResponse.wasReactivated) {
-    setSuccessMessage(t('profile.deleteAccount.reactivated'))
   }
   setRouteTransitionIntent('replace')
   router.push(getReturnUrl())

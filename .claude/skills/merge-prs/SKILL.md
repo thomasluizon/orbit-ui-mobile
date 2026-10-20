@@ -151,6 +151,7 @@ that required a human conflict handoff.
 End the report with one explicit **"Still outstanding"** list: every manual step collected above, per
 merged ticket, expanded and numbered, or the single line `No manual steps outstanding.`
 
-A merge does not complete deployment or rollout steps. Say what remains while the owner is reading.
+A merge is not a deploy, and a deploy is not a rollout. Report every remaining console action
+at the time the owner reads the result.
 
 **Never do the step yourself.** These land in a vendor console under the owner's account. Print them.

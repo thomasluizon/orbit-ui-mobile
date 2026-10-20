@@ -4,6 +4,8 @@ The `Contract Drift` pull request job in `.github/workflows/test.yml` regenerate
 `src/types/__generated__/api.generated.ts` from the orbit-api commit recorded in
 `src/types/__generated__/api.spec.commit`. The two files must agree. A later
 orbit-api merge cannot change the result of an existing UI pull request.
+UI `main` pins orbit-api `main`. UI `redesign/main` pins orbit-api
+`redesign/main`.
 
 The generated file is a diff target only. It is excluded from the barrel, `tsc`,
 ESLint, and coverage. The hand-written Zod schemas in `src/types/*` remain the
@@ -12,17 +14,25 @@ the append-only and deploy-API-first rules in the root `CLAUDE.md`.
 
 ## Rebaseline pull requests
 
-`.github/workflows/contract-rebaseline.yml` runs every six hours on the default
-branch, `main`. It also accepts the `orbit-api-contract-drift`
-`repository_dispatch` event. GitHub runs both triggers from the default branch;
-the `redesign/main` port is separate. The `generate` job compares the committed
-OpenAPI spec at the pin with orbit-api `main`. When the spec bytes differ, it
-regenerates with `orval@8.37.0` and updates the pin. The `publish` job opens or
-updates the single `chore/contract-snapshot` pull request against `main`. It
-never pushes to `main`.
-The branch name and workflow concurrency group keep repeat runs on one pull
-request. A spec change that produces identical Zod output still updates the pin,
-so the review shows the spec moved.
+The default branch copy of `.github/workflows/contract-rebaseline.yml` runs every
+six hours and on `orbit-api-contract-drift` `repository_dispatch`. It compares
+UI `main` with orbit-api `main` and uses the single `chore/contract-snapshot`
+pull request.
+
+GitHub only runs scheduled workflows on the default branch. To rebaseline
+`redesign/main`, dispatch the existing `Redesign drift control` workflow against
+that ref:
+
+```bash
+gh workflow run redesign-drift.yml --ref redesign/main
+```
+
+The redesign workflow calls `.github/workflows/contract-rebaseline.yml` at the
+same commit. It compares the pinned spec with orbit-api `redesign/main` and
+opens or updates one `chore/contract-snapshot-redesign` pull request against UI
+`redesign/main`. It never pushes to either base branch. Both jobs regenerate
+with `orval@8.37.0`. A spec change that produces identical Zod output still
+updates the pin, so the review shows that the spec moved.
 
 Review that pull request's generated diff. If the consumed contract changed,
 update the matching hand-written Zod schemas in the shared package before
@@ -32,9 +42,9 @@ The workflow runs two jobs. The `generate` job runs `npm ci` and Orval with a
 read-only token and uploads only the two generated files. The `publish` job
 installs nothing and mints a repository-scoped GitHub App token with
 `contents: write` and `pull-requests: write`. It uses that token to push and
-open or update the pull request, so the pull request starts its checks without
-manual approval. It commits and pushes with `core.hooksPath=/dev/null`, so no
-install script or repository hook runs while the write token exists.
+open or update the pull request, so its checks start without manual approval.
+It commits and pushes with `core.hooksPath=/dev/null`, so no install script or
+repository hook runs while the write token exists.
 
 Create a GitHub App installed only on `thomasluizon/orbit-ui-mobile` with
 Contents and Pull requests read/write permissions. Set its App ID as the

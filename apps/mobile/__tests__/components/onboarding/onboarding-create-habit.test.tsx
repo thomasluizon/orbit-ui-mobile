@@ -1,34 +1,311 @@
-import { describe, expect, it } from 'vitest'
+import React from 'react'
+import { Text } from 'react-native'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import {
-  getOnboardingHabitFrequencyLabelKey,
-  ONBOARDING_HABIT_FREQUENCIES,
-  ONBOARDING_HABIT_SUGGESTIONS,
+  getOnboardingReminderPreviewTime,
+  ONBOARDING_STARTERS,
 } from '@orbit/shared/utils'
+import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
+import { i18n } from '@/lib/i18n'
+
+;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => undefined },
+  useTranslation: () => ({ t: i18n.t.bind(i18n), i18n }),
+}))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
+vi.mock('@/components/ui/time-field', () => ({ TimeField: () => React.createElement('TimeField') }))
+
+const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
+
+function prop<T>(node: ReturnType<typeof TestRenderer.create>['root'], key: string): T {
+  return Reflect.get(node.props, key) as T
+}
+
+function flattenText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenText).join('')
+  if (typeof node === 'object' && 'props' in node) return flattenText((node as { props: { children?: unknown } }).props.children)
+  if (typeof node === 'object' && 'children' in node) return flattenText((node as { children?: unknown }).children)
+  return ''
+}
+
+const schedule = { frequencyUnit: 'Week' as const, frequencyQuantity: 3, intervalWeeks: 2, days: [], isGeneral: false, isFlexible: true, dueTime: '' }
+const base = { title: 'Walk outside', emoji: '🚶', days: [], dueTime: '', schedule, proposed: true, correcting: false, canSaveRepeatWeeks: true, atLimit: false, allowance: 5, onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
+
+const everyThirdMonday = { ...schedule, frequencyUnit: 'Day' as const, frequencyQuantity: 1, intervalWeeks: 3, days: ['Monday'], isFlexible: false }
+
+function readText(tree: ReturnType<typeof TestRenderer.create>): string {
+  return tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')
+}
+
+const weekdayCases = [
+  ['Sunday', 'todo domingo', 'domingos', false],
+  ['Monday', 'toda segunda', 'segundas', true],
+  ['Tuesday', 'toda terça', 'terças', true],
+  ['Wednesday', 'toda quarta', 'quartas', true],
+  ['Thursday', 'toda quinta', 'quintas', true],
+  ['Friday', 'toda sexta', 'sextas', true],
+  ['Saturday', 'todo sábado', 'sábados', false],
+] as const
+const scheduleCases = [
+  ...weekdayCases.map(([day, single]) => ({ days: [day], portuguese: single, english: `every ${day}`, weeks: 1 })),
+  ...weekdayCases.flatMap(([first, , firstPlural, firstFeminine], index) =>
+    weekdayCases.slice(index + 1).map(([second, , secondPlural, secondFeminine]) => ({
+      days: [first, second],
+      portuguese: `${firstFeminine ? 'às' : 'aos'} ${firstPlural} e ${firstFeminine === secondFeminine ? '' : secondFeminine ? 'às ' : 'aos '}${secondPlural}`,
+      english: `every ${first} and ${second}`, weeks: 1,
+    }))),
+  { days: ['Monday', 'Thursday', 'Saturday'], portuguese: 'às segundas, quintas e aos sábados', english: 'every Monday, Thursday and Saturday', weeks: 1 },
+  { days: ['Sunday'], portuguese: 'a cada 2 semanas, aos domingos', english: 'every 2 weeks on Sunday', weeks: 2 },
+  { days: ['Monday'], portuguese: 'a cada 2 semanas, às segundas', english: 'every 2 weeks on Monday', weeks: 2 },
+  { days: ['Friday', 'Saturday'], portuguese: 'a cada 2 semanas, às sextas e aos sábados', english: 'every 2 weeks on Friday and Saturday', weeks: 2 },
+  { days: weekdayCases.map(([day]) => day), portuguese: 'a cada 2 semanas, aos domingos, às segundas, terças, quartas, quintas, sextas e aos sábados', english: 'every 2 weeks on Sunday, Monday, Tuesday, Wednesday, Thursday, Friday and Saturday', weeks: 2 },
+]
+const localizedScheduleCases = scheduleCases.flatMap((scheduleCase) =>
+  (['en', 'pt-BR'] as const).flatMap((locale) => ['', '08:00'].map((time) => ({
+    ...scheduleCase, locale, time,
+    expected: `${locale === 'en' ? scheduleCase.english : scheduleCase.portuguese}${time ? `${locale === 'en' ? ' at ' : ' às '}${time}` : ''}`,
+  }))))
 
 describe('OnboardingCreateHabit data', () => {
-  it('exposes the expected habit suggestions', () => {
-    expect(ONBOARDING_HABIT_SUGGESTIONS.map((suggestion) => suggestion.key)).toEqual([
-      'water',
-      'read',
-      'exercise',
-      'meditate',
-    ])
+  beforeAll(async () => {
+    await i18n.changeLanguage('en')
   })
 
-  it('maps onboarding frequencies to label keys', () => {
-    expect(ONBOARDING_HABIT_FREQUENCIES.map((item) => item.value)).toEqual([
-      'Day',
-      'Week',
-      'one-time',
-    ])
-    expect(getOnboardingHabitFrequencyLabelKey('Day')).toBe(
-      'onboarding.flow.createHabit.frequency.daily',
+  it.each(localizedScheduleCases)('formats onboarding $days in $locale at $time every $weeks weeks', async ({ days, locale, time, weeks, expected }) => {
+    await i18n.changeLanguage(locale)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(<OnboardingCreateHabit {...base} schedule={{ ...everyThirdMonday, days, intervalWeeks: weeks, dueTime: time }} />)
+      })
+      expect(readText(tree)).not.toMatch(/toda (sábado|domingo)|todo (segunda|terça|quarta|quinta|sexta)/)
+      expect(readText(tree)).toContain(expected)
+      const proposal = tree.root.findAll((node) => typeof node.props.accessibilityHint === 'string' && node.props.accessibilityRole === 'button').at(0)
+      expect(prop<string>(proposal!, 'accessibilityHint')).toContain(expected)
+    } finally {
+      await TestRenderer.act(() => tree.update(<></>))
+      await i18n.changeLanguage('en')
+    }
+  })
+
+  it('exposes the four sentence starters', () => {
+    expect(ONBOARDING_STARTERS).toEqual(['water', 'walk', 'read', 'tidy'])
+  })
+
+  it('previews reminders fifteen minutes early', () => {
+    expect(getOnboardingReminderPreviewTime('18:00')).toBe('17:45')
+  })
+
+  it('shows and corrects a flexible cadence without weekdays', async () => {
+    const onModeChange = vi.fn()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingCreateHabit {...base} onModeChange={onModeChange} />)
+    })
+
+    const renderedText = tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')
+    expect(renderedText).toContain('3 times a week, any day')
+    expect(renderedText).toContain('Walk outside')
+    expect(renderedText).toContain('Leave empty for any time of day')
+    const proposal = tree.root.findAll((node) => node.props.accessibilityLabel === 'Correct schedule. Emoji proposed by Astra' && typeof node.props.onPress === 'function').at(0)
+    expect(proposal).toBeDefined()
+    expect(prop<string>(proposal!, 'accessibilityHint')).toContain('Walk outside. 3 times a week, any day. Time: Any time')
+    await TestRenderer.act(() => prop<() => void>(proposal!, 'onPress')())
+    await TestRenderer.act(() => tree.update(<OnboardingCreateHabit {...base} correcting onModeChange={onModeChange} />))
+    const fixed = tree.root.findAll((node) => node.props.testID === 'segment-fixed-unselected-enabled').at(0)
+    expect(fixed).toBeDefined()
+    await TestRenderer.act(() => prop<() => void>(fixed!, 'onPress')())
+
+    expect(onModeChange).toHaveBeenCalledWith('fixed')
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'More times' && typeof node.props.onPress === 'function').length).toBeGreaterThan(0)
+  })
+
+  it('announces the proposal emoji through the correction button', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingCreateHabit {...base} />)
+    })
+    const buttons = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule. Emoji proposed by Astra')
+    expect(buttons).toHaveLength(1)
+    expect(prop<string>(buttons[0]!, 'accessibilityHint')).toContain('Walk outside. 3 times a week, any day. Time: Any time')
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Astra')).toHaveLength(0)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.importantForAccessibility === 'no-hide-descendants' && flattenText(node.props.children) === '🚶')).toHaveLength(1)
+  })
+
+  it('omits the proposal emoji well when no emoji was proposed', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingCreateHabit {...base} emoji="" />)
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Astra')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule').length).toBeGreaterThan(0)
+  })
+
+  it('names the proposal emoji in Portuguese', async () => {
+    await i18n.changeLanguage('pt-BR')
+    try {
+      let tree!: ReturnType<typeof TestRenderer.create>
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(<OnboardingCreateHabit {...base} />)
+      })
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposto pela Astra')).toHaveLength(0)
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Corrigir frequência. Emoji proposto pela Astra')).toHaveLength(1)
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+
+  it.each([
+    [{ ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 1, isFlexible: false }, 'once'],
+    [{ ...schedule, frequencyUnit: 'Week' as const, frequencyQuantity: 2, intervalWeeks: 1, isFlexible: false }, 'every 2 weeks'],
+    [{ ...schedule, frequencyUnit: 'Year' as const, frequencyQuantity: 3, intervalWeeks: 1, isFlexible: false }, 'every 3 years'],
+  ])('shows the saved cadence as %s', async (savedSchedule, sentence) => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingCreateHabit {...base} schedule={savedSchedule} correcting={false} />)
+    })
+    const renderedText = tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')
+    expect(renderedText).toContain(sentence)
+  })
+
+  it('gives every weekday chip its full localized name', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingCreateHabit {...base} proposed={false} correcting schedule={{ ...schedule, frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, days: ['Monday'], isFlexible: false }} />)
+    })
+    const labels = new Set(
+      tree.root
+        .findAll((node) => prop<{ selected?: boolean } | undefined>(node, 'accessibilityState')?.selected !== undefined)
+        .map((node) => node.props.accessibilityLabel),
     )
-    expect(getOnboardingHabitFrequencyLabelKey('Week')).toBe(
-      'onboarding.flow.createHabit.frequency.weekly',
-    )
-    expect(getOnboardingHabitFrequencyLabelKey(undefined)).toBe(
-      'onboarding.flow.createHabit.frequency.oneTime',
-    )
+    expect(labels).toContain('Sunday')
+    expect(labels).toContain('Saturday')
+    expect(labels).not.toContain('S')
+  })
+
+  it('never offers a repeat interval the saved habit would drop', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit
+          {...base}
+          proposed={false}
+          correcting
+          schedule={{ ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 4, days: [], isGeneral: true, isFlexible: false }}
+        />,
+      )
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Repeat more often')).toHaveLength(0)
+  })
+
+  it('offers the repeat interval once a weekday carries it', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit
+          {...base}
+          proposed={false}
+          correcting
+          schedule={{ ...schedule, frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 4, days: ['Monday'], isFlexible: false }}
+        />,
+      )
+    })
+    const renderedText = tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Repeat more often').length).toBeGreaterThan(0)
+    expect(renderedText).toContain('Every 4 weeks')
+  })
+
+  it('hides the repeat stepper from a signed-out run, which cannot save one', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit {...base} proposed={false} correcting canSaveRepeatWeeks={false} schedule={everyThirdMonday} />,
+      )
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Repeat more often')).toHaveLength(0)
+    expect(readText(tree)).not.toContain('Every 3 weeks')
+  })
+
+  it('drops the interval from a signed-out cadence sentence', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit {...base} proposed correcting={false} canSaveRepeatWeeks={false} schedule={everyThirdMonday} />,
+      )
+    })
+    expect(readText(tree)).toContain('every Monday')
+    expect(readText(tree)).not.toContain('every 3 weeks on Monday')
+    await TestRenderer.act(() => {
+      tree.update(<OnboardingCreateHabit {...base} proposed correcting={false} canSaveRepeatWeeks schedule={everyThirdMonday} />)
+    })
+    expect(readText(tree)).toContain('every 3 weeks on Monday')
+  })
+
+  it('lets a recurring proposal change its unit and quantity', async () => {
+    const onFrequencyUnitChange = vi.fn()
+    const onQuantityChange = vi.fn()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit
+          {...base}
+          correcting
+          schedule={{ ...schedule, frequencyUnit: 'Week', frequencyQuantity: 2, isFlexible: false }}
+          onFrequencyUnitChange={onFrequencyUnitChange}
+          onQuantityChange={onQuantityChange}
+        />,
+      )
+    })
+
+    const months = tree.root.findAll((node) => node.props.testID === 'segment-Month-unselected-enabled').at(0)
+    const more = tree.root.findAll((node) => node.props.accessibilityLabel === 'Repeat later' && typeof node.props.onPress === 'function').at(0)
+    expect(months).toBeDefined()
+    expect(more).toBeDefined()
+    await TestRenderer.act(() => prop<() => void>(months!, 'onPress')())
+    await TestRenderer.act(() => prop<() => void>(more!, 'onPress')())
+    expect(onFrequencyUnitChange).toHaveBeenCalledWith('Month')
+    expect(onQuantityChange).toHaveBeenCalledWith(3)
+  })
+
+  it.each([
+    ['Day', 'times a day'],
+    ['Week', 'times a week'],
+    ['Month', 'times a month'],
+    ['Year', 'times a year'],
+  ] as const)('describes a flexible quantity using the selected %s unit', async (frequencyUnit, description) => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit
+          {...base}
+          proposed={false}
+          correcting
+          schedule={{ ...schedule, frequencyUnit }}
+        />,
+      )
+    })
+    const renderedText = tree.root
+      .findAll((node) => (node.type as unknown) === Text)
+      .map((node) => flattenText(node.props.children))
+      .join('')
+    expect(renderedText).toContain(description)
+  })
+
+  it('shows a one-time proposal as the selected correction mode', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit
+          {...base}
+          correcting
+          schedule={{ ...schedule, frequencyUnit: null, frequencyQuantity: null, isFlexible: false }}
+        />,
+      )
+    })
+    expect(tree.root.findAll((node) => node.props.testID === 'segment-oneTime-selected-enabled')).not.toHaveLength(0)
   })
 })

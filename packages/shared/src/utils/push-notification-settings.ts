@@ -1,4 +1,4 @@
-export type PushStatusTone = 'accent' | 'critical' | 'muted'
+export type PushStatusTone = 'critical' | 'muted'
 
 export type WebPushPermission = 'default' | 'denied' | 'granted' | ''
 
@@ -35,31 +35,17 @@ export interface NativePushStatusSnapshot {
   isRegistered: boolean
 }
 
-export interface NativePushPromptSnapshot extends NativePushStatusSnapshot {
-  hasCompletedOnboarding: boolean
-  isSupported: boolean
-  isDismissed: boolean
-}
-
 export function getPushStatusToneClass(tone: PushStatusTone): string {
   if (tone === 'critical') {
     return 'text-[var(--status-bad-text)]'
-  }
-
-  if (tone === 'accent') {
-    return 'text-[var(--primary)]'
   }
 
   return 'text-[var(--fg-3)]'
 }
 
 export function getWebPushStatusTone(status: WebPushPreferenceStatus): PushStatusTone {
-  if (status === 'denied' || status === 'sync-failed') {
+  if (status === 'sync-failed') {
     return 'critical'
-  }
-
-  if (status === 'registered') {
-    return 'accent'
   }
 
   return 'muted'
@@ -96,17 +82,15 @@ export function getNativePushStatusTone(
   registrationStatus: NativePushRegistrationStatus,
   permissionStatus: NativePushPermissionStatus,
 ): PushStatusTone {
+  if (permissionStatus === 'denied' || registrationStatus === 'permission-denied') {
+    return 'muted'
+  }
+
   if (
-    permissionStatus === 'denied' ||
-    registrationStatus === 'permission-denied' ||
     registrationStatus === 'sync-failed' ||
     registrationStatus === 'token-missing'
   ) {
     return 'critical'
-  }
-
-  if (registrationStatus === 'registered') {
-    return 'accent'
   }
 
   return 'muted'
@@ -166,35 +150,4 @@ export function getWebPushStatusPresentation(
     messageKey: getWebPushStatusMessageKey(status, permission),
     tone: getWebPushStatusTone(status),
   }
-}
-
-export function shouldShowNativePushPrompt({
-  hasCompletedOnboarding,
-  isDismissed,
-  isEnabled,
-  isRegistered,
-  isSupported,
-  permissionStatus,
-  registrationStatus,
-}: NativePushPromptSnapshot): boolean {
-  if (!hasCompletedOnboarding || isDismissed) {
-    return false
-  }
-
-  if (
-    !isSupported ||
-    permissionStatus === null ||
-    permissionStatus === 'denied' ||
-    registrationStatus === 'unsupported' ||
-    registrationStatus === 'permission-denied' ||
-    registrationStatus === 'disabled' ||
-    registrationStatus === 'registering' ||
-    registrationStatus === 'registered' ||
-    isEnabled ||
-    isRegistered
-  ) {
-    return false
-  }
-
-  return true
 }

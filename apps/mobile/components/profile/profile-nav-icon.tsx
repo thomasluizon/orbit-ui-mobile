@@ -1,43 +1,38 @@
 import {
-  Calendar,
-  ChartLine,
-  Compass,
-  Gift,
+  Bell,
+  Crown,
   Settings,
-  Sparkles,
-  CircleHelp,
-  Wrench,
-  Trophy,
-} from 'lucide-react-native'
+  User,
+  CalendarPlus,
+  Gift,
+  HelpCircle,
+  Info,
+  MessageCircle,
+  Smartphone,
+  type Icon,
+} from '@/components/ui/icons'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
+
+const ICON_BY_KEY: Record<ProfileNavIconKey, Icon> = {
+  astra: MessageCircle,
+  account: User,
+  pro: Crown,
+  preferences: Settings,
+  notifications: Bell,
+  wrapped: Gift,
+  widget: Smartphone,
+  calendar: CalendarPlus,
+  support: HelpCircle,
+  info: Info,
+}
 
 export function ProfileNavIcon({
   iconKey,
   color,
 }: Readonly<{
   iconKey: ProfileNavIconKey
-  color: string
+  color?: string
 }>) {
-  switch (iconKey) {
-    case 'settings':
-      return <Settings size={22} color={color} strokeWidth={1.8} />
-    case 'orbit':
-      return <Sparkles size={22} color={color} strokeWidth={1.8} />
-    case 'retrospective':
-      return <ChartLine size={22} color={color} strokeWidth={1.8} />
-    case 'wrapped':
-      return <Gift size={22} color={color} strokeWidth={1.8} />
-    case 'achievements':
-      return <Trophy size={22} color={color} strokeWidth={1.8} />
-    case 'calendar':
-      return <Calendar size={22} color={color} strokeWidth={1.8} />
-    case 'info':
-      return <CircleHelp size={22} color={color} strokeWidth={1.8} />
-    case 'wrench':
-      return <Wrench size={22} color={color} strokeWidth={1.8} />
-    case 'compass':
-      return <Compass size={22} color={color} strokeWidth={1.8} />
-    default:
-      return null
-  }
+  const IconComponent = ICON_BY_KEY[iconKey]
+  return <IconComponent size={24} color={color} strokeWidth={1.5} />
 }

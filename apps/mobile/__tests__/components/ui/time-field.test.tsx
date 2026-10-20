@@ -1,0 +1,491 @@
+import React, { useState } from 'react'
+import type { Time24 } from '@orbit/shared/contracts/forms'
+import { Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { formatLocaleTime } from '@orbit/shared/utils'
+import {
+  __resetTestHostConfig,
+  __setScrollToImpl,
+} from '../../../test-mocks/react-native'
+
+import { TimeField } from '@/components/ui/time-field'
+import { PillButton } from '@/components/ui/pill-button'
+import { createTokensV2 } from '@/lib/theme'
+import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
+
+const TestRenderer = require('react-test-renderer')
+
+let mockUses24HourClock: boolean | undefined = true
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({
+    profile: mockUses24HourClock === undefined ? undefined : {
+      uses24HourClock: mockUses24HourClock,
+      timeZone: 'America/Sao_Paulo',
+    },
+  }),
+}))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, values?: Record<string, unknown>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key,
+    i18n: { language: mockUses24HourClock ? 'pt-BR' : 'en-US' },
+  }),
+}))
+
+function column(tree: any, columnLabel: string): any {
+  const found = tree.root.findAll(
+    (node: any) =>
+      node.props?.accessibilityRole === 'radiogroup' &&
+      node.props?.accessibilityLabel === columnLabel,
+  )[0]
+  if (!found) throw new Error(`Column not found: ${columnLabel}`)
+  return found
+}
+
+function radioOption(tree: any, columnLabel: string, label: string): any {
+  return column(tree, columnLabel).findAll(
+    (node: any) =>
+      node.props?.accessibilityRole === 'radio' && node.props?.accessibilityLabel === label,
+  )[0]
+}
+
+async function openPicker(tree: any) {
+  const [textTrigger] = tree.root.findAllByType(Pressable)
+  await TestRenderer.act(async () => {
+    await Promise.resolve()
+    textTrigger.props.onPress()
+  })
+}
+
+async function pressOption(tree: any, columnLabel: string, label: string) {
+  const option = radioOption(tree, columnLabel, label)
+  expect(option).toBeDefined()
+  await TestRenderer.act(async () => {
+    await Promise.resolve()
+    return option.props.onPress()
+  })
+}
+
+async function pressDone(tree: any) {
+  const done = tree.root
+    .findAllByType(Pressable)
+    .find((node: any) =>
+      node.findAll(
+        (child: any) => child.type === 'Text' && child.props.children === 'common.done',
+      ).length > 0,
+    )
+  if (!done) throw new Error('Done action not found')
+  await TestRenderer.act(async () => {
+    await Promise.resolve()
+    return done.props.onPress()
+  })
+}
+
+function ProfileTimeFields() {
+  const [value, setValue] = useState<Time24 | ''>('')
+  return (
+    <>
+      <TimeField label="Start" value={value} onChange={setValue} onClear={() => setValue('')} />
+      <TimeField label="End" value="" onChange={vi.fn()} disabled={!value} />
+    </>
+  )
+}
+
+describe('TimeField', () => {
+  it.each([
+    { typed: '08:00', expected: '08:00', enabled: true },
+    { typed: '8:13 pm', expected: '20:13', enabled: true },
+    { typed: '12:00 am', expected: '00:00', enabled: true },
+    { typed: '08:', expected: '', enabled: false },
+    { typed: '25:00', expected: '', enabled: false },
+    { typed: '', expected: '', enabled: false },
+  ])('reconciles "$typed" when the profile resolves its hour cycle', async ({ typed, expected, enabled }) => {
+    mockUses24HourClock = undefined
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { await Promise.resolve(); tree = TestRenderer.create(<ProfileTimeFields />) })
+    const input = (label: string) => tree.root.findAllByType('TextInput').find(
+      (node: { props: { accessibilityLabel: string } }) => node.props.accessibilityLabel === label,
+    )
+    expect(input('Start').props.keyboardType).toBe('default')
+    TestRenderer.act(() => input('Start').props.onFocus())
+    TestRenderer.act(() => input('Start').props.onChangeText(typed))
+    mockUses24HourClock = true
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.update(<ProfileTimeFields />) })
+    expect(input('Start').props.keyboardType).toBe('number-pad')
+    expect(input('Start').props.value).toBe(enabled ? expected : typed)
+    expect(input('End').props.editable).toBe(enabled)
+    TestRenderer.act(() => input('Start').props.onBlur())
+    expect(input('Start').props.value).toBe(expected)
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.unmount() })
+  })
+
+  it('does not commit a draft after the field becomes disabled while the profile resolves', async () => {
+    mockUses24HourClock = undefined
+    const onChange = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(<TimeField label="Time" value="" onChange={onChange} />)
+    })
+    const input = () => tree.root.findByType('TextInput')
+    TestRenderer.act(() => input().props.onFocus())
+    TestRenderer.act(() => input().props.onChangeText('08:00'))
+    expect(onChange).not.toHaveBeenCalled()
+    mockUses24HourClock = true
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree.update(<TimeField label="Time" value="" onChange={onChange} disabled />)
+    })
+    expect(input().props.editable).toBe(false)
+    expect(onChange).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.unmount() })
+  })
+
+  it('presents a committed time in 12-hour format when the preference changes while typing', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { await Promise.resolve(); tree = TestRenderer.create(<ProfileTimeFields />) })
+    const input = () => tree.root.findAllByType('TextInput')[0]
+    TestRenderer.act(() => input().props.onFocus())
+    TestRenderer.act(() => input().props.onChangeText('20:13'))
+    mockUses24HourClock = false
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.update(<ProfileTimeFields />) })
+    expect(input().props.value).toBe('8:13 pm')
+    TestRenderer.act(() => input().props.onBlur())
+    expect(input().props.value).toBe('8:13 pm')
+    expect(tree.root.findAllByType('TextInput')[1].props.editable).toBe(true)
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.unmount() })
+  })
+
+
+  it.each([true, false])('keeps every selected value tinted and ringed at rest and press with 24-hour clock %s', async (uses24HourClock) => {
+    mockUses24HourClock = uses24HourClock
+    let tree: any
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(<TimeField value="21:00" onChange={vi.fn()} />)
+    })
+    await openPicker(tree)
+
+    const selectedOptions = [
+      radioOption(tree, 'common.hours', uses24HourClock ? '21' : '09'),
+      radioOption(tree, 'common.minutes', '00'),
+      ...(uses24HourClock ? [] : [radioOption(tree, 'common.amPm', 'PM')]),
+    ]
+    const unselected = radioOption(tree, 'common.hours', '07')
+    const tokens = createTokensV2('purple', 'dark')
+
+    for (const option of [...selectedOptions, unselected]) {
+      expect(StyleSheet.flatten(option.props.style({ pressed: false }))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+    }
+    expect(StyleSheet.flatten(unselected.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover)
+    for (const selected of selectedOptions) {
+      for (const pressed of [false, true]) {
+        expect(StyleSheet.flatten(selected.props.style({ pressed })).backgroundColor).toBe(tokens.bgHover)
+      }
+      const label = selected.findAll((node: any) => node.type === 'Text')[0]
+      expect(StyleSheet.flatten(label.props.style).color).toBe(tokens.fg1)
+      const host = selected.findByType(Pressable)
+      expect(StyleSheet.flatten(host.props.style({ pressed: false }))).toMatchObject({ borderWidth: 2, borderColor: tokens.primary, borderRadius: 12 })
+      expect(selected.props.focusColor).toBe(tokens.fg1)
+    }
+  })
+
+  it('keeps one ring on the focused time entry', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TimeField value="" onChange={vi.fn()} label="Time" />)
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onFocus())
+    const row = tree.root.findAllByType('View').find((node: any) =>
+      Array.isArray(node.props.style) && node.props.style[1]?.borderWidth === 2,
+    )
+    expect(row).toBeDefined()
+    expect(row.props.style[1].outlineWidth ?? 0).toBe(0)
+  })
+
+  it('shows the focus border when the time entry also has an error', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TimeField value="" onChange={vi.fn()} label="Time" error="Required" />)
+      await Promise.resolve()
+    })
+    const row = () => tree.root.findAllByType('View').find((node: any) =>
+      Array.isArray(node.props.style) && node.props.style[1]?.borderWidth === 2,
+    )
+    const errorColor = row().props.style[1].borderColor
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onFocus())
+    expect(row().props.style[1].borderColor).not.toBe(errorColor)
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onBlur())
+    expect(row().props.style[1].borderColor).toBe(errorColor)
+  })
+
+  beforeEach(() => {
+    mockUses24HourClock = true
+    __resetTestHostConfig()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('renders the display value in the locale 24-hour format when uses24HourClock is true', async () => {
+    let tree: any
+
+    await TestRenderer.act(async () => {
+await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="14:30" onChange={vi.fn()} placeholder="HH:MM" />),
+      )
+    })
+
+    const [input] = tree.root.findAllByType('TextInput')
+    expect(input.props.value).toBe(
+      formatLocaleTime('14:30', 'pt-BR', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: false,
+      }),
+    )
+  })
+
+  it('offers every minute, so an odd minute like 07:13 is selectable in a 24-hour locale', async () => {
+    const onChange = vi.fn()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />),
+      )
+    })
+
+    await openPicker(tree)
+    await pressOption(tree, 'common.hours', '07')
+    await pressOption(tree, 'common.minutes', '13')
+    const done = tree.root.findAllByType(PillButton)[0]
+    expect(done.props.size).toBe('sm')
+    expect(done.props.matchedWidth).toBeFalsy()
+    await pressDone(tree)
+
+    expect(onChange).toHaveBeenCalledWith('07:13')
+  })
+
+  it('keeps the canonical HH:MM value for an odd minute picked in a 12-hour locale', async () => {
+    mockUses24HourClock = false
+    const onChange = vi.fn()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />),
+      )
+    })
+
+    await openPicker(tree)
+    await pressOption(tree, 'common.hours', '09')
+    await pressOption(tree, 'common.minutes', '45')
+    await pressOption(tree, 'common.amPm', 'PM')
+    await pressDone(tree)
+
+    expect(onChange).toHaveBeenCalledWith('21:45')
+  })
+
+  it('opens on the persisted odd minute rather than snapping it to a half hour', async () => {
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="07:15" onChange={vi.fn()} placeholder="HH:MM" />),
+      )
+    })
+
+    await openPicker(tree)
+
+    expect(radioOption(tree, 'common.hours', '07').props.accessibilityState).toEqual({ checked: true })
+    expect(radioOption(tree, 'common.minutes', '15').props.accessibilityState).toEqual({ checked: true })
+  })
+
+  it('keeps picker scrolling independent and reaches a late selected hour', async () => {
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    let tree: ReturnType<typeof TestRenderer.create>
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />),
+      )
+    })
+
+    await openPicker(tree)
+    const hours = column(tree, 'common.hours')
+    const minutes = column(tree, 'common.minutes')
+    const hoursScroll = hours.findAll((node: any) => node.type === 'ScrollView')[0]
+    const minutesScroll = minutes.findAll((node: any) => node.type === 'ScrollView')[0]
+    expect(hoursScroll.props.nestedScrollEnabled).toBe(false)
+    expect(minutesScroll.props.nestedScrollEnabled).toBe(false)
+
+    TestRenderer.act(() => {
+      hoursScroll.props.onLayout({ nativeEvent: { layout: { height: 220 } } })
+      minutesScroll.props.onLayout({ nativeEvent: { layout: { height: 220 } } })
+    })
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: 940, animated: false })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 2668, animated: false })
+  })
+
+  it('renders a clear button when value is set and onClear is provided', async () => {
+    const onClear = vi.fn()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="14:30" onChange={vi.fn()} onClear={onClear} />),
+      )
+    })
+
+    const pressables = tree.root.findAllByType(Pressable)
+    const clearButton = pressables.find(
+      (p: any) => p.props.accessibilityLabel === 'common.clear',
+    )
+
+    expect(clearButton).toBeDefined()
+
+    await TestRenderer.act(async () => {
+await Promise.resolve()
+      clearButton.props.onPress()
+    })
+
+    expect(onClear).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not render a clear button when value is empty', async () => {
+    let tree: any
+
+    await TestRenderer.act(async () => {
+await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="" onChange={vi.fn()} onClear={vi.fn()} />),
+      )
+    })
+
+    const pressables = tree.root.findAllByType(Pressable)
+    const clearButton = pressables.find(
+      (p: any) => p.props.accessibilityLabel === 'common.clear',
+    )
+
+    expect(clearButton).toBeUndefined()
+  })
+
+  it('keeps initial column focus on the receiving time without changing selection', async () => {
+    const onChange = vi.fn()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="23:59" onChange={onChange} placeholder="HH:MM" />),
+      )
+    })
+    await openPicker(tree)
+
+    TestRenderer.act(() => {
+      focusHost(tree, radioOption(tree, 'common.hours', '00'))
+    })
+
+    expect(radioOption(tree, 'common.hours', '23').props.accessibilityState.checked).toBe(true)
+    expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(false)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('leaves directional focus to the platform so arrows reach the other columns', async () => {
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="14:30" onChange={vi.fn()} placeholder="HH:MM" />),
+      )
+    })
+    await openPicker(tree)
+    const radiosIn = (columnLabel: string) => column(tree, columnLabel).findAll(
+      (node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'radio',
+    )
+    const hours = radiosIn('common.hours')
+    const minutes = radiosIn('common.minutes')
+
+    expect(hours.length).toBeGreaterThan(1)
+    expect(minutes.length).toBeGreaterThan(1)
+    expect(hours.every((hour: any) => hour.props.focusable === true)).toBe(true)
+    expect(minutes.every((minute: any) => minute.props.focusable === true)).toBe(true)
+    for (const direction of [
+      'nextFocusDown',
+      'nextFocusForward',
+      'nextFocusLeft',
+      'nextFocusRight',
+      'nextFocusUp',
+    ]) {
+      expect(hours.every((hour: any) => hour.props[direction] === undefined)).toBe(true)
+      expect(minutes.every((minute: any) => minute.props[direction] === undefined)).toBe(true)
+    }
+  })
+
+  it('selects a time option when native focus moves inside its column', async () => {
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />),
+      )
+    })
+    await openPicker(tree)
+    TestRenderer.act(() => {
+      focusHost(tree, radioOption(tree, 'common.hours', '23'))
+      focusHost(tree, radioOption(tree, 'common.hours', '00'))
+    })
+    expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(true)
+    TestRenderer.act(() => {
+      focusHost(tree, radioOption(tree, 'common.minutes', '59'))
+      focusHost(tree, radioOption(tree, 'common.minutes', '00'))
+    })
+    expect(radioOption(tree, 'common.minutes', '00').props.accessibilityState.checked).toBe(true)
+  })
+
+  it('treats a time column re-entry as entry instead of movement', async () => {
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(
+          <>
+            <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />
+            <View focusable accessibilityLabel="Outside" />
+          </>,
+        ),
+      )
+    })
+    await openPicker(tree)
+    const selectedHour = radioOption(tree, 'common.hours', '23')
+    const nextHour = radioOption(tree, 'common.hours', '00')
+    const outside = tree.root.find(
+      (node: any) => typeof node.type === 'string'
+        && node.props.accessibilityLabel === 'Outside',
+    )
+    TestRenderer.act(() => {
+      focusHost(tree, selectedHour)
+      focusHost(tree, outside)
+      focusHost(tree, nextHour)
+    })
+
+    expect(radioOption(tree, 'common.hours', '23').props.accessibilityState.checked).toBe(true)
+    expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(false)
+  })
+})

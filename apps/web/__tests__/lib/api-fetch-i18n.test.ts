@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const mockToastError = vi.fn()
-vi.mock('sonner', () => ({
-  toast: {
-    error: (...args: unknown[]) => mockToastError(...args),
-  },
-}))
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
@@ -17,7 +13,8 @@ vi.mock('@/stores/auth-store', () => ({
   },
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
+vi.mock('@orbit/shared/utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@orbit/shared/utils')>()),
   buildClientTimeZoneHeaders: vi.fn(() => ({
     'X-Orbit-Time-Zone': 'America/Sao_Paulo',
   })),
@@ -31,6 +28,7 @@ describe('setApiFetchTranslate', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     mockToastError.mockReset()
+    useAppToastStore.setState({ showError: mockToastError, currentToast: null, queue: [] })
   })
 
   it('uses translated toast titles when translate function is set', async () => {
@@ -39,20 +37,15 @@ describe('setApiFetchTranslate', () => {
     const translate = (key: string) => `translated:${key}`
     setApiFetchTranslate(translate)
 
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: () => Promise.resolve({}),
-    })
+    mockFetch.mockResolvedValue(Response.json({}, { status: 400 }))
 
     try {
-      await apiFetch('/api/test')
+      await apiFetch('/api/test', { method: 'POST' })
     } catch {
     }
 
     expect(mockToastError).toHaveBeenCalledWith(
       'translated:toast.errors.validation',
-      expect.any(Object),
     )
   })
 
@@ -68,20 +61,15 @@ describe('setApiFetchTranslate', () => {
     const translate = (translationKey: string) => `t:${translationKey}`
     setApiFetchTranslate(translate)
 
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status,
-      json: () => Promise.resolve({}),
-    })
+    mockFetch.mockResolvedValue(Response.json({}, { status }))
 
     try {
-      await apiFetch('/api/test')
+      await apiFetch('/api/test', { method: 'POST' })
     } catch {
     }
 
     expect(mockToastError).toHaveBeenCalledWith(
       key,
-      expect.any(Object),
     )
   })
 })

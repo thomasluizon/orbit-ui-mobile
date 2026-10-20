@@ -31,7 +31,7 @@ describe('calendarEventsResponseSchema', () => {
       startUtc: null,
       endUtc: null,
       recurrenceTimeZone: null,
-    }])).toEqual([event])
+    }])).toEqual([{ ...event, startUtc: null, recurrenceTimeZone: null }])
   })
 
   it.each([{}, null, [{ id: 1 }]])('rejects malformed response %j', (body) => {

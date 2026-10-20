@@ -21,7 +21,6 @@ import { API } from '@orbit/shared/api'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
-import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { resolveActiveScheme } from './resolve-active-scheme'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
@@ -45,7 +44,6 @@ export interface ThemeContextValue {
   surfaces: AppSurfaces
   radius: AppRadius
   shadows: AppShadows
-  applyScheme: (scheme: ColorScheme) => void
   applyTheme: (theme: ThemeMode) => void
   toggleTheme: () => void
 }
@@ -55,17 +53,6 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 interface TransitionSnapshot {
   background: string
   accent: string
-}
-
-function persistColorScheme(scheme: ColorScheme): Promise<unknown> {
-  return performQueuedApiMutation({
-    type: 'setColorScheme',
-    scope: 'profile',
-    endpoint: API.profile.colorScheme,
-    method: 'PUT',
-    payload: { colorScheme: scheme },
-    dedupeKey: 'profile-color-scheme',
-  })
 }
 
 function persistThemePreference(theme: ThemeMode): Promise<unknown> {
@@ -79,20 +66,27 @@ function persistThemePreference(theme: ThemeMode): Promise<unknown> {
   })
 }
 
-export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
+export function ThemeProvider({
+  captureTheme,
+  children,
+}: Readonly<{
+  captureTheme: ThemeMode | null
+  children: ReactNode
+}>) {
   const systemScheme = useSystemColorScheme()
   const { profile, patchProfile } = useProfile()
-  const draftColorScheme = useOnboardingDraftStore((s) => s.colorScheme)
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(
-    () => resolveActiveScheme(profile, draftColorScheme) ?? resolveAccessibleColorScheme(null, true),
+    () => resolveActiveScheme(profile) ?? resolveAccessibleColorScheme(null, true),
   )
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(
-    systemScheme === 'light' ? 'light' : 'dark',
+    () => captureTheme ?? (
+      profile?.themePreference === 'light' || profile?.themePreference === 'dark'
+        ? profile.themePreference
+        : systemScheme === 'light' ? 'light' : 'dark'
+    ),
   )
   const [transitionSnapshot, setTransitionSnapshot] = useState<TransitionSnapshot | null>(null)
-  // useMemo (not useRef) for the Animated.Value so we don't read .current during
-  // render — React 19's react-hooks/refs forbids that. The instance is created
-  // once on mount and is referentially stable for the lifetime of the provider.
+  /** React 19 forbids reading a ref during render, so this stable value is memoized. */
   const transitionOpacity = useMemo(() => new Animated.Value(0), [])
   const transitionFrameRef = useRef<number | null>(null)
   const hasMountedRef = useRef(false)
@@ -155,7 +149,10 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     }
 
     const previous = previousThemeRef.current
-    if (previous.scheme !== currentScheme || previous.theme !== currentTheme) {
+    if (
+      captureTheme === null &&
+      (previous.scheme !== currentScheme || previous.theme !== currentTheme)
+    ) {
       const previousTokens = createTokensV2(previous.scheme, previous.theme)
       runThemeTransition({
         background: previousTokens.bg,
@@ -163,42 +160,31 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
       })
       previousThemeRef.current = { scheme: currentScheme, theme: currentTheme }
     }
-  }, [currentScheme, currentTheme, runThemeTransition])
+  }, [captureTheme, currentScheme, currentTheme, runThemeTransition])
 
-  // Sync local state from profile via the "Adjusting state when a prop changes"
-  // pattern (compare prev-snapshot during render, setState only on transitions).
-  // React 19 forbids setState in effects when the cause is a prop change.
-  const targetScheme = resolveActiveScheme(profile, draftColorScheme)
+  /** React 19 requires prop-driven state transitions to be adjusted during render. */
+  const targetScheme = resolveActiveScheme(profile)
   const [previousTargetScheme, setPreviousTargetScheme] = useState<ColorScheme | null>(targetScheme)
   if (targetScheme !== null && targetScheme !== previousTargetScheme) {
     setPreviousTargetScheme(targetScheme)
     setCurrentScheme(targetScheme)
   }
 
-  const targetTheme =
+  const targetTheme = captureTheme ?? (
     profile?.themePreference === 'dark' || profile?.themePreference === 'light'
       ? profile.themePreference
       : null
+  )
   const [previousTargetTheme, setPreviousTargetTheme] = useState<ThemeMode | null>(targetTheme)
   if (targetTheme !== null && targetTheme !== previousTargetTheme) {
     setPreviousTargetTheme(targetTheme)
     setCurrentTheme(targetTheme)
   }
 
-  const hasSeededSchemeRef = useRef(false)
   const hasSeededThemeRef = useRef(false)
 
   useEffect(() => {
-    if (!profile) return
-
-    if (profile.colorScheme == null && !hasSeededSchemeRef.current) {
-      hasSeededSchemeRef.current = true
-      const defaultScheme: ColorScheme = 'purple'
-      patchProfile({ colorScheme: defaultScheme })
-      persistColorScheme(defaultScheme).catch(() => {
-        // Best-effort fire-and-forget
-      })
-    }
+    if (!profile || captureTheme !== null) return
 
     if (profile.themePreference == null && !hasSeededThemeRef.current) {
       hasSeededThemeRef.current = true
@@ -206,24 +192,9 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
       const detected: ThemeMode = detectedSystem === 'light' ? 'light' : 'dark'
       void Promise.resolve().then(() => setCurrentTheme(detected))
       patchProfile({ themePreference: detected })
-      persistThemePreference(detected).catch(() => {
-        // Best-effort fire-and-forget
-      })
+      persistThemePreference(detected).catch(() => {})
     }
-  }, [profile, patchProfile])
-
-  const applyScheme = useCallback((scheme: ColorScheme) => {
-    const prev = currentScheme
-    setCurrentScheme(scheme)
-    setRuntimeTheme({ scheme, themeMode: getRuntimeTheme().themeMode })
-    patchProfile({ colorScheme: scheme })
-
-    persistColorScheme(scheme).catch((_err: unknown) => {
-      setCurrentScheme(prev)
-      setRuntimeTheme({ scheme: prev, themeMode: getRuntimeTheme().themeMode })
-      patchProfile({ colorScheme: prev })
-    })
-  }, [currentScheme, patchProfile])
+  }, [captureTheme, profile, patchProfile])
 
   const applyTheme = useCallback((theme: ThemeMode) => {
     const prev = currentTheme
@@ -248,10 +219,9 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     surfaces: createSurfaces(currentScheme, currentTheme),
     radius,
     shadows,
-    applyScheme,
     applyTheme,
     toggleTheme,
-  }), [applyScheme, applyTheme, currentScheme, currentTheme, toggleTheme])
+  }), [applyTheme, currentScheme, currentTheme, toggleTheme])
 
   return (
     <ThemeContext.Provider value={value}>

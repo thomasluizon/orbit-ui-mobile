@@ -1,10 +1,11 @@
 'use client'
 
-import { createApiClientError } from '@orbit/shared'
+import { createApiClientError } from '@orbit/shared/utils/error-utils'
 import { unstable_isUnrecognizedActionError } from 'next/navigation'
-import { toast } from 'sonner'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { reportsAccountChanged, type ServerActionResult } from '@/app/actions/action-result'
-import { getAccountGeneration, getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { translateApiFetchMessage } from '@/lib/api-fetch'
 import { getAccountEventOrigin } from '@/lib/account-event-origin'
 import { useVersionGateStore } from '@/stores/version-gate-store'
@@ -26,8 +27,7 @@ export function captureAccountIntent() {
   const generation = getAccountGeneration()
   return {
     intendedAccountId,
-    stillCurrent: () => intendedAccountId === getHeldAccountId()
-      && generation === getAccountGeneration(),
+    stillCurrent: () => intendedAccountId === getHeldAccountId() && generation === getAccountGeneration(),
     run: <T>(task: () => T) => withAccountIntent(intendedAccountId, task),
   }
 }
@@ -37,24 +37,25 @@ export function reportAccountChanged(): void {
   if (!message) return
   const reloadLabel = translateApiFetchMessage('errors.api.reload')
   useVersionGateStore.getState().requireReload('accountChanged')
-  toast.error(message, {
-    id: 'account-changed',
-    duration: Infinity,
-    ...(reloadLabel ? { action: { label: reloadLabel, onClick: () => globalThis.location.reload() } } : {}),
-  })
+  useAppToastStore.getState().showToast(reloadLabel
+    ? { kind: 'neutral', message, actionLabel: reloadLabel, onAction: () => globalThis.location.reload() }
+    : { kind: 'neutral', message })
 }
 
 export function reportAccountChangedIfNeeded(error: unknown): void {
   if (reportsAccountChanged(error)) reportAccountChanged()
 }
 
+export function accountIntentWithOrigin(accountId: string | null): string | null {
+  const eventOrigin = getAccountEventOrigin()
+  return eventOrigin ? JSON.stringify({ accountId, eventOrigin }) : accountId
+}
+
 export async function applyServerActionFailure<T>(result: ServerActionResult<T>): Promise<void> {
+  if (!result.ok && result.status === 426) useVersionGateStore.getState().markUpgradeRequired(null)
   if (!result.ok && reportsAccountChanged(result)) {
     reportAccountChanged()
-    throw createApiClientError(result.status, {
-      error: result.error,
-      errorCode: result.code,
-    }, result.error)
+    throw createApiClientError(result.status, { error: result.error, errorCode: result.code }, result.error)
   }
   if (!result.ok && result.sessionRefreshFailed) {
     await useAuthStore.getState().confirmSessionRefreshFailure()
@@ -91,7 +92,7 @@ export async function runServerAction<T>(
 
   throw createApiClientError(
     result.status,
-    { error: result.error, ...(result.code ? { errorCode: result.code } : {}) },
+    { error: result.error, ...(result.code ? { errorCode: result.code } : {}), errors: result.fieldErrors, errorDetails: result.errorDetails },
     result.error,
   )
 }
@@ -110,9 +111,4 @@ export function bindAccountServerAction<Arguments extends unknown[], T>(
     ...arguments_,
     accountIntentWithOrigin(activeAccountIntent === undefined ? getHeldAccountId() : activeAccountIntent),
   ), failureMode)
-}
-
-export function accountIntentWithOrigin(accountId: string | null): string | null {
-  const eventOrigin = getAccountEventOrigin()
-  return eventOrigin ? JSON.stringify({ accountId, eventOrigin }) : accountId
 }

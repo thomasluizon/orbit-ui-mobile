@@ -8,19 +8,26 @@ import {
   buildHabitQueryString,
   buildUrlWithQuery,
   fetchAllPaginatedItems,
+  habitListQueryFilters,
   normalizeHabitQueryData,
+  loadHabitListSchedule,
+  shouldFetchAllHabitPages,
   sortNormalizedHabits,
 } from '@orbit/shared/utils'
 import type {
-  HabitDetail,
-  HabitFullDetail,
-  HabitMetrics,
   HabitsFilter,
   HabitScheduleItem,
   NormalizedHabit,
   PaginatedResponse,
 } from '@orbit/shared/types/habit'
-import type { HabitLog } from '@orbit/shared/types/calendar'
+import {
+  createPaginatedSchema,
+  habitDetailSchema,
+  habitFullDetailSchema,
+  habitMetricsSchema,
+  habitScheduleItemSchema,
+} from '@orbit/shared/types/habit'
+import { habitLogSchema } from '@orbit/shared/types/calendar'
 import { fetchJson } from '@/lib/api-fetch'
 
 export interface NormalizedHabitsData {
@@ -31,6 +38,8 @@ export interface NormalizedHabitsData {
   totalPages: number
   currentPage: number
 }
+
+const habitPageSchema = createPaginatedSchema(habitScheduleItemSchema)
 
 const selectNormalizedHabits = (items: HabitScheduleItem[]): NormalizedHabitsData =>
   normalizeHabitQueryData(items)
@@ -44,18 +53,24 @@ function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
   return { ...filters, pageSize: 200 }
 }
 
-export function useHabits(filters: HabitsFilter, enabled = true) {
+export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleItem[], options: { completeDay?: boolean; scheduleDate?: string } = {}) {
+  const completeDay = options.completeDay ?? false
   const queryClient = useQueryClient()
+  const scheduleDate = filters.dateFrom || filters.isGeneral ? undefined : options.scheduleDate
   const query = useQuery({
-    queryKey: habitKeys.list(filters as Record<string, unknown>),
+    queryKey: habitKeys.list(habitListQueryFilters(filters, completeDay, scheduleDate)),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
+      const enrichSchedule = (items: HabitScheduleItem[]) => loadHabitListSchedule(items, scheduleDate,
+        async (scheduleFilters) => habitPageSchema.parse(await fetchJson<unknown>(
+          buildUrlWithQuery(API.habits.list, buildHabitQueryString(scheduleFilters)),
+        )))
       const requestFilters = withDefaultPageSize(filters)
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
-      const firstPage = await fetchJson<PaginatedResponse<HabitScheduleItem>>(firstQuery)
+      const firstPage = habitPageSchema.parse(await fetchJson<unknown>(firstQuery))
 
-      if (requestFilters.page || firstPage.totalPages <= 1) {
+      if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
         queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-        return firstPage.items
+        return enrichSchedule(firstPage.items)
       }
 
       const items = await fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
@@ -64,14 +79,14 @@ export function useHabits(filters: HabitsFilter, enabled = true) {
 
           const pageFilters = { ...requestFilters, page }
           const pageUrl = buildUrlWithQuery(API.habits.list, buildHabitQueryString(pageFilters))
-          return fetchJson<PaginatedResponse<HabitScheduleItem>>(pageUrl)
+          return habitPageSchema.parse(await fetchJson<unknown>(pageUrl))
         },
       )
       queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-      return deduplicateHabitList(items)
+      return enrichSchedule(deduplicateHabitList(items))
     },
     staleTime: QUERY_STALE_TIMES.habits,
-    enabled,
+    initialData: initialItems,
     select: selectNormalizedHabits,
     refetchOnReconnect: true,
   })
@@ -98,7 +113,7 @@ export function useHabits(filters: HabitsFilter, enabled = true) {
 export function useHabitDetail(id: string | null) {
   return useQuery({
     queryKey: habitKeys.detail(id ?? ''),
-    queryFn: () => fetchJson<HabitDetail>(API.habits.get(id ?? '')),
+    queryFn: async () => habitDetailSchema.parse(await fetchJson<unknown>(API.habits.get(id ?? ''))),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -107,7 +122,7 @@ export function useHabitDetail(id: string | null) {
 export function useHabitMetrics(id: string | null) {
   const query = useQuery({
     queryKey: habitKeys.metrics(id ?? ''),
-    queryFn: () => fetchJson<HabitMetrics>(API.habits.metrics(id ?? '')),
+    queryFn: async () => habitMetricsSchema.parse(await fetchJson<unknown>(API.habits.metrics(id ?? ''))),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -122,7 +137,7 @@ export function useHabitMetrics(id: string | null) {
 export function useHabitLogs(id: string | null) {
   return useQuery({
     queryKey: habitKeys.logs(id ?? ''),
-    queryFn: () => fetchJson<HabitLog[]>(`${API.habits.get(id ?? '')}/logs`),
+    queryFn: async () => habitLogSchema.array().parse(await fetchJson<unknown>(`${API.habits.get(id ?? '')}/logs`)),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -131,7 +146,7 @@ export function useHabitLogs(id: string | null) {
 export function useHabitFullDetail(id: string | null) {
   return useQuery({
     queryKey: habitKeys.fullDetail(id ?? ''),
-    queryFn: () => fetchJson<HabitFullDetail>(API.habits.detail(id ?? '')),
+    queryFn: async () => habitFullDetailSchema.parse(await fetchJson<unknown>(API.habits.detail(id ?? ''))),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -162,3 +177,14 @@ export {
   normalizeHabits,
   sortNormalizedHabits as sortByPosition,
 } from '@orbit/shared/utils'
+
+export function useSearchHabits(filters: HabitsFilter) {
+  return useQuery({
+    queryKey: habitKeys.search(filters as Record<string, unknown>),
+    queryFn: () => fetchJson<PaginatedResponse<HabitScheduleItem>>(
+      buildUrlWithQuery(API.habits.list, buildHabitQueryString(filters)),
+    ),
+    select: (response): NormalizedHabitsData => normalizeHabitQueryData(response.items, response),
+    staleTime: QUERY_STALE_TIMES.habits,
+  })
+}

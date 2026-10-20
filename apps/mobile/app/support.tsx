@@ -1,86 +1,81 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { SPACING } from '@orbit/shared/theme'
+import { unmappedBackendFormError } from '@orbit/shared/hooks'
+import { extractBackendFieldErrors, getBackendFieldError } from '@orbit/shared/utils'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
+  AccessibilityInfo,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Check } from 'lucide-react-native'
+import { useRouter } from 'expo-router'
+import { getAppVersion } from '@/lib/app-version'
+import { Check, WifiOff } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
-import { buildSupportRequestBody, getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import {
+  buildSupportRequestBody,
+  attachSupportVersion,
+  getFriendlyErrorMessage,
+  getSupportMessageFit,
+  getSupportMessageMaxLength,
+  getSupportSendReasonKey,
+  normalizeSupportSubjectId,
+  SUPPORT_SUBJECT_OPTIONS,
+  type SupportSubjectId,
+} from '@orbit/shared/utils'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
-import { AppTextInput } from '@/components/ui/app-text-input'
+import { SupportReplyEmail } from '@/components/support-reply-email'
+import { Input } from '@/components/ui/input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
+import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { AppBar } from '@/components/ui/app-bar'
+import {
+  forgetStoredSupportDraft,
+  readStoredSupportDraft,
+  writeStoredSupportDraft,
+} from '@/lib/support-draft-storage'
+import { PageHeader } from '@/components/ui/page-header'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioRow } from '@/components/ui/select-check'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
-
-interface SupportFieldProps {
-  label: string
-  value: string
-  onChangeText: (v: string) => void
-  placeholder: string
-  multiline?: boolean
-  tokens: Tokens
+interface SupportDraft {
+  subject: SupportSubjectId | null
+  message: string
 }
 
-function SupportField({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  multiline = false,
+function SupportSuccessState({
   tokens,
-}: Readonly<SupportFieldProps>) {
-  return (
-    <View style={styles.fieldWrap}>
-      <Text style={[styles.fieldLabel, { color: tokens.fg2 }]}>
-        {label}
-      </Text>
-      <AppTextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        multiline={multiline}
-        numberOfLines={multiline ? 6 : 1}
-        textAlignVertical={multiline ? 'top' : 'auto'}
-        accessibilityLabel={label}
-        style={multiline ? styles.inputMultiline : null}
-      />
-    </View>
-  )
-}
-
-function SupportSuccessState({ tokens }: Readonly<{ tokens: Tokens }>) {
+  email,
+  onBack,
+}: Readonly<{ tokens: Tokens; email: string; onBack: () => void }>) {
   const { t } = useTranslation()
   return (
     <View style={styles.successBlock}>
       <View
-        style={[
-          styles.successIconCircle,
-          { backgroundColor: tintFromPrimary(tokens, 0.15) },
-        ]}
+        accessible={false}
+        style={[styles.successIconCircle, { backgroundColor: tokens.fg1 }]}
       >
-        <Check size={34} color={tokens.primarySoft} strokeWidth={1.8} />
+        <Check size={24} color={tokens.bg} strokeWidth={1.8} accessible={false} />
       </View>
-      <Text style={[styles.successTitle, { color: tokens.fg1 }]}>
+      <Text accessibilityRole="header" style={[styles.successTitle, { color: tokens.fg1 }]}>
         {t('profile.support.success')}
       </Text>
       <Text style={[styles.successHint, { color: tokens.fg2 }]}>
-        {t('profile.support.successHint')}
+        {t('profile.support.successHint', { email })}
       </Text>
+      <PillButton size="md" variant="ghost" onClick={onBack}>
+        {t('profile.support.backToAbout')}
+      </PillButton>
     </View>
   )
 }
@@ -89,12 +84,24 @@ interface SupportFormProps {
   tokens: Tokens
   isOnline: boolean
   sending: boolean
-  subject: string
+  email: string
+  subject: SupportSubjectId | null
   message: string
+  appVersion: string | null
+  messageMaxLength: number
+  messageOverLimitHint: string | null
+  validationMessage?: string | null
   error: string | null
+  subjectError: string | null
+  messageError: string | null
   canSend: boolean
-  onChangeSubject: (value: string) => void
+  disabledReason: string | null
+  subjectFocusRequest: number
+  messageFocusRequest: number
+  onChangeSubject: (value: SupportSubjectId) => void
   onChangeMessage: (value: string) => void
+  onSubjectBlur: () => void
+  onMessageBlur: () => void
   onSend: () => void
 }
 
@@ -102,68 +109,136 @@ function SupportForm({
   tokens,
   isOnline,
   sending,
+  email,
   subject,
   message,
+  appVersion,
+  messageMaxLength,
+  messageOverLimitHint,
   error,
+  validationMessage,
+  subjectError,
+  messageError,
   canSend,
+  disabledReason,
+  subjectFocusRequest,
+  messageFocusRequest,
   onChangeSubject,
   onChangeMessage,
+  onSubjectBlur,
+  onMessageBlur,
   onSend,
 }: Readonly<SupportFormProps>) {
   const { t } = useTranslation()
   return (
-    <Animated.View
-      style={styles.formBlock}
-      entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
-    >
-      {!isOnline ? (
-        <OfflineUnavailableState
-          title={t('offline.title')}
-          description={t('offline.description')}
-          compact
-        />
-      ) : null}
-      <Text style={[styles.formDescription, { color: tokens.fg3 }]}>
+    <View style={styles.formBlock}>
+      <Text style={[styles.formDescription, { color: tokens.fg2 }]}>
         {t('profile.support.description')}
       </Text>
-      <SupportField
-        label={t('profile.support.subject')}
-        value={subject}
-        onChangeText={onChangeSubject}
-        placeholder={t('profile.support.subjectPlaceholder')}
-        tokens={tokens}
-      />
-      <SupportField
-        label={t('profile.support.message')}
-        value={message}
-        onChangeText={onChangeMessage}
-        placeholder={t('profile.support.messagePlaceholder')}
-        multiline
-        tokens={tokens}
-      />
       {error ? (
-        <Text style={[styles.formErrorText, { color: tokens.statusBadText }]}>
-          {error}
+        <View
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          style={[styles.failureBlock, { backgroundColor: tokens.bgWell }]}
+        >
+          <Text style={[styles.failureTitle, { color: tokens.fg1 }]}>
+            {t('profile.support.failureTitle')}
+          </Text>
+          <Text style={[styles.failureBody, { color: tokens.fg2 }]}>
+            {validationMessage ?? t('profile.support.failureBody')}
+          </Text>
+        </View>
+      ) : null}
+      <View style={styles.subjectField}>
+        <Text style={[styles.subjectLabel, { color: tokens.fg2 }]}>
+          {t('profile.support.subject')}
+        </Text>
+        <RadioGroup
+          accessibilityLabel={t('profile.support.subject')}
+          focusRequest={subjectFocusRequest}
+          accessibilityHint={[t('profile.support.subject'), t('common.required'), subjectError].filter(Boolean).join(' ')}
+          onBlur={onSubjectBlur}
+          style={{ gap: 4 }}
+        >
+          {SUPPORT_SUBJECT_OPTIONS.map((option) => (
+            sending ? (
+              <RadioRow
+                key={option.id}
+                label={t(option.labelKey)}
+                selected={subject === option.id}
+                disabled
+                reason={t('profile.support.subjectSendingReason')}
+              />
+            ) : (
+              <RadioRow
+                key={option.id}
+                label={t(option.labelKey)}
+                selected={subject === option.id}
+                onSelect={() => onChangeSubject(option.id)}
+              />
+            )
+          ))}
+        </RadioGroup>
+        {subjectError ? (
+          <Text accessibilityRole="alert" style={[styles.subjectError, { color: tokens.statusBadText }]}>
+            {subjectError}
+          </Text>
+        ) : null}
+      </View>
+      <Input
+        label={t('profile.support.message')}
+        required
+        value={message}
+        onChange={onChangeMessage}
+        placeholder={t('profile.support.messagePlaceholder')}
+        disabled={sending}
+        error={messageError ?? undefined}
+        hint={messageError ? undefined : messageOverLimitHint ?? undefined}
+        maxLength={messageMaxLength}
+        multiline
+        rows={6}
+        autoComplete="off"
+        focusRequest={messageFocusRequest}
+        onBlur={onMessageBlur}
+      />
+      <SupportReplyEmail email={email} />
+      {appVersion ? (
+        <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>
+          {t('profile.support.versionIncluded', { version: appVersion })}
         </Text>
       ) : null}
-      <View style={styles.actionPad}>
-        <PillButton
-          onPress={onSend}
+      {!isOnline ? (
+        <View accessibilityLiveRegion="polite" style={[styles.offlineNotice, { backgroundColor: tokens.bgWell }]}>
+          <WifiOff size={20} color={tokens.fg3} accessible={false} />
+          <Text style={[styles.offlineText, { color: tokens.fg2 }]}>
+            {t('profile.support.offlineReason')}
+          </Text>
+        </View>
+      ) : null}
+      {isOnline && disabledReason ? (
+        <Text style={[styles.formDescription, { color: tokens.fg2 }]}>
+          {disabledReason}
+        </Text>
+      ) : null}
+      <View>
+        <PillButton size="md"
+          onClick={onSend}
           disabled={!canSend}
-          busy={sending}
-          // eslint-disable-next-line local/no-fullbleed-button -- support form submit (allowlist: form submit)
-          fullWidth
-          accessibilityLabel={t('profile.support.send')}
+          loading={sending}
+          hint={!isOnline ? t('profile.support.offlineReason') : disabledReason ?? undefined}
         >
-          {t('profile.support.send')}
+          {error ? t('profile.support.retry') : t('profile.support.send')}
         </PillButton>
       </View>
-    </Animated.View>
+    </View>
   )
 }
 
 export default function SupportScreen() {
+  const pageEnd = useShellPageEnd()
+  const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -172,25 +247,53 @@ export default function SupportScreen() {
   )
   const { isOnline } = useOffline()
   const { profile } = useProfile()
-  const [subject, setSubject] = useState('')
+  const appVersion = getAppVersion()
+  const draftRef = useRef<SupportDraft>({ subject: null, message: '' })
+  const draftChangedRef = useRef(false)
+  const [subject, setSubject] = useState<SupportSubjectId | null>(null)
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [validationMessage, setValidationMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [subjectError, setSubjectError] = useState<string | null>(null)
+  const [messageError, setMessageError] = useState<string | null>(null)
+  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
+  const [messageFocusRequest, setMessageFocusRequest] = useState(0)
+  const resolvedEmail = profile?.email || ''
+  const hasSubject = subject !== null
+  const hasMessage = Boolean(message.trim())
+  const messageFit = getSupportMessageFit(message, appVersion)
+  const messageMaxLength = Math.max(getSupportMessageMaxLength(appVersion), message.length)
+  const messageOverLimitHint = messageFit.fits
+    ? null
+    : t('profile.support.messageOverLimit', { overage: messageFit.overage })
+  const disabledReasonKey = getSupportSendReasonKey({
+    hasMessage,
+    hasProfile: Boolean(profile),
+    hasSubject,
+    isOnline,
+    isSending: sending,
+    messageFits: messageFit.fits,
+  })
+  const disabledReason = disabledReasonKey ? t(disabledReasonKey) : null
 
   useEffect(() => {
     let isMounted = true
-    void AsyncStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
+    void readStoredSupportDraft()
       .then((storedDraft) => {
-        if (!isMounted || !storedDraft) return
+        if (!isMounted || !storedDraft || draftChangedRef.current) return
         try {
-          const draft = JSON.parse(storedDraft) as Partial<
-            Record<'subject' | 'message', string>
-          >
-          setSubject(draft.subject ?? '')
-          setMessage(draft.message ?? '')
+          const draft = JSON.parse(storedDraft) as Record<string, unknown>
+          const restoredDraft = {
+            subject: normalizeSupportSubjectId(draft.subject),
+            message: typeof draft.message === 'string' ? draft.message : '',
+          } satisfies SupportDraft
+          draftRef.current = restoredDraft
+          setSubject(restoredDraft.subject)
+          setMessage(restoredDraft.message)
         } catch {
-          void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+          void forgetStoredSupportDraft()
         }
       })
       .catch(() => {})
@@ -199,28 +302,33 @@ export default function SupportScreen() {
     }
   }, [])
 
-  useEffect(() => {
-    const draft = { subject, message }
-    const hasDraft = Object.values(draft).some(
-      (value) => value.trim().length > 0,
-    )
+  const persistDraft = useCallback((change: Partial<typeof draftRef.current>) => {
+    draftChangedRef.current = true
+    draftRef.current = { ...draftRef.current, ...change }
+    void writeStoredSupportDraft(JSON.stringify(draftRef.current))
+  }, [])
 
-    if (!hasDraft) {
-      void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
-      return
-    }
-    void AsyncStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
-  }, [message, subject])
+  const validateFields = () => {
+    const nextSubjectError = subject ? null : t('profile.support.subjectRequired')
+    const nextMessageError = !message.trim()
+      ? t('profile.support.messageRequired')
+      : messageOverLimitHint
+    setSubjectError(nextSubjectError)
+    setMessageError(nextMessageError)
+    if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
+    else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
+    return !nextSubjectError && !nextMessageError
+  }
 
-  const handleSend = useCallback(async () => {
-    if (!isOnline) {
-      setError(t('offline.title'))
-      return
-    }
-    if (!subject.trim() || !message.trim()) return
+  const handleSend = async () => {
+    if (sending || !isOnline) return
+    if (!validateFields() || !profile) return
+    const selectedSubject = SUPPORT_SUBJECT_OPTIONS.find((option) => option.id === subject)
+    if (!selectedSubject) return
 
     setSending(true)
     setError(null)
+    setValidationMessage(null)
     setSuccess(false)
 
     try {
@@ -228,64 +336,105 @@ export default function SupportScreen() {
         method: 'POST',
         body: JSON.stringify(
           buildSupportRequestBody(profile, {
-            name: '',
-            email: '',
-            subject,
-            message,
+            subject: t(selectedSubject.labelKey),
+            message: attachSupportVersion(message, appVersion),
           }),
         ),
       })
       setSuccess(true)
-      setSubject('')
+      AccessibilityInfo.announceForAccessibility(t('profile.support.success'))
+      draftRef.current = { subject: null, message: '' }
+      setSubject(null)
       setMessage('')
-      void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+      void forgetStoredSupportDraft()
     } catch (err: unknown) {
+      const subjectFailure = getBackendFieldError(err, 'Subject')
+      const messageFailure = getBackendFieldError(err, 'Message')
+      if (extractBackendFieldErrors(err)) {
+        const generalFailure = unmappedBackendFormError(err, ['Subject', 'Message'])
+        setError(generalFailure ?? null)
+        setValidationMessage(generalFailure ?? null)
+        setSubjectError(subjectFailure ?? null)
+        setMessageError(messageFailure ?? null)
+        if (subjectFailure) setSubjectFocusRequest((request) => request + 1)
+        else if (messageFailure) setMessageFocusRequest((request) => request + 1)
+        return
+      }
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
+      AccessibilityInfo.announceForAccessibility(
+        `${t('profile.support.failureTitle')} ${t('profile.support.failureBody')}`,
+      )
     } finally {
       setSending(false)
     }
-  }, [isOnline, message, profile, subject, t])
+  }
 
-  const canSend =
-    subject.trim().length > 0 && message.trim().length > 0 && isOnline && !sending
+  const canSend = isOnline && !sending
 
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
-      edges={['top']}
+      edges={pageEnd.safeAreaEdges}
     >
-      <AppBar
-        back
+      <PageHeader
         onBack={() => goBackOrFallback('/profile')}
         title={t('profile.support.title')}
-        backLabel={t('common.backToProfile')}
+        backLabel={backLabel}
       />
       <KeyboardAwareScrollView
+        avoidKeyboard={false}
         style={styles.container}
         containerStyle={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]}
         showsVerticalScrollIndicator={false}
         keyboardVerticalOffset={12}
       >
         {success ? (
-          <SupportSuccessState tokens={tokens} />
+          <SupportSuccessState
+            tokens={tokens}
+            email={resolvedEmail}
+            onBack={() => router.push('/about')}
+          />
         ) : (
           <SupportForm
             tokens={tokens}
             isOnline={isOnline}
             sending={sending}
+            email={resolvedEmail}
             subject={subject}
             message={message}
+            appVersion={appVersion}
+            messageMaxLength={messageMaxLength}
+            messageOverLimitHint={messageOverLimitHint}
             error={error}
+            validationMessage={validationMessage}
+            subjectError={subjectError}
+            messageError={messageError}
             canSend={canSend}
-            onChangeSubject={setSubject}
-            onChangeMessage={setMessage}
+            disabledReason={disabledReason}
+            subjectFocusRequest={subjectFocusRequest}
+            messageFocusRequest={messageFocusRequest}
+            onChangeSubject={(next) => {
+              setSubject(next)
+              setSubjectError(null)
+              persistDraft({ subject: next })
+            }}
+            onSubjectBlur={() => {
+              if (!subject) setSubjectError(t('profile.support.subjectRequired'))
+            }}
+            onChangeMessage={(next) => {
+              setMessage(next)
+              setMessageError(null)
+              persistDraft({ message: next })
+            }}
+            onMessageBlur={() => {
+              if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
+            }}
             onSend={() => {
               void handleSend()
             }}
           />
         )}
-        <View style={{ height: 24 }} />
       </KeyboardAwareScrollView>
     </SafeAreaView>
   )
@@ -294,59 +443,54 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: { width: '100%', maxWidth: 620, alignSelf: 'flex-start', paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16 },
   formBlock: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 16,
-  },
-  fieldWrap: {
-    gap: 8,
-  },
-  fieldLabel: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 14,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'flex-start',
+    gap: 24,
   },
   formDescription: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    lineHeight: 21,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
+    lineHeight: 24,
   },
-  inputMultiline: {
-    minHeight: 132,
-  },
-  formErrorText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  actionPad: {
-    paddingTop: 8,
-  },
-  successBlock: {
-    paddingHorizontal: 24,
-    paddingVertical: 48,
+  failureBlock: { gap: 8, padding: SPACING.s16, borderRadius: radius.md },
+  failureTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 23.8 },
+  failureBody: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21.7 },
+  subjectField: { gap: 8 },
+  subjectLabel: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 },
+  subjectError: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
+  versionIncluded: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
+  offlineNotice: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
+    padding: SPACING.s12,
+    borderRadius: radius.md,
+  },
+  offlineText: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
+  successBlock: {
+    paddingVertical: SPACING.s48,
+    alignItems: 'flex-start',
+    gap: 16,
   },
   successIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 999,
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   successTitle: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 22,
     letterSpacing: -0.22,
-    textAlign: 'center',
+    lineHeight: 26.4,
   },
   successHint: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    lineHeight: 22.5,
-    textAlign: 'center',
-    maxWidth: 320,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
+    lineHeight: 24.8,
   },
 })

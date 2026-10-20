@@ -1,9 +1,9 @@
-import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, TOOLS_DIR, orcaEnv, realOrchestratorConfig, stageRepo } from "./_harness.mjs"
 import { RELEASE_HOLD_MS, checkAdmission, configuredRepositorySlug, queuedRunsPath, releaseAdmission } from "../lib/admission.mjs"
+import { processStartIdentity } from "../lib/run-state.mjs"
 
 const repository = (name) => {
   const entry = stageRepo(`admission-${name}`)
@@ -35,7 +35,7 @@ export const cases = async () => {
   const check = async (environment, caps = config.caps) => {
     const result = await checkAdmission({ config: { ...config, caps }, repositoryKey: "ui", branch: "feature/new", environment,
       now: Date.parse("2026-09-25T03:00:00Z"), repoRoot: config.repos.ui })
-    rmSync(join(config.repos.ui, ".git", "orbit-admission-reservations"), { recursive: true, force: true })
+    rmSync(join(config.repos.ui, ".git", "orbit-worker-launches"), { recursive: true, force: true })
     return result
   }
   T("admission: the queued-run read counts only runs created in the last 24 hours",
@@ -57,7 +57,7 @@ export const cases = async () => {
   T("admission: failed GitHub read refuses", !failure.admitted && failure.error.includes("GitHub unavailable"), JSON.stringify(failure))
 
   const checkout = repository("admission-reservations")
-  const reservationDirectory = join(checkout, ".git", "orbit-admission-reservations")
+  const reservationDirectory = join(checkout, ".git", "orbit-worker-launches")
   const edgeConfig = { ...config, repos: { ui: checkout }, caps: { maxOpenPullRequests: 10, maxQueuedRuns: 30 } }
   const edge = (branch, environment = plan(Array.from({ length: 10 }, (_, index) => index + 1), 0), extra = {}) =>
     checkAdmission({ config: edgeConfig, repositoryKey: "ui", branch, environment, worktree: checkout, repoRoot: checkout,
@@ -68,7 +68,7 @@ export const cases = async () => {
   rmSync(reservationDirectory, { recursive: true, force: true })
 
   mkdirSync(reservationDirectory, { recursive: true })
-  const deadPath = join(reservationDirectory, "dead.json")
+  const deadPath = join(reservationDirectory, "admission-dead.json")
   writeFileSync(deadPath, JSON.stringify({ pid: 999999999, startIdentity: "dead", repository: "test-owner/admission-reservations", branch: "feature/dead", timestamp: new Date().toISOString() }))
   const afterDead = await edge("feature/after-dead", plan([], 0))
   const deadClaim = existsSync(deadPath) ? JSON.parse(readFileSync(deadPath, "utf8")) : null
@@ -101,7 +101,7 @@ export const cases = async () => {
   releaseAdmission(expired.reservationId, checkout, Date.parse("2026-09-25T03:00:00Z") - RELEASE_HOLD_MS - 1)
   const afterExpiry = await edge("feature/after-expiry", heldEnvironment)
   T("admission: a claim released before the hold window is removed",
-    afterExpiry.admitted && !existsSync(join(reservationDirectory, `${expired.reservationId}.json`)), JSON.stringify(afterExpiry))
+    afterExpiry.admitted && !existsSync(join(reservationDirectory, `admission-${expired.reservationId}.json`)), JSON.stringify(afterExpiry))
   rmSync(reservationDirectory, { recursive: true, force: true })
 
   const prior = await edge("feature/pr-created", plan([], 0))
@@ -131,7 +131,7 @@ export const cases = async () => {
   rmSync(reservationDirectory, { recursive: true, force: true })
 
   mkdirSync(reservationDirectory, { recursive: true })
-  const partialPath = join(reservationDirectory, "partial.json")
+  const partialPath = join(reservationDirectory, "admission-partial.json")
   writeFileSync(partialPath, "")
   const afterPartial = await edge("feature/after-partial", plan([], 0))
   T("admission: an interrupted reservation write is removed instead of refusing forever",
@@ -139,7 +139,7 @@ export const cases = async () => {
   rmSync(reservationDirectory, { recursive: true, force: true })
 
   const lockPath = join(checkout, ".git", "orbit-admission.lock")
-  const startIdentity = spawnSync("ps", ["-p", String(process.pid), "-o", "lstart="], { encoding: "utf8" }).stdout.trim()
+  const startIdentity = processStartIdentity(process.pid)
   writeFileSync(lockPath, JSON.stringify({ pid: process.pid, startIdentity, timestamp: new Date().toISOString() }))
   const locked = await edge("feature/locked", plan([], 0), { lockWaitMs: 75 })
   T("admission: an unverified lock times out closed", !locked.admitted && /lock/.test(locked.error ?? ""), JSON.stringify(locked))

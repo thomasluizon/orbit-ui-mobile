@@ -1,8 +1,8 @@
+import { configKeys, configureAccountQueryDefaults, habitKeys, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
 import NetInfo from '@react-native-community/netinfo'
-import { configKeys, configureAccountQueryDefaults } from '@orbit/shared/query'
 
 /**
  * Bridges AppState to TanStack Query focus so foreground refetching and
@@ -27,10 +27,8 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 1000 * 60 * 5,
       gcTime: 1000 * 60 * 60 * 24,
-      retry: (failureCount, error) => {
-        if (error instanceof Error && error.message.includes('401')) return false
-        return failureCount < 3
-      },
+      retry: shouldRetryQuery,
+      retryDelay: queryRetryDelay,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
     },
@@ -46,12 +44,11 @@ const CACHE_KEY_PREFIX = '@orbit/query-cache'
 const LEGACY_CACHE_KEY = '@orbit/query-cache'
 
 /**
- * Version stamp for the persisted query cache. Restored entries bypass the
- * hooks' Zod parsing, so a cache written by an older build can carry response
- * shapes the current UI no longer tolerates. Bump this whenever a persisted
- * response schema changes shape; mismatched caches are discarded on restore.
+ * Restored entries bypass hook validation. Bump this version when a persisted
+ * response schema changes shape or adds validation so restore discards older
+ * caches containing responses the current UI cannot trust.
  */
-export const QUERY_CACHE_VERSION = 2
+export const QUERY_CACHE_VERSION = 3
 
 let cacheScopeUserId: string | null = null
 
@@ -74,7 +71,12 @@ export async function setQueryCacheScope(userId: string | null): Promise<void> {
   } catch {}
 }
 
-export async function persistQueryCache(): Promise<void> {
+export async function persistQueryCache({ discardHabitSearches = false } = {}): Promise<void> {
+  if (discardHabitSearches) {
+    const filters = { queryKey: habitKeys.searches() }
+    for (const query of queryClient.getQueryCache().findAll(filters)) query.reset()
+    queryClient.removeQueries(filters)
+  }
   const key = getCacheKey()
   if (!key) return
   try {

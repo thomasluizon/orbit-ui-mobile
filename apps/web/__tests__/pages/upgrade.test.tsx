@@ -1,26 +1,65 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { toast } from 'sonner'
-import { setApiFetchTranslate } from '@/lib/api-fetch'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { act, render as renderComponent, screen, fireEvent, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { profileKeys } from '@orbit/shared/query'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import type { Profile } from '@orbit/shared/types/profile'
 import { setAccountId } from '@/lib/account-scope'
+import * as apiFetch from '@/lib/api-fetch'
+import { readAppNavigationHistory, updateAppNavigationHistory } from '@/lib/app-navigation-history'
+import { RouteContext } from '@/components/navigation/route-context'
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
-const { openCustomerPortal } = vi.hoisted(() => ({ openCustomerPortal: vi.fn() }))
-vi.mock('@/lib/actions/subscription', () => ({ openCustomerPortal }))
+const navigation = vi.hoisted(() => ({ real: false, back: vi.fn(), replace: vi.fn(), push: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => navigation, usePathname: () => '/upgrade', useSearchParams: () => new URLSearchParams(globalThis.location.search) }))
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) return `${key}:${JSON.stringify(params)}`
-    return key
-  },
-  useLocale: () => 'en',
-}))
+const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
+const mockGoBackOrFallback = vi.hoisted(() => vi.fn())
+const mockRefetchStatus = vi.hoisted(() => vi.fn())
+const mockRefetchBilling = vi.hoisted(() => vi.fn())
+const mockShowSuccess = vi.hoisted(() => vi.fn())
+
+const mockTranslate = vi.hoisted(() => (key: string, params?: Record<string, unknown>) =>
+  params ? `${key}:${JSON.stringify(params)}` : key)
+const mockLocale = vi.hoisted(() => ({ value: null as 'en' | 'pt-BR' | null }))
+vi.mock('next-intl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next-intl')>()
+  return {
+    ...actual,
+    useTranslations: () => mockLocale.value
+      ? actual.createTranslator({ locale: mockLocale.value, messages: mockLocale.value === 'en' ? en : ptBR })
+      : mockTranslate,
+    useLocale: () => mockLocale.value ?? 'en',
+  }
+})
 
 vi.mock('next/link', () => ({
-  default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [k: string]: unknown }) => (
-    <a href={href} {...props}>{children}</a>
+  default: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode
+    href: string
+    [k: string]: unknown
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }))
 
@@ -28,8 +67,13 @@ vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
 
-vi.mock('@/hooks/use-go-back-or-fallback', () => ({
-  useGoBackOrFallback: () => vi.fn(),
+vi.mock('@/hooks/use-go-back-or-fallback', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-go-back-or-fallback')>()
+  return { useGoBackOrFallback: () => navigation.real ? actual.useGoBackOrFallback() : mockGoBackOrFallback }
+})
+
+vi.mock('@/lib/actions/subscription', () => ({
+  openCustomerPortal: (...args: unknown[]) => mockOpenCustomerPortal(...args),
 }))
 
 let mockProfile: Record<string, unknown> | null = null
@@ -37,6 +81,7 @@ let mockHasProAccess = false
 let mockTrialExpired = false
 let mockTrialDaysLeft: number | null = null
 let mockTrialUrgent = false
+let mockIsOnline = true
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
@@ -44,8 +89,38 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
   useHasProAccess: () => mockHasProAccess,
   useTrialExpired: () => mockTrialExpired,
-  useTrialDaysLeft: () => mockTrialDaysLeft,
   useTrialUrgent: () => mockTrialUrgent,
+}))
+
+vi.mock('@/hooks/use-subscription-status', () => ({
+  useSubscriptionStatus: () => ({
+    status: mockProfile
+      ? {
+          plan: mockHasProAccess ? 'pro' : 'free',
+          hasProAccess: mockHasProAccess,
+          isTrialActive: Boolean(mockProfile.isTrialActive),
+          trialEndsAt: mockProfile.trialEndsAt ?? null,
+          planExpiresAt: mockProfile.planExpiresAt ?? null,
+          aiMessagesUsed: mockProfile.aiMessagesUsed ?? 0,
+          aiMessagesLimit: mockProfile.aiMessagesLimit ?? 0,
+          isLifetimePro: Boolean(mockProfile.isLifetimePro),
+          subscriptionInterval: mockProfile.subscriptionInterval ?? null,
+          source: mockProfile.subscriptionSource ?? null,
+          lapseReason: mockProfile.lapseReason ?? null,
+          subscriptionEndedAtUtc: mockProfile.subscriptionEndedAt ?? null,
+        }
+      : null,
+    isLoading: false,
+    isError: false,
+    refetch: mockRefetchStatus,
+  }),
+}))
+
+vi.mock('@/hooks/use-offline', () => ({
+  useOffline: () => ({ isOnline: mockIsOnline }),
+}))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showSuccess: mockShowSuccess, showPersistentError: vi.fn() }),
 }))
 
 let mockPlans: Record<string, unknown> | null = null
@@ -56,15 +131,15 @@ let useRealPlansHook = false
 vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/hooks/use-subscription-plans')>()
   return {
-  useSubscriptionPlans: () => useRealPlansHook ? actual.useSubscriptionPlans() : ({
-    plans: mockPlans,
-    isLoading: mockIsLoadingPlans,
-    isError: mockIsPlansError,
-    refetch: vi.fn(),
-    discountedAmount: (amount: number) => amount,
-  }),
-  formatPrice: (amount: number, currency: string) => `${currency} ${(amount / 100).toFixed(2)}`,
-  monthlyEquivalent: (amount: number) => Math.round(amount / 12),
+    useSubscriptionPlans: () => useRealPlansHook ? actual.useSubscriptionPlans() : ({
+      plans: mockPlans,
+      isLoading: mockIsLoadingPlans,
+      isError: mockIsPlansError,
+      refetch: vi.fn(),
+      discountedAmount: (amount: number) => amount,
+    }),
+    formatPrice: (amount: number, currency: string) => `${currency} ${(amount / 100).toFixed(2)}`,
+    monthlyEquivalent: (amount: number) => Math.round(amount / 12),
   }
 })
 
@@ -76,18 +151,27 @@ const mockUseBilling = vi.fn((_enabled?: boolean) => ({
   billing: mockBilling,
   isLoading: mockIsBillingLoading,
   isError: mockIsBillingError,
-  refetch: vi.fn(),
+  refetch: mockRefetchBilling,
 }))
 
 vi.mock('@/hooks/use-billing', () => ({
   useBilling: (enabled?: boolean) => mockUseBilling(enabled),
 }))
 
-vi.mock('@orbit/shared/api', () => ({
-  API: {
-    subscription: { checkout: '/api/subscriptions/checkout', portal: '/api/subscriptions/portal', plans: '/api/subscriptions/plans' },
-  },
-}))
+vi.mock('@orbit/shared/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/api')>()
+  return {
+    ...actual,
+    API: {
+      ...actual.API,
+      subscription: {
+        checkout: '/api/subscriptions/checkout',
+        portal: '/api/subscriptions/portal',
+        plans: '/api/subscriptions/plans',
+      },
+    },
+  }
+})
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
@@ -98,15 +182,207 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   }
 })
 
-
 import UpgradePage from '@/app/(app)/upgrade/page'
-import { useAuthStore } from '@/stores/auth-store'
+import { holdAccount } from '@/__tests__/support/account-change'
+
+type SubscriptionRenderCase = { width: number; locale: 'en' | 'pt-BR'; mode: 'light' | 'dark'; state: string }
+
+function configureSubscription({ locale, state }: SubscriptionRenderCase) {
+  mockLocale.value = locale
+  const expired = state === 'expired'
+  const play = state.startsWith('play')
+  const interval = state.endsWith('yearly') ? 'yearly' : 'monthly'
+  mockHasProAccess = state !== 'free' && !expired
+  mockProfile = createMockProfile({ isTrialActive: state === 'trial', isLifetimePro: state === 'lifetime',
+    subscriptionInterval: interval, subscriptionSource: play ? 'play' : 'stripe',
+    planExpiresAt: '2027-01-20T00:00:00Z', trialEndsAt: state === 'trial' ? '2027-01-20T00:00:00Z' : null,
+    aiMessagesLimit: mockHasProAccess ? 50 : 5,
+  })
+  if (expired) mockProfile = { ...mockProfile, lapseReason: 'expired', subscriptionEndedAt: '2026-09-01T00:00:00Z' }
+  mockBilling = { status: state === 'past-due' ? 'past_due' : 'active', cancelAtPeriodEnd: state === 'canceled',
+    interval, currentPeriodEnd: '2027-01-20T00:00:00Z', amountPerPeriod: 999, currency: 'usd', paymentMethod: null, recentInvoices: [] }
+  mockPlans = { monthly: { unitAmount: 999 }, yearly: { unitAmount: 6999 }, currency: 'usd', savingsPercent: 42, couponPercentOff: null }
+}
+
+function assertSubscriptionContent(container: HTMLElement, { locale, state }: SubscriptionRenderCase) {
+  const messages = locale === 'en' ? en : ptBR
+  const pitch = state === 'free' || state === 'trial'
+  const expired = state === 'expired'
+  const play = state.startsWith('play')
+  expect(container.querySelectorAll('[data-asset="astra-mark"]')).toHaveLength(0)
+  const resources = screen.getAllByRole('list', { name: pitch ? messages.upgrade.outcomes.label : messages.upgrade.included })
+  for (const resourcesList of resources) expect(resourcesList.children).toHaveLength(4)
+  const action = pitch ? messages.upgrade.plans.cta : expired ? messages.upgrade.billing.lapsed.action
+    : play ? messages.upgrade.billing.actions.managePlay : messages.upgrade.billing.actions.manage
+  if (state === 'lifetime') {
+    expect(screen.queryByRole('button', { name: messages.upgrade.billing.actions.manage })).not.toBeInTheDocument()
+    expect(container.textContent).toContain(messages.upgrade.billing.plan.lifetimeHint)
+  } else expect(screen.getAllByRole('button', { name: new RegExp(action) }).length).toBeGreaterThan(0)
+  assertSubscriptionDates(container.textContent, locale, state)
+}
+
+function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', state: string) {
+  const messages = locale === 'en' ? en : ptBR
+  const pitch = state === 'free' || state === 'trial'
+  const expired = state === 'expired'
+  if (state === 'trial') expect(text).toContain(messages.upgrade.billing.plan.trialHint.replace('{date}', new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date('2027-01-20T00:00:00Z'))))
+  if (expired) expect(text).toContain(messages.upgrade.billing.lapsed.ended.replace('{date}', '2026-09-01T00:00:00Z'))
+  if (!pitch && !expired && state !== 'lifetime') expect(text).toContain(
+    (state === 'canceled' ? messages.upgrade.billing.plan.canceledHint : messages.upgrade.billing.plan.renewsOn).replace('{date}', '2027-01-20T00:00:00Z'))
+}
 
 
 describe('UpgradePage', () => {
+  describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const)('back destination in $locale', ({ locale, messages }) => {
+    it.each([
+      { source: '/profile', from: '', destination: messages.nav.profile },
+      { source: '/profile/astra', from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: '/calendar?view=month', from: '', destination: messages.nav.calendar },
+      { source: '/habits/new?draft=retained', from: '', destination: messages.habits.form.newHabit },
+      { source: '/', from: '', destination: messages.nav.today },
+      { source: '/calendar', from: '/profile/astra', destination: messages.nav.calendar },
+      { source: '/chat', from: '', destination: messages.chat.title },
+      { source: null, from: '', destination: messages.nav.profile },
+      { source: null, from: '/profile/astra', destination: messages.profile.groups.astra },
+    ])('names and returns to $source with from=$from', ({ source, from, destination }) => {
+      navigation.real = true
+      mockLocale.value = locale
+      const route = from ? `/upgrade?from=${encodeURIComponent(from)}` : '/upgrade'
+      history.replaceState({}, '', route)
+      navigation.back.mockImplementation(() => {
+        const { entries, index } = readAppNavigationHistory()
+        updateAppNavigationHistory(entries[index - 1]!, 'pop')
+      })
+      if (source) updateAppNavigationHistory(source, 'init')
+      updateAppNavigationHistory(route, source ? 'push' : 'init')
+      render(<UpgradePage />)
+      const label = source === '/profile' || (!source && !from)
+        ? messages.common.backToProfile
+        : source === '/' ? messages.common.backToToday : messages.common.backToDestination.replace('{destination}', destination)
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      if (source) {
+        expect(navigation.back).toHaveBeenCalledExactlyOnceWith()
+        expect(navigation.replace).not.toHaveBeenCalled()
+        const restored = readAppNavigationHistory()
+        expect(restored.entries[restored.index]).toBe(source)
+      } else {
+        expect(navigation.replace).toHaveBeenCalledExactlyOnceWith(from || '/profile')
+        expect(navigation.back).not.toHaveBeenCalled()
+      }
+    })
+  })
+
+  describe('pitch heading geometry', () => {
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+    let stylesheet: string
+    registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+    beforeAll(async () => {
+      const source = resolve(process.cwd(), 'app/globals.css')
+      stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    })
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    const subscriptionCases = [320, 412, 1200].flatMap((width) => (['en', 'pt-BR'] as const)
+      .flatMap((locale) => (['light', 'dark'] as const).flatMap((mode) =>
+        ['free', 'trial', 'monthly', 'yearly', 'play-monthly', 'play-yearly', 'expired', 'lifetime', 'canceled', 'past-due']
+          .map((state) => ({ width, locale, mode, state })))))
+
+    it.each(subscriptionCases)('renders the $state subscription at $width in $locale and $mode', async (example) => {
+      const { width, mode, state } = example
+      const pitch = state === 'free' || state === 'trial'
+      configureSubscription(example)
+      const { container } = render(<UpgradePage />)
+      if (pitch) await waitFor(() => expect(container.querySelectorAll('[data-tier]')).toHaveLength(2))
+      assertSubscriptionContent(container, example)
+      const themeVariables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([property, value]) => `${property}:${value}`).join(';')
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div class="${mode}" data-mode="${mode}" style="${themeVariables};background:var(--bg);color:var(--fg-1)">${container.innerHTML}</div>`)
+        await loadAppFonts(page)
+        const geometry = await page.locator('[data-upgrade-screen]').evaluate((element) => {
+          const frame = element.getBoundingClientRect()
+          const headings = [...element.querySelectorAll('h2')].map((heading) => {
+            const range = document.createRange()
+            range.selectNodeContents(heading)
+            const bounds = heading.getBoundingClientRect()
+            return { lines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size,
+              fits: range.getBoundingClientRect().width <= bounds.width + 1 }
+          })
+          return { left: frame.left, width: frame.width, overflow: element.scrollWidth > element.clientWidth, headings,
+            backgroundToken: getComputedStyle(element).getPropertyValue('--bg').trim(),
+            foregroundToken: getComputedStyle(element).getPropertyValue('--fg-1').trim() }
+        })
+        const frameWidth = width < 1024 ? width : (pitch ? 620 : 560) + 32
+        const tokens = resolveWebThemeVariables('orange', mode)
+        expect(geometry.backgroundToken).toBe(tokens['--bg'])
+        expect(geometry.foregroundToken).toBe(tokens['--fg-1'])
+        expect(geometry.width).toBe(frameWidth)
+        expect(geometry.left).toBe(0)
+        expect(geometry.overflow).toBe(false)
+        for (const heading of geometry.headings) expect(heading).toEqual({ lines: 1, fits: true })
+      } finally { await page.close() }
+    })
+
+    const cases = [320, 360, 384, 412, 600, 640, 840, 1352, 1440].flatMap((width) => (['pt-BR', 'en'] as const)
+      .flatMap((locale) => [false, true].map((trial) => ({ width, locale, trial }))))
+    it.each(cases)('keeps the heading whole at $width in $locale, trial=$trial', async ({ width, locale, trial }) => {
+      mockLocale.value = locale
+      mockHasProAccess = trial
+      mockProfile = createMockProfile({ isTrialActive: trial, trialEndsAt: trial ? new Date(Date.now() + 5 * 86400000).toISOString() : null })
+      const { container } = render(
+        <main data-shell-scroller="" style={{ overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable' }}>
+          <UpgradePage />
+        </main>,
+      )
+      const page = await browser.newPage({ viewport: { width, height: 1400 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const heading = page.locator('[data-upgrade-screen] h2').first()
+        const geometry = await heading.evaluate((element) => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const fragments = [...range.getClientRects()]
+          const bounds = element.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          const probe = element.cloneNode(true) as HTMLElement
+          probe.style.width = 'max-content'
+          document.body.append(probe)
+          const textWidth = probe.getBoundingClientRect().width
+          probe.remove()
+          return {
+            lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+            outside: fragments.some((fragment) => fragment.left < bounds.left - 0.5 || fragment.right > bounds.right + 0.5),
+            ellipsis: style.textOverflow === 'ellipsis' || Number.parseInt(style.webkitLineClamp) > 0,
+            fontSize: Number.parseFloat(style.fontSize),
+            fontWeight: style.fontWeight,
+            letterSpacing: Number.parseFloat(style.letterSpacing),
+            measure: bounds.width,
+            scrollerMeasure: element.closest('[data-shell-scroller]')!.clientWidth,
+            textWidth,
+          }
+        })
+        process.stdout.write(`${JSON.stringify({ width, locale, trial, geometry })}\n`)
+        expect(geometry.lines).toBe(1)
+        expect(geometry.outside).toBe(false)
+        expect(geometry.ellipsis).toBe(false)
+        expect(geometry.fontSize).toBe(width < 640 ? 28 : 34)
+        expect(geometry.fontWeight).toBe('500')
+        expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
+        expect(geometry.scrollerMeasure).toBe(width - 4)
+        expect(geometry.measure).toBe(width < 1024 ? geometry.scrollerMeasure - 32 : 620)
+      } finally { await page.close() }
+    })
+  })
+
   beforeEach(() => {
-    vi.mocked(toast.error).mockClear()
-    setApiFetchTranslate((key) => key)
+    mockLocale.value = null
+    holdAccount('u1')
+    Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, value: class {
+      observe() {}
+      disconnect() {}
+    } })
     mockProfile = {
       id: 'u1',
       hasProAccess: false,
@@ -118,6 +394,7 @@ describe('UpgradePage', () => {
     mockTrialExpired = false
     mockTrialDaysLeft = null
     mockTrialUrgent = false
+    mockIsOnline = true
     mockPlans = null
     mockIsLoadingPlans = false
     mockIsPlansError = false
@@ -126,12 +403,162 @@ describe('UpgradePage', () => {
     mockIsBillingLoading = false
     mockIsBillingError = false
     mockUseBilling.mockClear()
-    useAuthStore.setState({ sessionRefreshFailed: false })
+    mockOpenCustomerPortal.mockReset()
+    navigation.real = false
+    navigation.back.mockClear()
+    navigation.replace.mockClear()
+    sessionStorage.clear()
+    mockGoBackOrFallback.mockReset()
+    mockRefetchStatus.mockReset().mockResolvedValue(undefined)
+    mockRefetchBilling.mockReset().mockResolvedValue(undefined)
+    mockShowSuccess.mockReset()
+    globalThis.sessionStorage.clear()
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    history.replaceState({}, '', '/')
     setAccountId(null)
+  })
+
+  describe.each([
+    { locale: 'en', messages: en, trialHeading: '50 a day or back to 5.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 por dia ou só 5.' },
+  ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
+    it('returns a directly linked Astra upgrade to its originating sub-screen', () => {
+      mockLocale.value = locale
+      history.replaceState({}, '', '/upgrade?from=%2Fprofile%2Fastra')
+      try {
+        render(<UpgradePage />)
+        const backLabel = messages.common.backToDestination.replace('{destination}', messages.profile.groups.astra)
+        fireEvent.click(screen.getByRole('button', { name: backLabel }))
+        expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile/astra')
+        expect(screen.getByRole('link', { name: messages.upgrade.convert.stayFree })).toHaveAttribute('href', '/profile/astra')
+      } finally {
+        history.replaceState({}, '', '/')
+      }
+    })
+
+    it('names the pitch and subscription management before Orbit', () => {
+      mockLocale.value = locale
+      const view = render(<RouteContext><UpgradePage /></RouteContext>)
+      expect(document.title).toBe(`${messages.upgrade.pitchTitle} · Orbit`)
+      mockHasProAccess = true
+      mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false, subscriptionSource: 'play' }
+      view.rerender(<RouteContext><UpgradePage /></RouteContext>)
+      expect(document.title).toBe(`${messages.upgrade.title} · Orbit`)
+      mockLocale.value = locale === 'en' ? 'pt-BR' : 'en'
+      view.rerender(<RouteContext><UpgradePage /></RouteContext>)
+      expect(document.title).toBe(`${(mockLocale.value === 'en' ? en : ptBR).upgrade.title} · Orbit`)
+    })
+
+    it.each([4, 1, 0, null])('uses the trial heading with %s days left', (daysLeft) => {
+      mockLocale.value = locale
+      mockHasProAccess = true
+      mockProfile = createMockProfile({
+        isTrialActive: true,
+        trialEndsAt: daysLeft === null ? null : new Date(Date.now() + (daysLeft === 0 ? 3600000 : daysLeft * 86400000)).toISOString(),
+        aiMessagesLimit: 50,
+      })
+      render(<UpgradePage />)
+      expect(screen.getByRole('heading', { level: 2, name: trialHeading })).toBeInTheDocument()
+      const eyebrow = daysLeft !== null && daysLeft <= 1 ? messages.upgrade.convert.trialLastDay
+        : daysLeft === null ? messages.upgrade.convert.trialEyebrow : null
+      if (eyebrow) expect(screen.getByText(eyebrow)).toBeInTheDocument()
+      if (daysLeft !== null) {
+        const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(String(mockProfile.trialEndsAt)))
+        const hint = messages.upgrade.billing.plan.trialHint.replace('{date}', date)
+        expect(screen.getByText(hint)).toBeInTheDocument()
+      }
+    })
+
+    it('keeps the free heading outside a trial', () => {
+      mockLocale.value = locale
+      mockProfile = createMockProfile({ isTrialActive: false, trialEndsAt: null })
+      render(<UpgradePage />)
+      expect(screen.getByRole('heading', { level: 2, name: messages.upgrade.convert.freeHeading })).toBeInTheDocument()
+    })
+
+    it.each([false, true])('ends the paywall at the decline link without usage, trial=%s', (isTrialActive) => {
+      mockLocale.value = locale
+      mockHasProAccess = isTrialActive
+      mockProfile = createMockProfile({ isTrialActive, aiMessagesUsed: 45, aiMessagesLimit: 50 })
+      render(<UpgradePage />)
+      expect(screen.getByRole('link', { name: messages.upgrade.convert.stayFree })).toBeInTheDocument()
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+      expect(screen.queryByText(messages.upgrade.billing.usage.title)).not.toBeInTheDocument()
+      expect(screen.queryByText(messages.upgrade.billing.usage.nearLimit)).not.toBeInTheDocument()
+    })
+
+    it.each(['stripe', 'play', 'lifetime'] as const)('keeps usage on the %s billing dashboard', (source) => {
+      mockLocale.value = locale
+      mockHasProAccess = true
+      mockProfile = createMockProfile({
+        isTrialActive: false, isLifetimePro: source === 'lifetime',
+        subscriptionSource: source === 'lifetime' ? null : source,
+        aiMessagesUsed: 12, aiMessagesLimit: 50,
+      })
+      render(<UpgradePage />)
+      expect(screen.getByRole('progressbar', { name: messages.upgrade.billing.usage.aiMessages })).toHaveAttribute('aria-valuenow', '0.24')
+      expect(screen.getByText(messages.upgrade.billing.usage.aiMessagesOf.replace('{used}', '12').replace('{limit}', '50'))).toBeInTheDocument()
+    })
+  })
+
+  it.each(['loading', 'error', 'offline'])('keeps the free exit reachable while plans are %s', (state) => {
+    mockIsLoadingPlans = state === 'loading'
+    mockIsPlansError = state === 'error'
+    mockIsOnline = state !== 'offline'
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('link', { name: 'upgrade.convert.stayFree' }))
+    expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile')
+  })
+
+  it.each([false, true])('nests the complete purchase heading outline, trial=%s', (trialActive) => {
+    mockHasProAccess = trialActive
+    mockProfile = { ...mockProfile, isTrialActive: trialActive }
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    render(<UpgradePage />)
+    expect(screen.getAllByRole('heading').map((heading) => ({
+      level: Number(heading.tagName.slice(1)),
+      name: heading.textContent,
+    }))).toEqual([
+      { level: 1, name: 'upgrade.pitchTitle' },
+      { level: 2, name: trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading' },
+      { level: 3, name: 'upgrade.plans.yearly.name' },
+      { level: 3, name: 'upgrade.plans.monthly.name' },
+    ])
+  })
+
+  it('keeps profile-only checkout refresh failures inline and retries settlement successfully', async () => {
+    history.replaceState({}, '', '/upgrade?subscription=success&keep=1')
+    const free = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false })
+    const pro = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false })
+    const fetchProfile = vi.spyOn(apiFetch, 'fetchJson').mockRejectedValue(new Error('Profile refresh failed'))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    function ActiveProfile() {
+      useQuery({ queryKey: profileKeys.detail(), queryFn: () => apiFetch.fetchJson<Profile>(API.profile.get), initialData: free, staleTime: Infinity })
+      return <UpgradePage />
+    }
+    const view = renderComponent(<QueryClientProvider client={client}><ActiveProfile /></QueryClientProvider>)
+    await waitFor(() => expect(client.getQueryState(profileKeys.detail())?.status).toBe('error'))
+    await waitFor(() => expect(screen.getByText('upgrade.billing.error')).toBeInTheDocument())
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(location.search).toBe('?subscription=success&keep=1')
+    fetchProfile.mockResolvedValue(pro)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.retry' }))
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledOnce())
+    expect(client.getQueryData(profileKeys.detail())).toEqual(pro)
+    expect(screen.queryByText('upgrade.billing.error')).not.toBeInTheDocument()
+    expect(location.search).toBe('?keep=1')
+    view.unmount()
+    history.replaceState({}, '', '/upgrade')
   })
 
   it('renders without crashing', () => {
@@ -141,11 +568,11 @@ describe('UpgradePage', () => {
 
   it('renders the page header with title and back button', () => {
     render(<UpgradePage />)
-    expect(screen.getByText('upgrade.title')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'upgrade.pitchTitle' })).toHaveAttribute('translate', 'no')
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  it('exposes matrix feature labels as text with decorative icons hidden', () => {
+  it('renders the arithmetic pitch and four outcomes per tier', async () => {
     mockPlans = {
       monthly: { unitAmount: 999 },
       yearly: { unitAmount: 4999 },
@@ -153,28 +580,101 @@ describe('UpgradePage', () => {
       savingsPercent: 58,
       couponPercentOff: null,
     }
-    const { container } = render(<UpgradePage />)
+    render(<UpgradePage />)
 
-    expect(screen.getAllByText('upgrade.features.subHabits.label').length).toBeGreaterThan(0)
-
-    const icons = container.querySelectorAll('table svg')
-    expect(icons.length).toBeGreaterThan(0)
-    icons.forEach((icon) => {
-      expect(icon).toHaveAttribute('aria-hidden', 'true')
+    await waitFor(() => {
+      expect(document.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
+      expect(document.querySelectorAll('[data-tier]')).toHaveLength(2)
     })
-
-    screen.getAllByRole('button').forEach((button) => {
-      const accessibleName = button.getAttribute('aria-label') ?? button.textContent.trim()
-      expect(accessibleName).toBeTruthy()
-    })
+    expect(screen.getByText('upgrade.convert.freeHeading')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.convert.freeAllowance')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.convert.proAllowance')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.convert.allowanceNote')).toBeInTheDocument()
+    const lists = screen.getAllByRole('list', { name: 'upgrade.outcomes.label' })
+    expect(lists).toHaveLength(2)
+    for (const list of lists) {
+      expect(list.closest('[data-tier]')).not.toBeNull()
+      expect(list.children).toHaveLength(4)
+    }
+    for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+      expect(screen.getAllByText(`upgrade.outcomes.${key}`)).toHaveLength(2)
+    }
+    expect(document.body.textContent).toContain('upgrade.convert.cancelAnytime')
+    expect(document.body.textContent).toContain('upgrade.plans.renewalNote')
+    expect(document.body.textContent).toContain('upgrade.convert.handOff')
+    const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
+    expect(decline).toHaveAttribute('href', '/profile')
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+    fireEvent(decline, click)
+    expect(click.defaultPrevented).toBe(true)
+    expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile')
+    expect(document.body.textContent).not.toContain('upgrade.features.')
+    expect(document.body.textContent).not.toContain('upgrade.matrix.')
   })
 
+  describe.each(['/profile', '/profile/astra'])('decline destination %s', (destination) => {
+  it.each([
+    { metaKey: true },
+    { ctrlKey: true },
+    { shiftKey: true },
+    { altKey: true },
+    { button: 1 },
+    { button: 2 },
+  ])('leaves modified decline clicks to the browser: %j', (modifiers) => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    history.replaceState({}, '', destination === '/profile/astra' ? '/upgrade?from=%2Fprofile%2Fastra' : '/upgrade')
+    render(<UpgradePage />)
+    const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers })
+    fireEvent(decline, event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(mockGoBackOrFallback).not.toHaveBeenCalled()
+    expect(decline).toHaveAttribute('href', destination)
+    history.replaceState({}, '', '/')
+  })
+
+  })
+
+  it.each([
+    {},
+    { metaKey: true },
+    { ctrlKey: true },
+    { shiftKey: true },
+    { altKey: true },
+    { button: 1 },
+  ])('cancels decline activation during checkout: %j', (modifiers) => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabelRecommended:/,
+    }))
+
+    const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
+    expect(decline).toHaveAttribute('aria-disabled', 'true')
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers })
+    fireEvent(decline, event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(mockGoBackOrFallback).not.toHaveBeenCalled()
+  })
 
   it('shows plan loading skeletons when plans are loading', () => {
     mockIsLoadingPlans = true
     const { container } = render(<UpgradePage />)
     const shimmerElements = container.querySelectorAll('.skeleton-pulse, .animate-pulse')
-    expect(screen.getByText('upgrade.title')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.pitchTitle')).toBeInTheDocument()
   })
 
   it('shows plans error state', () => {
@@ -189,6 +689,7 @@ describe('UpgradePage', () => {
     mockProfile = { ...mockProfile, isTrialActive: false }
     render(<UpgradePage />)
     expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
+    expect(document.body.textContent).toContain('upgrade.convert.promise')
     expect(document.body.textContent).toContain('upgrade.convert.trustLine')
   })
 
@@ -212,222 +713,110 @@ describe('UpgradePage', () => {
       setAccountId('smoke-account')
     })
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
-    answerPlans!(new Response(JSON.stringify({
-      monthly: { unitAmount: 999, currency: 'usd' },
-      yearly: { unitAmount: 6999, currency: 'usd' },
-      savingsPercent: 42,
-      couponPercentOff: null,
-      currency: 'usd',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    await act(async () => {
+      answerPlans!(new Response(JSON.stringify({
+        monthly: { unitAmount: 999, currency: 'usd' },
+        yearly: { unitAmount: 6999, currency: 'usd' },
+        savingsPercent: 42,
+        couponPercentOff: null,
+        currency: 'usd',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    })
 
-    expect(await screen.findByTestId('paywall-checkout')).toBeVisible()
+    await waitFor(() => expect(document.querySelectorAll('[data-tier-reservation]')).toHaveLength(2))
     expect(screen.getByText('usd 9.99')).toBeInTheDocument()
-    expect(document.querySelectorAll('.skeleton-pulse')).toHaveLength(0)
+    expect(screen.getByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabelRecommended:/,
+    })).toBeEnabled()
   })
 
   it('shows the trial-keeping heading when trial is active', () => {
     mockTrialDaysLeft = 5
-    mockProfile = { ...mockProfile, isTrialActive: true }
+    mockHasProAccess = true
+    mockProfile = {
+      ...mockProfile,
+      isTrialActive: true,
+      trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    }
     render(<UpgradePage />)
     expect(document.body.textContent).toContain('upgrade.convert.trialHeading')
+    expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
+    expect(document.body.textContent).not.toContain('upgrade.convert.trustLine')
+    expect(document.body.textContent).toContain('upgrade.convert.promise')
+    expect(screen.queryByText('upgrade.billing.plan.pro')).not.toBeInTheDocument()
   })
 
-
-  it('shows billing loading state for Pro users', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockIsBillingLoading = true
-    const { container } = render(<UpgradePage />)
-    const shimmerElements = container.querySelectorAll('.skeleton-pulse')
-    expect(shimmerElements.length).toBeGreaterThan(0)
-  })
-
-  it('shows billing error state for Pro users', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockIsBillingError = true
-    mockBilling = null
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.error')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.retry')).toBeInTheDocument()
-  })
-
-  it('shows billing plan details when loaded', () => {
+  it('uses the last day eyebrow instead of a count of one', () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
     mockHasProAccess = true
     mockProfile = {
       ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      aiMessagesUsed: 10,
-      aiMessagesLimit: 500,
+      isTrialActive: true,
+      trialEndsAt: tomorrow.toISOString(),
     }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: {
-        brand: 'visa',
-        last4: '4242',
-        expMonth: 12,
-        expYear: 2028,
-      },
-      recentInvoices: [],
-    }
+
     render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.monthly')).toBeInTheDocument()
+
+    expect(document.body.textContent).toContain('upgrade.convert.trialLastDay')
+    expect(document.body.textContent).not.toContain('upgrade.convert.trialDaysLeft')
   })
 
-  it('shows yearly plan label for yearly billing', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'yearly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2026-01-15T00:00:00Z',
-      amountPerPeriod: 7999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.yearly')).toBeInTheDocument()
-  })
-
-  it('shows canceled badge when subscription is canceling', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: true,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.canceledBadge')).toBeInTheDocument()
-  })
-
-  it('shows payment method details', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: {
-        brand: 'visa',
-        last4: '4242',
-        expMonth: 12,
-        expYear: 2028,
-      },
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.billing.payment.card')
-    expect(document.body.textContent).toContain('upgrade.billing.payment.expires')
-  })
-
-  it('shows usage stats for Pro users with billing', () => {
+  it('renders the trial countdown from trialEndsAt', () => {
     mockHasProAccess = true
     mockProfile = {
       ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      aiMessagesUsed: 10,
-      aiMessagesLimit: 500,
-    }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
+      isTrialActive: true,
+      trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     }
     render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.billing.usage.title')
-    expect(document.body.textContent).toContain('upgrade.billing.usage.aiMessages')
+    expect(document.body.textContent).toContain(
+      'upgrade.convert.trialDaysLeft:{"days":5}',
+    )
   })
 
-  it('shows change payment button', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: {
-        brand: 'mastercard',
-        last4: '1234',
-        expMonth: 6,
-        expYear: 2027,
-      },
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.payment.change')).toBeInTheDocument()
-  })
-
-  it('shows past_due badge when billing status is past_due', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'past_due',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.pastDue')).toBeInTheDocument()
-  })
-
-  it('shows the Google Play management panel for Play-sourced Pro users', () => {
+  it('does not put subscription status in the trial pitch', () => {
     mockHasProAccess = true
     mockProfile = {
       ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      subscriptionSource: 'play',
-      subscriptionInterval: 'yearly',
-      planExpiresAt: '2026-07-15T00:00:00Z',
+      isTrialActive: true,
+      trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      subscriptionInterval: null,
     }
     render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.actions.managePlay')).toBeInTheDocument()
-    expect(screen.queryByText('upgrade.billing.actions.manage')).not.toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.plan.pro')).not.toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.plan.monthly')).not.toBeInTheDocument()
   })
 
-  it('skips Stripe billing and shows the lifetime panel for lifetime Pro users', () => {
-    mockHasProAccess = true
+  it.each([false, true])('keeps cached pitch content with paid actions disabled offline, trial=%s', (trialActive) => {
+    mockIsOnline = false
+    mockHasProAccess = trialActive
     mockProfile = {
       ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      isLifetimePro: true,
+      isTrialActive: trialActive,
+      trialEndsAt: trialActive
+        ? new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+        : null,
+      subscriptionInterval: null,
     }
-    mockBilling = null
+    mockPlans = {
+      monthly: { unitAmount: 1999, currency: 'usd' },
+      yearly: { unitAmount: 19999, currency: 'usd' },
+      currency: 'usd',
+      savingsPercent: 17,
+      couponPercentOff: null,
+    }
     render(<UpgradePage />)
-    expect(mockUseBilling).toHaveBeenCalledWith(false)
-    expect(screen.getByText('upgrade.billing.plan.lifetime')).toBeInTheDocument()
-    expect(screen.queryByText('upgrade.billing.error')).not.toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.offline')).toBeInTheDocument()
+    expect(screen.getByText(
+      trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading',
+    )).toBeInTheDocument()
+    const paidActions = screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+    })
+    expect(paidActions).toHaveLength(2)
+    expect(paidActions[0]).toBeDisabled()
+    expect(paidActions[1]).toBeDisabled()
   })
 
   it('routes checkout through the geo-forwarding BFF route, not a direct Stripe action', async () => {
@@ -446,7 +835,9 @@ describe('UpgradePage', () => {
     vi.stubGlobal('location', { href: '' })
 
     render(<UpgradePage />)
-    fireEvent.click(screen.getByTestId('paywall-checkout'))
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+    })[0]!)
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     const call = fetchMock.mock.calls[0]
@@ -454,10 +845,13 @@ describe('UpgradePage', () => {
     const requestInit = call?.[1] as RequestInit | undefined
     expect(requestUrl.startsWith('/api/subscriptions/checkout')).toBe(true)
     expect(requestInit?.method).toBe('POST')
-    expect(JSON.parse(requestInit?.body as string)).toEqual({ interval: 'yearly' })
+    expect(new Headers(requestInit?.headers).get('X-Orbit-Held-Account-Id')).toBe('u1')
+    expect(JSON.parse(requestInit?.body as string)).toEqual({
+      interval: 'yearly',
+    })
   })
 
-  it('enters the sign-in prompt state when revalidation confirms checkout rejection', async () => {
+  it('announces checkout failures', async () => {
     mockPlans = {
       monthly: { unitAmount: 999 },
       yearly: { unitAmount: 4999 },
@@ -465,66 +859,78 @@ describe('UpgradePage', () => {
       savingsPercent: 58,
       couponPercentOff: null,
     }
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        headers: new Headers({ 'x-orbit-session-refresh': 'failed' }),
-        json: async () => ({ error: 'Unauthorized' }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        headers: new Headers(),
-        json: async () => ({ expiresAt: null, refreshFailed: true }),
-      }))
-    vi.stubGlobal('location', { href: '', pathname: '/upgrade' })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(null, { status: 503 })))
 
     render(<UpgradePage />)
-    fireEvent.click(screen.getByTestId('paywall-checkout'))
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeEmptyDOMElement()
+    expect(alert).not.toHaveAttribute('aria-live')
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+    })[0]!)
+
+    await waitFor(() => expect(alert).toHaveTextContent('toast.errors.server'))
+    expect(screen.getByRole('alert')).toBe(alert)
+    expect(alert).not.toHaveAttribute('aria-live')
+
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+    })[0]!)
+    expect(screen.getByRole('alert')).toBe(alert)
+    expect(alert).toBeEmptyDOMElement()
+  })
+
+  it('prevents a second paid checkout while the first request is pending', async () => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    let resolveCheckout:
+      ((response: { ok: boolean; json: () => Promise<{ url?: string }> }) => void) | undefined
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCheckout = resolve
+        }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('location', { href: '' })
+
+    render(<UpgradePage />)
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+    })[0]!)
 
     await waitFor(() => {
-      expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(screen.getAllByRole('button', {
+        name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+      })[0]).toHaveAttribute(
+        'aria-busy',
+        'true',
+      )
     })
-    expect(globalThis.location.href).toBe('')
-  })
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+    })[1]!)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
 
-  it('offers the reload action after checkout refuses an account replacement', async () => {
-    mockPlans = {
-      monthly: { unitAmount: 999 }, yearly: { unitAmount: 4999 },
-      currency: 'usd', savingsPercent: 58, couponPercentOff: null,
-    }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false, status: 409, headers: new Headers(),
-      json: async () => ({ error: 'Account changed', errorCode: 'ACCOUNT_CHANGED' }),
-    }))
-    vi.stubGlobal('location', { href: '', pathname: '/upgrade' })
-    render(<UpgradePage />)
-    fireEvent.click(screen.getByTestId('paywall-checkout'))
-
-    await waitFor(() => expect(screen.getByText('errors.api.accountChanged')).toBeInTheDocument())
-    expect(toast.error).toHaveBeenCalledWith('errors.api.accountChanged', expect.objectContaining({
-      id: 'account-changed',
-      action: expect.objectContaining({ label: 'errors.api.reload' }),
-    }))
-    expect(globalThis.location.href).toBe('')
-  })
-
-  it('offers the reload action after the portal refuses an account replacement', async () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true }
-    mockBilling = {
-      interval: 'monthly', cancelAtPeriodEnd: false, status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z', amountPerPeriod: 999,
-      currency: 'usd', paymentMethod: null, recentInvoices: [],
-    }
-    openCustomerPortal.mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
-    render(<UpgradePage />)
-    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
-
-    await waitFor(() => expect(screen.getByText('errors.api.accountChanged')).toBeInTheDocument())
-    expect(toast.error).toHaveBeenCalledWith('errors.api.accountChanged', expect.objectContaining({
-      id: 'account-changed',
-    }))
+    resolveCheckout?.({ ok: true, json: async () => ({}) })
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole('button', {
+          name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+        })[0],
+      ).not.toBeDisabled()
+    })
   })
 })
+
+function render(element: React.ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return renderComponent(element, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
+}

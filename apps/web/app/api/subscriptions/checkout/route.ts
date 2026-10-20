@@ -1,6 +1,6 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
-import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import {
   buildForwardedClientHeaders,
   sanitizeClientTimeZone,
@@ -9,6 +9,11 @@ import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
 
 const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
 
+/**
+ * BFF: POST /api/subscriptions/checkout Dedicated route that proxies checkout session
+ * creation to the .NET backend. This takes precedence over the catch-all proxy because
+ * Next.js resolves specific routes before [...path].
+ */
 
 function buildHeaders(
   token: string,
@@ -17,6 +22,7 @@ function buildHeaders(
   return {
     'Content-Type': 'application/json',
     ...forwardedClientHeaders,
+    ...API_VERSION_HEADERS,
     Authorization: `Bearer ${token}`,
   }
 }
@@ -85,12 +91,8 @@ export async function POST(request: NextRequest) {
   }
 
   const heldAccountId = request.headers.get('x-orbit-held-account-id')
-  const cookieAccountId = getAccountIdFromToken(session.token)
-  if (heldAccountId && cookieAccountId && cookieAccountId !== heldAccountId) {
-    return buildNoStoreJsonResponse(
-      JSON.stringify({ error: 'Account changed', errorCode: ACCOUNT_CHANGED_ERROR_CODE }),
-      409,
-    )
+  if (!heldAccountId || getAccountIdFromToken(session.token) !== heldAccountId) {
+    return buildNoStoreJsonResponse(JSON.stringify({ error: 'Account changed' }), 409)
   }
 
   const forwardedClientHeaders = resolveForwardedClientHeaders(request)
@@ -101,12 +103,8 @@ export async function POST(request: NextRequest) {
   if (response.status === 401) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (refreshedSession.token) {
-      const refreshedAccountId = getAccountIdFromToken(refreshedSession.token)
-      if (heldAccountId && refreshedAccountId && refreshedAccountId !== heldAccountId) {
-        return buildNoStoreJsonResponse(
-          JSON.stringify({ error: 'Account changed', errorCode: ACCOUNT_CHANGED_ERROR_CODE }),
-          409,
-        )
+      if (getAccountIdFromToken(refreshedSession.token) !== heldAccountId) {
+        return buildNoStoreJsonResponse(JSON.stringify({ error: 'Account changed' }), 409)
       }
       const retryResponse = await proxyCheckout(body, refreshedSession.token, forwardedClientHeaders)
       return toNoStoreResponse(retryResponse)

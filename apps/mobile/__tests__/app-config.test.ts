@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { AndroidConfig, compileModsAsync, withAndroidManifest } from '@expo/config-plugins'
 import { afterEach, describe, expect, it } from 'vitest'
 import appJson from '../app.json'
 
@@ -8,16 +9,12 @@ const createConfig = require('../app.config.js') as () => typeof appJson.expo
 describe('Android app variant', () => {
   afterEach(() => { delete process.env.ORBIT_APP_VARIANT })
 
-  it('keeps the production config with every union plugin registered', () => {
+  it('keeps the default production config with backup disabled and local plugins', () => {
     delete process.env.ORBIT_APP_VARIANT
     const expected = {
       ...appJson.expo,
-      plugins: [
-        ...appJson.expo.plugins,
-        './plugins/with-android-release-build-fixes',
-        './plugins/with-react-native-imperative-focus',
-        './plugins/with-design-bundle-launch',
-      ],
+      android: { ...appJson.expo.android, allowBackup: false },
+      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus', './plugins/with-design-bundle-launch'],
     }
     expect(JSON.stringify(createConfig())).toBe(JSON.stringify(expected))
   })
@@ -25,6 +22,7 @@ describe('Android app variant', () => {
   it('sets the staging package, launcher name, scheme, and App Link host', () => {
     process.env.ORBIT_APP_VARIANT = 'staging'
     const config = createConfig()
+    expect(config.runtimeVersion).toBe(`${appJson.expo.runtimeVersion}-staging`)
     expect(config.name).toBe('Orbit Staging')
     expect(config.scheme).toBe('orbit-staging')
     expect(config.android.package).toBe('org.useorbit.app.staging')
@@ -32,19 +30,30 @@ describe('Android app variant', () => {
     expect(config.android.intentFilters.flatMap((filter) => filter.data.map((entry) => entry.host)))
       .toEqual(['app-staging.useorbit.org', 'app-staging.useorbit.org'])
     expect(config.extra.router.origin).toBe('https://app-staging.useorbit.org')
-    expect(config.runtimeVersion).toBe(`${appJson.expo.runtimeVersion}-staging`)
     expect(appJson.expo.android.package).toBe('org.useorbit.app')
   })
 
-  it('keeps startup offline and declares every header the launch adapter overrides', () => {
+  it.each(['production', 'staging'])('disables Android backup in the %s config', (variant) => {
+    process.env.ORBIT_APP_VARIANT = variant
+    expect(createConfig().android).toHaveProperty('allowBackup', false)
+  })
+
+  it.each(['production', 'staging'])('disables Android backup in the generated %s manifest', async (variant) => {
+    process.env.ORBIT_APP_VARIANT = variant
     const config = createConfig()
-    expect(config.updates.enabled).toBe(true)
-    expect(config.updates.checkAutomatically).toBe('NEVER')
-    expect(config.updates.requestHeaders).toEqual({
-      'expo-channel-name': 'legacy',
-      'orbit-design-launch': 'embedded',
+    const configured = AndroidConfig.AllowBackup.withAllowBackup({
+      name: config.name,
+      slug: config.slug,
+      android: config.android,
     })
-    expect(config.updates).not.toHaveProperty('disableAntiBrickingMeasures', true)
+    let manifest!: AndroidConfig.Manifest.AndroidManifest
+    const observed = withAndroidManifest(configured, (mod) => {
+      manifest = mod.modResults
+      return mod
+    })
+    await compileModsAsync(observed, { projectRoot: process.cwd(), platforms: ['android'], introspect: true })
+    const application = AndroidConfig.Manifest.getMainApplicationOrThrow(manifest)
+    expect(application.$['android:allowBackup']).toBe('false')
   })
 
   it('disables updates for the staging embedded bundle without changing production', () => {

@@ -1,18 +1,58 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'path'
+import { createStallDiagnostics } from './vitest/stall-diagnostics'
+
+function findChromiumTests(directory: string): string[] {
+  return readdirSync(directory).flatMap((name) => {
+    const filename = path.join(directory, name)
+    if (statSync(filename).isDirectory()) return findChromiumTests(filename)
+    if (!/\.test\.tsx?$/.test(name)) return []
+    const source = readFileSync(filename, 'utf8')
+    if (!/\bfrom\s+['"][^'"]*\/chromium['"]/.test(source)) return []
+    return [path.relative(__dirname, filename).split(path.sep).join('/')]
+  })
+}
+
+const chromiumTests = findChromiumTests(path.join(__dirname, '__tests__'))
+  .sort((left, right) => left.localeCompare(right))
+
+const stallDiagnostics = createStallDiagnostics()
 
 export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    ...stallDiagnostics,
     setupFiles: ['./__tests__/setup.ts'],
-    include: ['__tests__/**/*.test.{ts,tsx}'],
     globals: true,
     /** CI runs workspace suites one at a time; local suites share the host. */
     maxWorkers: process.env.CI ? '100%' : '25%',
     testTimeout: 15000,
     hookTimeout: 15000,
+    // WHY: Chrome owns a process tree per suite, so CPU-based worker percentages do not bound browser contention. https://github.com/thomasluizon/orbit-tickets/issues/1451
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'jsdom',
+          include: ['__tests__/**/*.test.{ts,tsx}'],
+          exclude: chromiumTests,
+          sequence: { groupOrder: 1 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'chromium',
+          include: chromiumTests,
+          maxWorkers: 1,
+          fileParallelism: false,
+          sequence: { groupOrder: 2 },
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
@@ -38,12 +78,9 @@ export default defineConfig({
         'app/(chat)/error.tsx',
         'components/motion/route-transition-shell.tsx',
         'components/navigation/navigation-history-tracker.tsx',
-        'components/navigation/web-nav.tsx',
-        'components/shell/astra-copilot-rail.tsx',
         'components/calendar/calendar-week-view.tsx',
         'components/ui/parent-ring.tsx',
         'components/onboarding/retained-onboarding-overlay.tsx',
-        'components/habits/habit-form-fields/habit-tag-chip.tsx',
         'stores/version-gate-store.ts',
       ],
       thresholds: {

@@ -1,30 +1,38 @@
 export type CelebrationKind =
+  | "daily-streak"
   | "streak"
-  | "achievement"
   | "all-done"
   | "goal-completed"
   | "level-up";
 
+export const STREAK_CELEBRATION_MILESTONES = [7, 14, 30, 90, 100, 365] as const;
+
+export function isStreakCelebrationMilestone(value: number): boolean {
+  return (STREAK_CELEBRATION_MILESTONES as readonly number[]).includes(value);
+}
+
+export const DAILY_STREAK_MOMENT_DURATION = 2500;
+
 export interface CelebrationPayloadMap {
+  "daily-streak": { streak: number };
   streak: { streak: number };
-  achievement: { achievementId: string; xpReward: number };
   "all-done": { count: number };
-  "goal-completed": { name: string };
+  "goal-completed": { name: string; count: number; unit: string };
   "level-up": { level: number };
 }
 
 export type CelebrationQueueItem =
   | {
       id: string;
-      kind: "streak";
-      payload: CelebrationPayloadMap["streak"];
+      kind: "daily-streak";
+      payload: CelebrationPayloadMap["daily-streak"];
       priority: number;
       sequence: number;
     }
   | {
       id: string;
-      kind: "achievement";
-      payload: CelebrationPayloadMap["achievement"];
+      kind: "streak";
+      payload: CelebrationPayloadMap["streak"];
       priority: number;
       sequence: number;
     }
@@ -55,7 +63,7 @@ export interface CelebrationState {
   queuedCelebrations: CelebrationQueueItem[];
   streakCelebration: { streak: number } | null;
   allDoneCelebration: boolean;
-  goalCompletedCelebration: { name: string } | null;
+  goalCompletedCelebration: { name: string; count: number; unit: string } | null;
 }
 
 export type ActiveCelebrationState = Pick<
@@ -71,7 +79,7 @@ export function getCelebrationPriority(kind: CelebrationKind): number {
   switch (kind) {
     case "streak":
       return 0;
-    case "achievement":
+    case "daily-streak":
       return 1;
     case "goal-completed":
     case "all-done":
@@ -106,16 +114,11 @@ export function isDuplicateCelebration(
       if (item.kind !== candidate.kind) return false;
 
       switch (item.kind) {
+        case "daily-streak":
         case "streak":
           return (
             item.payload.streak ===
             (candidate.payload as CelebrationPayloadMap["streak"]).streak
-          );
-        case "achievement":
-          return (
-            item.payload.achievementId ===
-            (candidate.payload as CelebrationPayloadMap["achievement"])
-              .achievementId
           );
         case "goal-completed":
           return (

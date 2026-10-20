@@ -63,6 +63,8 @@ export function optimisticToggleCompletion(
   })
 }
 
+export { optimisticSetDatedCompletion } from '@orbit/shared/utils'
+
 function updateChecklistInChild(
   child: HabitScheduleChild,
   habitId: string,
@@ -93,6 +95,47 @@ export function optimisticUpdateChecklist(
       item.children.map((child) => updateChecklistInChild(child, habitId, newItems)),
     )
   })
+}
+
+function restoreDeletedChildren(
+  current: HabitScheduleChild[],
+  snapshot: HabitScheduleChild[],
+  failedIds: ReadonlySet<string>,
+): HabitScheduleChild[] {
+  const currentById = new Map(current.map((child) => [child.id, child]))
+  const snapshotIds = new Set(snapshot.map((child) => child.id))
+  const restored = snapshot.flatMap((snapshotChild) => {
+    if (failedIds.has(snapshotChild.id)) return [snapshotChild]
+    const currentChild = currentById.get(snapshotChild.id)
+    if (!currentChild) return []
+    return [withChildren(
+      currentChild,
+      restoreDeletedChildren(currentChild.children, snapshotChild.children, failedIds),
+    )]
+  })
+
+  return [...restored, ...current.filter((child) => !snapshotIds.has(child.id))]
+}
+
+/** Restore only failed optimistic deletions from the pre-mutation tree. */
+export function restoreDeletedHabits(
+  current: HabitScheduleItem[],
+  snapshot: HabitScheduleItem[],
+  failedIds: ReadonlySet<string>,
+): HabitScheduleItem[] {
+  const currentById = new Map(current.map((habit) => [habit.id, habit]))
+  const snapshotIds = new Set(snapshot.map((habit) => habit.id))
+  const restored = snapshot.flatMap((snapshotHabit) => {
+    if (failedIds.has(snapshotHabit.id)) return [snapshotHabit]
+    const currentHabit = currentById.get(snapshotHabit.id)
+    if (!currentHabit) return []
+    return [withChildren(
+      currentHabit,
+      restoreDeletedChildren(currentHabit.children, snapshotHabit.children, failedIds),
+    )]
+  })
+
+  return [...restored, ...current.filter((habit) => !snapshotIds.has(habit.id))]
 }
 
 /** Insert a new top-level habit into the cached list */

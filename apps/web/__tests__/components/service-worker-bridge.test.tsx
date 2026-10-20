@@ -1,9 +1,12 @@
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { useChatStore } from '@/stores/chat-store'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { notificationKeys } from '@orbit/shared/query'
 
 const mockPush = vi.fn()
+vi.mock('@/app/actions/chat', () => ({ getCurrentProactiveItem: async () => createMockProactiveItem(), reportProactiveOpened: async () => null }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
@@ -13,6 +16,7 @@ vi.mock('@sentry/nextjs', () => ({
   captureException: (...args: unknown[]) => mockCaptureException(...args),
 }))
 
+import { useUIStore } from '@/stores/ui-store'
 import { ServiceWorkerBridge } from '@/components/service-worker-bridge'
 
 function installServiceWorkerContainer(register = vi.fn().mockResolvedValue({})) {
@@ -58,6 +62,8 @@ function createReplyPort() {
 
 describe('ServiceWorkerBridge', () => {
   beforeEach(() => {
+    useUIStore.setState({ astraConversationOpen: false })
+    useChatStore.setState({ messages: [], proactiveOutcomes: {} })
     mockPush.mockReset()
     mockCaptureException.mockReset()
     window.history.replaceState(null, '', '/')
@@ -101,7 +107,23 @@ describe('ServiceWorkerBridge', () => {
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' })
     postFromWorker(container, { type: 'orbit:notification-click', url: '/progress' })
 
-    expect(mockPush.mock.calls).toEqual([['/chat'], ['/streak']])
+    expect(mockPush.mock.calls).toEqual([['/?astra=proactive'], ['/progress']])
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().messages).toEqual([])
+  })
+
+  it.each([
+    ['/streak?source=push#freezes', '/progress/streak?source=push#freezes'],
+    ['/progress/streak', '/progress/streak'],
+    ['/progress/goals', '/progress/goals'],
+    ['/progress/achievements', '/progress/achievements'],
+    ['/goals?status=Active', '/progress/goals?status=Active'],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
+  ])('routes the section push %s with its carried state', (url, destination) => {
+    const container = installServiceWorkerContainer()
+    renderBridge()
+    postFromWorker(container, { type: 'orbit:notification-click', url })
+    expect(mockPush).toHaveBeenCalledWith(destination)
   })
 
   it('confirms a notification click on the worker reply port, so the worker does not reload the window', async () => {
@@ -111,7 +133,9 @@ describe('ServiceWorkerBridge', () => {
 
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' }, [reply.port])
 
-    expect(mockPush).toHaveBeenCalledWith('/chat')
+    expect(mockPush).toHaveBeenCalledWith('/?astra=proactive')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().messages).toEqual([])
     expect(await reply.receipts()).toEqual([{ type: 'orbit:notification-click-received' }])
   })
 
@@ -180,6 +204,24 @@ describe('ServiceWorkerBridge', () => {
     expect(mockPush).toHaveBeenCalledWith('/profile')
     expect(window.location.pathname).toBe('/')
     expect(window.location.search).toBe('?date=2026-09-29')
+  })
+
+  it('routes a conversation notification through the authenticated Astra entry', () => {
+    installServiceWorkerContainer()
+    window.history.replaceState(null, '', '/?notificationUrl=%2Fchat')
+    renderBridge()
+    expect(mockPush).toHaveBeenCalledWith('/?astra=proactive')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().messages).toEqual([])
+  })
+
+  it('keeps the Astra launch intent in the route through anonymous onboarding and sign-in', () => {
+    installServiceWorkerContainer()
+    window.history.replaceState(null, '', '/onboarding?notificationUrl=%2Fchat')
+    renderBridge()
+    expect(mockPush).toHaveBeenCalledWith('/?astra=proactive')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().messages).toEqual([])
   })
 
   it('stays on the origin for a crafted launch link and still clears it', () => {

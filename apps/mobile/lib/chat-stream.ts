@@ -2,6 +2,7 @@ import { fetch as expoFetch } from 'expo/fetch'
 import { buildClientTimeZoneHeaders } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { getToken } from './secure-store'
+import { useThrottleStore } from '@/stores/throttle-store'
 import { getAccountEventOrigin } from './account-event-origin'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
@@ -13,19 +14,25 @@ async function executeStreamRequest(
   signal: AbortSignal,
   token: string | null,
 ): Promise<FetchResponse> {
-  const headers: Record<string, string> = { ...buildClientTimeZoneHeaders() }
   const eventOrigin = getAccountEventOrigin()
-  if (eventOrigin) headers['X-Orbit-Event-Origin'] = eventOrigin
+  const headers: Record<string, string> = {
+    ...buildClientTimeZoneHeaders(),
+    ...(eventOrigin ? { 'X-Orbit-Event-Origin': eventOrigin } : {}),
+  }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  return expoFetch(`${API_BASE}${API.chat.stream}`, {
+  const response = await expoFetch(`${API_BASE}${API.chat.stream}`, {
     method: 'POST',
     headers,
     body: formData,
     signal,
   })
+  if (response.status === 429) {
+    useThrottleStore.getState().show(response.status, await response.clone().json().catch(() => null))
+  }
+  return response
 }
 
 /**

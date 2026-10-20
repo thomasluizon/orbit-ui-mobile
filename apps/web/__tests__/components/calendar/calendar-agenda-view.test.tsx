@@ -1,266 +1,154 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { personalText } from '@/__tests__/support/personal-text'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { describe, expect, it, vi } from 'vitest'
+import { render as renderBase, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { enUS } from 'date-fns/locale'
-import type { DragEndEvent } from '@dnd-kit/core'
-import type { HabitScheduleItem } from '@orbit/shared/types/habit'
-import type { AgendaEntry } from '@/components/calendar/use-agenda-day'
+import { buildCalendarDayMap, createTimeDisplay, formatAPIDate } from '@orbit/shared/utils'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
-let capturedOnDragEnd: ((event: DragEndEvent) => void) | undefined
-const draggableCalls: Array<{ id: string; disabled?: boolean }> = []
-const updateMutate = vi.fn()
-const showSuccess = vi.fn()
-const showError = vi.fn()
+import { NextIntlClientProvider } from 'next-intl'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import en from '@orbit/shared/i18n/en.json'
 
-const agendaData = {
-  entries: [] as AgendaEntry[],
-  habitsById: new Map<string, HabitScheduleItem>(),
-  isLoading: false,
-  isFetching: false,
+const renderWithoutMessages = renderBase
+function render(element: React.ReactNode) {
+  return renderWithoutMessages(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">{element}</NextIntlClientProvider>)
 }
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
-
-vi.mock('@/components/calendar/use-agenda-day', () => ({
-  useAgendaDay: () => agendaData,
-}))
-
-vi.mock('@/hooks/use-habits', () => ({
-  useUpdateHabit: () => ({ mutate: updateMutate, isPending: false }),
-}))
-
-vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({
-    showSuccess,
-    showError,
-    showToast: vi.fn(),
-    showInfo: vi.fn(),
-    showQueued: vi.fn(),
-    dismissToast: vi.fn(),
-  }),
-}))
-
-vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({
-    children,
-    onDragEnd,
-  }: {
-    children: React.ReactNode
-    onDragEnd: (event: DragEndEvent) => void
-  }) => {
-    capturedOnDragEnd = onDragEnd
-    return <>{children}</>
-  },
-  PointerSensor: vi.fn(),
-  KeyboardSensor: vi.fn(),
-  useSensor: () => ({}),
-  useSensors: () => [],
-  useDraggable: (args: { id: string; disabled?: boolean }) => {
-    draggableCalls.push(args)
-    return {
-      attributes: {},
-      listeners: {},
-      setNodeRef: vi.fn(),
-      transform: null,
-      isDragging: false,
-    }
-  },
-}))
-
-vi.mock('@dnd-kit/utilities', () => ({
-  CSS: { Translate: { toString: () => undefined } },
-}))
 
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 
-function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
+function entry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
-    id: 'h1',
-    title: 'Workout',
-    description: null,
-    emoji: null,
-    frequencyUnit: 'Day',
-    frequencyQuantity: 1,
-    isBadHabit: false,
-    isCompleted: false,
-    isGeneral: false,
-    isFlexible: false,
-    days: [],
-    dueDate: '2025-01-01',
-    dueTime: '07:00',
-    dueEndTime: null,
-    endDate: null,
-    position: 0,
-    checklistItems: [],
-    createdAtUtc: '2025-01-01T00:00:00Z',
-    scheduledDates: [],
-    isOverdue: false,
-    reminderEnabled: false,
-    reminderTimes: [],
-    scheduledReminders: [],
-    slipAlertEnabled: false,
-    tags: [],
-    children: [],
-    hasSubHabits: false,
-    flexibleTarget: null,
-    flexibleCompleted: null,
-    linkedGoals: [],
-    instances: [],
-    ...overrides,
-  }
-}
-
-function makeEntry(overrides: Partial<AgendaEntry> = {}): AgendaEntry {
-  return {
-    habitId: 'h1',
-    title: 'Workout',
+    habitId: 'habit-1',
+    title: 'Morning walk',
     status: 'upcoming',
     isBadHabit: false,
-    dueTime: '07:00',
+    dueTime: '08:00',
     isOneTime: false,
-    dueEndTime: null,
     ...overrides,
   }
 }
 
-function dragEvent(habitId: string, minutes: number, deltaY: number): DragEndEvent {
-  return {
-    active: { id: habitId, data: { current: { minutes } } },
-    delta: { x: 0, y: deltaY },
-  } as unknown as DragEndEvent
-}
+const startDate = new Date(2026, 9, 5)
+const dayMap = new Map<string, CalendarDayEntry[]>([
+  [formatAPIDate(startDate), [entry()]],
+])
 
-function renderAgenda() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+function renderAgenda(isLoading = false) {
   return render(
-    <QueryClientProvider client={queryClient}>
-      <CalendarAgendaView
-        displayTime={(time) => time}
-        dateFnsLocale={enUS}
-        showRecurring
-        onShowRecurringChange={vi.fn()}
-      />
-    </QueryClientProvider>,
+    <CalendarAgendaView
+      startDate={startDate}
+      dayMap={dayMap}
+      displayTime={(time) => time}
+      todayKey={formatAPIDate(startDate)}
+      isLoading={isLoading}
+      loadingLabel="common.loading"
+    />,
   )
 }
 
 describe('CalendarAgendaView', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    capturedOnDragEnd = undefined
-    agendaData.entries = []
-    agendaData.habitsById = new Map()
-    draggableCalls.length = 0
-    updateMutate.mockImplementation(
-      (_vars: unknown, opts?: { onSuccess?: () => void }) => opts?.onSuccess?.(),
-    )
-  })
-
-  it('places a timed habit as a draggable block on the planner', () => {
-    agendaData.entries = [makeEntry({ habitId: 'h1', title: 'Workout', dueTime: '07:00' })]
-    agendaData.habitsById = new Map([['h1', makeHabit()]])
-
-    renderAgenda()
-
-    const block = screen.getByTestId('agenda-event')
-    expect(block).toHaveAttribute('data-habit-id', 'h1')
-    expect(block).toHaveTextContent('Workout')
-  })
-
-  it('keeps a sub-habit block in place because only a top-level habit can be rescheduled', () => {
-    agendaData.entries = [
-      makeEntry({ habitId: 'h1', title: 'Workout', dueTime: '07:00' }),
-      makeEntry({ habitId: 'child-1', title: 'Stretch', dueTime: '18:00', status: 'completed' }),
-    ]
-    agendaData.habitsById = new Map([['h1', makeHabit()]])
-
-    renderAgenda()
-
-    const lastCallFor = (habitId: string) =>
-      draggableCalls.filter((call) => call.id === habitId).at(-1)
-    expect(lastCallFor('h1')?.disabled).toBe(false)
-    expect(lastCallFor('child-1')?.disabled).toBe(true)
-    const [workoutBlock, stretchBlock] = screen.getAllByTestId('agenda-event')
-    expect(workoutBlock!.style.cursor).toBe('grab')
-    expect(stretchBlock!.style.cursor).toBe('default')
-  })
-
-  it('keeps an untimed habit in the all-day band, not the timeline', () => {
-    agendaData.entries = [makeEntry({ habitId: 'h2', title: 'Read', dueTime: null })]
-    agendaData.habitsById = new Map([['h2', makeHabit({ id: 'h2', title: 'Read', dueTime: null })]])
-
-    renderAgenda()
-
-    expect(screen.queryByTestId('agenda-event')).toBeNull()
-    expect(screen.getByTestId('agenda-all-day-event')).toHaveTextContent('Read')
-  })
-
-  it('persists the new dueTime through updateHabit when a block is dropped lower', () => {
-    agendaData.entries = [makeEntry({ habitId: 'h1', title: 'Workout', dueTime: '07:00' })]
-    agendaData.habitsById = new Map([['h1', makeHabit({ dueTime: '07:00' })]])
-
-    renderAgenda()
-
-    expect(capturedOnDragEnd).toBeDefined()
-    act(() => {
-      capturedOnDragEnd?.(dragEvent('h1', 420, 56 * 2))
+  for (const locale of ['en', 'pt-BR'] as const) {
+    it.each([
+      { outcome: 'completed', logged: true, bad: false, upcoming: false, dueTime: '08:00', en: 'done', pt: 'feito' },
+      { outcome: 'missed', logged: false, bad: false, upcoming: false, dueTime: '08:00', en: 'not logged', pt: 'sem registro' },
+      { outcome: 'upcoming', logged: false, bad: false, upcoming: true, dueTime: '08:00', en: 'scheduled', pt: 'agendado' },
+      { outcome: 'indulged', logged: true, bad: true, upcoming: false, dueTime: '08:00', en: 'indulged', pt: 'cedeu' },
+      { outcome: 'resisted', logged: false, bad: true, upcoming: false, dueTime: '08:00', en: 'resisted', pt: 'resistiu' },
+      { outcome: 'untimed', logged: false, bad: false, upcoming: true, dueTime: null, en: 'scheduled', pt: 'agendado' },
+    ])(`announces the full title, visible value and $outcome outcome in ${locale}`, (scenario) => {
+      const day = formatAPIDate(startDate)
+      const title = 'A full habit title with every preparation step and the complete destination '.repeat(8).trim()
+      const entries = buildCalendarDayMap({
+        habits: [createMockHabitScheduleItem({ id: scenario.outcome, title, scheduledDates: [day], dueTime: scenario.dueTime, isBadHabit: scenario.bad })],
+        logs: scenario.logged ? { [scenario.outcome]: [{ id: 'log', date: day, value: 1, createdAtUtc: '2026-10-05T12:00:00Z' }] } : {},
+      }, { from: day, to: day }, new Date(2026, 9, scenario.upcoming ? 5 : 6, 12))
+      renderWithoutMessages(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC">
+        <CalendarAgendaView startDate={startDate} dayMap={entries} displayTime={createTimeDisplay(locale, locale === 'pt-BR').displayTime}
+          todayKey={day} isLoading={false} loadingLabel="common.loading" />
+      </NextIntlClientProvider>)
+      const value = scenario.dueTime ? locale === 'en' ? '8:00 AM' : '08:00' : (locale === 'en' ? en : ptBR).calendar.timeGrid.noSetTime
+      const row = screen.getByRole('button', { name: `${title}, ${value}, ${locale === 'en' ? scenario.en : scenario.pt}` })
+      expect(row.querySelector('[data-slot="list-row-value"]')).toHaveTextContent(value)
+      expect(screen.getAllByRole('button')).toHaveLength(1)
+      expect(row.querySelectorAll('button, a, input, [tabindex="0"]')).toHaveLength(0)
+      expect(row.querySelector('[data-status]')?.closest('[aria-hidden="true"]')).not.toBeNull()
+      expect(screen.queryByRole('img')).toBeNull()
+      expect(screen.queryByRole('dialog')).toBeNull()
     })
+  }
 
-    expect(updateMutate).toHaveBeenCalledTimes(1)
-    const [vars] = updateMutate.mock.calls[0] as [
-      { habitId: string; data: { dueTime?: string; title: string; isBadHabit: boolean } },
-    ]
-    expect(vars.habitId).toBe('h1')
-    expect(vars.data.dueTime).toBe('09:00')
-    expect(vars.data.title).toBe('Workout')
-    expect(vars.data.isBadHabit).toBe(false)
-    expect(showSuccess).toHaveBeenCalledWith('calendar.rescheduled')
-  })
-
-  it('shifts the end time to preserve duration when a ranged block moves', () => {
-    agendaData.entries = [makeEntry({ habitId: 'h1', dueTime: '09:00', dueEndTime: '10:00' })]
-    agendaData.habitsById = new Map([['h1', makeHabit({ dueTime: '09:00', dueEndTime: '10:00' })]])
-
+  it('lists seven days ahead with empty days preserved', () => {
     renderAgenda()
 
-    act(() => {
-      capturedOnDragEnd?.(dragEvent('h1', 540, 56 * 5))
-    })
-
-    const [vars] = updateMutate.mock.calls[0] as [{ data: { dueTime?: string; dueEndTime?: string } }]
-    expect(vars.data.dueTime).toBe('14:00')
-    expect(vars.data.dueEndTime).toBe('15:00')
+    expect(screen.getAllByTestId('calendar-agenda-day')).toHaveLength(7)
+    expect(screen.getByText(personalText('Hoje, segunda-feira, 5 de outubro'))).toBeDefined()
+    expect(screen.getByText(personalText('Morning walk'))).toBeDefined()
+    expect(screen.getAllByText(ptBR.calendar.agenda.empty)).toHaveLength(6)
   })
 
-  it('rolls back with an error toast when the reschedule mutation fails', () => {
-    agendaData.entries = [makeEntry({ habitId: 'h1', dueTime: '07:00' })]
-    agendaData.habitsById = new Map([['h1', makeHabit({ dueTime: '07:00' })]])
-    updateMutate.mockImplementation(
-      (_vars: unknown, opts?: { onError?: () => void }) => opts?.onError?.(),
-    )
-
+  it('discloses a full name from a row with metadata beneath the title', () => {
     renderAgenda()
-
-    act(() => {
-      capturedOnDragEnd?.(dragEvent('h1', 420, 56))
-    })
-
-    expect(showError).toHaveBeenCalledWith('errors.updateHabit')
+    const row = screen.getByRole('button', { name: /Morning walk/ })
+    expect(row).toHaveAccessibleName('Morning walk, 08:00, agendado')
+    expect(row.querySelector('[data-slot="list-row-value"]')).toHaveTextContent('08:00')
+    fireEvent.click(row)
+    expect(screen.getByRole('dialog')).toHaveTextContent('Morning walk')
   })
 
-  it('ignores a drop that resolves to the same time', () => {
-    agendaData.entries = [makeEntry({ habitId: 'h1', dueTime: '07:00' })]
-    agendaData.habitsById = new Map([['h1', makeHabit({ dueTime: '07:00' })]])
+  it('announces the full clamped title and the formatted scheduled time before disclosure', () => {
+    const title = 'Morning walk with every preparation step and the complete destination '.repeat(8).trim()
+    render(<CalendarAgendaView startDate={startDate} dayMap={new Map([[formatAPIDate(startDate), [entry({ title })]]])}
+      displayTime={() => '8:00 AM'}
+      todayKey={formatAPIDate(startDate)} isLoading={false} loadingLabel="common.loading" />)
+    expect(screen.getByRole('button', { name: `${title}, 8:00 AM, agendado` })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
 
-    renderAgenda()
+  it('orders no-time entries first and supplies a value and status ring on every two-line row', () => {
+    const entries = [entry({ habitId: 'late', title: 'Ler 10 minutos', dueTime: '21:00' }),
+      entry({ habitId: 'early', title: 'Beber água', dueTime: '08:00' }),
+      entry({ habitId: 'avoid', title: 'Evitar distrações', dueTime: null, isBadHabit: true, status: 'completed' }),
+      entry({ habitId: 'long', title: 'Preparar tudo para uma caminhada tranquila com cada coisa no seu lugar', dueTime: null })]
+    const { container } = render(<CalendarAgendaView startDate={startDate} dayMap={new Map([[formatAPIDate(startDate), entries]])}
+      displayTime={(time) => time}
+      todayKey={formatAPIDate(startDate)} isLoading={false} loadingLabel="common.loading" />)
+    const rows = [...container.querySelectorAll<HTMLButtonElement>('[data-testid="calendar-agenda-day"] button')]
+    expect(rows.map((row) => row.querySelector('[data-slot="list-row-title"]')?.textContent)).toEqual([entries[2]!.title, entries[3]!.title, entries[1]!.title, entries[0]!.title])
+    expect(rows.map((row) => row.querySelector('[data-slot="list-row-value"]')?.textContent)).toEqual([ptBR.calendar.timeGrid.noSetTime, ptBR.calendar.timeGrid.noSetTime, '08:00', '21:00'])
+    for (const row of rows) {
+      expect(row.style.paddingBlock).toBe('12px')
+      expect(row.querySelectorAll('[data-status]')).toHaveLength(1)
+      expect(row.querySelectorAll(':scope > span > span > svg')).toHaveLength(0)
+    }
+  })
 
-    act(() => {
-      capturedOnDragEnd?.(dragEvent('h1', 420, 0))
-    })
+  it('renders a shaped placeholder instead of definitive empty days while loading', () => {
+    renderAgenda(true)
 
-    expect(updateMutate).not.toHaveBeenCalled()
+    expect(screen.getAllByTestId('calendar-agenda-loading-day')).toHaveLength(7)
+    expect(screen.getByRole('progressbar', { name: 'common.loading' })).toBeDefined()
+    expect(screen.queryByText(ptBR.calendar.agenda.empty)).toBeNull()
+  })
+})
+
+
+describe('CalendarAgendaView sub-habit carry', () => {
+  it('keeps a logged sub-habit read-only and displays its own title and time', () => {
+    const day = formatAPIDate(startDate)
+    const entries = buildCalendarDayMap({ habits: [createMockHabitScheduleItem({
+      id: 'parent',
+      children: [createMockHabitScheduleChild({
+        id: 'child', title: 'Stretch', dueTime: '18:00', dueEndTime: '18:30',
+        instances: [{ date: day, status: 'Completed', logId: 'child-log' }],
+      })],
+    })], logs: {} }, { from: day, to: day })
+    render(<CalendarAgendaView startDate={startDate} dayMap={entries}
+      displayTime={(time) => time}
+      todayKey={day} isLoading={false} loadingLabel="common.loading" />)
+    expect(screen.getByText('Stretch')).toBeInTheDocument()
+    expect(screen.getByText('18:00')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Stretch/ })).toBeInTheDocument()
+    expect(screen.queryByRole('slider')).toBeNull()
   })
 })

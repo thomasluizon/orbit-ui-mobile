@@ -1,7 +1,8 @@
+import { useThrottleStore } from '@/stores/throttle-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { apiClient } from '@/lib/api-client'
+import { apiClient, apiClientWithAuthorizingToken } from '@/lib/api-client'
 import { API } from '@orbit/shared/api'
 import { setPendingIdempotencyKey } from '@/lib/idempotency-key'
 import { setAccountEventOrigin } from '@/lib/account-event-origin'
@@ -66,6 +67,38 @@ vi.mock('expo-router', () => ({
 vi.stubGlobal('fetch', fetchMock)
 
 describe('mobile apiClient', () => {
+  it('does not show a throttle toast for an empty retrospective on repeated requests', async () => {
+    getTokenMock.mockResolvedValue('token')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      error: 'No habits found for this period.',
+      errorCode: 'NO_HABITS_FOR_PERIOD',
+    }), { status: 400 }))
+    useThrottleStore.getState().clear()
+
+    await expect(apiClient('/api/habits/retrospective?period=month&language=en')).rejects.toMatchObject({ status: 400 })
+    await expect(apiClient('/api/habits/retrospective?period=month&language=en')).rejects.toMatchObject({ status: 400 })
+    expect(useThrottleStore.getState().error).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('preserves Retry-After on a read without opening the throttle screen', async () => {
+    getTokenMock.mockResolvedValue('token')
+    useThrottleStore.getState().clear()
+    fetchMock.mockResolvedValue(Response.json({ error: 'Rate limited', retryAfterUtc: new Date(Date.now() + 60_000).toISOString() }, { status: 429, headers: { 'Retry-After': '60' } }))
+    await expect(apiClient('/api/habits')).rejects.toMatchObject({ status: 429, retryAfter: '60' })
+    expect(useThrottleStore.getState().error).toBeNull()
+  })
+
+  it('opens the countdown for a refused request without retrying its write', async () => {
+    getTokenMock.mockResolvedValue('token')
+    const payload = { error: 'Too many requests', requestId: 'real-reference', limit: 10, count: 11, retryAfterUtc: '2026-09-06T00:00:42.000Z' }
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(payload), { status: 429 }))
+    await expect(apiClient('/api/habits', { method: 'POST' })).rejects.toMatchObject({ status: 429 })
+    expect(useThrottleStore.getState().error).toMatchObject({ status: 429, data: payload })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    useThrottleStore.getState().clear()
+  })
+
   beforeEach(() => {
     authStateMock.sessionPhase = 'signed-out'
     authStateMock.isAuthenticated = false
@@ -109,6 +142,25 @@ describe('mobile apiClient', () => {
         }),
       }),
     )
+  })
+
+  it('does not post an old account reset when token loading finishes after replacement', async () => {
+    let finishToken!: (value: string) => void
+    fetchMock.mockResolvedValue({ ok: true, status: 204, headers: { get: () => null } })
+    let current = true
+    getTokenMock.mockImplementationOnce(() => new Promise((resolve) => {
+      finishToken = resolve
+    }))
+    const pending = apiClient(API.profile.reset, {
+      method: 'POST',
+      isCurrent: () => current,
+    })
+
+    await vi.waitFor(() => expect(getTokenMock).toHaveBeenCalledTimes(1))
+    current = false
+    finishToken('next-account-token')
+    await expect(pending).rejects.toThrow('Account changed')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('sends the live connection id with mutations', async () => {
@@ -287,6 +339,59 @@ describe('mobile apiClient', () => {
         }),
       }),
     )
+  })
+
+  /**
+   * Whatever records WHOSE data it received cannot use the token the caller last read. The Android
+   * widget tags each cached payload with the account that produced it, and a payload the 401 path
+   * fetched under a different credential, then tagged with the caller's stale one, is one account's
+   * habits filed under another account's name.
+   */
+  it('reports the refreshed token as the one that authorized the body', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    refreshSessionMock.mockResolvedValue({ status: 'refreshed', token: 'token-456' })
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      })
+
+    await expect(apiClientWithAuthorizingToken('/secure')).resolves.toEqual({
+      data: { ok: true },
+      authorizingToken: 'token-456',
+    })
+  })
+
+  it('reports the rotated stored token, not the one the caller started with', async () => {
+    getTokenMock.mockResolvedValueOnce('stale-token').mockResolvedValue('fresh-token')
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      })
+
+    await expect(apiClientWithAuthorizingToken('/secure')).resolves.toEqual({
+      data: { ok: true },
+      authorizingToken: 'fresh-token',
+    })
+  })
+
+  it('reports the request token when no retry was needed', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: true })),
+    })
+
+    await expect(apiClientWithAuthorizingToken('/secure')).resolves.toEqual({
+      data: { ok: true },
+      authorizingToken: 'token-123',
+    })
   })
 
   it('delegates rejection teardown to the refresh store', async () => {
@@ -575,5 +680,18 @@ describe('mobile apiClient', () => {
       credentialVersion: 0,
     })
     expect(refreshSessionMock).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('selected request language', () => {
+  it.each(['en', 'pt-BR'])('sends %s on signed-out auth requests', async (language) => {
+    const { i18n } = await import('@/lib/i18n')
+    await i18n.changeLanguage(language)
+    getTokenMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }))
+    await apiClient(API.auth.sendCode, { method: 'POST', body: '{}' })
+    expect(new Headers(fetchMock.mock.calls.at(-1)?.[1].headers).get('Accept-Language')).toBe(language)
+    await i18n.changeLanguage('en')
   })
 })

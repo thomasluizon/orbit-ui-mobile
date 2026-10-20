@@ -1,29 +1,101 @@
+import { SPACING } from '@orbit/shared/theme'
+import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
+import { ChevronDown } from '@/components/ui/icons'
+import { PersonalText } from '@/components/ui/personal-text'
 import { useMemo, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { Compass, FileText, Mail, Shield } from 'lucide-react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { ABOUT_DESTINATIONS } from '@orbit/shared/utils'
 import { getAppVersion } from '@/lib/app-version'
-import { AppLogo } from '@/components/ui/app-logo'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
+import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
+import { PageHeader } from '@/components/ui/page-header'
+import { ListRow } from '@/components/ui/list-row'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { RowList } from '@/components/ui/row-list'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useProfile } from '@/hooks/use-profile'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { AppBar } from '@/components/ui/app-bar'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { useAuthStore } from '@/stores/auth-store'
 
-function sectionEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(index * 50)
-    .reduceMotion(ReduceMotion.System)
+interface AboutFactProps {
+  id: 'version' | 'account'
+  label: string
+  value: string
+  labelColor: string
+  valueColor: string
+}
+
+function AboutFact({ id, label, value, labelColor, valueColor }: Readonly<AboutFactProps>) {
+  if (id === 'account') return <AboutAccountFact label={label} value={value} labelColor={labelColor} valueColor={valueColor} />
+  return (
+    <View testID={`about-fact-${id}`} style={styles.factRow}>
+      <Text testID={`about-fact-${id}-label`} style={[styles.factLabel, { color: labelColor }]}>
+        {label}
+      </Text>
+      <Text testID={`about-fact-${id}-value`} style={[styles.factValue, { color: valueColor }]}>
+        {value}
+      </Text>
+    </View>
+  )
+}
+
+function AboutAccountFact({ label, value, labelColor, valueColor }: Readonly<Omit<AboutFactProps, 'id'>>) {
+  const [expanded, setExpanded] = useState(false)
+  const [pressed, setPressed] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const highlighted = pressed || focused || hovered
+  return <Pressable
+    onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}
+    onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+    onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+    accessibilityRole="button" accessibilityLabel={`${label} ${value}`} accessibilityState={{ expanded }}
+    onPress={() => setExpanded(!expanded)} hitSlop={{ left: 16, right: 16 }}
+    testID="about-fact-account" style={[styles.factRow, styles.accountRow]}>
+    <View testID="about-account-fill" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+      style={[styles.accountFill, { backgroundColor: highlighted ? tokens.bgHover : 'transparent', outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' }]} />
+    <Text testID="about-fact-account-label" style={[styles.factLabel, { flexShrink: 0, maxWidth: '100%', color: highlighted ? tokens.fg2 : labelColor }]}>{label}</Text>
+    <View style={styles.accountValue}>
+      <View style={styles.accountText}><PersonalText expanded={expanded} testID="about-fact-account-value" style={[styles.factValue, { color: valueColor }]}>{value}</PersonalText></View>
+      <View testID="about-account-chevron" style={{ width: 20, flexShrink: 0 }}><ChevronDown size={20} strokeWidth={1.5} color={highlighted ? tokens.fg2 : labelColor} accessible={false} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></View>
+    </View>
+  </Pressable>
+}
+
+function ProfileAccountFact({
+  label,
+  labelColor,
+  valueColor,
+}: Readonly<Pick<AboutFactProps, 'label' | 'labelColor' | 'valueColor'>>) {
+  const { profile } = useProfile()
+
+  return (
+    <AboutFact
+      id="account"
+      label={label}
+      labelColor={labelColor}
+      value={profile?.email ?? ''}
+      valueColor={valueColor}
+    />
+  )
 }
 
 export default function AboutScreen() {
+  const { width } = useWindowDimensions()
+  const contentFrameStyle = useContentFrameStyle(620)
   const { t } = useTranslation()
+  const pageEnd = useShellPageEnd()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -35,81 +107,121 @@ export default function AboutScreen() {
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
-      edges={['top']}
+      edges={pageEnd.safeAreaEdges}
     >
-      <AppBar
-        back
+      <PageHeader
         onBack={() => goBackOrFallback('/profile')}
         title={t('about.title')}
-        backLabel={t('common.backToProfile')}
+        backLabel={backLabel}
       />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={sectionEntrance(0)} style={styles.logoBlock}>
-          <AppLogo size={72} />
-          <Text style={[styles.appName, { color: tokens.fg1 }]}>
-            {t('common.appName')}
-          </Text>
-          {appVersion ? (
-            <Text style={[styles.appVersion, { color: tokens.fg3 }]}>
-              {t('about.version', { version: appVersion })}
+        <View testID="about-content" style={[contentFrameStyle, styles.content]}>
+          <View testID="about-identity" style={styles.identity}>
+            <OrbitMark size={48} accent />
+            <Text accessibilityLanguage="en" style={[styles.appName, width >= 768 && styles.appNameWide, { color: tokens.fg1 }]}>
+              {t('common.appName')}
             </Text>
-          ) : null}
-        </Animated.View>
-        <Animated.View entering={sectionEntrance(1)}>
-          <SettingsRow
-            icon={Compass}
-            label={t('onboarding.featureGuide.openButton')}
-            onPress={() => setShowGuide(true)}
-          />
-          <SettingsRow
-            icon={Mail}
-            label={t('profile.support.title')}
-            onPress={() => router.push('/support')}
-          />
-          <SettingsRow
-            icon={FileText}
-            label={t('terms.title')}
-            onPress={() => router.push('/terms')}
-          />
-          <SettingsRow
-            icon={Shield}
-            label={t('privacy.title')}
-            onPress={() => router.push('/privacy')}
-          />
-        </Animated.View>
-        <View style={{ height: 24 }} />
+            <Text style={[styles.tagline, { color: tokens.fg2 }]}>
+              {t('about.tagline')}
+            </Text>
+          </View>
+
+          <View testID="about-destinations" style={styles.destinations}>
+            <RowList style={styles.rowList}>
+              {ABOUT_DESTINATIONS.map((destination) => (
+                <ListRow
+                  key={destination.id}
+                  accessibilityLabel={t(destination.titleKey)}
+                  onClick={() => destination.route ? router.push(destination.route) : setShowGuide(true)}
+                  title={t(destination.titleKey)}
+                  compact
+                  wrapTitle
+                />
+              ))}
+            </RowList>
+          </View>
+
+          <View testID="about-facts" style={styles.facts}>
+            {appVersion ? (
+              <AboutFact
+                id="version"
+                label={t('about.versionLabel')}
+                labelColor={tokens.fg3}
+                value={appVersion}
+                valueColor={tokens.fg2}
+              />
+            ) : null}
+            {isAuthenticated ? (
+              <ProfileAccountFact
+                label={t('about.accountLabel')}
+                labelColor={tokens.fg3}
+                valueColor={tokens.fg2}
+              />
+            ) : null}
+          </View>
+
+        </View>
       </ScrollView>
 
-      <FeatureGuideDrawer
-        open={showGuide}
-        onClose={() => setShowGuide(false)}
-      />
+      <FeatureGuideDrawer open={showGuide} onClose={() => setShowGuide(false)} />
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
-  logoBlock: {
-    alignItems: 'center',
-    gap: 10,
-    paddingTop: 24,
-    paddingBottom: 20,
-  },
+  safeArea: { flex: 1, minWidth: 0 },
+  container: { flex: 1, minWidth: 0 },
+  scrollContent: { minWidth: 0 },
+  content: { gap: 24, paddingTop: SPACING.s16 },
+  identity: { minWidth: 0, alignItems: 'flex-start', gap: 12 },
   appName: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 22,
-    letterSpacing: -0.22,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 28,
+    fontWeight: '600',
+    lineHeight: 32.2,
+    letterSpacing: -0.56,
   },
-  appVersion: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 13,
+  appNameWide: { fontSize: 34, lineHeight: 38.08, letterSpacing: -0.68 },
+  tagline: {
+    maxWidth: '100%',
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
+    lineHeight: 24.8,
+  },
+  destinations: { minWidth: 0 },
+  rowList: { minWidth: 0 },
+  facts: { minWidth: 0, gap: 8 },
+  factRow: {
+    minWidth: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 12,
+    rowGap: 4,
+  },
+  accountRow: { minHeight: 48, paddingVertical: SPACING.s8, position: 'relative', alignItems: 'center' },
+  accountFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12 },
+  accountText: { minWidth: 0, flexShrink: 1 },
+  accountValue: { minWidth: 0, maxWidth: '100%', flexShrink: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  factLabel: {
+    minWidth: 0,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 'auto',
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  factValue: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexShrink: 1,
+    fontFamily: 'GeistMono_400Regular',
+    fontSize: 12,
+    lineHeight: 19.2,
     fontVariant: ['tabular-nums'],
   },
 })

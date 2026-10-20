@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -29,10 +29,15 @@ vi.mock('@/hooks/use-referral', () => ({
 }))
 
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 describe('ReferralDrawer', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: undefined,
+    })
     mockStats = null
     mockIsLoading = false
     mockIsError = false
@@ -48,7 +53,6 @@ describe('ReferralDrawer', () => {
 
   it.each([
     'referral.drawer.title',
-    'referral.drawer.howItWorks',
     'referral.drawer.yourLink',
   ])('renders %s when open', (text) => {
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
@@ -121,7 +125,88 @@ describe('ReferralDrawer', () => {
   })
 
   it('shows disclaimer', () => {
+    mockStats = {
+      successfulReferrals: 0,
+      maxReferrals: 10,
+      pendingReferrals: 0,
+      discountPercent: 15,
+    }
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
     expect(document.body.textContent).toContain('referral.drawer.disclaimer')
+    expect(document.body.textContent).toContain('"discount":15')
+  })
+
+  it('shows feedback when the native share operation rejects', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('No share target', 'AbortError'))
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: share,
+    })
+
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'referral.drawer.share' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('referral.drawer.actionFailed')
+    expect(share).toHaveBeenCalledWith({
+      title: 'referral.share.title',
+      text: undefined,
+      url: mockReferralUrl,
+    })
+  })
+
+  it('shows a failed share in the pinned footer, beside Share', async () => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn().mockRejectedValue(new Error('share failed')) })
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'referral.drawer.share' }))
+
+    expect((await screen.findByRole('alert')).closest('[data-slot="sheet-actions"]')).not.toBeNull()
+  })
+
+  it('shows a failed copy in the body, beside the link', async () => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn() })
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } })
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'referral.drawer.copyLink' }))
+
+    expect((await screen.findByRole('alert')).closest('[data-slot="sheet-body"]')).not.toBeNull()
+  })
+
+  it('pins Share in the sheet footer and keeps only the copy control in the body', () => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn() })
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'referral.drawer.share'])
+    expectSmallSheetActions()
+    expect(sheetActionsUseActionPair()).toBe(true)
+    expect(sheetSlotButtons('sheet-body')).toEqual(['referral.drawer.copyLink'])
+  })
+
+  it('cancels through the sheet host without sharing', () => {
+    const share = vi.fn()
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share })
+    const onOpenChange = vi.fn()
+    render(<ReferralDrawer open onOpenChange={onOpenChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(share).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['loading', () => { mockIsLoading = true }],
+    ['failed', () => { mockIsError = true; mockError = { message: 'unavailable' } }],
+  ])('offers no Share while the referral is %s', (_state, arrange) => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn() })
+    arrange()
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+
+    expect(document.querySelector('[data-slot="sheet-actions"]')).toBeNull()
+  })
+
+  it('does not invent discount copy before stats load', () => {
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+    expect(document.body.textContent).not.toContain('referral.drawer.howItWorks')
+    expect(document.body.textContent).not.toContain('referral.drawer.disclaimer')
   })
 })

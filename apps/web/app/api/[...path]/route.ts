@@ -1,9 +1,11 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { NextResponse, type NextRequest } from 'next/server'
 import { APP_VERSION_HEADER } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
 import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
+import { normalizeUpstreamResponse } from '@/lib/upstream-starting-response'
 import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import {
   SESSION_REFRESH_FAILED_VALUE,
@@ -105,7 +107,7 @@ async function proxyRequest(
     : `${apiBase}/api/${apiPath}`
 
   const method = request.method
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = { ...API_VERSION_HEADERS }
   const eventOrigin = request.headers.get('x-orbit-event-origin')
   if (eventOrigin && eventOrigin.length <= 128 && method !== 'GET' && method !== 'HEAD') {
     headers['X-Orbit-Event-Origin'] = eventOrigin
@@ -203,16 +205,16 @@ function initialChatRefusal(
     })
   }
   const heldAccountId = request.headers.get('x-orbit-held-account-id')
-  const cookieAccountId = getAccountIdFromToken(token)
-  return heldAccountId && cookieAccountId && cookieAccountId !== heldAccountId
-    ? accountChangedResponse()
-    : null
+  return heldAccountId && getAccountIdFromToken(token) === heldAccountId
+    ? null
+    : accountChangedResponse()
 }
 
 async function toNextResponse(
   source: Response,
   sessionRefreshFailed = false,
 ): Promise<NextResponse> {
+  source = await normalizeUpstreamResponse(source)
   const body = NULL_BODY_STATUSES.has(source.status) ? null : await source.text()
   const headers = buildResponseHeaders(source)
   if (sessionRefreshFailed) {
@@ -235,10 +237,8 @@ async function handleProxy(request: NextRequest, path: string) {
   if (response.status === 401 && path !== REFRESH_PATH) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (refreshedSession.token) {
-      const refreshedAccountId = protectChatWrite
-        ? getAccountIdFromToken(refreshedSession.token)
-        : null
-      if (heldAccountId && refreshedAccountId && refreshedAccountId !== heldAccountId) {
+      if (protectChatWrite
+        && getAccountIdFromToken(refreshedSession.token) !== heldAccountId) {
         return accountChangedResponse()
       }
       const retryResponse = await proxyRequest(request, path, refreshedSession.token)

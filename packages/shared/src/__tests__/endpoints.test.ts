@@ -130,6 +130,7 @@ describe('API endpoints', () => {
       expect(API.gamification.profile).toBe('/api/gamification/profile')
       expect(API.gamification.achievements).toBe('/api/gamification/achievements')
       expect(API.gamification.streak).toBe('/api/gamification/streak')
+      expect(API.gamification.repairStreakGap).toBe('/api/gamification/streak/repair-gap')
     })
   })
 
@@ -178,6 +179,8 @@ describe('API endpoints', () => {
     it('has correct static paths', () => {
       expect(API.apiKeys.list).toBe('/api/api-keys')
       expect(API.apiKeys.create).toBe('/api/api-keys')
+      expect(API.apiKeys.requestCreationChallenge).toBe('/api/api-keys/creation-challenge')
+      expect(API.apiKeys.confirmCreationChallenge).toBe('/api/api-keys/creation-challenge/confirm')
     })
 
     it('has correct parameterized paths', () => {

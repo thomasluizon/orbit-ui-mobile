@@ -5,9 +5,30 @@ import {
   nextRewardCarrotSchema,
   recapResponseSchema,
   reportEventResponseSchema,
+  retrospectiveHabitStatSchema,
+  streakInfoSchema,
 } from '../types/gamification'
 import { profileSchema } from '../types/profile'
+import { deriveStreakRepairState } from '../utils/progress'
 import { createMockGamificationProfile, createMockProfile } from './factories'
+
+describe('retrospectiveHabitStatSchema', () => {
+  const stat = { name: 'Read', emoji: null, completionRate: 100, completedCount: 7, scheduledCount: 7, isOneTime: false }
+
+  it('preserves the nullable UUID supplied by the API', () => {
+    const habitId = 'a08892c2-9a7c-4dc9-b70f-388be528420e'
+    expect(retrospectiveHabitStatSchema.parse({ ...stat, habitId })).toEqual({ ...stat, habitId })
+    expect(retrospectiveHabitStatSchema.parse({ ...stat, habitId: null })).toEqual({ ...stat, habitId: null })
+  })
+
+  it('accepts a cached stat without an id', () => {
+    expect(retrospectiveHabitStatSchema.parse(stat)).toEqual(stat)
+  })
+
+  it('rejects an id outside the API UUID contract', () => {
+    expect(retrospectiveHabitStatSchema.safeParse({ ...stat, habitId: 'Read' }).success).toBe(false)
+  })
+})
 
 describe('nextRewardCarrotSchema', () => {
   it('parses a Pro carrot with a null teaser', () => {
@@ -103,11 +124,120 @@ describe('profileSchema.canViewGamification', () => {
   })
 })
 
+describe('streakInfoSchema repair offer', () => {
+  it('preserves the latest automatic freeze spend', () => {
+    const parsed = streakInfoSchema.parse({
+      currentStreak: 8,
+      longestStreak: 12,
+      lastActiveDate: '2026-09-16',
+      freezesUsedThisMonth: 1,
+      freezesAvailable: 2,
+      maxFreezesPerMonth: 3,
+      isFrozenToday: false,
+      recentFreezeDates: ['2026-09-16'],
+      lastFreezeCoveredDate: '2026-09-16',
+      freezeBankRemaining: 2,
+      lastFreezeCoveredOrigin: 'automatic',
+    })
+
+    expect(parsed).toMatchObject({
+      lastFreezeCoveredDate: '2026-09-16',
+      freezeBankRemaining: 2,
+      lastFreezeCoveredOrigin: 'automatic',
+    })
+  })
+
+  it('keeps manual and historical freeze origins distinct', () => {
+    const response = {
+      currentStreak: 8,
+      longestStreak: 12,
+      lastActiveDate: '2026-09-16',
+      freezesUsedThisMonth: 1,
+      freezesAvailable: 2,
+      maxFreezesPerMonth: 3,
+      isFrozenToday: false,
+      recentFreezeDates: ['2026-09-16'],
+      lastFreezeCoveredDate: '2026-09-16',
+      freezeBankRemaining: 2,
+    }
+
+    expect(streakInfoSchema.parse({ ...response, lastFreezeCoveredOrigin: 'manual' }).lastFreezeCoveredOrigin).toBe('manual')
+    expect(streakInfoSchema.parse({ ...response, lastFreezeCoveredOrigin: null }).lastFreezeCoveredOrigin).toBeNull()
+    expect(streakInfoSchema.parse(response)).not.toHaveProperty('lastFreezeCoveredOrigin')
+  })
+
+  it('parses the API-owned repair date', () => {
+    const parsed = streakInfoSchema.parse({
+      currentStreak: 0,
+      longestStreak: 9,
+      lastActiveDate: '2026-08-26',
+      freezesUsedThisMonth: 1,
+      freezesAvailable: 2,
+      maxFreezesPerMonth: 3,
+      isFrozenToday: false,
+      recentFreezeDates: [],
+      isRepairAvailable: true,
+      repairDate: '2026-08-27',
+    })
+
+    expect(parsed.repairDate).toBe('2026-08-27')
+  })
+
+  it('preserves the streak when repairable gap dates are null', () => {
+    const payload = {
+      currentStreak: 4,
+      longestStreak: 9,
+      lastActiveDate: '2026-08-26',
+      freezesUsedThisMonth: 1,
+      freezesAvailable: 2,
+      maxFreezesPerMonth: 3,
+      isFrozenToday: false,
+      recentFreezeDates: ['2026-08-20'],
+      isRepairAvailable: true,
+      repairDate: '2026-08-27',
+      repairableGapDates: null,
+    }
+    const parsed = streakInfoSchema.parse(payload)
+
+    expect(parsed).toMatchObject(payload)
+    expect(deriveStreakRepairState({
+      streak: parsed,
+      freezesAvailable: 2,
+      banked: 2,
+      ceiling: 3,
+    })).toMatchObject({ dates: ['2026-08-27'], count: 1, canRepair: true })
+  })
+})
+
 describe('recapResponseSchema', () => {
+  it('preserves the API goal completion count', () => {
+    const parsed = recapResponseSchema.parse({
+      period: 'month',
+      shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=month',
+      goalCompletions: 4,
+      metrics: {
+        completionRate: 0,
+        totalCompletions: 0,
+        totalScheduled: 0,
+        activeDays: 0,
+        periodDays: 30,
+        currentStreak: 0,
+        bestStreak: 0,
+        badHabitSlips: 0,
+        weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+        topHabits: [],
+        needsAttention: [],
+      },
+    })
+
+    expect(parsed.goalCompletions).toBe(4)
+  })
+
   it('parses a metrics-only recap with a share deep link', () => {
     const parsed = recapResponseSchema.parse({
       period: 'week',
       shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=week',
+      goalCompletions: 3,
       metrics: {
         completionRate: 80,
         totalCompletions: 12,
@@ -127,7 +257,30 @@ describe('recapResponseSchema', () => {
 
     expect(parsed.period).toBe('week')
     expect(parsed.shareDeepLink).toContain('?recap=week')
+    expect(parsed.goalCompletions).toBe(3)
     expect(parsed.metrics.topHabits).toHaveLength(1)
+  })
+
+  it('defaults goal completions for API instances predating the additive field', () => {
+    const parsed = recapResponseSchema.parse({
+      period: 'week',
+      shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=week',
+      metrics: {
+        completionRate: 0,
+        totalCompletions: 0,
+        totalScheduled: 0,
+        activeDays: 0,
+        periodDays: 7,
+        currentStreak: 0,
+        bestStreak: 0,
+        badHabitSlips: 0,
+        weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+        topHabits: [],
+        needsAttention: [],
+      },
+    })
+
+    expect(parsed.goalCompletions).toBe(0)
   })
 
   it('accepts the full backend period set, including quarter and semester', () => {

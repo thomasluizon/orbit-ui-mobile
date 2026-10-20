@@ -1,4 +1,3 @@
-
 const DIRECTIVE =
   /^(eslint-disable|eslint-enable|eslint-disable-line|eslint-disable-next-line|eslint-env|global\s|globals\s|exported\s|@ts-|ts-|prettier-ignore|@jsx|c8\s|v8\s|istanbul\s|webpack|@vite|@vitest|@__PURE__|#__PURE__)/
 const URL_RE = /https?:\/\//

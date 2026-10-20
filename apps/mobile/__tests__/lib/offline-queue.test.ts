@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 import { buildQueuedMutation, cancelScheduledFlush, flushQueuedMutations, queueOrExecute } from '@/lib/offline-mutations'
 
@@ -7,6 +7,8 @@ import {
   count,
   dequeue,
   enqueue,
+  enqueueWithCompaction,
+  findUnfinalizedFirstWrite,
   getAll,
   incrementRetries,
   replaceEntityReferences,
@@ -14,6 +16,11 @@ import {
   subscribeQueueCount,
   update,
 } from '@/lib/offline-queue'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const replayMocks = vi.hoisted(() => ({
   apiClient: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -61,6 +68,10 @@ const { storedRows, withTransactionSyncMock } = vi.hoisted(() => ({
   withTransactionSyncMock: vi.fn((task: () => void) => {
     task()
   }),
+}))
+
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => ({ isAuthenticated: true, user: { userId: 'account-a' } }), subscribe: () => () => {} },
 }))
 
 vi.mock('expo-sqlite', () => {
@@ -120,7 +131,7 @@ vi.mock('expo-sqlite', () => {
           return
         }
 
-        if (sql === 'DELETE FROM mutation_queue') {
+        if (sql === 'DELETE FROM mutation_queue' || sql.startsWith('DELETE FROM mutation_queue WHERE account_id IS ?')) {
           storedRows.clear()
           return
         }
@@ -140,9 +151,11 @@ vi.mock('expo-sqlite', () => {
   }
 })
 
+let mutationSequence = 0
+
 function makeMutation(overrides: Partial<QueuedMutation> = {}): QueuedMutation {
   return {
-    id: overrides.id ?? `mutation-${Math.random().toString(36).slice(2, 8)}`,
+    id: overrides.id ?? `mutation-${mutationSequence++}`,
     timestamp: overrides.timestamp ?? Date.now(),
     type: overrides.type ?? 'createHabit',
     scope: overrides.scope ?? 'habits',
@@ -343,7 +356,7 @@ describe('mobile offline queue', () => {
       targetEntityId: 'offline-habit-2',
     }))
 
-    const compactedCreate = enqueue(makeMutation({
+    const { compactedCreate } = enqueueWithCompaction(makeMutation({
       id: 'delete-1',
       type: 'deleteHabit',
       method: 'DELETE',
@@ -359,6 +372,26 @@ describe('mobile offline queue', () => {
     })
   })
 
+  it('drops a pending create when a cascading selection delete targets it', () => {
+    enqueue(makeMutation({
+      id: 'create-1',
+      type: 'createHabit',
+      clientEntityId: 'offline-habit-3',
+      targetEntityId: 'offline-habit-3',
+    }))
+
+    enqueue(makeMutation({
+      id: 'delete-1',
+      type: 'bulkCascadeDeleteHabits',
+      method: 'DELETE',
+      endpoint: '/api/habits/offline-habit-3',
+      targetEntityId: 'offline-habit-3',
+      payload: null,
+    }))
+
+    expect(getAll()).toHaveLength(0)
+  })
+
   it.each(['syncing', 'failed'] as const)(
     'keeps a %s create and its delete when the create may have reached the server',
     (status) => {
@@ -367,13 +400,13 @@ describe('mobile offline queue', () => {
         clientEntityId: 'offline-goal-1', status, retries: status === 'failed' ? 1 : 0,
       }))
 
-      const compactedCreate = enqueue(makeMutation({
+      const result = enqueueWithCompaction(makeMutation({
         id: 'delete-1', type: 'deleteGoal', scope: 'goals', entityType: 'goal',
         method: 'DELETE', endpoint: '/api/goals/offline-goal-1',
         targetEntityId: 'offline-goal-1', payload: null,
       }))
 
-      expect(compactedCreate).toBeNull()
+      expect(result.compactedCreate).toBeNull()
       expect(getAll().map((mutation) => mutation.id)).toEqual(['create-1', 'delete-1'])
     },
   )
@@ -401,6 +434,168 @@ describe('mobile offline queue', () => {
     expect(queued[0]?.payload).toEqual({
       positions: [{ habitId: 'habit-1', position: 3 }],
     })
+  })
+
+  it('keeps only the latest offline clock choice for replay', () => {
+    enqueue(makeMutation({
+      id: 'clock-1', type: 'setClockFormat', scope: 'profile', method: 'PUT',
+      endpoint: '/api/profile/clock-format', dedupeKey: 'profile-clock-format',
+      payload: { uses24HourClock: true },
+    }))
+    enqueue(makeMutation({
+      id: 'clock-2', type: 'setClockFormat', scope: 'profile', method: 'PUT',
+      endpoint: '/api/profile/clock-format', dedupeKey: 'profile-clock-format',
+      payload: { uses24HourClock: false },
+    }))
+    expect(getAll()).toEqual([expect.objectContaining({
+      id: 'clock-2', type: 'setClockFormat', payload: { uses24HourClock: false },
+    })])
+  })
+
+  it('keeps a dependent onboarding habit attached when auto-sync replaces its timezone write', () => {
+    enqueue(makeMutation({
+      id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+    enqueue(makeMutation({
+      id: 'habit-1', type: 'createHabit',
+      dependsOn: ['offline-account-timezone:timezone-1'],
+    }))
+
+    const timezoneId = enqueue(makeMutation({
+      id: 'timezone-2', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/New_York' },
+    }))
+
+    expect(timezoneId).toBe('timezone-1')
+    expect(getAll()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'timezone-1', payload: { timeZone: 'America/Sao_Paulo' } }),
+      expect.objectContaining({ id: 'habit-1', dependsOn: ['offline-account-timezone:timezone-1'] }),
+    ]))
+    expect(getAll()).toHaveLength(2)
+  })
+
+  it('moves a dropped timezone dependency to the retained auto-sync write on retry', () => {
+    enqueue(makeMutation({
+      id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+    enqueue(makeMutation({
+      id: 'habit-1', type: 'createHabit',
+      dependsOn: ['offline-account-timezone:timezone-1'],
+    }))
+    remove('timezone-1')
+    enqueue(makeMutation({
+      id: 'timezone-2', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+
+    const retainedId = enqueue(makeMutation({
+      id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+
+    expect(retainedId).toBe('timezone-2')
+    expect(getAll()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'timezone-2' }),
+      expect.objectContaining({ id: 'habit-1', dependsOn: ['offline-account-timezone:timezone-2'] }),
+    ]))
+    expect(getAll()).toHaveLength(2)
+  })
+
+  it('replaces an unreferenced auto-timezone write when the detected zone changes', () => {
+    enqueue(makeMutation({
+      id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+
+    const timezoneId = enqueue(makeMutation({
+      id: 'timezone-2', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/New_York' },
+    }))
+
+    expect(timezoneId).toBe('timezone-2')
+    expect(getAll()).toEqual([expect.objectContaining({
+      id: 'timezone-2', payload: { timeZone: 'America/New_York' },
+    })])
+  })
+
+  it('keeps a restored habit toggle as the first write for its habit and date', () => {
+    const persistedMutation = makeMutation({
+      id: 'persisted-log',
+      type: 'logHabit',
+      endpoint: '/api/habits/habit-1/log',
+      payload: { date: '2026-08-29' },
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    })
+    enqueue(persistedMutation)
+
+    const retainedMutationId = enqueue(makeMutation({
+      id: 'duplicate-log',
+      type: 'logHabit',
+      endpoint: '/api/habits/habit-1/log',
+      payload: { date: '2026-08-29' },
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))
+
+    expect(retainedMutationId).toBe(persistedMutation.id)
+    expect(getAll()).toEqual([persistedMutation])
+  })
+
+  it('finds the retained habit toggle until its syncing row is finalized', () => {
+    const persistedMutation = makeMutation({
+      id: 'syncing-log',
+      type: 'logHabit',
+      status: 'syncing',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    })
+    enqueue(persistedMutation)
+
+    expect(findUnfinalizedFirstWrite(makeMutation({
+      id: 'direct-log',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))).toEqual(persistedMutation)
+
+    remove(persistedMutation.id)
+
+    expect(findUnfinalizedFirstWrite(makeMutation({
+      id: 'second-direct-log',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))).toBeNull()
+  })
+
+  it('queues toggles independently for a different habit or date', () => {
+    enqueue(makeMutation({
+      id: 'habit-1-today',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      targetEntityId: 'habit-1',
+    }))
+    enqueue(makeMutation({
+      id: 'habit-2-today',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-2:2026-08-29',
+      targetEntityId: 'habit-2',
+    }))
+    enqueue(makeMutation({
+      id: 'habit-1-tomorrow',
+      type: 'logHabit',
+      dedupeKey: 'habit-toggle:habit-1:2026-08-30',
+      targetEntityId: 'habit-1',
+    }))
+
+    expect(getAll().map((mutation) => mutation.id)).toEqual([
+      'habit-1-today',
+      'habit-2-today',
+      'habit-1-tomorrow',
+    ])
   })
 
   it('keeps the create while compacting reorders and persists the resolved latest order', () => {

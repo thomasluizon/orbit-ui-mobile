@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 interface QuietLinkProps {
   children: React.ReactNode
   onClick?: () => void
@@ -24,10 +26,10 @@ export function QuietLink({
       disabled={disabled}
       className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)] enabled:active:scale-[0.96]"
       style={{
-        minHeight: 44,
-        padding: '6px 12px',
+        minHeight: TOUCH_TARGET_MIN,
+        padding: "var(--orbit-space-4) var(--orbit-space-12)",
         fontFamily: 'var(--font-sans)',
-        fontSize: emphasized ? 14 : 13,
+        fontSize: 14,
         fontWeight: emphasized ? 500 : 400,
         color: emphasized ? 'var(--fg-2)' : 'var(--fg-3)',
       }}

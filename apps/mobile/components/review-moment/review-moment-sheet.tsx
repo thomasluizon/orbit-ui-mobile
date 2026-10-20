@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canPromptEngagement,
+  hasOpenPromptBlockingOverlay,
   parseReviewMomentKey,
   type ReviewMomentKey,
 } from '@orbit/shared/stores'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { AstraAvatar } from '@/components/ui/astra-avatar'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { useProfile } from '@/hooks/use-profile'
 import { useReviewReminder } from '@/hooks/use-review-reminder'
 import { createTokensV2 } from '@/lib/theme'
@@ -18,6 +20,10 @@ import { useUIStore } from '@/stores/ui-store'
 
 const SETTLE_DELAY_MS = 500
 
+/**
+ * Astra-branded review moment: presents once the armed review prompt's celebration has fully
+ * settled, with copy referencing the streak or level that triggered it.
+ */
 export function ReviewMomentSheet() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -34,15 +40,28 @@ export function ReviewMomentSheet() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const armedKey = armedPrompt?.kind === 'review' ? armedPrompt.milestoneKey : null
 
   const [visibleKey, setVisibleKey] = useState<string | null>(null)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [isRequesting, setIsRequesting] = useState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visibleKey) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visibleKey, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   useEffect(() => {
-    if (visibleKey || !armedKey || celebrationInFlight) return
+    if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen) return
 
     if (
       !parseReviewMomentKey(armedKey) ||
@@ -58,6 +77,7 @@ export function ReviewMomentSheet() {
     }
 
     settleTimerRef.current = setTimeout(() => {
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(armedKey, new Date().toISOString())
       setVisibleKey(armedKey)
     }, SETTLE_DELAY_MS)
@@ -68,6 +88,8 @@ export function ReviewMomentSheet() {
   }, [
     armedKey,
     celebrationInFlight,
+    anotherOverlayOpen,
+    promptId,
     clearArmedMilestone,
     isEligible,
     markEngagementPrompted,
@@ -77,10 +99,19 @@ export function ReviewMomentSheet() {
   const variant: ReviewMomentKey | null = visibleKey
     ? parseReviewMomentKey(visibleKey)
     : null
+  const title = variant?.kind === 'streak'
+    ? t('reviewMoment.streakTitle', { count: variant.value })
+    : variant?.kind === 'level'
+      ? t('reviewMoment.levelTitle', { level: variant.value })
+      : ''
 
-  function snoozeAndClose() {
-    dismiss()
+  function hideAndSnooze() {
     setVisibleKey(null)
+    dismiss()
+  }
+
+  function requestSnooze() {
+    closeSheet()
   }
 
   async function rate() {
@@ -89,110 +120,59 @@ export function ReviewMomentSheet() {
       await requestReview()
     } finally {
       setIsRequesting(false)
-      setVisibleKey(null)
+      closeSheet(() => setVisibleKey(null))
     }
   }
 
   return (
-    <BottomSheetModal open={variant !== null} onClose={snoozeAndClose} snapPoints={['62%']}>
-      {variant ? (
-        <View style={styles.content}>
-          <AstraAvatar size={96} animate label={t('reviewMoment.eyebrow')} />
-          <Text style={styles.eyebrow}>{t('reviewMoment.eyebrow')}</Text>
-          <Text style={styles.title}>
-            {variant.kind === 'streak'
-              ? t('reviewMoment.streakTitle', { count: variant.value })
-              : t('reviewMoment.levelTitle', { level: variant.value })}
-          </Text>
+    variant !== null ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={hideAndSnooze}
+      title={title}
+      actions={(
+        <ActionRow>
+          <PromptQuietAction
+            accessibleName={t('reviewMoment.notNow')}
+            onClick={requestSnooze}
+          >
+            {t('reviewMoment.notNow')}
+          </PromptQuietAction>
+          <PillButton
+            size="sm"
+            loading={isRequesting}
+            disabled={isRequesting}
+            onClick={() => void rate()}
+          >
+            {t('reviewMoment.cta')}
+          </PillButton>
+        </ActionRow>
+      )}
+    >
+      <View style={styles.content}>
           <Text style={styles.body}>
             {variant.kind === 'streak'
               ? t('reviewMoment.streakBody', { count: variant.value })
               : t('reviewMoment.levelBody', { level: variant.value })}
           </Text>
-
-          <View style={styles.actions}>
-            <PillButton
-              fullWidth
-              busy={isRequesting}
-              disabled={isRequesting}
-              onPress={() => void rate()}
-              accessibilityLabel={t('reviewMoment.cta')}
-            >
-              {t('reviewMoment.cta')}
-            </PillButton>
-            <Pressable
-              onPress={snoozeAndClose}
-              accessibilityRole="button"
-              accessibilityLabel={t('reviewMoment.notNow')}
-              style={({ pressed }) => [
-                styles.notNowButton,
-                pressed ? styles.notNowButtonPressed : null,
-              ]}
-            >
-              {({ pressed }) => (
-                <Text
-                  style={[styles.notNowText, pressed ? styles.notNowTextPressed : null]}
-                >
-                  {t('reviewMoment.notNow')}
-                </Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-    </BottomSheetModal>
+      </View>
+    </Sheet>) : null
   )
 }
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
-      paddingHorizontal: 24,
-      paddingTop: 20,
-      paddingBottom: 28,
-      gap: 12,
+      gap: 16,
       alignItems: 'center',
-    },
-    eyebrow: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.96,
-      textTransform: 'uppercase',
-      color: tokens.fg3,
-    },
-    title: {
-      fontFamily: 'Inter_700Bold',
-      fontSize: 28,
-      letterSpacing: -0.56,
-      textAlign: 'center',
-      color: tokens.fg1,
     },
     body: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      maxWidth: 420,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    actions: {
-      alignSelf: 'stretch',
-      gap: 8,
-      paddingTop: 12,
-    },
-    notNowButton: {
-      alignItems: 'center',
-      paddingVertical: 12,
-    },
-    notNowButtonPressed: {
-      transform: [{ scale: 0.98 }],
-    },
-    notNowText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
-    },
-    notNowTextPressed: {
-      color: tokens.fg1,
     },
   })
 }

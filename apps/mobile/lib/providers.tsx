@@ -1,25 +1,31 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { resetAccountQueries } from '@orbit/shared/query'
+import { profileKeys, QUERY_STALE_TIMES, resetAccountQueries } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { useFonts } from 'expo-font'
 import {
-  useFonts,
-  Rubik_400Regular,
-  Rubik_500Medium,
-  Rubik_600SemiBold,
-  Rubik_700Bold,
-} from '@expo-google-fonts/rubik'
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
+} from '@expo-google-fonts/geist'
 import {
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter'
+  GeistMono_400Regular,
+  GeistMono_500Medium,
+} from '@expo-google-fonts/geist-mono'
 import {
-  Roboto_400Regular,
-  Roboto_500Medium,
-  Roboto_700Bold,
-} from '@expo-google-fonts/roboto'
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+} from '@expo-google-fonts/space-grotesk'
 import { queryClient, restoreQueryCache, persistQueryCache, clearPersistedQueryCache } from './query-client'
 import { syncWidgetData } from './orbit-widget'
 import { useAuthStore } from '@/stores/auth-store'
@@ -29,15 +35,29 @@ import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
 import { AccountEventConnection } from './account-event-connection'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
+import { useGlobalSearchParams, useSegments } from 'expo-router'
+import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated'
+import {
+  captureBuildEnabled,
+  captureTupleKey,
+  resolveCapturePreferences,
+  type CapturePreferences,
+} from './capture-mode'
+import { pinCaptureAnimationDurations } from './capture-animation-pin'
+import { i18n } from './i18n'
 import { PostHogProvider } from 'posthog-react-native'
-import { useSegments } from 'expo-router'
 import { useConfig } from '@/hooks/use-config'
-import { applyPostHogGate, captureScreen, posthog } from './posthog'
-import { launchAccountDesign } from './design-bundle'
+import { useFlag } from '@/hooks/use-flag'
+import { launchAccountDesign, rememberAccountDesign } from './design-bundle'
 import { refreshDesignFlag, subscribeToDesignFlag } from './design-flag-refresh'
-import './i18n'
+import { applyPostHogGate, captureScreen, posthog } from './posthog'
+import { retirePersistentReminder } from './retired-persistent-reminder'
+import { captureError } from './sentry'
+import { apiClient } from './api-client'
 
 void SplashScreen.preventAutoHideAsync()
+void retirePersistentReminder().catch(captureError)
+if (captureBuildEnabled) pinCaptureAnimationDurations()
 
 function syncWidgetDataSafely() {
   void syncWidgetData().catch(() => {})
@@ -45,6 +65,12 @@ function syncWidgetDataSafely() {
 
 interface ProvidersProps {
   children: ReactNode
+}
+
+const CaptureReadinessContext = createContext(true)
+
+export function useCaptureReady() {
+  return useContext(CaptureReadinessContext)
 }
 
 function OfflineManager() {
@@ -71,28 +97,58 @@ function PostHogGate() {
   return null
 }
 
-function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
+function DesignFlagGate() {
+  const accountId = useAuthStore((state) => state.isAuthenticated ? state.user?.userId ?? null : null)
+  const redesign = useFlag('redesign')
+  const { resolvedConfig } = useConfig()
+
+  useEffect(() => {
+    if (accountId && resolvedConfig) {
+      void rememberAccountDesign(accountId, redesign).catch(captureError)
+    }
+  }, [accountId, redesign, resolvedConfig])
+
+  useEffect(() => {
+    if (accountId) void refreshDesignFlag()
+  }, [accountId])
+
+  return null
+}
+
+function AuthInitializer({
+  capturePreferences,
+  children,
+}: Readonly<{
+  capturePreferences: CapturePreferences | null
+  children: ReactNode
+}>) {
   const initialize = useAuthStore((s) => s.initialize)
-  const accountId = useAuthStore((s) => s.isAuthenticated ? s.user?.userId ?? null : null)
-  const [ready, setReady] = useState(false)
+  const captureTuple = captureTupleKey(capturePreferences)
+  const [appliedCaptureTuple, setAppliedCaptureTuple] = useState<string | null>(null)
+  /** Derived during render, never flipped by an effect: see captureTupleKey. */
+  const ready = appliedCaptureTuple === captureTuple
   const onboardingDraftHydrated = useOnboardingDraftHydrated()
   const runtimeTheme = getRuntimeTheme()
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
+  /** Expo Router's warm-link transition must retain its navigator while the next tuple applies. */
+  const [hasRenderedApp, setHasRenderedApp] = useState(false)
   const [fontsLoaded] = useFonts({
-    Rubik_400Regular,
-    Rubik_500Medium,
-    Rubik_600SemiBold,
-    Rubik_700Bold,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    Roboto_400Regular,
-    Roboto_500Medium,
-    Roboto_700Bold,
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    GeistMono_400Regular,
+    GeistMono_500Medium,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
   })
 
   useEffect(() => {
+    /**
+     * A tuple that changes mid-boot abandons the boot in flight. Without this, the older boot could
+     * resolve last and publish its own tuple as applied, gating a render that is already correct.
+     */
     const unsubscribeDesignFlag = subscribeToDesignFlag()
+    let abandoned = false
     async function boot() {
       let isAuthenticated = false
 
@@ -103,23 +159,44 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
         if (await launchAccountDesign(isAuthenticated ? session.user?.userId ?? null : null)) return
       } catch {}
 
+      if (capturePreferences) {
+        await i18n.changeLanguage(capturePreferences.locale)
+      }
+
       if (isAuthenticated) {
         try { await restoreQueryCache() } catch {}
+        await queryClient.prefetchQuery({
+          queryKey: profileKeys.detail(),
+          queryFn: async ({ signal }) => {
+            const controller = new AbortController()
+            const abort = () => controller.abort()
+            signal.addEventListener('abort', abort, { once: true })
+            const timeout = setTimeout(abort, 10000)
+            try {
+              return await apiClient(API.profile.get, { signal: controller.signal, skipAuthRecovery: true }, profileSchema)
+            } finally {
+              clearTimeout(timeout)
+              signal.removeEventListener('abort', abort)
+            }
+          },
+          staleTime: QUERY_STALE_TIMES.profile,
+          retry: false,
+          networkMode: 'always',
+        })
         syncWidgetDataSafely()
       } else {
-        void resetAccountQueries(queryClient, 'signed-out')
+        await resetAccountQueries(queryClient, 'signed-out')
         try { await clearPersistedQueryCache() } catch {}
       }
 
-      setReady(true)
+      if (!abandoned) setAppliedCaptureTuple(captureTuple)
     }
     void boot()
-    return unsubscribeDesignFlag
-  }, [initialize])
-
-  useEffect(() => {
-    if (ready && accountId) void refreshDesignFlag()
-  }, [ready, accountId])
+    return () => {
+      abandoned = true
+      unsubscribeDesignFlag()
+    }
+  }, [captureTuple, capturePreferences, initialize])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
@@ -142,11 +219,15 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
   const appReady = ready && fontsLoaded && onboardingDraftHydrated
 
-  useEffect(() => {
-    if (ready && fontsLoaded && onboardingDraftHydrated) void SplashScreen.hideAsync()
-  }, [ready, fontsLoaded, onboardingDraftHydrated])
+  /** Sticky on the first ready render, independently of asynchronous splash cleanup. */
+  if (appReady && !hasRenderedApp) setHasRenderedApp(true)
 
-  if (!appReady) {
+  useEffect(() => {
+    if (!appReady) return
+    void SplashScreen.hideAsync()
+  }, [appReady])
+
+  if (!appReady && !hasRenderedApp) {
     return (
       <View style={{ flex: 1, backgroundColor: runtimeTokens.bg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={runtimeTokens.primary} />
@@ -155,21 +236,58 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   }
 
   return (
-    <ThemeProvider>
-      <View style={{ flex: 1 }}>
-        {posthog ? <PostHogGate /> : null}
-        <OfflineManager />
-        <AccountEventConnection />
-        {children}
-      </View>
-    </ThemeProvider>
+    <CaptureReadinessContext.Provider value={appReady}>
+      <ThemeProvider captureTheme={capturePreferences?.theme ?? null}>
+        <View style={{ flex: 1 }}>
+          <DesignFlagGate />
+          {posthog ? <PostHogGate /> : null}
+          <OfflineManager />
+          <AccountEventConnection />
+          {children}
+          {!appReady ? (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: runtimeTokens.bg,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <ActivityIndicator size="large" color={runtimeTokens.primary} />
+            </View>
+          ) : null}
+        </View>
+      </ThemeProvider>
+    </CaptureReadinessContext.Provider>
   )
 }
 
 export function Providers({ children }: Readonly<ProvidersProps>) {
+  const parameters = useGlobalSearchParams<{
+    captureLocale?: string | string[]
+    captureTheme?: string | string[]
+  }>()
+  const captureLocale = Array.isArray(parameters.captureLocale)
+    ? parameters.captureLocale[0]
+    : parameters.captureLocale
+  const captureTheme = Array.isArray(parameters.captureTheme)
+    ? parameters.captureTheme[0]
+    : parameters.captureTheme
+  const capturePreferences = useMemo(
+    () => resolveCapturePreferences(captureBuildEnabled, { captureLocale, captureTheme }),
+    [captureLocale, captureTheme],
+  )
+
   const content = (
     <QueryClientProvider client={queryClient}>
-      <AuthInitializer>{children}</AuthInitializer>
+      <ReducedMotionConfig
+        mode={captureBuildEnabled ? ReduceMotion.Always : ReduceMotion.System}
+      />
+      <AuthInitializer capturePreferences={capturePreferences}>
+        {children}
+      </AuthInitializer>
     </QueryClientProvider>
   )
 

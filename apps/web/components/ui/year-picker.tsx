@@ -1,7 +1,11 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useEffect, useMemo, useRef } from 'react'
 import { buildYearRange } from '@orbit/shared/utils'
+import { revealFocusedControl } from '@/lib/focus-scroll'
 
 interface YearPickerProps {
   selectedYear: number
@@ -24,10 +28,16 @@ export function YearPicker({
   }, [])
 
   return (
-    <div className="thin-scrollbar overflow-y-auto" style={{ maxHeight: 240 }}>
+    <div data-focus-inset="" onFocusCapture={revealFocusedControl} className="min-h-0 overflow-y-auto overscroll-contain" style={{ maxHeight: 240 }}>
       <div
         className="grid"
-        style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, padding: 4 }}
+        style={{
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridAutoRows: 'minmax(48px, auto)',
+          columnGap: 4,
+          rowGap: 4,
+          padding: SPACING.s4,
+        }}
       >
         {years.map((year) => {
           const isSelected = year === selectedYear
@@ -37,19 +47,15 @@ export function YearPicker({
               ref={isSelected ? selectedRef : undefined}
               type="button"
               aria-pressed={isSelected}
+              data-focus-on-primary={isSelected ? '' : undefined}
               onClick={() => onSelectYear(year)}
-              className={
-                'appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ' +
-                (isSelected ? '' : 'hover:bg-[var(--bg-elev)]')
-              }
+              className={`min-h-12 w-full rounded-full appearance-none border-0 cursor-pointer p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] ${isSelected ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-field)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]'}`}
               style={{
-                padding: '10px 0',
                 fontFamily: 'var(--font-mono)',
-                fontSize: 14,
-                fontWeight: isSelected ? 700 : 500,
+                fontSize: '0.875rem',
+                fontWeight: 500,
                 fontVariantNumeric: 'tabular-nums',
                 color: isSelected ? 'var(--fg-on-primary)' : 'var(--fg-1)',
-                background: isSelected ? 'var(--primary)' : undefined,
               }}
             >
               {year}

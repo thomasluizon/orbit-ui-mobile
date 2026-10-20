@@ -7,6 +7,9 @@ effort: high
 
 # /ticket: anything in, 1..N GitHub tickets out
 
+When writing repository prose, state the current requirement without dated incidents, attributed
+quotes, session IDs or personal machine paths. Keep timed evidence in the scratchpad.
+
 The ticket is the prompt (D2): a ticket a fresh agent with no session history cannot execute is a
 defective ticket. This skill makes defective tickets impossible to create.
 
@@ -85,7 +88,7 @@ returns to this gate.
 
 **When he overrides, his decision goes into the body before you create anything.** A ticket that
 holds two root causes because the owner merged them reads to a fresh worker like two tickets filed by
-mistake, and that worker will reasonably split the PR. Write the decision, its date, and its reason
+ mistake, and that worker will reasonably split the PR. Write the decision and its reason
 into the affected bodies as their own section, so the ticket carries the shape it must ship in.
 
 Every body carries the 6.2 sections: Problem/why, Scope, Out of scope, Expected behaviour,
@@ -96,10 +99,11 @@ defect if violated:
 - One ticket = one repo = one coherent, independently mergeable PR. Normally design small tickets
   that a reviewer can understand in one sitting, and split separable behavior or deployment
   boundaries. File and line estimates are planning signals, never correctness or delivery rules.
-- Estimate mandatory generated artifacts as part of the ticket: architecture artifacts with their
-  route/module source, EF migrations and generated Designer output with the model change, generated
-  contracts with their schema, and required lockfiles or codemod output. Never split those artifacts
+- Estimate mandatory generated artifacts as part of the ticket: EF migrations and generated Designer
+  output with the model change, generated contracts with their schema, and required lockfiles or
+  codemod output. Never split those artifacts
   away from the change that requires them.
+- You may run `node tools/arch-map.mjs` to read the generated map. Never stage or commit `architecture.json`, `architecture.html` or `architecture.mmd`.
 - Do not split one atomic behavior merely to satisfy a numeric threshold. Arbitrary splits must not
   produce incomplete behavior, temporary bypasses, broken drift gates, unused foundations, or a
   migration detached from its model change.
@@ -145,6 +149,7 @@ defect if violated:
    it is worth telling him, the implementer needs it too, and the implementer reads the body. The
    closing message SUMMARIZES the tickets; it never adds to them. A fact that exists only in the
    chat is a fact that did not get filed, and `/ticket` writes tickets, not chat.
+
 
    Discovered something after `create-ticket.mjs` printed? Recompose the COMPLETE body and replace
    it with

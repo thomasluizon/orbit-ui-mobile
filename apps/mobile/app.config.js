@@ -1,35 +1,43 @@
-const appJson = require('./app.json')
+const appJson = require("./app.json");
+
+function readBooleanEnv(name, defaultValue) {
+  const value = process.env[name]?.trim();
+  if (!value) return defaultValue;
+  return value === "1" || value.toLowerCase() === "true";
+}
 
 function withLocalPlugins(plugins) {
   const nextPlugins = Array.isArray(plugins) ? [...plugins] : []
-  const pluginPaths = [
+  for (const pluginPath of [
     './plugins/with-android-release-build-fixes',
     './plugins/with-react-native-imperative-focus',
     './plugins/with-design-bundle-launch',
-  ]
-
-  for (const pluginPath of pluginPaths) {
+  ]) {
     if (!nextPlugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === pluginPath)) {
       nextPlugins.push(pluginPath)
     }
   }
-
   return nextPlugins
 }
 
 module.exports = () => {
-  const baseConfig = appJson.expo ?? {}
+  const baseConfig = appJson.expo ?? {};
+  const captureMode = readBooleanEnv("EXPO_PUBLIC_CAPTURE_MODE", false);
   const productionConfig = {
     ...baseConfig,
+    android: {
+      ...baseConfig.android,
+      allowBackup: false,
+      googleServicesFile: captureMode ? undefined : baseConfig.android?.googleServicesFile,
+    },
     plugins: withLocalPlugins(baseConfig.plugins),
-  }
+  };
   const variant = process.env.ORBIT_APP_VARIANT ?? 'production'
   if (variant === 'production') return productionConfig
   if (variant !== 'staging') throw new Error(`Unknown Orbit app variant: ${variant}`)
 
   const packageName = 'org.useorbit.app.staging'
   const linkHost = 'app-staging.useorbit.org'
-
   return {
     ...productionConfig,
     runtimeVersion: `${productionConfig.runtimeVersion}-staging`,
@@ -50,4 +58,4 @@ module.exports = () => {
       router: { ...productionConfig.extra.router, origin: `https://${linkHost}` },
     },
   }
-}
+};

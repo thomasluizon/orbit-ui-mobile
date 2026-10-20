@@ -1,39 +1,19 @@
 'use client'
 
-import { useState } from 'react'
-import { Share2 } from 'lucide-react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useTranslations } from 'next-intl'
-import { ProfileActionButton } from '@/app/(app)/profile/_components/profile-action-button'
+import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { Share2 } from '@/components/ui/icons'
 import { ShareCardSheet } from './share-card-sheet'
 
-interface ShareCardEntryButtonProps {
-  variant?: 'row' | 'chip'
-  displayName?: string
-}
-
-/** Opens the recap share sheet. `row` renders a profile action row; `chip` renders a kit chip for the retrospective header. */
-export function ShareCardEntryButton({
-  variant = 'row',
-  displayName,
-}: Readonly<ShareCardEntryButtonProps>) {
+export function ShareCardEntryButton({ variant = 'row' }: Readonly<{ variant?: 'row' | 'button' }>) {
   const t = useTranslations()
-  const [open, setOpen] = useState(false)
-
-  return (
-    <>
-      {variant === 'row' ? (
-        <ProfileActionButton icon={Share2} onClick={() => setOpen(true)} label={t('shareCard.entry')} />
-      ) : (
-        <button
-          type="button"
-          className="chip"
-          onClick={() => setOpen(true)}
-          aria-label={t('shareCard.entry')}
-        >
-          <Share2 size={16} strokeWidth={1.8} aria-hidden="true" />
-        </button>
-      )}
-      <ShareCardSheet open={open} onOpenChange={setOpen} displayName={displayName} />
-    </>
-  )
+  const [open, setOpen] = useAccountScopedState(false)
+  return <>
+    {variant === 'row'
+      ? <ListRow compact textMode="label" chevron={false} icon={<Share2 size={24} strokeWidth={1.8} />} title={t('shareCard.entry')} onClick={() => setOpen(true)} />
+      : <PillButton variant="ghost" onClick={() => setOpen(true)} leadingIcon={<Share2 size={16} strokeWidth={2} aria-hidden="true" />}>{t('shareCard.entry')}</PillButton>}
+    {open ? <ShareCardSheet onClose={() => setOpen(false)} /> : null}
+  </>
 }

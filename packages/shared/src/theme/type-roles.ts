@@ -29,7 +29,7 @@ export const typeRoles = {
   },
   display: {
     family: 'sans',
-    size: 34,
+    size: 44,
     weight: 500,
     lineHeight: 1.15,
     letterSpacingEm: -0.01,
@@ -61,7 +61,7 @@ export const typeRoles = {
   },
   row: {
     family: 'sans',
-    size: 18,
+    size: 17,
     weight: 400,
     lineHeight: 1.3,
     colorToken: 'fg1',
@@ -106,3 +106,45 @@ export const typeRoles = {
 } as const satisfies Record<string, TypeRole>
 
 export type TypeRoleName = keyof typeof typeRoles
+
+export const RESPONSIVE_TYPE_BREAKPOINT = 640
+
+export const responsiveTypeRoles = {
+  habitTitle: {
+    family: 'display',
+    weight: 500,
+    letterSpacingEm: -0.02,
+    colorToken: 'fg1',
+    compact: { size: 22, lineHeight: 1.2 },
+    wide: { size: 28, lineHeight: 1.15 },
+  },
+  displayHeading: {
+    family: 'display',
+    weight: 500,
+    letterSpacingEm: -0.02,
+    colorToken: 'fg1',
+    compact: { size: 28, lineHeight: 1.18 },
+    wide: { size: 34, lineHeight: 1.15 },
+  },
+  allowance: {
+    family: 'display',
+    weight: 600,
+    letterSpacingEm: -0.02,
+    colorToken: 'fg1',
+    tabularNums: true,
+    compact: { size: 34, lineHeight: 1.05 },
+    wide: { size: 44, lineHeight: 1.02 },
+  },
+} as const satisfies Record<string, TypeRole & {
+  compact: { size: number; lineHeight: number }
+  wide: { size: number; lineHeight: number }
+}>
+
+export type ResponsiveTypeRoleName = keyof typeof responsiveTypeRoles
+
+export function resolveResponsiveTypeRole(name: ResponsiveTypeRoleName, width: number): TypeRole & {
+  family: 'display'; weight: 500 | 600; size: number; lineHeight: number; letterSpacingEm: number
+} {
+  const { compact, wide, ...role } = responsiveTypeRoles[name]
+  return { ...role, ...(width >= RESPONSIVE_TYPE_BREAKPOINT ? wide : compact) }
+}

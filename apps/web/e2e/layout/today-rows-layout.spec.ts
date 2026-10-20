@@ -1,0 +1,179 @@
+import { openTodayListOptions } from './hydration-guard'
+import { expect, type Page } from '@playwright/test'
+import { test } from './layout-test'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
+import { LAYOUT_ORIGIN } from '../support/env'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
+
+const selectedDate = '2026-09-04'
+const children = [0, 1].map((position) => makeHabitScheduleItem({
+  id: `child-${position}`, title: `Child ${position}`, position,
+  children: [], hasSubHabits: false, scheduledDates: [selectedDate],
+}))
+const items = [
+  makeHabitScheduleItem({ id: 'parent', title: 'Parent', children, scheduledDates: [selectedDate] }),
+  makeHabitScheduleItem({ id: 'timed', title: 'Timed', children: [], hasSubHabits: false,
+    position: 1, dueTime: '21:00', scheduledDates: [selectedDate] }),
+  makeHabitScheduleItem({ id: 'untimed', title: 'Untimed', children: [], hasSubHabits: false,
+    position: 2, scheduledDates: [selectedDate] }),
+]
+
+for (const mode of ['dark', 'light'] as const) {
+  for (const width of [412, 1280]) {
+    test(`Hoje rows keep drawn geometry and parent contrast at ${width}px in ${mode}`, async ({ page, context }) => {
+      await page.setViewportSize({ width, height: 915 })
+      const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language: 'pt-BR' })
+      await setLayoutProfileSession(context, profile)
+      await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items, totalCount: items.length } }])
+      await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 5 } }))
+      await page.goto('/')
+      const parent = page.getByTestId('habit-row').filter({ hasText: 'Parent' })
+      const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
+      await expect(disclosure).toBeVisible()
+      if (await disclosure.getAttribute('aria-expanded') === 'true') await disclosure.click()
+      await expect(parent).toContainText('0 de 2')
+      const panels = page.locator('.habit-panel')
+      await expect(panels).toHaveCount(3)
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await panels.evaluateAll((elements) => elements.map((panel) => {
+        const row = panel.querySelector('[data-testid="habit-row"]')!
+        const well = row.querySelector('[data-habit-row-body] > span')!
+        const bounds = panel.getBoundingClientRect()
+        const wellBounds = well.getBoundingClientRect()
+        const track = row.querySelector('[data-habit-row-control="check"][aria-label*="/"] [data-habit-check]')
+        return {
+          height: bounds.height, above: wellBounds.top - bounds.top, below: bounds.bottom - wellBounds.bottom,
+          track: track ? getComputedStyle(track).boxShadow.match(/rgba?\([^)]+\)/)?.[0] ?? null : null,
+          card: getComputedStyle(row).backgroundColor,
+          canvas: getComputedStyle(document.body).backgroundColor,
+        }
+      }))
+      for (const panel of geometry) {
+        expect(panel.height).toBe(68)
+        expect(panel.above).toBeCloseTo(panel.below, 1)
+      }
+      const parentTrack = geometry.find((panel) => panel.track !== null)!
+      expect(parentTrack.track).toBe(mode === 'dark' ? 'rgb(139, 139, 142)' : 'rgb(126, 126, 130)')
+      expect(contrastOnSurface(parentTrack.track!, [parentTrack.canvas, parentTrack.card])).toBeGreaterThanOrEqual(3)
+    })
+  }
+}
+
+async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width: number) {
+  const geometry = await page.evaluate((includeSentence) => {
+    const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
+    const dates = Array.from(document.querySelectorAll('[data-today-date-row] [title] p'))
+    const dateRow = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
+    const sentence = document.querySelector('.today-astra-sentence')
+    const titles = rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div') ?? row.querySelector('[data-personal-text-content] > div'))!)
+    return {
+      dateCenters: dates.map((element) => {
+        const bounds = element.getBoundingClientRect()
+        return (bounds.left + bounds.right) / 2
+      }),
+      columnCenter: (dateRow.left + dateRow.right) / 2,
+      edges: [...titles, ...(includeSentence && sentence ? [sentence] : [])].map((element) => element.getBoundingClientRect().left),
+      insets: rows.map((row) => {
+        const body = row.querySelector('[data-habit-row-body]')!
+        const content = body.children.length ? body : body.parentElement!.querySelector('[data-personal-text-content]')!
+        const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+        return well.getBoundingClientRect().left - body.getBoundingClientRect().left
+      }),
+      targets: rows.flatMap((row) => Array.from(row.querySelectorAll('button')).map((button) => {
+        const bounds = button.getBoundingClientRect()
+        return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
+      })),
+      overflow: document.documentElement.scrollWidth,
+    }
+  }, sentenceVisible)
+  expect(geometry.dateCenters).toHaveLength(2)
+  for (const center of geometry.dateCenters) expect(Math.abs(center - geometry.columnCenter)).toBeLessThanOrEqual(1)
+  expect(geometry.edges).toHaveLength(sentenceVisible ? 4 : 3)
+  for (const edge of geometry.edges) expect(Math.abs(edge - 84)).toBeLessThanOrEqual(1)
+  expect(geometry.insets).toHaveLength(3)
+  for (const inset of geometry.insets) expect(inset).toBeGreaterThanOrEqual(8)
+  expect(geometry.overflow).toBeLessThanOrEqual(width)
+  for (const target of geometry.targets) {
+    expect(target.left).toBeGreaterThanOrEqual(16)
+    expect(target.right).toBeLessThanOrEqual(width - 16)
+    expect(target.width).toBeGreaterThanOrEqual(48)
+    expect(target.height).toBeGreaterThanOrEqual(48)
+  }
+}
+
+for (const width of [320, 600]) {
+  for (const textScale of [1, 2]) {
+    for (const mode of ['dark', 'light'] as const) {
+      test(`Hoje body fills keep a padded shared edge at ${width}px and ${textScale} text scale in ${mode}`, async ({ page, context }) => {
+        await page.setViewportSize({ width, height: 915 })
+        await page.emulateMedia({ reducedMotion: 'reduce' })
+        const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language: 'pt-BR' })
+        await setLayoutProfileSession(context, profile)
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+        const child = makeHabitScheduleItem({ id: 'padded-child', title: 'Caminhar pela praça depois do almoço', children: [], hasSubHabits: false, scheduledDates: [selectedDate] })
+        const habits = [
+          makeHabitScheduleItem({ id: 'padded-parent', title: 'Cuidar da rotina da casa todos os dias', children: [child], scheduledDates: [selectedDate] }),
+          makeHabitScheduleItem({ id: 'padded-leaf', title: 'Ler um capítulo do livro antes de dormir', children: [], hasSubHabits: false, position: 1, scheduledDates: [selectedDate] }),
+        ]
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }])
+        await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 3 } }))
+        const proactive = createMockProactiveItem({ text: 'Sua rotina mudou. Vamos conversar?', localDate: selectedDate })
+        await setLayoutFixtureSession(context, [{ path: API.proactive.current, body: proactive }])
+        await page.goto('/')
+        const disclosure = page.locator('[data-habit-row-control="disclosure"]')
+        await expect(disclosure).toBeVisible()
+        if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
+        await expect(page.getByTestId('habit-row')).toHaveCount(3)
+        await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.text)
+        await page.evaluate(async (scale) => {
+          document.documentElement.style.fontSize = `${16 * scale}px`
+          for (const label of document.querySelectorAll<HTMLElement>('.today-astra-sentence')) {
+            label.style.fontSize = `${Number.parseFloat(getComputedStyle(label).fontSize) * scale}px`
+          }
+          await document.fonts.ready
+        }, textScale)
+        for (const selecting of [false, true]) {
+          if (selecting) {
+            await openTodayListOptions(page, ptBr.habits.listOptions)
+            await page.getByRole('menuitem', { name: ptBr.common.select, exact: true }).click()
+            await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(3)
+            await expect(page.locator('.today-astra-sentence')).toHaveCount(0)
+          }
+          await assertTodayTextEdges(page, !selecting, width)
+          for (const body of await page.locator('[data-habit-row-body]').all()) {
+            await body.hover()
+            await expect(body).toHaveCSS('border-radius', '20px')
+            await expect(body).toHaveCSS('padding-inline-start', '8px')
+            await page.mouse.down()
+            const pressedInset = await body.evaluate((element) => {
+              const content = element.children.length ? element : element.parentElement!.querySelector('[data-personal-text-content]')!
+              const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+              const bounds = element.getBoundingClientRect()
+              const scale = Number.parseFloat(getComputedStyle(element).scale) || 1
+              return (well.getBoundingClientRect().left - bounds.left) / scale
+            })
+            expect(pressedInset).toBeCloseTo(8, 2)
+            await page.mouse.move(width - 1, 914)
+            await page.mouse.up()
+            // Wait for dnd-kit's click capture cleanup: https://github.com/clauderic/dnd-kit/blob/@dnd-kit/core@6.3.1/packages/core/src/sensors/pointer/AbstractPointerSensor.ts#L159
+            await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 50)))
+            await body.evaluate((element) => { element.parentElement!.tabIndex = 0; (element.parentElement as HTMLElement).focus() })
+            await page.keyboard.press('Tab')
+            await expect(body).toBeFocused()
+            expect(await body.evaluate((element) => Number.parseFloat(getComputedStyle(element).outlineWidth))).toBeGreaterThanOrEqual(2)
+            await assertTodayTextEdges(page, !selecting, width)
+            await body.evaluate((element) => { element.parentElement!.tabIndex = -1; (element as HTMLElement).blur() })
+          }
+        }
+      })
+    }
+  }
+}

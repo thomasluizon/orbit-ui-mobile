@@ -4,6 +4,7 @@ import {
   PLAY_BASE_PLAN_YEARLY,
   PLAY_SUBSCRIPTION_PRODUCT_ID,
   playBasePlanToInterval,
+  playManageSubscriptionUrl,
 } from '../utils/play-billing'
 
 describe('play-billing constants', () => {
@@ -11,6 +12,12 @@ describe('play-billing constants', () => {
     expect(PLAY_SUBSCRIPTION_PRODUCT_ID).toBe('orbit_pro')
     expect(PLAY_BASE_PLAN_MONTHLY).toBe('monthly')
     expect(PLAY_BASE_PLAN_YEARLY).toBe('yearly')
+  })
+
+  it.each(['org.useorbit.app.staging', 'org.useorbit.app'])('opens the subscription bought in %s', (packageName) => {
+    expect(playManageSubscriptionUrl(packageName)).toBe(
+      `https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=${packageName}`,
+    )
   })
 })
 

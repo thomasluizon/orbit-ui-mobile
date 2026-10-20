@@ -1,3 +1,5 @@
+export { isValid } from 'date-fns/isValid'
+
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function toDate(value: Date | number | string): Date {
@@ -16,10 +18,18 @@ function formatShortDate(date: Date, localePattern: 'en' | 'pt'): string {
 }
 
 export function parseISO(value: string): Date {
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (dateOnly) {
+    return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+  }
   return new Date(value)
 }
 
-export function parse(value: string, _pattern: string, _referenceDate: Date): Date {
+export function parse(value: string, pattern: string, _referenceDate: Date): Date {
+  if (pattern === 'yyyy-MM-dd') {
+    const [year, month, day] = value.split('-').map(Number)
+    return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1)
+  }
   return new Date(value)
 }
 
@@ -45,7 +55,14 @@ export function differenceInDays(left: Date | number | string, right: Date | num
 }
 
 export function differenceInCalendarDays(left: Date | number | string, right: Date | number | string): number {
-  return differenceInDays(left, right)
+  const leftStart = startOfDay(left)
+  const rightStart = startOfDay(right)
+  return Math.round((leftStart.getTime() - rightStart.getTime()) / 86400000)
+}
+
+export function startOfDay(dateInput: Date | number | string): Date {
+  const date = toDate(dateInput)
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
 export function isSameDay(left: Date | number | string, right: Date | number | string): boolean {
@@ -60,6 +77,10 @@ export function isSameDay(left: Date | number | string, right: Date | number | s
 
 export function isAfter(left: Date | number | string, right: Date | number | string): boolean {
   return toDate(left).getTime() > toDate(right).getTime()
+}
+
+export function isBefore(left: Date | number | string, right: Date | number | string): boolean {
+  return toDate(left).getTime() < toDate(right).getTime()
 }
 
 export function addMonths(dateInput: Date | number | string, amount: number): Date {
@@ -103,12 +124,14 @@ export function isTomorrow(dateInput: Date | number | string): boolean {
 
 export function subDays(dateInput: Date | number | string, amount: number): Date {
   const date = toDate(dateInput)
-  return new Date(date.getTime() - amount * 86400000)
+  date.setDate(date.getDate() - amount)
+  return date
 }
 
 export function addDays(dateInput: Date | number | string, amount: number): Date {
   const date = toDate(dateInput)
-  return new Date(date.getTime() + amount * 86400000)
+  date.setDate(date.getDate() + amount)
+  return date
 }
 
 export function addWeeks(dateInput: Date | number | string, amount: number): Date {

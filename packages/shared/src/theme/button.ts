@@ -2,9 +2,13 @@
  *  (StyleSheet) mirrors. Colors resolve per-scheme at each primitive; only the
  *  scheme-independent geometry lives here so the two mirrors cannot drift.
  *  See DESIGN.md "Buttons" for the rule. */
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive'
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'caution'
 
-export type ButtonSize = 'sm' | 'md' | 'lg'
+export type ButtonSize = 'sm' | 'md'
+
+/** Matched empty-state actions share this width and stay within the content column. */
+export const MATCHED_PILL_WIDTH = '100%'
+export const MATCHED_PILL_MAX_WIDTH = 360
 
 export interface ButtonSizeSpec {
   /** Fixed pill height in px. */
@@ -19,11 +23,10 @@ export interface ButtonSizeSpec {
   gap: number
 }
 
-/** `md` reproduces the historical pill look (height ~50, paddingX 26, 16px
- *  label, 20px icon, 9px gap); `sm` is the compact rail/toolbar size and `lg`
- *  the hero CTA size. */
+/** `md` is the standard action and `sm` is the compact rail or toolbar action. */
 export const BUTTON_SIZES: Record<ButtonSize, ButtonSizeSpec> = {
   sm: { height: 40, paddingX: 18, fontSize: 14, iconSize: 16, gap: 7 },
   md: { height: 50, paddingX: 26, fontSize: 16, iconSize: 20, gap: 9 },
-  lg: { height: 56, paddingX: 30, fontSize: 17, iconSize: 20, gap: 10 },
 }
+
+export const GOOGLE_SIGN_IN_BUTTON = { paddingX: 12, gap: 10 } as const

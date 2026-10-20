@@ -8,7 +8,7 @@ import {
 } from '../types/onboarding'
 import { isRecord } from '../utils/is-record'
 
-export const ONBOARDING_DRAFT_STORAGE_VERSION = 2
+export const ONBOARDING_DRAFT_STORAGE_VERSION = 3
 
 type OnboardingDraftSet = (
   partial:
@@ -23,25 +23,26 @@ export type OnboardingWeekStartDay = 0 | 1
 
 export interface PersistedOnboardingDraft {
   accountKey?: string | null
-  step: number
   habits: ApplyOnboardingHabit[]
   firstLog: ApplyOnboardingFirstLog | null
   goal: CreateGoalRequest | null
   weekStartDay: OnboardingWeekStartDay | null
-  colorScheme: string | null
   onboardingLocallyDone: boolean
+  pushPermissionGranted: boolean
+  pushRegistrationFailed: boolean
 }
 
 export interface OnboardingDraftState extends PersistedOnboardingDraft {
   accountKey: string | null
   setAccountScope: (accountKey: string | null, preserveAnonymousDraft?: boolean) => void
-  setStep: (step: number) => void
   bufferHabit: (habit: ApplyOnboardingHabit) => number
+  replaceHabit: (habitIndex: number, habit: ApplyOnboardingHabit) => void
   bufferFirstLog: (habitIndex: number, date: string) => void
   bufferGoal: (goal: CreateGoalRequest | null) => void
   bufferWeekStartDay: (day: OnboardingWeekStartDay) => void
-  bufferColorScheme: (scheme: string) => void
   markOnboardingLocallyDone: () => void
+  markPushPermissionGranted: () => void
+  markPushRegistrationFailed: () => void
   hasPendingAnswers: () => boolean
   buildApplyPayload: () => ApplyOnboardingRequest
   reset: () => void
@@ -50,13 +51,13 @@ export interface OnboardingDraftState extends PersistedOnboardingDraft {
 function createInitialDraft(): PersistedOnboardingDraft & { accountKey: string | null } {
   return {
     accountKey: null,
-    step: 0,
     habits: [],
     firstLog: null,
     goal: null,
     weekStartDay: null,
-    colorScheme: null,
     onboardingLocallyDone: false,
+    pushPermissionGranted: false,
+    pushRegistrationFailed: false,
   }
 }
 
@@ -65,13 +66,13 @@ export function getPersistedOnboardingDraft(
 ): PersistedOnboardingDraft {
   return {
     accountKey: state.accountKey,
-    step: state.step,
     habits: state.habits.map((habit) => ({ ...habit })),
     firstLog: state.firstLog ? { ...state.firstLog } : null,
     goal: state.goal ? { ...state.goal } : null,
     weekStartDay: state.weekStartDay,
-    colorScheme: state.colorScheme,
     onboardingLocallyDone: state.onboardingLocallyDone,
+    pushPermissionGranted: state.pushPermissionGranted,
+    pushRegistrationFailed: state.pushRegistrationFailed,
   }
 }
 
@@ -92,7 +93,6 @@ export function migrateOnboardingDraft(
 
   return {
     accountKey: typeof persistedState.accountKey === 'string' ? persistedState.accountKey : null,
-    step: typeof persistedState.step === 'number' ? persistedState.step : 0,
     habits,
     firstLog: firstLogResult.success ? firstLogResult.data : null,
     goal: goalResult.success ? goalResult.data : null,
@@ -100,11 +100,9 @@ export function migrateOnboardingDraft(
       persistedState.weekStartDay === 0 || persistedState.weekStartDay === 1
         ? persistedState.weekStartDay
         : null,
-    colorScheme:
-      typeof persistedState.colorScheme === 'string'
-        ? persistedState.colorScheme
-        : null,
     onboardingLocallyDone: persistedState.onboardingLocallyDone === true,
+    pushPermissionGranted: persistedState.pushPermissionGranted === true,
+    pushRegistrationFailed: persistedState.pushRegistrationFailed === true,
   }
 }
 
@@ -116,7 +114,6 @@ export function buildApplyOnboardingPayload(
     ...(draft.firstLog ? { firstLog: { ...draft.firstLog } } : {}),
     ...(draft.goal ? { goal: { ...draft.goal } } : {}),
     ...(draft.weekStartDay !== null ? { weekStartDay: draft.weekStartDay } : {}),
-    ...(draft.colorScheme !== null ? { colorScheme: draft.colorScheme } : {}),
   }
 }
 
@@ -128,14 +125,13 @@ export function createOnboardingDraftState(
     ...createInitialDraft(),
 
     setAccountScope: (accountKey, preserveAnonymousDraft = false) => set((state) => {
-      if (state.accountKey === accountKey) return {}
+      const onboardingLocallyDone = state.onboardingLocallyDone || accountKey !== null
+      if (state.accountKey === accountKey) return { onboardingLocallyDone }
       if (state.accountKey === null && accountKey !== null && preserveAnonymousDraft) {
-        return { accountKey }
+        return { accountKey, onboardingLocallyDone }
       }
-      return { ...createInitialDraft(), accountKey }
+      return { ...createInitialDraft(), accountKey, onboardingLocallyDone }
     }),
-
-    setStep: (step) => set({ step }),
 
     bufferHabit: (habit) => {
       const index = get().habits.length
@@ -143,30 +139,42 @@ export function createOnboardingDraftState(
       return index
     },
 
+    replaceHabit: (habitIndex, habit) =>
+      set((state) => ({
+        habits: state.habits.map((current, index) =>
+          index === habitIndex ? { ...habit } : current,
+        ),
+      })),
+
     bufferFirstLog: (habitIndex, date) => set({ firstLog: { habitIndex, date } }),
 
     bufferGoal: (goal) => set({ goal: goal ? { ...goal } : null }),
 
     bufferWeekStartDay: (day) => set({ weekStartDay: day }),
 
-    bufferColorScheme: (scheme) => set({ colorScheme: scheme }),
 
     markOnboardingLocallyDone: () => set({ onboardingLocallyDone: true }),
+
+    markPushPermissionGranted: () => set({ pushPermissionGranted: true, pushRegistrationFailed: false }),
+
+    markPushRegistrationFailed: () => set({ pushRegistrationFailed: true }),
 
     hasPendingAnswers: () => {
       const state = get()
       return (
-        state.onboardingLocallyDone ||
         state.habits.length > 0 ||
         state.goal !== null ||
         state.firstLog !== null ||
         state.weekStartDay !== null ||
-        state.colorScheme !== null
+        state.pushPermissionGranted
       )
     },
 
     buildApplyPayload: () => buildApplyOnboardingPayload(getPersistedOnboardingDraft(get())),
 
-    reset: () => set(createInitialDraft()),
+    reset: () => set((state) => ({
+      ...createInitialDraft(),
+      onboardingLocallyDone: state.onboardingLocallyDone,
+    })),
   }
 }

@@ -1,0 +1,147 @@
+import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Pressable, Text, View } from 'react-native'
+import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
+import {
+  goalListCardFixture as goals,
+  habitListCardFixture as habits,
+} from '@orbit/shared/test-support/chat-fixtures'
+import { GoalListCard } from '@/components/chat/goal-list-card'
+import { HabitListCard } from '@/components/chat/habit-list-card'
+import { renderedText } from '../../support/react-test-renderer'
+
+const TestRenderer = require('react-test-renderer')
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  mutate: vi.fn(),
+  locale: 'en',
+  occurrencesById: new Map<string, { isCompleted: boolean; isLoggedInRange: boolean }>(),
+}))
+
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key, i18n: { language: mocks.locale } }) }))
+vi.mock('@/hooks/use-habits', () => ({
+  useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
+  useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
+  useLogHabit: () => ({ mutate: mocks.mutate }),
+}))
+vi.mock('@/components/ui/status-ring', () => ({ StatusRing: ({ status, label }: { status: string; label: string }) => <Text testID={`ring-${status}`}>{label}</Text> }))
+vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <Text>Progress</Text> }))
+vi.mock('@/components/ui/pill-button', () => ({
+  Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) =>
+    <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable>,
+}))
+vi.mock('@/components/ui/block-frame', () => ({
+  BlockFrame: ({ title, count, items, body, actions }: BlockFrameProps) => <View>
+    <Text>{title}</Text>
+    <Text>{count}</Text>
+    {body}
+    {items.map((item) => <View key={item.id}>{item.label}{item.meta ? <Text>{item.meta}</Text> : null}{item.control}</View>)}
+    {actions}
+  </View>,
+}))
+vi.mock('@/lib/theme', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/theme')>()
+  return { ...actual, createTokensV2: () => new Proxy({}, { get: () => '#111111' }) }
+})
+
+function render(element: React.ReactElement) {
+  let tree: any
+  TestRenderer.act(() => { tree = TestRenderer.create(element) })
+  return tree
+}
+
+describe('Astra list cards on mobile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.locale = 'en'
+    mocks.occurrencesById.clear()
+    for (const item of habits.items) {
+      mocks.occurrencesById.set(item.id, { isCompleted: false, isLoggedInRange: false })
+    }
+  })
+
+  it('logs from authoritative occurrence state, opens the habit, and pages the count', () => {
+    const tree = render(<HabitListCard habitList={habits} />)
+    expect(renderedText(tree.toJSON())).toContain('chat.habitList.count')
+    expect(renderedText(tree.toJSON())).toContain('3')
+
+    const open = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.open:{"name":"Water"}' })
+    TestRenderer.act(() => open.props.onPress())
+    expect(mocks.push).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-1' } })
+
+    const log = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.log:{"name":"Water"}' })
+    TestRenderer.act(() => log.props.onPress())
+    expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }))
+
+    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.habitList.more'))[0]
+    TestRenderer.act(() => more.props.onPress())
+    expect(renderedText(tree.toJSON())).toContain('4')
+  })
+
+  it('shows a logged recurring occurrence as done and unlogs it', () => {
+    mocks.occurrencesById.set('habit-1', { isCompleted: false, isLoggedInRange: true })
+    const tree = render(<HabitListCard habitList={habits} />)
+
+    expect(tree.root.findByProps({ testID: 'ring-done' }).props.children).toBe('chat.habitList.logged')
+    const unlog = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.unlog:{"name":"Water"}' })
+    TestRenderer.act(() => unlog.props.onPress())
+    expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'unlog' }))
+  })
+
+  it('titles the all scope and explains an empty scope', () => {
+    const all = render(<HabitListCard habitList={{ scope: 'all', items: [] }} />)
+    expect(renderedText(all.toJSON())).toContain('chat.habitList.allTitle')
+    expect(renderedText(all.toJSON())).toContain('chat.habitList.allEmpty')
+    expect(renderedText(all.toJSON())).not.toContain('chat.habitList.count')
+    const today = render(<HabitListCard habitList={{ scope: 'today', items: [] }} />)
+    expect(renderedText(today.toJSON())).toContain('chat.habitList.title')
+    expect(renderedText(today.toJSON())).toContain('chat.habitList.todayEmpty')
+  })
+
+  it('withholds the toggle when the occurrence is not authoritative', () => {
+    mocks.occurrencesById.delete('habit-1')
+    const tree = render(<HabitListCard habitList={habits} />)
+
+    expect(tree.root.findAll((node: any) =>
+      String(node.props?.accessibilityLabel).includes('chat.habitList.log') &&
+      String(node.props?.accessibilityLabel).includes('Water'),
+    )).toHaveLength(0)
+  })
+
+  it('opens a goal row in place and routes the progress action', () => {
+    const onOpenGoal = vi.fn()
+    const tree = render(<GoalListCard goalList={goals} onOpenGoal={onOpenGoal} />)
+    const goal = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('Run 10 km'))[0]
+    TestRenderer.act(() => goal.props.onPress())
+    expect(onOpenGoal).toHaveBeenCalledWith('goal-1')
+
+    const progress = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.goalList.progressLink'))[0]
+    TestRenderer.act(() => progress.props.onPress())
+    expect(mocks.push).toHaveBeenCalledWith('/progress/goals')
+  })
+
+  it('shows API goal tracking and projection', () => {
+    mocks.locale = 'pt-BR'
+    const tree = render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: 'at_risk', projectedCompletionDate: '2026-10-12' }] }} />)
+    expect(renderedText(tree.toJSON())).toContain('goals.metrics.atRisk')
+    expect(renderedText(tree.toJSON())).toContain('12 de out. de 2026')
+  })
+
+  it.each([['on_track', 'onTrack'], ['at_risk', 'atRisk'], ['behind', 'behind'], ['no_deadline', 'noDeadline']] as const)('localizes %s tracking', (status, key) => {
+    const tree = render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: status }] }} />)
+    expect(renderedText(tree.toJSON())).toContain(`goals.metrics.${key}`)
+  })
+
+  it('keeps older goal rows without a projection', () => {
+    const tree = render(<GoalListCard goalList={goals} />)
+    expect(renderedText(tree.toJSON())).not.toContain('chat.goalList.projected')
+    expect(renderedText(tree.toJSON())).not.toContain('goals.metrics.')
+  })
+})
+
+vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))
+vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))

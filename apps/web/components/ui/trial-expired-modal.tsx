@@ -1,138 +1,141 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useId } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Crown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { buildAccountScopedStorageKey, readAccountScopedFlag, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useHeldAccountId } from '@/stores/auth-store'
 import { useTrialExpired } from '@/hooks/use-profile'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { PillButton } from '@/components/ui/pill-button'
-import { accountStorageKey } from '@/lib/account-storage-key'
-import { useAccountId } from '@/lib/account-scope'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
+import { ActionRow } from '@/components/ui/action-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
+import { ListRow } from '@/components/ui/list-row'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useUIStore } from '@/stores/ui-store'
 
-const STORAGE_KEY = 'orbit_trial_expired_seen'
+const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
 
 const PAUSED_FEATURES = [
-  'trial.expired.subHabits',
-  'trial.expired.aiChat',
-  'trial.expired.goals',
-  'trial.expired.aiSummary',
-  'trial.expired.allColors',
+  'trial.expired.astraCeiling',
+  'trial.expired.calendarSync',
+  'trial.expired.retrospective',
+  'trial.expired.proactiveAstra',
 ] as const
 
 export function TrialExpiredModal() {
   const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
   const router = useRouter()
   const pathname = usePathname()
   const trialExpired = useTrialExpired()
-  const accountId = useAccountId()
-  const [dismissedAccountId, setDismissedAccountId] = useState<string | null | undefined>(undefined)
+  const [dismissed, setDismissed] = useAccountScopedState(false)
   const mounted = useIsClient()
+  const accountId = useHeldAccountId()
+  const scopedKey = accountId === null ? null : buildAccountScopedStorageKey(STORAGE_KEY, accountId)
+  const promptId = useId()
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const openOverlayIds = useUIStore((state) => state.openOverlayIds)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  const reservationId = `${promptId}:${scopedKey ?? ''}`
+
+  /**
+   * Moves a notice dismissed before this key carried an account on to the account signed in now,
+   * then consumes the old key. Left in place it would answer for every later account too, which
+   * is the defect rather than a milder version of it.
+   */
+  useEffect(() => {
+    if (scopedKey === null) return
+    if (!readAccountScopedFlag(localStorage.getItem(scopedKey), localStorage.getItem(STORAGE_KEY)).adoptsLegacy) return
+    localStorage.setItem(scopedKey, '1')
+    localStorage.removeItem(STORAGE_KEY)
+  }, [scopedKey])
 
   const isOpen =
     mounted &&
+    scopedKey !== null &&
     pathname !== '/upgrade' &&
-    dismissedAccountId !== accountId &&
+    !dismissed &&
     trialExpired &&
     // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `mounted` (useIsClient) short-circuit at the head of this expression; localStorage is only read on the client, never during SSR https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    !localStorage.getItem(accountStorageKey(STORAGE_KEY))
+    !readAccountScopedFlag(localStorage.getItem(scopedKey), localStorage.getItem(STORAGE_KEY)).seen
+  const reserved = openOverlayIds.includes(reservationId)
+  const presented = isOpen && reserved
+  useEffect(() => {
+    if (!isOpen) {
+      if (reserved) unregisterOpenOverlay(reservationId)
+      return
+    }
+    if (!reserved && !anotherOverlayOpen) useUIStore.getState().tryReservePromptOverlay(reservationId)
+  }, [anotherOverlayOpen, isOpen, reservationId, reserved, unregisterOpenOverlay])
+  useEffect(() => {
+    return () => unregisterOpenOverlay(reservationId)
+  }, [reservationId, unregisterOpenOverlay])
+  const { plans } = useSubscriptionPlans({
+    enabled: presented,
+    handlesError: true,
+  })
 
-  function dismiss() {
-    setDismissedAccountId(accountId)
-    localStorage.setItem(accountStorageKey(STORAGE_KEY), '1')
+  function hide() {
+    setDismissed(true)
+    if (scopedKey !== null) localStorage.setItem(scopedKey, '1')
   }
 
-  if (!isOpen) return null
+  if (!presented) return null
 
   return (
-    <AppOverlay
-      open={true}
-      onOpenChange={(open) => {
-        if (!open) dismiss()
-      }}
+    <Sheet
+      ref={sheetRef}
+      open
+      onClose={hide}
       title={t('trial.expired.heading')}
-      footer={
-        <div className="flex flex-col" style={{ gap: 10 }}>
+      actions={
+        <ActionRow>
+          <PromptQuietAction onClick={() => closeSheet()}>
+            {t('trial.expired.continueFree')}
+          </PromptQuietAction>
           <PillButton
+            size="sm"
             variant="primary"
-            fullWidth
-            onClick={() => {
-              dismiss()
-              router.push('/upgrade')
-            }}
+            onClick={() =>
+              closeSheet(() => {
+                hide()
+                router.push('/upgrade')
+              })
+            }
           >
             {t('trial.expired.subscribe')}
           </PillButton>
-          <PillButton variant="ghost" fullWidth onClick={dismiss}>
-            {t('trial.expired.continueFree')}
-          </PillButton>
-        </div>
+        </ActionRow>
       }
     >
-      <div className="flex flex-col" style={{ gap: 14 }}>
-        <div
-          aria-hidden="true"
-          className="flex items-center justify-center self-center rounded-full"
-          style={{
-            width: 64,
-            height: 64,
-            marginTop: 2,
-            background: 'rgba(var(--primary-rgb), 0.16)',
-          }}
-        >
-          <Crown size={30} strokeWidth={1.8} className="text-[var(--primary-soft)]" />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <p className="t-eyebrow m-0">{t('trial.expired.eyebrow')}</p>
+          <p className="m-0 max-w-[65ch] text-pretty text-base leading-[1.55] text-[var(--fg-2)]">
+            {t('trial.expired.subtitleQuiet')}
+          </p>
+          {plans ? (
+            <p className="m-0 font-mono text-xs tabular-nums text-[var(--fg-3)]">
+              {t('trial.expired.savings', { percent: plans.savingsPercent })}
+            </p>
+          ) : null}
         </div>
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 15,
-            color: 'var(--fg-2)',
-            lineHeight: 1.5,
-            margin: 0,
-            textAlign: 'center',
-            textWrap: 'pretty',
-          }}
-        >
-          {t('trial.expired.subtitleQuiet')}
-        </p>
-        <div>
-          {PAUSED_FEATURES.map((featureKey, index) => (
-            <div
+
+        <SettingsGroup>
+          {PAUSED_FEATURES.map((featureKey) => (
+            <ListRow readOnly textMode="label"
               key={featureKey}
-              className="flex items-baseline justify-between"
-              style={{
-                padding: '12px 0',
-                borderBottom:
-                  index === PAUSED_FEATURES.length - 1
-                    ? undefined
-                    : '1px solid var(--hairline)',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 15,
-                  color: 'var(--fg-1)',
-                }}
-              >
-                {t(featureKey)}
-              </span>
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 11,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  color: 'var(--fg-3)',
-                }}
-              >
-                {t('trial.expired.paused')}
-              </span>
-            </div>
+              title={t(featureKey)}
+              description={t('trial.expired.paused')}
+            />
           ))}
-        </div>
+        </SettingsGroup>
       </div>
-    </AppOverlay>
+    </Sheet>
   )
 }

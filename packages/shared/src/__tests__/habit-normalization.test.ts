@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { HabitDetail, HabitScheduleChild, HabitScheduleItem } from '../types/habit'
+import { habitDetailSchema, habitDetailChildSchema, habitFullDetailSchema, habitScheduleChildSchema, habitScheduleItemSchema, normalizedHabitSchema } from '../types/habit'
+import { normalizeHabitDetailForDrill } from '../utils/drill-navigation'
+import { makeHabitDetail, makeHabitDetailChild, makeHabitScheduleItem } from '../test-support/habit-detail-fixtures'
 import type { Goal } from '../types/goal'
 import {
   applyLinkedGoalUpdates,
-  computeDayProgress,
   habitDetailToNormalized,
   normalizeHabitQueryData,
   normalizeHabits,
@@ -48,6 +50,26 @@ function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitSche
     searchMatches: overrides.searchMatches,
   }
 }
+
+describe('child creation dates', () => {
+  it('parses the optional field in detail and schedule children', () => {
+    const detailChild = makeHabitDetailChild()
+    const scheduleChild = makeHabitScheduleItem().children[0]!
+    expect(habitDetailChildSchema.parse(detailChild).createdAtUtc).toBeUndefined()
+    expect(habitDetailChildSchema.parse({ ...detailChild, createdAtUtc: '2026-08-27T08:00:00Z' }).createdAtUtc).toBe('2026-08-27T08:00:00Z')
+    expect(habitScheduleChildSchema.parse(scheduleChild).createdAtUtc).toBeUndefined()
+    expect(habitScheduleChildSchema.parse({ ...scheduleChild, createdAtUtc: '2026-08-27T08:00:00Z' }).createdAtUtc).toBe('2026-08-27T08:00:00Z')
+  })
+
+  it('keeps each nested child creation date and marks an older response as inherited', () => {
+    const schedule = makeHabitScheduleItem()
+    const child = schedule.children[0]!
+    schedule.children = [{ ...child, createdAtUtc: '2026-08-27T08:00:00Z', children: [{ ...child, id: 'grandchild-1', children: [] }] }]
+    const habits = normalizeHabitQueryData([schedule]).habitsById
+    expect(habits.get('child-1')).toMatchObject({ createdAtUtc: '2026-08-27T08:00:00Z', createdAtUtcIsInherited: false })
+    expect(habits.get('grandchild-1')).toMatchObject({ createdAtUtc: schedule.createdAtUtc, createdAtUtcIsInherited: true })
+  })
+})
 
 describe('habit normalization utils', () => {
   it('sorts normalized habits by position then created time', () => {
@@ -129,7 +151,6 @@ describe('habit normalization utils', () => {
           .filter((habit) => habit !== undefined),
       isRelevantToday: () => true,
       isDueOnSelectedDate: () => true,
-      isListView: false,
       skippedIds: new Set(),
     })
 
@@ -202,7 +223,6 @@ describe('habit normalization utils', () => {
     })
   })
 })
-
 describe('habitDetailToNormalized', () => {
   function makeHabitDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
     return {
@@ -300,125 +320,30 @@ describe('habitDetailToNormalized', () => {
   })
 })
 
-describe('computeDayProgress', () => {
-  it('counts parents and sub-habits scheduled on the selected date alike', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'parent', isCompleted: false }),
-        createMockHabit({ id: 'child-1', parentId: 'parent', isCompleted: true }),
-        createMockHabit({ id: 'child-2', parentId: 'parent', isCompleted: false }),
-        createMockHabit({ id: 'solo', isLoggedInRange: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 2, total: 4 })
+describe('habit creation anchor contract', () => {
+  it.each(['OneTime', 'Recurring', 'Flexible', 'General'] as const)('preserves the optional creation fields for %s responses', (schedule) => {
+    const fields = { startDate: '2026-08-28', schedule }
+    const child = { ...makeHabitDetailChild(), ...fields }
+    const detail = { ...makeHabitDetail(), ...fields, children: [child] }
+    const item = makeHabitScheduleItem(fields)
+    item.children = item.children.map((entry) => ({ ...entry, ...fields, children: [{ ...entry, ...fields, id: 'grandchild', children: [] }] }))
+    expect(habitDetailSchema.parse(detail)).toMatchObject({ ...fields, children: [fields] })
+    expect(habitDetailChildSchema.parse(child)).toMatchObject(fields)
+    expect(habitScheduleItemSchema.parse(item)).toMatchObject({ ...fields, children: [{ ...fields, children: [fields] }] })
+    expect(habitScheduleChildSchema.parse(item.children[0])).toMatchObject(fields)
+    const normalized = normalizeHabitQueryData([item]).habitsById
+    for (const habit of normalized.values()) expect(normalizedHabitSchema.parse(habit)).toMatchObject(fields)
+    const drill = normalizeHabitDetailForDrill(detail, '2026-08-29')
+    expect(drill.parent).toMatchObject(fields)
+    expect(drill.childrenByParent.get(detail.id)?.[0]).toMatchObject(fields)
+    expect(habitFullDetailSchema.parse({ habit: detail, metrics: { currentStreak: 0, longestStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 0, totalCompletions: 0, lastCompletedDate: null }, logs: [] }).habit).toMatchObject(fields)
   })
 
-  it('excludes habits with no content on the selected date, mirroring list visibility', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'due-done', isCompleted: true }),
-        createMockHabit({ id: 'due-pending' }),
-        createMockHabit({
-          id: 'not-due-today',
-          scheduledDates: ['2025-01-02'],
-          dueDate: '2025-01-02',
-        }),
-        createMockHabit({
-          id: 'overdue',
-          scheduledDates: [],
-          dueDate: '2024-12-30',
-          isOverdue: true,
-        }),
-        createMockHabit({
-          id: 'general',
-          isGeneral: true,
-          scheduledDates: [],
-          dueDate: '2025-01-02',
-        }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 4 })
-  })
-
-  it('counts a habit logged on the selected date via instances as done', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({
-          id: 'logged-via-instance',
-          instances: [{ date: '2025-01-01', status: 'Completed', logId: 'log-1' }],
-        }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 1 })
-  })
-
-  it('returns zeros for an empty map', () => {
-    expect(computeDayProgress(new Map(), '2025-01-01')).toEqual({ done: 0, total: 0 })
-  })
-
-  it('excludes bad habits from both the total and the done count', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'good-done', isCompleted: true }),
-        createMockHabit({ id: 'good-pending' }),
-        createMockHabit({ id: 'bad-pending', isBadHabit: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 2 })
-  })
-
-  it('does not count a slip-logged bad habit as progress', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'good-pending' }),
-        createMockHabit({
-          id: 'bad-slipped',
-          isBadHabit: true,
-          isCompleted: true,
-          isLoggedInRange: true,
-          instances: [{ date: '2025-01-01', status: 'Completed', logId: 'log-1' }],
-        }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 0, total: 1 })
-  })
-
-  it('returns zeros when the day holds only bad habits', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'bad-1', isBadHabit: true }),
-        createMockHabit({ id: 'bad-2', isBadHabit: true, isCompleted: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 0, total: 0 })
-  })
-
-  it('excludes a bad sub-habit but keeps a good sub-habit under the same parent', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'parent', isCompleted: false }),
-        createMockHabit({ id: 'good-child', parentId: 'parent', isCompleted: true }),
-        createMockHabit({ id: 'bad-child', parentId: 'parent', isBadHabit: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 2 })
-  })
-
-  it('keeps a good sub-habit counting under a bad parent', () => {
-    const habitsById = new Map(
-      [
-        createMockHabit({ id: 'bad-parent', isBadHabit: true }),
-        createMockHabit({ id: 'good-child', parentId: 'bad-parent', isCompleted: true }),
-      ].map((habit) => [habit.id, habit]),
-    )
-
-    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 1 })
+  it('accepts older responses and rejects malformed creation fields', () => {
+    const detail = makeHabitDetail()
+    expect(habitDetailSchema.parse(detail)).not.toHaveProperty('startDate')
+    expect(habitDetailSchema.parse(detail)).not.toHaveProperty('schedule')
+    expect(habitDetailSchema.safeParse({ ...detail, startDate: '2026-08-28T00:00:00Z' }).success).toBe(false)
+    expect(habitDetailSchema.safeParse({ ...detail, schedule: 'Daily' }).success).toBe(false)
   })
 })

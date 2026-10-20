@@ -6,10 +6,10 @@ import { configKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { configCache } from '@/lib/config-cache'
-import { sessionAwareFetch } from '@/lib/api-fetch'
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 
 async function fetchConfig(): Promise<unknown> {
-  const response = await sessionAwareFetch(API.config.get)
+  const response = await fetchWithThrottle(API.config.get)
   if (!response.ok) throw new Error(`Config request failed: ${response.status}`)
   return response.json()
 }

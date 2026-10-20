@@ -1,149 +1,75 @@
-import { useMemo } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { PersonalText } from '@/components/ui/personal-text'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { useState } from 'react'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
-import { formatGoalMetricsDate } from '@orbit/shared/utils'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
+import { Text, View } from 'react-native'
+import { formatGoalMetricsDate, getGoalMetricsStatusPresentation } from '@orbit/shared/utils'
 import type { GoalListCard as GoalListCardData, GoalListCardItem } from '@orbit/shared/types/chat'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { ProgressBar } from '@/components/ui/progress-bar'
+import { useGoals } from '@/hooks/use-goals'
+import { liveBlockState } from '@orbit/shared/chat/live-block-state'
+import { Button } from '@/components/ui/pill-button'
+import { Badge } from '@/components/ui/badge'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type AppTokens = ReturnType<typeof createTokensV2>
-
-function resolvePercentage(item: GoalListCardItem): number {
-  if (item.target <= 0) return 0
-  return Math.min(100, Math.max(0, Math.round((item.current / item.target) * 100)))
+function percentage(item: Pick<GoalListCardItem, 'current' | 'target'>): number {
+  return item.target <= 0 ? 0 : Math.min(100, Math.max(0, Math.round((item.current / item.target) * 100)))
 }
 
-export function GoalListCard({ goalList }: Readonly<{ goalList: GoalListCardData }>) {
-  const { t, i18n } = useTranslation()
+function GoalName({ name, onOpen }: Readonly<{ name: string; onOpen: () => void }>) {
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={name} onPress={onOpen}
+    onFocus={() => setFocused(true)}
+    onBlur={() => setFocused(false)}
+    onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+    style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, alignSelf: 'stretch', marginHorizontal: -SPACING.s8, minWidth: 0, justifyContent: 'center', paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed || focused || hovered ? tokens.bgHover : 'transparent' })}>
+    <PersonalText style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 }}>{name}</PersonalText>
+  </InsetFocusPressable>
+}
 
-  if (goalList.items.length === 0) {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.empty}>{t('chat.goalList.empty')}</Text>
-      </View>
-    )
-  }
+export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: GoalListCardData; onOpenGoal?: (id: string) => void }>) {
+  const { t, i18n } = useTranslation()
+  const navigate = useChatNavigation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const goals = useGoals()
+  const missing = goals.data != null && goalList.items.some((item) => !goals.data.goalsById.has(item.id))
+  const frameState = liveBlockState(goals, { stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void goals.refetch() } })
+  const items = goalList.items.map((snapshot) => {
+    const live = goals.data?.goalsById.get(snapshot.id)
+    const item = live ? { ...snapshot, title: live.title, current: live.currentValue, target: live.targetValue, unit: live.unit, deadline: live.deadline, trackingStatus: live.trackingStatus } : snapshot
+    const derived = live?.isProgressDerived && live.linkedHabits.length > 0 ? `${t('goals.linkedHabits')}: ${live.linkedHabits.map((habit) => habit.title).join(', ')}` : null
+    const value = percentage(item)
+    const progress = t('chat.goalList.progress', { current: item.current, target: item.target, unit: item.unit })
+    const deadline = item.deadline ? t('chat.goalList.deadline', { date: formatGoalMetricsDate(item.deadline, i18n.language) }) : null
+    const projected = item.projectedCompletionDate ? t('chat.goalList.projected', { date: formatGoalMetricsDate(item.projectedCompletionDate, i18n.language) }) : null
+    const tracking = getGoalMetricsStatusPresentation(item.trackingStatus)
+    return {
+      id: item.id,
+      wrapLabel: true,
+      label: <View style={{ minWidth: 0, gap: 8, alignItems: 'flex-start' }}>{onOpenGoal ? <GoalName name={item.title} onOpen={() => onOpenGoal(item.id)} /> : <PersonalTextDetails outset>{item.title}</PersonalTextDetails>}{tracking ? <Badge variant="outline">{t(tracking.labelKey)}</Badge> : null}<View style={{ alignSelf: 'stretch' }}><ProgressBar value={value} label={t('chat.goalList.ring', { name: item.title })} /></View>{derived ? <PersonalTextDetails outset>{derived}</PersonalTextDetails> : null}</View>,
+      meta: [progress, deadline, projected].filter(Boolean).join(' · '),
+      wrapMeta: true,
 
+    }
+  })
   return (
-    <View style={styles.card}>
-      {goalList.items.map((item, index) => {
-        const percentage = resolvePercentage(item)
-        return (
-          <View key={item.id} style={[styles.row, index > 0 && styles.rowDivider]}>
-            <View style={styles.headerRow}>
-              <Text style={styles.title} numberOfLines={1}>
-                {item.title}
-              </Text>
-              <Text style={styles.percentage}>
-                {t('chat.goalList.percentage', { pct: percentage })}
-              </Text>
-            </View>
-
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${percentage}%` }]} />
-            </View>
-
-            <View style={styles.footerRow}>
-              <Text style={styles.progress} numberOfLines={1}>
-                {t('chat.goalList.progress', {
-                  current: item.current,
-                  target: item.target,
-                  unit: item.unit,
-                })}
-              </Text>
-              {item.deadline ? (
-                <Text style={styles.deadline}>
-                  {t('chat.goalList.deadline', {
-                    date: formatGoalMetricsDate(item.deadline, i18n.language),
-                  })}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        )
-      })}
+    <View style={{ width: '100%' }}>
+      <BlockFrame {...frameState} title={t('chat.goalList.title')} items={items} body={items.length === 0 ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t('chat.goalList.empty')}</Text> : undefined} actions={(
+        <>
+          {goals.isError ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}
+          {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
+          <Button variant="ghost" size="sm" onClick={() => navigate('/progress/goals')}>{t('chat.goalList.progressLink')}</Button>
+        </>
+      )} />
     </View>
   )
-}
-
-function createStyles(tokens: AppTokens) {
-  return StyleSheet.create({
-    card: {
-      marginTop: 8,
-      width: '100%',
-      borderRadius: 16,
-      backgroundColor: tokens.bgElev,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      overflow: 'hidden',
-    },
-    empty: {
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
-    },
-    row: {
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      gap: 6,
-    },
-    rowDivider: {
-      borderTopWidth: 1,
-      borderTopColor: tokens.hairline,
-    },
-    headerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    title: {
-      flex: 1,
-      minWidth: 0,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg1,
-    },
-    percentage: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
-      color: tokens.primary,
-      fontVariant: ['tabular-nums'],
-    },
-    track: {
-      width: '100%',
-      height: 4,
-      borderRadius: 999,
-      backgroundColor: tokens.hairline,
-      overflow: 'hidden',
-    },
-    fill: {
-      height: '100%',
-      borderRadius: 999,
-      backgroundColor: tokens.primary,
-    },
-    footerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    progress: {
-      flex: 1,
-      minWidth: 0,
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 11,
-      color: tokens.fg3,
-      fontVariant: ['tabular-nums'],
-    },
-    deadline: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 11,
-      color: tokens.fg3,
-      fontVariant: ['tabular-nums'],
-    },
-  })
 }

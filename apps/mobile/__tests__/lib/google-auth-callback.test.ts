@@ -21,43 +21,43 @@ import {
 const TestRenderer = require('react-test-renderer')
 
 describe('Google App Link callback state', () => {
-  beforeEach(() => clearPendingGoogleAuthSession())
+  beforeEach(async () => { await clearPendingGoogleAuthSession() })
 
-  it('accepts one matching callback and retains its verifier for exchange', () => {
-    markPendingGoogleAuthSession(1, 'verifier', 'expected')
+  it('accepts one matching callback and retains its verifier for exchange', async () => {
+    await markPendingGoogleAuthSession('1', 'verifier', 'expected')
     const url = `${AUTH_CALLBACK_URL}?code=google-code&state=expected`
-    expect(setPendingGoogleAuthCallbackUrl(url, 1)).toBe(true)
+    expect(setPendingGoogleAuthCallbackUrl(url, '1')).toBe(true)
     expect(getPendingGoogleAuthVerifier('expected')).toBe('verifier')
     expect(extractGoogleAuthParams(url)).toEqual({
       code: 'google-code', state: 'expected', error: undefined, error_description: undefined,
     })
-    clearPendingGoogleAuthSession(1)
+    await clearPendingGoogleAuthSession('1')
     expect(getPendingGoogleAuthVerifier('expected')).toBeNull()
   })
 
-  it('rejects mismatched state, duplicate state, and foreign callback origins', () => {
-    markPendingGoogleAuthSession(1, 'verifier', 'expected')
-    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=x&state=wrong`, 1)).toBe(false)
-    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=x&state=expected&state=expected`, 1)).toBe(false)
-    expect(setPendingGoogleAuthCallbackUrl('https://other.example/auth-callback?code=x&state=expected', 1)).toBe(false)
+  it('rejects mismatched state, duplicate state, and foreign callback origins', async () => {
+    await markPendingGoogleAuthSession('1', 'verifier', 'expected')
+    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=x&state=wrong`, '1')).toBe(false)
+    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=x&state=expected&state=expected`, '1')).toBe(false)
+    expect(setPendingGoogleAuthCallbackUrl('https://other.example/auth-callback?code=x&state=expected', '1')).toBe(false)
     expect(getPendingGoogleAuthVerifier('wrong')).toBeNull()
   })
 
-  it('does not let an older browser result clear a newer attempt', () => {
-    markPendingGoogleAuthSession(1, 'old', 'old-state')
-    markPendingGoogleAuthSession(2, 'new', 'new-state')
-    clearPendingGoogleAuthSession(1)
-    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=new&state=new-state`, 1)).toBe(false)
-    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=new&state=new-state`, 2)).toBe(true)
+  it('does not let an older browser result clear a newer attempt', async () => {
+    await markPendingGoogleAuthSession('1', 'old', 'old-state')
+    await markPendingGoogleAuthSession('2', 'new', 'new-state')
+    await clearPendingGoogleAuthSession('1')
+    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=new&state=new-state`, '1')).toBe(false)
+    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=new&state=new-state`, '2')).toBe(true)
     expect(getPendingGoogleAuthVerifier('new-state')).toBe('new')
   })
 
-  it('clears an unprocessed Google attempt when another login establishes the session', () => {
-    markPendingGoogleAuthSession(1, 'verifier', 'expected')
-    clearPendingGoogleAuthSessionForLogin()
+  it('clears an unprocessed Google attempt when another login establishes the session', async () => {
+    await markPendingGoogleAuthSession('1', 'verifier', 'expected')
+    await clearPendingGoogleAuthSessionForLogin()
     expect(hasPendingGoogleAuthSession()).toBe(false)
     expect(getPendingGoogleAuthVerifier('expected')).toBeNull()
-    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=x&state=expected`, 1)).toBe(false)
+    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=x&state=expected`, '1')).toBe(false)
   })
 
   it('recovers a callback URL from Expo Router params', () => {
@@ -66,19 +66,19 @@ describe('Google App Link callback state', () => {
     expect(resolveGoogleAuthCallbackUrl({ rawUrl: AUTH_CALLBACK_URL, params: {} })).toBeNull()
   })
 
-  it('rejects callback delivery before an attempt and preserves an active attempt after a stale clear', () => {
+  it('rejects callback delivery before an attempt and preserves an active attempt after a stale clear', async () => {
     const url = `${AUTH_CALLBACK_URL}?code=google-code&state=expected`
     expect(hasPendingGoogleAuthSession()).toBe(false)
     expect(setPendingGoogleAuthCallbackUrl(url)).toBe(false)
-    markPendingGoogleAuthSession(2, 'verifier', 'expected')
+    await markPendingGoogleAuthSession('2', 'verifier', 'expected')
     expect(hasPendingGoogleAuthSession()).toBe(true)
-    clearPendingGoogleAuthSession(1)
+    await clearPendingGoogleAuthSession('1')
     expect(getPendingGoogleAuthVerifier('expected')).toBe('verifier')
     expect(setPendingGoogleAuthCallbackUrl(url)).toBe(true)
   })
 
-  it('accepts Google error callbacks and rejects a matching state on the wrong path', () => {
-    markPendingGoogleAuthSession(1, 'verifier', 'expected')
+  it('accepts Google error callbacks and rejects a matching state on the wrong path', async () => {
+    await markPendingGoogleAuthSession('1', 'verifier', 'expected')
     expect(setPendingGoogleAuthCallbackUrl('https://app.useorbit.org/login?code=x&state=expected')).toBe(false)
     const errorUrl = `${AUTH_CALLBACK_URL}?error=access_denied&error_description=cancelled&state=expected`
     expect(setPendingGoogleAuthCallbackUrl(errorUrl)).toBe(true)
@@ -114,7 +114,7 @@ describe('Google App Link callback state', () => {
     }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(React.createElement(AuthObserver)) })
-    TestRenderer.act(() => { markPendingGoogleAuthSession(1, 'verifier', 'expected') })
+    TestRenderer.act(() => { void markPendingGoogleAuthSession('1', 'verifier', 'expected') })
     expect(snapshots.at(-1)).toEqual({ pending: true, callbackUrl: null, errorAllowed: false })
     const callbackUrl = `${AUTH_CALLBACK_URL}?code=google-code&state=expected`
     TestRenderer.act(() => { setPendingGoogleAuthCallbackUrl(callbackUrl) })

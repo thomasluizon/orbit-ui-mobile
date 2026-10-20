@@ -1,51 +1,70 @@
 import { create } from 'zustand'
-import { createJSONStorage, persist } from 'zustand/middleware'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
+import { captureException } from '@sentry/nextjs'
+import type { ShellDestinationId } from '@orbit/shared/utils'
 import { getPersistStorage } from '@/lib/persist-storage'
 
 interface ShellState {
   sidebarCollapsed: boolean
-  railOpen: boolean
-  paletteOpen: boolean
-  astraOpen: boolean
-  astraMaximized: boolean
   toggleSidebar: () => void
-  setSidebarCollapsed: (value: boolean) => void
-  setRailOpen: (value: boolean) => void
-  toggleRail: () => void
+  lastDestination: ShellDestinationId
+  setLastDestination: (destination: ShellDestinationId) => void
+  paletteOpen: boolean
   setPaletteOpen: (value: boolean) => void
   togglePalette: () => void
-  setAstraOpen: (value: boolean) => void
-  toggleAstra: () => void
-  setAstraMaximized: (value: boolean) => void
-  toggleAstraMaximized: () => void
 }
 
-export const useShellStore = create<ShellState>()(
-  persist(
-    (set) => ({
-      sidebarCollapsed: false,
-      railOpen: false,
-      paletteOpen: false,
-      astraOpen: false,
-      astraMaximized: false,
-      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-      setSidebarCollapsed: (value) => set({ sidebarCollapsed: value }),
-      setRailOpen: (value) => set({ railOpen: value }),
-      toggleRail: () => set((state) => ({ railOpen: !state.railOpen })),
-      setPaletteOpen: (value) => set({ paletteOpen: value }),
-      togglePalette: () => set((state) => ({ paletteOpen: !state.paletteOpen })),
-      setAstraOpen: (value) =>
-        set((state) => ({ astraOpen: value, astraMaximized: value ? state.astraMaximized : false })),
-      toggleAstra: () => set((state) => ({ astraOpen: !state.astraOpen })),
-      setAstraMaximized: (value) => set({ astraMaximized: value }),
-      toggleAstraMaximized: () => set((state) => ({ astraMaximized: !state.astraMaximized })),
-    }),
-    {
-      name: 'orbit-shell-store',
-      version: 1,
-      storage: createJSONStorage<Pick<ShellState, 'sidebarCollapsed'>>(getPersistStorage),
-      partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }),
-      skipHydration: true,
-    },
-  ),
-)
+const sidebarStorage: StateStorage = {
+  getItem: (name) => {
+    try {
+      return getPersistStorage().getItem(name)
+    } catch (error) {
+      captureException(error)
+      return null
+    }
+  },
+  setItem: (name, value) => {
+    try {
+      return getPersistStorage().setItem(name, value)
+    } catch (error) {
+      captureException(error)
+    }
+  },
+  removeItem: (name) => {
+    try {
+      return getPersistStorage().removeItem(name)
+    } catch (error) {
+      captureException(error)
+    }
+  },
+}
+
+function setShellState(update: Partial<ShellState> | ((state: ShellState) => Partial<ShellState>)) {
+  if (!useShellStore.persist.hasHydrated()) void useShellStore.persist.rehydrate()
+  useShellStore.setState(update)
+}
+
+export const useShellStore = create<ShellState>()(persist((): ShellState => ({
+  sidebarCollapsed: false,
+  toggleSidebar: () => setShellState((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  lastDestination: 'hoje',
+  setLastDestination: (lastDestination) => setShellState({ lastDestination }),
+  paletteOpen: false,
+  setPaletteOpen: (value) => setShellState({ paletteOpen: value }),
+  togglePalette: () => setShellState((state) => ({ paletteOpen: !state.paletteOpen })),
+}), {
+  name: 'orbit-shell-store',
+  version: 1,
+  storage: createJSONStorage<Pick<ShellState, 'sidebarCollapsed'>>(() => sidebarStorage),
+  partialize: ({ sidebarCollapsed }) => ({ sidebarCollapsed }),
+  skipHydration: true,
+  merge: (persisted, current) => ({
+    ...current,
+    sidebarCollapsed: typeof persisted === 'object' && persisted !== null
+      && 'sidebarCollapsed' in persisted && typeof persisted.sidebarCollapsed === 'boolean'
+      ? persisted.sidebarCollapsed : current.sidebarCollapsed,
+  }),
+  onRehydrateStorage: () => (_state, error) => {
+    if (error) captureException(error)
+  },
+}))

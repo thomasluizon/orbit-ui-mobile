@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs"
-import { spawnSync } from "node:child_process"
-import { fileURLToPath } from "node:url"
+import { dashFindings } from "../../tools/check-dashes.mjs"
 
 const [metadataPath, bodyPath, flag, changedPaths] = process.argv.slice(2)
 if (flag !== "--changed-files-file" || !changedPaths) {
@@ -11,9 +10,7 @@ const { title, body, labels } = JSON.parse(readFileSync(metadataPath, "utf8"))
 const text = body ?? ""
 writeFileSync(bodyPath, text)
 let failed = false
-if (process.env.CHECK_DASHES !== "false" && spawnSync(process.execPath, [
-  fileURLToPath(new URL("../../tools/check-dashes.mjs", import.meta.url)), "--text", `${title} ${text}`,
-], { stdio: "inherit" }).status !== 0) {
+if (process.env.CHECK_DASHES !== "false" && dashFindings(`${title} ${text}`).length) {
   console.error("::error::The pull request title and body must carry no banned dashes.")
   failed = true
 }
@@ -23,7 +20,7 @@ const web = paths.some((path) => /^apps\/web\/(app|components|hooks|stores|lib)\
 const mobile = paths.some((path) => /^apps\/mobile\/(app|components|hooks|stores|lib)\//.test(path))
 if (labels.includes("parity:exempt") && (web || mobile)) {
   const section = text.split(/^## Parity[ \t]*\r?$/m)[1]?.split(/^## /m)[0].trim()
-  if (!section || !/BFF|direct API|cookie|SecureStore|shadcn|StyleSheet|NativeWind|next-intl|i18next|navigation chrome|sidebar|tab bar|desktop stats rail|command palette|keyboard shortcuts|hover affordances/i.test(section)) {
+  if (!section || !/BFF|direct API|cookie|SecureStore|shadcn|StyleSheet|next-intl|i18next|navigation chrome|sidebar|tab bar|command palette|keyboard shortcuts|hover affordances/i.test(section)) {
     console.error("::error::parity:exempt requires a line under ## Parity naming the platform adapter or permitted layout-shell divergence.")
     failed = true
   }

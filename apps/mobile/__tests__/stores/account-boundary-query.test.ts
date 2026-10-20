@@ -19,20 +19,20 @@ vi.mock('@/lib/orbit-widget', () => ({
   clearWidgetToken: vi.fn(async () => {}),
   saveWidgetToken: vi.fn(async () => {}),
 }))
-vi.mock('@/lib/persistent-reminder', () => ({ cancelPersistentReminder: vi.fn(async () => {}) }))
 vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: vi.fn(() => ({})) }))
 vi.mock('expo-router', () => ({ router: { replace: vi.fn() } }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn(() => Promise.reject(new Error('profile unavailable'))) }))
-vi.mock('@/lib/offline-queue', () => ({ clear: vi.fn() }))
-vi.mock('@/lib/offline-mutations', () => ({ cancelScheduledFlush: vi.fn() }))
+vi.mock('@/lib/offline-queue', () => ({ clear: vi.fn(), retainAccount: vi.fn() }))
+vi.mock('@/lib/offline-mutations', () => ({ cancelScheduledFlush: vi.fn(), clearCompactedCreatesForUndo: vi.fn(), resumeOfflineReplay: vi.fn() }))
 vi.mock('@/lib/offline-state', () => ({ clearOfflineState: vi.fn(async () => {}) }))
 vi.mock('@/hooks/use-push-notifications', () => ({ unsubscribePushToken: vi.fn(async () => {}) }))
 vi.mock('@/lib/account-scoped-state', () => ({ startAccountScopedSession: vi.fn(async () => {}) }))
-vi.mock('@/lib/auth-flow', () => ({ clearStoredAuthReturnUrl: vi.fn(async () => {}) }))
+vi.mock('@/lib/auth-flow', () => ({ clearStoredAuthReturnUrl: vi.fn(async () => {}), getAuthReturnUrlAttempt: vi.fn(() => 0) }))
 vi.mock('@/lib/posthog', () => ({ identifyPostHogUser: vi.fn(), resetPostHogUser: vi.fn() }))
 vi.mock('@/stores/chat-store', () => ({
-  useChatStore: { getState: () => ({ clearMessages: vi.fn() }) },
+  useChatStore: { getState: () => ({ resetAccountScopedChat: vi.fn(async () => {}) }) },
 }))
+vi.mock('@/lib/support-draft-storage', () => ({ forgetStoredSupportDraft: vi.fn(async () => {}) }))
 
 describe('Android account boundary queries', () => {
   beforeEach(() => {

@@ -1,32 +1,25 @@
 import localFont from 'next/font/local'
 
-export const rubik = localFont({
-  src: [
-    { path: '../fonts/rubik-latin.woff2', weight: '400', style: 'normal' },
-    { path: '../fonts/rubik-latin.woff2', weight: '500', style: 'normal' },
-    { path: '../fonts/rubik-latin.woff2', weight: '600', style: 'normal' },
-    { path: '../fonts/rubik-latin.woff2', weight: '700', style: 'normal' },
-  ],
-  variable: '--font-rubik',
+export const geist = localFont({
+  src: '../fonts/geist-latin.woff2',
+  weight: '400 600',
+  style: 'normal',
+  variable: '--font-geist',
   display: 'swap',
 })
 
-export const inter = localFont({
-  src: [
-    { path: '../fonts/inter-latin.woff2', weight: '500', style: 'normal' },
-    { path: '../fonts/inter-latin.woff2', weight: '600', style: 'normal' },
-    { path: '../fonts/inter-latin.woff2', weight: '700', style: 'normal' },
-  ],
-  variable: '--font-inter',
+export const spaceGrotesk = localFont({
+  src: '../fonts/space-grotesk-latin.woff2',
+  weight: '500 600',
+  style: 'normal',
+  variable: '--font-space-grotesk',
   display: 'swap',
 })
 
-export const roboto = localFont({
-  src: [
-    { path: '../fonts/roboto-latin.woff2', weight: '400', style: 'normal' },
-    { path: '../fonts/roboto-latin.woff2', weight: '500', style: 'normal' },
-    { path: '../fonts/roboto-latin.woff2', weight: '700', style: 'normal' },
-  ],
-  variable: '--font-roboto',
+export const geistMono = localFont({
+  src: '../fonts/geist-mono-latin.woff2',
+  weight: '400 500',
+  style: 'normal',
+  variable: '--font-geist-mono',
   display: 'swap',
 })

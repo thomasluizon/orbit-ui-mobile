@@ -2,21 +2,23 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { PillButton } from '@/components/ui/pill-button'
 
-type WidgetState = 'loading' | 'solved' | 'failed' | 'expired'
+type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
 interface TurnstileApi {
   render: (container: HTMLElement, options: {
     sitekey: string
     appearance: 'interaction-only'
     size: 'compact'
+    theme?: 'light' | 'dark'
     language: string
     callback: (token: string) => void
     'error-callback': () => boolean
     'expired-callback': () => void
-  }) => string
-  reset: (widgetId: string) => void
-  remove: (widgetId: string) => void
+  }) => unknown
+  reset: (widgetId: unknown) => void
+  remove: (widgetId: unknown) => void
 }
 
 function getTurnstile(): TurnstileApi | undefined {
@@ -55,26 +57,35 @@ export function TurnstileWidget({
   resetKey,
   onToken,
   onStateChange,
+  theme,
   language,
 }: Readonly<{
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
   onStateChange?: (state: WidgetState) => void
+  theme?: 'light' | 'dark'
   language?: string
 }>) {
   const t = useTranslations()
   const appLocale = useLocale()
+  // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
   const challengeLanguage = (language ?? appLocale).toLowerCase()
   const containerRef = useRef<HTMLDivElement>(null)
-  const widgetIdRef = useRef<string | null>(null)
+  const widgetIdRef = useRef<unknown>(null)
   const callbacksRef = useRef({ onToken, onStateChange })
-  const [state, setState] = useState<WidgetState>('loading')
+  const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     callbacksRef.current = { onToken, onStateChange }
   }, [onToken, onStateChange])
+
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => { if (active) setState('loading') })
+    return () => { active = false }
+  }, [resetKey])
 
   useEffect(() => {
     let active = true
@@ -95,6 +106,7 @@ export function TurnstileWidget({
         sitekey: siteKey,
         appearance: 'interaction-only',
         size: 'compact',
+        ...(theme ? { theme } : {}),
         language: challengeLanguage,
         callback: (token) => update('solved', token),
         'error-callback': () => {
@@ -110,15 +122,15 @@ export function TurnstileWidget({
     return () => {
       active = false
       const widgetId = widgetIdRef.current
-      if (widgetId) getTurnstile()?.remove(widgetId)
+      if (widgetId != null) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [siteKey, challengeLanguage, attempt])
+  }, [siteKey, theme, challengeLanguage, attempt])
 
   useEffect(() => {
     if (resetKey === 0) return
     const widgetId = widgetIdRef.current
-    if (widgetId) getTurnstile()?.reset(widgetId)
+    if (widgetId != null) getTurnstile()?.reset(widgetId)
   }, [resetKey])
 
   function retry() {
@@ -126,7 +138,7 @@ export function TurnstileWidget({
     setState('loading')
     onStateChange?.('loading')
     const widgetId = widgetIdRef.current
-    if (widgetId) {
+    if (widgetId != null) {
       getTurnstile()?.reset(widgetId)
     } else {
       setAttempt((value) => value + 1)
@@ -134,15 +146,17 @@ export function TurnstileWidget({
   }
 
   return (
-    <div className="flex flex-col items-center" style={{ gap: 8 }}>
+    <div className="flex flex-col items-center text-sm text-[var(--fg-2)]" style={{ gap: 8 }}>
       <div ref={containerRef} />
-      {state === 'loading' && <p role="status">{t('auth.turnstileLoading')}</p>}
-      {(state === 'failed' || state === 'expired') && (
-        <div className="flex items-center" style={{ gap: 8 }}>
-          <p role="alert">{t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired')}</p>
-          <button type="button" onClick={retry}>{t('auth.turnstileRetry')}</button>
-        </div>
-      )}
+      <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
+        {state === 'loading' ? t('auth.turnstileLoading') : ''}
+      </p>
+      <p role="alert" className={`text-[var(--status-bad-text)] ${state === 'failed' || state === 'expired' ? '' : 'sr-only'}`}>
+        {state === 'failed' || state === 'expired'
+          ? t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired') : ''}
+      </p>
+      {(state === 'failed' || state === 'expired') &&
+        <PillButton variant="ghost" size="sm" onClick={retry}>{t('auth.turnstileRetry')}</PillButton>}
     </div>
   )
 }

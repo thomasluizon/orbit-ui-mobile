@@ -47,4 +47,14 @@ describe('AppSelect', () => {
     const svg = container.querySelector('svg')
     expect(svg).toBeInTheDocument()
   })
+
+  it('limits the custom focus ring to keyboard focus', () => {
+    render(<AppSelect value="a" onChange={vi.fn()} options={options} />)
+    const classNames = screen.getByRole('combobox').className.split(' ')
+
+    expect(classNames).toContain('focus-visible:outline-none')
+    expect(classNames).toContain('focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]')
+    expect(classNames).not.toContain('focus:outline-none')
+    expect(classNames).not.toContain('focus:shadow-[inset_0_0_0_2px_var(--primary)]')
+  })
 })

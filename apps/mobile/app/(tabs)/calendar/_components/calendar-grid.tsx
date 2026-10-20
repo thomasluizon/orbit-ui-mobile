@@ -1,82 +1,153 @@
-import { useMemo, type RefObject } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import Animated, { type EntryOrExitLayoutType } from "react-native-reanimated";
-import { format } from "date-fns";
-import { enUS, ptBR } from "date-fns/locale";
-import type { TFunction } from "i18next";
-import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { GestureDetector, type PanGesture } from "react-native-gesture-handler";
-import { createTokensV2, tintFromPrimary } from "@/lib/theme";
+import { SPACING, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { useState, type RefObject } from 'react'
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
+import Animated, { type EntryOrExitLayoutType } from 'react-native-reanimated'
+import { format, type Locale } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
+import type { DayCellWords, ReadOnlyDayCellProps } from '@orbit/shared/contracts/dates'
+import {
+  buildDayCellAccessibleName,
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_GRID_GAP_CONTENT_BREAKPOINT,
+  formatWeekdayLabels,
+  isCalendarDayLoggable,
+  resolveDayCellOutcome,
+  type CalendarMonthDay,
+} from '@orbit/shared/utils'
+import { GestureDetector, type PanGesture } from 'react-native-gesture-handler'
+import type { AppTokensV2 } from '@/lib/theme'
+import { DayCell } from '@/components/dates/day-cell'
+import { MonthGrid } from '@/components/dates/month-grid'
+import { Skeleton } from '@/components/ui/skeleton'
 
-type Tokens = ReturnType<typeof createTokensV2>;
-type DayStatus = "empty" | "full" | "partial" | "missed";
-
-function isInRange(
-  dateStr: string,
-  start?: string | null,
-  end?: string | null,
-): boolean {
-  if (!start || !end) return false;
-  const lo = start <= end ? start : end;
-  const hi = start <= end ? end : start;
-  return dateStr >= lo && dateStr <= hi;
-}
-
-export interface GridDay {
-  date: Date;
-  dateStr: string;
-  day: number;
-  isCurrentMonth: boolean;
-  isToday: boolean;
-  entries: CalendarDayEntry[];
-  completedCount: number;
-  totalCount: number;
-  completionRatio: number;
-}
+export type GridDay = CalendarMonthDay
 
 export interface WeekdayHeader {
-  key: string;
-  label: string;
+  key: string
+  label: string
 }
 
 interface CalendarGridProps {
-  gridDays: GridDay[];
-  weekdayHeaders: WeekdayHeader[];
-  selectedDay: string | null;
-  isLoading: boolean;
-  /** Inclusive range endpoints (yyyy-MM-dd) for range-pick mode. When set, the
-   *  grid renders an in-range band with highlighted endpoints. */
-  rangeStart?: string | null;
-  rangeEnd?: string | null;
-  monthKey?: string;
-  monthEntering?: EntryOrExitLayoutType;
-  swipeGesture?: PanGesture;
-  gridRef?: RefObject<View | null>;
-  todayRef?: RefObject<View | null>;
-  onSelectDay: (dateStr: string) => void;
-  language: string;
-  t: TFunction;
-  tokens: Tokens;
+  gridDays: GridDay[]
+  weekdayHeaders: WeekdayHeader[]
+  selectedDay: string | null
+  isLoading?: boolean
+  monthKey?: string
+  monthEntering?: EntryOrExitLayoutType
+  swipeGesture?: PanGesture
+  gridRef?: RefObject<View | null>
+  todayRef?: RefObject<View | null>
+  onSelectDay: (dateStr: string) => void
+  language: string
+  t: (key: string) => string
+  tokens: AppTokensV2
+  todayKey: string
 }
 
-function dayStatus(cell: GridDay): DayStatus {
-  if (!cell.isCurrentMonth || cell.totalCount === 0) return "empty";
-  if (cell.completedCount === cell.totalCount) return "full";
-  const hasMissed = cell.entries.some(
-    (entry: CalendarDayEntry) => entry.status === "missed",
-  );
-  if (hasMissed) return "missed";
-  return "partial";
+interface CalendarGridDayProps {
+  cell: GridDay
+  future: boolean
+  futureWord: string
+  locale: Locale
+  onSelectDay: (dateStr: string) => void
+  selected: boolean
+  selectedWord: string
+  todayRef?: RefObject<View | null>
+  words: DayCellWords
+  todayKey: string
 }
 
-function dayStatusLabel(
-  status: DayStatus,
-  t: (key: string) => string,
-): string | null {
-  if (status === "full") return t("calendar.legend.done");
-  if (status === "partial") return t("calendar.legend.partial");
-  if (status === "missed") return t("calendar.legend.missed");
-  return null;
+function CalendarGridDayBody({
+  accessibleName,
+  cell,
+  dayCell,
+  onSelectDay,
+  selected,
+}: Readonly<{
+  accessibleName: string
+  cell: GridDay
+  dayCell: ReadOnlyDayCellProps
+  onSelectDay: (dateStr: string) => void
+  selected: boolean
+}>) {
+  const [pressed, setPressed] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const contents = <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.dayBody}>
+    <DayCell {...dayCell} pressed={pressed || hovered} focused={focused} />
+  </View>
+  if (!cell.isCurrentMonth) return contents
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibleName} accessibilityState={{ selected }}
+    onPress={() => onSelectDay(cell.dateStr)} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+    onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+    testID={`calendar-day-select-${cell.dateStr}`} style={styles.dayButton}>{contents}</Pressable>
+}
+
+function CalendarGridDay({
+  cell,
+  future,
+  futureWord,
+  locale,
+  onSelectDay,
+  selected,
+  selectedWord,
+  todayRef,
+  words,
+  todayKey,
+}: Readonly<CalendarGridDayProps>) {
+  const writable = cell.isCurrentMonth
+    && isCalendarDayLoggable(cell.dateStr, todayKey)
+  const today = cell.dateStr === todayKey
+  const baseLabel = format(cell.date, 'EEEE, MMM d', { locale })
+  const label = selected ? `${baseLabel}, ${selectedWord}` : baseLabel
+  const dayCellBase = {
+    day: cell.day,
+    done: cell.completedCount,
+    scheduled: cell.totalCount,
+    today,
+    selected,
+    raised: writable,
+    future: future && cell.isCurrentMonth,
+    outsideMonth: !cell.isCurrentMonth,
+    label,
+    words,
+  }
+  const dayCell: ReadOnlyDayCellProps = dayCellBase
+  const resolvedOutcome = resolveDayCellOutcome(dayCell)
+  const accessibleName = future
+    ? `${label}, ${futureWord}`
+    : buildDayCellAccessibleName(dayCell, resolvedOutcome, !writable)
+
+  return (
+    <View
+      ref={today ? todayRef : undefined}
+      collapsable={false}
+      testID={`calendar-day-slot-${cell.dateStr}`}
+      style={styles.daySlot}
+    >
+      <CalendarGridDayBody
+        accessibleName={accessibleName}
+        cell={cell}
+        dayCell={dayCell}
+        onSelectDay={onSelectDay}
+        selected={selected}
+      />
+    </View>
+  )
+}
+
+function CalendarGridLoading({ gridDays, gap, label, weekdayLabels }: Readonly<{ gridDays: GridDay[]; gap: 0 | 4; label: string; weekdayLabels: string[] }>) {
+  return (
+    <View style={styles.loadingGrid}>
+      <MonthGrid weekdayLabels={weekdayLabels} gap={gap} loadingLabel={label}>
+        {gridDays.map((cell) => (
+          <View key={cell.dateStr} style={styles.loadingSlot}>
+            <View style={styles.loadingCell}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></View>
+          </View>
+        ))}
+      </MonthGrid>
+    </View>
+  )
 }
 
 export function CalendarGrid({
@@ -84,8 +155,6 @@ export function CalendarGrid({
   weekdayHeaders,
   selectedDay,
   isLoading,
-  rangeStart = null,
-  rangeEnd = null,
   monthKey,
   monthEntering,
   swipeGesture,
@@ -94,219 +163,90 @@ export function CalendarGrid({
   onSelectDay,
   language,
   t,
-  tokens,
+  todayKey,
 }: Readonly<CalendarGridProps>) {
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const { width } = useWindowDimensions()
+  const gridGap = width - 2 * CALENDAR_MONTH_GRID_GEOMETRY.inlineInset < CALENDAR_GRID_GAP_CONTENT_BREAKPOINT ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap
+  const locale = language === 'pt-BR' ? ptBR : enUS
+  const words: DayCellWords = {
+    none: t('calendar.dayCell.none'),
+    partial: t('calendar.dayCell.partial'),
+    full: t('calendar.dayCell.full'),
+    notScheduled: t('calendar.dayCell.notScheduled'),
+    of: t('calendar.dayCell.of'),
+    today: t('calendar.dayCell.today'),
+    readOnly: t('calendar.dayCell.readOnly'),
+  }
+
+  if (isLoading) {
+    const loadingGrid = (
+      <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
+        <CalendarGridLoading weekdayLabels={weekdayHeaders.length > 0 ? weekdayHeaders.map((weekday) => weekday.label) : formatWeekdayLabels(language, 1)} gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
+      </View>
+    )
+    return swipeGesture
+      ? <GestureDetector gesture={swipeGesture}>{loadingGrid}</GestureDetector>
+      : loadingGrid
+  }
 
   const grid = (
-    <View ref={gridRef} collapsable={false} style={styles.calendarGrid}>
-      <Animated.View key={monthKey} entering={monthEntering} style={styles.gridCard}>
-        <View style={styles.weekDayRow}>
-          {weekdayHeaders.map((d) => (
-            <View key={d.key} style={styles.weekDayCell}>
-              <Text style={[styles.weekDayText, { color: tokens.fg3 }]}>
-                {d.label}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.daysGrid}>
+    <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
+      <Animated.View
+        key={monthKey}
+        entering={monthEntering}
+        testID="calendar-grid-card"
+        style={styles.gridCard}
+      >
+        <MonthGrid
+          weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
+          gap={gridGap}
+        >
           {gridDays.map((cell) => {
-            const status = dayStatus(cell);
-            const canSelect = cell.isCurrentMonth;
-            const selected = canSelect && cell.dateStr === selectedDay;
-            const inRange = canSelect && isInRange(cell.dateStr, rangeStart, rangeEnd);
-            const isEndpoint =
-              canSelect &&
-              (cell.dateStr === rangeStart || cell.dateStr === rangeEnd);
-            const highlighted = selected || isEndpoint;
-            const statusLabel = dayStatusLabel(status, t);
-            const dayDateLabel = format(cell.date, "EEEE, MMM d", {
-              locale: language === "pt-BR" ? ptBR : enUS,
-            });
-            const labelParts = [dayDateLabel];
-            if (cell.isToday) labelParts.push(t("calendar.legend.today"));
-            if (statusLabel) labelParts.push(statusLabel);
-            const dayAccessibilityLabel = labelParts.join(", ");
-            const monthDayColor = cell.isCurrentMonth ? tokens.fg2 : tokens.fg4;
-            const dayNumColor = highlighted || cell.isToday ? tokens.fg1 : monthDayColor;
-
+            const future = cell.dateStr > todayKey
+            const selected = cell.isCurrentMonth && cell.dateStr === selectedDay
             return (
-              <Pressable
+              <CalendarGridDay
                 key={cell.dateStr}
-                ref={cell.isToday ? todayRef : undefined}
-                onPress={() => canSelect && onSelectDay(cell.dateStr)}
-                disabled={!canSelect}
-                hitSlop={4}
-                accessibilityRole="button"
-                accessibilityLabel={dayAccessibilityLabel}
-                accessibilityState={{ selected: highlighted, disabled: !canSelect }}
-                style={({ pressed }) => [
-                  styles.dayCell,
-                  !cell.isCurrentMonth && { opacity: 0.5 },
-                  inRange && { backgroundColor: tintFromPrimary(tokens, 0.12) },
-                  pressed && canSelect && styles.dayCellPressed,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.dayNumPill,
-                    cell.isToday && !highlighted && {
-                      borderWidth: 1.5,
-                      borderColor: tokens.primary,
-                    },
-                    highlighted && {
-                      backgroundColor: tokens.selectionBg,
-                      borderRadius: 14,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      cell.isToday ? styles.dayTextToday : styles.dayText,
-                      {
-                        color: dayNumColor,
-                      },
-                    ]}
-                  >
-                    {cell.day}
-                  </Text>
-                </View>
-                {isLoading ? (
-                  <View style={styles.dayDotSkeleton} />
-                ) : (
-                  <DayDot status={status} tokens={tokens} />
-                )}
-              </Pressable>
-            );
+                cell={cell}
+                future={future}
+                futureWord={t('calendar.dayCell.future')}
+                locale={locale}
+                onSelectDay={onSelectDay}
+                selected={selected}
+                selectedWord={t('calendar.dayCell.selected')}
+                todayRef={todayRef}
+                words={words}
+                todayKey={todayKey}
+              />
+            )
           })}
-        </View>
+        </MonthGrid>
       </Animated.View>
     </View>
-  );
+  )
 
-  if (!swipeGesture) return grid;
-  return <GestureDetector gesture={swipeGesture}>{grid}</GestureDetector>;
+  return swipeGesture ? <GestureDetector gesture={swipeGesture}>{grid}</GestureDetector> : grid
 }
 
-function DayDot({
-  status,
-  tokens,
-}: Readonly<{
-  status: DayStatus;
-  tokens: Tokens;
-}>) {
-  if (status === "full") {
-    return (
-      <View
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: 999,
-          backgroundColor: tokens.primary,
-        }}
-      />
-    );
-  }
-  if (status === "missed") {
-    return (
-      <View
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: 999,
-          backgroundColor: tokens.statusOverdue,
-        }}
-      />
-    );
-  }
-  if (status === "partial") {
-    return (
-      <View
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: 999,
-          borderWidth: 1.5,
-          borderColor: tokens.fg4,
-        }}
-      />
-    );
-  }
-  return <View style={{ width: 6, height: 6 }} />;
-}
-
-function createStyles(tokens: Tokens) {
-  return StyleSheet.create({
-    calendarGrid: {
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 10,
-    },
-    gridCard: {
-      borderRadius: 18,
-      paddingVertical: 18,
-      paddingHorizontal: 14,
-      backgroundColor: tokens.bgCard,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-    },
-    weekDayRow: {
-      flexDirection: "row",
-      marginBottom: 12,
-    },
-    weekDayCell: {
-      flex: 1,
-      alignItems: "center",
-    },
-    weekDayText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
-      letterSpacing: 0.44,
-      textTransform: "uppercase",
-      fontVariant: ["tabular-nums"],
-    },
-    daysGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      rowGap: 8,
-    },
-    dayCell: {
-      width: "14.2857%",
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 4,
-      borderRadius: 999,
-    },
-    dayCellPressed: {
-      backgroundColor: tokens.bgElev,
-      transform: [{ scale: 0.96 }],
-    },
-    dayNumPill: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    dayText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 14,
-      fontVariant: ["tabular-nums"],
-    },
-    dayTextToday: {
-      fontFamily: 'Roboto_700Bold',
-      fontSize: 14,
-      fontVariant: ["tabular-nums"],
-    },
-    dayDotSkeleton: {
-      width: 6,
-      height: 6,
-      borderRadius: 999,
-      backgroundColor: tokens.hairline,
-      opacity: 0.5,
-    },
-  });
-}
+const styles = StyleSheet.create({
+  calendarGrid: { paddingHorizontal: CALENDAR_MONTH_GRID_GEOMETRY.inlineInset, paddingTop: SPACING.s0, paddingBottom: SPACING.s8 },
+  gridCard: {
+    width: '100%',
+    alignSelf: 'center',
+  },
+  loadingGrid: {
+    width: '100%',
+    alignSelf: 'center',
+  },
+  loadingSlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
+  loadingCell: { width: '100%', maxWidth: MONTH_GRID_TARGET_MIN },
+  daySlot: {
+    position: 'relative',
+    width: '100%',
+    minHeight: MONTH_GRID_TARGET_MIN,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayBody: { width: '100%', alignItems: 'center' },
+  dayButton: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, backgroundColor: 'transparent' },
+})

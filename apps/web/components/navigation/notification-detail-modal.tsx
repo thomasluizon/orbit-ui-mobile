@@ -4,11 +4,16 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
-  getNotificationDestination,
   getNotificationDetailActionVisibility,
+  getNotificationTargetKey,
+  getNotificationDestination,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { AppOverlay } from '@/components/ui/app-overlay'
+import { Button } from '@/components/ui/pill-button'
+import { useQueryClient } from '@tanstack/react-query'
+import { openCurrentProactiveItem } from '@/lib/proactive-item'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 interface NotificationDetailModalProps {
   open: boolean
@@ -18,7 +23,6 @@ interface NotificationDetailModalProps {
   onDelete: (id: string) => void
 }
 
-/** Sheet chrome with a mono timestamp eyebrow, body copy, and quiet text-button actions. */
 export function NotificationDetailModal({
   open,
   onOpenChange,
@@ -27,67 +31,77 @@ export function NotificationDetailModal({
   onDelete,
 }: Readonly<NotificationDetailModalProps>) {
   const t = useTranslations()
+  const wide = useIsWideDesktop()
+  const targetKey = getNotificationTargetKey(notification.url, notification.habitId)
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
+  const { sheetRef, closeSheet } = useSheetHost()
 
   function handleView() {
     const destination = getNotificationDestination(notification.url, notification.habitId)
-    if (destination) {
+    if (!destination) return
+    closeSheet(() => {
       onOpenChange(false)
       router.push(destination.url)
-    }
+      if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
+    })
   }
 
   function handleDelete() {
     onDelete(notification.id)
-    onOpenChange(false)
+    closeSheet()
   }
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
+    open ? (<Sheet
+      ref={sheetRef}
+      open
+      onClose={() => onOpenChange(false)}
       title={notification.title}
-      footer={
-        <div className="flex flex-wrap items-center justify-end" style={{ gap: 10 }}>
-          {canView && (
-            <QuietLink primary onClick={handleView}>
-              {t('notifications.view')}
-            </QuietLink>
-          )}
+      titleMode="typed"
+      actions={
+        <>
           {canMarkAsRead && (
-            <QuietLink onClick={() => onMarkAsRead(notification.id)}>
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:213 (D42) */
+            <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
               {t('notifications.markAsRead')}
-            </QuietLink>
+            </Button>
           )}
-          <QuietLink destructive onClick={handleDelete}>
+          {canView && (
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:209 (D42) */
+            <Button variant={wide ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
+              {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
+            </Button>
+          )}
+          <Button variant="destructive" size="sm" onClick={handleDelete}>
             {t('notifications.delete')}
-          </QuietLink>
-        </div>
+          </Button>
+        </>
       }
     >
-      <div className="overlay-bleed">
-        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--hairline)' }}>
+      <div className="flex flex-col gap-3 pb-2">
+        <div>
           <p
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 12,
-              color: 'var(--fg-3)',
-              letterSpacing: '0.02em',
+              color: 'var(--fg-2)',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
             {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
               t(`notifications.${key}`, values),
             )}
+            {targetKey ? ` · ${t(targetKey)}` : null}
           </p>
         </div>
-        <div style={{ padding: '14px 20px' }}>
+        <div>
           <p
             className="whitespace-pre-wrap"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 15,
+              fontSize: 17,
               color: 'var(--fg-2)',
               lineHeight: 1.55,
             }}
@@ -96,31 +110,6 @@ export function NotificationDetailModal({
           </p>
         </div>
       </div>
-    </AppOverlay>
-  )
-}
-
-interface QuietLinkProps {
-  children: React.ReactNode
-  onClick: () => void
-  destructive?: boolean
-  primary?: boolean
-}
-
-function QuietLink({
-  children,
-  onClick,
-  destructive = false,
-  primary = false,
-}: Readonly<QuietLinkProps>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={primary ? 'chip chip-ai' : 'chip'}
-      style={destructive ? { color: 'var(--status-bad)' } : undefined}
-    >
-      {children}
-    </button>
+    </Sheet>) : null
   )
 }

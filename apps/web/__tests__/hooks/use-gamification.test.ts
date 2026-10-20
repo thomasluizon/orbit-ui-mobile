@@ -1,33 +1,46 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { API } from '@orbit/shared/api'
+import { gamificationKeys } from '@orbit/shared/query'
+import { createApiClientError } from '@orbit/shared'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import {
   useGamificationProfile,
+  useRepairStreak,
   useStreakInfo,
   useStreakFreeze,
 } from '@/hooks/use-gamification'
 import type { GamificationProfile, StreakInfo } from '@orbit/shared/types/gamification'
 
 const mockFetch = vi.fn()
+const repairStreakGap = vi.hoisted(() => vi.fn())
+const fetchJson = vi.hoisted(() => vi.fn((url: string) =>
+  fetch(url).then((res: Response) => {
+    if (!res.ok) throw new Error('Fetch failed')
+    return res.json()
+  }),
+))
 vi.stubGlobal('fetch', mockFetch)
 
-vi.mock('@/lib/api-fetch', () => ({
-  fetchJson: vi.fn((url: string) =>
-    fetch(url).then((res: Response) => {
-      if (!res.ok) throw new Error('Fetch failed')
-      return res.json()
-    }),
-  ),
+vi.mock('@/app/actions/gamification', () => ({
+  repairStreakGap,
+  reportAchievementEvent: vi.fn(),
 }))
 
-function createWrapper() {
-  const queryClient = new QueryClient({
+vi.mock('@/lib/api-fetch', () => ({
+  fetchJson,
+}))
+
+function createWrapper(queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
-  })
+  })) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(QueryClientProvider, { client: queryClient }, children)
   }
@@ -116,9 +129,14 @@ function makeStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
   }
 }
 
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
+})
+
 describe('useGamificationProfile', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    fetchJson.mockClear()
   })
 
   it('fetches and returns gamification profile', async () => {
@@ -177,6 +195,27 @@ describe('useGamificationProfile', () => {
 
     expect(mockFetch).not.toHaveBeenCalled()
     expect(result.current.profile).toBeNull()
+  })
+
+  it('keeps PAY_GATE non-redirecting when two observers share the profile query', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeGamificationProfile()),
+    })
+
+    const { result } = renderHook(() => {
+      const layoutObserver = useGamificationProfile()
+      const progressObserver = useGamificationProfile()
+      return { layoutObserver, progressObserver }
+    }, { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.progressObserver.isSuccess).toBe(true))
+    expect(result.current.layoutObserver.profile).toBeDefined()
+    expect(fetchJson).toHaveBeenCalledWith(
+      API.gamification.profile,
+      expect.anything(),
+      { handlesPayGate: true },
+    )
   })
 
   it('returns 100 xpProgress when range is zero', async () => {
@@ -263,7 +302,7 @@ describe('useStreakInfo', () => {
       json: () => Promise.resolve(streakInfo),
     })
 
-    const { result } = renderHook(() => useStreakInfo(), {
+    const { result } = renderHook(() => useStreakInfo('America/Sao_Paulo'), {
       wrapper: createWrapper(),
     })
 
@@ -273,8 +312,23 @@ describe('useStreakInfo', () => {
     expect(result.current.data!.isFrozenToday).toBe(false)
   })
 
+  it('loads UTC-fallback streak info when the persisted timezone is null', async () => {
+    const streakInfo = makeStreakInfo()
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(streakInfo),
+    })
+
+    const { result } = renderHook(() => useStreakInfo(null), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.currentStreak).toBe(7)
+  })
+
   it('does not fetch streak info when disabled', () => {
-    const { result } = renderHook(() => useStreakInfo(false), {
+    const { result } = renderHook(() => useStreakInfo('America/Sao_Paulo', false), {
       wrapper: createWrapper(),
     })
 
@@ -294,7 +348,7 @@ describe('useStreakFreeze', () => {
       json: () => Promise.resolve(makeStreakInfo({ lastActiveDate: '2025-01-14' })),
     })
 
-    const { result } = renderHook(() => useStreakFreeze(), {
+    const { result } = renderHook(() => useStreakFreeze(undefined, 'America/Sao_Paulo'), {
       wrapper: createWrapper(),
     })
 
@@ -304,17 +358,130 @@ describe('useStreakFreeze', () => {
     expect(result.current.canFreeze).toBe(true)
   })
 
-  it('falls back to the provided profile when streak info has not loaded', () => {
-    mockFetch.mockReturnValue(new Promise(() => {}))
+  it.each([0, 2])('keeps the bank empty until the streak response supplies %i freezes', async (bank) => {
+    let resolveStreak!: (streakInfo: StreakInfo) => void
+    const pendingStreak = new Promise<StreakInfo>((resolve) => { resolveStreak = resolve })
+    mockFetch.mockResolvedValue({ ok: true, json: () => pendingStreak })
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
 
     const { result } = renderHook(
-      () => useStreakFreeze({ streakFreezesAvailable: 1, currentStreak: 4 }),
+      () => useStreakFreeze(
+        profile,
+        'America/Sao_Paulo',
+      ),
       { wrapper: createWrapper() },
     )
 
-    expect(result.current.freezesAvailable).toBe(1)
+    expect(result.current.streakInfo).toBeNull()
+    expect(result.current.streakFreezesAccumulated).toBe(0)
+    expect(result.current.freezesAvailable).toBe(0)
     expect(result.current.currentStreak).toBe(4)
-    expect(result.current.canFreeze).toBe(true)
+    expect(result.current.canFreeze).toBe(false)
+
+    resolveStreak(makeStreakInfo({ streakFreezesAccumulated: bank, freezesAvailableToUse: bank }))
+    await waitFor(() => expect(result.current.streakQuery.isSuccess).toBe(true))
+    expect(result.current.streakFreezesAccumulated).toBe(bank)
+    expect(result.current.freezesAvailable).toBe(bank)
+    expect(result.current.currentStreak).toBe(7)
+    expect(result.current.canFreeze).toBe(bank > 0)
+  })
+
+  it('keeps freezes unavailable when the streak query is disabled', () => {
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
+    const { result } = renderHook(() => useStreakFreeze(profile, 'America/Sao_Paulo', false), {
+      wrapper: createWrapper(),
+    })
+    expect(result.current.streakFreezesAccumulated).toBe(0)
+    expect(result.current.freezesAvailable).toBe(0)
+    expect(result.current.canFreeze).toBe(false)
+  })
+
+  it('keeps freezes unavailable when the streak query fails', async () => {
+    mockFetch.mockRejectedValue(new Error('Streak request failed'))
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
+    const { result } = renderHook(() => useStreakFreeze(profile, 'America/Sao_Paulo'), {
+      wrapper: createWrapper(),
+    })
+    await waitFor(() => expect(result.current.streakQuery.isError).toBe(true))
+    expect(result.current.streakFreezesAccumulated).toBe(0)
+    expect(result.current.freezesAvailable).toBe(0)
+    expect(result.current.canFreeze).toBe(false)
   })
 })
 
+describe('useRepairStreak', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    repairStreakGap.mockReset()
+  })
+
+  it('reconciles a conflict with a distinct read while an older streak read is pending', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: false }, mutations: { retry: false } } })
+    const queryKey = gamificationKeys.streak('America/Sao_Paulo')
+    const staleStreak = makeStreakInfo({ repairableGapDates: ['2026-09-04'] })
+    const refreshedStreak = makeStreakInfo({ repairableGapDates: [] })
+    let resolveOlderRead!: (streakInfo: StreakInfo) => void
+    const olderTransport = vi.fn(() => new Promise<StreakInfo>((resolve) => {
+      resolveOlderRead = resolve
+    }))
+    queryClient.setQueryData(queryKey, staleStreak)
+    const olderRead = queryClient.fetchQuery({
+      queryKey,
+      queryFn: olderTransport,
+      staleTime: 0,
+    }).catch(() => undefined)
+    await waitFor(() => expect(olderTransport).toHaveBeenCalledOnce())
+    repairStreakGap.mockRejectedValue(createApiClientError(409, null, 'Conflict'))
+    let resolveRecovery: ((response: Response) => void) | undefined
+    mockFetch.mockReturnValue(new Promise<Response>((resolve) => {
+      resolveRecovery = resolve
+    }))
+    const { result } = renderHook(() => useRepairStreak('America/Sao_Paulo'), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    const repair = result.current.mutateAsync(['2026-09-04', '2026-09-05'])
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    resolveOlderRead(staleStreak)
+    resolveRecovery?.({
+      ok: true,
+      json: () => Promise.resolve(refreshedStreak),
+    } as Response)
+
+    await expect(repair).rejects.toMatchObject({
+      status: 409,
+    })
+    await olderRead
+
+    expect(mockFetch).toHaveBeenCalledWith(API.gamification.streak)
+    expect(queryClient.getQueryData(queryKey)).toEqual(refreshedStreak)
+  })
+
+  it('reconciles a serialized conflict action result', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { staleTime: 5 * 60 * 1000, retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const queryKey = gamificationKeys.streak('America/Sao_Paulo')
+    const staleStreak = makeStreakInfo({ repairableGapDates: ['2026-09-04'] })
+    const refreshedStreak = makeStreakInfo({ repairableGapDates: [] })
+    queryClient.setQueryData(queryKey, staleStreak)
+    repairStreakGap.mockResolvedValue({ ok: false, error: 'Conflict', status: 409 })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(refreshedStreak),
+    } as Response)
+    const { result } = renderHook(() => useRepairStreak('America/Sao_Paulo'), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await expect(result.current.mutateAsync(['2026-09-04'])).rejects.toMatchObject({
+      status: 409,
+    })
+
+    expect(mockFetch).toHaveBeenCalledWith(API.gamification.streak)
+    expect(queryClient.getQueryData(queryKey)).toEqual(refreshedStreak)
+  })
+})

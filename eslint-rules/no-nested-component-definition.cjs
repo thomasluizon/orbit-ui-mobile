@@ -1,4 +1,3 @@
-
 const COMPONENT_NAME_RE = /^[A-Z]/
 
 function returnsJsx(node) {

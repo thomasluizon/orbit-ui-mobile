@@ -9,13 +9,13 @@ interface ParentRingProps {
   /** Ring diameter in px (default 12 per v8 spec). */
   size?: number
   /** Progress stroke color (defaults to `primary`). */
-  color?: string
-  /** Track stroke color (defaults to `hairlineStrong`). */
+  stroke?: string
+  /** Track stroke color (defaults to `trackEmpty`). */
   trackColor?: string
 }
 
 /** v8 small progress ring (no inner text) showing child completion ratio. */
-export function ParentRing({ done, total, size = 12, color, trackColor }: Readonly<ParentRingProps>) {
+export function ParentRing({ done, total, size = 12, stroke, trackColor }: Readonly<ParentRingProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
@@ -41,15 +41,16 @@ export function ParentRing({ done, total, size = 12, color, trackColor }: Readon
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={trackColor ?? tokens.hairlineStrong}
+          stroke={trackColor ?? tokens.trackEmpty}
           strokeWidth={1.5}
         />
         <Circle
+          opacity={pct > 0 ? 1 : 0}
           cx={size / 2}
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={color ?? tokens.primary}
+          stroke={stroke ?? tokens.primary}
           strokeWidth={1.5}
           strokeDasharray={`${dashArc} ${c}`}
           strokeLinecap="round"

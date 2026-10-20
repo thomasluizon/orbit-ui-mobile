@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useAppToastNavigation } from '@/hooks/use-app-toast-navigation'
+import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   DarkTheme,
   DefaultTheme,
@@ -14,8 +15,10 @@ import {
 } from 'expo-router'
 import { type Theme as NavigationTheme } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
-import { Providers } from '@/lib/providers'
+import * as Linking from 'expo-linking'
+import { Providers, useCaptureReady } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
+import { RootStackScreens } from '@/components/navigation/root-stack-screens'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
@@ -38,54 +41,171 @@ import {
   getReviewMomentLevelKey,
   MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
-import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import {
+  formatAPIDate,
+  isShareableAchievement,
+  resolveShellChrome,
+  resolveShellDestination,
+} from '@orbit/shared/utils'
 import {
   isReviewMomentEligible,
   useReviewReminderStore,
 } from '@/stores/review-reminder-store'
 import { useLiveOnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { useOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
-import { RootStackScreens } from '@/components/navigation/root-stack-screens'
-import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
-import { useTourTarget } from '@/hooks/use-tour-target'
-import { type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import {
+  getFailedNotificationDeleteIdsSnapshot,
+  getPendingNotificationDeleteIdsSnapshot,
+  subscribePendingNotificationDeleteIds,
+} from '@/lib/pending-notification-deletes'
+import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { Shell412 } from '@/components/shell/shell-412'
+import { Fab } from '@/components/ui/fab'
+import { Plus } from '@/components/ui/icons'
+import { useTranslation } from 'react-i18next'
 import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
+import { useOfflineNoticeContent } from '@/components/offline-notice'
+import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { AppToast } from '@/components/ui/app-toast'
-import { OfflineNotice } from '@/components/offline-notice'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
+import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
+import { AstraConversation } from '@/components/chat/conversation'
+import { Composer } from '@/components/shell/composer'
+import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useCurrentDate } from '@/app/(tabs)/use-today-date'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
+import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
+import { useOffline } from '@/hooks/use-offline'
+import { PushNotificationsProvider } from '@/hooks/use-push-notifications'
 import { captureError } from '@/lib/sentry'
+import { ThrottleScreen } from '@/components/throttle-screen'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
+import {
+  captureBuildEnabled,
+  captureRequestProbeIdFromUrl,
+  captureRouteProbeId,
+} from '@/lib/capture-mode'
+
+function getNoNavigationNotice(
+  isAuthenticated: boolean,
+  topSegment: string | undefined,
+  notificationDeleteNotice: ReactNode,
+  offlineNotice: ReactNode,
+) {
+  if (!isAuthenticated) return undefined
+  const routedOfflineNotice = topSegment === 'wrapped' ? null : offlineNotice
+  if (notificationDeleteNotice === null && routedOfflineNotice === null) return undefined
+  return <>{notificationDeleteNotice}{routedOfflineNotice}</>
+}
+
+function getComposerSelectedDate(date: string | string[] | undefined): string | undefined {
+  return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined
+}
+
+function useComposerGeneralPreference(pathname: string): boolean {
+  const accountId = useAccountId()
+  const [snapshot, setSnapshot] = useState({ accountId, value: false })
+  useEffect(() => {
+    let active = true
+    void readShowGeneralOnToday().then((value) => {
+      if (active && getAccountId() === accountId) setSnapshot({ accountId, value })
+    }).catch(() => {
+      if (active && getAccountId() === accountId) setSnapshot({ accountId, value: false })
+    })
+    return () => { active = false }
+  }, [accountId, pathname])
+  return snapshot.accountId === accountId && snapshot.value
+}
+
+function AccountAutomaticEffects({ profile }: Readonly<{ profile: ReturnType<typeof useProfile>['profile'] }>) {
+  useTimezoneAutoSync(profile)
+  useOnboardingFlush()
+  return null
+}
 
 function RootLayoutNav() {
+  const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
-  const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
+  useAppToastNavigation(pathname)
+  const includeGeneral = useComposerGeneralPreference(pathname)
+  const { from, date } = useGlobalSearchParams<{ from?: string | string[]; date?: string | string[] }>()
+  const linkingUrl = Linking.useLinkingURL()
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const captureReady = useCaptureReady()
   const { profile } = useProfile()
-  useTimezoneAutoSync(profile)
+  const today = useCurrentDate(profile?.timeZone)
   const hasProAccess = useHasProAccess()
   const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
-  const activeView = useUIStore((s) => s.activeView)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
-  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
-  useOnboardingFlush()
+  const lastDestination = useUIStore((s) => s.lastDestination)
+  const setLastDestination = useUIStore((s) => s.setLastDestination)
+  const todayFabHidden = useUIStore((s) => s.todayFabHidden)
+  const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
+  const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
+  const offline = useOffline()
+  const offlineNotice = useOfflineNoticeContent()
+  const chat = useChatComposer({
+    isOnline: offline.isOnline,
+    offlineTitle: t('chat.offline.title'),
+    pathname,
+    today,
+    selectedDate: getComposerSelectedDate(date),
+    totalHabitCount: habitCountLoaded ? totalHabitCount : null,
+    includeGeneral,
+  })
 
   const topSegment = segments[0] as string | undefined
+  const isNotFound = topSegment === '+not-found'
+  const shellChrome = resolveShellChrome(pathname, lastDestination)
+  const destination = resolveShellDestination(pathname)
+  useEffect(() => {
+    if (destination && !isNotFound && pathname !== '/upgrade') setLastDestination(destination)
+  }, [destination, isNotFound, pathname, setLastDestination])
+  const captureProbeId = captureRouteProbeId(pathname, topSegment)
+  const captureRequestId = captureRequestProbeIdFromUrl(
+    captureBuildEnabled,
+    linkingUrl,
+  )
   const hideAppShellChrome =
+    pathname === '/habits/new' ||
     topSegment === 'login' ||
     topSegment === 'auth-callback' ||
     topSegment === 'chat' ||
+    topSegment === 'step-up' ||
     topSegment === 'upgrade' ||
+    topSegment === 'wrapped' ||
     topSegment === 'privacy' ||
     topSegment === 'terms' ||
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
+  const pendingNotificationDeleteIds = useSyncExternalStore(
+    subscribePendingNotificationDeleteIds,
+    getPendingNotificationDeleteIdsSnapshot,
+    getPendingNotificationDeleteIdsSnapshot,
+  )
+  const failedNotificationDeleteIds = useSyncExternalStore(
+    subscribePendingNotificationDeleteIds,
+    getFailedNotificationDeleteIdsSnapshot,
+    getFailedNotificationDeleteIdsSnapshot,
+  )
+  const notificationDeleteNotice = pendingNotificationDeleteIds.length > 0
+    || failedNotificationDeleteIds.length > 0
+    ? <NotificationDeleteNotice />
+    : null
+  const conversation = {
+    conversation: <AstraConversation chat={chat} />,
+    conversationOpen: astraConversationOpen,
+    conversationLabel: t('chat.title'),
+  }
   const androidBackFallbackRoute = useMemo(
     () =>
       getAndroidBackFallbackRoute(pathname, {
@@ -97,15 +217,6 @@ function RootLayoutNav() {
 
   const handleCreate = useMemo(
     () => () => {
-      if (activeView === 'goals') {
-        if (profile !== undefined && !hasProAccess) {
-          router.push(buildUpgradeHref(pathname || '/'))
-          return
-        }
-        setShowCreateGoalModal(true)
-        return
-      }
-
       if (profile !== undefined && !hasProAccess && habitCountLoaded && totalHabitCount >= 10) {
         router.push(buildUpgradeHref(pathname || '/'))
         return
@@ -114,13 +225,11 @@ function RootLayoutNav() {
       setShowCreateModal(true)
     },
     [
-      activeView,
-      profile,
       hasProAccess,
       habitCountLoaded,
+      profile,
       pathname,
       router,
-      setShowCreateGoalModal,
       setShowCreateModal,
       totalHabitCount,
     ],
@@ -128,8 +237,8 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!isAuthenticated) return
-    syncWidgetTheme(createTokensV2(currentScheme, currentTheme)).catch(() => {})
-  }, [currentScheme, currentTheme, isAuthenticated])
+    syncWidgetTheme(currentScheme).catch(() => {})
+  }, [currentScheme, isAuthenticated])
 
   useEffect(() => {
     if (Platform.OS !== 'android') return
@@ -153,29 +262,105 @@ function RootLayoutNav() {
 
   return (
     <>
-      <StatusBar animated style={currentTheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar
+        animated={!captureBuildEnabled}
+        hidden={captureBuildEnabled}
+        style={currentTheme === 'dark' ? 'light' : 'dark'}
+      />
 
       <View style={{ flex: 1 }}>
-        <View style={{ flex: 1 }}>
-          <RootStackScreens
-            screenBackgroundColor={surfaces.screen.backgroundColor}
-          />
-        </View>
-
-        {isAuthenticated ? (
-          <>
-            <OfflineNotice />
-            <AppToast placement="slot" />
-          </>
-        ) : null}
-
         {showBottomNav ? (
-          <AppBottomTabBar onCreate={handleCreate} pathname={pathname} />
+          <Shell412
+            safeAreaTop={isNotFound || ['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
+            {...conversation}
+            composer={!isNotFound && shellChrome.composer ? (
+              <Composer
+                {...chat.composerProps}
+                suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
+                onOpenConversation={() => setAstraConversationOpen(true)}
+                conversationLabel={t('todayAstra.openConversation')}
+                onSend={chat.composerProps.onSend}
+              />
+            ) : undefined}
+            notice={<>
+              <CelebrationPanel />
+              {notificationDeleteNotice}
+              {offlineNotice}
+            </>}
+            tabBar={<DestinationTabBar pathname={pathname} notFound={isNotFound} />}
+            fab={pathname === '/' && !todayFabHidden
+              ? <AppCreateFab onCreate={handleCreate} />
+              : undefined}
+          >
+            <RootStackScreens
+              screenBackgroundColor={surfaces.screen.backgroundColor}
+            />
+          </Shell412>
+        ) : (
+          <Shell412
+            nav={false}
+            safeAreaTop={isNotFound || pathname === '/search'}
+            notice={getNoNavigationNotice(
+              isAuthenticated,
+              topSegment,
+              notificationDeleteNotice,
+              offlineNotice,
+            )}
+          >
+            <RootStackScreens
+              screenBackgroundColor={surfaces.screen.backgroundColor}
+            />
+          </Shell412>
+        )}
+
+        {captureBuildEnabled && captureReady ? (
+          <CaptureProbes
+            captureProbeId={captureProbeId}
+            captureRequestId={captureRequestId}
+          />
         ) : null}
       </View>
 
-      {isAuthenticated ? <GlobalOverlays profile={profile} /> : null}
+      {isAuthenticated ? (
+        <>
+          <AccountAutomaticEffects profile={profile} />
+          <GlobalOverlays profile={profile} />
+        </>
+      ) : null}
       {!isAuthenticated ? <AppToast /> : null}
+    </>
+  )
+}
+
+function CaptureProbes({
+  captureProbeId,
+  captureRequestId,
+}: Readonly<{
+  captureProbeId: string
+  captureRequestId: string | null
+}>) {
+  return (
+    <>
+      <View
+        accessibilityLabel={captureProbeId}
+        accessible
+        collapsable={false}
+        importantForAccessibility="yes"
+        pointerEvents="none"
+        style={styles.captureProbe}
+        testID={captureProbeId}
+      />
+      {captureRequestId ? (
+        <View
+          accessibilityLabel={captureRequestId}
+          accessible
+          collapsable={false}
+          importantForAccessibility="yes"
+          pointerEvents="none"
+          style={styles.captureProbe}
+          testID={captureRequestId}
+        />
+      ) : null}
     </>
   )
 }
@@ -185,10 +370,10 @@ function GlobalOverlays({
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
 }>) {
-  const streakFreezeRef = useRef<StreakFreezeCelebrationHandle>(null)
-  const hasProAccess = profile?.hasProAccess ?? false
   const canViewGamification = profile?.canViewGamification ?? false
   const gamification = useGamificationProfile(canViewGamification)
+  const { clearLevelUp, leveledUp, newLevel } = gamification
+  const enqueueCelebration = useUIStore((state) => state.enqueueCelebration)
   const armReferralPrompt = useReferralPromptStore((s) => s.armReferralPrompt)
   const armMilestoneSharePrompt = useReferralPromptStore(
     (s) => s.armMilestoneSharePrompt,
@@ -196,9 +381,13 @@ function GlobalOverlays({
   const armReviewPrompt = useReferralPromptStore((s) => s.armReviewPrompt)
   const armConsentPrompt = useReferralPromptStore((s) => s.armConsentPrompt)
   useEffect(() => {
+    if (!leveledUp || newLevel === null) return
+    enqueueCelebration('level-up', { level: newLevel })
+    clearLevelUp()
+  }, [clearLevelUp, enqueueCelebration, leveledUp, newLevel])
+  useEffect(() => {
     if (
       profile?.hasCompletedOnboarding &&
-      profile.hasCompletedTour &&
       profile.hasSeenImportPrompt &&
       profile.marketingEmailConsent === null
     ) {
@@ -206,7 +395,6 @@ function GlobalOverlays({
     }
   }, [
     profile?.hasCompletedOnboarding,
-    profile?.hasCompletedTour,
     profile?.hasSeenImportPrompt,
     profile?.marketingEmailConsent,
     armConsentPrompt,
@@ -215,10 +403,13 @@ function GlobalOverlays({
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
   )
+  const pendingPro = useOnboardingProPending()
   const liveOnboardingActions = useLiveOnboardingActions()
+  const draftHydrated = useOnboardingDraftStore((state) => state._hasHydrated)
   const showRetainedOnboarding = useRetainedOnboardingGuard(
     profile,
-    pendingOnboardingAnswers,
+    pendingOnboardingAnswers || !draftHydrated,
+    useOnboardingDraftStore((state) => state.pushRegistrationFailed),
   )
 
   useEffect(() => {
@@ -264,14 +455,10 @@ function GlobalOverlays({
   return (
     <OverlayLayer
       hasCompletedOnboarding={profile?.hasCompletedOnboarding ?? false}
-      hasProAccess={hasProAccess}
-      canViewGamification={canViewGamification}
       showRetainedOnboarding={showRetainedOnboarding}
+      showPendingPro={pendingPro === true}
+      pendingProLoaded={pendingPro !== undefined}
       onboardingActions={liveOnboardingActions}
-      leveledUp={gamification.leveledUp}
-      newLevel={gamification.newLevel}
-      onClearLevelUp={gamification.clearLevelUp}
-      streakFreezeRef={streakFreezeRef}
     />
   )
 }
@@ -309,77 +496,43 @@ function RootLayoutContent() {
 
   return (
     <NavigationThemeProvider value={navigationTheme}>
-      <View
+      <FocusProvenanceView
         style={[
           styles.shellRoot,
           { backgroundColor: surfaces.screen.backgroundColor },
         ]}
       >
         <RootLayoutNav />
+        <ThrottleScreen />
         <UpgradeRequiredScreen />
-      </View>
+      </FocusProvenanceView>
     </NavigationThemeProvider>
   )
 }
 
-/**
- * Wraps the v8 BottomTabBar primitive in a router-aware container. Lives in
- * the root layout so the tab bar is shown over every (tabs) screen exactly
- * like the previous BottomNav. Tab labels come from the i18n catalog so
- * pt-BR users see localized strings.
- */
-function AppBottomTabBar({
-  onCreate,
-  pathname,
-}: Readonly<{ onCreate: () => void; pathname: string }>) {
-  const router = useRouter()
-  const setActiveView = useUIStore((s) => s.setActiveView)
-  const fabRef = useRef<View>(null)
-  useTourTarget('tour-fab-button', fabRef)
-  const insets = useSafeAreaInsets()
 
-  const active: BottomTabId = useMemo(() => {
-    if (pathname === '/' || pathname === '/today') return 'today'
-    if (pathname.startsWith('/chat')) return 'chat'
-    if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendar'
-    return 'profile'
-  }, [pathname])
-
-  const handleTab = (id: BottomTabId) => {
-    if (id === 'today') {
-      setActiveView('today')
-      router.navigate('/(tabs)')
-      return
-    }
-    if (id === 'chat') router.navigate('/chat')
-    else if (id === 'calendar') router.navigate('/calendar')
-    else router.navigate('/profile')
-  }
-
+function AppCreateFab({ onCreate }: Readonly<{ onCreate: () => void }>) {
+  const { t } = useTranslation()
   return (
-    <View style={bottomTabStyles.container}>
-      <View ref={fabRef} collapsable={false}>
-        <BottomTabBar
-          active={active}
-          onTab={handleTab}
-          onFab={onCreate}
-          bottomInset={insets.bottom}
-        />
-      </View>
+    <View>
+      <Fab label={t('nav.createHabit')} onClick={onCreate}>
+        <Plus size={24} strokeWidth={2} />
+      </Fab>
     </View>
   )
 }
-
-const bottomTabStyles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-})
 
 const styles = StyleSheet.create({
   shellRoot: {
     flex: 1,
     overflow: 'hidden',
+  },
+  captureProbe: {
+    height: 1,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 1,
   },
 })
 
@@ -387,7 +540,9 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Providers>
-        <RootLayoutContent />
+        <PushNotificationsProvider>
+          <RootLayoutContent />
+        </PushNotificationsProvider>
       </Providers>
     </GestureHandlerRootView>
   )
@@ -402,7 +557,7 @@ export function ErrorBoundary({ error, retry }: Readonly<ErrorBoundaryProps>) {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppErrorScreen error={error} retry={() => void retry()} />
+      <AppErrorScreen error={error} retry={() => void retry()} standalone />
     </GestureHandlerRootView>
   )
 }

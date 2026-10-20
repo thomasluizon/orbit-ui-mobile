@@ -1,3 +1,7 @@
+/**
+ * Fixes npm workspace hoisting issues for the mobile app. Solution: Create symlinks so
+ * hoisted packages resolve the correct versions.
+ */
 const fs = require("fs");
 const path = require("path");
 
@@ -34,13 +38,6 @@ function symlinkToRoot(targetPkg) {
 
   fs.symlinkSync(src, dst, "junction");
 }
-
-// nativewind needs tailwindcss v3 (root has v4)
-symlink("tailwindcss", "nativewind");
-
-// react-native-css-interop needs react-native (only in mobile/node_modules)
-symlink("react-native", "react-native-css-interop");
-symlink("react-native", "nativewind");
 
 // react-native-worklets needs react-native (used by reanimated 4.x)
 symlink("react-native", "react-native-worklets");

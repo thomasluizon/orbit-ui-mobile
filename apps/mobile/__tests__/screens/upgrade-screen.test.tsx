@@ -1,8 +1,26 @@
+import { StyleSheet, View, type AppStateStatus } from 'react-native'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createRequire } from 'node:module'
+import appJson from '../../app.json'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createInstance } from 'i18next'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { StackRouter, TabRouter, CommonActions, StackActions } from 'expo-router/build/react-navigation/routers'
+import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import UpgradeScreen from '@/app/upgrade'
+
+const requireConfig = createRequire(import.meta.url)
+const createConfig = requireConfig('../../app.config.js') as () => typeof appJson.expo
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs() })
 
 const TestRenderer = require('react-test-renderer')
 
@@ -13,18 +31,38 @@ type TestNode = {
 }
 
 const mocks = vi.hoisted(() => ({
+  expoConfig: null as typeof appJson.expo | null,
   apiClient: vi.fn(),
   openURL: vi.fn(),
+  appStateListeners: new Set<(state: AppStateStatus) => void>(),
+  showSuccess: vi.fn(),
   isOnline: true,
+  renderComposition: false,
+  locale: 'en',
+  mode: 'dark',
   from: undefined as string | undefined,
   hasProAccess: false,
   trialDaysLeft: 5,
   profile: null as ReturnType<typeof createMockProfile> | null,
-  plans: { couponPercentOff: 0 },
+  plans: {
+    monthly: { unitAmount: 999, currency: 'usd' },
+    yearly: { unitAmount: 6999, currency: 'usd' },
+    savingsPercent: 42, couponPercentOff: null, currency: 'usd',
+  } satisfies SubscriptionPlans,
   billing: undefined as Record<string, unknown> | undefined,
+  statusLoading: false,
+  statusError: false,
+  billingLoading: false,
+  billingError: false,
+  lapseReason: null as 'canceled' | 'payment_failed' | 'expired' | null,
+  subscriptionEndedAtUtc: null as string | null,
+  realNavigation: false,
+  navigationState: null as ReturnType<ReturnType<typeof StackRouter>['getInitialState']> | null,
+  router: { canDismiss: vi.fn(() => false), dismiss: vi.fn(), dismissTo: vi.fn(), push: vi.fn() },
   goBack: vi.fn(),
   refetchPlans: vi.fn(() => Promise.resolve()),
   refetchBilling: vi.fn(() => Promise.resolve()),
+  refetchStatus: vi.fn(() => Promise.resolve()),
   playBilling: {
     isProcessing: false,
     errorKey: '',
@@ -38,33 +76,70 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
+const testI18n = createInstance()
+void testI18n.init({
+  resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } },
+  lng: 'en', initAsync: false,
+  interpolation: { prefix: '{', suffix: '}' },
+})
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'en' },
+    t: mocks.renderComposition ? testI18n.t : (key: string) => key,
+    i18n: { language: mocks.locale },
   }),
 }))
 
-vi.mock('expo-router', () => ({ useLocalSearchParams: () => ({ from: mocks.from }) }))
+vi.mock('expo-constants', () => ({ default: { get expoConfig() { return mocks.expoConfig } } }))
+
+vi.mock('expo-router', () => ({
+  useLocalSearchParams: () => ({ from: mocks.from }),
+  useRouter: () => mocks.router,
+  useRootNavigationState: () => mocks.navigationState,
+}))
 
 vi.mock('react-native', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native')>()
-  return { ...actual, Linking: { openURL: (...args: unknown[]) => mocks.openURL(...args) } }
+  return {
+    ...actual,
+    AppState: {
+      addEventListener: (_event: 'change', listener: (state: AppStateStatus) => void) => {
+        mocks.appStateListeners.add(listener)
+        return { remove: () => { mocks.appStateListeners.delete(listener) } }
+      },
+    },
+    Linking: { openURL: (...args: unknown[]) => mocks.openURL(...args) },
+  }
 })
 
-vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.apiClient(...args) }))
-vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
-vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
+vi.mock('react-native-safe-area-context', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-native-safe-area-context')>(),
+  SafeAreaView: (props: React.ComponentProps<typeof View>) => <View {...props} />,
+}))
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: (...args: unknown[]) => mocks.apiClient(...args),
+}))
+vi.mock('@/hooks/use-offline', () => ({
+  useOffline: () => ({ isOnline: mocks.isOnline }),
+}))
+vi.mock('@/hooks/use-go-back-or-fallback', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-go-back-or-fallback')>()
+  return { useGoBackOrFallback: () => mocks.realNavigation ? actual.useGoBackOrFallback() : mocks.goBack }
+})
 vi.mock('@/hooks/use-billing', () => ({
   useBilling: () => ({
     billing: mocks.billing,
-    isLoading: false,
-    isError: false,
+    isLoading: mocks.billingLoading,
+    isError: mocks.billingError,
     refetch: mocks.refetchBilling,
   }),
 }))
-vi.mock('@/hooks/use-play-billing', () => ({ usePlayBilling: () => mocks.playBilling }))
-vi.mock('@/hooks/use-subscription-plans', () => ({
+vi.mock('@/hooks/use-play-billing', () => ({
+  usePlayBilling: () => mocks.playBilling,
+}))
+vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-subscription-plans')>(),
   useSubscriptionPlans: () => ({
     plans: mocks.plans,
     isLoading: false,
@@ -72,41 +147,63 @@ vi.mock('@/hooks/use-subscription-plans', () => ({
     refetch: mocks.refetchPlans,
   }),
 }))
+vi.mock('@/hooks/use-subscription-status', () => ({
+  useSubscriptionStatus: () => ({
+    status: mocks.profile
+      ? {
+          plan: mocks.hasProAccess ? 'pro' : 'free',
+          hasProAccess: mocks.hasProAccess,
+          isTrialActive: mocks.profile.isTrialActive,
+          trialEndsAt: mocks.profile.trialEndsAt,
+          planExpiresAt: mocks.profile.planExpiresAt,
+          aiMessagesUsed: mocks.profile.aiMessagesUsed,
+          aiMessagesLimit: mocks.profile.aiMessagesLimit,
+          isLifetimePro: mocks.profile.isLifetimePro,
+          subscriptionInterval: mocks.profile.subscriptionInterval ?? null,
+          source: mocks.profile.subscriptionSource ?? null,
+          lapseReason: mocks.lapseReason,
+          subscriptionEndedAtUtc: mocks.subscriptionEndedAtUtc,
+        }
+      : null,
+    isLoading: mocks.statusLoading,
+    isError: mocks.statusError,
+    refetch: mocks.refetchStatus,
+  }),
+}))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profile }),
   useHasProAccess: () => mocks.hasProAccess,
-  useTrialDaysLeft: () => mocks.trialDaysLeft,
+}))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showSuccess: mocks.showSuccess }),
 }))
 
-const tokensProxy = new Proxy({}, { get: () => '#111111' }) as Record<string, string>
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: mocks.mode }),
 }))
-vi.mock('@/lib/theme', async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>()
-  return { ...actual, createTokensV2: () => tokensProxy }
-})
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
   OfflineUnavailableState: () => React.createElement('OfflineUnavailableState'),
 }))
-vi.mock('@/components/upgrade/billing-dashboard', () => ({
-  BillingDashboard: (props: Record<string, unknown>) => React.createElement('BillingDashboard', props),
-}))
-vi.mock('@/components/upgrade/play-billing-dashboard', () => ({
-  PlayBillingDashboard: (props: Record<string, unknown>) =>
-    React.createElement('PlayBillingDashboard', props),
-}))
-vi.mock('@/components/upgrade/pricing-section', () => ({
-  PricingSection: (props: Record<string, unknown>) => React.createElement('PricingSection', props),
-}))
-vi.mock('@/components/upgrade/pricing-footer', () => ({
-  PricingFooter: (props: Record<string, unknown>) => React.createElement('PricingFooter', props),
-}))
+vi.mock('@/components/upgrade/billing-dashboard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/upgrade/billing-dashboard')>()
+  return { BillingDashboard: (props: React.ComponentProps<typeof actual.BillingDashboard>) =>
+    React.createElement(mocks.renderComposition ? actual.BillingDashboard : 'BillingDashboard', props) }
+})
+vi.mock('@/components/upgrade/play-billing-dashboard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/upgrade/play-billing-dashboard')>()
+  return { PlayBillingDashboard: (props: React.ComponentProps<typeof actual.PlayBillingDashboard>) =>
+    React.createElement(mocks.renderComposition ? actual.PlayBillingDashboard : 'PlayBillingDashboard', props) }
+})
+vi.mock('@/components/upgrade/pricing-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/upgrade/pricing-section')>()
+  return { PricingSection: (props: React.ComponentProps<typeof actual.PricingSection>) =>
+    React.createElement(mocks.renderComposition ? actual.PricingSection : 'PricingSection', props) }
+})
 
 async function renderScreen() {
-  let tree: { root: TestNode } | undefined
+  let tree: { root: TestNode; unmount: () => void; toJSON: () => Parameters<typeof measureProfileRow>[0] } | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<UpgradeScreen />)
     await Promise.resolve()
@@ -118,45 +215,440 @@ function findByType(root: TestNode, type: string) {
   return root.findAll((node) => node.type === type)[0]!
 }
 
+type SubscriptionRenderCase = { width: number; locale: 'en' | 'pt-BR'; mode: 'light' | 'dark'; state: string }
+
+async function configureSubscription({ width, locale, mode, state }: SubscriptionRenderCase) {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  mocks.renderComposition = true
+  mocks.locale = locale
+  mocks.mode = mode
+  await testI18n.changeLanguage(locale)
+  const expired = state === 'expired'
+  const play = state.startsWith('play')
+  mocks.hasProAccess = state !== 'free' && !expired
+  mocks.profile = createMockProfile({ isTrialActive: state === 'trial', isLifetimePro: state === 'lifetime',
+    subscriptionSource: play ? 'play' : 'stripe', subscriptionInterval: state.endsWith('yearly') ? 'yearly' : 'monthly',
+    planExpiresAt: '2027-01-20T00:00:00Z', trialEndsAt: state === 'trial' ? '2027-01-20T00:00:00Z' : null,
+    aiMessagesLimit: mocks.hasProAccess ? 50 : 5,
+  })
+  mocks.lapseReason = expired ? 'expired' : null
+  mocks.subscriptionEndedAtUtc = expired ? '2026-09-01T00:00:00Z' : null
+  mocks.billing = { status: state === 'past-due' ? 'past_due' : 'active', cancelAtPeriodEnd: state === 'canceled',
+    interval: mocks.profile.subscriptionInterval, currentPeriodEnd: '2027-01-20T00:00:00Z',
+    amountPerPeriod: 999, currency: 'usd', paymentMethod: null, recentInvoices: [] }
+}
+
+function assertSubscriptionContent(tree: Awaited<ReturnType<typeof renderScreen>>, { locale, state }: SubscriptionRenderCase) {
+  const messages = locale === 'en' ? en : ptBR
+  const pitch = state === 'free' || state === 'trial'
+  const expired = state === 'expired'
+  const play = state.startsWith('play')
+  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(0)
+  const resourceLists = tree.root.findAll((node) => node.type === 'View'
+    && node.props.accessibilityLabel === (pitch ? messages.upgrade.outcomes.label : messages.upgrade.included))
+  expect(resourceLists).toHaveLength(pitch ? 2 : 1)
+  const text = JSON.stringify(tree.toJSON())
+  for (const outcome of Object.values(messages.upgrade.outcomes).slice(1)) expect(text).toContain(outcome)
+  const action = pitch ? messages.upgrade.plans.cta : expired ? messages.upgrade.billing.lapsed.action
+    : play ? messages.upgrade.billing.actions.managePlay : messages.upgrade.billing.actions.manage
+  if (state === 'lifetime') {
+    expect(text).toContain(messages.upgrade.billing.plan.lifetimeHint)
+    expect(text).not.toContain(messages.upgrade.billing.actions.manage)
+  } else expect(text).toContain(action)
+  assertSubscriptionDates(text, locale, state)
+}
+
+function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', state: string) {
+  const messages = locale === 'en' ? en : ptBR
+  const pitch = state === 'free' || state === 'trial'
+  const expired = state === 'expired'
+  const date = (iso: string) => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso))
+  if (state === 'trial') expect(text).toContain(messages.upgrade.billing.plan.trialHint.replace('{date}', date('2027-01-20T00:00:00Z')))
+  if (expired) expect(text).toContain(messages.upgrade.billing.lapsed.ended.replace('{date}', date('2026-09-01T00:00:00Z')))
+  if (!pitch && !expired && state !== 'lifetime') expect(text).toContain(
+    (state === 'canceled' ? messages.upgrade.billing.plan.canceledHint : messages.upgrade.billing.plan.renewsOn).replace('{date}', date('2027-01-20T00:00:00Z')))
+}
+
+
 describe('UpgradeScreen', () => {
+  it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
+    'uses the drawn $plan body width at $width', async ({ width, plan }) => {
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+      mocks.renderComposition = true
+      mocks.hasProAccess = plan !== 'free'
+      mocks.profile = createMockProfile({ hasProAccess: mocks.hasProAccess, isTrialActive: false, subscriptionSource: plan === 'play' ? 'play' : 'stripe' })
+      const tree = await renderScreen()
+      try {
+        const rendered = tree.toJSON()
+        const host: Parameters<typeof measureProfileRow>[0] = {
+          type: 'View', props: {}, children: Array.isArray(rendered) ? rendered : [rendered],
+        }
+        let count = 0
+        function markCards(element: typeof host) {
+          const declared = element.props.style
+          const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
+          if (style.borderRadius === 20 || (style.gap === 16 && style.paddingVertical === 16) || style.gap === 24) element.props.testID = `content-card-${count++}`
+          for (const child of element.children ?? []) if (typeof child !== 'string') markCards(child)
+        }
+        markCards(host)
+        const cards = measureProfileRow(host, width, 1).boxes.filter((box) => box.testID.startsWith('content-card-'))
+        expect(cards.length).toBeGreaterThan(0)
+        const cap = plan === 'free' ? 620 : 560
+        for (const card of [cards[0]!, cards.at(-1)!]) {
+          expect(card.left).toBe((width - Math.min(width, 740)) / 2 + 16)
+          expect(card.width).toBe(width < 1024 ? Math.min(width, 740) - 32 : cap)
+        }
+      } finally { TestRenderer.act(() => tree.unmount()) }
+    },
+  )
+
+  const subscriptionCases = [320, 412, 1200].flatMap((width) => (['en', 'pt-BR'] as const)
+    .flatMap((locale) => (['light', 'dark'] as const).flatMap((mode) =>
+      ['free', 'trial', 'monthly', 'yearly', 'play-monthly', 'play-yearly', 'expired', 'lifetime', 'canceled', 'past-due']
+        .map((state) => ({ width, locale, mode, state })))))
+
+  it.each(subscriptionCases)('renders the $state subscription at $width in $locale and $mode', async (example) => {
+    await configureSubscription(example)
+    const tree = await renderScreen()
+    try {
+      assertSubscriptionContent(tree, example)
+      const measured = measureProfileRow(tree.toJSON(), example.width, 1)
+      for (const heading of tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')) {
+        const geometry = measured.texts.find((entry) => entry.label === heading.props.children)
+        if (geometry) { expect(geometry.clipped).toBe(false); expect(geometry.lines).toBe(1) }
+      }
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
+    'starts the shared $plan frame at the column edge at $width', async ({ width, plan }) => {
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+      mocks.renderComposition = true
+      mocks.hasProAccess = plan !== 'free'
+      mocks.profile = createMockProfile({ hasProAccess: mocks.hasProAccess, isTrialActive: false, subscriptionSource: plan === 'play' ? 'play' : 'stripe' })
+      const tree = await renderScreen()
+      try {
+        const rendered = tree.toJSON()
+        const host: Parameters<typeof measureProfileRow>[0] = {
+          type: 'View', props: {}, children: Array.isArray(rendered) ? rendered : [rendered],
+        }
+        function markFrame(element: typeof host) {
+          const declared = element.props.style
+          const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
+          if (style.width === '100%' && style.paddingHorizontal === 16 && style.minWidth === 0) element.props.testID = 'subscription-content-frame'
+          for (const child of element.children ?? []) if (typeof child !== 'string') markFrame(child)
+        }
+        markFrame(host)
+        const frame = measureProfileRow(host, width, 1).boxes.find((box) => box.testID === 'subscription-content-frame')!
+        expect(frame).toBeDefined()
+        const cap = plan === 'free' ? 620 : 560
+        expect(frame.left).toBe((width - Math.min(width, 740)) / 2)
+        expect(frame.width).toBe(width < 1024 ? Math.min(width, 740) : cap + 32)
+      } finally { TestRenderer.act(() => tree.unmount()) }
+    },
+  )
+
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.appStateListeners.clear()
+    mocks.openURL.mockReset().mockResolvedValue(undefined)
+    mocks.refetchStatus.mockReset().mockResolvedValue(undefined)
+    mocks.refetchBilling.mockReset().mockResolvedValue(undefined)
     mocks.isOnline = true
+    mocks.renderComposition = false
+    mocks.locale = 'en'
+    mocks.mode = 'dark'
+    vi.stubEnv('ORBIT_APP_VARIANT', 'production')
+    mocks.expoConfig = createConfig()
+    mocks.realNavigation = false
+    mocks.navigationState = null
+    mocks.router.canDismiss.mockReturnValue(false)
     mocks.from = undefined
     mocks.hasProAccess = false
     mocks.trialDaysLeft = 5
-    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: 'stripe' })
-    mocks.plans = { couponPercentOff: 0 }
+    mocks.profile = createMockProfile({
+      isTrialActive: false,
+      subscriptionSource: 'stripe',
+    })
+    mocks.plans = {
+      monthly: { unitAmount: 999, currency: 'usd' },
+      yearly: { unitAmount: 6999, currency: 'usd' },
+      savingsPercent: 42, couponPercentOff: null, currency: 'usd',
+    }
     mocks.billing = { plan: 'yearly' }
+    mocks.statusLoading = false
+    mocks.statusError = false
+    mocks.billingLoading = false
+    mocks.billingError = false
+    mocks.lapseReason = null
+    mocks.subscriptionEndedAtUtc = null
     mocks.playBilling.isProcessing = false
     mocks.playBilling.errorKey = ''
   })
 
-  it('shows the pricing section and footer for a free user', async () => {
-    const tree = await renderScreen()
-    expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
-    expect(findByType(tree.root, 'PricingFooter')).toBeTruthy()
+  describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('back destination in $locale', ({ locale, messages }) => {
+    it.each([
+      { source: 'profile', from: undefined, destination: messages.nav.profile },
+      { source: 'profile/astra', from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: 'calendar', from: undefined, destination: messages.nav.calendar },
+      { source: 'habits/new', from: undefined, destination: messages.habits.form.newHabit },
+      { source: 'index', from: '/', destination: messages.nav.today },
+      { source: 'calendar', from: '/profile/astra', destination: messages.nav.calendar },
+      { source: 'chat', from: undefined, destination: messages.chat.title },
+      { source: null, from: undefined, destination: messages.nav.profile },
+      { source: null, from: '/profile/astra', destination: messages.profile.groups.astra },
+    ])('names and returns to $source with from=$from', async ({ source, from, destination }) => {
+      mocks.realNavigation = true
+      mocks.renderComposition = true
+      mocks.from = from
+      await testI18n.changeLanguage(locale)
+      const router = StackRouter({ initialRouteName: source ? '(tabs)' : 'upgrade' })
+      const options = { routeNames: ['(tabs)', 'profile/astra', 'habits/new', 'chat', 'upgrade'], routeParamList: {}, routeGetIdList: {} }
+      let state = router.getInitialState(options)
+      if (source) {
+        if (source === 'profile' || source === 'calendar' || source === 'index') {
+          const tabs = TabRouter({ initialRouteName: source })
+          state = { ...state, routes: [{ ...state.routes[0]!, state: tabs.getInitialState({ routeNames: ['index', 'calendar', 'progress', 'profile'], routeParamList: {}, routeGetIdList: {} }) }] }
+        } else {
+          state = router.getRehydratedState(router.getStateForAction(state, CommonActions.navigate(source), options)!, options)
+        }
+        state = router.getRehydratedState(router.getStateForAction(state, StackActions.push('upgrade'), options)!, options)
+      }
+      mocks.router.dismiss.mockImplementation(() => {
+        state = router.getRehydratedState(router.getStateForAction(state, StackActions.pop(), options)!, options)
+      })
+      mocks.navigationState = state
+      mocks.router.canDismiss.mockReturnValue(Boolean(source))
+      const tree = await renderScreen()
+      const label = source === 'profile' || (!source && !from)
+        ? messages.common.backToProfile
+        : source === 'index' ? messages.common.backToToday : messages.common.backToDestination.replace('{destination}', destination)
+      const back = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]!
+      expect(back, label).toBeDefined()
+      await TestRenderer.act(() => { (back.props.onPress as () => void)() })
+      if (source) {
+        expect(mocks.router.dismiss).toHaveBeenCalledExactlyOnceWith()
+        expect(mocks.router.dismissTo).not.toHaveBeenCalled()
+        const restored = state.routes[state.index]!
+        expect(restored.state ? restored.state.routes[restored.state.index ?? 0]!.name : restored.name).toBe(source)
+      } else {
+        expect(mocks.router.dismissTo).toHaveBeenCalledExactlyOnceWith(from || '/profile')
+        expect(mocks.router.dismiss).not.toHaveBeenCalled()
+      }
+    })
   })
 
-  it('starts a purchase through the footer checkout', async () => {
+  describe.each([
+    { locale: 'en', messages: en, trialHeading: '50 a day or back to 5.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 por dia ou só 5.' },
+  ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
+    beforeEach(async () => {
+      mocks.renderComposition = true
+      mocks.locale = locale
+      mocks.billing = undefined
+      await testI18n.changeLanguage(locale)
+    })
+
+    it.each([4, 1, 0, null])('uses the trial heading with %s days left', async (daysLeft) => {
+      mocks.hasProAccess = true
+      mocks.profile = createMockProfile({
+        isTrialActive: true,
+        trialEndsAt: daysLeft === null ? null : new Date(Date.now() + (daysLeft === 0 ? 3600000 : daysLeft * 86400000)).toISOString(),
+        aiMessagesLimit: 50,
+      })
+      const tree = await renderScreen()
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === trialHeading)).toHaveLength(1)
+      const eyebrow = daysLeft !== null && daysLeft <= 1 ? messages.upgrade.convert.trialLastDay
+        : daysLeft === null ? messages.upgrade.convert.trialEyebrow : null
+      if (eyebrow) expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === eyebrow)).toHaveLength(1)
+      if (daysLeft !== null) {
+        const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(mocks.profile.trialEndsAt!))
+        const hint = messages.upgrade.billing.plan.trialHint.replace('{date}', date)
+        expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === hint)).toHaveLength(1)
+      }
+      await TestRenderer.act(() => tree.unmount())
+    })
+
+    it('keeps the free heading outside a trial', async () => {
+      mocks.profile = createMockProfile({ isTrialActive: false, trialEndsAt: null })
+      const tree = await renderScreen()
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === messages.upgrade.convert.freeHeading)).toHaveLength(1)
+      await TestRenderer.act(() => tree.unmount())
+    })
+
+    it.each([false, true])('ends the paywall at the decline link without usage, trial=%s', async (isTrialActive) => {
+      mocks.hasProAccess = isTrialActive
+      mocks.profile = createMockProfile({ isTrialActive, aiMessagesUsed: 45, aiMessagesLimit: 50 })
+      const tree = await renderScreen()
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.convert.stayFree)).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.title)).toHaveLength(0)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.nearLimit)).toHaveLength(0)
+      await TestRenderer.act(() => tree.unmount())
+    })
+
+    it.each(['stripe', 'play', 'lifetime'] as const)('keeps usage on the %s billing dashboard', async (source) => {
+      mocks.hasProAccess = true
+      mocks.profile = createMockProfile({
+        isTrialActive: false, isLifetimePro: source === 'lifetime',
+        subscriptionSource: source === 'lifetime' ? null : source,
+        aiMessagesUsed: 12, aiMessagesLimit: 50,
+      })
+      const tree = await renderScreen()
+      const meters = tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === messages.upgrade.billing.usage.aiMessages)
+      expect(meters).toHaveLength(1)
+      expect(meters[0]!.props.accessibilityValue).toEqual({ min: 0, max: 1, now: 0.24 })
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.aiMessagesOf.replace('{used}', '12').replace('{limit}', '50'))).toHaveLength(1)
+      await TestRenderer.act(() => tree.unmount())
+    })
+  })
+
+  it('shows the pricing section for a free user', async () => {
     const tree = await renderScreen()
-    const footer = findByType(tree.root, 'PricingFooter')
+    expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.pitchTitle')).toHaveLength(1)
+  })
+
+  it('does not put subscription status in the trial pitch', async () => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({
+      isTrialActive: true,
+      trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+
+    const tree = await renderScreen()
+
+    expect(tree.root.findAll((node) =>
+      node.type === 'Text'
+        && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(0)
+    expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.pitchTitle')).toHaveLength(1)
+  })
+
+  it.each(['stripe', 'play'] as const)('titles the paid %s dashboard as a subscription', async (source) => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: source })
+    const tree = await renderScreen()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.title')).toHaveLength(1)
+  })
+
+  it('titles the lapsed notice as a subscription', async () => {
+    mocks.lapseReason = 'expired'
+    const tree = await renderScreen()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.title')).toHaveLength(1)
+  })
+
+  it.each([
+    ['loading', true, false, 'common.loading'],
+    ['load-failed', false, true, 'upgrade.billing.error'],
+    ['load-failed-without-status', false, false, 'upgrade.billing.error'],
+  ] as const)('renders the %s status outcome', async (_state, statusLoading, statusError, label) => {
+    mocks.profile = null
+    mocks.statusLoading = statusLoading
+    mocks.statusError = statusError
+    const tree = await renderScreen()
+    expect(
+      tree.root.findAll((node) => node.props.children === label || node.props.label === label).length,
+    ).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === (statusLoading ? '' : 'upgrade.title'))).toHaveLength(1)
+  })
+
+  it.each([
+    ['loading', true, false],
+    ['load-failed', false, true],
+  ] as const)('renders the Stripe billing %s outcome', async (state, billingLoading, billingError) => {
+    mocks.hasProAccess = true
+    mocks.billingLoading = billingLoading
+    mocks.billingError = billingError
+    const tree = await renderScreen()
+    if (state === 'loading') {
+      expect(
+        tree.root.findAll((node) => node.props.children === 'common.loading'
+          || node.props.label === 'common.loading').length,
+      ).toBeGreaterThan(0)
+    } else {
+      expect(tree.root.findAll((node) => node.props.children === 'upgrade.billing.error').length).toBeGreaterThan(0)
+    }
+    expect(tree.root.findAll((node) => node.type === 'BillingDashboard')).toHaveLength(0)
+  })
+
+  it.each([
+    ['canceled', { status: 'active', cancelAtPeriodEnd: true }],
+    ['past-due', { status: 'past_due', cancelAtPeriodEnd: false }],
+  ] as const)('passes the %s outcome to the Stripe dashboard', async (state, billing) => {
+    mocks.hasProAccess = true
+    mocks.billing = billing
+    const tree = await renderScreen()
+    expect(findByType(tree.root, 'BillingDashboard').props.state).toBe(state)
+  })
+
+  it('passes the lifetime outcome without requesting Stripe billing content', async () => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({
+      isTrialActive: false,
+      isLifetimePro: true,
+      subscriptionSource: null,
+    })
+    mocks.billing = undefined
+    const tree = await renderScreen()
+    expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('lifetime')
+  })
+
+  it.each(['canceled', 'payment_failed', 'expired'] as const)(
+    'renders the %s lapse status in the routed pitch',
+    async (lapseReason) => {
+      mocks.profile = createMockProfile({
+        isTrialActive: false, subscriptionInterval: null, subscriptionSource: null, planExpiresAt: null,
+      })
+      mocks.lapseReason = lapseReason
+      mocks.subscriptionEndedAtUtc = '2026-08-01T00:00:00Z'
+      const tree = await renderScreen()
+      expect(tree.root.findAll((node) =>
+        node.type === 'Text'
+          && node.props.accessibilityRole === 'header'
+          && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(1)
+      const endedKey = lapseReason === 'payment_failed' ? 'payment_failed' : 'ended'
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === `upgrade.billing.lapsed.${endedKey}`)).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.lostCalendar')).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.lostRetrospective')).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.type === 'PricingSection')).toHaveLength(0)
+      const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-sm')[0]!
+      TestRenderer.act(() => { (action.props.onPress as () => void)() })
+      expect(findByType(tree.root, 'PricingSection').props.focusOnMount).toBe(true)
+    },
+  )
+
+  it('renders a truthful payment warning in the routed Pro dashboard', async () => {
+    mocks.hasProAccess = true
+    mocks.lapseReason = 'payment_failed'
+    mocks.subscriptionEndedAtUtc = '2026-08-01T00:00:00Z'
+    mocks.billing = { status: 'past_due', cancelAtPeriodEnd: false }
+
+    const tree = await renderScreen()
+
+    expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('past-due')
+    expect(findByType(tree.root, 'BillingDashboard')).toBeTruthy()
+  })
+
+  it('starts a purchase through the pricing section', async () => {
+    const tree = await renderScreen()
+    const section = findByType(tree.root, 'PricingSection')
     await TestRenderer.act(async () => {
-      ;(footer.props.onCheckout as (i: string) => void)('yearly')
+      ;(section.props.onCheckout as (i: string) => void)('yearly')
       await Promise.resolve()
     })
     expect(mocks.playBilling.clearError).toHaveBeenCalledTimes(1)
     expect(mocks.playBilling.purchase).toHaveBeenCalledWith('yearly')
   })
 
-  it('switches the selected interval and echoes the new price', async () => {
+  it('switches the selected interval', async () => {
     const tree = await renderScreen()
     const section = findByType(tree.root, 'PricingSection')
     await TestRenderer.act(async () => {
       ;(section.props.onSelectInterval as (i: string) => void)('monthly')
       await Promise.resolve()
     })
-    expect(findByType(tree.root, 'PricingFooter').props.selectedInterval).toBe('monthly')
+    expect(findByType(tree.root, 'PricingSection').props.selectedInterval).toBe('monthly')
   })
 
   it('routes back to the fallback when the user stays free', async () => {
@@ -180,7 +672,7 @@ describe('UpgradeScreen', () => {
     expect(mocks.refetchPlans).toHaveBeenCalledTimes(1)
   })
 
-  it('opens the Stripe portal and retries billing for a paying stripe user', async () => {
+  it('opens the Stripe portal for a paying stripe user', async () => {
     mocks.hasProAccess = true
     mocks.apiClient.mockResolvedValue({ url: 'https://portal.stripe.test' })
     const tree = await renderScreen()
@@ -192,11 +684,6 @@ describe('UpgradeScreen', () => {
     })
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     expect(mocks.openURL).toHaveBeenCalledWith('https://portal.stripe.test')
-    await TestRenderer.act(async () => {
-      ;(dashboard.props.onRetryBilling as () => void)()
-      await Promise.resolve()
-    })
-    expect(mocks.refetchBilling).toHaveBeenCalledTimes(1)
   })
 
   it('reports the offline message when opening the portal while disconnected', async () => {
@@ -209,20 +696,154 @@ describe('UpgradeScreen', () => {
       await Promise.resolve()
     })
     expect(mocks.apiClient).not.toHaveBeenCalled()
-    expect(findByType(tree.root, 'BillingDashboard').props.portalError).toBe('offline.title')
+    expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('offline')
   })
 
-  it('opens the Play management URL for a play-sourced subscriber', async () => {
+  it.each([false, true])('keeps cached pitch content offline, trial=%s', async (trialActive) => {
+    mocks.isOnline = false
+    mocks.hasProAccess = trialActive
+    mocks.profile = createMockProfile({
+      isTrialActive: trialActive,
+      trialEndsAt: trialActive
+        ? new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+        : null,
+      subscriptionInterval: null,
+      subscriptionSource: null,
+    })
+    const tree = await renderScreen()
+    const section = findByType(tree.root, 'PricingSection')
+    expect(section).toBeTruthy()
+    if (trialActive) {
+      expect(section.props.trialDaysLeft).toBeGreaterThan(0)
+    } else {
+      expect(section.props.trialDaysLeft).toBeNull()
+    }
+    await TestRenderer.act(async () => {
+      ;(section.props.onRestore as () => void)()
+      ;(section.props.onRetryPlans as () => void)()
+      await Promise.resolve()
+    })
+    expect(mocks.playBilling.restorePurchases).not.toHaveBeenCalled()
+    expect(mocks.refetchPlans).not.toHaveBeenCalled()
+  })
+
+  it('keeps the Play dashboard and blocks its handoff while offline', async () => {
+    mocks.isOnline = false
     mocks.hasProAccess = true
-    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: 'play' })
-    mocks.openURL.mockResolvedValue(undefined)
+    mocks.profile = createMockProfile({
+      isTrialActive: false,
+      subscriptionSource: 'play',
+      subscriptionInterval: 'yearly',
+    })
     const tree = await renderScreen()
     const dashboard = findByType(tree.root, 'PlayBillingDashboard')
+    expect(dashboard.props.isOnline).toBe(false)
+    expect(tree.root.findAll((node) => node.type === 'BillingDashboard')).toHaveLength(0)
     await TestRenderer.act(async () => {
       ;(dashboard.props.onManagePlay as () => void)()
       await Promise.resolve()
     })
+    expect(mocks.openURL).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['staging', 'org.useorbit.app.staging'],
+    ['production', 'org.useorbit.app'],
+  ])('opens the Play management URL for the %s installed app', async (variant, packageName) => {
+    vi.stubEnv('ORBIT_APP_VARIANT', variant)
+    mocks.expoConfig = createConfig()
+    mocks.renderComposition = true
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({
+      isTrialActive: false,
+      subscriptionSource: 'play',
+    })
+    mocks.openURL.mockResolvedValue(undefined)
+    const tree = await renderScreen()
+    const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-sm')[0]!
+    await TestRenderer.act(async () => {
+      ;(action.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    expect(mocks.openURL).toHaveBeenCalledExactlyOnceWith(
+      `https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=${packageName}`,
+    )
+    await TestRenderer.act(() => tree.unmount())
+  })
+
+  it('shows a retry without navigating when the installed app config is missing', async () => {
+    mocks.expoConfig = null
+    mocks.renderComposition = true
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: 'play' })
+    const tree = await renderScreen()
+    const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-sm')[0]!
+    await TestRenderer.act(() => { (action.props.onPress as () => void)() })
+    expect(mocks.openURL).not.toHaveBeenCalled()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === testI18n.t('upgrade.billing.portalFailed'))).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === testI18n.t('upgrade.billing.retry'))).toHaveLength(1)
+    await TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each(['stripe', 'play'] as const)('recovers the %s foreground return before the link promise settles and refreshes once', async (source) => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: source })
+    mocks.apiClient.mockResolvedValue({ url: 'https://billing.test/portal' })
+    let resolveLink: () => void = () => {}
+    let resolveRefresh: () => void = () => {}
+    mocks.openURL.mockReturnValue(new Promise<void>((resolve) => { resolveLink = resolve }))
+    mocks.refetchStatus.mockReturnValue(new Promise<void>((resolve) => { resolveRefresh = resolve }))
+    const tree = await renderScreen()
+    const dashboardType = source === 'play' ? 'PlayBillingDashboard' : 'BillingDashboard'
+    const dashboard = () => findByType(tree.root, dashboardType)
+    const state = () => source === 'play' ? dashboard().props.portalState : dashboard().props.state
+    const emit = (nextState: AppStateStatus) => {
+      TestRenderer.act(() => { mocks.appStateListeners.forEach((listener) => listener(nextState)) })
+    }
+    emit('active')
+    expect(mocks.refetchStatus).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => {
+      ;(dashboard().props[source === 'play' ? 'onManagePlay' : 'onPortal'] as () => void)()
+      await Promise.resolve()
+    })
     expect(mocks.openURL).toHaveBeenCalledTimes(1)
+    expect(state()).toBe(source === 'play' ? 'opening' : 'portal-opening')
+    emit('background')
+    expect(mocks.refetchStatus).not.toHaveBeenCalled()
+    emit('active')
+    expect(state()).toBe(source === 'play' ? 'idle' : 'stripe')
+    emit('active')
+    expect(mocks.refetchStatus).toHaveBeenCalledTimes(1)
+    expect(mocks.refetchBilling).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(async () => { resolveLink(); resolveRefresh(); await Promise.resolve() })
+    emit('background')
+    emit('active')
+    expect(mocks.refetchStatus).toHaveBeenCalledTimes(1)
+    expect(mocks.showSuccess).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(() => tree.unmount())
+    expect(mocks.appStateListeners.size).toBe(0)
+  })
+
+  it.each(['stripe', 'play'] as const)('keeps the %s handoff failure on foreground return and allows retry', async (source) => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: source })
+    mocks.apiClient.mockResolvedValue({ url: 'https://billing.test/portal' })
+    mocks.openURL.mockRejectedValueOnce(new Error('unavailable'))
+    const tree = await renderScreen()
+    const dashboard = () => findByType(tree.root, source === 'play' ? 'PlayBillingDashboard' : 'BillingDashboard')
+    const manage = () => (dashboard().props[source === 'play' ? 'onManagePlay' : 'onPortal'] as () => void)()
+    await TestRenderer.act(async () => { manage(); await Promise.resolve() })
+    await TestRenderer.act(() => { mocks.appStateListeners.forEach((listener) => listener('active')) })
+    expect(source === 'play' ? dashboard().props.portalState : dashboard().props.state)
+      .toBe(source === 'play' ? 'failed' : 'portal-failed')
+    expect(mocks.refetchStatus).not.toHaveBeenCalled()
+    expect(mocks.refetchBilling).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { manage(); await Promise.resolve() })
+    await TestRenderer.act(() => { mocks.appStateListeners.forEach((listener) => listener('active')) })
+    expect(source === 'play' ? dashboard().props.portalState : dashboard().props.state)
+      .toBe(source === 'play' ? 'idle' : 'stripe')
+    expect(mocks.refetchStatus).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(() => tree.unmount())
   })
 
   it('clears the pending checkout once play billing stops processing', async () => {
@@ -232,21 +853,21 @@ describe('UpgradeScreen', () => {
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
-      ;(findByType(tree!.root, 'PricingFooter').props.onCheckout as (i: string) => void)('monthly')
+      ;(findByType(tree!.root, 'PricingSection').props.onCheckout as (i: string) => void)('monthly')
       await Promise.resolve()
     })
-    expect(findByType(tree!.root, 'PricingFooter').props.checkoutLoading).toBe('monthly')
+    expect(findByType(tree!.root, 'PricingSection').props.checkoutLoading).toBe('monthly')
 
     mocks.playBilling.isProcessing = true
     await TestRenderer.act(() => {
       tree!.update(<UpgradeScreen />)
     })
-    expect(findByType(tree!.root, 'PricingFooter').props.checkoutLoading).toBe('monthly')
+    expect(findByType(tree!.root, 'PricingSection').props.checkoutLoading).toBe('monthly')
 
     mocks.playBilling.isProcessing = false
     await TestRenderer.act(() => {
       tree!.update(<UpgradeScreen />)
     })
-    expect(findByType(tree!.root, 'PricingFooter').props.checkoutLoading).toBeNull()
+    expect(findByType(tree!.root, 'PricingSection').props.checkoutLoading).toBeNull()
   })
 })

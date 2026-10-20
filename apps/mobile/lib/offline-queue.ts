@@ -1,10 +1,12 @@
 import * as SQLite from 'expo-sqlite'
+import { useAuthStore } from '@/stores/auth-store'
 import {
   mutationEntityTypeSchema,
   mutationScopeSchema,
   type MutationEntityType,
   type MutationScope,
   type PersistedQueuedMutation,
+  type QueuedMutation,
   type QueuedMutationStatus,
 } from '@orbit/shared/types/sync'
 
@@ -56,13 +58,17 @@ function getDb(): SQLite.SQLiteDatabase {
         payload TEXT,
         retries INTEGER NOT NULL DEFAULT 0,
         max_retries INTEGER NOT NULL DEFAULT 3,
-        meta TEXT
+        meta TEXT,
+        account_id TEXT
       );
     `)
 
     const columns = db.getAllSync<{ name: string }>('PRAGMA table_info(mutation_queue)')
     if (!columns.some((column) => column.name === 'meta')) {
       db.execSync('ALTER TABLE mutation_queue ADD COLUMN meta TEXT;')
+    }
+    if (!columns.some((column) => column.name === 'account_id')) {
+      db.execSync('ALTER TABLE mutation_queue ADD COLUMN account_id TEXT;')
     }
   }
   return db
@@ -77,8 +83,12 @@ function emitQueueCount(): void {
 
 export function subscribeQueueCount(listener: QueueListener): () => void {
   queueListeners.add(listener)
+  const unsubscribeAuth = useAuthStore.subscribe((state, previous) => {
+    if (state.isAuthenticated !== previous.isAuthenticated || state.user?.userId !== previous.user?.userId) listener(count())
+  })
   listener(count())
   return () => {
+    unsubscribeAuth()
     queueListeners.delete(listener)
   }
 }
@@ -130,10 +140,15 @@ function mapRow(row: QueueRow): PersistedQueuedMutation {
   }
 }
 
-function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutation): void {
+function currentAccountId(): string | null {
+  const { isAuthenticated, user } = useAuthStore.getState()
+  return isAuthenticated ? user?.userId ?? null : null
+}
+
+function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutation, accountId: string | null): void {
   database.runSync(
-    `INSERT OR REPLACE INTO mutation_queue (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO mutation_queue (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       mutation.id,
       mutation.timestamp,
@@ -144,16 +159,18 @@ function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutati
       mutation.retries,
       mutation.maxRetries,
       JSON.stringify(buildMeta(mutation)),
+      accountId,
     ],
   )
 }
 
 function replaceAll(mutations: PersistedQueuedMutation[]): void {
   const database = getDb()
+  const accountId = currentAccountId()
   database.withTransactionSync(() => {
-    database.runSync('DELETE FROM mutation_queue')
+    database.runSync('DELETE FROM mutation_queue WHERE account_id IS ? OR account_id IS NULL', [accountId])
     for (const mutation of mutations) {
-      upsert(database, mutation)
+      upsert(database, mutation, accountId)
     }
   })
   emitQueueCount()
@@ -171,11 +188,17 @@ const MERGE_INTO_CREATE_TYPES = new Set<string>([
   'updateTag',
 ])
 
-const DROP_CREATE_TYPES = new Set<string>(['deleteHabit', 'deleteGoal', 'deleteTag'])
+const DROP_CREATE_TYPES = new Set<string>([
+  'deleteHabit',
+  'bulkCascadeDeleteHabits',
+  'deleteGoal',
+  'deleteTag',
+])
 
 const LAST_WRITE_WINS_TYPES = new Set<string>([
   'setLanguage',
   'setWeekStartDay',
+  'setClockFormat',
   'setColorScheme',
   'setThemePreference',
   'setTimeZone',
@@ -188,6 +211,46 @@ const LAST_WRITE_WINS_TYPES = new Set<string>([
   'markAllNotificationsRead',
   'deleteAllNotifications',
 ])
+
+const FIRST_WRITE_WINS_TYPES = new Set<string>(['logHabit'])
+export const ACCOUNT_TIMEZONE_DEPENDENCY = 'offline-account-timezone'
+
+export function accountTimezoneDependency(timezoneMutationId: string): string {
+  return `${ACCOUNT_TIMEZONE_DEPENDENCY}:${timezoneMutationId}`
+}
+
+export function findUnfinalizedFirstWrite(
+  mutation: Pick<QueuedMutation, 'type' | 'dedupeKey'>,
+): PersistedQueuedMutation | null {
+  return findFirstWrite(getAll(), mutation)
+}
+
+function findFirstWrite(
+  queued: PersistedQueuedMutation[],
+  mutation: Pick<QueuedMutation, 'type' | 'dedupeKey'>,
+): PersistedQueuedMutation | null {
+  if (!mutation.dedupeKey || !FIRST_WRITE_WINS_TYPES.has(mutation.type)) return null
+
+  return queued.find(
+    (queuedMutation) =>
+      queuedMutation.type === mutation.type &&
+      queuedMutation.dedupeKey === mutation.dedupeKey,
+  ) ?? null
+}
+
+export function waitForFirstWriteFinalization(
+  mutation: Pick<QueuedMutation, 'type' | 'dedupeKey'>,
+): Promise<void> {
+  if (!findUnfinalizedFirstWrite(mutation)) return Promise.resolve()
+
+  return new Promise((resolve) => {
+    const unsubscribe = subscribeQueueCount(() => {
+      if (findUnfinalizedFirstWrite(mutation)) return
+      unsubscribe()
+      resolve()
+    })
+  })
+}
 
 function mergePayload(existing: unknown, incoming: unknown): unknown {
   if (
@@ -278,12 +341,21 @@ function replaceValue(value: unknown, oldId: string, newId: string): unknown {
 }
 
 export function enqueue(
-  mutation: Omit<PersistedQueuedMutation, 'retries' | 'maxRetries'> & {
+  mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'> & {
     retries?: number
     maxRetries?: number
   },
-): PersistedQueuedMutation | null {
-  const normalized: PersistedQueuedMutation = {
+): string {
+  return enqueueWithCompaction(mutation).id
+}
+
+export function enqueueWithCompaction(
+  mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'> & {
+    retries?: number
+    maxRetries?: number
+  },
+): { id: string; compactedCreate: PersistedQueuedMutation | null } {
+  const normalized: QueuedMutation = {
     ...mutation,
     retries: mutation.retries ?? 0,
     maxRetries: mutation.maxRetries ?? 3,
@@ -291,9 +363,35 @@ export function enqueue(
     dependsOn: mutation.dependsOn ?? [],
   }
 
-  const compacted = compactQueuedMutations(getAll(), normalized)
+  const existing = getForAccount(currentAccountId())
+  const existingMutation = findFirstWrite(existing, normalized)
+
+  if (existingMutation) return { id: existingMutation.id, compactedCreate: null }
+
+  if (normalized.type === 'setTimeZone' && normalized.dedupeKey === 'profile-timezone-auto') {
+    const pendingTimezone = existing.find((queued) =>
+      queued.type === normalized.type && queued.dedupeKey === normalized.dedupeKey)
+    if (pendingTimezone) {
+      const hasDependentHabit = existing.some((queued) =>
+        queued.dependsOn?.includes(accountTimezoneDependency(pendingTimezone.id)))
+      const samePayload = JSON.stringify(pendingTimezone.payload) === JSON.stringify(normalized.payload)
+      if (hasDependentHabit || samePayload) {
+        const droppedDependency = accountTimezoneDependency(normalized.id)
+        const retainedDependency = accountTimezoneDependency(pendingTimezone.id)
+        if (samePayload && droppedDependency !== retainedDependency && existing.some((queued) => queued.dependsOn?.includes(droppedDependency))) {
+          replaceAll(existing.map((queued) => ({
+            ...queued,
+            dependsOn: queued.dependsOn?.map((dependency) => dependency === droppedDependency ? retainedDependency : dependency),
+          })))
+        }
+        return { id: pendingTimezone.id, compactedCreate: null }
+      }
+    }
+  }
+
+  const compacted = compactQueuedMutations(existing, normalized)
   replaceAll(compacted.mutations)
-  return compacted.compactedCreate
+  return { id: normalized.id, compactedCreate: compacted.compactedCreate }
 }
 
 export function dequeue(): PersistedQueuedMutation | null {
@@ -301,8 +399,13 @@ export function dequeue(): PersistedQueuedMutation | null {
 }
 
 export function getAll(): PersistedQueuedMutation[] {
+  const accountId = currentAccountId()
+  return accountId === null ? [] : getForAccount(accountId)
+}
+
+function getForAccount(accountId: string | null): PersistedQueuedMutation[] {
   const database = getDb()
-  const rows = database.getAllSync<QueueRow>('SELECT * FROM mutation_queue ORDER BY timestamp ASC')
+  const rows = database.getAllSync<QueueRow>('SELECT * FROM mutation_queue WHERE account_id IS ? OR account_id IS NULL ORDER BY timestamp ASC', [accountId])
   return rows.map(mapRow)
 }
 
@@ -311,6 +414,7 @@ export function getById(id: string): PersistedQueuedMutation | null {
 }
 
 export function update(id: string, patch: Partial<PersistedQueuedMutation>): void {
+  if (!getById(id)) return
   const updated = getAll().map((mutation) =>
     mutation.id === id
       ? {
@@ -324,12 +428,14 @@ export function update(id: string, patch: Partial<PersistedQueuedMutation>): voi
 }
 
 export function remove(id: string): void {
+  if (!getById(id)) return
   const database = getDb()
   database.runSync('DELETE FROM mutation_queue WHERE id = ?', [id])
   emitQueueCount()
 }
 
 export function replaceEntityReferences(oldId: string, newId: string): void {
+  if (currentAccountId() === null) return
   const updated = getAll().map((mutation) => ({
     ...mutation,
     endpoint: mutation.endpoint.includes(oldId)
@@ -358,7 +464,18 @@ export function clear(): void {
 }
 
 export function count(): number {
+  const accountId = currentAccountId()
+  if (accountId === null) return 0
   const database = getDb()
-  const row = database.getFirstSync<{ cnt: number }>('SELECT COUNT(*) as cnt FROM mutation_queue')
+  const row = database.getFirstSync<{ cnt: number }>('SELECT COUNT(*) as cnt FROM mutation_queue WHERE account_id = ? OR account_id IS NULL', [accountId])
   return row?.cnt ?? 0
+}
+
+export function retainAccount(accountId: string): void {
+  const database = getDb()
+  database.withTransactionSync(() => {
+    database.runSync('DELETE FROM mutation_queue WHERE account_id IS NOT NULL AND account_id != ?', [accountId])
+    database.runSync('UPDATE mutation_queue SET account_id = ? WHERE account_id IS NULL', [accountId])
+  })
+  emitQueueCount()
 }

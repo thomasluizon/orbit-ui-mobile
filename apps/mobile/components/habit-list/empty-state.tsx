@@ -1,19 +1,16 @@
-import { useEffect, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
-import Animated, {
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated'
-import { Plus, Sparkles } from 'lucide-react-native'
-import { getHabitEmptyStateKey } from '@orbit/shared/utils'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
+import { ActionRow } from '@/components/ui/action-row'
+import { type ReactNode } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-frequency-filter'
+import type { HabitFrequencyFilter } from '@orbit/shared/stores'
+import { useUIStore } from '@/stores/ui-store'
 
 interface HabitListEmptyStateProps {
   title: string
@@ -25,11 +22,7 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
-/**
- * InicioEmpty kit state: 104px satellite glyph, 22/500 title, 15 fg-2 body,
- * then a stacked full-width Astra pill + ghost create pill. Mirrors the web
- * habit-list empty state.
- */
+
 export function HabitListEmptyState({
   title,
   description,
@@ -45,35 +38,33 @@ export function HabitListEmptyState({
   const hasDistinctDescription = Boolean(description) && description !== title
   const showAstraAction =
     isAstraPrompt && Boolean(askAstraLabel) && Boolean(onAskAstra)
-  const showStackedActions =
+  const showActions =
     showAstraAction || (isAstraPrompt && Boolean(actionLabel))
 
   let emptyActions: ReactNode = null
-  if (showStackedActions) {
+  if (showActions) {
     emptyActions = (
-      <View style={styles.actions}>
-        {showAstraAction ? (
-          <PillButton
-            fullWidth
-            onPress={onAskAstra}
-            leading={
-              <Sparkles size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
-            }
-          >
-            {askAstraLabel}
-          </PillButton>
-        ) : null}
+      <View style={styles.actions}><ActionRow>
         {actionLabel ? (
           <PillButton
             variant="ghost"
-            fullWidth
-            onPress={onAction}
-            leading={<Plus size={18} color={tokens.fg1} strokeWidth={1.8} />}
+
+            onClick={onAction}
+
           >
             {actionLabel}
           </PillButton>
         ) : null}
-      </View>
+        {showAstraAction && askAstraLabel ? (
+          <PillButton
+
+            onClick={onAskAstra}
+
+          >
+            {askAstraLabel}
+          </PillButton>
+        ) : null}
+      </ActionRow></View>
     )
   } else if (actionLabel) {
     emptyActions = (
@@ -81,7 +72,7 @@ export function HabitListEmptyState({
         onPress={onAction}
         accessibilityRole="button"
         accessibilityLabel={actionLabel}
-        style={({ pressed }) => [styles.linkAction, { opacity: pressed ? 0.7 : 1 }]}
+        style={({ pressed }) => [styles.linkAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
       >
         <Text
           style={[
@@ -97,7 +88,7 @@ export function HabitListEmptyState({
 
   return (
     <View style={styles.container}>
-      <SatelliteGlyph size={104} />
+      <OrbitMark size={96} />
       <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       {hasDistinctDescription ? (
         <Text style={[styles.description, { color: tokens.fg2 }]}>{description}</Text>
@@ -107,83 +98,99 @@ export function HabitListEmptyState({
   )
 }
 
-interface SkeletonCardStyles {
-  skeletonCard: StyleProp<ViewStyle>
-  skeletonCircle: StyleProp<ViewStyle>
-  skeletonContent: StyleProp<ViewStyle>
-  skeletonTitle: StyleProp<ViewStyle>
-  skeletonSubtitle: StyleProp<ViewStyle>
-  skeletonCheck: StyleProp<ViewStyle>
-}
-
-export function SkeletonCard({ styles: cardStyles }: Readonly<{ styles: SkeletonCardStyles }>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const pulse = useSharedValue(1)
-
-  useEffect(() => {
-    if (prefersReducedMotion) return
-    pulse.value = withRepeat(withTiming(0.55, { duration: 550 }), -1, true)
-    return () => {
-      cancelAnimation(pulse)
-      pulse.value = 1
-    }
-  }, [prefersReducedMotion, pulse])
-
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }))
-
+export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const { t } = useTranslation()
   return (
-    <Animated.View style={[cardStyles.skeletonCard, pulseStyle]}>
-      <View style={cardStyles.skeletonCircle} />
-      <View style={cardStyles.skeletonContent}>
-        <View style={cardStyles.skeletonTitle} />
-        <View style={cardStyles.skeletonSubtitle} />
-      </View>
-      <View style={cardStyles.skeletonCheck} />
-    </Animated.View>
+    <View style={styles.allDone}>
+      <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
+      <Text style={[styles.allDoneHint, { color: tokens.fg2 }]}>{t('habits.allDoneHint')}</Text>
+      {onSeeUpcoming ? (
+        <PillButton variant="ghost" size="sm" onClick={onSeeUpcoming}>
+          {t('habits.seeUpcoming')}
+        </PillButton>
+      ) : null}
+    </View>
   )
 }
 
-// react-doctor-disable-next-line only-export-components -- co-located empty-state message helper dedicated to this module; Fast Refresh dev-only, no runtime effect https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export function getEmptyHabitsMessage(
-  view: 'today' | 'all' | 'general',
-  t: (key: string) => string,
-): string {
-  return t(getHabitEmptyStateKey(view))
+export function HabitListNothingOpen() {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const { t } = useTranslation()
+  return <Text style={[styles.nothingOpen, { color: tokens.fg3 }]}>{t('habits.nothingOpen')}</Text>
+}
+
+export function HabitListFrequencyEmptyState({ frequencyUnit }: Readonly<{ frequencyUnit: HabitFrequencyFilter }>) {
+  const { t } = useTranslation()
+  const option = HABIT_FREQUENCY_FILTER_OPTIONS.find(({ value }) => value === frequencyUnit)!
+  return <HabitListEmptyState
+    title={t(option.labelKey)} description={t('habits.nothingOpen')}
+    actionLabel={t('common.all')}
+    onAction={() => useUIStore.getState().setFilters({ frequencyUnit: undefined })}
+  />
 }
 
 const styles = StyleSheet.create({
+  allDone: {
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: SPACING.s8,
+  },
+  allDoneTitle: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 20,
+    letterSpacing: -0.2,
+  },
+  allDoneHint: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  nothingOpen: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 22,
+  },
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 36,
-    paddingVertical: 64,
+    paddingHorizontal: SPACING.s32,
+    paddingVertical: SPACING.s64,
     gap: 16,
   },
   title: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 22,
+    fontFamily: 'Geist_500Medium',
+    fontSize: 20,
     textAlign: 'center',
   },
   description: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    lineHeight: 22.5,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
+    lineHeight: 24.8,
     textAlign: 'center',
     maxWidth: 300,
   },
   actions: {
-    marginTop: 8,
+    marginTop: SPACING.s8,
     alignSelf: 'stretch',
     gap: 12,
   },
   linkAction: {
-    marginTop: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    minHeight: TOUCH_TARGET_MIN,
+    minWidth: TOUCH_TARGET_MIN,
+    borderRadius: 999,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.s4,
+    paddingVertical: SPACING.s12,
+    paddingHorizontal: SPACING.s8,
   },
   linkActionText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
+    fontFamily: 'Geist_500Medium',
+    fontSize: 14,
     textDecorationLine: 'underline',
   },
 })

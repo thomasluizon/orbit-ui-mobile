@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -16,7 +17,7 @@ import {
   useLinkHabitsToGoal,
 } from '@/hooks/use-goals'
 import { goalKeys } from '@orbit/shared/query'
-import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
+import type { Goal, GoalDetailWithMetrics, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
@@ -25,6 +26,7 @@ vi.stubGlobal('fetch', mockFetch)
 const mockShowQueued = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
+const mockSetGoalCompleted = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -53,13 +55,14 @@ vi.mock('@/lib/actions/goals', () => ({
 }))
 
 vi.mock('@/stores/ui-store', () => ({
+  setUIAccountScope: vi.fn(),
   useUIStore: Object.assign(
     () => ({
-      setGoalCompletedCelebration: vi.fn(),
+      setGoalCompletedCelebration: mockSetGoalCompleted,
     }),
     {
       getState: () => ({
-        setGoalCompletedCelebration: vi.fn(),
+        setGoalCompletedCelebration: mockSetGoalCompleted,
       }),
     },
   ),
@@ -91,6 +94,10 @@ function createWrapper() {
   }
 }
 
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
+})
+
 describe('useGoals', () => {
   beforeEach(() => {
     mockFetch.mockReset()
@@ -109,6 +116,8 @@ describe('useGoals', () => {
 
     const { result } = renderHook(() => useGoals(), { wrapper: createWrapper() })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.allGoals).toHaveLength(3)
@@ -129,6 +138,8 @@ describe('useGoals', () => {
 
     const { result } = renderHook(() => useGoals(), { wrapper: createWrapper() })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.goalsById.size).toBe(2)
@@ -151,6 +162,8 @@ describe('useGoals', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string
@@ -165,6 +178,8 @@ describe('useGoals', () => {
 
     const { result } = renderHook(() => useGoals(), { wrapper: createWrapper() })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.goalsById.size).toBe(0)
@@ -180,6 +195,8 @@ describe('useGoals', () => {
 
     const { result } = renderHook(() => useGoals(), { wrapper: createWrapper() })
 
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
   })
 })
@@ -187,6 +204,34 @@ describe('useGoals', () => {
 describe('useCreateGoal', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  it('resolves creation only after the active Metas list includes the saved goal', async () => {
+    const { createGoal } = await import('@/lib/actions/goals')
+    const created = createMockGoal({ id: 'created-goal', title: 'Read every day' })
+    vi.mocked(createGoal).mockResolvedValue({ id: created.id })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    client.setQueryData(goalKeys.list({}), [])
+    const wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(QueryClientProvider, { client }, children)
+    let finishRefresh!: (response: Response) => void
+    mockFetch.mockReturnValueOnce(new Promise<Response>((resolve) => { finishRefresh = resolve }))
+    const { result } = renderHook(() => ({ goals: useGoals(), create: useCreateGoal() }), { wrapper })
+    expect(result.current.goals.data?.allGoals).toEqual([])
+    let finished = false
+    let saving!: Promise<unknown>
+    await act(async () => {
+      saving = result.current.create.mutateAsync({ title: created.title, targetValue: 12, unit: 'books', habitIds: ['habit-reading'] }).then(() => { finished = true })
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    expect(finished).toBe(false)
+    await act(async () => {
+      finishRefresh(new Response(JSON.stringify(makePaginatedGoalResponse([created])), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      await saving
+    })
+    await waitFor(() => expect(result.current.goals.data?.allGoals.map((goal) => goal.id)).toContain(created.id))
+    expect(finished).toBe(true)
+    client.clear()
   })
 
   it('calls createGoal action', async () => {
@@ -209,7 +254,7 @@ describe('useCreateGoal', () => {
       title: 'New Goal',
       targetValue: 10,
       unit: 'items',
-    })
+    }, 'account-a')
   })
 })
 
@@ -237,7 +282,7 @@ describe('useUpdateGoal', () => {
       title: 'Updated',
       targetValue: 20,
       unit: 'books',
-    })
+    }, 'account-a')
   })
 })
 
@@ -258,7 +303,7 @@ describe('useDeleteGoal', () => {
       await result.current.mutateAsync('g-1')
     })
 
-    expect(mockedDeleteGoal).toHaveBeenCalledWith('g-1')
+    expect(mockedDeleteGoal).toHaveBeenCalledWith('g-1', 'account-a')
   })
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
@@ -285,7 +330,7 @@ describe('useDeleteGoal', () => {
       performUndo()
     })
 
-    await waitFor(() => expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1'))
+    await waitFor(() => expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', 'account-a'))
   })
 })
 
@@ -313,7 +358,7 @@ describe('useRestoreGoal', () => {
       await result.current.mutateAsync('g-1')
     })
 
-    expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1')
+    expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', 'account-a')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')
   })
@@ -338,9 +383,10 @@ describe('useRestoreGoal', () => {
 describe('useUpdateGoalProgress', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    mockSetGoalCompleted.mockReset()
   })
 
-  it('calls updateGoalProgress action', async () => {
+  it('calls the progress action and enqueues one target completion', async () => {
     const { updateGoalProgress } = await import('@/lib/actions/goals')
     const mockedUpdateProgress = vi.mocked(updateGoalProgress)
     mockedUpdateProgress.mockResolvedValue(undefined as any)
@@ -352,19 +398,72 @@ describe('useUpdateGoalProgress', () => {
       await result.current.mutateAsync({
         goalId: 'g-1',
         data: { currentValue: 5, note: 'Halfway' },
+        goalName: 'Ship Orbit',
+        goalCount: 5,
+        goalUnit: 'releases',
       })
     })
 
     expect(mockedUpdateProgress).toHaveBeenCalledWith('g-1', {
       currentValue: 5,
       note: 'Halfway',
+    }, 'account-a')
+    expect(mockSetGoalCompleted).toHaveBeenCalledWith({
+      name: 'Ship Orbit',
+      count: 5,
+      unit: 'releases',
     })
+    expect(mockSetGoalCompleted).toHaveBeenCalledTimes(1)
+  })
+
+  it('optimistically completes a manual goal when progress reaches its target', async () => {
+    const { updateGoalProgress } = await import('@/lib/actions/goals')
+    vi.mocked(updateGoalProgress).mockResolvedValue(undefined as never)
+    const goal = createMockGoal({
+      id: 'g-1',
+      currentValue: 11,
+      targetValue: 12,
+      progressPercentage: 92,
+      status: 'Active',
+      isProgressDerived: false,
+    })
+    const detail: GoalDetailWithMetrics = {
+      goal: { ...goal, progressHistory: [] },
+      metrics: {
+        progressPercentage: 92,
+        velocityPerDay: 0,
+        projectedCompletionDate: null,
+        daysToDeadline: null,
+        trackingStatus: 'on_track',
+        habitAdherence: [],
+      },
+    }
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    queryClient.setQueryData(goalKeys.lists(), [goal])
+    queryClient.setQueryData(goalKeys.detail('g-1'), detail)
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    const { result } = renderHook(() => useUpdateGoalProgress(), { wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        goalId: 'g-1',
+        data: { currentValue: 12 },
+      })
+    })
+
+    expect(queryClient.getQueryData<Goal[]>(goalKeys.lists())?.[0]?.status).toBe('Completed')
+    expect(queryClient.getQueryData<GoalDetailWithMetrics>(goalKeys.detail('g-1'))?.goal.status).toBe('Completed')
+    expect(mockSetGoalCompleted).not.toHaveBeenCalled()
   })
 })
 
 describe('useUpdateGoalStatus', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    mockSetGoalCompleted.mockReset()
   })
 
   it('calls updateGoalStatus action', async () => {
@@ -380,10 +479,18 @@ describe('useUpdateGoalStatus', () => {
         goalId: 'g-1',
         data: { status: 'Completed' },
         goalName: 'Ship Orbit',
+        goalCount: 12,
+        goalUnit: 'releases',
       })
     })
 
-    expect(mockedUpdateStatus).toHaveBeenCalledWith('g-1', { status: 'Completed' })
+    expect(mockedUpdateStatus).toHaveBeenCalledWith('g-1', { status: 'Completed' }, 'account-a')
+    expect(mockSetGoalCompleted).toHaveBeenCalledWith({
+      name: 'Ship Orbit',
+      count: 12,
+      unit: 'releases',
+    })
+    expect(mockSetGoalCompleted).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -406,6 +513,8 @@ describe('useGoalDetail', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toBeDefined()
   })
@@ -436,6 +545,8 @@ describe('useGoalMetrics', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toBeDefined()
   })
@@ -472,7 +583,7 @@ describe('useReorderGoals', () => {
       await result.current.mutateAsync(positions)
     })
 
-    expect(mockedReorder).toHaveBeenCalledWith(positions)
+    expect(mockedReorder).toHaveBeenCalledWith(positions, 'account-a')
   })
 
   it('rolls back on error', async () => {
@@ -516,6 +627,6 @@ describe('useLinkHabitsToGoal', () => {
       })
     })
 
-    expect(mockedLink).toHaveBeenCalledWith('g-1', ['h-1', 'h-2'])
+    expect(mockedLink).toHaveBeenCalledWith('g-1', ['h-1', 'h-2'], 'account-a')
   })
 })

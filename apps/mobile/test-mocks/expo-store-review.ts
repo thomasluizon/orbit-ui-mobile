@@ -1,5 +1,5 @@
-export async function hasAction() {
-  return true
+export function hasAction(): Promise<boolean> {
+  return Promise.resolve(true)
 }
 
 export async function requestReview() {}

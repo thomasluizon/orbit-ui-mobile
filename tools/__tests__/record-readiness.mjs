@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
+import { newestChecks, pullRequestStateFromGraphQl, registrationFingerprint } from "../lib/readiness-receipt.mjs"
 import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "record-readiness.mjs"
@@ -56,10 +57,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const ticketArtifact = stage("record-readiness/ticket.json", JSON.stringify({ issue: "ORB-700", repositoryKey: "ui", prNumber: 700, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
   const argv = ["--repo", "ui", "--pr", "700", "--delivery", delivery, "--ticket", ticketArtifact]
 
-  /**
-   * `gh api repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks`,
-   * which pins every workflow check to 15368 (github-actions) and `pullfrog-approval` to 1768019.
-   */
   const GITHUB_ACTIONS_APP = 15368
   const PULLFROG_APP = 1768019
   /** The exact node shape the confirmed GraphQL rollup returns, app identity included. */
@@ -81,22 +78,46 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
    * exists to pass here.
    */
   const approval = checkRun("pullfrog-approval", PULLFROG_APP, { startedAt: "2026-08-07T10:30:00Z", workflow: null })
+  const botReview = (state, oid, submittedAt = "2026-08-07T10:31:00Z") => ({
+    state, submittedAt, author: { __typename: "Bot", login: "pullfrog" }, commit: { oid },
+  })
+  const approvedAtHead = [botReview("APPROVED", HEAD)]
+  const writeDelivery = (baseRefName = "main", nodes = [greenCheck, approval]) => {
+    const evidence = JSON.parse(readFileSync(delivery, "utf8"))
+    const observed = pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "thomasluizon/orbit-ui-mobile", pullRequest: {
+      number: 700, baseRefName, baseRefOid: BASE, headRefOid: HEAD, headRefName: "fix/example", headRepository: { nameWithOwner: "thomasluizon/orbit-ui-mobile" }, isDraft: false,
+      commits: { nodes: [{ commit: { oid: HEAD } }] },
+      reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: approvedAtHead },
+      statusCheckRollup: { contexts: { nodes } },
+    } } } })
+    evidence.checks.pullRequestState.baseBranch = baseRefName
+    evidence.checks.ci.registrationFingerprint = registrationFingerprint(observed, newestChecks(observed.statusCheckRollup))
+    writeFileSync(delivery, JSON.stringify(evidence))
+  }
+  writeDelivery()
   const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0, ticketStatus = "In Review", options = {}) => ({
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-      { match: "api graphql", stdout: JSON.stringify({ data: { repository: { pullRequest: {
+      { match: "api graphql", stdout: JSON.stringify({ data: { repository: { nameWithOwner: "thomasluizon/orbit-ui-mobile", pullRequest: {
         number: 700,
-        baseRefName: "main",
+        baseRefName: options.baseRefName ?? "main",
         baseRefOid,
         headRefOid,
+        headRefName: "fix/example",
+        headRepository: { nameWithOwner: options.headRepository ?? "thomasluizon/orbit-ui-mobile" },
+        commits: { nodes: [{ commit: { oid: headRefOid } }] },
         isDraft: options.isDraft ?? false,
+        reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: options.reviews ?? approvedAtHead },
         statusCheckRollup: { contexts: { nodes: options.statusCheckRollup ?? [greenCheck, approval] } },
       } } } }) },
-      /** Only `checks` names the app required to provide each check. */
-      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({
+      { match: "/activity?", stdout: JSON.stringify(options.activities ?? [{ activity_type: "push", actor: { login: "<actor>" },
+        after: headRefOid, before: BASE, id: 1, node_id: "<activity-id>", ref: "refs/heads/fix/example",
+        timestamp: options.pushTime ?? "2026-08-07T10:00:01Z" }]) },
+      /** Only `checks` names each required producer. */
+      { match: `branches/${encodeURIComponent(options.baseRefName ?? "main")}/protection/required_status_checks`, stdout: options.protectionResponse ?? JSON.stringify({
         contexts: ["Lint", "pullfrog-approval"],
         ...(options.omitChecks === true ? {} : { checks: options.checks ?? [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: PULLFROG_APP }] }),
-      }) },
+      }), exit: options.protectionExit ?? 0 },
       { match: "api repos/", stdout: JSON.stringify({ behind_by: behindBy }) },
     ]),
     ORBIT_TICKET_STATUS: ticketStatus,
@@ -116,6 +137,118 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
       readyReceipt.ticket.targetStatus === "In Review",
     JSON.stringify(readyReceipt),
   )
+
+  const unprotected = {
+    baseRefName: "redesign/main",
+    protectionExit: 1,
+    protectionResponse: JSON.stringify({
+      message: "Branch not protected",
+      documentation_url: "https://docs.github.com/rest/branches/branch-protection#get-status-checks-protection",
+      status: "404",
+    }),
+  }
+  const unprotectedCase = (name, options, expected = { status: 1, stdout: /CI_STALE/ }, head = HEAD, observedRollup = options.statusCheckRollup ?? [greenCheck, approval]) => {
+    writeDelivery("redesign/main", observedRollup)
+    return check(TOOL, name, argv, expected, { path: staged.path, env: live(head, BASE, 0, "In Review", { ...unprotected, ...options }) })
+  }
+  unprotectedCase("confirmed 404 completes and persists READY with passing CI and independent review", {}, { status: 0, stdout: /"verdict": "READY"/ })
+  const unprotectedReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+  T(`${TOOL}: confirmed 404 persists the unprotected base and current passing evidence`,
+    unprotectedReceipt.baseBranch === "redesign/main" && unprotectedReceipt.currentHeadSha === HEAD && unprotectedReceipt.ci.green === true,
+    JSON.stringify(unprotectedReceipt))
+  unprotectedCase("confirmed 404 with no checks completes as not READY", { statusCheckRollup: [] })
+  const emptyReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+  T(`${TOOL}: no-check 404 writes a blocking receipt instead of leaving the previous READY receipt`,
+    emptyReceipt.ci.green === false && emptyReceipt.ci.settled === false, JSON.stringify(emptyReceipt))
+  unprotectedCase("unprotected passing CI without independent review cannot reach READY", { statusCheckRollup: [greenCheck], reviews: [] })
+  unprotectedCase("unprotected review from the wrong app cannot reach READY", { statusCheckRollup: [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP)] })
+  unprotectedCase("unprotected failing CI cannot reach READY despite passing review", { statusCheckRollup: [{ ...greenCheck, conclusion: "FAILURE" }, approval] })
+  unprotectedCase("unprotected pending CI cannot reach READY despite passing review", { statusCheckRollup: [{ ...greenCheck, status: "IN_PROGRESS", conclusion: null }, approval] })
+  unprotectedCase("unprotected newest failed review rerun cannot reach READY", { statusCheckRollup: [greenCheck, approval, { ...approval, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }] })
+  unprotectedCase(
+    "the approval CHECK absent still reaches READY on an APPROVED review at the exact head",
+    { statusCheckRollup: [greenCheck], reviews: approvedAtHead },
+    { status: 0, stdout: /"verdict": "READY"/ },
+    HEAD,
+    [greenCheck],
+  )
+  const fallbackReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+  T(`${TOOL}: a receipt carried by the review fallback records which verdict carried it`,
+    fallbackReceipt.ci.green === true && fallbackReceipt.ci.review?.verdict === "APPROVED" && fallbackReceipt.ci.review.commitOid === HEAD,
+    JSON.stringify(fallbackReceipt.ci.review))
+  unprotectedCase(
+    "PR 1107's repointed approval predating the head leaves the review axis stale",
+    { statusCheckRollup: [greenCheck], pushTime: "2026-09-26T02:48:44Z",
+      reviews: [botReview("APPROVED", HEAD, "2026-09-25T21:50:13Z")] },
+    { status: 1, stdout: /CI_STALE/ }, HEAD, [greenCheck],
+  )
+  unprotectedCase(
+    "an approval after the push but before the first suite clears the review axis",
+    { statusCheckRollup: [greenCheck], pushTime: "2026-08-07T09:59:59Z",
+      reviews: [botReview("APPROVED", HEAD, "2026-08-07T10:00:00Z")] },
+    { status: 0, stdout: /"verdict": "READY"/ }, HEAD, [greenCheck],
+  )
+  unprotectedCase(
+    "an approval with no matching head activity cannot clear the review axis",
+    { statusCheckRollup: [greenCheck], activities: [], reviews: approvedAtHead },
+    { status: 1, stdout: /CI_STALE/ }, HEAD, [greenCheck],
+  )
+  const missingActivityReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+  T(`${TOOL}: the stale review axis names missing head activity`,
+    missingActivityReceipt.ci.review?.verdict === null && /no matching head activity/.test(missingActivityReceipt.ci.review.reason ?? ""),
+    JSON.stringify(missingActivityReceipt.ci.review))
+  unprotectedCase(
+    "the approval CHECK absent and only a COMMENTED review at the head cannot reach READY",
+    { statusCheckRollup: [greenCheck], reviews: [botReview("COMMENTED", HEAD)] },
+    { status: 1, stdout: /CI_STALE/ },
+    HEAD,
+    [greenCheck],
+  )
+  unprotectedCase(
+    "the approval CHECK absent and an approval of a DIFFERENT head cannot reach READY",
+    { statusCheckRollup: [greenCheck], reviews: [botReview("APPROVED", "cccccccccccccccccccccccccccccccccccccccc")] },
+    { status: 1, stdout: /CI_STALE/ },
+    HEAD,
+    [greenCheck],
+  )
+  unprotectedCase(
+    "a PRESENT approval check that is red is never waived by an APPROVED review at the head",
+    { statusCheckRollup: [greenCheck, { ...approval, conclusion: "FAILURE" }], reviews: approvedAtHead },
+    { status: 1, stdout: /CI_STALE/ },
+    HEAD,
+    [greenCheck, { ...approval, conclusion: "FAILURE" }],
+  )
+  unprotectedCase("unprotected live head advance invalidates delivery evidence", {}, { status: 1, stdout: /CI_STALE/ }, "cccccccccccccccccccccccccccccccccccccccc")
+  for (const [name, nodes] of [
+    ["new green check", [greenCheck, approval, checkRun("Build", GITHUB_ACTIONS_APP)]],
+    ["green rerun", [greenCheck, approval, { ...greenCheck, startedAt: "2026-08-07T11:00:00Z" }]],
+    ["removed green check", [approval]],
+  ]) {
+    unprotectedCase(`same-head ${name} invalidates delivery observation`, { statusCheckRollup: nodes },
+      { status: 1, stdout: /"verdict": "CI_STALE"/ }, HEAD, [greenCheck, approval])
+    const staleReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+    T(`${TOOL}: ${name} persists blocking CI evidence`, staleReceipt.ci.green === false && staleReceipt.ci.settled === false, JSON.stringify(staleReceipt))
+  }
+  unprotectedCase("reordered matching evidence remains READY", { statusCheckRollup: [approval, greenCheck] },
+    { status: 0, stdout: /"verdict": "READY"/ }, HEAD, [greenCheck, approval])
+  unprotectedCase("superseded old runs do not invalidate matching latest evidence", {
+    statusCheckRollup: [{ ...greenCheck, conclusion: "FAILURE", startedAt: "2026-08-07T09:00:00Z" }, greenCheck, approval],
+  }, { status: 0, stdout: /"verdict": "READY"/ }, HEAD, [greenCheck, approval])
+  const legacyDelivery = JSON.parse(readFileSync(delivery, "utf8"))
+  delete legacyDelivery.checks.ci.registrationFingerprint
+  writeFileSync(delivery, JSON.stringify(legacyDelivery))
+  check(TOOL, "delivery without a registration fingerprint needs re-verification", argv,
+    { status: 1, stdout: /"verdict": "CI_STALE"/ }, { path: staged.path, env: live(HEAD, BASE, 0, "In Review", unprotected) })
+  for (const [name, protectionResponse] of [
+    ["malformed JSON", "not JSON"],
+    ["unconfirmed error prose", JSON.stringify({ message: "Branch not protected" })],
+    ["numeric 404", JSON.stringify({ status: 404 })],
+    ["another failure status", JSON.stringify({ status: "403" })],
+  ]) {
+    unprotectedCase(`${name} remains an environment error`, { protectionResponse }, { status: 2 })
+  }
+  unprotectedCase("successful malformed protection cannot masquerade as confirmed 404", { protectionExit: 0 }, { status: 2, stderr: /returned no \{ context, app_id \} checks array/ })
+  writeDelivery()
 
   /**
    * The review gate, end to end. Branch protection requires `pullfrog-approval`, and a pull request
@@ -143,6 +276,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { path: staged.path, env: live(HEAD, BASE, 0, "In Review", { statusCheckRollup: [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP, { startedAt: "2026-08-07T10:30:00Z" })] }) },
   )
   /** The same rollup clears once protection accepts any producer for that context. */
+  writeDelivery("main", [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP, { startedAt: "2026-08-07T10:30:00Z" })])
   check(
     TOOL,
     "a required check with a null app id is satisfied by any producer",
@@ -154,6 +288,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     }) },
   )
   /** `contexts` alone cannot decide, so a protection payload without `checks` fails closed. */
+  writeDelivery()
   check(
     TOOL,
     "a protection payload carrying no checks array fails closed rather than ignoring the producer",

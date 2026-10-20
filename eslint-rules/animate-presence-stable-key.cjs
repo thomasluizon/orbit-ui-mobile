@@ -1,4 +1,3 @@
-
 const { getAttribute, getAttributeValueNode, getElementName } = require('./_jsx-strings.cjs')
 
 function hasPresenceAncestor(node) {

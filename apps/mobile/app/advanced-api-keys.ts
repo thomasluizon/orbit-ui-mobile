@@ -1,23 +1,19 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import type {
-  AgentCapability,
-  ApiKey,
-  ApiKeyCreateRequest,
-  ApiKeyCreateResponse,
-} from '@orbit/shared/types'
-import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
+import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
+import { apiKeyKeys, profileKeys } from '@orbit/shared/query'
 import { apiClient } from '@/lib/api-client'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import {
+  clearApiKeyCreationGrant,
+  consumeApiKeyCreationGrant,
+  hasApiKeyCreationGrant,
+} from '@/lib/step-up-storage'
+import { extractBackendErrorCode, extractBackendStatus } from '@orbit/shared/utils'
 
 const MAX_API_KEYS = 5
-
-interface ScopeOption {
-  scope: string
-  label: string
-  description: string
-}
 
 interface UseApiKeyManagementParams {
   hasProAccess: boolean
@@ -26,9 +22,7 @@ interface UseApiKeyManagementParams {
   t: (key: string, params?: Record<string, unknown>) => string
 }
 
-/** Owns the Orbit MCP API-key surface: list + capabilities queries, scope
- *  options, create/revoke flow, and the modal/error/revoke state. Hooks run in
- *  the same order they previously sat inline in the Advanced screen. */
+/** Owns the Orbit MCP API-key list plus its create and revoke mutations. */
 export function useApiKeyManagement({
   hasProAccess,
   isOnline,
@@ -42,40 +36,10 @@ export function useApiKeyManagement({
     staleTime: 5 * 60 * 1000,
   })
 
-  const capabilitiesQuery = useQuery({
-    queryKey: aiKeys.capabilities(),
-    queryFn: () => apiClient<AgentCapability[]>(API.ai.capabilities),
-    enabled: hasProAccess,
-    staleTime: 5 * 60 * 1000,
-  })
-
   const apiKeys = apiKeysQuery.data ?? []
-  const scopeOptions = useMemo<ScopeOption[]>(() => {
-    const grouped = new Map<string, string[]>()
-
-    for (const capability of capabilitiesQuery.data ?? []) {
-      const descriptions = grouped.get(capability.scope) ?? []
-      descriptions.push(capability.displayName)
-      grouped.set(capability.scope, descriptions)
-    }
-
-    return Array.from(grouped.entries())
-      .map(([scope, labels]) => ({
-        scope,
-        label: scope,
-        description: labels.join(', '),
-      }))
-      .sort((left, right) => left.scope.localeCompare(right.scope))
-  }, [capabilitiesQuery.data])
   const canCreateKey = apiKeys.length < MAX_API_KEYS
-  const canCreateScopedKey =
-    canCreateKey &&
-    !capabilitiesQuery.isLoading &&
-    !capabilitiesQuery.error &&
-    scopeOptions.length > 0
-
-  const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
+  const [createGrantAvailable, setCreateGrantAvailable] = useState(hasApiKeyCreationGrant)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
   const revokeKeyMutation = useMutation({
@@ -106,14 +70,21 @@ export function useApiKeyManagement({
       setRevokingKeyId(null)
       if (isOnline) {
         void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       }
     },
   })
 
   async function handleCreateKey(
     request: ApiKeyCreateRequest,
+    onCreateGrantRequired: () => Promise<void>,
   ): Promise<ApiKeyCreateResponse | null> {
+    const accountGeneration = getAccountGeneration()
     setCreateKeyError(null)
+    if (!createGrantAvailable) {
+      await onCreateGrantRequired()
+      return null
+    }
     if (!isOnline) {
       setCreateKeyError(t('errors.offline'))
       return null
@@ -123,9 +94,23 @@ export function useApiKeyManagement({
         method: 'POST',
         body: JSON.stringify(request),
       })
+      if (getAccountGeneration() !== accountGeneration) return null
+      consumeApiKeyCreationGrant()
+      setCreateGrantAvailable(false)
       await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      await queryClient.invalidateQueries({ queryKey: profileKeys.all })
       return result
-    } catch {
+    } catch (caught: unknown) {
+      if (getAccountGeneration() !== accountGeneration) return null
+      if (
+        extractBackendStatus(caught) === 428
+        && extractBackendErrorCode(caught) === 'API_KEY_CREATION_CHALLENGE_REQUIRED'
+      ) {
+        clearApiKeyCreationGrant()
+        setCreateGrantAvailable(false)
+        await onCreateGrantRequired()
+        return null
+      }
       setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
     }
@@ -133,14 +118,11 @@ export function useApiKeyManagement({
 
   return {
     apiKeysQuery,
-    capabilitiesQuery,
     apiKeys,
-    scopeOptions,
     canCreateKey,
-    canCreateScopedKey,
-    createKeyModalOpen,
-    setCreateKeyModalOpen,
+    createGrantAvailable,
     createKeyError,
+    clearCreateKeyError: () => setCreateKeyError(null),
     revokingKeyId,
     setRevokingKeyId,
     revokeKeyMutation,

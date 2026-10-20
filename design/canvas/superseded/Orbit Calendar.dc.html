@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 2 · calendário</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Calendário · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBarEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:8px 16px 0">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showBody }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px;padding-bottom:8px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                <h1 style="font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tMonth }} <span data-mock="true" style="font-variant-numeric:tabular-nums">2026</span></h1>
+                <div style="display:flex;gap:8px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" aria-label="{{ tPrevMonth }}" on-click="{{ noop }}" hint-size="50px,50px"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import></x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" aria-label="{{ tNextMonth }}" on-click="{{ noop }}" hint-size="50px,50px"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import></x-import>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;justify-items:center">
+                <sc-for list="{{ wdays }}" as="w" hint-placeholder-count="7">
+                  <span aria-hidden="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);text-transform:uppercase;letter-spacing:var(--track-label)">{{ w }}</span>
+                </sc-for>
+                <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+                  <sc-for list="{{ loadCells }}" as="c" hint-placeholder-count="35">
+                    <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:44px;height:44px"></span></sc-if>
+                    <sc-if value="{{ c.show }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="width:44px;height:44px;border-radius:var(--r-pill);background:var(--bg-well)"></span></sc-if>
+                  </sc-for>
+                </sc-if>
+                <sc-if value="{{ notLoading }}" hint-placeholder-val="{{ true }}">
+                  <sc-for list="{{ mCells }}" as="c" hint-placeholder-count="35">
+                    <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:44px;height:44px"></span></sc-if>
+                    <sc-if value="{{ c.future }}" hint-placeholder-val="{{ false }}">
+                      <span aria-label="{{ c.aria }}" style="position:relative;width:44px;height:44px;display:grid;place-items:center">
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true" style="position:absolute;inset:2px"><circle cx="20" cy="20" r="17.5" stroke="var(--status-empty)" stroke-width="2.5" opacity="0.4"></circle></svg>
+                        <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--fg-4)">{{ c.d }}</span>
+                      </span>
+                    </sc-if>
+                    <sc-if value="{{ c.show }}" hint-placeholder-val="{{ true }}">
+                      <button type="button" aria-pressed="{{ c.selected }}" aria-label="{{ c.aria }}" onClick="{{ c.onSelect }}" style="position:relative;width:44px;height:44px;display:grid;place-items:center;border:0;padding:0;cursor:pointer;background:none;border-radius:var(--r-pill);transition:background-color 240ms cubic-bezier(0.2,0,0,1)" style-hover="background:var(--bg-hover)" style-focus-visible="outline:2px solid var(--primary);outline-offset:2px">
+                        <sc-if value="{{ c.selected }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="position:absolute;inset:0;border-radius:var(--r-pill);box-shadow:inset 0 0 0 2px var(--primary)"></span></sc-if>
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true" style="position:absolute;inset:2px">
+                          <circle cx="20" cy="20" r="17.5" stroke="var(--status-empty)" stroke-width="2.5"></circle>
+                          <sc-if value="{{ c.hasArc }}" hint-placeholder-val="{{ false }}">
+                            <circle cx="20" cy="20" r="17.5" stroke="{{ c.sweep }}" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="109.96" stroke-dashoffset="{{ c.dashoff }}" transform="rotate(-90 20 20)"></circle>
+                          </sc-if>
+                        </svg>
+                        <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--fg-1)">{{ c.d }}</span>
+                      </button>
+                    </sc-if>
+                  </sc-for>
+                </sc-if>
+              </div>
+              <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n3 }}" label="{{ tLoading }}" hint-size="100%,220px"></x-import>
+              </sc-if>
+              <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyAction }}" hint-size="100%,240px"></x-import>
+              </sc-if>
+              <sc-if value="{{ isDefault }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ selPre }} <span data-mock="true">{{ selDay }}</span> {{ selPost }}</x-import>
+                  <div style="display:flex;flex-direction:column;gap:12px">
+                    <sc-for list="{{ dayHabits }}" as="h" hint-placeholder-count="4">
+                      <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ h.icon }}" title="{{ h.title }}" status="{{ h.status }}" on-click="{{ h.onClick }}" hint-size="100%,68px"></x-import>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ notLoading }}" hint-placeholder-val="{{ true }}">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="calendar-plus" title="{{ tSync }}" description="{{ tSyncDesc }}" on-click="{{ noop }}" hint-size="100%,64px"></x-import>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Calendário · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="hoje" on-create="{{ noop }}" create-label="{{ tCreate }}" account="Thomas" rail="{{ railEl }}" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tNav }}" on-back="{{ noop }}" hint-size="100%,56px"></x-import>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tErrMsg }}" action="{{ errAction }}" hint-size="100%,180px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showBody }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                <h1 style="font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tMonth }} <span data-mock="true" style="font-variant-numeric:tabular-nums">2026</span></h1>
+                <div style="display:flex;gap:8px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" aria-label="{{ tPrevMonth }}" on-click="{{ noop }}" hint-size="50px,50px"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import></x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" aria-label="{{ tNextMonth }}" on-click="{{ noop }}" hint-size="50px,50px"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import></x-import>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:12px;justify-items:center">
+                <sc-for list="{{ wdays }}" as="w" hint-placeholder-count="7">
+                  <span aria-hidden="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);text-transform:uppercase;letter-spacing:var(--track-label)">{{ w }}</span>
+                </sc-for>
+                <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+                  <sc-for list="{{ loadCells }}" as="c" hint-placeholder-count="35">
+                    <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:44px;height:44px"></span></sc-if>
+                    <sc-if value="{{ c.show }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="width:44px;height:44px;border-radius:var(--r-pill);background:var(--bg-well)"></span></sc-if>
+                  </sc-for>
+                </sc-if>
+                <sc-if value="{{ notLoading }}" hint-placeholder-val="{{ true }}">
+                  <sc-for list="{{ mCells }}" as="c" hint-placeholder-count="35">
+                    <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:44px;height:44px"></span></sc-if>
+                    <sc-if value="{{ c.future }}" hint-placeholder-val="{{ false }}">
+                      <span aria-label="{{ c.aria }}" style="position:relative;width:44px;height:44px;display:grid;place-items:center">
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true" style="position:absolute;inset:2px"><circle cx="20" cy="20" r="17.5" stroke="var(--status-empty)" stroke-width="2.5" opacity="0.4"></circle></svg>
+                        <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--fg-4)">{{ c.d }}</span>
+                      </span>
+                    </sc-if>
+                    <sc-if value="{{ c.show }}" hint-placeholder-val="{{ true }}">
+                      <button type="button" aria-pressed="{{ c.selected }}" aria-label="{{ c.aria }}" onClick="{{ c.onSelect }}" style="position:relative;width:44px;height:44px;display:grid;place-items:center;border:0;padding:0;cursor:pointer;background:none;border-radius:var(--r-pill);transition:background-color 240ms cubic-bezier(0.2,0,0,1)" style-hover="background:var(--bg-hover)" style-focus-visible="outline:2px solid var(--primary);outline-offset:2px">
+                        <sc-if value="{{ c.selected }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="position:absolute;inset:0;border-radius:var(--r-pill);box-shadow:inset 0 0 0 2px var(--primary)"></span></sc-if>
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true" style="position:absolute;inset:2px">
+                          <circle cx="20" cy="20" r="17.5" stroke="var(--status-empty)" stroke-width="2.5"></circle>
+                          <sc-if value="{{ c.hasArc }}" hint-placeholder-val="{{ false }}">
+                            <circle cx="20" cy="20" r="17.5" stroke="{{ c.sweep }}" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="109.96" stroke-dashoffset="{{ c.dashoff }}" transform="rotate(-90 20 20)"></circle>
+                          </sc-if>
+                        </svg>
+                        <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--fg-1)">{{ c.d }}</span>
+                      </button>
+                    </sc-if>
+                  </sc-for>
+                </sc-if>
+              </div>
+              <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n3 }}" label="{{ tLoading }}" hint-size="100%,220px"></x-import>
+              </sc-if>
+              <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EmptyState" title="{{ tEmptyTitle }}" action="{{ emptyActionWide }}" hint-size="100%,240px"></x-import>
+              </sc-if>
+              <sc-if value="{{ isDefault }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ selPre }} <span data-mock="true">{{ selDay }}</span> {{ selPost }}</x-import>
+                  <div style="display:flex;flex-direction:column;gap:12px">
+                    <sc-for list="{{ dayHabits }}" as="h" hint-placeholder-count="4">
+                      <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.HabitRow" icon="{{ h.icon }}" title="{{ h.title }}" status="{{ h.status }}" on-click="{{ h.onClick }}" hint-size="100%,68px"></x-import>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ notLoading }}" hint-placeholder-val="{{ true }}">
+                <div style="background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost);overflow:hidden">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="calendar-plus" title="{{ tSync }}" description="{{ tSyncDesc }}" on-click="{{ noop }}" hint-size="100%,64px"></x-import>
+                </div>
+              </sc-if>
+              <sc-if value="{{ isDefault }}" hint-placeholder-val="{{ true }}">
+                <div data-proposal="true" style="display:flex;flex-direction:column;gap:16px;padding-top:8px">
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">{{ tPropLabel }}</p>
+                  <div style="display:flex;gap:16px;flex-wrap:wrap">
+                    <sc-for list="{{ legend }}" as="l" hint-placeholder-count="4">
+                      <span style="display:flex;align-items:center;gap:8px">
+                        <span aria-hidden="true" style="width:24px;height:24px;display:grid;place-items:center;background:var(--bg-well);border-radius:var(--r-chip);font-size:14px">{{ l.icon }}</span>
+                        <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3)">{{ l.name }}</span>
+                      </span>
+                    </sc-for>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:12px;justify-items:center">
+                    <sc-for list="{{ wdays }}" as="w" hint-placeholder-count="7">
+                      <span aria-hidden="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);text-transform:uppercase;letter-spacing:var(--track-label)">{{ w }}</span>
+                    </sc-for>
+                    <sc-for list="{{ pCells }}" as="c" hint-placeholder-count="35">
+                      <sc-if value="{{ c.pad }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:36px;height:56px"></span></sc-if>
+                      <sc-if value="{{ c.future }}" hint-placeholder-val="{{ false }}">
+                        <span style="display:flex;flex-direction:column;align-items:center;gap:4px;width:44px"><span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--fg-4)">{{ c.d }}</span></span>
+                      </sc-if>
+                      <sc-if value="{{ c.show }}" hint-placeholder-val="{{ true }}">
+                        <span style="display:flex;flex-direction:column;align-items:center;gap:4px;width:44px">
+                          <span data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--fg-3)">{{ c.d }}</span>
+                          <span style="display:grid;grid-template-columns:repeat(2,16px);gap:4px" aria-label="{{ c.aria }}">
+                            <sc-for list="{{ c.sts }}" as="s2" hint-placeholder-count="4">
+                              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatusRing" status="{{ s2 }}" size="{{ n16 }}" hint-size="16px,16px"></x-import>
+                            </sc-for>
+                          </span>
+                        </span>
+                      </sc-if>
+                    </sc-for>
+                  </div>
+                  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);max-width:65ch">{{ tPropReason }}</p>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    sel: 16, ov: {},
+    cv: {mode:'dark', width:'412', state:'default', locale:'pt-BR'}
+  };
+  componentDidMount(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  componentDidUpdate(){ document.documentElement.dataset.mode = this.state.cv.mode; }
+  habits = [
+    {icon:'💧', pt:'Água da manhã', en:'Morning water',  p:'1111111111101111'},
+    {icon:'🏃', pt:'Correr',        en:'Run',            p:'1211101111001110'},
+    {icon:'📖', pt:'Ler 20 páginas',en:'Read 20 pages',  p:'1110111110101100'},
+    {icon:'🧘', pt:'Meditar',       en:'Meditate',       p:'1011011010001010'}
+  ];
+  today = 16; monthDays = 31; padDays = 4;
+  statusAt(d, h){
+    if (this.state.cv.state === 'empty') return 'empty';
+    const o = this.state.ov[d + '-' + h];
+    if (o) return o;
+    const ch = this.habits[h].p[d - 1];
+    return ch === '1' ? 'done' : ch === '2' ? 'skip' : 'empty';
+  }
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      nav:'Calendar', month:'August', prevMonth:'Previous month', nextMonth:'Next month',
+      ofMonth:'August', selPre:'', selPost:'',
+      wdays:['m','t','w','t','f','s','s'],
+      wdayNames:['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],
+      sync:'Sync calendar', syncDesc:'Sends your habits to the device calendar.',
+      emptyTitle:'No log this month', logToday:'Log today',
+      errMsg:'Could not load the calendar. Check your connection and try again.',
+      retry:'Try again', loading:'Loading', create:'Create habit',
+      habitsWord:'habits', ofWord:'of', noLog:'no log yet',
+      propLabel:'proposal · one ring per habit per day',
+      propReason:'The default grid above aggregates the day into one ring; this variant answers which habit gave way. Pick by looking.',
+      fullDays:'complete days', streak:'current streak', streakVal:'12 days',
+      tabs:['Today','Goals','Astra','Profile']
+    } : {
+      nav:'Calendário', month:'agosto', prevMonth:'Mês anterior', nextMonth:'Próximo mês',
+      ofMonth:'de agosto', selPre:'', selPost:'de agosto',
+      wdays:['s','t','q','q','s','s','d'],
+      wdayNames:['segunda','terça','quarta','quinta','sexta','sábado','domingo'],
+      sync:'Sincronizar calendário', syncDesc:'Envia seus hábitos para a agenda do aparelho.',
+      emptyTitle:'Nenhum registro neste mês', logToday:'Registrar hoje',
+      errMsg:'Não foi possível carregar o calendário. Verifique sua conexão e tente de novo.',
+      retry:'Tentar de novo', loading:'Carregando', create:'Criar hábito',
+      habitsWord:'hábitos', ofWord:'de', noLog:'sem registro ainda',
+      propLabel:'proposta · um anel por hábito por dia',
+      propReason:'A grade padrão acima agrega o dia num anel só; esta variante responde qual hábito cedeu. Escolha olhando.',
+      fullDays:'dias completos', streak:'sequência atual', streakVal:'12 dias',
+      tabs:['Hoje','Metas','Astra','Perfil']
+    };
+    const cstate = cv.state;
+    const isLoading = cstate==='loading', isEmpty = cstate==='empty', isError = cstate==='error';
+    const isDefault = cstate==='default';
+    const isWide = cv.width==='wide';
+    const showBody = !isError;
+    const noop = () => {};
+    const mockEl = t => E('span', {'data-mock':'true'}, t);
+    const nH = this.habits.length, C = 109.96;
+    const doneCount = d => { let n = 0; for (let h = 0; h < nH; h++) if (this.statusAt(d, h)==='done') n++; return n; };
+    const dayLabel = d => en ? (T.month + ' ' + d) : (d + ' ' + T.ofMonth);
+    const pad = Array.from({length:this.padDays}, () => ({pad:true, future:false, show:false}));
+    const mCells = pad.concat(Array.from({length:this.monthDays}, (_, i) => {
+      const d = i + 1;
+      if (d > this.today) return {pad:false, future:true, show:false, d:String(d), aria: dayLabel(d) + ': ' + T.noLog};
+      const n = doneCount(d), pct = n / nH;
+      return {
+        pad:false, future:false, show:true, d:String(d),
+        selected: st.sel === d,
+        hasArc: pct > 0,
+        sweep: (d === this.today && pct < 1) ? 'var(--primary)' : 'var(--status-done)',
+        dashoff: String(Math.round(C * (1 - pct) * 100) / 100),
+        aria: dayLabel(d) + ': ' + n + ' ' + T.ofWord + ' ' + nH + ' ' + T.habitsWord,
+        onSelect: () => this.setState({sel: d})
+      };
+    }));
+    const loadCells = pad.concat(Array.from({length:this.monthDays}, () => ({pad:false, show:true})));
+    const pCells = pad.map(() => ({pad:true, future:false, show:false})).concat(Array.from({length:this.monthDays}, (_, i) => {
+      const d = i + 1;
+      if (d > this.today) return {pad:false, future:true, show:false, d:String(d)};
+      return {pad:false, future:false, show:true, d:String(d),
+        aria: dayLabel(d),
+        sts: this.habits.map((_, h) => this.statusAt(d, h))};
+    }));
+    const legend = this.habits.map(h => ({icon:h.icon, name: en ? h.en : h.pt}));
+    const selWd = T.wdayNames[(this.padDays + st.sel - 1) % 7];
+    const dayHabits = this.habits.map((h, i) => ({
+      icon: h.icon, title: en ? h.en : h.pt, status: this.statusAt(st.sel, i),
+      onClick: () => this.setState(s => {
+        const k = st.sel + '-' + i, cur = this.statusAt(st.sel, i);
+        return {ov: Object.assign({}, s.ov, {[k]: cur==='done' ? 'empty' : 'done'})};
+      })
+    }));
+    const tabs = [
+      {id:'hoje',label:T.tabs[0],icon:'home'},
+      {id:'metas',label:T.tabs[1],icon:'target'},
+      {id:'astra',label:T.tabs[2],astra:true},
+      {id:'perfil',label:T.tabs[3],icon:'user'}];
+    const tabBarEl = DS.TabBar ? E(DS.TabBar,{items:tabs,activeId:'hoje'}) : null;
+    const errAction = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:()=>{
+      this.setState(s=>({cv:{...s.cv,state:'loading'}}));
+      setTimeout(()=>this.setState(s=>s.cv.state==='loading'?{cv:{...s.cv,state:'default'}}:null), 900);
+    }}, T.retry) : null;
+    const emptyAction = DS.Button ? E(DS.Button,{size:'sm',onClick:noop}, T.logToday) : null;
+    const emptyActionWide = DS.Button ? E(DS.Button,{variant:'ghost',size:'sm',onClick:noop}, T.logToday) : null;
+    let fullDays = 0;
+    if (isDefault) for (let d = 1; d <= this.today; d++) if (doneCount(d) === nH) fullDays++;
+    const skel = k => (DS.Skeleton ? E(DS.Skeleton,{key:k,variant:'stat-tile',rows:1,label:T.loading}) : null);
+    const railEl = isLoading
+      ? E('div',{style:{display:'flex',flexDirection:'column',gap:12}}, skel(1), skel(2))
+      : (isDefault && DS.StatTile)
+      ? E('div',{style:{display:'flex',flexDirection:'column',gap:12}},
+          E(DS.StatTile,{value:mockEl(String(fullDays)), label:T.fullDays}),
+          E(DS.StatTile,{value:mockEl(T.streakVal), label:T.streak}))
+      : null;
+    return {
+      mode:cv.mode, cv,
+      setCv: next => this.setState({cv:next}),
+      cvStates:['default','loading','empty','error'],
+      is412:!isWide, isWide, tabs, tabBarEl, railEl, noop,
+      isLoading, isEmpty, isError, isDefault, showBody, notLoading:!isLoading,
+      tNav:T.nav, tMonth:T.month, tPrevMonth:T.prevMonth, tNextMonth:T.nextMonth,
+      wdays:T.wdays, mCells, loadCells, pCells, legend,
+      selPre: en ? (selWd + ', ' + T.month) : (selWd + ','), selDay:String(st.sel), selPost:T.selPost,
+      dayHabits,
+      tSync:T.sync, tSyncDesc:T.syncDesc,
+      tEmptyTitle:T.emptyTitle, tErrMsg:T.errMsg, tLoading:T.loading, tCreate:T.create,
+      emptyAction, emptyActionWide, errAction,
+      tPropLabel:T.propLabel, tPropReason:T.propReason,
+      n3:3, n16:16, n20:20
+    };
+  }
+}
+</script>
+</body>
+</html>

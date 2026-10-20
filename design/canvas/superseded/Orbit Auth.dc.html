@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <style>
+    a{color:var(--primary-soft)} a:hover{color:var(--fg-1)}
+  </style>
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 3 · auth · a matriz completa</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Auth · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:8px 16px 0">
+          <sc-if value="{{ isSignIn }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:32px;padding-top:48px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Lockup" hint-size="120px,28px"></x-import>
+              <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tTitle }}</h1>
+              <div style="display:flex;flex-direction:column;gap:24px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ goGoogle }}" hint-size="100%,44px">{{ tGoogle }}</x-import>
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase;text-align:center">{{ tOr }}</p>
+                <div style="display:flex;flex-direction:column;gap:16px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tEmail }}" placeholder="{{ tEmailPh }}" value="{{ email }}" on-change="{{ setEmail }}" error="{{ emailErr }}" hint-size="100%,80px"></x-import>
+                  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" on-click="{{ submitEmail }}" hint-size="auto,44px">{{ tSendCode }}</x-import>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isCodeish }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tTitle }}" on-back="{{ backToSignIn }}" hint-size="100%,56px"></x-import>
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tCodeTitle }}</h1>
+              <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tSentPre }}<span data-mock="true" style="font-family:var(--font-mono)">{{ dispEmail }}</span>{{ tDot }}</p>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="position:relative;width:fit-content">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OtpInput" length="{{ n6 }}" value="{{ dispCode }}" active-index="{{ otpIdx }}" hint-size="304px,56px"></x-import>
+                  {{ otpFieldEl }}
+                </div>
+                <sc-if value="{{ isCodeError }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="alert-circle" size="{{ n16 }}" color="var(--status-bad)" hint-size="16px,16px"></x-import>
+                    <span style="font-size:var(--fs-sm);color:var(--status-bad)">{{ tCodeErr }}</span>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ verifyDisabled }}" loading="{{ isVerifying }}" on-click="{{ verify }}" hint-size="auto,44px">{{ tVerify }}</x-import>
+                  <sc-if value="{{ verifyDisabled }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tVerifyReason }}</span>
+                  </sc-if>
+                </div>
+                <div style="display:flex">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tResend }}</x-import>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isCallback }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:32px;padding-top:48px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Lockup" hint-size="120px,28px"></x-import>
+              <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tConnecting }}</p>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n3 }}" label="{{ tLoading }}" hint-size="100%,220px"></x-import>
+              <div style="display:flex">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ backToSignIn }}" hint-size="auto,36px">{{ tCancel }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isAuthError }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:32px;padding-top:48px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Lockup" hint-size="120px,28px"></x-import>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tAuthErr }}" action="{{ retryAction }}" hint-size="100%,160px"></x-import>
+              <div style="display:flex">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ backToSignIn }}" hint-size="auto,36px">{{ tUseEmail }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Auth · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ emptyItems }}" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding-top:48px">
+          <sc-if value="{{ isSignIn }}" hint-placeholder-val="{{ true }}">
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tTitle }}</h1>
+            <div style="display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;gap:16px;width:320px">
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">{{ tFastPath }}</p>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" on-click="{{ goGoogle }}" hint-size="100%,44px">{{ tGoogle }}</x-import>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:16px;width:320px">
+                <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">{{ tOrEmail }}</p>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Input" label="{{ tEmail }}" placeholder="{{ tEmailPh }}" value="{{ email }}" on-change="{{ setEmail }}" error="{{ emailErr }}" hint-size="100%,80px"></x-import>
+                <div style="display:flex">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" on-click="{{ submitEmail }}" hint-size="auto,44px">{{ tSendCode }}</x-import>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isCodeish }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:24px;max-width:480px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.NavHeader" title="{{ tTitle }}" on-back="{{ backToSignIn }}" hint-size="100%,56px"></x-import>
+              <h1 style="font-family:var(--font-display);font-size:var(--fs-3xl);font-weight:600;line-height:1.1;letter-spacing:var(--track-display)">{{ tCodeTitle }}</h1>
+              <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tSentPre }}<span data-mock="true" style="font-family:var(--font-mono)">{{ dispEmail }}</span>{{ tDot }}</p>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="position:relative;width:fit-content">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OtpInput" length="{{ n6 }}" value="{{ dispCode }}" active-index="{{ otpIdx }}" hint-size="304px,56px"></x-import>
+                  {{ otpFieldEl }}
+                </div>
+                <sc-if value="{{ isCodeError }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="alert-circle" size="{{ n16 }}" color="var(--status-bad)" hint-size="16px,16px"></x-import>
+                    <span style="font-size:var(--fs-sm);color:var(--status-bad)">{{ tCodeErr }}</span>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" disabled="{{ verifyDisabled }}" loading="{{ isVerifying }}" on-click="{{ verify }}" hint-size="auto,44px">{{ tVerify }}</x-import>
+                  <sc-if value="{{ verifyDisabled }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:var(--fs-sm);color:var(--fg-3)">{{ tVerifyReason }}</span>
+                  </sc-if>
+                </div>
+                <div style="display:flex">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ noop }}" hint-size="auto,36px">{{ tResend }}</x-import>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isCallback }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:32px;max-width:480px">
+              <p style="font-size:var(--fs-sm);color:var(--fg-2)">{{ tConnecting }}</p>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n3 }}" label="{{ tLoading }}" hint-size="100%,220px"></x-import>
+              <div style="display:flex">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ backToSignIn }}" hint-size="auto,36px">{{ tCancel }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isAuthError }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:32px;max-width:480px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ErrorState" message="{{ tAuthErr }}" action="{{ retryAction }}" hint-size="100%,160px"></x-import>
+              <div style="display:flex">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ backToSignIn }}" hint-size="auto,36px">{{ tUseEmail }}</x-import>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { email:'', emailErr:'', code:'', otpFocus:false,
+    cv:{mode:'dark', width:'412', state:'sign in', locale:'pt-BR'} };
+  setStage(v, extra){ this.setState(s => Object.assign({cv:{...s.cv, state:v}}, extra||null)); }
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      title:'Sign in', google:'Continue with Google', or:'or', fastPath:'the fast path', orEmail:'or with email',
+      email:'Email', emailPh:'name@example.com', sendCode:'Send code',
+      emailErr:'Use a full email, like name@example.com',
+      codeTitle:'Enter the code', sentPre:'We sent a six digit code to ',
+      verify:'Verify', verifyReason:'Type the six digits of the code.', resend:'Resend code',
+      codeErr:'The code does not match. Check the latest code in your email.', codeAria:'Verification code',
+      connecting:'Connecting to Google', loading:'Loading', cancel:'Cancel',
+      authErr:'Could not sign in with Google. Try again or use your email.', retry:'Try again', useEmail:'Use email'
+    } : {
+      title:'Entrar', google:'Continuar com o Google', or:'ou', fastPath:'o caminho rápido', orEmail:'ou com email',
+      email:'Email', emailPh:'nome@exemplo.com', sendCode:'Enviar código',
+      emailErr:'Use um email completo, como nome@exemplo.com',
+      codeTitle:'Digite o código', sentPre:'Enviamos um código de seis dígitos para ',
+      verify:'Verificar', verifyReason:'Digite os seis dígitos do código.', resend:'Reenviar código',
+      codeErr:'Código não confere. Confira o código mais recente no seu email.', codeAria:'Código de verificação',
+      connecting:'Conectando com o Google', loading:'Carregando', cancel:'Cancelar',
+      authErr:'Não foi possível entrar com o Google. Tente de novo ou use seu email.', retry:'Tentar de novo', useEmail:'Usar email'
+    };
+    const stg = cv.state;
+    const isSignIn = stg==='sign in', isCode = stg==='code', isCodeError = stg==='code error';
+    const isVerifying = stg==='verifying', isCallback = stg==='callback', isAuthError = stg==='auth error';
+    const isCodeish = isCode||isCodeError||isVerifying;
+    const isWide = cv.width==='wide';
+    const noop = ()=>{};
+    const backToSignIn = ()=>this.setStage('sign in');
+    const goGoogle = ()=>{ this.setStage('callback');
+      setTimeout(()=>this.setState(s=>s.cv.state==='callback'?{cv:{...s.cv,state:'auth error'}}:null), 1400); };
+    const submitEmail = ()=>{
+      const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(st.email.trim());
+      if (ok) this.setStage('code',{emailErr:''});
+      else this.setState({emailErr:T.emailErr});
+    };
+    const dispCode = st.code || ((isCodeError||isVerifying) ? '481036' : '');
+    const verify = ()=>{ if (dispCode.length<6) return;
+      this.setStage('verifying');
+      setTimeout(()=>this.setState(s=>s.cv.state==='verifying'?{cv:{...s.cv,state:'code error'}}:null), 900); };
+    const retryAction = DS.Button ? E(DS.Button,{size:'sm',onClick:goGoogle},T.retry) : null;
+    const otpFieldEl = E('input',{
+      type:'text', inputMode:'numeric', autoComplete:'one-time-code', pattern:'[0-9]*', name:'otp',
+      'aria-label':T.codeAria, value:st.code, disabled:isVerifying,
+      onChange:e=>{
+        const v = e.target.value.replace(/\D/g,'').slice(0,6);
+        this.setState(s=>({code:v, cv: s.cv.state==='code error' && v!==dispCode ? {...s.cv, state:'code'} : s.cv}));
+      },
+      onFocus:()=>this.setState({otpFocus:true}),
+      onBlur:()=>this.setState({otpFocus:false}),
+      style:{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0,fontSize:16,border:0,padding:0,margin:0,background:'transparent',caretColor:'transparent',cursor:'text'}
+    });
+    return {
+      mode:cv.mode, cv, setCv:next=>this.setState({cv:next}),
+      cvStates:['sign in','code','code error','verifying','callback','auth error'],
+      is412:!isWide, isWide, emptyItems:[],
+      isSignIn, isCodeish, isCodeError, isVerifying, isCallback, isAuthError,
+      tTitle:T.title, tGoogle:T.google, tOr:T.or, tFastPath:T.fastPath, tOrEmail:T.orEmail,
+      tEmail:T.email, tEmailPh:T.emailPh, tSendCode:T.sendCode,
+      email:st.email, emailErr:st.emailErr,
+      setEmail:e=>this.setState({email:e.target.value, emailErr:''}),
+      submitEmail, goGoogle, backToSignIn, noop,
+      tCodeTitle:T.codeTitle, tSentPre:T.sentPre, tDot:'.',
+      dispEmail:st.email.trim()||'thomas@exemplo.com',
+      dispCode, otpIdx: st.otpFocus ? Math.min(dispCode.length,5) : -1,
+      verify, verifyDisabled: dispCode.length<6 && !isVerifying,
+      tVerify:T.verify, tVerifyReason:T.verifyReason, tResend:T.resend, tCodeErr:T.codeErr,
+      tConnecting:T.connecting, tLoading:T.loading, tCancel:T.cancel,
+      tAuthErr:T.authErr, retryAction, tUseEmail:T.useEmail,
+      otpFieldEl, n6:6, n3:3, n16:16
+    };
+  }
+}
+</script>
+</body>
+</html>

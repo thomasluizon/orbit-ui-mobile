@@ -1,0 +1,106 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { STEP_UP_ATTEMPT_WINDOW_MS } from '@orbit/shared/utils'
+import {
+  beginStepUpChallenge,
+  clearStepUpState,
+  bindStepUpStateToAccount,
+  markStepUpVerified,
+  clearPendingApiKeyPermission,
+  readPendingApiKeyPermission,
+  rememberApiKeyCreationPermission,
+  markStepUpAttemptFailed,
+  markStepUpExhausted,
+  readStepUpTiming,
+} from '@/lib/step-up-storage'
+
+const values = new Map<string, string>()
+
+AsyncStorage.getItem = (key: string) => Promise.resolve(values.get(key) ?? null)
+AsyncStorage.setItem = (key: string, value: string) => {
+  values.set(key, value)
+  return Promise.resolve()
+}
+AsyncStorage.removeItem = (key: string) => {
+  values.delete(key)
+  return Promise.resolve()
+}
+AsyncStorage.clear = () => {
+  values.clear()
+  return Promise.resolve()
+}
+
+const ACCOUNT = 'user-1'
+
+describe('mobile step up timing storage', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear()
+    clearStepUpState()
+  })
+
+  it('does not let a new code reset an active exhausted window', async () => {
+    const first = await beginStepUpChallenge('keys', ACCOUNT, 1_000)
+    await markStepUpExhausted(first, ACCOUNT, 2_000)
+    const resent = await beginStepUpChallenge(
+      'keys',
+      ACCOUNT,
+      2_000 + STEP_UP_ATTEMPT_WINDOW_MS - 1,
+    )
+
+    expect(resent.exhaustedAt).toBe(2_000)
+    expect(await readStepUpTiming('keys', ACCOUNT)).toEqual(resent)
+  })
+
+  it('persists failed deletion attempts and resets them for a new challenge', async () => {
+    const first = await beginStepUpChallenge('delete', ACCOUNT, 1_000)
+    const failedOnce = await markStepUpAttemptFailed(first, ACCOUNT)
+    const failedTwice = await markStepUpAttemptFailed(failedOnce, ACCOUNT)
+
+    expect(await readStepUpTiming('delete', ACCOUNT)).toEqual({ ...first, failedAttempts: 2 })
+    expect(await beginStepUpChallenge('delete', ACCOUNT, 2_000)).toEqual({
+      operation: 'delete',
+      sentAt: 2_000,
+    })
+    expect(failedTwice.failedAttempts).toBe(2)
+  })
+})
+
+
+describe('pending API key permission', () => {
+  beforeEach(() => {
+    clearStepUpState()
+    bindStepUpStateToAccount('account-a')
+  })
+
+  it('restores permission only after verification and clears it for the next flow', () => {
+    rememberApiKeyCreationPermission(true)
+    expect(readPendingApiKeyPermission()).toBe(false)
+    markStepUpVerified('keys')
+    expect(readPendingApiKeyPermission()).toBe(true)
+    clearPendingApiKeyPermission()
+    expect(readPendingApiKeyPermission()).toBe(false)
+  })
+
+  it('retains the intent for the same account and forgets it on account replacement', () => {
+    rememberApiKeyCreationPermission(true)
+    markStepUpVerified('keys')
+    bindStepUpStateToAccount('account-a')
+    expect(readPendingApiKeyPermission()).toBe(true)
+    bindStepUpStateToAccount('account-b')
+    markStepUpVerified('keys')
+    expect(readPendingApiKeyPermission()).toBe(false)
+    bindStepUpStateToAccount('account-a')
+    markStepUpVerified('keys')
+    expect(readPendingApiKeyPermission()).toBe(false)
+  })
+
+  it('forgets the intent on sign-out and keeps the off choice explicit', () => {
+    rememberApiKeyCreationPermission(true)
+    clearStepUpState()
+    bindStepUpStateToAccount('account-a')
+    markStepUpVerified('keys')
+    expect(readPendingApiKeyPermission()).toBe(false)
+    rememberApiKeyCreationPermission(false)
+    expect(readPendingApiKeyPermission()).toBe(false)
+  })
+})

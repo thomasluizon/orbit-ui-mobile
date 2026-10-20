@@ -1,4 +1,3 @@
-
 import { RuleTester } from 'eslint'
 import tsParser from '@typescript-eslint/parser'
 import { afterAll, describe, it } from 'vitest'
@@ -57,32 +56,6 @@ ruleTester.run('no-unjustified-disable', rule('no-unjustified-disable'), {
     {
       code: 'const a = 1 // eslint-disable-line no-console',
       errors: [{ messageId: 'missingReason' }],
-    },
-  ],
-})
-
-ruleTester.run('mobile-supabase-lazy', rule('mobile-supabase-lazy'), {
-  valid: [
-    'let client = null\nexport function getSupabaseClient() {\n  if (!client) client = createClient(url, key)\n  return client\n}',
-    'export const getSupabase = () => createClient(url, key)',
-    'export function assertConfig() { if (!url) throw new Error("missing url") }',
-  ],
-  invalid: [
-    {
-      code: 'if (!url) throw new Error("missing url")',
-      errors: [{ messageId: 'moduleThrow' }],
-    },
-    {
-      code: 'throw new Error("boom")',
-      errors: [{ messageId: 'moduleThrow' }],
-    },
-    {
-      code: 'export const supabase = createClient(url, key)',
-      errors: [{ messageId: 'eagerInit' }],
-    },
-    {
-      code: 'const supabase: SupabaseClient = createClient(url, key)',
-      errors: [{ messageId: 'eagerInit' }],
     },
   ],
 })

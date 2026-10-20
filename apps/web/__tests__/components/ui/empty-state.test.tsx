@@ -1,64 +1,42 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import React from 'react'
+import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { EmptyState } from '@/components/ui/empty-state'
 
+vi.mock('@/components/ui/orbit-mark', () => ({
+  OrbitMark: () => <svg data-testid="orbit-mark" />,
+}))
+vi.mock('@/components/ui/astra-glyph', () => ({
+  AstraGlyph: () => <svg data-testid="astra-glyph" />,
+}))
+
 describe('EmptyState', () => {
-  it('renders description text', () => {
-    render(<EmptyState description="No items found" />)
-    expect(screen.getByText('No items found')).toBeInTheDocument()
+  it('defaults to the orbital mark and always renders its title', () => {
+    render(<EmptyState title="Nothing here" />)
+
+    expect(screen.getByText('Nothing here')).toBeInTheDocument()
+    expect(screen.getByTestId('orbit-mark')).toBeInTheDocument()
+    expect(screen.queryByTestId('astra-glyph')).not.toBeInTheDocument()
   })
 
-  it('renders title when provided', () => {
-    render(<EmptyState title="Empty" description="No items" />)
-    expect(screen.getByText('Empty')).toBeInTheDocument()
+  it('renders the Astra glyph for an Astra-owned region', () => {
+    render(<EmptyState title="Ask Astra" mark="astra" />)
+
+    expect(screen.getByTestId('astra-glyph')).toBeInTheDocument()
+    expect(screen.queryByTestId('orbit-mark')).not.toBeInTheDocument()
   })
 
-  it('does not render title when not provided', () => {
-    render(<EmptyState description="No items" />)
-    expect(screen.queryByText('Empty')).not.toBeInTheDocument()
-  })
-
-  it('renders action button when provided', () => {
-    const onClick = vi.fn()
+  it('renders exactly the one action element supplied by the caller', () => {
+    const onAction = vi.fn()
     render(
       <EmptyState
-        description="No items"
-        action={{ label: 'Create', onClick }}
+        title="Nothing here"
+        action={<button onClick={onAction}>Create</button>}
       />,
     )
-    const button = screen.getByText('Create')
-    expect(button).toBeInTheDocument()
 
-    fireEvent.click(button)
-    expect(onClick).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not render action button when not provided', () => {
-    render(<EmptyState description="No items" />)
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
-  })
-
-  it('renders the satellite glyph', () => {
-    const { container } = render(<EmptyState description="No items" />)
-    expect(container.querySelector('svg')).not.toBeNull()
-  })
-
-  it('applies className', () => {
-    const { container } = render(
-      <EmptyState description="No items" className="custom-class" />,
-    )
-    expect(container.firstChild).toHaveClass('custom-class')
-  })
-
-  it('renders secondary variant action button', () => {
-    const onClick = vi.fn()
-    render(
-      <EmptyState
-        description="No items"
-        action={{ label: 'Learn More', onClick, variant: 'secondary' }}
-      />,
-    )
-    const button = screen.getByText('Learn More')
-    expect(button).toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(onAction).toHaveBeenCalledTimes(1)
   })
 })

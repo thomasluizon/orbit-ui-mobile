@@ -1,20 +1,28 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
-import { spawnSync } from "node:child_process"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { performance } from "node:perf_hooks"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
+import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
+import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib/rules-handoff.mjs"
+import { newestCommittedPrompt, promptsForCommit } from "./_lib/handoff-git.mjs"
+import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
+import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
+import { checkRelayStop } from "./_lib/rules-relay.mjs"
+import { adoptRelayRun, appendChainEntry, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -57,6 +65,8 @@ const onDisk = readdirSync(hooksDir).filter((name) => name.endsWith(".mjs") && n
 T("wiring: every hook settings.json names exists on disk", [...wired].filter((name) => !existsSync(join(hooksDir, name))), [])
 T("wiring: every hook on disk is wired in settings.json", onDisk.filter((name) => !wired.has(name)), [])
 T("wiring: the scan is not vacuous", wired.size > 0 && onDisk.length > 0, true)
+const staleMatchers = settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
+T("wiring: stale text hook is registered once per matcher", staleMatchers.length, new Set(staleMatchers).size)
 
 const metadataWorkflow = readFileSync(join(repoRoot, ".github/workflows/pr-metadata.yml"), "utf8")
 T("parity gate: metadata invokes the live-label validator", metadataWorkflow.includes("node .github/scripts/check-pr-metadata.mjs"), true)
@@ -99,11 +109,10 @@ T("git: +main force syntax still blocks", blocks(checkGitCommand("git push origi
 T("git: redesign/main:refs/heads/main still blocks", blocks(checkGitCommand("git push origin redesign/main:refs/heads/main")), true)
 // And the reverse lands on redesign/main, so it is ordinary work.
 T("git: main:refs/heads/redesign/main allows", checkGitCommand("git push origin main:refs/heads/redesign/main"), null)
+// The rule reads the git SUBCOMMAND, not the word push anywhere on the line. A branch name carrying
 T("git: checkout of a branch named for push allows", checkGitCommand("git checkout -b chore/x-push-guard main"), null)
 T("git: log naming a push branch allows", checkGitCommand("git log --oneline main..chore/push-guard"), null)
 T("git: -C before push still blocks", blocks(checkGitCommand("git -C . push origin main")), true)
-// The segment is raw shell text, so a token can arrive quoted. Reading `"push"` as a different
-// subcommand would wave a shell-valid push straight through (Pullfrog, PR #743).
 T("git: a quoted push subcommand still blocks", blocks(checkGitCommand('git "push" origin main')), true)
 T("git: a quoted main ref still blocks", blocks(checkGitCommand('git push origin "main"')), true)
 T("git: single-quoted push still blocks", blocks(checkGitCommand("git 'push' origin main")), true)
@@ -115,8 +124,6 @@ T("git: embedded quotes in the ref still block", blocks(checkGitCommand('git pus
 T("git: an escaped ref still blocks", blocks(checkGitCommand("git push origin ma\\in")), true)
 // And normalizing must not invent a match where none exists.
 T("git: escaped redesign/main still allows", checkGitCommand("git push origin redesign/\\main"), null)
-// An environment assignment is not the command word. Matching the first textual `git` let one
-// stand in for it and the push went unjudged (Pullfrog, PR #743).
 T("git: env assignment naming git still blocks", blocks(checkGitCommand("FOO=git git push origin main")), true)
 T("git: a PATH prefix naming git still blocks", blocks(checkGitCommand("PATH=/opt/git/bin:$PATH git push origin main")), true)
 T("git: an absolute git path still blocks", blocks(checkGitCommand("/usr/bin/git push origin main")), true)
@@ -138,6 +145,9 @@ T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .
 T("git-worktree: force on a later chained command allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x && npm test -- --force"), null)
 
 console.log("\n# orchestrator-guardrails (_lib/rules-orchestrator.mjs)")
+T("engine: Orca terminal create cannot bypass launcher", blocks(checkEngineInvocation('orca terminal create --command "claude --model opus"')), true)
+T("engine: Orca Codex terminal cannot bypass launcher", blocks(checkEngineInvocation("orca terminal create --command='codex exec'")), true)
+T("engine: Orca shell terminal remains permitted", checkEngineInvocation('orca terminal create --command "node tools/run-status.mjs"'), null)
 // The admin-merge prohibition is absolute for every agent and takes no context:
 // banning only the CLI flag would leave both raw API paths open, which is the
 // exact bypass shape it exists to close. (The rule lives in rules-orchestrator,
@@ -154,20 +164,86 @@ for (const [label, method] of [
 }
 T("admin-merge: curl PUT to the merge endpoint blocks", blocks(checkAdminMerge("curl -X PUT https://api.github.com/repos/o/r/pulls/667/merge")), true)
 T("admin-merge: wget PUT to the merge endpoint blocks", blocks(checkAdminMerge("wget --method=PUT https://api.github.com/repos/o/r/pulls/667/merge")), true)
+// matched only as a FLAG, so httpie's positional form `http PUT <merge-url>` is
+// allowed. `httpie` is in the rule's client set but the shape it actually types
+// is not covered. Fixing it belongs in _lib/rules-orchestrator.mjs, not here.
 T("admin-merge: the GraphQL mergePullRequest mutation blocks", blocks(checkAdminMerge("gh api graphql -f query='mutation{mergePullRequest(input:{pullRequestId:\"x\"}){clientMutationId}}'")), true)
 T("admin-merge: a PUT to another endpoint allows", checkAdminMerge("gh api -XPUT repos/o/r/issues/667/labels"), null)
 T("admin-merge: reading the merge endpoint allows", checkAdminMerge("gh api repos/o/r/pulls/667/merge"), null)
 T("admin-merge: another GraphQL mutation allows", checkAdminMerge("gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"x\"}){thread{isResolved}}}'"), null)
 T(`admin-merge: a commit message naming ${ADMIN} allows`, checkAdminMerge(`git commit -m "forbid gh pr merge ${ADMIN}"`), null)
-T("admin-merge: the refusal says to ask the owner", checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask him to"), true)
+T("admin-merge: the refusal says to ask the owner", checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask the owner to"), true)
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(
+    `admin-merge: leading dynamic redirect ${redirect} cannot hide an admin merge`,
+    blocks(checkAdminMerge(`${redirect} gh pr merge 667 ${ADMIN}`)),
+    true,
+  )
+}
 
 const engine = (command, options) => checkEngineInvocation(command, { repoRoots: [], ...options })
+const descriptorSuffixAllows = [
+  ["cloud read before a redirection", "codex cloud list 2>&1 >out.log"],
+  ["zero-cost query before a safe argument", "codex 2>&1 --version"],
+  ["cloud read before a safe argument", "codex cloud list 2>&1 --json"],
+  ["cloud read before another redirection", "codex cloud list 2>&1 3>trace.log"],
+]
+const descriptorSafetyRefusals = [
+  ["dollar command substitution", "2>&$(codex exec 'do work')"],
+  ["backtick command substitution", "2>&`codex exec 'do work'`"],
+  ["dynamic leading redirect", ">$(printf worker.log) codex exec"],
+  ["engine invocation before a pipeline", "codex exec | tee log"],
+  ["engine invocation after a list separator", "codex cloud list && codex exec"],
+]
+for (const [shape, command] of descriptorSuffixAllows) {
+  T(`engine: descriptor duplication ${shape} allows`, engine(command), null)
+}
+for (const [shape, command] of descriptorSafetyRefusals) {
+  T(`engine: descriptor safety ${shape} blocks`, blocks(engine(command)), true)
+}
 T("engine: codex exec blocks", blocks(engine('codex exec "do the thing"')), true)
+T("engine: the research launcher allows", engine("node tools/launch-worker.mjs --research --order order.md --out findings.md"), null)
+T("engine: a raw engine after the research launcher blocks", blocks(engine("node tools/launch-worker.mjs --research --order order.md --out findings.md && codex exec")), true)
+T("engine: cloud execution still blocks", blocks(engine("codex cloud exec")), true)
 T("engine: bare claude blocks", blocks(engine("claude")), true)
 T("engine: claude -p blocks", blocks(engine('claude -p "summarize"')), true)
 T("engine: a Windows shim extension is still the binary", blocks(engine("codex.cmd exec")), true)
 T("engine: a later chained engine call blocks", blocks(engine("npm test && codex exec")), true)
 T("engine: the refusal names the launcher", engine("codex exec")?.message.includes("tools/launch-worker.mjs"), true)
+T("engine: codex cloud list allows", engine("codex cloud list --json"), null)
+T("engine: codex cloud status allows", engine("codex cloud status task_123"), null)
+T("engine: codex cloud diff allows", engine("codex cloud diff task_123"), null)
+T("engine: a piped codex cloud list allows", engine("codex cloud list --env env_1 | head -20"), null)
+T("engine: an exported token before a piped cloud read allows", engine("export GH_TOKEN=; codex cloud list --env env_1 | head -20"), null)
+T("engine: a redirected codex cloud list allows", engine("codex cloud list --env env_1 > tasks.txt"), null)
+T("engine: a leading redirection does not hide codex exec", blocks(engine("> worker.log codex exec")), true)
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(`engine: leading dynamic redirect ${redirect} fails closed`, blocks(engine(`${redirect} codex exec`)), true)
+}
+T("engine: codex exec before a pipe blocks", blocks(engine("codex exec | tee worker.log")), true)
+T("engine: codex exec after a pipe blocks", blocks(engine("head -20 | codex exec")), true)
+for (const separator of ["&&", ";", "||"]) {
+  T(`engine: codex exec after ${separator} blocks`, blocks(engine(`codex cloud list ${separator} codex exec`)), true)
+}
+T("engine: a quoted pipeline is harmless argument text", engine('echo "codex exec | tee"'), null)
+T("engine: a nested dollar command substitution revokes the cloud read exemption", blocks(engine('codex cloud list "$(codex exec \'do work\')"')), true)
+T("engine: a nested backtick command substitution revokes the cloud read exemption", blocks(engine("codex cloud list `codex exec 'do work'`")), true)
+T("engine: a help flag cannot launder a nested engine call", blocks(engine('codex cloud list --help "$(codex exec \'do work\')"')), true)
+T("engine: input process substitution revokes the cloud read exemption", blocks(engine("codex cloud list <(codex exec 'do work')")), true)
+T("engine: output process substitution revokes the cloud read exemption", blocks(engine("codex cloud list >(codex exec 'do work')")), true)
+T("engine: an escaped inner executable revokes the cloud read exemption", blocks(engine("codex cloud list co\\dex exec")), true)
+T("engine: a leading assignment falls outside the complete cloud read shape", blocks(engine("SAFE_READ=1 codex cloud list")), true)
+T("engine: an unquoted heredoc command substitution revokes the cloud read exemption", blocks(engine("codex cloud list <<EOF\n$(codex exec 'do work')\nEOF")), true)
+T("engine: an unquoted heredoc backtick substitution revokes the cloud read exemption", blocks(engine("codex cloud list <<EOF\n`codex exec 'do work'`\nEOF")), true)
+T("engine: an even-backslash heredoc substitution still executes and is blocked", blocks(engine("codex cloud list <<EOF\n\\\\$(codex exec 'do work')\nEOF")), true)
+T("engine: an odd-backslash heredoc substitution is data and keeps the cloud read exemption", engine("codex cloud list <<EOF\n\\$(codex exec 'data only')\nEOF"), null)
+T("engine: a quoted data-only heredoc suppresses expansion and keeps the cloud read exemption", engine("codex cloud list <<'EOF'\n$(codex exec 'data only')\nEOF"), null)
+T("engine: an unquoted heredoc command substitution revokes the zero-cost exemption too", blocks(engine("codex --version <<EOF\n$(codex exec 'do work')\nEOF")), true)
+T("engine: codex cloud exec blocks", blocks(engine('codex cloud exec --env env_1 "do the thing"')), true)
+T("engine: codex cloud apply blocks", blocks(engine("codex cloud apply task_123")), true)
+T('engine: "list" inside a prompt exempts nothing', blocks(engine('codex exec "cloud list things"')), true)
+T("engine: the cloud allowance is codex-only", blocks(engine("claude cloud list")), true)
+T("engine: the refusal names the cloud submitter", engine("codex cloud exec")?.message.includes("tools/submit-cloud-worker.mjs"), true)
 // The launcher exports its marker into every worker it spawns; that is the
 // discriminator, and it is read from the ENVIRONMENT only.
 T("engine: the launcher marker in the environment allows", engine("codex exec", { env: { ORBIT_LAUNCH_WORKER: "1" } }), null)
@@ -181,6 +257,11 @@ mkdirSync(join(mainCheckout, ".git", "worktrees", "feat"), { recursive: true })
 mkdirSync(linkedWorktree, { recursive: true })
 writeFileSync(join(linkedWorktree, ".git"), `gitdir: ${join(mainCheckout, ".git", "worktrees", "feat")}\n`)
 mkdirSync(join(linkedWorktree, "named-dir"), { recursive: true })
+mkdirSync(join(linkedWorktree, ".claude"), { recursive: true })
+writeFileSync(join(linkedWorktree, ".claude", "orchestrator.json"), JSON.stringify({ repos: { ui: ".", api: "../orbit-api", landing: "../orbit-landing-page" } }))
+T("repo roots: linked worktree resolves configured siblings from the primary checkout",
+  declaredRepoRoots(linkedWorktree),
+  [linkedWorktree, mainCheckout, join(root, "orbit-api"), join(root, "orbit-landing-page")])
 T("engine: a cwd inside a linked worktree allows", checkEngineInvocation("codex exec", { cwd: linkedWorktree, repoRoots: [mainCheckout] }), null)
 T("engine: the main checkout is not a linked worktree", blocks(checkEngineInvocation("codex exec", { cwd: mainCheckout, repoRoots: [mainCheckout] })), true)
 const stagingMain = join(root, "staging-main")
@@ -199,6 +280,9 @@ T("staging: real linked worktree initializes", stagingGit(["worktree", "add", "-
 mkdirSync(join(stagingWorktree, "named-dir"), { recursive: true })
 rmSync(join(stagingWorktree, ".claude"), { recursive: true })
 const workerStaging = (command) => checkBroadStaging(command, { cwd: stagingWorktree, repoRoots: [stagingMain] })
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(`staging: leading dynamic redirect ${redirect} cannot hide broad staging`, blocks(workerStaging(`${redirect} git add -A`)), true)
+}
 for (const command of [
   "git add -A",
   "git add --all",
@@ -253,8 +337,13 @@ T("staging: an attached -m value containing broad flag letters is allowed", work
 T("staging: an attached -F value containing broad flag letters is allowed", workerStaging("git commit -Fpath-to-message"), null)
 T("staging: an attached -S key ID containing broad flag letters is allowed", workerStaging("git commit -Sapi"), null)
 T("staging: broad add outside a worker is untouched", checkBroadStaging("git add -A", { cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
+// bare /[&|;\n]/, so the `|` inside the quoted search pattern produced a phantom
+// segment whose first token resolved to `codex`, and a read-only grep was
+// refused. A search PATTERN is data, never an invocation.
 T("engine: a grep whose PATTERN contains the engine names allows", engine("grep -rnE 'claude|codex' tools/"), null)
 T("engine: the same grep with double quotes allows", engine('grep -rn "claude|codex" tools/'), null)
+// and refused `codex --version`, which starts no model session: the refusal
+// protected no budget and only broke ordinary preflight.
 T("engine: codex --version allows", engine("codex --version"), null)
 T("engine: claude --help allows", engine("claude --help"), null)
 T("engine: an unrelated command allows", engine("npm run lint"), null)
@@ -262,7 +351,8 @@ T("engine: a commit message naming the engine allows", engine('git commit -m "st
 T("engine: a path containing .claude is not the claude binary", engine("cat .claude/skills/second-opinion/SKILL.md"), null)
 
 console.log("\n# forbid-worker-browser (_lib/rules-worker.mjs)")
-const worker = (command, options) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" }, repoRoots: [], ...options })
+// Only launcher workers are barred from browsers; the owner may use the dev server.
+const worker = (command, options) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" }, cwd: repoRoot, repoRoots: [], ...options })
 for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo start", "npx playwright test", "maestro test flow.yaml", "curl http://localhost:3920/login", "adb shell input tap 1 1"]) {
   T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)
 }
@@ -271,6 +361,7 @@ T("worker-browser: a later chained dev server blocks", blocks(worker("npm test &
 // The same commands from a session that is NOT a worker are none of this gate's business.
 T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm run dev", { env: {}, cwd: "", repoRoots: [] }), null)
 T("worker-browser: a cwd inside a linked worktree IS a worker", blocks(checkWorkerBrowser("npm run dev", { env: {}, cwd: linkedWorktree, repoRoots: [mainCheckout] })), true)
+T("worker-browser: Playwright remains blocked in a linked worktree", blocks(checkWorkerBrowser("npx playwright test", { env: {}, cwd: linkedWorktree, repoRoots: [mainCheckout] })), true)
 T("worker-browser: the main checkout is not a worker", checkWorkerBrowser("npm run dev", { env: {}, cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
 // Ordinary work a worker MUST still be able to do. A gate that blocks the test run gets switched off.
 for (const command of ["npm test", "npm run build", "npm run lint", "dotnet test", "npx vitest run", "npx vitest run apps/web", "npm test --workspace=@orbit/web", "git commit -m 'stop npm run dev in CI'", "curl https://api.github.com/repos/o/r"]) {
@@ -280,47 +371,168 @@ T("worker-browser: refusal retains e2e and layout guard bans", /no e2e\//.test(w
 // The rule judges the INVOKED PROGRAM, never stray argument text. Scanning the whole segment refused
 // `rg -n playwright .`, so a worker could not inspect or delete the very code this bans, which
 // aborts executable work for no safety. Same defect rules-orchestrator fixed for grep-over-engines.
-for (const command of ["rg -n playwright .", 'grep -rn "npm run dev" tools/', "cat apps/web/e2e/visual/orb-39.ts", "rm -rf apps/web/e2e", 'sed -i "s/expo start//" README.md']) {
+for (const command of ["rg -n playwright .", 'grep -rn "npm run dev" tools/', "cat apps/web/e2e/orb-39.ts", "rm -rf apps/web/e2e", 'sed -i "s/expo start//" README.md']) {
   T(`worker-browser: read-only work whose ARGUMENTS name a browser tool allows: ${command}`, worker(command), null)
 }
 // ...and the package runners that front the real program are still resolved through.
 T("worker-browser: npx playwright still blocks through the runner prefix", blocks(worker("npx playwright test")), true)
 T("worker-browser: pnpm dlx cypress still blocks", blocks(worker("pnpm dlx cypress run")), true)
 T("worker-browser: a dev script under a runner still blocks", blocks(worker("npm run dev -- --port 4000")), true)
-T("worker-browser: an unrelated npm script named dev-docs allows", worker("npm run dev:docs"), null)
+T("worker-browser: a missing script fails closed", blocks(worker("npm run dev:docs")), true)
+for (const command of [
+  "npm run test:layout -w apps/web",
+  "npm run test:layout --workspace=@orbit/web",
+  "npm -w apps/web run test:layout",
+  "npm run test:layout --workspace apps/web",
+  "npm run-script test:layout -w @orbit/web",
+  "npx npm run test:layout -w apps/web",
+  "pnpm run test:layout -w apps/web",
+  "pnpm --filter @orbit/web run test:layout",
+  "yarn workspace @orbit/web run test:layout",
+]) {
+  T(`worker-browser: package script ${command} blocks`, blocks(worker(command)), true)
+}
+const scriptChainRoot = join(root, "script-chain")
+mkdirSync(scriptChainRoot, { recursive: true })
+writeFileSync(join(scriptChainRoot, "package.json"), JSON.stringify({ scripts: { "test:chain": "npm run test:layout", "test:layout": "playwright test --project=layout", "test:cycle": "npm run test:cycle" } }))
+T("worker-browser: a script reaching Playwright through npm run blocks", blocks(worker("npm run test:chain", { cwd: scriptChainRoot })), true)
+T("worker-browser: a recursive script fails closed", blocks(worker("npm run test:cycle", { cwd: scriptChainRoot })), true)
+T("worker-browser: an allowed mobile Vitest script passes", worker("npm test -w @orbit/mobile"), null)
 T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
+
+console.log("\n# forbid-node-modules-write (_lib/rules-dependencies.mjs)")
+// the package was extracted, npm install left them alone, and four contradictory citations of
+// those two files were published across three sessions. Unlike the browser ban, this one takes no
+// caller: the damage is to what every later reader sees, not to one session's budget.
+const dependencyTree = join(root, "dependency-guard")
+const installedPackage = join(dependencyTree, "node_modules", "react-native")
+const installedFile = join(installedPackage, "ReactNativeFeatureFlagsDefaults.kt")
+mkdirSync(installedPackage, { recursive: true })
+mkdirSync(join(dependencyTree, "apps", "mobile", "app"), { recursive: true })
+mkdirSync(join(dependencyTree, "node_modules_backup"), { recursive: true })
+writeFileSync(installedFile, "enableImperativeFocus = false\n")
+const linkedPackage = join(dependencyTree, "link-to-package")
+let symlinkFixtureError = null
+try {
+  symlinkSync(installedPackage, linkedPackage, "junction")
+} catch (error) {
+  symlinkFixtureError = String(error?.message ?? error)
+}
+const inTree = { cwd: dependencyTree }
+T("dependency-write: an absolute path inside node_modules blocks", blocks(checkDependencyFileWrite(installedFile, inTree)), true)
+T("dependency-write: a relative path inside node_modules blocks", blocks(checkDependencyFileWrite("node_modules/react-native/index.js", inTree)), true)
+// A guard that pattern-matches the literal string is not a guard: both of these reach the same
+// bytes while spelling neither.
+T(
+  "dependency-write: a traversal back into node_modules blocks",
+  blocks(checkDependencyFileWrite("apps/mobile/../../node_modules/react-native/index.js", inTree)),
+  true,
+)
+// `symlinkAvailable ? blocks(...) : true` reported PASS as `true === true` when the fixture failed
+// to stage, so the assertion went green while proving nothing. The staging is its own assertion
+// now, and the guard case reports the staging error instead of substituting a passing value.
+T("dependency-write: the symlink fixture stages", symlinkFixtureError, null)
+T(
+  "dependency-write: a symlink into the package blocks",
+  symlinkFixtureError ? `fixture unavailable: ${symlinkFixtureError}` : blocks(checkDependencyFileWrite(join(linkedPackage, "index.js"), inTree)),
+  true,
+)
+T(
+  "dependency-write: a case-different spelling of node_modules blocks",
+  blocks(checkDependencyFileWrite(join(dependencyTree, "NODE_MODULES", "react-native", "flags.kt"), inTree)),
+  true,
+)
+T(
+  "dependency-write: a case-different spelling blocks where no node_modules exists yet",
+  blocks(checkDependencyFileWrite("NODE_MODULES/react-native/x.kt", { cwd: join(dependencyTree, "apps") })),
+  true,
+)
+T("dependency-write: the repository's own source allows", checkDependencyFileWrite("apps/mobile/app/index.tsx", inTree), null)
+// A SEGMENT, never a substring. node_modules_backup/ is an ordinary directory.
+T("dependency-write: a directory merely named like node_modules allows", checkDependencyFileWrite("node_modules_backup/notes.md", inTree), null)
+T("dependency-write: no path at all allows", checkDependencyFileWrite(null, inTree), null)
+const dependencyCommand = (command) => checkDependencyCommand(command, inTree)
+for (const command of [
+  "echo true > node_modules/react-native/flags.kt",
+  'sed -i "s/false/true/" node_modules/react-native/flags.kt',
+  "tee node_modules/react-native/flags.kt",
+  "cp /tmp/flags.kt node_modules/react-native/flags.kt",
+  "npx patch-package react-native",
+  "npx -y patch-package react-native",
+  "npx --yes patch-package react-native",
+  "npm exec -- patch-package",
+  "npm exec -y patch-package",
+  "sudo -E npx patch-package",
+  "time npx -y patch-package",
+  "npx patch-package@latest react-native",
+  "npx -p patch-package patch-package",
+  "pnpm dlx -y patch-package",
+  "Set-Content -Path node_modules/react-native/flags.kt -Value true",
+  "Copy-Item C:\\tmp\\flags.kt node_modules/react-native/flags.kt",
+]) {
+  T(`dependency-write: ${command} blocks`, blocks(dependencyCommand(command)), true)
+}
+// The documented repair is a delete plus an install, so refusing it would leave a poisoned tree
+// with no sanctioned way out. Reading a dependency is the behaviour the rule asks for.
+for (const command of [
+  "rm -rf node_modules/react-native",
+  "npm install",
+  "npm ci",
+  "cat node_modules/react-native/flags.kt",
+  "grep -rn enableImperativeFocus node_modules/react-native",
+  "cp node_modules/react-native/flags.kt /tmp/flags.kt",
+  "Copy-Item node_modules/react-native/flags.kt C:\\tmp\\flags.kt",
+  "node tools/check-dependency-edits.mjs > report.txt",
+  "npm test 2>&1",
+  // Reading or naming the tool is not running it, so the refusal must not reach a grep over this
+  // guard's own source or an ordinary install.
+  "grep -rn patch-package .claude/hooks",
+  "npm install --save-dev some-other-tool",
+]) {
+  T(`dependency-write: ${command} allows`, dependencyCommand(command), null)
+}
+// Prose ABOUT the ban is not the ban being broken, the same distinction rules-git and rules-worker
+// already draw for a commit message.
+T(
+  "dependency-write: a commit message naming the redirect allows",
+  dependencyCommand('git commit -m "forbid echo x > node_modules/react-native/flags.kt"'),
+  null,
+)
+T(
+  "dependency-write: a heredoc body naming the redirect allows",
+  dependencyCommand("git commit -F - <<'EOF'\nnever write > node_modules/react-native/flags.kt\nEOF"),
+  null,
+)
+T("dependency-write: the refusal names the repair that works", dependencyCommand("tee node_modules/react-native/flags.kt")?.message.includes("rm -rf node_modules/<package>"), true)
 
 console.log("\n# require-wake-source (_lib/rules-sleep.mjs)")
 const alive = () => true
 const dead = () => false
 const sleeping = { sessionId: "s1", sleep: true, remaining: ["ORB-2", "ORB-3"] }
-const stop = (options) => checkSleepStop({ sessionId: "s1", isAlive: dead, ...options })
+const stop = (options) => checkSleepStop({ sessionId: "s1", isWakeSourceAlive: dead, ...options })
 T("sleep-stop: work remaining and no live wake source blocks", blocks(stop({ state: sleeping })), true)
-T("sleep-stop: the refusal names admission and CI waiting", stop({ state: sleeping })?.message.includes("admission gate") && stop({ state: sleeping })?.message.includes("tools/wait-ci.mjs"), true)
-T("sleep-stop: a live wake source allows", checkSleepStop({ state: sleeping, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
+T("sleep-stop: the refusal names admission and CI waiting", stop({ state: sleeping })?.message.includes("tools/run-status.mjs --session") && stop({ state: sleeping })?.message.includes("admission gate") && stop({ state: sleeping })?.message.includes("tools/wait-ci.mjs"), true)
+T("sleep-stop: a live wake source allows", checkSleepStop({ state: sleeping, wakeSources: [{ pid: 1 }], sessionId: "s1", isWakeSourceAlive: alive }), null)
 // A leaked file from a crashed launcher is not a wake source, which is why liveness is checked at
 // all rather than the file's existence being trusted.
 T("sleep-stop: a registered but DEAD wake source is not one", blocks(stop({ state: sleeping, wakeSources: [{ pid: 1 }] })), true)
-T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isAlive: dead }), null)
-// A salvaged pull request with no READY final-head receipt is unfinished work, not a finished
-// queue. PR #690 was opened by hand and reported as done while two required checks were red,
-// because opening it was treated as the end of salvage. Pullfrog now reviews every pull request in
-// GitHub Actions and `pullfrog-approval` is a required check, so the review verdict reaches the
-// receipt through the required contexts and needs no separate axis here.
+T("sleep-stop: a dead launcher with a live worker is reported separately",
+  checkSleepStop({ state: sleeping, orphanedWakeSources: [{ pid: 100, workerPid: 200 }], sessionId: "s1", isWakeSourceAlive: dead })?.message.includes("orphaned worker pid 200"), true)
+T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isWakeSourceAlive: dead }), null)
 const salvaged = { ...sleeping, remaining: [], pullRequests: [{ repositoryKey: "ui", prNumber: 690, receiptPath: "C:/receipt.json" }] }
 T("sleep-stop: an open pull request with no READY receipt blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
 T("sleep-stop: the refusal names the repository-qualified pull request and receipt debt", stop({ state: salvaged })?.message.includes("ui#690") && stop({ state: salvaged })?.message.includes("READY final-head receipt"), true)
-T("sleep-stop: a live worker allows the turn to end", checkSleepStop({ state: salvaged, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
+T("sleep-stop: a live worker allows the turn to end", checkSleepStop({ state: salvaged, wakeSources: [{ pid: 1 }], sessionId: "s1", isWakeSourceAlive: alive }), null)
 T("sleep-stop: bare PR numbers are invalid run state and cannot clear readiness", blocks(stop({ state: { ...sleeping, remaining: [], pullRequests: [690] } })), true)
 T("sleep-stop: an append-only ledger survives a cleared pullRequests list", blocks(stop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests } })), true)
-T("sleep-stop: a mechanically READY ledger permits queue completion", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests }, sessionId: "s1", isAlive: dead, receiptVerdict: () => "READY" }), null)
-T("sleep-stop: nothing remaining and no pull requests allows", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [] }, sessionId: "s1", isAlive: dead }), null)
-T("sleep-stop: a run that is not --sleep allows", checkSleepStop({ state: { ...sleeping, sleep: false }, sessionId: "s1", isAlive: dead }), null)
-T("sleep-stop: no record at all allows", checkSleepStop({ state: null, sessionId: "s1", isAlive: dead }), null)
+T("sleep-stop: a mechanically READY ledger permits queue completion", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests }, sessionId: "s1", isWakeSourceAlive: dead, receiptVerdict: () => "READY" }), null)
+T("sleep-stop: nothing remaining and no pull requests allows", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [] }, sessionId: "s1", isWakeSourceAlive: dead }), null)
+T("sleep-stop: a run that is not --sleep allows", checkSleepStop({ state: { ...sleeping, sleep: false }, sessionId: "s1", isWakeSourceAlive: dead }), null)
+T("sleep-stop: no record at all allows", checkSleepStop({ state: null, sessionId: "s1", isWakeSourceAlive: dead }), null)
 // A record from a previous run must never block today's session, and the session id is exact.
-T("sleep-stop: a record from another session allows", checkSleepStop({ state: sleeping, sessionId: "s2", isAlive: dead }), null)
+T("sleep-stop: a record from another session allows", checkSleepStop({ state: sleeping, sessionId: "s2", isWakeSourceAlive: dead }), null)
 // A blocked stop that blocks again is an infinite loop.
-T("sleep-stop: the second pass never blocks again", checkSleepStop({ state: sleeping, sessionId: "s1", stopHookActive: true, isAlive: dead }), null)
+T("sleep-stop: the second pass never blocks again", checkSleepStop({ state: sleeping, sessionId: "s1", stopHookActive: true, isWakeSourceAlive: dead }), null)
 
 const blockedEntry = { repositoryKey: "ui", prNumber: 698, receiptPath: "C:/receipt.json", receiptWritten: true, blocker: "SonarCloud new-code coverage 66.7% on a deletion-only diff" }
 const blockedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [blockedEntry] }
@@ -330,15 +542,87 @@ T("sleep-stop: the BLOCKED banner names the pull request and its blocker", stop(
 // Without the recorded blocker the very same entry still blocks, which is what keeps the state honest.
 T("sleep-stop: the same entry with NO recorded blocker still blocks the stop", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: null }] } })), true)
 T("sleep-stop: an empty blocker string is not a blocker", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: "" }] } })), true)
+const pressureRun = (blocker) => ({ ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker }] })
+for (const blocker of [
+  "BLOCKED ON MACHINE MEMORY: the low-memory guard reaped the worker mid-round, 5.6 GB free of 32 GB",
+  "stopped because the system is running low on memory",
+  "worker killed, out of memory",
+  "the background shell was reaped while the session was idle",
+  "ENOSPC writing the build output",
+]) {
+  T(`sleep-stop: a machine-resource blocker never ends the run (${blocker.slice(0, 28)})`, blocks(stop({ state: pressureRun(blocker) })), true)
+}
+T("sleep-stop: the machine-pressure refusal says to use fewer workers rather than to stop", stop({ state: pressureRun("reaped for low memory") })?.message.includes("FEWER WORKERS"), true)
+T("sleep-stop: the machine-pressure refusal names the pull request carrying it", stop({ state: pressureRun("reaped for low memory") })?.message.includes("ui#698"), true)
+// And a real external limit still ends the run, or the rule above would have eaten the honest ending.
+T("sleep-stop: an exhausted allowance is still a legitimate blocker", blocks(stop({ state: pressureRun("Codex and Pullfrog share one OpenAI allowance and it is exhausted until 2026-09-22") })), false)
+T("sleep-stop: a review verdict is still a legitimate blocker", blocks(stop({ state: pressureRun("REQUEST CHANGES at f07ddcaf, two false body sentences") })), false)
 // A finished run must stay silent, or a BLOCKED banner on every ending means nothing.
-T("sleep-stop: a genuinely READY queue reports no terminal banner", checkSleepStop({ state: blockedRun, sessionId: "s1", isAlive: dead, receiptVerdict: () => "READY" }), null)
+T("sleep-stop: a genuinely READY queue reports no terminal banner", checkSleepStop({ state: blockedRun, sessionId: "s1", isWakeSourceAlive: dead, receiptVerdict: () => "READY" }), null)
 // A live wake source means the TURN is ending, not the RUN. Announcing a final state there would be
 // the mirror of the defect: reporting an ending while work is still in flight.
 T(
   "sleep-stop: a blocked pull request with a LIVE wake source reports nothing, because the run has not ended",
-  checkSleepStop({ state: blockedRun, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }),
+  checkSleepStop({ state: blockedRun, wakeSources: [{ pid: 1 }], sessionId: "s1", isWakeSourceAlive: alive }),
   null,
 )
+
+const mergedEntry = { repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/receipt.json", receiptWritten: true, merged: "0123456789abcdef0123456789abcdef01234567" }
+const mergedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [mergedEntry] }
+T("sleep-stop: a pull request merged under the exception ends the run rather than deadlocking it", blocks(stop({ state: mergedRun })), false)
+T("sleep-stop: the merged ending is reported as MERGED, never as a plain finish", stop({ state: mergedRun })?.terminal, "MERGED")
+T(
+  "sleep-stop: the MERGED banner names the pull request and its sha",
+  stop({ state: mergedRun })?.message.includes("ui#1023") && stop({ state: mergedRun })?.message.includes(mergedEntry.merged),
+  true,
+)
+// A live wake source means the TURN is ending, not the RUN, so a merged row gets no banner either.
+T(
+  "sleep-stop: a merged pull request with a LIVE wake source reports nothing, because the run has not ended",
+  checkSleepStop({ state: mergedRun, wakeSources: [{ pid: 1 }], sessionId: "s1", isWakeSourceAlive: alive }),
+  null,
+)
+T("sleep-stop: the same row with NO recorded merge sha still blocks the stop", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: null }] } })), true)
+T("sleep-stop: an empty merged string is not a merge", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: "" }] } })), true)
+T(
+  "sleep-stop: the skill's own unfilled merge-sha placeholder is not a merge",
+  blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: "<merge commit sha once it is merged, or absent>" }] } })),
+  true,
+)
+T("sleep-stop: a bare claim in place of a sha is not a merge", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: "yes" }] } })), true)
+// A merge settles its OWN row and no other, or one merged pull request would end a night with work left.
+T(
+  "sleep-stop: a merged pull request beside a pending one still blocks",
+  blocks(stop({ state: { ...mergedRun, readinessLedger: [mergedEntry, { repositoryKey: "ui", prNumber: 1024, receiptPath: "C:/receipt.json", receiptWritten: true }] } })),
+  true,
+)
+// A merged row must not launder a blocked one into a silent finish: the banner still names the blocker.
+T(
+  "sleep-stop: a merged pull request beside a blocked one still reports BLOCKED, naming only the blocked one",
+  ((verdict) => verdict?.terminal === "BLOCKED" && verdict.message.includes("ui#698") && !verdict.message.includes("ui#1023"))(
+    stop({ state: { ...mergedRun, readinessLedger: [mergedEntry, blockedEntry] } }),
+  ),
+  true,
+)
+// The refusal has to name the way out, or an operator meeting it at 03:00 has no path back.
+T("sleep-stop: the refusal names the merged disposition beside the blocker one", stop({ state: salvaged })?.message.includes("`merged` string"), true)
+// A merged row's receipt debt is moot: the pull request is closed and the sha is the stronger evidence.
+T(
+  "sleep-stop: a merged row whose receipt was never written still ends the run",
+  blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, receiptWritten: false }] } })),
+  false,
+)
+/**
+ * The merge-sha rule is written twice, here and in `tools/lib/run-state.mjs`, because this file is
+ * a pure rule with no dependency on the tools tree. Two copies of one rule drift, and the drift
+ * that matters is the lenient direction: a recorder that accepts a placeholder while the hook
+ * rejects it puts the run right back in the deadlock. Pin them to the same literal.
+ */
+const mergeShaLiteral = "/^[0-9a-f]{7,40}$/"
+T("sleep-stop: the merge-sha rule is identical in the Stop hook and in the recorder", {
+  rule: readFileSync(join(hooksDir, "_lib", "rules-sleep.mjs"), "utf8").includes(`const MERGE_SHA = ${mergeShaLiteral}`),
+  recorder: readFileSync(join(repoRoot, "tools", "lib", "run-state.mjs"), "utf8").includes(`const MERGE_SHA = ${mergeShaLiteral}`),
+}, { rule: true, recorder: true })
 
 const unwritten = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [{ repositoryKey: "ui", prNumber: 699, receiptPath: "C:/never-written.json", receiptWritten: false }] }
 T("sleep-stop: a ledger row whose receipt was never written blocks", blocks(stop({ state: unwritten })), true)
@@ -353,6 +637,13 @@ T("sleep-stop: the blocked ending names every closed row", closedRows.every((row
 T("sleep-stop: an unwritten receipt with a blocker but no closed marker still blocks", blocks(stop({ state: { ...closedRun, readinessLedger: [{ ...closedRows[0], closed: false }] } })), true)
 T("sleep-stop: a closed row without a blocker still blocks", blocks(stop({ state: { ...closedRun, readinessLedger: [{ ...closedRows[0], blocker: null }] } })), true)
 T("sleep-stop: a nonboolean closed marker cannot excuse an unwritten receipt", blocks(stop({ state: { ...closedRun, readinessLedger: [{ ...closedRows[0], closed: "true" }] } })), true)
+T(
+  "sleep-stop: a merged row stays exempt beside an unwritten closed row with a blocker",
+  ((verdict) => verdict?.terminal === "BLOCKED" && verdict.message.includes("api#535") && !verdict.message.includes("ui#1023"))(
+    stop({ state: { ...closedRun, readinessLedger: [{ ...mergedEntry, receiptWritten: false }, closedRows[0]] } }),
+  ),
+  true,
+)
 const reopenedCheckout = join(root, "reopened-pull-request")
 mkdirSync(join(reopenedCheckout, ".git"), { recursive: true })
 writeRunState({ ...sleeping, remaining: [], pullRequests: [closedRows[0]] }, reopenedCheckout)
@@ -397,6 +688,7 @@ T("tickets: a repository tool invocation allows", checkTicketMutation("node tool
 T("tickets: the ticket skill milestone read allows", checkTicketMutation(`gh api repos/${TICKET_REPO}/milestones?state=all&per_page=100 --paginate --jq .[].title`), null)
 T("tickets: the sanctioned milestone creator allows", checkTicketMutation("node tools/create-milestone.mjs --title Launch --description-file draft.md"), null)
 T("tickets: the sanctioned ticket creator allows", checkTicketMutation("node tools/create-ticket.mjs --title x --body-file draft.md --label repo:ui --label Improvement"), null)
+T("tickets: the sanctioned existing-ticket project add allows", checkTicketMutation('node tools/add-ticket-to-project.mjs --issue "#221"'), null)
 T("tickets: the post-merge completion preflight allows", checkTicketMutation('node tools/complete-ticket.mjs --issue "#221" --preflight'), null)
 T("tickets: the post-merge completion write allows", checkTicketMutation('node tools/complete-ticket.mjs --issue "#221"'), null)
 
@@ -459,11 +751,14 @@ T("ef-index: a file off the migrations path is skipped", checkEfMigrationRawInde
 T("ef-index: a batched Sql with one non-idempotent statement blocks", blocks(checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX ix_a ON foo (a);");')), true)
 T("ef-index: a batched Sql with all idempotent statements allows", checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX IF NOT EXISTS ix_a ON foo (a);");'), null)
 
+// PRRT_ id resolved to a live thread on a stranger's public repository and replied there,
+// because node ids are globally unique and a wrong one does not fail.
 const OBSERVED = "PRRT_kwDOR5Siws6Wfy_V"
 const INVENTED = "PRRT_kwDOR5Siws6XdcAt"
+const TRAILING_HYPHEN = "PRRT_kwDOR5Siws6d9bF-"
+const TRAILING_UNDERSCORE = "PRRT_kwDOR5Siws6d9bF_"
 const seen = new Set([OBSERVED])
 const invented = (command, options = {}) => checkInventedIdentifier(command, { observedIdentifiers: seen, ...options })
-// THE incident, verbatim in shape: a typed id, and a `||` fallback that makes the write the probe.
 T(
   "identifier: the incident command blocks",
   blocks(invented(`printf 'fixed in %s' "$sha" | node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui --pr 699 || node tools/list-bot-threads.mjs --pr 699 --repo ui`)),
@@ -481,12 +776,16 @@ T("identifier: a gh command with no id at all allows", invented("gh pr view 699 
 T("identifier: PR_NUMBER is not a node id", extractNodeIds("gh pr view $PR_NUMBER"), [])
 T("identifier: IC_CONFIG is not a node id", extractNodeIds("gh api $IC_CONFIG"), [])
 T("identifier: a short body is not a node id", extractNodeIds("gh api PRRT_abc"), [])
-T("identifier: a real node id is extracted once, deduped", extractNodeIds(`gh api ${INVENTED} ${INVENTED}`), [INVENTED])
+T("identifier: an ordinary node id is extracted once, deduped", extractNodeIds(`gh api ${INVENTED} ${INVENTED}`), [INVENTED])
+T("identifier: a node id ending in a hyphen is extracted whole", extractNodeIds(`gh api ${TRAILING_HYPHEN}`), [TRAILING_HYPHEN])
+T("identifier: a node id ending in an underscore is extracted whole", extractNodeIds(`gh api ${TRAILING_UNDERSCORE}`), [TRAILING_UNDERSCORE])
+T(
+  "identifier: an unobserved node id ending in a hyphen is refused whole",
+  invented(`gh api graphql -f thread=${TRAILING_HYPHEN}`)?.message?.includes(TRAILING_HYPHEN) === true,
+  true,
+)
 T("identifier: PR_ and IC_ shapes are guarded too", extractNodeIds("gh api PR_kwDOR5Siws6abc IC_kwDOR5Siws6def").length, 2)
 T("identifier: an empty command allows", invented(""), null)
-// A heredoc BODY is data the command carries, not the command. This gate refused a
-// /second-opinion call whose body QUOTED the incident, and a guard that fires on writing ABOUT
-// the incident is one everybody learns to work around. The bypass it leaves is disclosed.
 T(
   "identifier: an id quoted inside a heredoc body allows",
   invented(`node .claude/skills/second-opinion/second-opinion.mjs <<'F'\nthe incident passed --thread ${INVENTED} to tools/resolve-bot-thread.mjs\nF`),
@@ -498,28 +797,240 @@ T(
   true,
 )
 
+console.log("\n# pending lessons (_lib/rules-lessons.mjs)")
+const datedEntry = (date, lesson) => `## ${date} - ${lesson}`
+T("lessons: one dated entry before Graduated is pending", countUnreviewedPendingLessons([
+  "# Pending lessons",
+  datedEntry("2026-09-10", "first lesson"),
+  "## Graduated",
+].join("\n")), 1)
+T("lessons: an undated candidate before Graduated is pending", countUnreviewedPendingLessons([
+  "# Pending lessons",
+  "## Keep the hook and producer in sync",
+  "- Trigger: lesson staging",
+  "## Graduated",
+].join("\n")), 1)
+T("lessons: a promoted or removed undated candidate is not pending", countUnreviewedPendingLessons([
+  "# Pending lessons",
+  "## Graduated",
+  "## Keep the hook and producer in sync",
+].join("\n")), 0)
+T("lessons: several dated entries before Graduated are pending", countUnreviewedPendingLessons([
+  datedEntry("2026-09-10", "first lesson"),
+  "details",
+  datedEntry("2026-09-11", "second lesson"),
+  "## Graduated",
+].join("\n")), 2)
+T("lessons: entries after Graduated are ignored", countUnreviewedPendingLessons([
+  "## Graduated",
+  datedEntry("2026-09-10", "already reviewed"),
+].join("\n")), 0)
+T("lessons: DROPPED and Original entry headings are ignored", countUnreviewedPendingLessons([
+  "## DROPPED 2026-09-10 - rejected lesson",
+  "### Original entry",
+  "## Graduated",
+].join("\n")), 0)
+T("lessons: without Graduated the whole file is pending", countUnreviewedPendingLessons([
+  datedEntry("2026-09-10", "first lesson"),
+  datedEntry("2026-09-11", "second lesson"),
+].join("\n")), 2)
+T("lessons: an empty file has no pending entries", countUnreviewedPendingLessons(""), 0)
+T("lessons: the title alone has no pending entries", countUnreviewedPendingLessons("# Pending lessons\n"), 0)
+T("lessons: the real pending-lessons.md parses", Number.isInteger(countUnreviewedPendingLessons(
+  readFileSync(join(repoRoot, ".claude", "pending-lessons.md"), "utf8"),
+)), true)
+const DRIFT_TODAY = new Date("2026-09-12T12:00:00.000Z")
+T("lessons: absent drift state is overdue", isDriftReviewOverdue(undefined, DRIFT_TODAY), true)
+T("lessons: today's drift state is current", isDriftReviewOverdue('{"lastRun":"2026-09-12"}', DRIFT_TODAY), false)
+T("lessons: state from eight days ago is overdue", isDriftReviewOverdue('{"lastRun":"2026-09-04"}', DRIFT_TODAY), true)
+T("lessons: malformed drift state is overdue", isDriftReviewOverdue("not json", DRIFT_TODAY), true)
+T("lessons: invalid drift state is overdue", isDriftReviewOverdue('{"lastRun":"2026-02-30"}', DRIFT_TODAY), true)
+
 // ---------------------------------------------------------------------------
 // 3. The real hook files: stdin payload in, exit code out
 // ---------------------------------------------------------------------------
 console.log("\n# hook adapters (real files, real exit codes)")
-const runHook = (file, payload, env) =>
+const runHookResult = (file, input, env) =>
   spawnSync(process.execPath, [join(hooksDir, file)], {
-    input: JSON.stringify(payload),
+    input,
     encoding: "utf8",
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
-  }).status
+  })
+const runHook = (file, payload, env) => runHookResult(file, JSON.stringify(payload), env).status
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
+const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
+const STALE_TEXT = "forbid-stale-text.mjs"
+const plantedOwner = ["Tho", "mas"].join("")
+T("adapter timeless: a new owner attribution -> 2", runHook(STALE_TEXT, {
+  tool_name: "Write",
+  tool_input: { file_path: join(repoRoot, "timeless-hook-probe.md"), content: `Ask ${plantedOwner}.\n` },
+  cwd: repoRoot,
+}), 2)
+T("adapter timeless: a clean edit -> 0", runHook(STALE_TEXT, {
+  tool_name: "Edit",
+  tool_input: { file_path: join(repoRoot, "AGENTS.md"), old_string: "clean", new_string: "still clean" },
+  cwd: repoRoot,
+}), 0)
+T("adapter timeless: a scratchpad write -> 0", runHook(STALE_TEXT, {
+  tool_name: "Write",
+  tool_input: { file_path: join(root, "scratchpad.md"), content: `Ask ${plantedOwner}.\n` },
+  cwd: repoRoot,
+}), 0)
+
+const LESSONS_HOOK = "surface-pending-lessons.mjs"
+const DRIFT_REVIEW_REMINDER = "Workflow drift review is overdue. Run /drift-review."
+const lessonsFixtureRoot = join(root, "lessons-project")
+const lessonsFixtureFile = join(lessonsFixtureRoot, ".claude", "pending-lessons.md")
+const driftStateFixtureFile = join(lessonsFixtureRoot, ".claude", "drift-review-state.json")
+mkdirSync(dirname(lessonsFixtureFile), { recursive: true })
+const runLessonsHook = (input) => runHookResult(LESSONS_HOOK, input, { CLAUDE_PROJECT_DIR: lessonsFixtureRoot })
+const isWellFormedLessonsReminder = (output) =>
+  /^\d+ unreviewed pending lessons? in \.claude\/pending-lessons\.md\. Review (?:it|them) with \/lesson\.$/.test(output)
+const isCombinedLessonsReminder = (output) => {
+  const driftSuffix = `\n${DRIFT_REVIEW_REMINDER}`
+  return output.endsWith(driftSuffix) && isWellFormedLessonsReminder(output.slice(0, -driftSuffix.length))
+}
+const isContentIndependentLessonsResult = (result) => ({
+  status: result.status,
+  stderr: result.stderr,
+  output: result.stdout === ""
+    || isWellFormedLessonsReminder(result.stdout)
+    || result.stdout === DRIFT_REVIEW_REMINDER
+    || isCombinedLessonsReminder(result.stdout),
+})
+const validReminderShapes = {
+  lessonsOnly: "1 unreviewed pending lesson in .claude/pending-lessons.md. Review it with /lesson.",
+  driftOnly: DRIFT_REVIEW_REMINDER,
+  combined: `1 unreviewed pending lesson in .claude/pending-lessons.md. Review it with /lesson.\n${DRIFT_REVIEW_REMINDER}`,
+}
+T("adapter lessons: the content-independent validator accepts every valid reminder shape", {
+  lessonsOnly: isContentIndependentLessonsResult({ status: 0, stderr: "", stdout: validReminderShapes.lessonsOnly }).output,
+  driftOnly: isContentIndependentLessonsResult({ status: 0, stderr: "", stdout: validReminderShapes.driftOnly }).output,
+  combined: isContentIndependentLessonsResult({ status: 0, stderr: "", stdout: validReminderShapes.combined }).output,
+}, { lessonsOnly: true, driftOnly: true, combined: true })
+writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: new Date().toISOString().slice(0, 10) }))
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  datedEntry("2026-09-10", "first lesson"),
+  "## Graduated",
+].join("\n"))
+const oneSurfacedLesson = runLessonsHook("{}")
+T("adapter lessons: one pending entry emits one line with the count and action", {
+  lines: oneSurfacedLesson.stdout.split(/\r?\n/).length,
+  count: oneSurfacedLesson.stdout.includes("1"),
+  action: oneSurfacedLesson.stdout.includes("/lesson"),
+}, { lines: 1, count: true, action: true })
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  "## Keep the hook and producer in sync",
+  "- Trigger: lesson staging",
+  "## Graduated",
+].join("\n"))
+const undatedSurfacedLesson = runLessonsHook("{}")
+T("adapter lessons: an undated candidate emits a reminder", undatedSurfacedLesson.stdout, validReminderShapes.lessonsOnly)
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  datedEntry("2026-09-10", "first lesson"),
+  datedEntry("2026-09-11", "second lesson"),
+  "## Graduated",
+].join("\n"))
+const surfacedLessons = runLessonsHook("{}")
+T("adapter lessons: two pending entries exit 0", surfacedLessons.status, 0)
+T("adapter lessons: two pending entries emit no stderr", surfacedLessons.stderr, "")
+T("adapter lessons: output names the count and file", {
+  count: surfacedLessons.stdout.includes("2"),
+  file: surfacedLessons.stdout.includes("pending-lessons.md"),
+}, { count: true, file: true })
+T("adapter lessons: output is one plain-text reminder", isWellFormedLessonsReminder(surfacedLessons.stdout), true)
+const malformedInputLessons = runLessonsHook("not json")
+T("adapter lessons: malformed stdin exits 0 and emits nothing", {
+  status: malformedInputLessons.status, stdout: malformedInputLessons.stdout, stderr: malformedInputLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  "## DROPPED 2026-09-10 - rejected lesson",
+  "## Graduated",
+  "## Already promoted lesson",
+].join("\n"))
+const silentLessons = runLessonsHook("{}")
+T("adapter lessons: reviewed and dropped entries exit 0", silentLessons.status, 0)
+T("adapter lessons: reviewed and dropped entries emit nothing", { stdout: silentLessons.stdout, stderr: silentLessons.stderr }, { stdout: "", stderr: "" })
+rmSync(lessonsFixtureFile)
+const absentLessons = runLessonsHook("{}")
+T("adapter lessons: an absent file exits 0 and emits nothing", {
+  status: absentLessons.status, stdout: absentLessons.stdout, stderr: absentLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
+mkdirSync(lessonsFixtureFile)
+const malformedLessons = runLessonsHook("{}")
+T("adapter lessons: an unreadable file exits 0 and emits nothing", {
+  status: malformedLessons.status, stdout: malformedLessons.stdout, stderr: malformedLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
+rmSync(lessonsFixtureFile, { recursive: true })
+writeFileSync(lessonsFixtureFile, "# Pending lessons\n## Graduated\n")
+const realFileLessons = runHookResult(LESSONS_HOOK, "{}", { CLAUDE_PROJECT_DIR: repoRoot })
+T("adapter lessons: the real file result is content-independent", isContentIndependentLessonsResult(realFileLessons), {
+  status: 0, stderr: "", output: true,
+})
+const realLessons = readFileSync(join(repoRoot, ".claude", "pending-lessons.md"), "utf8")
+const stagedRealLessons = /^## Graduated\r?$/m.test(realLessons)
+  ? realLessons.replace(/^## Graduated\r?$/m, `${datedEntry("2099-12-31", "staged harness proof")}\n## Graduated`)
+  : `${realLessons}\n${datedEntry("2099-12-31", "staged harness proof")}\n`
+writeFileSync(lessonsFixtureFile, stagedRealLessons)
+const stagedRealFileLessons = runLessonsHook("{}")
+T("adapter lessons: the real file with a staged entry emits one well-formed line", {
+  status: stagedRealFileLessons.status,
+  stderr: stagedRealFileLessons.stderr,
+  output: isWellFormedLessonsReminder(stagedRealFileLessons.stdout),
+}, { status: 0, stderr: "", output: true })
+const fallbackLessons = runHookResult(LESSONS_HOOK, "{}", { CLAUDE_PROJECT_DIR: "" })
+T(
+  "adapter lessons: an empty project environment falls back to the hook location",
+  isContentIndependentLessonsResult(fallbackLessons),
+  { status: 0, stderr: "", output: true },
+)
+
+writeFileSync(lessonsFixtureFile, "# Pending lessons\n## Graduated\n")
+rmSync(driftStateFixtureFile)
+const absentDriftState = runLessonsHook("{}")
+T("adapter lessons: absent drift state emits the overdue line", absentDriftState.stdout, "Workflow drift review is overdue. Run /drift-review.")
+writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: new Date().toISOString().slice(0, 10) }))
+const currentDriftState = runLessonsHook("{}")
+T("adapter lessons: current drift state emits nothing", { status: currentDriftState.status, stdout: currentDriftState.stdout }, { status: 0, stdout: "" })
+const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: eightDaysAgo }))
+const overdueDriftState = runLessonsHook("{}")
+T("adapter lessons: eight-day-old drift state emits the overdue line", overdueDriftState.stdout, "Workflow drift review is overdue. Run /drift-review.")
+writeFileSync(driftStateFixtureFile, "not json")
+const malformedDriftState = runLessonsHook("{}")
+T("adapter lessons: malformed drift state exits 0 and emits the overdue line", {
+  status: malformedDriftState.status, stdout: malformedDriftState.stdout, stderr: malformedDriftState.stderr,
+}, { status: 0, stdout: "Workflow drift review is overdue. Run /drift-review.", stderr: "" })
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
 
 const ORCH = "orchestrator-guardrails.mjs"
+for (const [shape, command] of descriptorSuffixAllows) {
+  T(`adapter orchestrator: descriptor duplication ${shape} -> 0`, runHook(ORCH, bash(command)), 0)
+}
+for (const [shape, command] of descriptorSafetyRefusals) {
+  T(`adapter orchestrator: descriptor safety ${shape} -> 2`, runHook(ORCH, bash(command)), 2)
+}
 T("adapter orchestrator: codex exec -> 2", runHook(ORCH, bash('codex exec "do the thing"')), 2)
 T(`adapter orchestrator: gh pr merge ${ADMIN} -> 2`, runHook(ORCH, bash(`gh pr merge 1 --squash ${ADMIN}`)), 2)
 T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr merge 1 --squash")), 0)
 T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --version")), 0)
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
+T("adapter orchestrator: piped codex cloud list -> 0", runHook(ORCH, bash("codex cloud list --env env_1 | head -20")), 0)
+T("adapter orchestrator: piped codex exec -> 2", runHook(ORCH, bash("codex exec | tee worker.log")), 2)
+for (const redirect of ["*>tasks.txt", "*>>tasks.txt", "*>&1"]) {
+  T(
+    `adapter orchestrator: PowerShell cloud read with ${redirect} -> 0`,
+    runHook(ORCH, powershell(`codex cloud list ${redirect}`)),
+    0,
+  )
+}
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter orchestrator: worker git add -A -> 2", runHook(ORCH, bash("git add -A"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker git add -u -> 2", runHook(ORCH, bash("git add -u"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
@@ -535,8 +1046,25 @@ T(
 const BROWSER = "forbid-worker-browser.mjs"
 T("adapter worker-browser: a worker starting a dev server -> 2", runHook(BROWSER, bash("npm run dev"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: a worker running playwright -> 2", runHook(BROWSER, bash("npx playwright test"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
-T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter worker-browser: a workspace layout script -> 2", runHook(BROWSER, bash("npm run test:layout -w apps/web", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(BROWSER, bash("npm run dev")), 0)
+
+// This one is wired to Write, Edit and MultiEdit as well as both shells, because an agent edits a
+// file with a tool and not with a redirect, and the launcher marker is irrelevant to it: every
+// caller is refused.
+const DEPENDENCY = "forbid-node-modules-write.mjs"
+const edit = (toolName, filePath) => ({ tool_name: toolName, tool_input: { file_path: filePath }, cwd: dependencyTree })
+T("adapter dependency-write: Write inside node_modules -> 2", runHook(DEPENDENCY, edit("Write", installedFile)), 2)
+T("adapter dependency-write: Edit through a relative path -> 2", runHook(DEPENDENCY, edit("Edit", "node_modules/react-native/flags.kt")), 2)
+T("adapter dependency-write: MultiEdit on the repository's own source -> 0", runHook(DEPENDENCY, edit("MultiEdit", "apps/mobile/app/index.tsx")), 0)
+T("adapter dependency-write: a worker redirect into a dependency -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter dependency-write: the same redirect outside a worker still -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree)), 2)
+T("adapter dependency-write: the PowerShell tool is guarded too -> 2", runHook(DEPENDENCY, powershell("Set-Content -Path node_modules/react-native/flags.kt -Value true", dependencyTree)), 2)
+T("adapter dependency-write: a case-different spelling -> 2", runHook(DEPENDENCY, edit("Write", "NODE_MODULES/react-native/flags.kt")), 2)
+T("adapter dependency-write: npx -y patch-package -> 2", runHook(DEPENDENCY, bash("npx -y patch-package react-native", dependencyTree)), 2)
+T("adapter dependency-write: the documented repair -> 0", runHook(DEPENDENCY, bash("rm -rf node_modules/react-native && npm install", dependencyTree)), 0)
+T("adapter dependency-write: reading the installed source -> 0", runHook(DEPENDENCY, bash("cat node_modules/react-native/flags.kt", dependencyTree)), 0)
 
 /**
  * The invented-identifier adapter, on both of its evidence sources. The ledger case writes THIS
@@ -587,35 +1115,477 @@ T("adapter identifier: the ledger is restored, so the id blocks again -> 2", run
  * a session id that does not match is treated as a previous run's and ignored.
  */
 const WAKE_HOOK = "require-wake-source.mjs"
-const { readWakeSources, runStatePath } = await import("../../tools/lib/run-state.mjs")
+const { PENDING_WAKE_SOURCE_MAX_AGE_MS, acquireRelayLock, clearWakeSource, readWakeSources, readWakeSourceStates, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
-const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
-const isAlive = (pid) => {
+// Exercise the real adapter in an isolated checkout so another run cannot mask a bad identity.
+const wakeCheckout = join(root, "wake-identity")
+const wakeHooks = join(wakeCheckout, ".claude", "hooks")
+mkdirSync(wakeCheckout, { recursive: true })
+T("relay fixture: repository initializes", stagingGit(["init", "--initial-branch=relay-fixture"], wakeCheckout).status, 0)
+T("relay fixture: repository configures identity", stagingGit(["config", "user.email", "hooks@example.invalid"], wakeCheckout).status, 0)
+T("relay fixture: repository configures name", stagingGit(["config", "user.name", "Hook Test"], wakeCheckout).status, 0)
+mkdirSync(wakeHooks, { recursive: true })
+cpSync(join(repoRoot, "tools", "lib"), join(wakeCheckout, "tools", "lib"), { recursive: true })
+cpSync(join(repoRoot, "tools", "relay-session.mjs"), join(wakeCheckout, "tools", "relay-session.mjs"))
+cpSync(join(hooksDir, "_lib"), join(wakeHooks, "_lib"), { recursive: true })
+cpSync(join(hooksDir, WAKE_HOOK), join(wakeHooks, WAKE_HOOK))
+cpSync(join(repoRoot, ".claude", "orchestrator.json"), join(wakeCheckout, ".claude", "orchestrator.json"))
+T("relay fixture: repository stages configuration", stagingGit(["--literal-pathspecs", "add", ".claude/orchestrator.json"], wakeCheckout).status, 0)
+T("relay fixture: repository commits configuration", stagingGit(["commit", "-m", "relay fixture"], wakeCheckout).status, 0)
+T("relay fixture: base configuration is available", stagingGit(["update-ref", "refs/remotes/origin/redesign/main", "HEAD"], wakeCheckout).status, 0)
+for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
+const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
+writeFileSync(relayDecisionLog, "No open decisions.\n")
+const relayState = { sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
+const relayOptions = { enabled: true, thresholdTokens: 400000, state: relayState, sessionId: relayState.sessionId, measuredTokens: 400000 }
+T("relay: below threshold is inert", checkRelayStop({ ...relayOptions, measuredTokens: 399999 }), null)
+T("relay: kill switch is inert", checkRelayStop({ ...relayOptions, enabled: false }), null)
+T("relay: attended sessions are inert", checkRelayStop({ ...relayOptions, state: { ...relayState, sleep: false } }), null)
+T("relay: another session is inert", checkRelayStop({ ...relayOptions, sessionId: "other" }), null)
+for (const count of [0, 1, 6]) {
+  const wakeSources = Array.from({ length: count }, (_, index) => ({ pid: index + 1, what: "Worker launcher" }))
+  T(`relay: first crossing with ${count} launchers starts drain`, checkRelayStop({ ...relayOptions, wakeSources }).begin, true)
+  T(`relay: pending drain with ${count} launchers injects only when empty`, Boolean(checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources })), count === 0)
+}
+for (const type of ["workflow", "subagent"]) {
+  const backgroundRuns = [{ id: `${type}-task`, type }]
+  T(`relay: pending ${type} blocks completion`, checkRelayStop({ ...relayOptions, backgroundRuns, state: { ...relayState, relay: { pending: true } } }), null)
+}
+T("relay: release watcher keeps drain waiting", checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources: [{ pid: 1, what: "Release ui run 1" }] }), null)
+T("relay: retry cooldown injects nothing", checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true, lastAttemptAt: new Date().toISOString() } } }), null)
+T("relay: two failures near auto compact permit fallback", checkRelayStop({ ...relayOptions, measuredTokens: 950000, state: { ...relayState, relay: { pending: true, failures: 2 } } }).fallback, true)
+T("sleep: drain guidance never launches more work", checkSleepStop({ state: { ...relayState, relay: { pending: true } } }).message.includes("Launch nothing"), true)
+const relayUsage = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "session-usage.json"), "utf8"))
+const relayTranscript = join(wakeCheckout, ".git", "relay-transcript.jsonl")
+const relayPayload = { session_id: "relay-parent", transcript_path: relayTranscript, cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "", background_tasks: [], session_crons: [] }
+const isolatedRelayHook = (name, payload = relayPayload, timeout) => spawnSync(process.execPath, [join(wakeHooks, name)], { input: JSON.stringify(payload), encoding: "utf8", timeout })
+writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
+T("adapter wake-source: a sleeping queue with nothing live -> 2", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 2)
+writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: [] }, wakeCheckout)
+T("adapter wake-source: an exhausted queue -> 0", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 0)
+writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
+T("adapter wake-source: another session's record -> 0", isolatedRelayHook(WAKE_HOOK, { ...stopPayload, session_id: "someone-else" }).status, 0)
+writeRunState(relayState, wakeCheckout)
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
+T("relay adapter: 399999 prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n")
+T("relay adapter: concurrent wake hook never says to launch on crossing", isolatedRelayHook(WAKE_HOOK).stderr, "")
+const crossing = isolatedRelayHook("relay-at-threshold.mjs")
+const feedback = JSON.parse(crossing.stdout)
+T("relay adapter: 400000 emits documented Stop feedback", feedback.hookSpecificOutput.hookEventName, "Stop")
+T("relay adapter: feedback names relay", feedback.hookSpecificOutput.additionalContext.includes("relay"), true)
+T("relay adapter: machine origin enforces sleep prompt", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
+T("relay adapter: measured pending state is persisted", readRunState(wakeCheckout).relay.measuredTokens, 400000)
+const stopRelayState = readRunState(wakeCheckout)
+const stopRelayRequest = readHandoffRequest("relay-parent", wakeCheckout)
+const postToolRelayHooks = settings.hooks.PostToolUse
+  .filter((entry) => new RegExp(entry.matcher ?? ".*").test("Bash"))
+  .flatMap((entry) => entry.hooks)
+  .filter((hook) => hook.command.includes("relay-at-threshold.mjs"))
+T("relay post-tool: Bash matches exactly one relay check", postToolRelayHooks.length, 1)
+T("relay post-tool: reads, edits, agents and MCP tools each match once", ["Read", "Edit", "Write", "Agent", "mcp__server__tool"].map((toolName) =>
+  settings.hooks.PostToolUse.filter((entry) => new RegExp(entry.matcher ?? ".*").test(toolName))
+    .flatMap((entry) => entry.hooks).filter((hook) => hook.command.includes("relay-at-threshold.mjs")).length), [1, 1, 1, 1, 1])
+const postToolPayload = { session_id: relayPayload.session_id, transcript_path: relayTranscript, cwd: wakeCheckout,
+  permission_mode: relayPayload.permission_mode, hook_event_name: "PostToolUse", tool_name: "Bash",
+  tool_input: { command: "true" }, tool_response: { stdout: "", stderr: "", interrupted: false }, tool_use_id: "tool-call", duration_ms: 1 }
+const relayTimeoutMilliseconds = postToolRelayHooks[0].timeout * 1000
+T("relay: configured timeout is explicitly positive", Number.isFinite(relayTimeoutMilliseconds) && relayTimeoutMilliseconds > 0, true)
+T("relay: Stop and PostToolUse share the timeout", settings.hooks.Stop.flatMap((entry) => entry.hooks)
+  .filter((hook) => hook.command.includes("relay-at-threshold.mjs")).map((hook) => hook.timeout), [postToolRelayHooks[0].timeout])
+const postToolRelay = () => isolatedRelayHook("relay-at-threshold.mjs", postToolPayload, relayTimeoutMilliseconds)
+writeRunState(relayState, wakeCheckout)
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
+T("relay post-tool: below threshold prints nothing", postToolRelay().stdout, "")
+T("relay post-tool: below threshold preserves state", readRunState(wakeCheckout).relay, undefined)
+const transcriptPadding = JSON.stringify({ type: "user", message: { content: "x".repeat(1024 * 1024) } }) + "\n"
+writeFileSync(relayTranscript, transcriptPadding.repeat(12) + JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n" + transcriptPadding)
+T("relay post-tool: performance fixture exceeds ten MiB", statSync(relayTranscript).size > 10 * 1024 * 1024, true)
+const subagentCrossing = isolatedRelayHook("relay-at-threshold.mjs", { ...postToolPayload, agent_id: "review-subagent", agent_type: "Explore" })
+T("relay post-tool: a subagent tool call at the threshold prints nothing", subagentCrossing.stdout, "")
+T("relay post-tool: a subagent tool call leaves the parent relay state", readRunState(wakeCheckout).relay, undefined)
+T("relay post-tool: a subagent tool call records no handoff request", readHandoffRequest("relay-parent", wakeCheckout), stopRelayRequest)
+// Each sample begins a fresh relay, including configuration checks and the lock's process identity probe.
+const relayMeasurements = Array.from({ length: 3 }, (_, index) => {
+  writeRunState(relayState, wakeCheckout)
+  const started = performance.now()
+  const result = postToolRelay()
+  const milliseconds = performance.now() - started
+  console.log(`relay post-tool timing: ${statSync(relayTranscript).size} bytes in ${milliseconds.toFixed(1)} ms (sample ${index + 1}, budget ${relayTimeoutMilliseconds / 2} ms)`)
+  T(`relay post-tool: sample ${index + 1} crosses and persists without diagnostics`,
+    { status: result.status, stderr: result.stderr, feedback: JSON.parse(result.stdout || "{}").hookSpecificOutput, relay: readRunState(wakeCheckout).relay },
+    { status: 0, stderr: "", feedback: { hookEventName: "PostToolUse", additionalContext: feedback.hookSpecificOutput.additionalContext },
+      relay: { ...stopRelayState.relay, triggeredAt: readRunState(wakeCheckout).relay?.triggeredAt } })
+  return { result, milliseconds }
+})
+const postToolCrossing = relayMeasurements.at(-1).result
+T("relay post-tool: large transcript finishes inside half its timeout", relayMeasurements.every(({ milliseconds }) => milliseconds < relayTimeoutMilliseconds / 2), true)
+T("relay post-tool: crossing succeeds without diagnostics", { status: postToolCrossing.status, stderr: postToolCrossing.stderr }, { status: 0, stderr: "" })
+T("relay post-tool: mid-turn crossing emits the same drain instruction", JSON.parse(postToolCrossing.stdout || "{}").hookSpecificOutput,
+  { hookEventName: "PostToolUse", additionalContext: feedback.hookSpecificOutput.additionalContext })
+const midTurnState = readRunState(wakeCheckout)
+T("relay post-tool: pending state equals Stop state except trigger time",
+  { ...midTurnState, relay: { ...midTurnState.relay, triggeredAt: stopRelayState.relay.triggeredAt } }, stopRelayState)
+T("relay post-tool: handoff request equals Stop request with its trigger time",
+  readHandoffRequest("relay-parent", wakeCheckout), { ...stopRelayRequest, recordedAt: midTurnState.relay?.triggeredAt })
+registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
+T("relay post-tool: pending worker drain injects nothing", postToolRelay().stdout, "")
+T("relay post-tool: Stop does not re-begin a mid-turn relay", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
+T("relay post-tool: pending checks preserve relay state", readRunState(wakeCheckout), midTurnState)
+T("relay post-tool: pending checks preserve handoff request", readHandoffRequest("relay-parent", wakeCheckout), { ...stopRelayRequest, recordedAt: midTurnState.relay?.triggeredAt })
+clearWakeSource(process.pid, wakeCheckout)
+T("relay post-tool: drained workers receive completion context", JSON.parse(postToolRelay().stdout || "{}").hookSpecificOutput,
+  { hookEventName: "PostToolUse", additionalContext: checkRelayStop({ ...relayOptions, state: midTurnState }).message })
+const backgroundLaunches = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "claude-background-launches.json"), "utf8"))
+const claudeDirectory = join(wakeCheckout, ".git", "claude")
+mkdirSync(join(claudeDirectory, "sessions"), { recursive: true })
+writeFileSync(join(claudeDirectory, "sessions", `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId: relayPayload.session_id }))
+const backgroundHook = (payload) => spawnSync(process.execPath, [join(wakeHooks, "relay-at-threshold.mjs")], {
+  input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory },
+})
+for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
+  writeRunState(relayState, wakeCheckout)
+  const response = backgroundLaunches[type]
+  const launched = backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: response })
+  T(`relay adapter: ${type} threshold names the background drain`, launched.stdout.includes(type), true)
+  const id = response.taskId ?? response.agentId
+  const waiting = { ...relayPayload, background_tasks: [{ id, type, status: "running", description: "Background work" }] }
+  T(`relay adapter: live ${type} Stop cannot complete drain`, backgroundHook(waiting).stdout, "")
+  T(`relay adapter: live ${type} PostToolUse cannot complete drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout, "")
+  T(`relay adapter: finished ${type} completes on authoritative empty Stop`, backgroundHook(relayPayload).stdout.includes("drain is complete"), true)
+  backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: response })
+  const recordPath = join(wakeCheckout, ".git", "orbit-background-runs", relayPayload.session_id, `${id}.json`)
+  const record = JSON.parse(readFileSync(recordPath, "utf8"))
+  writeFileSync(recordPath, JSON.stringify({ ...record, processStartIdentity: "previous process" }))
+  T(`relay adapter: stale ${type} does not strand the pending drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout.includes("drain is complete"), true)
+}
+const backgroundModulePath = join(wakeCheckout, "tools", "lib", "background-runs.mjs")
+const backgroundModuleSource = readFileSync(backgroundModulePath, "utf8")
+const probeMarker = join(claudeDirectory, "identity-probe-entered")
+const recorderTranscript = readFileSync(relayTranscript, "utf8")
+writeFileSync(relayTranscript, Array.from({ length: 20 }, (_, index) => JSON.stringify({ type: "assistant", message: { id: `recorder-${index}`, usage: relayUsage } })).join("\n") + "\n")
+for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
+  writeRunState(relayState, wakeCheckout)
+  rmSync(probeMarker, { force: true })
+  const probeEntry = "const sessionOwner = (sessionId, claudeDirectory) => {"
+  T("relay recorder: slow probe injection targets the production identity lookup", backgroundModuleSource.includes(probeEntry), true)
+  writeFileSync(backgroundModulePath, backgroundModuleSource.replace(probeEntry, `${probeEntry}
+    writeFileSync(${JSON.stringify(probeMarker)}, "entered")
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60000)
+  `))
+  let interrupted
   try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
+    interrupted = spawnSync(process.execPath, [join(wakeHooks, "relay-at-threshold.mjs")], {
+      input: JSON.stringify({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: backgroundLaunches[type] }),
+      encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory }, timeout: 1500, killSignal: "SIGKILL",
+    })
+  } finally { writeFileSync(backgroundModulePath, backgroundModuleSource) }
+  T(`relay recorder: ${type} launch times out inside the identity probe`, existsSync(probeMarker) && interrupted.error?.code === "ETIMEDOUT", true)
+  const id = backgroundLaunches[type].taskId ?? backgroundLaunches[type].agentId
+  const crossing = backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} })
+  T(`relay recorder: interrupted ${type} launch is named at the threshold before Stop`, crossing.stdout.includes(`${type} ${id}`), true)
+  T(`relay recorder: interrupted ${type} launch holds the pending drain before Stop`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout, "")
+  const refused = spawnSync(process.execPath, [realpathSync(join(wakeCheckout, "tools", "relay-session.mjs"))], {
+    encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: relayPayload.session_id },
+  })
+  T(`relay recorder: relay CLI refuses the interrupted ${type} launch by id`, { status: refused.status, stderr: refused.stderr },
+    { status: 1, stderr: `RELAY_FAILED: relay drain has background ${type} ${id}\n` })
+  T(`relay recorder: owning Stop settles interrupted ${type} launch`, backgroundHook(relayPayload).stdout.includes("drain is complete"), true)
+}
+writeFileSync(relayTranscript, recorderTranscript)
+writeRunState(midTurnState, wakeCheckout)
+writeRunState({ ...midTurnState, relay: { ...midTurnState.relay, lastAttemptAt: new Date().toISOString() } }, wakeCheckout)
+T("relay post-tool: retry cooldown injects nothing", postToolRelay().stdout, "")
+writeRunState(relayState, wakeCheckout)
+const releaseRelayLock = acquireRelayLock(wakeCheckout)
+try {
+  T("relay post-tool: occupied relay lock cannot begin another drain", postToolRelay().stdout, "")
+  T("relay post-tool: occupied relay lock preserves state", readRunState(wakeCheckout).relay, undefined)
+} finally { releaseRelayLock() }
+writeRunState(relayState, wakeCheckout)
+registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
+const crossingBarrier = join(wakeCheckout, ".git", "crossing-barrier")
+mkdirSync(crossingBarrier)
+const concurrentRelayPreload = join(wakeCheckout, "concurrent-relay.mjs")
+writeFileSync(concurrentRelayPreload, `
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+import { join } from "node:path"
+const originalRead = fs.readFileSync
+let synchronized = false
+fs.readFileSync = function (path, ...args) {
+  const contents = originalRead.call(this, path, ...args)
+  if (!synchronized && path === process.env.RELAY_STATE_PATH) {
+    synchronized = true
+    fs.writeFileSync(join(process.env.RELAY_BARRIER_PATH, String(process.pid)), "ready")
+    const deadline = Date.now() + 500
+    while (fs.readdirSync(process.env.RELAY_BARRIER_PATH).length < 2 && Date.now() < deadline) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5)
+    }
+    if (fs.readdirSync(process.env.RELAY_BARRIER_PATH).length < 2) process.exit(1)
+  }
+  return contents
+}
+syncBuiltinESMExports()
+`)
+const concurrentRelayHook = () => new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, ["--import", pathToFileURL(concurrentRelayPreload).href, join(wakeHooks, "relay-at-threshold.mjs")],
+    { env: { ...process.env, RELAY_STATE_PATH: runStatePath(wakeCheckout), RELAY_BARRIER_PATH: crossingBarrier } })
+  let stdout = ""
+  child.stdout.on("data", (chunk) => { stdout += chunk })
+  child.on("error", reject)
+  child.on("close", (status) => resolve({ status, stdout }))
+  child.stdin.end(JSON.stringify(postToolPayload))
+})
+const parallelCrossings = await Promise.all([concurrentRelayHook(), concurrentRelayHook()])
+T("relay post-tool: concurrent hooks both exit successfully", parallelCrossings.map((result) => result.status), [0, 0])
+T("relay post-tool: concurrent crossings begin exactly once", parallelCrossings.filter((result) => result.stdout.includes(feedback.hookSpecificOutput.additionalContext)).length, 1)
+clearWakeSource(process.pid, wakeCheckout)
+appendChainEntry({ sessionId: "relay-parent" }, wakeCheckout)
+const closeOwnerChain = () => spawnSync(process.execPath, [realpathSync(join(wakeCheckout, "tools", "relay-session.mjs")), "--close-chain"], {
+  env: { ...process.env, CLAUDE_CODE_SESSION_ID: "relay-parent" }, encoding: "utf8",
+})
+const relayClosure = closeOwnerChain()
+T("handoff adapter: a context relay cannot close the chain", { status: relayClosure.status, refused: relayClosure.stderr.includes("chain closure requires an owner-origin handoff") }, { status: 1, refused: true })
+const ownerPrompt = { ...relayPayload, hook_event_name: "UserPromptSubmit", prompt: "RUN /wrap-up --sleep" }
+isolatedRelayHook("record-handoff-request.mjs", ownerPrompt)
+const ownerRequest = readHandoffRequest("relay-parent", wakeCheckout)
+T("relay adapter: leading-word wrap-up records the owner's sleep request", { command: ownerRequest.command, sleep: ownerRequest.sleep, origin: ownerRequest.origin }, { command: "wrap-up", sleep: true, origin: "owner" })
+T("relay adapter: owner handoff clears drain", readRunState(wakeCheckout).relay.pending, false)
+T("relay adapter: owner handoff takes the run out of unattended mode", readRunState(wakeCheckout).sleep, false)
+T("relay adapter: owner origin supersedes machine request", readHandoffRequest("relay-parent", wakeCheckout).origin, "owner")
+const ownerClosure = closeOwnerChain()
+T("handoff adapter: leading-word wrap-up closes the owner's chain", { status: ownerClosure.status, stderr: ownerClosure.stderr, chain: openSessionChain("relay-parent", wakeCheckout) }, { status: 0, stderr: "", chain: null })
+for (const [index, prompt] of [
+  "Read `/handoff --relay --sleep` and `/wrap-up` in NEXT.md.",
+  "```text\n/wrap-up --sleep\n```",
+  '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>',
+  ".claude/skills/handoff/SKILL.md",
+  "<pasted_content>\n<pasted_content>\nquoted\n</pasted_content>\n/handoff --sleep\n</pasted_content>",
+].entries()) {
+  const sessionId = `handoff-mention-${index}`
+  writeRunState({ sessionId, sleep: true, relay: { pending: true } }, wakeCheckout)
+  T(`handoff adapter: mention ${index} exits quietly`, isolatedRelayHook("record-handoff-request.mjs", { ...ownerPrompt, session_id: sessionId, prompt }).status, 0)
+  T(`handoff adapter: mention ${index} records nothing`, readHandoffRequest(sessionId, wakeCheckout), null)
+  T(`handoff adapter: mention ${index} preserves the unattended drain`, { sleep: readRunState(wakeCheckout).sleep, pending: readRunState(wakeCheckout).relay.pending }, { sleep: true, pending: true })
+}
+writeRunState({ sessionId: "handoff-parenthesized", sleep: true, relay: { pending: true } }, wakeCheckout)
+isolatedRelayHook("record-handoff-request.mjs", { ...ownerPrompt, session_id: "handoff-parenthesized", prompt: "please (/handoff --sleep)" })
+const parenthesizedRequest = readHandoffRequest("handoff-parenthesized", wakeCheckout)
+T("handoff adapter: a parenthesized sleep handoff records an unattended owner request", { command: parenthesizedRequest?.command, sleep: parenthesizedRequest?.sleep, origin: parenthesizedRequest?.origin }, { command: "handoff", sleep: true, origin: "owner" })
+writeRunState({ ...relayState, relay: { pending: true } }, wakeCheckout)
+const unreadable = isolatedRelayHook("relay-at-threshold.mjs", { ...relayPayload, transcript_path: join(wakeCheckout, "absent.jsonl") })
+T("relay adapter: unreadable transcript fails open with one stderr line", { status: unreadable.status, stdout: unreadable.stdout, lines: unreadable.stderr.trim().split("\n").length }, { status: 0, stdout: "", lines: 1 })
+T("relay adapter: unreadable transcript explains the skipped relay", unreadable.stderr.startsWith("Context relay skipped:"), true)
+appendChainEntry({ sessionId: "relay-parent" }, wakeCheckout)
+writeRunState({ ...relayState, relay: { pending: true, successorSessionId: "relay-child", successorTerminal: "term_live" } }, wakeCheckout)
+adoptRelayRun("relay-child", wakeCheckout)
+const interruptedTool = JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", { ...relayPayload, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "true" } }).stdout || "{}")
+T("superseded adapter: adopted transfer denies Bash before chain confirmation", interruptedTool.hookSpecificOutput?.permissionDecision, "deny")
+T("superseded adapter: adopted transfer names successor terminal", interruptedTool.hookSpecificOutput?.permissionDecisionReason?.includes("term_live"), true)
+T("superseded adapter: adopted transfer blocks typed prompt before confirmation", JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", ownerPrompt).stdout || "{}").decision, "block")
+T("superseded adapter: adopted successor remains usable before confirmation", isolatedRelayHook("forbid-superseded-session.mjs", { ...ownerPrompt, session_id: "relay-child" }).stdout, "")
+confirmChainSuccessor("relay-parent", "relay-child", "term_live", 1, wakeCheckout)
+const deniedTool = JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", { ...relayPayload, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "true" } }).stdout)
+T("superseded adapter: Bash is denied", deniedTool.hookSpecificOutput.permissionDecision, "deny")
+T("superseded adapter: refusal names live terminal", deniedTool.hookSpecificOutput.permissionDecisionReason.includes("term_live"), true)
+T("superseded adapter: typed prompt is blocked", JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", ownerPrompt).stdout).decision, "block")
+T("superseded adapter: live successor remains usable", isolatedRelayHook("forbid-superseded-session.mjs", { ...ownerPrompt, session_id: "relay-child" }).stdout, "")
+writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
+const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
+const isolatedWakeStop = ({ preload = null, env = {} } = {}) => spawnSync(
+  process.execPath,
+  [...(preload ? ["--import", pathToFileURL(preload).href] : []), join(wakeHooks, WAKE_HOOK)],
+  { input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true, env: { ...process.env, ...env } },
+).status
+registerWakeSource({ pid: process.pid, what: "hook identity regression" }, wakeCheckout)
+const registeredWake = JSON.parse(readFileSync(wakeFile, "utf8"))
+T("wake identity: registration captures a real OS process start identity", typeof registeredWake.processStartIdentity, "string")
+T("wake identity: the same live process allows the real Stop adapter", isolatedWakeStop(), 0)
+
+/** A pending record is an admission window, not permission to claim a process that never began. */
+clearWakeSource(process.pid, wakeCheckout)
+const neverSpawnedPid = 2_147_483_647
+registerWakeSource({
+  pid: neverSpawnedPid,
+  what: "worker ORB-never-spawned",
+  pending: true,
+  pendingAt: "2026-09-12T00:00:00.000Z",
+}, wakeCheckout)
+T("wake pending: a registration whose process never starts blocks the real Stop adapter", isolatedWakeStop(), 2)
+clearWakeSource(neverSpawnedPid, wakeCheckout)
+
+/** Freeze the adapter's clock so both sides of the 45-second boundary run instantly. */
+const wakeTimePreload = join(wakeCheckout, "wake-time.mjs")
+writeFileSync(wakeTimePreload, "Date.now = () => Number(process.env.ORBIT_TEST_NOW)\n")
+const pendingAt = Date.parse("2026-09-12T00:00:00.000Z")
+registerWakeSource({
+  pid: process.pid,
+  what: "worker ORB-pending",
+  workerPid: null,
+  pending: true,
+  pendingAt: new Date(pendingAt).toISOString(),
+}, wakeCheckout)
+T(
+  "wake pending: a live registration inside the admission window allows the real Stop adapter",
+  isolatedWakeStop({ preload: wakeTimePreload, env: { ORBIT_TEST_NOW: String(pendingAt + PENDING_WAKE_SOURCE_MAX_AGE_MS) } }),
+  0,
+)
+T(
+  "wake pending: a registration past the admission window blocks without sleeping",
+  isolatedWakeStop({ preload: wakeTimePreload, env: { ORBIT_TEST_NOW: String(pendingAt + PENDING_WAKE_SOURCE_MAX_AGE_MS + 1) } }),
+  2,
+)
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
+writeFileSync(wakeFile, JSON.stringify({ ...registeredWake, processStartIdentity: `${registeredWake.processStartIdentity}:different-start` }))
+T("wake identity: a live pid with a different start identity blocks the real Stop adapter", isolatedWakeStop(), 2)
+T("wake identity: a live mismatched record is left alone", existsSync(wakeFile), true)
+writeFileSync(wakeFile, JSON.stringify({ pid: process.pid, what: "legacy registration" }))
+T("wake identity: a legacy pid-only record cannot allow a stop", isolatedWakeStop(), 2)
+T("wake identity: a legacy live record is left alone", existsSync(wakeFile), true)
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
+// Keep the reader's real identity, then replace only the observation at the final decision.
+// Preloading patches the OS boundary in the actual adapter, including its predicate wiring.
+const wakeProbePreload = join(wakeCheckout, "wake-probe.mjs")
+const wakeProbeTrace = join(wakeCheckout, "wake-probes.json")
+writeFileSync(wakeProbePreload, `
+import childProcess from "node:child_process"
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+const observed = []
+const replaceIdentity = (identity) => {
+  const next = observed.length === 0 ? identity
+    : process.env.ORBIT_TEST_WAKE_PROBE === "unreadable" ? null : String(BigInt(identity) + 1n)
+  observed.push(next)
+  fs.writeFileSync(${JSON.stringify(wakeProbeTrace)}, JSON.stringify(observed))
+  if (next === null) throw new Error("process identity unavailable at final probe")
+  return next
+}
+const spawn = childProcess.spawnSync
+childProcess.spawnSync = (command, args, options) => {
+  const result = spawn(command, args, options)
+  if (command === "powershell.exe" && args.some((arg) => arg.includes("Get-Process -Id ${process.pid} "))) {
+    result.stdout = replaceIdentity(result.stdout.trim()) + "\\r\\n"
+  }
+  // macOS: the identity is the lstart second, so the swap moves the start time and prints it back.
+  if (command === "ps" && args.includes("${process.pid}")) {
+    const [state, ...lstart] = result.stdout.trim().split(/\\s+/)
+    const seconds = Date.parse(lstart.join(" ") + " GMT") / 1000
+    const moved = new Date(Number(replaceIdentity(String(seconds))) * 1000).toUTCString()
+    const [, weekday, day, month, year, time] = /^(\\w{3}), (\\d{2}) (\\w{3}) (\\d{4}) ([\\d:]{8}) GMT$/.exec(moved)
+    result.stdout = state + "   " + weekday + " " + month + " " + String(Number(day)).padStart(2) + " " + time + " " + year + "\\n"
+  }
+  return result
+}
+const read = fs.readFileSync
+fs.readFileSync = (path, ...args) => {
+  const contents = read(path, ...args)
+  if (path !== "/proc/${process.pid}/stat") return contents
+  const start = contents.lastIndexOf(") ") + 2
+  const fields = contents.slice(start).trim().split(/\\s+/)
+  fields[19] = replaceIdentity(fields[19])
+  return contents.slice(0, start) + fields.join(" ") + "\\n"
+}
+syncBuiltinESMExports()
+`)
+for (const mode of ["replaced", "unreadable"]) {
+  writeFileSync(wakeProbeTrace, "[]")
+  const stopped = spawnSync(process.execPath, ["--import", pathToFileURL(wakeProbePreload).href, join(wakeHooks, WAKE_HOOK)], {
+    input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
+    env: { ...process.env, ORBIT_TEST_WAKE_PROBE: mode },
+  })
+  const observations = JSON.parse(readFileSync(wakeProbeTrace, "utf8"))
+  T(`wake identity: ${mode} identity after reader validation blocks the real Stop adapter`, {
+    status: stopped.status,
+    probes: observations.length,
+    readerMatched: registeredWake.processStartIdentity.endsWith(`:${observations[0]}`),
+    finalChanged: observations.length === 2 && observations[1] !== observations[0],
+    explainsBlock: stopped.stderr.includes("NO live background task"),
+  }, { status: 2, probes: 2, readerMatched: true, finalChanged: true, explainsBlock: true })
+}
+const linuxStat = "9 (cat) R 8 9 9 34816 9 4194560 174 0 1 0 0 0 0 0 20 0 1 0 185 1736704 194 18446744073709551615 104008432738304 104008433362862 140729346400016 0 0 0 0 4 0 0 0 0 17 1 0 0 0 0 0 104008433506352 104008433520688 104009433042944 140729346401036 140729346401056 140729346401056 140729346404335 0"
+const linuxBootId = "03b8381d-65e7-4b3e-b03e-138371be3664"
+const deadStatePreload = join(wakeCheckout, "wake-dead-state.mjs")
+writeFileSync(deadStatePreload, `
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+Object.defineProperty(process, "platform", { value: "linux" })
+const observed = []
+const read = fs.readFileSync
+fs.readFileSync = (path, ...args) => {
+  if (path === "/proc/sys/kernel/random/boot_id") return ${JSON.stringify(linuxBootId)} + "\\n"
+  if (path !== "/proc/${process.pid}/stat") return read(path, ...args)
+  const state = process.env.ORBIT_TEST_WAKE_STATE_AT === "final" && observed.length === 0
+    ? "R" : process.env.ORBIT_TEST_WAKE_STATE
+  observed.push(state)
+  fs.writeFileSync(${JSON.stringify(wakeProbeTrace)}, JSON.stringify(observed))
+  return ${JSON.stringify(linuxStat)}.replace(/^\\d+ \\(cat\\) R /, ${JSON.stringify(`${process.pid} (cat) `)} + state + " ") + "\\n"
+}
+syncBuiltinESMExports()
+`)
+writeFileSync(wakeFile, JSON.stringify({ ...registeredWake, processStartIdentity: `linux:${linuxBootId}:185` }))
+const deadStateResults = []
+for (const state of ["X", "x", "Z"]) {
+  for (const at of ["both", "final"]) {
+    writeFileSync(wakeProbeTrace, "[]")
+    const stopped = spawnSync(process.execPath, ["--import", pathToFileURL(deadStatePreload).href, join(wakeHooks, WAKE_HOOK)], {
+      input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
+      env: { ...process.env, ORBIT_TEST_WAKE_STATE: state, ORBIT_TEST_WAKE_STATE_AT: at },
+    })
+    deadStateResults.push({
+      state, at, status: stopped.status,
+      observations: JSON.parse(readFileSync(wakeProbeTrace, "utf8")),
+      explainsBlock: stopped.stderr.includes("NO live background task"),
+    })
   }
 }
-const liveWakeSources = readWakeSources().filter((source) => isAlive(source.pid)).length
+T("wake identity: Linux dead states block the real Stop adapter at either probe", deadStateResults,
+  ["X", "x", "Z"].flatMap((state) => ["both", "final"].map((at) => ({
+    state, at, status: 2,
+    observations: at === "final" ? ["R", state] : [state],
+    explainsBlock: true,
+  }))))
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
+const originalKill = process.kill
 try {
-  writeFileSync(runStatePath(), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
-  // A live wake source is a legitimate reason NOT to block, so assert the blocking case only when
-  // this checkout genuinely has none. A conditional that silently passes would be vacuous, so it
-  // reports which arm it took.
-  T(
-    liveWakeSources === 0 ? "adapter wake-source: a sleeping queue with nothing live -> 2" : "adapter wake-source: a live wake source allows the stop -> 0",
-    runHook(WAKE_HOOK, stopPayload),
-    liveWakeSources === 0 ? 2 : 0,
-  )
-  writeFileSync(runStatePath(), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: [] }))
-  T("adapter wake-source: an exhausted queue -> 0", runHook(WAKE_HOOK, stopPayload), 0)
-  T("adapter wake-source: another session's record -> 0", runHook(WAKE_HOOK, { ...stopPayload, session_id: "someone-else" }), 0)
+  process.kill = () => { throw new Error("process probe unavailable") }
+  T("wake identity: an inconclusive probe supplies no wake source", readWakeSources(wakeCheckout).length, 0)
+  T("wake identity: an inconclusive probe never deletes the record", existsSync(wakeFile), true)
 } finally {
-  if (priorState === null) rmSync(runStatePath(), { force: true })
-  else writeFileSync(runStatePath(), priorState)
+  process.kill = originalKill
 }
+const exitedProcess = spawnSync(process.execPath, ["-e", ""], { windowsHide: true })
+const deadWakeFile = join(wakeSourceDirectory(wakeCheckout), `${exitedProcess.pid}.json`)
+registerWakeSource({ pid: exitedProcess.pid, workerPid: process.pid, what: "orphaned worker" }, wakeCheckout)
+T("wake identity: a dead launcher and live worker have a distinct state", readWakeSourceStates(wakeCheckout).orphaned.map((source) => source.workerPid), [process.pid])
+T("wake identity: the orphaned registration remains for recovery", existsSync(deadWakeFile), true)
+clearWakeSource(process.pid, wakeCheckout)
+const orphanedStop = spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], { input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true })
+T("wake identity: the real Stop adapter names the orphaned worker", orphanedStop.status === 2 && orphanedStop.stderr.includes(`orphaned worker pid ${process.pid}`), true)
+registerWakeSource({ pid: process.pid, what: "hook identity regression" }, wakeCheckout)
+writeFileSync(deadWakeFile, JSON.stringify({ pid: exitedProcess.pid, what: "exited launcher" }))
+T("wake identity: sweeping a dead registration keeps the live one", readWakeSources(wakeCheckout).map((source) => source.pid), [process.pid])
+T("wake identity: a proven dead registration is removed", existsSync(deadWakeFile), false)
+clearWakeSource(process.pid, wakeCheckout)
+T("wake identity: cleanup removes the matching launch registration", existsSync(wakeFile), false)
+
+const mergedAdapterSha = "4d5901100fe6d3f6db9004468c653f9ff9239ff4"
+writeFileSync(runStatePath(wakeCheckout), JSON.stringify({
+  sessionId: stopPayload.session_id,
+  sleep: true,
+  remaining: [],
+  readinessLedger: [{ repositoryKey: "ui", prNumber: 1023, receiptPath: join(wakeCheckout, "receipt.json"), merged: mergedAdapterSha }],
+}))
+const mergedAdapterStop = spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], {
+  input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
+})
+T("wake merged: a merged pull request allows the real Stop adapter", mergedAdapterStop.status, 0)
+T("wake merged: the adapter surfaces the merged ending and its sha, the way it surfaces BLOCKED", {
+  namesTheEnding: mergedAdapterStop.stderr.includes("MERGE"),
+  namesThePullRequest: mergedAdapterStop.stderr.includes("ui#1023"),
+  namesTheSha: mergedAdapterStop.stderr.includes(mergedAdapterSha),
+}, { namesTheEnding: true, namesThePullRequest: true, namesTheSha: true })
+
 // The ticket guard is wired to BOTH events: the shell call and source that would issue it later.
 const TICKET_HOOK = "forbid-raw-ticket-mutation.mjs"
 T("adapter tickets: raw issue edit -> 2", runHook(TICKET_HOOK, bash(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), 2)
@@ -720,6 +1690,70 @@ for (const [relative, tool, problem] of prescribed) {
 T("skill commands: every prescribed tool invocation names flags the tool accepts", prescribed.length === 0, true)
 T("skill commands: the scan actually found invocations", toolFlagSets.size > 0, true)
 
+const progressSkill = readFileSync(join(repoRoot, ".claude", "skills", "progress", "SKILL.md"), "utf8")
+T("progress: integration discovery starts from the current PR head and removes stacked heads", {
+  readsHeads: progressSkill.includes("headRefName"),
+  readsBases: progressSkill.includes("baseRefName"),
+  excludesStackedHeads: progressSkill.includes("not the integration branch"),
+  refreshesIntegrationRef: progressSkill.includes("git fetch origin <integration-branch>"),
+}, { readsHeads: true, readsBases: true, excludesStackedHeads: true, refreshesIntegrationRef: true })
+T("progress: session discovery uses the current run ledger and proves integration ancestry", {
+  checksSessionIdentity: progressSkill.includes("currentRunIdentifier"),
+  readsLedger: progressSkill.includes("readinessLedger"),
+  readsLiveIdentity: progressSkill.includes("gh pr view <number> --json state,mergeCommit"),
+  checksIntegrationAncestry: progressSkill.includes("git merge-base --is-ancestor <merge-commit-oid> origin/<integration-branch>"),
+  claimsMergedField: /readRunState[^\n]*\bmerged\b/.test(progressSkill),
+  readsWorkingTree: progressSkill.includes("git status --short"),
+}, { checksSessionIdentity: true, readsLedger: true, readsLiveIdentity: true, checksIntegrationAncestry: true, claimsMergedField: false, readsWorkingTree: true })
+T("progress: a missing session baseline degrades explicitly to effort scope", {
+  namesMissingBaseline: progressSkill.includes("no session baseline"),
+  fallsBackToEffortScope: progressSkill.includes("report the effort scope instead"),
+  admitsLinkedWorktreeBlindSpot: progressSkill.includes("linked worktrees"),
+}, { namesMissingBaseline: true, fallsBackToEffortScope: true, admitsLinkedWorktreeBlindSpot: true })
+T("progress: each ledger repository resolves and refreshes its own integration branch", {
+  readsLiveBase: progressSkill.includes("gh pr view <number> --json state,mergeCommit,baseRefName"),
+  anchorsResolutionToSessionPullRequest: progressSkill.includes("repository's session pull request"),
+  resolvesInsideMappedRepository: progressSkill.includes("in that mapped repository"),
+  scopesFetchFailure: progressSkill.includes("does not affect the other repositories"),
+}, { readsLiveBase: true, anchorsResolutionToSessionPullRequest: true, resolvesInsideMappedRepository: true, scopesFetchFailure: true })
+T("progress: stacked squash merges do not make an impossible ancestry promise", {
+  limitsAncestryToDirectIntegrationMerges: progressSkill.includes("equals that repository's resolved integration branch"),
+  reportsImmediateBase: progressSkill.includes("landed into `<baseRefName>`"),
+  admitsSquashBoundary: progressSkill.includes("cannot prove arrival across that squash boundary"),
+  namesRetargetPractice: /retargets a stacked child onto the integration branch before\s+merging\s+its parent/.test(progressSkill),
+}, { limitsAncestryToDirectIntegrationMerges: true, reportsImmediateBase: true, admitsSquashBoundary: true, namesRetargetPractice: true })
+
+T("progress: a closed stacked parent is never reported as the integration branch", {
+  resolvesEveryState: progressSkill.includes("gh pr list --head <candidate> --state all"),
+  followsOpenAndMergedParents: progressSkill.includes("`OPEN` or `MERGED`"),
+  refusesClosedParent: /never report that head as the integration\s+branch/.test(progressSkill),
+  terminatesOnAnEmptyArray: /An empty array, or one left empty by that filter, means the candidate is no pull request's\s+head/.test(progressSkill),
+}, { resolvesEveryState: true, followsOpenAndMergedParents: true, refusesClosedParent: true, terminatesOnAnEmptyArray: true })
+
+/**
+ * A reused branch name makes that listing return several rows, which is normal rather than
+ * ambiguous. The rule said BOTH "take the highest number" and "a duplicate matching head is
+ * ambiguity", so the same response could either continue the walk or refuse it.
+ */
+T("progress: a reused head has exactly one deterministic rule", {
+  oneOpenRowDecides: /Exactly one row has `state` `OPEN`: that row decides/.test(progressSkill),
+  highestNumberWhenNoneOpen: /No row is `OPEN`: the highest `number` decides/.test(progressSkill),
+  twoOpenRowsAreTheAmbiguity: /Two or more rows are `OPEN`: that is the ambiguity/.test(progressSkill),
+  noContradictoryDuplicateRule: !progressSkill.includes("A duplicate matching head or a cycle is ambiguity"),
+}, { oneOpenRowDecides: true, highestNumberWhenNoneOpen: true, twoOpenRowsAreTheAmbiguity: true, noContradictoryDuplicateRule: true })
+
+/**
+ * `--head` filters on the branch NAME only, and its own help says `<owner>:<branch>` is not
+ * supported. On a public repository a fork's pull request carrying the same branch name is
+ * therefore in the listing, and following its base walks into a stranger's branch.
+ */
+T("progress: a fork's pull request is never read as a stacked parent", {
+  anchorListingRequestsTheField: /gh pr list --state open --limit 100 --json number,headRefName,baseRefName,isCrossRepository/.test(progressSkill),
+  anchorRequiresMappedRepository: /row's `isCrossRepository` is false/.test(progressSkill),
+  dropsForkRowsFirst: /Drop every row whose `isCrossRepository` is true, before anything else/.test(progressSkill),
+  saysWhyTheFilterIsNeeded: /`--head` filters on\s+the branch NAME only/.test(progressSkill),
+}, { anchorListingRequestsTheField: true, anchorRequiresMappedRepository: true, dropsForkRowsFirst: true, saysWhyTheFilterIsNeeded: true })
+
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
  * looking rather than by any gate. A pre-commit hook does not check for them and neither did
@@ -744,6 +1778,90 @@ for (const top of ["tools", ".claude"]) scanForMarkers(join(repoRoot, top))
 for (const hit of markerHits) T(`conflict markers: ${hit}`, false)
 T("conflict markers: no unresolved merge markers are committed", markerHits.length === 0, true)
 
+// Handoff prompt gate: the owner's requested mode decides what NEXT.md must look like.
+T("handoff request: typed /wrap-up --sleep asks for sleep", parseHandoffRequest("/wrap-up --sleep"), { command: "wrap-up", sleep: true })
+T("handoff request: typed /handoff alone is attended", parseHandoffRequest("/handoff"), { command: "handoff", sleep: false })
+T("handoff request: expanded command tags are read", parseHandoffRequest("<command-message>wrap-up</command-message>\n<command-name>/wrap-up</command-name>\n<command-args>--sleep</command-args>"), { command: "wrap-up", sleep: true })
+T("handoff request: another command is not a handoff", parseHandoffRequest("/progress --full"), null)
+T("handoff request: a plain reply is not a handoff", parseHandoffRequest("proceed"), null)
+for (const [label, prompt, expected] of [
+  ["a leading word keeps the sleep argument", "RUN /wrap-up --sleep", { command: "wrap-up", sleep: true }],
+  ["a polite prefix is read", "please /handoff", { command: "handoff", sleep: false }],
+  ["a command on the second line is read", "Finish this task.\n/wrap-up --sleep", { command: "wrap-up", sleep: true }],
+  ["an inline code mention is ignored", "Read `/handoff --relay --sleep` in NEXT.md.", null],
+  ["a fenced code mention is ignored", "Example:\n```text\n/wrap-up --sleep\n```", null],
+  ["a pasted content mention is ignored", '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>', null],
+  ["a skill path is ignored", ".claude/skills/handoff/SKILL.md", null],
+  ["the first command keeps its own arguments", "/handoff then /wrap-up --sleep", { command: "handoff", sleep: false }],
+  ["the first sleep command wins", "please /wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true }],
+]) T(`handoff request: ${label}`, parseHandoffRequest(prompt), expected)
+
+const goodSleepPrompt = [
+  "/sleep", "", "Read .claude/specs/orbit-prod-release.md before anything else.", "",
+  "## Sleep", "", "Unattended.", "", "## Goal", "", "Finish it. gh issue list --repo x --state open", "",
+  "## In flight", "", "none", "", "## Previous prompt, disposition", "", "- carried", "",
+  "## Carried", "", "Every identifier in this prompt came from a previous session: treat each as a lead to verify.",
+].join("\n")
+const attendedPrompt = goodSleepPrompt.replace("/sleep\n\n", "").replace("## Sleep\n\nUnattended.\n\n", "")
+T("handoff prompt: a complete sleep prompt passes", validateHandoffPrompt(goodSleepPrompt, { sleep: true }), [])
+T("handoff prompt: a sleep prompt must start with /sleep", validateHandoffPrompt(goodSleepPrompt.replace("/sleep\n", "# NEXT\n"), { sleep: true }).some((item) => item.includes("/sleep")), true)
+T("handoff prompt: a sleep prompt needs its own Sleep section", validateHandoffPrompt(goodSleepPrompt.replace("## Sleep", "## Unattended"), { sleep: true }).some((item) => item.includes("## Sleep")), true)
+T("handoff prompt: an attended prompt passes without the sleep block", validateHandoffPrompt(attendedPrompt, { sleep: false }), [])
+T("handoff prompt: an attended prompt must not start with a slash command", validateHandoffPrompt(goodSleepPrompt, { sleep: false }).length, 1)
+T("handoff prompt: the previous prompt must be given dispositions", validateHandoffPrompt(goodSleepPrompt.replace("## Previous prompt, disposition", "## History"), { sleep: true }).some((item) => item.includes("Previous prompt")), true)
+T("handoff prompt: an unrecorded mode checks only the shared rules", validateHandoffPrompt(goodSleepPrompt, {}), [])
+T("handoff prompt: a blank line before /sleep fails the literal first line", validateHandoffPrompt(`\n${goodSleepPrompt}`, { sleep: true }).some((item) => item.includes("/sleep")), true)
+T("handoff prompt: an indented /sleep fails the literal first line", validateHandoffPrompt(goodSleepPrompt.replace("/sleep\n", "  /sleep\n"), { sleep: true }).some((item) => item.includes("/sleep")), true)
+
+const handoffCommit = (command, request, text) => checkHandoffCommit({ command, cwd: "/repo", request, promptsForCommit: () => (text === null ? [] : [text]) })
+T("handoff commit: a sleep request refuses a prompt without /sleep", blocks(handoffCommit("git commit -m docs -- .claude/handoffs/NEXT.md", { sleep: true }, goodSleepPrompt.replace("/sleep\n", "# NEXT\n"))), true)
+T("handoff commit: a sleep request accepts a complete prompt", handoffCommit("git commit -m docs -- .claude/handoffs/NEXT.md", { sleep: true }, goodSleepPrompt), null)
+T("handoff commit: a commit that leaves NEXT.md alone passes", handoffCommit("git commit -m fix -- src/a.ts", { sleep: true }, null), null)
+T("handoff commit: a command that commits nothing passes", handoffCommit("git status --short", { sleep: true }, "anything"), null)
+T("handoff commit: a failing working copy blocks even when the staged prompt passes", blocks(checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt, attendedPrompt] })), true)
+T("handoff commit: -C names the directory the commit runs in", gitCommitDirectory("git -C /other/repo commit -m x", "/repo"), "/other/repo")
+
+T("handoff stop: a failing prompt committed after the request refuses the stop", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" })), true)
+T("handoff stop: a prompt committed before the request is not judged", checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T09:00:00Z" }), null)
+T("handoff stop: no recorded request allows the stop", checkHandoffStop({ request: null, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" }), null)
+
+const handoffRepo = join(root, "handoff-repo")
+mkdirSync(join(handoffRepo, ".git"), { recursive: true })
+recordHandoffRequest("s-handoff", { command: "wrap-up", sleep: true }, "2026-01-01T10:00:00Z", handoffRepo)
+T("handoff request: a recorded request reads back for its session", readHandoffRequest("s-handoff", handoffRepo), { command: "wrap-up", sleep: true, recordedAt: "2026-01-01T10:00:00Z" })
+T("handoff request: another session sees no request", readHandoffRequest("s-other", handoffRepo), null)
+
+const handoffGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-git-"))
+const inHandoffRepo = (...args) => spawnSync("git", ["-C", handoffGitRepo, ...args], { encoding: "utf8" })
+inHandoffRepo("init", "-q", "-b", "integration")
+inHandoffRepo("config", "user.email", "hooks@test.invalid")
+inHandoffRepo("config", "user.name", "hooks")
+mkdirSync(join(handoffGitRepo, ".claude", "handoffs"), { recursive: true })
+const handoffFile = join(handoffGitRepo, ".claude", "handoffs", "NEXT.md")
+writeFileSync(handoffFile, attendedPrompt)
+inHandoffRepo("add", ".")
+inHandoffRepo("commit", "-q", "-m", "handoff")
+T("handoff git: an unchanged NEXT.md yields no version to judge", promptsForCommit(handoffGitRepo), [])
+writeFileSync(handoffFile, "# NEXT\n")
+T("handoff git: an unstaged edit yields the working copy", promptsForCommit(handoffGitRepo), ["# NEXT\n"])
+const handoffHook = join(hooksDir, "require-handoff-prompt.mjs")
+const handoffHookRun = (command) => spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: handoffGitRepo, tool_input: { command } }), encoding: "utf8" }).status
+T("handoff hook: a directory pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- .claude/handoffs"), 2)
+T("handoff hook: a glob pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- '.claude/*'"), 2)
+inHandoffRepo("add", ".")
+writeFileSync(handoffFile, attendedPrompt)
+T("handoff git: a staged edit and a different working copy yield both versions", promptsForCommit(handoffGitRepo), ["# NEXT\n", attendedPrompt])
+T("handoff hook: an index-only commit of a staged invalid prompt is refused", handoffHookRun("git commit -m x"), 2)
+inHandoffRepo("add", ".")
+T("handoff hook: a commit that leaves a valid prompt passes", handoffHookRun("git commit -m x -- .claude/handoffs"), 0)
+inHandoffRepo("checkout", "-q", "-b", "feature", "HEAD~0")
+inHandoffRepo("checkout", "-q", "integration")
+writeFileSync(handoffFile, goodSleepPrompt)
+spawnSync("git", ["-C", handoffGitRepo, "commit", "-q", "-am", "sleep handoff"], { encoding: "utf8", env: { ...process.env, GIT_COMMITTER_DATE: "2030-01-01T00:00:00Z" } })
+inHandoffRepo("checkout", "-q", "feature")
+T("handoff git: the newest committed prompt is read from another branch", newestCommittedPrompt(handoffGitRepo).text, goodSleepPrompt)
+rmSync(handoffGitRepo, { recursive: true, force: true })
+
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
 T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)
 const staleName = ["Tho", "mas"].join("")
@@ -752,20 +1870,32 @@ T("timeless hook rejects a planted name", spawnSync(process.execPath, [timelessH
 T("timeless hook passes after removal", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify({ ...hookPayload, tool_input: { ...hookPayload.tool_input, new_string: "# Orbit" } }), encoding: "utf8" }).status, 0)
 
 console.log("\n# second-opinion verdict parsing")
-const codexFixtureDirectory = join(root, "second-opinion-bin")
-mkdirSync(codexFixtureDirectory)
-writeFileSync(join(codexFixtureDirectory, "codex"), `#!/usr/bin/env node
-process.stdout.write(JSON.stringify({ type: "item.completed", item: { id: "item_0", type: "agent_message", text: process.env.ORBIT_TEST_REPLY } }) + "\\n")
+const claudeFixtureDirectory = join(root, "second-opinion-bin")
+mkdirSync(claudeFixtureDirectory)
+symlinkSync(process.execPath, join(claudeFixtureDirectory, "node"))
+writeFileSync(join(claudeFixtureDirectory, "codex"), '#!/usr/bin/env node\nprocess.exit(1)\n', { mode: 0o755 })
+writeFileSync(join(claudeFixtureDirectory, "claude"), `#!/usr/bin/env node
+const { writeFileSync, readFileSync } = require("node:fs")
+writeFileSync(process.env.ORBIT_TEST_INVOCATION, JSON.stringify({ args: process.argv.slice(2), prompt: readFileSync(0, "utf8"), cwd: process.cwd(), disableAttachments: process.env.CLAUDE_CODE_DISABLE_ATTACHMENTS ?? null }))
+if (process.env.ORBIT_TEST_MODE === "timeout") setInterval(() => {}, 1000)
+else {
+  process.stdout.write(process.env.ORBIT_TEST_MODE === "invalid-envelope" ? "not json" : JSON.stringify({ is_error: process.env.ORBIT_TEST_MODE === "error", result: process.env.ORBIT_TEST_REPLY }) + "\\n")
+  if (process.env.ORBIT_TEST_MODE === "exit") process.exit(1)
+}
 `, { mode: 0o755 })
 const secondOpinionScript = join(repoRoot, ".claude", "skills", "second-opinion", "second-opinion.mjs")
-const secondOpinionReply = (reply) => {
-  const run = spawnSync(process.execPath, [secondOpinionScript], {
-    input: "Review the quoted finding",
+const invocationPath = join(root, "second-opinion-invocation.json")
+const absentClaudeDirectory = join(root, "absent-claude")
+mkdirSync(absentClaudeDirectory)
+const secondOpinionReply = (reply, mode = "success", input = "Review the quoted finding") => {
+  const run = spawnSync(process.execPath, [secondOpinionScript, "--timeout", "1000"], {
+    input,
     encoding: "utf8",
-    timeout: 2_000,
-    env: { ...process.env, PATH: `${codexFixtureDirectory}:${process.env.PATH}`, ORBIT_TEST_REPLY: reply },
+    timeout: 3_000,
+    env: { ...process.env, PATH: mode === "absent" ? absentClaudeDirectory : claudeFixtureDirectory, ORBIT_TEST_REPLY: reply, ORBIT_TEST_MODE: mode, ORBIT_TEST_INVOCATION: invocationPath },
   })
   T("second-opinion: process exits successfully", run.status, 0)
+  T("second-opinion: stdout is one JSON line", run.stdout.trim().split(/\r?\n/).length, 1)
   return run.status === 0 ? JSON.parse(run.stdout) : {}
 }
 const placeholderVerdict = JSON.stringify({ verdict: "AGREE", confidence: "high", reasoning: "Remove {name} on {date}." })
@@ -787,6 +1917,20 @@ for (const invalidObject of ['{"verdict":"MAYBE"}', "{"]) {
   const invalidObjectResult = secondOpinionReply(invalidObject)
   T("second-opinion: invalid object at start returns unavailable", [invalidObjectResult.status, invalidObjectResult.reason, invalidObjectResult.raw], ["UNAVAILABLE", "unparseable verdict", invalidObject])
 }
+
+const invocation = existsSync(invocationPath) ? JSON.parse(readFileSync(invocationPath, "utf8")) : null
+T("second-opinion: calls Claude without tools or inherited MCP configuration", invocation?.args, ["-p", "--model", "claude-opus-5-5", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands", "--no-session-persistence"])
+T("second-opinion: dossier @file mentions stay plain text (attachment expansion disabled)", invocation?.disableAttachments, "1")
+T("second-opinion: dossier arrives over stdin outside the repository", Boolean(invocation?.prompt.includes("Review the quoted finding")) && invocation?.cwd === realpathSync(tmpdir()), true)
+T("second-opinion: the requested model is reported", placeholderResult.model, "claude-opus-5-5")
+for (const [mode, reason] of [["absent", "claude not runnable (ENOENT)"], ["timeout", "claude timed out"], ["invalid-envelope", "unparseable response from claude"], ["error", "claude reported an error"], ["exit", "claude exited with status 1"]]) {
+  const result = secondOpinionReply(placeholderVerdict, mode)
+  T(`second-opinion: ${mode} degrades without a verdict`, [result.status, result.reason, result.verdict], ["UNAVAILABLE", reason, undefined])
+}
+const emptyResult = secondOpinionReply("")
+T("second-opinion: an empty response degrades", [emptyResult.status, emptyResult.reason], ["UNAVAILABLE", "empty response from claude"])
+const noFindingResult = secondOpinionReply(placeholderVerdict, "success", " ")
+T("second-opinion: no dossier degrades", [noFindingResult.status, noFindingResult.reason], ["UNAVAILABLE", "no finding text on stdin"])
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

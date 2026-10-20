@@ -1,4 +1,15 @@
 export const API = {
+  proactive: {
+    current: '/api/ai/proactive/current',
+    status: (id: string) => `/api/ai/proactive/${id}` as const,
+    opened: (id: string) => `/api/ai/proactive/${id}/opened` as const,
+    acted: (id: string) => `/api/ai/proactive/${id}/acted` as const,
+  },
+  connections: {
+    notion: '/api/connections/notion',
+    notionAuthorize: '/api/connections/notion/authorize',
+    notionCallback: '/api/connections/notion/callback',
+  },
   events: {
     stream: '/api/events',
     ticket: '/api/events/ticket',
@@ -19,12 +30,12 @@ export const API = {
     name: '/api/profile/name',
     timezone: '/api/profile/timezone',
     weekStartDay: '/api/profile/week-start-day',
+    clockFormat: '/api/profile/clock-format',
     aiSummary: '/api/profile/ai-summary',
     proactiveAstra: '/api/profile/proactive-astra',
     onboarding: '/api/profile/onboarding',
     onboardingApply: '/api/profile/onboarding/apply',
     importPromptDismiss: '/api/profile/import-prompt/dismiss',
-    tour: '/api/profile/tour',
     language: '/api/profile/language',
     themePreference: '/api/profile/theme-preference',
     colorScheme: '/api/profile/color-scheme',
@@ -46,6 +57,7 @@ export const API = {
     log: (id: string) => `/api/habits/${id}/log` as const,
     logs: (id: string) => `/api/habits/${id}/logs` as const,
     skip: (id: string) => `/api/habits/${id}/skip` as const,
+    undoSkip: (id: string, skipId: string) => `/api/habits/${id}/skip/${skipId}/undo` as const,
     duplicate: (id: string) => `/api/habits/${id}/duplicate` as const,
     checklist: (id: string) => `/api/habits/${id}/checklist` as const,
     parent: (id: string) => `/api/habits/${id}/parent` as const,
@@ -93,6 +105,7 @@ export const API = {
 
   notifications: {
     list: '/api/notifications',
+    subscriptions: '/api/notifications/subscriptions',
     markRead: (id: string) => `/api/notifications/${id}/read` as const,
     markAllRead: '/api/notifications/read-all',
     delete: (id: string) => `/api/notifications/${id}` as const,
@@ -115,6 +128,8 @@ export const API = {
     profile: '/api/gamification/profile',
     achievements: '/api/gamification/achievements',
     streak: '/api/gamification/streak',
+    repairStreak: '/api/gamification/streak/repair',
+    repairStreakGap: '/api/gamification/streak/repair-gap',
     recap: '/api/gamification/recap',
     streakHistory: '/api/gamification/streak-history',
     xpHistory: '/api/gamification/xp-history',
@@ -125,6 +140,7 @@ export const API = {
     send: '/api/chat',
     stream: '/api/chat/stream',
     transcribe: '/api/chat/transcribe',
+    records: '/api/chat/records',
   },
 
   ai: {
@@ -133,6 +149,8 @@ export const API = {
     dataCatalog: '/api/ai/data-catalog',
     surfaces: '/api/ai/surfaces',
     pendingOperationConfirm: (id: string) => `/api/ai/pending-operations/${id}/confirm` as const,
+    pendingOperationRevise: (id: string) => `/api/ai/pending-operations/${id}/revise` as const,
+    pendingOperationRefresh: (id: string) => `/api/ai/pending-operations/${id}/preview/refresh` as const,
     pendingOperationStepUp: (id: string) => `/api/ai/pending-operations/${id}/step-up` as const,
     pendingOperationVerifyStepUp: (id: string) =>
       `/api/ai/pending-operations/${id}/step-up/verify` as const,
@@ -165,6 +183,8 @@ export const API = {
   apiKeys: {
     list: '/api/api-keys',
     create: '/api/api-keys',
+    requestCreationChallenge: '/api/api-keys/creation-challenge',
+    confirmCreationChallenge: '/api/api-keys/creation-challenge/confirm',
     delete: (id: string) => `/api/api-keys/${id}` as const,
   },
 

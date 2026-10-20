@@ -1,5 +1,5 @@
 import React from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { StatusDot } from '@/components/ui/status-dot'
 
 interface TestNode {
@@ -27,7 +27,7 @@ function render(element: React.ReactNode): TestTree {
 }
 
 function nodeWithRole(tree: TestTree, role: string): TestNode | undefined {
-  return tree.root.findAll((node) => node.props?.accessibilityRole === role)[0]
+  return tree.root.findAll((node) => node.props.accessibilityRole === role)[0]
 }
 
 describe('StatusDot', () => {
@@ -46,7 +46,7 @@ describe('StatusDot', () => {
   it('dims a disabled non-interactive dot', () => {
     const tree = render(<StatusDot state="bad" disabled />)
     const image = nodeWithRole(tree, 'image')
-    expect((image!.props.style as { opacity?: number }).opacity).toBe(0.4)
+    expect((image!.props.style as { opacity?: number }).opacity).toBeCloseTo(0.4)
   })
 
   it('renders an interactive button that toggles on press', () => {
@@ -67,26 +67,17 @@ describe('StatusDot', () => {
     expect((button!.props.accessibilityState as { disabled: boolean }).disabled).toBe(true)
     expect(button!.props.disabled).toBe(true)
   })
-})
-
-describe('StatusDot completion sweep', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-  afterEach(() => {
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
-  })
-
-  it('plays the arc sweep when an interactive dot transitions into done', () => {
+  it('keeps completion static when an interactive dot becomes done', () => {
     const tree = render(<StatusDot state="empty" onToggle={vi.fn()} />)
     TestRenderer.act(() => {
       tree.update(<StatusDot state="done" onToggle={vi.fn()} />)
     })
     expect(nodeWithRole(tree, 'button')!.props.accessibilityLabel).toBe('done')
-    TestRenderer.act(() => {
-      vi.advanceTimersByTime(500)
-    })
+    expect(
+      tree.root.findAll((node) =>
+        ['Svg', 'Circle', 'AnimatedView'].includes(String(node.type)),
+      ),
+    ).toHaveLength(0)
     tree.unmount()
   })
 })

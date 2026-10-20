@@ -1,112 +1,76 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
+import { useQueryClient } from '@tanstack/react-query'
+import { profileKeys } from '@orbit/shared/query'
+import type { Profile } from '@orbit/shared/types/profile'
 import {
-  resolveAccessibleColorScheme,
   type ColorScheme,
   type ThemeMode,
 } from '@orbit/shared'
 import {
-  updateColorScheme as updateColorSchemeAction,
   updateThemePreference as updateThemePreferenceAction,
 } from '@/lib/actions/profile'
-import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
-import { reportsAccountChanged } from '@/app/actions/action-result'
 import {
   applyThemeTokensToDOM,
-  normalizeColorScheme,
-  normalizeThemeMode,
 } from '@/lib/theme-dom'
-import { useIsClient } from '@/hooks/use-is-client'
-
-function getCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null
-  const match = new RegExp(`(?:^|; )${name}=([^;]*)`).exec(document.cookie)
-  return match?.[1] ? decodeURIComponent(match[1]) : null
-}
+import { getHeldAccountId } from '@/stores/auth-store'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { getCurrentTheme, useCurrentTheme, setCurrentTheme } from '@/stores/theme-store'
 
 function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Strict; Secure`
 }
 
 export function useColorScheme() {
-  const isClient = useIsClient()
-  const [currentScheme, setCurrentScheme] = useState<ColorScheme>(() =>
-    normalizeColorScheme(getCookie('orbit_color_scheme')),
-  )
-  const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() =>
-    normalizeThemeMode(getCookie('orbit_theme_mode')),
-  )
+  const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showPersistentError } = useAppToast()
+  const currentScheme: ColorScheme = 'orange'
+  const currentTheme = useCurrentTheme()
 
   useEffect(() => {
+    if (currentTheme !== getCurrentTheme()) return
+    setCookie('orbit_color_scheme', currentScheme)
+    setCookie('orbit_theme_mode', currentTheme)
     applyThemeTokensToDOM(currentScheme, currentTheme, false)
   }, [currentScheme, currentTheme])
 
-  const applyScheme = useCallback((scheme: ColorScheme, persistToDb = true) => {
-    const intent = captureAccountIntent()
-    setCookie('orbit_color_scheme', scheme)
-    setCurrentScheme(scheme)
-    applyThemeTokensToDOM(scheme, currentTheme, true)
-
-    if (persistToDb) {
-      intent.run(() => updateColorSchemeAction({ colorScheme: scheme })).catch((error: unknown) => {
-        if (reportsAccountChanged(error)) reportAccountChanged()
-      })
-    }
-  }, [currentTheme])
-
   const applyTheme = useCallback((theme: ThemeMode, persistToDb = true) => {
-    const intent = captureAccountIntent()
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     const prev = currentTheme
-    setCookie('orbit_theme_mode', theme)
+    const previousProfile = queryClient.getQueryData<Profile>(profileKeys.detail())
+    queryClient.setQueryData<Profile>(profileKeys.detail(), (profile) =>
+      profile ? { ...profile, themePreference: theme } : profile,
+    )
     setCurrentTheme(theme)
     applyThemeTokensToDOM(currentScheme, theme, true)
 
     if (persistToDb) {
-      intent.run(() => updateThemePreferenceAction({ themePreference: theme })).catch((error: unknown) => {
-        if (reportsAccountChanged(error)) { reportAccountChanged(); return }
-        if (!intent.stillCurrent()) return
-        setCookie('orbit_theme_mode', prev)
+      updateThemePreferenceAction({ themePreference: theme }, intendedAccountId).catch((error: unknown) => {
+        if (reportsAccountChanged(error)) {
+          showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+          return
+        }
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
+        queryClient.setQueryData<Profile>(profileKeys.detail(), (profile) =>
+          profile && previousProfile ? { ...profile, themePreference: previousProfile.themePreference } : profile,
+        )
         setCurrentTheme(prev)
         applyThemeTokensToDOM(currentScheme, prev, true)
       })
     }
-  }, [currentScheme, currentTheme])
+  }, [currentScheme, currentTheme, queryClient, showPersistentError, t])
 
   const toggleTheme = useCallback(() => {
     const next: ThemeMode = currentTheme === 'dark' ? 'light' : 'dark'
     applyTheme(next)
   }, [currentTheme, applyTheme])
 
-  /**
-   * Sync cookie with DB value (DB is source of truth).
-   * Call this after profile loads to ensure cross-device sync.
-   */
-  const syncSchemeFromProfile = useCallback((
-    dbColorScheme: string | null,
-    hasProAccess = true,
-  ) => {
-    const dbScheme = dbColorScheme
-      ? resolveAccessibleColorScheme(normalizeColorScheme(dbColorScheme), hasProAccess)
-      : null
-    if (dbScheme && dbScheme !== currentScheme) {
-      setCookie('orbit_color_scheme', dbScheme)
-      setCurrentScheme(dbScheme)
-      applyThemeTokensToDOM(dbScheme, currentTheme)
-    }
-  }, [currentScheme, currentTheme])
-
-  /**
-   * First-login detection: if DB colorScheme is null, save current
-   * cookie value (default purple) so future logins are consistent.
-   */
-  const detectAndSaveSchemeIfNeeded = useCallback((dbColorScheme: string | null) => {
-    if (dbColorScheme !== null) return
-    const intent = captureAccountIntent()
-    intent.run(() => updateColorSchemeAction({ colorScheme: currentScheme })).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) reportAccountChanged()
-    })
-  }, [currentScheme])
 
   /**
    * Sync cookie with DB value (DB is source of truth).
@@ -118,7 +82,6 @@ export function useColorScheme() {
         ? dbThemePreference
         : null
     if (dbTheme && dbTheme !== currentTheme) {
-      setCookie('orbit_theme_mode', dbTheme)
       setCurrentTheme(dbTheme)
       applyThemeTokensToDOM(currentScheme, dbTheme)
     }
@@ -131,25 +94,22 @@ export function useColorScheme() {
    */
   const detectAndSaveThemeIfNeeded = useCallback((dbThemePreference: string | null | undefined) => {
     if (dbThemePreference === 'dark' || dbThemePreference === 'light') return
-    const intent = captureAccountIntent()
     const detected: ThemeMode =
       globalThis.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
-    setCookie('orbit_theme_mode', detected)
     setCurrentTheme(detected)
     applyThemeTokensToDOM(currentScheme, detected)
-    intent.run(() => updateThemePreferenceAction({ themePreference: detected })).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) reportAccountChanged()
+    updateThemePreferenceAction({ themePreference: detected }, getHeldAccountId()).catch((error: unknown) => {
+      if (reportsAccountChanged(error)) {
+        showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+      }
     })
-  }, [currentScheme])
+  }, [currentScheme, showPersistentError, t])
 
   return {
-    currentScheme: isClient ? currentScheme : 'purple',
-    currentTheme: isClient ? currentTheme : 'dark',
-    applyScheme,
+    currentScheme,
+    currentTheme,
     applyTheme,
     toggleTheme,
-    syncSchemeFromProfile,
-    detectAndSaveSchemeIfNeeded,
     syncThemeFromProfile,
     detectAndSaveThemeIfNeeded,
   }

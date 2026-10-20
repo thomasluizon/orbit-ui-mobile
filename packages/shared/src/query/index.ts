@@ -1,5 +1,7 @@
 export {
   aiKeys,
+  proactiveKeys,
+  connectionKeys,
   habitKeys,
   goalKeys,
   profileKeys,
@@ -21,11 +23,16 @@ export {
   NOTIFICATIONS_REFETCH_INTERVAL,
 } from './options'
 
+export type { HabitListKey, HabitListSnapshots } from './keys'
+export { attachNotificationPolling } from './notification-polling'
 export {
+  applyCachedHabitSkip,
   updateHabitListsForDate,
   updateCachedHabitLists,
   clearCachedOptimisticSkip,
   restoreCachedHabitLists,
+  rollbackDatedHabitLists,
+  restoreCachedHabitSkip,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
   checkTodayAllDoneOrDefer,
@@ -39,5 +46,9 @@ export {
 export { consumeAccountEventStream, createAccountEventParser } from './account-event-stream'
 export type { ParsedAccountEvent } from './account-event-stream'
 export { resetAccountQueries } from './reset-account-queries'
+export { shouldRetryQuery, queryRetryDelay, parseRetryAfter, errorRetryAfter, isUpstreamStarting } from './retry'
+
+export { dailySummaryQueryOptions } from './daily-summary'
+export type { DailySummaryOptions } from './daily-summary'
 export { createConfigCache } from './config-cache'
 export type { ConfigCache, ConfigSnapshot } from './config-cache'

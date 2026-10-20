@@ -1,0 +1,274 @@
+import type {
+  CheckboxProps,
+  CheckRowProps,
+  DateRowProps,
+  InputProps,
+  OtpInputProps,
+  SwitchProps,
+  TimeFieldProps,
+} from './index'
+
+type Exact<
+  Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
+  Expected,
+> = Actual
+
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
+type Assert<T extends true> = T
+type Fields<T> = { [TKey in keyof T]: T[TKey] }
+type ExpectedDigit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+type ExpectedHour24 = `0${ExpectedDigit}` | `1${ExpectedDigit}` | `2${'0' | '1' | '2' | '3'}`
+type ExpectedMinute = `${'0' | '1' | '2' | '3' | '4' | '5'}${ExpectedDigit}`
+type ExpectedTime24 = `${ExpectedHour24}:${ExpectedMinute}`
+
+type SingleLineVariant = Extract<InputProps, { multiline?: never }>
+type MultilineVariant = Extract<InputProps, { multiline: true; marks?: never }>
+type MarkedVariant = Extract<InputProps, { marks: readonly { start: number; end: number }[] }>
+type ExpectedSingleLineVariant = {
+  proposed?: boolean
+  label: string
+  hideLabel?: boolean
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  disabled?: boolean
+  required?: boolean
+  error?: string
+  hint?: string
+  maxLength?: number
+  kind?: 'text' | 'email' | 'number'
+  inputMode?: 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url'
+  autoComplete?: 'email' | 'name' | 'off'
+  mono?: boolean
+  autoFocus?: boolean
+  focusRequest?: number
+  name?: string
+  onSubmit?: () => void
+  onBlur?: () => void
+  trailing?: React.ReactNode
+  multiline?: never
+  rows?: never
+}
+type ExpectedMultilineBase = Omit<ExpectedSingleLineVariant, 'multiline' | 'rows'> & {
+  multiline: true
+  rows?: number
+}
+type ExpectedMultilineVariant = ExpectedMultilineBase & {
+  marks?: never
+  marksLabel?: never
+}
+type ExpectedMarkedVariant = ExpectedMultilineBase & {
+  marks: readonly { start: number; end: number }[]
+  marksLabel: string
+}
+type InputBase = { label: 'Name'; value: ''; onChange: (value: string) => void }
+type SingleInput = Exact<InputBase & { maxLength: 60 }, InputProps>
+type RequiredInput = Exact<InputBase & { required: true }, InputProps>
+type OptionalInput = Exact<InputBase & { required: false }, InputProps>
+type MultilineInput = Exact<InputBase & { multiline: true; rows: 4; maxLength: 60 }, InputProps>
+type MarkedMultilineInput = InputBase & {
+  multiline: true,
+  rows: 3
+  marks: readonly [{ start: 0; end: 3 }]
+  marksLabel: 'Words Orbit understood',
+}
+type MarkedMultilineFits = Assert<MarkedMultilineInput extends InputProps ? true : false>
+// @ts-expect-error false would create a second single-line shape
+type FalseMultiline = Exact<InputBase & { multiline: false }, InputProps>
+// @ts-expect-error rows only describe a multiline field
+type RowsWithoutMultiline = Exact<InputBase & { rows: 4 }, InputProps>
+// @ts-expect-error marks require a localized accessible label
+type MarksWithoutLabel = Exact<InputBase & { multiline: true; marks: readonly [] }, InputProps>
+
+type OtpBase = { label: 'Code'; value: ''; onChange: (value: string) => void }
+type Otp = Exact<OtpBase, OtpInputProps>
+// @ts-expect-error a controlled code field requires its change callback
+type OtpWithoutChange = Exact<Omit<OtpBase, 'onChange'>, OtpInputProps>
+// @ts-expect-error a controlled code field requires its value
+type OtpWithoutValue = Exact<Omit<OtpBase, 'value'>, OtpInputProps>
+// @ts-expect-error the caller must provide the localized accessible name
+type OtpWithoutLabel = Exact<Omit<OtpBase, 'label'>, OtpInputProps>
+// @ts-expect-error active cell state is derived from the value
+type OtpWithActiveIndex = Exact<OtpBase & { activeIndex: 2 }, OtpInputProps>
+// @ts-expect-error the single platform input owns keyboard behavior
+type OtpWithKeyHandler = Exact<OtpBase & { onKeyDown: () => void }, OtpInputProps>
+// @ts-expect-error the OTP error is one message
+type OtpWithBooleanError = Exact<OtpBase & { error: true }, OtpInputProps>
+
+type CheckboxBase = { checked: true; onChange: (checked: boolean) => void }
+type LoadingDisabledCheckbox = Exact<
+  CheckboxBase & { loading: true; disabled: true },
+  CheckboxProps
+>
+// @ts-expect-error the box carries error state, while its row carries the message
+type CheckboxWithMessage = Exact<CheckboxBase & { error: 'Required' }, CheckboxProps>
+// @ts-expect-error paint-only checkboxes render as spans
+type CheckboxAsDiv = Exact<CheckboxBase & { as: 'div' }, CheckboxProps>
+
+type CheckRowBase = { label: 'Walk'; checked: false; onChange: (checked: boolean) => void }
+type CheckRow = Exact<CheckRowBase & { value: 3 }, CheckRowProps>
+// @ts-expect-error a checklist row without words is not a state
+type CheckRowWithoutLabel = Exact<Omit<CheckRowBase, 'label'>, CheckRowProps>
+// @ts-expect-error the row carries an error message
+type CheckRowWithBooleanError = Exact<CheckRowBase & { error: true }, CheckRowProps>
+// @ts-expect-error trailing values are text or numbers, never arbitrary nodes
+type CheckRowWithNodeValue = Exact<CheckRowBase & { value: { badge: true } }, CheckRowProps>
+
+type SwitchBase = { label: 'Reminders'; checked: true; onChange: (checked: boolean) => void }
+type Switch = Exact<SwitchBase, SwitchProps>
+type DisabledSwitch = Exact<SwitchBase & { disabled: true }, SwitchProps>
+// @ts-expect-error failure belongs to the surrounding form
+type ErrorSwitch = Exact<SwitchBase & { error: 'Failed' }, SwitchProps>
+// @ts-expect-error loading belongs to the surrounding row
+type LoadingSwitch = Exact<SwitchBase & { loading: true }, SwitchProps>
+// @ts-expect-error reasons belong in visible surrounding text
+type SwitchWithReason = Exact<SwitchBase & { reason: 'Unavailable' }, SwitchProps>
+
+type TimeBase = { label: 'Time'; onChange: (value: ExpectedTime24) => void }
+type MorningTime = Exact<TimeBase & { value: '07:30' }, TimeFieldProps>
+type EveningTime = Exact<TimeBase & { value: '19:30'; hourCycle: 'h12' }, TimeFieldProps>
+// @ts-expect-error the wire value is zero-padded
+type ShortHour = Exact<TimeBase & { value: '7:30' }, TimeFieldProps>
+// @ts-expect-error the wire value admits only hours 00 through 23
+type InvalidHour = Exact<TimeBase & { value: '25:00' }, TimeFieldProps>
+// @ts-expect-error the platform cycle name is h23
+type InvalidHourCycle = Exact<TimeBase & { value: '07:30'; hourCycle: 'h24' }, TimeFieldProps>
+// @ts-expect-error TimeField accepts minute precision only
+type TimeWithStep = Exact<TimeBase & { value: '07:30'; step: 30 }, TimeFieldProps>
+
+type DateRow = Exact<{ label: 'Started'; value: 'August 28, 2026' }, DateRowProps>
+// @ts-expect-error a fixed date is not editable
+type EditableDateRow = Exact<{ label: 'Started'; value: 'August 28, 2026'; onChange: () => void }, DateRowProps>
+// @ts-expect-error a fixed date cannot be disabled
+type DisabledDateRow = Exact<{ label: 'Started'; value: 'August 28, 2026'; disabled: true }, DateRowProps>
+// @ts-expect-error a fixed date row has no loading state
+type LoadingDateRow = Exact<{ label: 'Started'; value: 'August 28, 2026'; loading: true }, DateRowProps>
+// @ts-expect-error a fixed date row has no error state
+type ErrorDateRow = Exact<{ label: 'Started'; value: 'August 28, 2026'; error: 'Failed' }, DateRowProps>
+// @ts-expect-error the visible label is required
+type DateRowWithoutLabel = Exact<{ value: 'August 28, 2026' }, DateRowProps>
+// @ts-expect-error the already formatted value is required
+type DateRowWithoutValue = Exact<{ label: 'Started' }, DateRowProps>
+// @ts-expect-error the component receives display text, not a Date
+type DateObjectRow = Exact<{ label: 'Started'; value: Date }, DateRowProps>
+
+export type FormContractAssertionsWidthAssertions = [
+  Assert<IsExactWidth<Fields<SingleLineVariant>, ExpectedSingleLineVariant>>,
+  Assert<IsExactWidth<Fields<MultilineVariant>, Fields<ExpectedMultilineVariant>>>,
+  Assert<IsExactWidth<Fields<MarkedVariant>, Fields<ExpectedMarkedVariant>>>,
+  Assert<IsExactWidth<InputProps['label'], string>>,
+  Assert<IsExactWidth<InputProps['value'], string>>,
+  Assert<IsExactWidth<InputProps['onChange'], (value: string) => void>>,
+  Assert<IsExactWidth<InputProps['placeholder'], string | undefined>>,
+  Assert<IsExactWidth<InputProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<InputProps['required'], boolean | undefined>>,
+  Assert<IsExactWidth<InputProps['error'], string | undefined>>,
+  Assert<IsExactWidth<InputProps['hint'], string | undefined>>,
+  Assert<IsExactWidth<InputProps['maxLength'], number | undefined>>,
+  Assert<IsExactWidth<InputProps['kind'], 'text' | 'email' | 'number' | undefined>>,
+  Assert<IsExactWidth<InputProps['inputMode'], 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url' | undefined>>,
+  Assert<IsExactWidth<InputProps['autoComplete'], 'email' | 'name' | 'off' | undefined>>,
+  Assert<IsExactWidth<InputProps['mono'], boolean | undefined>>,
+  Assert<IsExactWidth<InputProps['autoFocus'], boolean | undefined>>,
+  Assert<IsExactWidth<InputProps['focusRequest'], number | undefined>>,
+  Assert<IsExactWidth<InputProps['name'], string | undefined>>,
+  Assert<IsExactWidth<InputProps['onSubmit'], (() => void) | undefined>>,
+  Assert<IsExactWidth<InputProps['trailing'], React.ReactNode>>,
+  Assert<IsExactWidth<InputProps['multiline'], true | undefined>>,
+  Assert<IsExactWidth<InputProps['rows'], number | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['length'], number | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['value'], string>>,
+  Assert<IsExactWidth<OtpInputProps['onChange'], (value: string) => void>>,
+  Assert<IsExactWidth<OtpInputProps['onComplete'], ((value: string) => void) | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['error'], string | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['hint'], string | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['autoFocus'], boolean | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['label'], string>>,
+  Assert<IsExactWidth<OtpInputProps['id'], string | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['name'], string | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['checked'], boolean>>,
+  Assert<IsExactWidth<CheckboxProps['onChange'], (checked: boolean) => void>>,
+  Assert<IsExactWidth<CheckboxProps['label'], string | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['error'], boolean | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['loading'], boolean | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['as'], 'button' | 'span' | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['label'], string>>,
+  Assert<IsExactWidth<CheckRowProps['checked'], boolean>>,
+  Assert<IsExactWidth<CheckRowProps['onChange'], (checked: boolean) => void>>,
+  Assert<IsExactWidth<CheckRowProps['description'], string | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['error'], string | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['value'], string | number | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['loading'], boolean | undefined>>,
+  Assert<IsExactWidth<SwitchProps['label'], string>>,
+  Assert<IsExactWidth<SwitchProps['checked'], boolean>>,
+  Assert<IsExactWidth<SwitchProps['onChange'], (checked: boolean) => void>>,
+  Assert<IsExactWidth<SwitchProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['label'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['value'], ExpectedTime24 | ''>>,
+  Assert<IsExactWidth<TimeFieldProps['onChange'], (value: ExpectedTime24) => void>>,
+  Assert<IsExactWidth<TimeFieldProps['onClear'], (() => void) | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['hourCycle'], 'h23' | 'h12' | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['id'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['placeholder'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['ariaLabel'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['accessibilityLabel'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['className'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['hint'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['error'], string | undefined>>,
+  Assert<IsExactWidth<DateRowProps['label'], string>>,
+  Assert<IsExactWidth<DateRowProps['value'], string>>,
+  Assert<IsExactWidth<DateRowProps['note'], string | undefined>>,
+]
+
+export type FormContractAssertions =
+  | SingleInput
+  | RequiredInput
+  | OptionalInput
+  | MultilineInput
+  | MarkedMultilineInput
+  | MarkedMultilineFits
+  | FalseMultiline
+  | RowsWithoutMultiline
+  | MarksWithoutLabel
+  | Otp
+  | OtpWithoutChange
+  | OtpWithoutValue
+  | OtpWithoutLabel
+  | OtpWithActiveIndex
+  | OtpWithKeyHandler
+  | OtpWithBooleanError
+  | LoadingDisabledCheckbox
+  | CheckboxWithMessage
+  | CheckboxAsDiv
+  | CheckRow
+  | CheckRowWithoutLabel
+  | CheckRowWithBooleanError
+  | CheckRowWithNodeValue
+  | Switch
+  | DisabledSwitch
+  | ErrorSwitch
+  | LoadingSwitch
+  | SwitchWithReason
+  | MorningTime
+  | EveningTime
+  | ShortHour
+  | InvalidHour
+  | InvalidHourCycle
+  | TimeWithStep
+  | DateRow
+  | EditableDateRow
+  | DisabledDateRow
+  | LoadingDateRow
+  | ErrorDateRow
+  | DateRowWithoutLabel
+  | DateRowWithoutValue
+  | DateObjectRow

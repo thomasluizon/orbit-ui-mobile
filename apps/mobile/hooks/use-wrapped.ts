@@ -4,35 +4,36 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { gamificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { recapResponseSchema, ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
 import {
+  buildAccountScopedStorageKey,
   buildRecapRequestUrl,
   buildWrappedSlides,
   isRecapShareEmpty,
+  readAccountScopedFlag,
   withShareLinkOrigin,
   type RecapSharePeriod,
-  type ClosedMonth,
+  type ClosedRecapMonth,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { useReportEvent } from '@/hooks/use-gamification'
-import { accountStorageKey } from '@/lib/account-storage-key'
-import { useAccountId } from '@/lib/account-scope'
 import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
+import { useAuthStore } from '@/stores/auth-store'
 
 const WRAPPED_YEAR_SEEN_STORAGE_KEY = 'orbit_wrapped_year_seen'
 
 interface UseWrappedOptions {
   enabled?: boolean
   active?: boolean
-  closedMonth?: ClosedMonth | null
+  closedMonth?: ClosedRecapMonth
 }
 
 /** Fetches and validates the free recap for a Wrapped period and derives the ordered story slides. */
 export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions = {}) {
-  const { enabled = true, active = false, closedMonth = null } = options
+  const { enabled = true, active = false, closedMonth } = options
   const { mutate: reportEvent } = useReportEvent()
-  const accountId = useAccountId()
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
 
   const query = useQuery({
-    queryKey: gamificationKeys.recap(period, closedMonth),
+    queryKey: gamificationKeys.recap(period, closedMonth?.year, closedMonth?.month),
     queryFn: async () => {
       const recap = recapResponseSchema.parse(await apiClient<unknown>(buildRecapRequestUrl(period, closedMonth)))
       return { ...recap, shareDeepLink: withShareLinkOrigin(recap.shareDeepLink, APP_LINK_ORIGIN) }
@@ -43,18 +44,32 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
 
   const recap = query.data ?? null
   const slides = recap ? buildWrappedSlides(recap) : []
-  const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
+  const isEmpty = recap ? isRecapShareEmpty(recap.metrics, recap.goalCompletions) : false
 
   useEffect(() => {
     const currentRecap = query.data ?? null
-    if (!active || period !== 'year' || !currentRecap || isRecapShareEmpty(currentRecap.metrics)) {
+    if (
+      !active
+      || period !== 'year'
+      || !currentRecap
+      || isRecapShareEmpty(currentRecap.metrics, currentRecap.goalCompletions)
+    ) {
       return
     }
+    if (accountId === null) return
     let cancelled = false
-    const storageKey = accountStorageKey(WRAPPED_YEAR_SEEN_STORAGE_KEY)
-    void AsyncStorage.getItem(storageKey).then((seen) => {
-      if (cancelled || seen) return
-      void AsyncStorage.setItem(storageKey, '1')
+    const scopedKey = buildAccountScopedStorageKey(WRAPPED_YEAR_SEEN_STORAGE_KEY, accountId)
+    void AsyncStorage.multiGet([scopedKey, WRAPPED_YEAR_SEEN_STORAGE_KEY]).then(([scoped, legacy]) => {
+      if (cancelled) return
+      const flag = readAccountScopedFlag(scoped?.[1] ?? null, legacy?.[1] ?? null)
+      if (flag.seen) {
+        if (flag.adoptsLegacy) {
+          void AsyncStorage.setItem(scopedKey, '1')
+          void AsyncStorage.removeItem(WRAPPED_YEAR_SEEN_STORAGE_KEY)
+        }
+        return
+      }
+      void AsyncStorage.setItem(scopedKey, '1')
       reportEvent(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
     })
     return () => {
@@ -83,6 +98,8 @@ interface WrappedStory {
 /** Tap-driven story controller: clamps the slide index to bounds and exposes next/prev. */
 export function useWrappedStory(slideCount: number): WrappedStory {
   const [index, setIndex] = useState(0)
+  const lastIndex = Math.max(slideCount - 1, 0)
+  if (index > lastIndex) setIndex(lastIndex)
 
   return {
     index,

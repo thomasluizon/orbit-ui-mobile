@@ -42,7 +42,7 @@ export function buildTempGoal(
     completedAtUtc: null,
     progressPercentage: 0,
     linkedHabits: [],
-    isProgressDerived: request.type === 'Streak',
+    isProgressDerived: request.type === 'Streak' || (request.habitIds?.length ?? 0) > 0,
   }
 }
 
@@ -82,9 +82,15 @@ export function updateGoalDetailItem(
 }
 
 export function updateGoalProgressItem(goal: Goal, currentValue: number): Goal {
+  const completesGoal = goal.status === 'Active'
+    && goal.isProgressDerived !== true
+    && currentValue >= goal.targetValue
+
   return {
     ...goal,
     currentValue,
+    status: completesGoal ? 'Completed' : goal.status,
+    completedAtUtc: completesGoal ? goal.completedAtUtc ?? new Date().toISOString() : goal.completedAtUtc,
     progressPercentage: computeGoalProgressPercentage(currentValue, goal.targetValue),
   }
 }

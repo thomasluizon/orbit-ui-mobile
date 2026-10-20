@@ -1,10 +1,26 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { appConfigSchema } from '@orbit/shared/types/config'
+import type { ActiveView } from '@orbit/shared/stores'
+import en from '@orbit/shared/i18n/en.json'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { patchNextAppRouterHistory } from '@/__tests__/support/next-app-router-history'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { DestinationShell } from '@/components/shell/destination-shell'
+import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent } from '@/lib/motion/route-intent'
+import { within } from '@testing-library/react'
+import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { ApiClientError } from '@orbit/shared/utils'
+import { createMockConfigResponse, createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { HabitFormProposal } from '@orbit/shared/utils'
+import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { ApiClientError, applyHabitPhraseRead, readHabitPhrase } from '@orbit/shared/utils'
 
 
 const mockCreateMutateAsync = vi.fn()
@@ -16,11 +32,36 @@ const mockFormGetValues = vi.fn()
 const mockFormWatch = vi.fn()
 const mockFormRegister = vi.fn(() => ({ name: 'test', onChange: vi.fn(), onBlur: vi.fn(), ref: vi.fn() }))
 const mockSetFlexible = vi.fn()
+const mockSetGeneral = vi.fn()
+const mockView = vi.hoisted(() => ({ value: 'today' as ActiveView }))
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
-const mockShowSuccess = vi.fn()
-const mockShowInfo = vi.fn()
+const mockPush = vi.fn()
+const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
+  (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
+))
+const mockFormStatus = vi.hoisted(() => ({ dirty: false }))
+const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
+const mockLocale = vi.hoisted(() => ({ value: 'en' }))
+const mockShell = vi.hoisted(() => ({ wide: false }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mockShell.wide, useIsDesktop: () => mockShell.wide }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+const mockHabitFormFieldsState = vi.hoisted(() => ({
+  onSuggestEmoji: undefined as undefined | (() => HabitFormProposal | null | Promise<HabitFormProposal | null>),
+  onSuggestSetup: undefined as undefined | (() => HabitFormProposal | null | Promise<HabitFormProposal | null>),
+  onSuggestionContextChange: undefined as undefined | (() => void),
+  onPhraseOwnershipChange: undefined as undefined | ((ownership: { cadence: boolean; dueTime: boolean }) => void),
+}))
+
+const pushPermission = vi.hoisted(() => ({ subscribe: vi.fn(async () => ({ permission: 'granted' })) }))
+vi.mock('@/hooks/use-push-notification-preferences', () => ({
+  ensurePushSubscription: pushPermission.subscribe,
+  isPushNotificationSupported: () => true,
+}))
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -32,12 +73,14 @@ vi.mock('next-intl', () => ({
     }
     return t
   },
-  useLocale: () => 'en',
+  useLocale: () => mockLocale.value,
 }))
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/habits/new',
+  useParams: () => ({}),
   useRouter: () => ({
-    push: vi.fn(),
+    push: mockPush,
     replace: vi.fn(),
     back: vi.fn(),
     refresh: vi.fn(),
@@ -58,9 +101,14 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
+  useHasProAccess: () => mockProfileState.hasProAccess,
   useProfile: () => ({
-    profile: { hasProAccess: true },
+    profile: { name: '', email: 'person@example.test', hasProAccess: mockProfileState.hasProAccess },
   }),
+}))
+
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
 
 vi.mock('@/hooks/use-habit-suggestion', () => ({
@@ -72,13 +120,15 @@ vi.mock('@/hooks/use-habit-suggestion', () => ({
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
+    reportBackendErrors: vi.fn(() => false),
     form: {
       reset: mockFormReset,
       setValue: mockFormSetValue,
       getValues: mockFormGetValues,
+      trigger: vi.fn().mockResolvedValue(true),
       watch: mockFormWatch,
       register: mockFormRegister,
-      formState: { isValid: true },
+      formState: { isValid: true, get isDirty() { return mockFormStatus.dirty } },
     },
     isOneTime: false,
     isGeneral: false,
@@ -91,11 +141,12 @@ vi.mock('@/hooks/use-habit-form', () => ({
     setOneTime: vi.fn(),
     setRecurring: vi.fn(),
     setFlexible: mockSetFlexible,
-    setGeneral: vi.fn(),
+    setGeneral: mockSetGeneral,
     toggleDay: vi.fn(),
     formatTimeInput: vi.fn((v: string) => v),
     formatEndTimeInput: vi.fn((v: string) => v),
     validateAll: mockValidateAll,
+    clearBackendErrors: vi.fn(),
   }),
 }))
 
@@ -109,21 +160,26 @@ vi.mock('@/hooks/use-tag-selection', () => ({
     setShowNewTag: vi.fn(),
     newTagName: '',
     setNewTagName: vi.fn(),
-    newTagColor: '#7f46f7',
+    newTagColor: '#C4530F',
     setNewTagColor: vi.fn(),
-    tagColors: ['#7f46f7'],
+    tagColors: ['#C4530F'],
   }),
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: () => 'today',
-}))
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/stores/ui-store')>()
+  return {
+    ...original,
+    setUIAccountScope: vi.fn(),
+    useUIStore: Object.assign(() => mockView.value, { getState: original.useUIStore.getState }),
+  }
+})
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
     showError: mockShowError,
-    showSuccess: mockShowSuccess,
-    showInfo: mockShowInfo,
+    showSuccess: vi.fn(),
+    showInfo: vi.fn(),
   }),
 }))
 
@@ -136,84 +192,89 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 vi.mock('@/lib/habit-request-builders', () => ({
-  buildCreateHabitRequest: vi.fn(() => ({})),
+  buildCreateHabitRequest: mockBuildCreateHabitRequest,
   buildSubHabitRequest: vi.fn(() => ({})),
 }))
 
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({
-    open,
-    children,
-    title,
-    description,
-    footer,
-  }: {
-    open: boolean
-    children: React.ReactNode
-    title?: string
-    description?: string
-    footer?: React.ReactNode
-  }) =>
-    open ? (
-      <div data-testid="app-overlay">
-        {title && <h2>{title}</h2>}
-        {description && <p>{description}</p>}
-        {children}
-        {footer && <div data-testid="overlay-footer">{footer}</div>}
-      </div>
-    ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('./habit-form-fields', () => ({
   HabitFormFields: ({
     children,
-    onSuggestSetup,
     onSuggestEmoji,
+    onSuggestSetup,
+    onSuggestionContextChange,
+    onPhraseOwnershipChange,
+    onToggleGoal,
   }: {
-    children?: React.ReactNode
-    onSuggestSetup?: () => void
-    onSuggestEmoji?: () => void
-  }) => (
-    <div data-testid="habit-form-fields">
-      {onSuggestSetup && (
-        <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
-          suggest
+    children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
+    onSuggestEmoji?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+    onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+    onSuggestionContextChange?: () => void
+    onPhraseOwnershipChange?: (ownership: { cadence: boolean; dueTime: boolean }) => void
+    onToggleGoal: (goalId: string) => void
+  }) => {
+    mockHabitFormFieldsState.onSuggestEmoji = onSuggestEmoji
+    mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
+    mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
+    mockHabitFormFieldsState.onPhraseOwnershipChange = onPhraseOwnershipChange
+    return (
+      <div data-testid="habit-form-fields">
+        {onSuggestSetup && (
+          <button type="button" data-testid="suggest-trigger" onClick={() => { void onSuggestSetup() }}>
+            suggest
+          </button>
+        )}
+        <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
+          goal
         </button>
-      )}
-      {onSuggestEmoji && (
-        <button type="button" data-testid="emoji-suggest-trigger" onClick={() => onSuggestEmoji()}>
-          suggest emoji
+        <button type="button" data-testid="apply-phrase" onClick={() => onPhraseOwnershipChange?.({ cadence: true, dueTime: false })}>
+          apply phrase
         </button>
-      )}
-      {children}
-    </div>
-  ),
+        {typeof children === 'function' ? children(0) : children}
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
     children,
-    onSuggestSetup,
     onSuggestEmoji,
+    onSuggestSetup,
+    onSuggestionContextChange,
+    onPhraseOwnershipChange,
+    onToggleGoal,
   }: {
-    children?: React.ReactNode
-    onSuggestSetup?: () => void
-    onSuggestEmoji?: () => void
-  }) => (
-    <div data-testid="habit-form-fields">
-      {onSuggestSetup && (
-        <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
-          suggest
+    children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
+    onSuggestEmoji?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+    onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+    onSuggestionContextChange?: () => void
+    onPhraseOwnershipChange?: (ownership: { cadence: boolean; dueTime: boolean }) => void
+    onToggleGoal: (goalId: string) => void
+  }) => {
+    mockHabitFormFieldsState.onSuggestEmoji = onSuggestEmoji
+    mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
+    mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
+    mockHabitFormFieldsState.onPhraseOwnershipChange = onPhraseOwnershipChange
+    return (
+      <div data-testid="habit-form-fields">
+        <input aria-label="draft" defaultValue="" />
+        {onSuggestSetup && (
+          <button type="button" data-testid="suggest-trigger" onClick={() => { void onSuggestSetup() }}>
+            suggest
+          </button>
+        )}
+        <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
+          goal
         </button>
-      )}
-      {onSuggestEmoji && (
-        <button type="button" data-testid="emoji-suggest-trigger" onClick={() => onSuggestEmoji()}>
-          suggest emoji
+        <button type="button" data-testid="apply-phrase" onClick={() => onPhraseOwnershipChange?.({ cadence: true, dueTime: false })}>
+          apply phrase
         </button>
-      )}
-      {children}
-    </div>
-  ),
+        {typeof children === 'function' ? children(0) : children}
+      </div>
+    )
+  },
 }))
 
 
@@ -221,22 +282,66 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(ui, {
-    wrapper: ({ children }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    ),
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  )
+}
+
+function HabitCreateRouter({ nextHistory }: Readonly<{ nextHistory: ReturnType<typeof patchNextAppRouterHistory> }>) {
+  const [route, setRoute] = React.useState({ href: location.pathname + location.search, creationRendered: true })
+  const { href, creationRendered } = route
+  React.useLayoutEffect(() => {
+    nextHistory.restoreTraversal.mockImplementation((restoredHref, routerState) => {
+      const restored = new URL(restoredHref)
+      setRoute({ href: restored.pathname + restored.search, creationRendered: JSON.stringify(routerState).includes('habits') })
+    })
+    const tree = creationRendered ? ['', { children: ['habits', { children: ['new', { children: ['__PAGE__', {}] }] }] }] : ['', { children: ['__PAGE__', {}] }]
+    history.replaceState(Object.assign({}, history.state, { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree, renderedSearch: '' } }), '', href)
+  }, [route, href, creationRendered, nextHistory])
+  return creationRendered
+    ? <CreateHabitModal open presentation="screen" onOpenChange={() => setRoute({ href: '/', creationRendered: false })} />
+    : <div>Today</div>
+}
+
+async function traverseHistory(direction: 'back' | 'forward') {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      window.addEventListener('popstate', () => resolve(), { once: true })
+      history[direction]()
+    })
   })
 }
 
 
 describe('CreateHabitModal', () => {
+  it.each(['today', 'all', 'general'] as const)('uses the production create default in %s', async (view) => {
+    mockView.value = view
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />)
+    await act(async () => { await Promise.resolve() })
+    expect(mockSetGeneral).toHaveBeenCalledTimes(view === 'general' ? 1 : 0)
+  })
+
+  let nextHistory: ReturnType<typeof patchNextAppRouterHistory>
+  afterEach(() => { nextHistory.restore(); sheetTestControls.defer(false) })
   beforeEach(() => {
+    nextHistory = patchNextAppRouterHistory()
+    vi.stubGlobal('Notification', { permission: 'default' })
+    Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
     vi.clearAllMocks()
+    mockView.value = 'today'
+    mockFormStatus.dirty = false
+    mockShell.wide = false
+    resetRouteTransitionIntent()
+    mockHabitFormFieldsState.onSuggestSetup = undefined
+    mockProfileState.hasProAccess = true
+    mockLocale.value = 'en'
     mockCreateMutateAsync.mockResolvedValue({})
     mockCreateSubMutateAsync.mockResolvedValue({})
     mockValidateAll.mockReturnValue(null)
     mockFormWatch.mockImplementation((field?: string) => {
       switch (field) {
+        case 'title':
+          return 'Test Habit'
         case 'dueTime':
           return ''
         case 'reminderEnabled':
@@ -267,6 +372,289 @@ describe('CreateHabitModal', () => {
     })
   })
 
+  it('renders the pushed creation header and back control', () => {
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'common.back' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'habits.form.newHabit' })).not.toBeInTheDocument()
+  })
+
+  it('returns on clean screen Back without a discard sheet', async () => {
+    const close = vi.fn()
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+  })
+
+  it.each([false, true])('guards browser Back after router restoration with dirty=%s', async (dirty) => {
+    history.pushState(null, '', '/habits/new?from=%2F')
+    mockFormStatus.dirty = dirty
+    const routerRestore = vi.fn()
+    window.addEventListener('popstate', routerRestore)
+    const close = vi.fn(() => history.replaceState(null, '', '/'))
+    const mounted = renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    try {
+      fireEvent.change(screen.getByRole('textbox', { name: 'draft' }), { target: { value: 'Keep this draft' } })
+      act(() => history.back())
+      if (dirty) {
+        await waitFor(() => expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument())
+        expect(close).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+        expect(screen.getByRole('textbox', { name: 'draft' })).toHaveValue('Keep this draft')
+        act(() => history.back())
+        await waitFor(() => expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument())
+        fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+      }
+      await waitFor(() => expect(close).toHaveBeenCalledOnce())
+      expect(location.pathname).toBe('/')
+      expect(routerRestore).toHaveBeenCalled()
+    } finally {
+      mounted.unmount()
+      window.removeEventListener('popstate', routerRestore)
+    }
+  })
+
+  it.each(['en', 'pt-BR'])('replays browser Back during Keep editing exit in %s', async (locale) => {
+    mockLocale.value = locale
+    mockFormStatus.dirty = true
+    history.pushState(null, '', '/habits/new?from=%2F')
+    const close = vi.fn(() => history.replaceState(null, '', '/'))
+    const mounted = renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'draft' }), { target: { value: 'Keep this draft' } })
+    act(() => history.back())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.keepEditing' })).toBeInTheDocument())
+    sheetTestControls.defer(true)
+    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+    await traverseHistory('back')
+    await waitFor(() => expect(history.state.orbitHabitCreateSentinel).toBe(true))
+    expect(close).not.toHaveBeenCalled()
+    act(() => sheetTestControls.completeDismissal())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.keepEditing' })).toBeInTheDocument())
+    expect(screen.getByRole('textbox', { name: 'draft' })).toHaveValue('Keep this draft')
+    expect(close).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    act(() => sheetTestControls.completeDismissal())
+    expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
+    act(() => history.back())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.discardChangesAction' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    act(() => sheetTestControls.completeDismissal())
+    await waitFor(() => expect(close).toHaveBeenCalledOnce())
+    expect(location.pathname).toBe('/')
+    mounted.unmount()
+  })
+
+  it.each([
+    ['direct', false], ['navigated', false], ['direct', true], ['navigated', true],
+  ])('returns the successful %s screen create to Today with deferred restoration=%s', async (entry, deferRestoration) => {
+    if (deferRestoration) {
+      nextHistory.restore()
+      nextHistory = patchNextAppRouterHistory({ deferRestoration: true })
+    }
+    if (entry === 'navigated') {
+      history.pushState(null, '', '/')
+      history.pushState(null, '', '/habits/new?from=%2F')
+    } else history.replaceState(null, '', '/habits/new?from=%2F')
+    mockFormStatus.dirty = true
+    const mounted = renderWithProviders(<HabitCreateRouter nextHistory={nextHistory} />)
+    try {
+      await act(async () => { await Promise.resolve() })
+      nextHistory.writes.replaceState.mockClear()
+      fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+      await waitFor(() => expect(nextHistory.writes.replaceState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/'))
+      await waitFor(() => expect(location.pathname).toBe('/'))
+      expect(mockCreateMutateAsync).toHaveBeenCalledOnce()
+      expect(screen.getByText('Today')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
+      expect(nextHistory.restoreTraversal).toHaveBeenCalledTimes(2)
+      expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+      expect(mockShowError).not.toHaveBeenCalled()
+      nextHistory.restoreTraversal.mockClear()
+      await traverseHistory('forward')
+      expect(nextHistory.restoreTraversal).toHaveBeenCalledOnce()
+      expect(JSON.stringify(nextHistory.restoreTraversal.mock.calls)).not.toContain('habits')
+      expect(location.pathname).toBe('/')
+      expect(screen.getByText('Today')).toBeInTheDocument()
+      expect(mounted.container.querySelector('[data-habit-create-screen]')).toBeNull()
+    } finally {
+      mounted.unmount()
+    }
+  })
+
+  it.each([
+    ['direct', 'browser Back'], ['navigated', 'browser Back'],
+    ['direct', 'screen Back'], ['navigated', 'screen Back'],
+  ])('returns the clean %s %s exit to Today after an eager router restore', async (entry, exit) => {
+    if (entry === 'navigated') {
+      history.pushState(null, '', '/')
+      history.pushState(null, '', '/habits/new?from=%2F')
+    } else history.replaceState(null, '', '/habits/new?from=%2F')
+    renderWithProviders(<HabitCreateRouter nextHistory={nextHistory} />)
+    nextHistory.writes.replaceState.mockClear()
+    if (exit === 'browser Back') act(() => history.back())
+    else fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    await waitFor(() => expect(nextHistory.writes.replaceState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/'))
+    await waitFor(() => expect(location.pathname).toBe('/'))
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+    nextHistory.restoreTraversal.mockClear()
+    await traverseHistory('forward')
+    expect(JSON.stringify(nextHistory.restoreTraversal.mock.calls)).not.toContain('habits')
+    expect(location.pathname).toBe('/')
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
+  })
+
+  it.each(['common.keepEditing', 'close-overlay'])('forgets a rejected destination before Back after %s', async (cancelAction) => {
+    mockFormStatus.dirty = true
+    const close = vi.fn()
+    const rejectedDestination = vi.fn()
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    act(() => requestHabitCreateNavigation(rejectedDestination))
+    expect(close).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: cancelAction }))
+    expect(rejectedDestination).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    expect(rejectedDestination).not.toHaveBeenCalled()
+  })
+
+  it.each(['cancel', 'confirm'] as const)('guards the wide sidebar bell and handles %s through the creation exit', async (choice) => {
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
+    mockFormStatus.dirty = true
+    mockShell.wide = true
+    mockPush.mockImplementationOnce((href: string) => history.pushState(null, '', href))
+    const close = vi.fn()
+    const mounted = renderWithProviders(<DestinationShell onCreate={vi.fn()}>
+      <CreateHabitModal open presentation="screen" onOpenChange={close} />
+    </DestinationShell>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'draft' }), { target: { value: 'Keep this draft' } })
+    const sidebar = mounted.container.querySelector<HTMLElement>('[data-shell-sidebar]')!
+    const bell = within(sidebar).getByRole('button', { name: 'notifications.bell' })
+    resetRouteTransitionIntent()
+    fireEvent.click(bell)
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+    expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument()
+    if (choice === 'cancel') {
+      fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+      expect(screen.getByRole('textbox', { name: 'draft' })).toHaveValue('Keep this draft')
+      expect(location.pathname).toBe('/habits/new')
+      expect(mockPush).not.toHaveBeenCalled()
+      expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+      fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+      fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+      await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+      expect(mockPush).not.toHaveBeenCalled()
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+      await waitFor(() => expect(location.pathname).toBe('/notifications'))
+      expect(mockPush).toHaveBeenCalledExactlyOnceWith('/notifications')
+      expect(close).not.toHaveBeenCalled()
+      mounted.unmount()
+      await traverseHistory('back')
+      expect(location.pathname).toBe('/habits/new')
+      await traverseHistory('forward')
+      expect(location.pathname).toBe('/notifications')
+    }
+    mounted.unmount()
+    mockPush.mockReset()
+  })
+
+  it('removes the creation sentinel after native fragment navigation and approved Back', async () => {
+    history.pushState(null, '', '/calendar')
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
+    mockFormStatus.dirty = true
+    const close = vi.fn(() => history.replaceState(null, '', '/search'))
+    const mounted = renderWithProviders(<><a href="#orbit-main">skip</a><main id="orbit-main"><CreateHabitModal open presentation="screen" onOpenChange={close} /></main></>)
+    const beforeFragment = history.length
+    fireEvent.click(screen.getByRole('link', { name: 'skip' }))
+    await waitFor(() => expect(location.hash).toBe('#orbit-main'))
+    expect(history.length).toBe(beforeFragment + 1)
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    expect(close).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    mounted.unmount()
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/search')
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/calendar')
+  })
+
+  it('keeps fragment Back and Forward in-page and guards leaving after multiple fragments', async () => {
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
+    mockFormStatus.dirty = true
+    const close = vi.fn(() => history.replaceState(null, '', '/search'))
+    const mounted = renderWithProviders(<><a href="#orbit-main">skip</a><a href="#details">details</a><main id="orbit-main"><CreateHabitModal open presentation="screen" onOpenChange={close} /><div id="details" /></main></>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'draft' }), { target: { value: 'Keep this draft' } })
+    fireEvent.click(screen.getByRole('link', { name: 'skip' }))
+    await waitFor(() => expect(location.hash).toBe('#orbit-main'))
+    fireEvent.click(screen.getByRole('link', { name: 'details' }))
+    await waitFor(() => expect(location.hash).toBe('#details'))
+
+    await traverseHistory('back')
+    expect(location.hash).toBe('#orbit-main')
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+    await traverseHistory('forward')
+    expect(location.hash).toBe('#details')
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+    await traverseHistory('back')
+    await traverseHistory('back')
+    expect(location.hash).toBe('')
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+
+    act(() => history.back())
+    await waitFor(() => expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    expect(close).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: 'draft' })).toHaveValue('Keep this draft')
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    mounted.unmount()
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/search')
+  })
+
+  it('allows an approved pushed destination after clearing forward history', async () => {
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
+    mockFormStatus.dirty = true
+    const destination = vi.fn(() => history.pushState(null, '', '/calendar'))
+    const mounted = renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />)
+    act(() => requestHabitCreateNavigation(destination))
+    expect(destination).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(location.pathname).toBe('/calendar'))
+    expect(destination).toHaveBeenCalledOnce()
+    expect(nextHistory.restoreTraversal).toHaveBeenCalledTimes(2)
+    mounted.unmount()
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/habits/new')
+  })
+
+  it('guards a desktop navigation chord while the screen is dirty', async () => {
+    mockFormStatus.dirty = true
+    function Host() {
+      useKeyboardShortcuts()
+      return <CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />
+    }
+    renderWithProviders(<Host />)
+    fireEvent.keyDown(document.body, { key: 'g' })
+    fireEvent.keyDown(document.body, { key: 'c' })
+    expect(mockPush).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/calendar'))
+  })
+
   it('renders nothing when closed', () => {
     const { container } = renderWithProviders(
       <CreateHabitModal open={false} onOpenChange={vi.fn()} />,
@@ -278,14 +666,78 @@ describe('CreateHabitModal', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByTestId('app-overlay')).toBeDefined()
+    expect(screen.getByTestId('sheet')).toBeDefined()
+  })
+
+  it('commits no previous-account form before the close effect runs', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    const committedOpen: boolean[] = []
+    function Host() {
+      const [open, setOpen] = React.useState(true)
+      const accountGeneration = useAccountGeneration()
+      React.useLayoutEffect(() => {
+        if (accountGeneration > initialGeneration) {
+          committedOpen.push(Boolean(screen.queryByTestId('sheet')))
+        }
+      }, [accountGeneration])
+      return <CreateHabitModal open={open} onOpenChange={setOpen} />
+    }
+    const initialGeneration = getAccountGeneration()
+    renderWithProviders(<Host />)
+
+    await replaceAccountWith('user-2')
+
+    expect(committedOpen).toContain(false)
+    expect(committedOpen).not.toContain(true)
+    vi.unstubAllGlobals()
+  })
+
+  it('opens for the new account after an account change while closed', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    const onOpenChange = vi.fn()
+    function Host() {
+      const [open, setOpen] = React.useState(false)
+      return <>
+        <button type="button" onClick={() => setOpen(true)}>open under B</button>
+        <CreateHabitModal open={open} onOpenChange={onOpenChange} />
+      </>
+    }
+    renderWithProviders(<Host />)
+
+    await replaceAccountWith('user-2')
+    fireEvent.click(screen.getByRole('button', { name: 'open under B' }))
+
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+
+  it('does not close the next account modal when an old create finishes', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    let releaseCreate!: (value: object) => void
+    mockCreateMutateAsync.mockImplementationOnce(() => new Promise((resolve) => {
+      releaseCreate = resolve
+    }))
+    const onOpenChange = vi.fn()
+    renderWithProviders(<CreateHabitModal open onOpenChange={onOpenChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalledOnce())
+
+    await replaceAccountWith('user-2')
+    onOpenChange.mockClear()
+    await act(async () => { releaseCreate({}); await Promise.resolve() })
+
+    expect(onOpenChange).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
   })
 
   it('shows create habit title', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    const matches = screen.getAllByText('habits.createHabit')
+    const matches = screen.getAllByText('habits.form.newHabit')
     expect(matches.length).toBeGreaterThanOrEqual(1)
   })
 
@@ -309,13 +761,160 @@ describe('CreateHabitModal', () => {
     expect(screen.getByTestId('habit-form-fields')).toBeDefined()
   })
 
-  it('renders cancel and a tight create button', () => {
+  it('renders named cancel and create actions', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByText('common.cancel')).toBeDefined()
-    const submit = screen.getByTestId('habit-create-submit')
-    expect(submit.textContent).toContain('common.create')
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDefined()
+  })
+
+  it('starts permission from Save when a reminder was prefilled', async () => {
+    const values = mockFormGetValues()
+    mockFormGetValues.mockReturnValue({ ...values, reminderEnabled: true, dueTime: '09:00' })
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    expect(pushPermission.subscribe).toHaveBeenCalledOnce()
+    await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalledOnce())
+  })
+
+  it('submits through the named Create footer action', async () => {
+    renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'habits.createHabit'])
+    expectSmallSheetActions()
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+
+    await waitFor(() => {
+      expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
+    })
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { subHabitMode: false, label: 'habit' },
+    { subHabitMode: true, label: 'sub-habit' },
+  ])('keeps an open $label draft and refuses submission after disconnect', async ({ subHabitMode }) => {
+    const onOpenChange = vi.fn()
+    renderWithProviders(
+      <CreateHabitModal
+        open
+        onOpenChange={onOpenChange}
+        parentHabit={subHabitMode ? createMockHabit({ id: 'parent-1' }) : undefined}
+      />,
+    )
+
+    const draft = screen.getByRole('textbox', { name: 'draft' })
+    fireEvent.change(draft, { target: { value: 'Keep this draft' } })
+    const offlineStatus = screen.getByRole('status')
+    Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true })
+    act(() => { globalThis.dispatchEvent(new Event('offline')) })
+    fireEvent.submit(screen.getByTestId('sheet').querySelector('form')!)
+
+    expect(screen.getByText('offline.create.reason')).toBeVisible()
+    expect(offlineStatus).toHaveTextContent('offline.create.reason')
+    expect(offlineStatus.closest('[data-slot="sheet-actions"]')).toBeInTheDocument()
+    expect(screen.getByTestId('habit-form-fields')).toBeInTheDocument()
+    expect(draft).toHaveValue('Keep this draft')
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled()
+    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('sends a title without the schedule applied from a Portuguese phrase', async () => {
+    const phrase = 'Alongar 3 vezes por semana'
+    mockLocale.value = 'pt-BR'
+    mockFormWatch.mockImplementation((field?: string) => field === 'title' ? phrase : undefined)
+    mockFormGetValues.mockReturnValue({
+      title: phrase,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+      isFlexible: true,
+      dueTime: '',
+    })
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('apply-phrase'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+
+    await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Alongar' })
+  })
+
+  it('keeps an unapplied interval in a one-time habit title', async () => {
+    const phrase = 'Run every 2 weeks'
+    mockFormWatch.mockImplementation((field?: string) => field === 'title' ? phrase : undefined)
+    mockFormGetValues.mockReturnValue({ title: phrase, frequencyUnit: null, frequencyQuantity: null, dueTime: '' })
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    const setOneTime = vi.fn()
+    const target = {
+      setOneTime,
+      setRecurring: vi.fn(),
+      setFlexible: vi.fn(),
+      setGeneral: vi.fn(),
+      setField: vi.fn(),
+    }
+    const initial = applyHabitPhraseRead(true, readHabitPhrase('Run Monday every 2 weeks', 'en'), '', false,
+      { cadence: false, dueTime: false }, target)
+    const ownership = applyHabitPhraseRead(true, readHabitPhrase(phrase, 'en'), '', false, initial, target)
+    act(() => mockHabitFormFieldsState.onPhraseOwnershipChange?.(ownership))
+    expect(setOneTime).toHaveBeenCalledOnce()
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+
+    await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: phrase })
+  })
+
+  it('omits nested sub-habits from a Free create request', async () => {
+    mockProfileState.hasProAccess = false
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.addSubHabit' }))
+    fireEvent.change(
+      screen.getByLabelText('habits.form.subHabitInputLabel({"index":1})'),
+      { target: { value: 'Warm up' } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+
+    await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
+  })
+
+  it('routes a Free standalone sub-habit attempt to upgrade without calling the API', async () => {
+    mockProfileState.hasProAccess = false
+    const onOpenChange = vi.fn()
+    renderWithProviders(
+      <CreateHabitModal
+        open={true}
+        onOpenChange={onOpenChange}
+        parentHabit={createMockHabit({ id: 'parent-1' })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/upgrade'))
+    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('keeps goal linking in the create request without a plan gate', async () => {
+    renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByTestId('goal-trigger'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+
+    await waitFor(() => {
+      expect(mockValidateAll).toHaveBeenCalledWith(expect.objectContaining({
+        selectedGoalIds: ['goal-free'],
+      }))
+    })
   })
 
   it('calls onOpenChange(false) when cancel is clicked', () => {
@@ -327,12 +926,12 @@ describe('CreateHabitModal', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('shows sub-habits section when not in sub-habit mode', () => {
+  it('shows the sub-habit editor without repeating its section name', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByText('habits.form.subHabits')).toBeDefined()
     expect(screen.getByText('habits.form.addSubHabit')).toBeDefined()
+    expect(screen.queryByText('habits.form.subHabits')).toBeNull()
   })
 
   it('hides sub-habits section when in sub-habit mode', () => {
@@ -345,23 +944,24 @@ describe('CreateHabitModal', () => {
       />,
     )
     expect(screen.queryByText('habits.form.subHabits')).toBeNull()
+    expect(screen.queryByText('habits.form.addSubHabit')).toBeNull()
   })
 
-  it('shows validation error when form validation fails', () => {
+  it('shows validation error when form validation fails', async () => {
     mockValidateAll.mockReturnValue('Validation failed!')
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    const form = screen.getByTestId('app-overlay').querySelector('form')
+    const form = screen.getByTestId('sheet').querySelector('form')
     fireEvent.submit(form!)
-    expect(mockShowError).toHaveBeenCalledWith('Validation failed!')
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledWith('Validation failed!'))
     expect(mockCreateMutateAsync).not.toHaveBeenCalled()
     expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
   })
 
   it.each([
     [403, undefined, 'Blocked by the edge', 'errors.api.edgeBlocked'],
-    [400, 'VALIDATION_ERROR', 'Title must be 200 characters or fewer', 'habits.form.titleTooLong'],
+    [400, 'VALIDATION_ERROR', en.habits.form.titleTooLong, 'habits.form.titleTooLong'],
     [429, 'RATE_LIMITED', 'Rate limited', 'toast.errors.tooManyRequests'],
     [500, 'INTERNAL_SERVER_ERROR', 'Server failed', 'toast.errors.server'],
     [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!', 'errors.api.calendarPro'],
@@ -369,7 +969,7 @@ describe('CreateHabitModal', () => {
   ])('shows the classified create error for %i %s', async (status, code, message, expected) => {
     mockCreateMutateAsync.mockRejectedValue(new ApiClientError(status, message, { code }))
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    fireEvent.submit(screen.getByTestId('app-overlay').querySelector('form')!)
+    fireEvent.submit(screen.getByTestId('sheet').querySelector('form')!)
     await waitFor(() => expect(mockShowError).toHaveBeenCalledWith(expected))
     expect(mockShowError).not.toHaveBeenCalledWith('errors.createHabit')
   })
@@ -430,6 +1030,58 @@ describe('CreateHabitModal', () => {
     })
   })
 
+  it.each(['', '   '])('does not request an emoji for an empty title %j', async (title) => {
+    mockFormGetValues.mockImplementation((field: unknown) => field === 'title' ? title : undefined)
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    mockFormSetValue.mockClear()
+    await act(async () => { await mockHabitFormFieldsState.onSuggestEmoji!() })
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [new Error('offline'), 'habits.form.aiSuggestError'],
+    [{ data: { errorCode: 'PAY_GATE' } }, 'habits.form.aiSuggestLimitReached'],
+  ])('reports an emoji request failure and preserves the draft', async (failure, message) => {
+    mockFormGetValues.mockImplementation((field: unknown) => field === 'title' ? 'Swim' : undefined)
+    mockSuggestMutateAsync.mockRejectedValue(failure)
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    mockFormSetValue.mockClear()
+    await act(async () => { await mockHabitFormFieldsState.onSuggestEmoji!() })
+    expect(mockShowError).toHaveBeenCalledWith(message)
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+  })
+
+  it.each(['🏊', null])('requests only an emoji and preserves every other entered habit field: %s', async (emoji) => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems') return []
+      return { title: 'Swim', checklistItems: [] }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: [],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: [],
+      checklistItems: ['Towel', 'Goggles'],
+    })
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      expect(mockHabitFormFieldsState.onSuggestEmoji).toBeTypeOf('function')
+      proposal = await mockHabitFormFieldsState.onSuggestEmoji?.()
+    })
+    expect(proposal?.setup).toBe(Boolean(emoji))
+
+    expect(mockFormSetValue.mock.calls).toEqual(emoji ? [['emoji', emoji, { shouldDirty: true }]] : [])
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+  })
+
   it('applies due time, flexible cadence, and a checklist from an AI suggestion', async () => {
     mockFormGetValues.mockImplementation((field?: string) => {
       if (field === 'title') return 'Swim'
@@ -449,11 +1101,12 @@ describe('CreateHabitModal', () => {
     })
 
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    fireEvent.click(screen.getByTestId('suggest-trigger'))
-
-    await waitFor(() => {
-      expect(mockSetFlexible).toHaveBeenCalled()
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      proposal = await mockHabitFormFieldsState.onSuggestSetup?.()
     })
+
+    expect(mockSetFlexible).toHaveBeenCalled()
     expect(mockFormSetValue).toHaveBeenCalledWith('dueTime', '07:00', { shouldDirty: true })
     expect(mockFormSetValue).toHaveBeenCalledWith(
       'checklistItems',
@@ -463,199 +1116,17 @@ describe('CreateHabitModal', () => {
       ],
       { shouldDirty: true },
     )
+    expect(proposal).toEqual({ setup: true, checklist: true, subHabits: false, checklistItems: 2, subHabitItems: 0 })
   })
 
-  it('changes only the emoji when the person already set a schedule by hand', async () => {
+  it('does not attribute a pre-existing checklist when Astra changes only setup', async () => {
     mockFormGetValues.mockImplementation((field?: string) => {
-      if (field === 'title') return 'Swim'
-      return {
-        title: 'Swim',
-        frequencyUnit: 'Day',
-        frequencyQuantity: 2,
-        days: ['Tuesday'],
-        dueTime: '18:00',
-        checklistItems: [{ text: 'Pack towel', isChecked: false }],
-      }
+      if (field === 'title') return 'Run'
+      if (field === 'checklistItems') return [{ text: 'Shoes', isChecked: false }]
+      return undefined
     })
     mockSuggestMutateAsync.mockResolvedValue({
-      emoji: '🏊',
-      frequencyUnit: 'Week',
-      frequencyQuantity: 1,
-      days: ['Monday'],
-      isFlexible: true,
-      flexibleTarget: 3,
-      dueTime: '07:00',
-      subHabits: ['Warm up'],
-      checklistItems: ['Goggles'],
-    })
-
-    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    mockFormSetValue.mockClear()
-    mockSetFlexible.mockClear()
-    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
-
-    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
-    expect(mockFormSetValue.mock.calls).toEqual([
-      ['emoji', '🏊', { shouldDirty: true }],
-    ])
-    expect(mockSetFlexible).not.toHaveBeenCalled()
-  })
-
-  it('uses the existing pay-gate message for an emoji suggestion refusal', async () => {
-    mockFormGetValues.mockImplementation((field?: string) =>
-      field === 'title' ? 'Swim' : {},
-    )
-    mockSuggestMutateAsync.mockRejectedValue({ data: { errorCode: 'PAY_GATE' } })
-
-    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
-
-    await waitFor(() => {
-      expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestLimitReached')
-    })
-    expect(mockFormSetValue).not.toHaveBeenCalledWith(
-      'emoji',
-      expect.anything(),
-      expect.anything(),
-    )
-  })
-
-  it('leaves the form untouched and offers retry when emoji suggestion fails', async () => {
-    mockFormGetValues.mockImplementation((field?: string) =>
-      field === 'title' ? 'Swim' : {},
-    )
-    mockSuggestMutateAsync.mockRejectedValue(new Error('offline'))
-
-    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    mockFormSetValue.mockClear()
-    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
-
-    await waitFor(() => {
-      expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestError')
-    })
-    expect(mockFormSetValue).not.toHaveBeenCalled()
-  })
-
-  it('ignores an emoji suggestion after the title changes away and back', async () => {
-    let title = 'Swim'
-    let resolveSuggestion!: (value: Record<string, unknown>) => void
-    mockFormGetValues.mockImplementation((field?: string) =>
-      field === 'title' ? title : {},
-    )
-    mockSuggestMutateAsync.mockReturnValue(
-      new Promise((resolve) => {
-        resolveSuggestion = resolve
-      }),
-    )
-
-    mockFormWatch.mockImplementation((field?: string) =>
-      field === 'title' ? title : undefined,
-    )
-    const { rerender } = renderWithProviders(
-      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
-    )
-    mockFormSetValue.mockClear()
-    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
-    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
-
-    title = 'Run'
-    rerender(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    title = 'Swim'
-    rerender(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    await act(async () => {
-      resolveSuggestion({
-        emoji: '🏊',
-        frequencyUnit: null,
-        frequencyQuantity: null,
-        days: [],
-        isFlexible: false,
-        flexibleTarget: null,
-        dueTime: null,
-        subHabits: [],
-        checklistItems: [],
-      })
-      await Promise.resolve()
-    })
-
-    expect(mockFormSetValue).not.toHaveBeenCalled()
-  })
-
-  it('ignores a pending emoji suggestion after the create modal unmounts', async () => {
-    let resolveSuggestion!: (value: Record<string, unknown>) => void
-    mockFormGetValues.mockImplementation((field?: string) =>
-      field === 'title' ? 'Swim' : {},
-    )
-    mockSuggestMutateAsync.mockReturnValue(
-      new Promise((resolve) => {
-        resolveSuggestion = resolve
-      }),
-    )
-
-    const { unmount } = renderWithProviders(
-      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
-    )
-    mockFormSetValue.mockClear()
-    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
-    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
-
-    unmount()
-    await act(async () => {
-      resolveSuggestion({
-        emoji: '🏊',
-        frequencyUnit: null,
-        frequencyQuantity: null,
-        days: [],
-        isFlexible: false,
-        flexibleTarget: null,
-        dueTime: null,
-        subHabits: [],
-        checklistItems: [],
-      })
-      await Promise.resolve()
-    })
-
-    expect(mockFormSetValue).not.toHaveBeenCalled()
-    expect(mockShowSuccess).not.toHaveBeenCalled()
-    expect(mockShowInfo).not.toHaveBeenCalled()
-    expect(mockShowError).not.toHaveBeenCalled()
-  })
-
-  it('starts only one request when both suggestion actions are pressed', async () => {
-    let resolveSuggestion!: (value: Record<string, unknown>) => void
-    mockFormGetValues.mockImplementation((field?: string) =>
-      field === 'title' ? 'Swim' : {},
-    )
-    mockSuggestMutateAsync.mockReturnValue(
-      new Promise((resolve) => {
-        resolveSuggestion = resolve
-      }),
-    )
-
-    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
-    fireEvent.click(screen.getByTestId('suggest-trigger'))
-
-    expect(mockSuggestMutateAsync).toHaveBeenCalledOnce()
-    resolveSuggestion({
-      emoji: '🏊',
-      frequencyUnit: null,
-      frequencyQuantity: null,
-      days: [],
-      isFlexible: false,
-      flexibleTarget: null,
-      dueTime: null,
-      subHabits: [],
-      checklistItems: [],
-    })
-    await waitFor(() => expect(mockFormSetValue).toHaveBeenCalled())
-  })
-
-  it('reports an empty emoji suggestion without changing the form', async () => {
-    mockFormGetValues.mockImplementation((field?: string) =>
-      field === 'title' ? 'Swim' : {},
-    )
-    mockSuggestMutateAsync.mockResolvedValue({
-      emoji: null,
+      emoji: '🏃',
       frequencyUnit: null,
       frequencyQuantity: null,
       days: [],
@@ -667,101 +1138,167 @@ describe('CreateHabitModal', () => {
     })
 
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    mockFormSetValue.mockClear()
-    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
-
-    await waitFor(() => {
-      expect(mockShowInfo).toHaveBeenCalledWith('habits.form.aiSuggestEmpty')
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      proposal = await mockHabitFormFieldsState.onSuggestSetup?.()
     })
-    expect(mockFormSetValue).not.toHaveBeenCalled()
-    expect(mockShowSuccess).not.toHaveBeenCalled()
+
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 })
+    expect(mockFormSetValue).not.toHaveBeenCalledWith('checklistItems', expect.anything(), expect.anything())
   })
 
-  it('ignores a successful full suggestion after the title changes', async () => {
-    let title = 'Swim'
-    let resolveSuggestion!: (value: Record<string, unknown>) => void
+  it('preserves a sub-habit edit made while an Astra suggestion is pending', async () => {
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Run'
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    await act(async () => { await Promise.resolve() })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.addSubHabit' }))
+
+    const onSuggestSetup = mockHabitFormFieldsState.onSuggestSetup
+    if (!onSuggestSetup) throw new Error('Expected the suggestion handler')
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    act(() => {
+      proposalPromise = Promise.resolve(onSuggestSetup())
+    })
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    fireEvent.change(
+      screen.getByLabelText('habits.form.subHabitInputLabel({"index":1})'),
+      { target: { value: 'Edited while pending' } },
+    )
+
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      resolveSuggestion({
+        emoji: null,
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
+        subHabits: ['Suggested stretch'],
+        checklistItems: [],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(screen.getByDisplayValue('Edited while pending')).toBeDefined()
+    expect(screen.getByDisplayValue('Suggested stretch')).toBeDefined()
+    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
+  })
+
+  it('ignores a pending emoji suggestion after the title changes', async () => {
+    let title = 'Run'
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
     mockFormGetValues.mockImplementation((field?: string) => {
       if (field === 'title') return title
       if (field === 'checklistItems') return []
-      return {}
+      return undefined
     })
-    mockFormWatch.mockImplementation((field?: string) =>
-      field === 'title' ? title : undefined,
-    )
-    mockSuggestMutateAsync.mockReturnValue(
-      new Promise((resolve) => {
-        resolveSuggestion = resolve
-      }),
-    )
-
-    const { rerender } = renderWithProviders(
-      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
-    )
-    mockFormSetValue.mockClear()
-    fireEvent.click(screen.getByTestId('suggest-trigger'))
-    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
-
-    title = 'Run'
-    rerender(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    await act(async () => {
-      resolveSuggestion({
-        emoji: '🏊',
-        frequencyUnit: 'Week',
-        frequencyQuantity: 1,
-        days: ['Monday'],
-        isFlexible: false,
-        flexibleTarget: null,
-        dueTime: '07:00',
-        subHabits: [],
-        checklistItems: ['Goggles'],
-      })
-      await Promise.resolve()
-    })
-
-    expect(mockFormSetValue).not.toHaveBeenCalled()
-    expect(mockShowSuccess).not.toHaveBeenCalled()
-    expect(mockShowInfo).not.toHaveBeenCalled()
-  })
-
-  it('ignores a failed full suggestion after the modal unmounts', async () => {
-    let rejectSuggestion!: (error: Error) => void
-    mockFormGetValues.mockImplementation((field?: string) =>
-      field === 'title' ? 'Swim' : {},
-    )
-    mockSuggestMutateAsync.mockReturnValue(
-      new Promise((_resolve, reject) => {
-        rejectSuggestion = reject
-      }),
-    )
-
-    const { unmount } = renderWithProviders(
-      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByTestId('suggest-trigger'))
-    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
-
-    unmount()
-    await act(async () => {
-      rejectSuggestion(new Error('offline'))
-      await Promise.resolve()
-    })
-
-    expect(mockFormSetValue).not.toHaveBeenCalled()
-    expect(mockShowSuccess).not.toHaveBeenCalled()
-    expect(mockShowInfo).not.toHaveBeenCalled()
-    expect(mockShowError).not.toHaveBeenCalled()
-  })
-
-  it('skips both suggestion actions when the title is empty', async () => {
-    mockFormGetValues.mockImplementation((field?: string) =>
-      field === 'title' ? '   ' : {},
-    )
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
 
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
-    fireEvent.click(screen.getByTestId('suggest-trigger'))
-    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
-    await act(async () => Promise.resolve())
+    const onSuggestEmoji = mockHabitFormFieldsState.onSuggestEmoji
+    if (!onSuggestEmoji) throw new Error('Expected the suggestion handler')
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    act(() => {
+      proposalPromise = Promise.resolve(onSuggestEmoji())
+    })
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    mockFormSetValue.mockClear()
+    mockSetFlexible.mockClear()
 
-    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
+    title = 'Walk'
+    act(() => mockHabitFormFieldsState.onSuggestionContextChange?.())
+
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏃',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 2,
+        days: [],
+        isFlexible: true,
+        flexibleTarget: 2,
+        dueTime: '07:00',
+        subHabits: ['Old step'],
+        checklistItems: ['Old checklist'],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(proposal).toBeNull()
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(screen.queryByDisplayValue('Old step')).not.toBeInTheDocument()
+  })
+
+  it('ignores a pending Astra suggestion after the title changes', async () => {
+    let title = 'Run'
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return title
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    const onSuggestSetup = mockHabitFormFieldsState.onSuggestSetup
+    if (!onSuggestSetup) throw new Error('Expected the suggestion handler')
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    act(() => {
+      proposalPromise = Promise.resolve(onSuggestSetup())
+    })
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    mockFormSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    title = 'Walk'
+    act(() => mockHabitFormFieldsState.onSuggestionContextChange?.())
+
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏃',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 2,
+        days: [],
+        isFlexible: true,
+        flexibleTarget: 2,
+        dueTime: '07:00',
+        subHabits: ['Old step'],
+        checklistItems: ['Old checklist'],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(proposal).toBeNull()
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(screen.queryByDisplayValue('Old step')).not.toBeInTheDocument()
+  })
+})
+
+describe('create form copy', () => {
+  it('names the new habit and keeps its empty submit action available', () => {
+    mockFormWatch.mockImplementation((field?: string) => field === 'title' ? '' : undefined)
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    expect(screen.getByText('habits.form.newHabit')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeEnabled()
+    expect(screen.getByText('habits.form.createWhy')).toBeInTheDocument()
+    expect(screen.queryByText('habits.form.createDescription')).toBeNull()
   })
 })

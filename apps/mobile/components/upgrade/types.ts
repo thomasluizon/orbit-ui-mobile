@@ -8,12 +8,6 @@ export type Tokens = ReturnType<typeof createTokensV2>
 export type SubscriptionInterval = 'monthly' | 'yearly'
 export type UpgradeTextFn = (key: string, params?: Record<string, unknown>) => string
 
-export function invoiceStatusColor(status: string, tokens: Tokens): string {
-  if (status === 'paid') return tokens.statusDone
-  if (status === 'open') return tokens.statusOverdue
-  return tokens.fg3
-}
-
 export function formatBillingDate(isoDate: string, locale: string) {
   return formatLocaleDate(isoDate, locale, {
     month: 'short',

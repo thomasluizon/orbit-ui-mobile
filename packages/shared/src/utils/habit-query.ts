@@ -1,4 +1,5 @@
 import type { HabitsFilter } from '../types/habit'
+import { getAccountDateTime } from './dates'
 
 type DailySummaryTimeBucket = 'morning' | 'afternoon' | 'evening' | 'night'
 
@@ -29,27 +30,25 @@ export function buildUrlWithQuery(base: string, queryString: string): string {
   return queryString ? `${base}?${queryString}` : base
 }
 
-export function getDailySummaryTimeBucket(date: Date = new Date()): DailySummaryTimeBucket {
-  const hour = date.getHours()
+export function getDailySummaryTimeBucket(date: Date = new Date(), timeZone?: string | null): DailySummaryTimeBucket {
+  const hour = getAccountDateTime(date, timeZone).minutes / 60
   if (hour < 11) return 'morning'
   if (hour < 17) return 'afternoon'
   if (hour < 21) return 'evening'
   return 'night'
 }
 
-export function getMsUntilNextDailySummaryTimeBucket(date: Date = new Date()): number {
-  const next = new Date(date)
-  const hour = date.getHours()
-  if (hour < 11) {
-    next.setHours(11, 0, 0, 0)
-  } else if (hour < 17) {
-    next.setHours(17, 0, 0, 0)
-  } else if (hour < 21) {
-    next.setHours(21, 0, 0, 0)
-  } else {
-    next.setDate(next.getDate() + 1)
-    next.setHours(0, 0, 0, 0)
+export function getMsUntilNextDailySummaryTimeBucket(date: Date = new Date(), timeZone?: string | null): number {
+  const currentDay = getAccountDateTime(date, timeZone).date
+  const currentBucket = getDailySummaryTimeBucket(date, timeZone)
+  let before = 0
+  let after = 24 * 60 * 60_000
+  while (after - before > 1) {
+    const middle = Math.floor((before + after) / 2)
+    const instant = new Date(date.getTime() + middle)
+    if (getAccountDateTime(instant, timeZone).date === currentDay
+      && getDailySummaryTimeBucket(instant, timeZone) === currentBucket) before = middle
+    else after = middle
   }
-
-  return Math.max(60_000, next.getTime() - date.getTime())
+  return Math.max(60_000, after)
 }

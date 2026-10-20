@@ -1,36 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type {
   ActionResult,
-  AgentExecuteOperationResponse,
-  AgentOperationResult,
 } from '../types/index'
 import {
-  buildAgentExecutionMessage,
   classifySendFailure,
   findPremiumPolicyDenial,
   invalidateAgentQueries,
   selectActionInvalidations,
 } from '../hooks/chat-composer-core'
-
-function makeOperation(overrides: Partial<AgentOperationResult> = {}): AgentOperationResult {
-  return {
-    operationId: 'op-1',
-    sourceName: 'CreateHabit',
-    riskClass: 'Low',
-    confirmationRequirement: 'None',
-    status: 'Succeeded',
-    ...overrides,
-  }
-}
-
-function makeExecuteResponse(
-  overrides: Partial<AgentExecuteOperationResponse> = {},
-): AgentExecuteOperationResponse {
-  return {
-    operation: makeOperation(),
-    ...overrides,
-  }
-}
 
 function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
   return {
@@ -45,43 +22,6 @@ function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
     ...overrides,
   }
 }
-
-describe('buildAgentExecutionMessage', () => {
-  const labels = { done: 'DONE', failed: 'FAILED' }
-  const internalSummary = 'Manage Calendar Sync requested via Chat'
-
-  it('returns the done label on success, never the raw operation summary', () => {
-    const response = makeExecuteResponse({
-      operation: makeOperation({ status: 'Succeeded', summary: internalSummary }),
-    })
-    expect(buildAgentExecutionMessage(response, labels)).toBe('DONE')
-  })
-
-  it('returns the failed label for any non-succeeded operation', () => {
-    const failed = makeExecuteResponse({
-      operation: makeOperation({ status: 'Failed', summary: internalSummary }),
-    })
-    const denied = makeExecuteResponse({
-      operation: makeOperation({ status: 'Denied', summary: internalSummary }),
-      policyDenial: {
-        operationId: 'op-1',
-        sourceName: 'Src',
-        riskClass: 'Low',
-        confirmationRequirement: 'None',
-        reason: 'denied',
-      },
-    })
-    expect(buildAgentExecutionMessage(failed, labels)).toBe('FAILED')
-    expect(buildAgentExecutionMessage(denied, labels)).toBe('FAILED')
-  })
-
-  it('never surfaces the internal operation summary as user-facing text', () => {
-    const response = makeExecuteResponse({
-      operation: makeOperation({ status: 'Succeeded', summary: internalSummary }),
-    })
-    expect(buildAgentExecutionMessage(response, labels)).not.toContain('requested via Chat')
-  })
-})
 
 describe('classifySendFailure', () => {
   it('classifies a 408 as a timeout', () => {

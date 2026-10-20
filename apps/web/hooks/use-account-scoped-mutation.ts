@@ -7,15 +7,21 @@ import {
   type MutateOptions,
   type UseMutationOptions,
 } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { resetAccountQueries } from '@orbit/shared/query'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
-import { reportAccountChanged, withAccountIntent } from '@/lib/client-action'
-import { getAccountGeneration, getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
-interface ScopedVariables<TVariables> {
+/**
+ * The variables the underlying mutation carries: what the caller passed, plus who was signed in
+ * when they passed it. Nothing outside this module sees the wrapper.
+ */
+interface AccountScopedVariables<TVariables> {
   input: TVariables
   intendedAccountId: string | null
-  generation: number
+  accountGeneration: number
 }
 
 type AccountScopedOptions<TData, TError, TVariables, TOnMutateResult> = Omit<
@@ -25,105 +31,117 @@ type AccountScopedOptions<TData, TError, TVariables, TOnMutateResult> = Omit<
   mutationFn: (variables: TVariables, intendedAccountId: string | null) => Promise<TData>
 }
 
-function captureIntent<TVariables>(input: TVariables): ScopedVariables<TVariables> {
-  return { input, intendedAccountId: getHeldAccountId(), generation: getAccountGeneration() }
+function scopeToHeldAccount<TVariables>(input: TVariables): AccountScopedVariables<TVariables> {
+  return { input, intendedAccountId: getHeldAccountId(), accountGeneration: getAccountGeneration() }
 }
 
-function stillHeld<TVariables>(variables: ScopedVariables<TVariables>, error?: unknown): boolean {
+function stillHeld<TVariables>(variables: AccountScopedVariables<TVariables>, error?: unknown): boolean {
   return !reportsAccountChanged(error)
-    && sameGeneration(variables)
+    && getHeldAccountId() === variables.intendedAccountId
+    && getAccountGeneration() === variables.accountGeneration
 }
 
-function sameGeneration<TVariables>(variables: ScopedVariables<TVariables>): boolean {
-  return variables.intendedAccountId === getHeldAccountId()
-    && variables.generation === getAccountGeneration()
+function unwrapMutateOptions<TData, TError, TVariables, TOnMutateResult>(
+  mutateOptions: MutateOptions<TData, TError, TVariables, TOnMutateResult> | undefined,
+): MutateOptions<TData, TError, AccountScopedVariables<TVariables>, TOnMutateResult> | undefined {
+  if (!mutateOptions) return undefined
+
+  const { onSuccess, onError, onSettled } = mutateOptions
+  const unwrapped: MutateOptions<
+    TData,
+    TError,
+    AccountScopedVariables<TVariables>,
+    TOnMutateResult
+  > = {}
+
+  if (onSuccess) {
+    unwrapped.onSuccess = (data, variables, onMutateResult, context) =>
+      stillHeld(variables) ? onSuccess(data, variables.input, onMutateResult, context) : undefined
+  }
+  if (onError) {
+    unwrapped.onError = (error, variables, onMutateResult, context) =>
+      stillHeld(variables, error) ? onError(error, variables.input, onMutateResult, context) : undefined
+  }
+  if (onSettled) {
+    unwrapped.onSettled = (data, error, variables, onMutateResult, context) =>
+      stillHeld(variables, error) ? onSettled(data, error, variables.input, onMutateResult, context) : undefined
+  }
+
+  return unwrapped
 }
 
-function wrapMutateOptions<TData, TError, TVariables, TOnMutateResult>(
-  options: MutateOptions<TData, TError, TVariables, TOnMutateResult> | undefined,
-): MutateOptions<TData, TError, ScopedVariables<TVariables>, TOnMutateResult> | undefined {
-  if (!options) return undefined
-  const wrapped: MutateOptions<TData, TError, ScopedVariables<TVariables>, TOnMutateResult> = {}
-  if (options.onSuccess) wrapped.onSuccess = (data, variables, result, context) =>
-    stillHeld(variables) ? options.onSuccess?.(data, variables.input, result, context) : undefined
-  if (options.onError) wrapped.onError = (error, variables, result, context) =>
-    stillHeld(variables, error) ? options.onError?.(error, variables.input, result, context) : undefined
-  if (options.onSettled) wrapped.onSettled = (data, error, variables, result, context) =>
-    stillHeld(variables, error)
-      ? options.onSettled?.(data, error, variables.input, result, context)
-      : undefined
-  return wrapped
-}
-
+/**
+ * A `useMutation` whose write carries the account the person held when they started it. The
+ * account is read inside `mutate`, synchronously, rather than inside `mutationFn`.
+ */
 export function useAccountScopedMutation<
   TData = unknown,
   TError = DefaultError,
   TVariables = void,
   TOnMutateResult = unknown,
 >(options: AccountScopedOptions<TData, TError, TVariables, TOnMutateResult>) {
+  const t = useTranslations()
+  const { showPersistentError } = useAppToast()
   const queryClient = useQueryClient()
   const { mutationFn, onMutate, onSuccess, onError, onSettled, ...rest } = options
 
   const scopedOptions: UseMutationOptions<
     TData,
     TError,
-    ScopedVariables<TVariables>,
+    AccountScopedVariables<TVariables>,
     TOnMutateResult
   > = {
     ...rest,
-    mutationFn: ({ input, intendedAccountId }) =>
-      withAccountIntent(intendedAccountId, () => mutationFn(input, intendedAccountId)),
+    mutationFn: ({ input, intendedAccountId }) => mutationFn(input, intendedAccountId),
   }
 
-  if (onMutate) scopedOptions.onMutate = async (variables, context) => {
-    try {
-      return await onMutate(variables.input, context)
-    } finally {
-      if (variables.generation !== getAccountGeneration()
-        || variables.intendedAccountId !== getHeldAccountId()) {
-        void resetAccountQueries(
-          queryClient,
-          useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out',
-        )
+  if (onMutate) {
+    scopedOptions.onMutate = async (variables, context) => {
+      try {
+        return await onMutate(variables.input, context)
+      } finally {
+        if (getAccountGeneration() !== variables.accountGeneration
+          || getHeldAccountId() !== variables.intendedAccountId) {
+          void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
+        }
       }
     }
   }
-  if (onSuccess) scopedOptions.onSuccess = (data, variables, result, context) =>
-    stillHeld(variables) ? onSuccess(data, variables.input, result, context) : undefined
-  scopedOptions.onError = (error, variables, result, context) => {
+  if (onSuccess) {
+    scopedOptions.onSuccess = (data, variables, onMutateResult, context) =>
+      stillHeld(variables) ? onSuccess(data, variables.input, onMutateResult, context) : undefined
+  }
+  scopedOptions.onError = (error, variables, onMutateResult, context) => {
     if (reportsAccountChanged(error)) {
-      if (sameGeneration(variables)) {
-        void resetAccountQueries(
-          queryClient,
-          useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out',
-        )
+      if (getHeldAccountId() === variables.intendedAccountId && getAccountGeneration() === variables.accountGeneration) {
+        void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
       }
-      reportAccountChanged()
+      showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
       return
     }
-    if (stillHeld(variables)) return onError?.(error, variables.input, result, context)
+    if (stillHeld(variables)) return onError?.(error, variables.input, onMutateResult, context)
   }
-  scopedOptions.onSettled = (data, error, variables, result, context) => {
+  scopedOptions.onSettled = (data, error, variables, onMutateResult, context) => {
     if (stillHeld(variables, error)) {
-      return onSettled?.(data, error, variables.input, result, context)
+      return onSettled?.(data, error, variables.input, onMutateResult, context)
     }
-    if (variables.intendedAccountId === getHeldAccountId()
-      || variables.intendedAccountId === null) {
+    if (getHeldAccountId() === variables.intendedAccountId || variables.intendedAccountId === null) {
       return queryClient.invalidateQueries()
     }
   }
 
   const mutation = useMutation(scopedOptions)
+
   return {
     ...mutation,
     variables: mutation.variables?.input,
     mutate: (
       variables: TVariables,
       mutateOptions?: MutateOptions<TData, TError, TVariables, TOnMutateResult>,
-    ) => mutation.mutate(captureIntent(variables), wrapMutateOptions(mutateOptions)),
+    ) => mutation.mutate(scopeToHeldAccount(variables), unwrapMutateOptions(mutateOptions)),
     mutateAsync: (
       variables: TVariables,
       mutateOptions?: MutateOptions<TData, TError, TVariables, TOnMutateResult>,
-    ) => mutation.mutateAsync(captureIntent(variables), wrapMutateOptions(mutateOptions)),
+    ) => mutation.mutateAsync(scopeToHeldAccount(variables), unwrapMutateOptions(mutateOptions)),
   }
 }

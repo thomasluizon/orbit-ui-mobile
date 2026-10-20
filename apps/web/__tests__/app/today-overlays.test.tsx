@@ -1,0 +1,222 @@
+import { Suspense, useState, type ReactNode } from 'react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TodayView } from '@/app/(app)/use-today-page'
+import { getTodayBoundary } from '@orbit/shared/utils'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
+
+let chunks: ReturnType<typeof createChunks>
+let todayComponents: typeof import('@/app/(app)/today-page-view')
+let DestinationShell: typeof import('@/components/shell/destination-shell')['DestinationShell']
+
+function createChunks() {
+  let resolveSelection!: () => void
+  let resolveConfirmation!: () => void
+  return {
+    selection: {
+      promise: new Promise<void>((resolve) => { resolveSelection = resolve }),
+      resolve: () => resolveSelection(),
+    },
+    confirmation: {
+      promise: new Promise<void>((resolve) => { resolveConfirmation = resolve }),
+      resolve: () => resolveConfirmation(),
+    },
+  }
+}
+
+vi.mock('next/dynamic', async () => ({
+  default: (await import('next/dist/shared/lib/app-dynamic')).default,
+}))
+vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
+  useTranslations: () => (key: string) => key,
+}))
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useParams: () => ({}),
+  useRouter: () => ({ push: vi.fn() }),
+}))
+vi.mock('@/hooks/use-is-desktop', () => ({
+  useIsDesktop: () => false,
+  useIsWideDesktop: () => false,
+}))
+vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: vi.fn() }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { name: 'Test', email: 'test@example.com' } }),
+}))
+vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
+vi.mock('@/components/shell/shell-412', () => ({
+  Shell412: ({ children, header, composer, tabBar }: {
+    children: ReactNode
+    header?: ReactNode
+    composer?: ReactNode
+    tabBar?: ReactNode
+  }) => <main>{header}{children}{composer}{tabBar}</main>,
+}))
+vi.mock('@/components/shell/shell-wide', () => ({
+  ShellWide: ({ children, header, composer, compactComposer, tabBar }: {
+    children: ReactNode
+    header?: ReactNode
+    composer?: ReactNode
+    compactComposer?: ReactNode
+    tabBar?: ReactNode
+  }) => <main>{header}{children}{composer ?? compactComposer}{tabBar}</main>,
+}))
+vi.mock('@/components/habits/habit-list', () => ({
+  HabitList: () => <p>Morning walk</p>,
+}))
+
+function TodayHarness() {
+  const { TodayHeaderRegion, TodayHabitsPanel, TodayOverlays } = todayComponents
+  const search = useHabitViewSearch('today')
+  const [today, setToday] = useState('2026-09-13')
+  const [isSelectMode, setSelectMode] = useState(false)
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  const [selectedHabitIds, setSelectedHabitIds] = useState(new Set(['walk']))
+  const [lastAction, setLastAction] = useState('none')
+  const view = {
+    activeView: 'today',
+    search,
+    nav: {
+      dateStr: '2026-09-06',
+      today,
+      selectedDate: new Date('2026-09-06T00:00:00'),
+      dateNav: {
+        dayName: 'Sunday', numericDate: '06/09/2026', isTodaySelected: true,
+        nextDisabled: false, previousLabel: 'Previous day',
+        nextLabel: 'Next day',
+      },
+    },
+    data: { filters: {}, isRefetching: false },
+    habitListRef: { current: null },
+    isSelectMode,
+    selectedHabitIds,
+    toggleSelectMode: () => setSelectMode((selected) => !selected),
+    selection: {
+      allSelected: selectedHabitIds.size === 2,
+      completionReadOnly: getTodayBoundary('2026-09-06', today) === 'read-only',
+      selectAll: () => setSelectedHabitIds(new Set(['walk', 'read'])),
+      deselectAll: () => setSelectedHabitIds(new Set()),
+      showBulkDeleteConfirm,
+      setShowBulkDeleteConfirm,
+      confirmBulkLog: async () => setLastAction('logged'),
+      confirmBulkSkip: async () => setLastAction('skipped'),
+      confirmBulkDelete: async () => setLastAction('deleted'),
+    },
+  } as unknown as TodayView
+
+  return (
+    <Suspense fallback={null}>
+      <DestinationShell onCreate={vi.fn()} composer={<p>Astra composer</p>}>
+        <h1>Today</h1>
+        <output aria-label="Last action">{lastAction}</output>
+        <button type="button" onClick={() => setToday('2026-09-14')}>Advance day</button>
+        <TodayHeaderRegion view={view} />
+        <TodayHabitsPanel view={view} />
+        <TodayOverlays view={view} />
+      </DestinationShell>
+    </Suspense>
+  )
+}
+
+function enterSelection() {
+  fireEvent.click(screen.getByRole('button', { name: 'habits.listOptions' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: 'common.select' }))
+}
+
+function expectTodayVisible() {
+  expect(screen.getByRole('heading', { name: 'Today' })).toBeVisible()
+  expect(screen.getByText('Morning walk')).toBeVisible()
+  expect(screen.getByRole('link', { name: 'nav.calendar' })).toBeVisible()
+}
+
+describe('Today lazy overlays', () => {
+  beforeEach(async () => {
+    vi.resetModules()
+    chunks = createChunks()
+    vi.doMock('@/components/habits/selection-tray', async (importOriginal) => {
+      await chunks.selection.promise
+      return importOriginal<typeof import('@/components/habits/selection-tray')>()
+    })
+    vi.doMock('@/components/ui/confirm-sheet', async (importOriginal) => {
+      await chunks.confirmation.promise
+      return importOriginal<typeof import('@/components/ui/confirm-sheet')>()
+    })
+    todayComponents = await import('@/app/(app)/today-page-view')
+    DestinationShell = (await import('@/components/shell/destination-shell')).DestinationShell
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      chunks.selection.resolve()
+      chunks.confirmation.resolve()
+    })
+  })
+
+  it('keeps Today visible during each first chunk load and preserves the overlay actions', async () => {
+    render(<TodayHarness />)
+    expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Astra composer')).toBeVisible()
+
+    enterSelection()
+    try {
+      expectTodayVisible()
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+    } finally {
+      await act(async () => { chunks.selection.resolve() })
+    }
+
+    const tray = await screen.findByTestId('bulk-action-bar')
+    expectTodayVisible()
+    fireEvent.click(within(tray).getByRole('button', { name: 'common.cancel' }))
+    expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+    expect(screen.getByText('Astra composer')).toBeVisible()
+    enterSelection()
+    const reopenedTray = await screen.findByTestId('bulk-action-bar')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.click(within(reopenedTray).getByRole('button', { name: 'common.selectAll' }))
+    fireEvent.click(within(reopenedTray).getByRole('button', { name: 'common.deselectAll' }))
+    expect(within(reopenedTray).getByRole('button', { name: 'habits.bulkBar.delete' })).toBeDisabled()
+    fireEvent.click(within(reopenedTray).getByRole('button', { name: 'common.selectAll' }))
+    fireEvent.click(within(reopenedTray).getByRole('button', { name: 'habits.bulkBar.log' }))
+    expect(screen.getByLabelText('Last action')).toHaveTextContent('logged')
+    fireEvent.click(within(reopenedTray).getByRole('button', { name: 'habits.bulkBar.skip' }))
+    expect(screen.getByLabelText('Last action')).toHaveTextContent('skipped')
+    fireEvent.click(within(reopenedTray).getByRole('button', { name: 'habits.bulkBar.delete' }))
+    try {
+      expectTodayVisible()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    } finally {
+      await act(async () => { chunks.confirmation.resolve() })
+    }
+
+    const dialog = await screen.findByRole('dialog', { name: 'habits.bulkDeleteTitle' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.cancel' }))
+    await screen.findByRole('heading', { name: 'Today' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Last action')).toHaveTextContent('skipped')
+    fireEvent.click(within(reopenedTray).getByRole('button', { name: 'habits.bulkBar.delete' }))
+    const reopened = await screen.findByRole('dialog', { name: 'habits.bulkDeleteTitle' })
+    fireEvent.click(within(reopened).getByRole('button', { name: 'habits.bulkDeleteConfirm' }))
+    await screen.findByRole('heading', { name: 'Today' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Last action')).toHaveTextContent('deleted')
+  })
+
+  it('refreshes the hosted tray when a pinned selection passes the logging limit', async () => {
+    render(<TodayHarness />)
+    enterSelection()
+    await act(async () => { chunks.selection.resolve() })
+    const tray = await screen.findByTestId('bulk-action-bar')
+    expect(within(tray).getByRole('button', { name: 'habits.bulkBar.log' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Advance day' }))
+    expect(within(tray).getByRole('button', { name: 'habits.bulkBar.log' })).toHaveAttribute('aria-disabled', 'true')
+    expect(within(tray).getByRole('button', { name: 'habits.bulkBar.skip' })).toHaveAttribute('aria-disabled', 'true')
+    expect(within(tray).getByRole('button', { name: 'habits.bulkBar.delete' })).toBeEnabled()
+    fireEvent.click(within(tray).getByRole('button', { name: 'habits.bulkBar.log' }))
+    fireEvent.click(within(tray).getByRole('button', { name: 'habits.bulkBar.skip' }))
+    expect(screen.getByLabelText('Last action')).toHaveTextContent('none')
+  })
+})

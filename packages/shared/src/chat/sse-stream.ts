@@ -1,5 +1,10 @@
 import { chatStreamEventSchema, type ChatResponse, type ChatStreamEvent } from '../types/chat'
 
+/**
+ * Incremental parser for the chat SSE stream. Frames on blank lines, joins multi-line
+ * `data:` payloads, and ignores comments and payloads that do not match the shared contract
+ * so a future protocol addition never breaks an older client mid-stream.
+ */
 interface ChatSseParser {
   feed: (chunk: string) => ChatStreamEvent[]
 }
@@ -32,6 +37,7 @@ interface ChatStreamCallbacks {
   onDelta: (text: string) => void
   onReset: () => void
   onRound?: (iteration: number) => void
+  onStep?: (step: { domain: string; access: string }) => void
 }
 
 type ChatStreamOutcome =
@@ -62,6 +68,9 @@ export async function consumeChatSseStream(
           break
         case 'round':
           callbacks.onRound?.(event.iteration)
+          break
+        case 'step':
+          callbacks.onStep?.({ domain: event.domain, access: event.access })
           break
         case 'final':
           return { kind: 'final', response: event.response }

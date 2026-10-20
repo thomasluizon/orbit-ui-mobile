@@ -1,14 +1,27 @@
 import {
-  alphaSurfaces,
   motionEasings,
-  resolveDarkNeutrals,
-  resolveLightNeutrals,
+  neutralColors,
+  elevatedControlHoverFill,
   schemes,
   selectionAlpha,
   statusConstants,
+  resolveResponsiveTypeRole,
+  type ResponsiveTypeRoleName,
   type ColorScheme,
 } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
+import type { TextStyle } from 'react-native'
+
+export function responsiveTypeStyle(name: ResponsiveTypeRoleName, width: number): TextStyle {
+  const role = resolveResponsiveTypeRole(name, width)
+  return {
+    fontFamily: role.weight === 500 ? 'SpaceGrotesk_500Medium' : 'SpaceGrotesk_600SemiBold',
+    fontSize: role.size,
+    lineHeight: role.size * role.lineHeight,
+    letterSpacing: role.size * role.letterSpacingEm,
+    ...(role.tabularNums ? { fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] } : {}),
+  }
+}
 
 type ThemeRuntime = {
   scheme: ColorScheme
@@ -58,7 +71,7 @@ export interface AppSurfaces {
 }
 
 let runtimeTheme: ThemeRuntime = {
-  scheme: 'purple',
+  scheme: 'orange',
   themeMode: 'dark',
 }
 
@@ -66,6 +79,7 @@ export function setRuntimeTheme(next: Partial<ThemeRuntime>) {
   runtimeTheme = {
     ...runtimeTheme,
     ...next,
+    scheme: 'orange',
   }
 }
 
@@ -99,30 +113,38 @@ export interface AppTokensV2 {
   bgWell: string
   bgElev: string
   bgElev2: string
-  /** Press/active lift from `bgElev` (elev-2 alpha on dark, sunk on light). */
-  bgElevPressed: string
+  bgHover: string
+  bgHoverOpaque: string
+  bgElevHover: string
   /** Solid sheet/dialog panel — elev alpha pre-blended over the canvas. */
   bgSheet: string
   bgSunk: string
   hairline: string
+  borderControl: string
+  hairlineGhost: string
   hairlineStrong: string
+  scrim: string
   fg1: string
   fg2: string
   fg3: string
   fg4: string
+  trackEmpty: string
   fgOnPrimary: string
   primary: string
+  primaryHover: string
   primaryPressed: string
   /** "r, g, b" channels of `primary` for alpha tints (never hardcode violet). */
   primaryRgb: string
-  /** Soft accent foreground (lightened primary on dark, primary on light). */
+  /** Soft accent foreground resolved for the active canvas. */
   primarySoft: string
+  /** Accent foreground resolved for raised surfaces. */
+  primaryText: string
+  primaryDim: string
   statusDone: string
   statusEmpty: string
-  statusSkip: string
+  statusFrozen: string
   statusOverdue: string
   statusBad: string
-  statusFrozen: string
   /** AA text variant of `statusOverdue` — use for status-colored text. */
   statusOverdueText: string
   /** AA text variant of `statusBad` — use for status-colored text. */
@@ -166,84 +188,53 @@ function blendWhiteOverHex(baseHex: string, alpha: number): string {
 }
 
 export function createTokensV2(
-  colorScheme: ColorScheme = runtimeTheme.scheme,
+  _colorScheme: ColorScheme = runtimeTheme.scheme,
   themeMode: ThemeMode = runtimeTheme.themeMode,
 ): AppTokensV2 {
-  const accent = schemes[colorScheme].accent[themeMode]
-  const fgOnPrimary = schemes[colorScheme].fgOnPrimary[themeMode]
-  const alpha = alphaSurfaces[themeMode]
+  const accent = schemes.orange.accent[themeMode]
+  const fgOnPrimary = schemes.orange.fgOnPrimary[themeMode]
+  const neutral = neutralColors[themeMode]
   const status = statusConstants[themeMode]
-
-  if (themeMode === 'light') {
-    const neutrals = resolveLightNeutrals(colorScheme)
-    return {
-      bg: neutrals.bg,
-      bgCard: alpha.bgCard,
-      bgField: neutrals.bgSunk,
-      bgWell: neutrals.bgSunk,
-      bgElev: alpha.bgElev,
-      bgElev2: alpha.bgElev2,
-      bgElevPressed: neutrals.bgSunk,
-      bgSheet: '#ffffff',
-      bgSunk: neutrals.bgSunk,
-      hairline: alpha.hairline,
-      hairlineStrong: alpha.hairlineStrong,
-      fg1: neutrals.fg1,
-      fg2: neutrals.fg2,
-      fg3: neutrals.fg3,
-      fg4: neutrals.fg4,
-      fgOnPrimary,
-      primary: accent.primary,
-      primaryPressed: accent.primaryPressed,
-      primaryRgb: accent.primaryRgb,
-      primarySoft: accent.primary,
-      statusDone: accent.primary,
-      statusEmpty: alpha.statusEmpty,
-      statusSkip: neutrals.fg3,
-      statusOverdue: status.overdue,
-      statusBad: status.bad,
-      statusFrozen: status.frozen,
-      statusOverdueText: status.overdueText,
-      statusBadText: status.badText,
-      fgOnBad: status.fgOnBad,
-      fgOnOverdue: '#020618',
-      selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.light})`,
-    }
-  }
-
-  const neutrals = resolveDarkNeutrals(colorScheme)
   return {
-    bg: neutrals.bg,
-    bgCard: alpha.bgCard,
-    bgField: alpha.bgField ?? 'rgba(248, 250, 252, 0.05)',
-    bgWell: alpha.bgElev,
-    bgElev: alpha.bgElev,
-    bgElev2: alpha.bgElev2,
-    bgElevPressed: alpha.bgElev2,
-    bgSheet: blendWhiteOverHex(neutrals.bg, 0.05),
-    bgSunk: alpha.bgSunk ?? 'rgba(0, 0, 0, 0.28)',
-    hairline: alpha.hairline,
-    hairlineStrong: alpha.hairlineStrong,
-    fg1: neutrals.fg1,
-    fg2: neutrals.fg2,
-    fg3: neutrals.fg3,
-    fg4: neutrals.fg4,
+    bg: neutral.bg,
+    bgCard: neutral.bgCard,
+    bgField: neutral.bgField,
+    bgWell: neutral.bgWell,
+    bgElev: neutral.bgElev,
+    bgElev2: neutral.bgElev2,
+    bgHover: neutral.bgHover,
+    bgHoverOpaque: neutral.bgHoverOpaque,
+    bgElevHover: elevatedControlHoverFill(themeMode),
+    bgSheet: neutral.bgElev,
+    bgSunk: neutral.bgSunk,
+    hairline: neutral.hairline,
+    borderControl: neutral.borderControl,
+    hairlineGhost: neutral.hairlineGhost,
+    hairlineStrong: neutral.hairlineStrong,
+    scrim: neutral.scrim,
+    fg1: neutral.fg1,
+    fg2: neutral.fg2,
+    fg3: neutral.fg3,
+    fg4: neutral.fg4,
+    trackEmpty: neutral.trackEmpty,
     fgOnPrimary,
     primary: accent.primary,
+    primaryHover: accent.primaryHover,
     primaryPressed: accent.primaryPressed,
     primaryRgb: accent.primaryRgb,
-    primarySoft: lightenHex(accent.primary, 0.45),
-    statusDone: accent.primary,
-    statusEmpty: alpha.statusEmpty,
-    statusSkip: neutrals.fg3,
+    primarySoft: accent.primarySoft,
+    primaryText: accent.primaryText,
+    primaryDim: accent.primaryDim,
+    statusDone: neutral.fg1,
+    statusEmpty: neutral.trackEmpty,
+    statusFrozen: neutral.fg2,
     statusOverdue: status.overdue,
     statusBad: status.bad,
-    statusFrozen: status.frozen,
     statusOverdueText: status.overdueText,
     statusBadText: status.badText,
     fgOnBad: status.fgOnBad,
-    fgOnOverdue: '#020618',
-    selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.dark})`,
+    fgOnOverdue: status.fgOnOverdue,
+    selectionBg: `rgba(${accent.primaryRgb},${selectionAlpha[themeMode]})`,
   }
 }
 
@@ -253,14 +244,10 @@ export const tokens = new Proxy({} as AppTokensV2, {
 
 /** rgba() tint of the scheme primary at the given alpha (handoff tint ladder). */
 export function tintFromPrimary(appTokens: AppTokensV2, alpha: number): string {
-  return `rgba(${appTokens.primaryRgb}, ${alpha})`
+  return `rgba(${appTokens.primaryRgb},${alpha})`
 }
 
-/**
- * Solid hex equal to the primary tint alpha-composited over the canvas.
- * Required under elevation glows: Android renders the native shadow through
- * translucent fills as a dark plate, so glowing wells need opaque pixels.
- */
+/** Solid hex equal to the primary tint alpha-composited over the canvas. */
 export function solidTintFromPrimary(
   appTokens: AppTokensV2,
   alpha: number,
@@ -271,17 +258,6 @@ export function solidTintFromPrimary(
     Math.round(top * alpha + base * (1 - alpha))
   const channel = (value: number) => value.toString(16).padStart(2, '0')
   return `#${channel(mix(pr, br))}${channel(mix(pg, bgC))}${channel(mix(pb, bb))}`
-}
-
-/** RN shadow props for the handoff primary glow (0 8px 28px primary @ .45). */
-export function primaryGlow(appTokens: AppTokensV2): AppShadowV2 {
-  return {
-    shadowColor: appTokens.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 28,
-    elevation: 8,
-  }
 }
 
 /**
@@ -399,7 +375,7 @@ export function createSurfaces(
       elevation: 0,
     },
     overlay: {
-      backgroundColor: blendElevOverCanvas(appTokens, 0.1),
+      backgroundColor: appTokens.bgElev,
       borderColor: appTokens.hairlineStrong,
       shadow: shadows.md,
       elevation: 4,
@@ -413,41 +389,14 @@ export function createSurfaces(
   }
 }
 
-/**
- * Simulates `color-mix(in srgb, hex, white amount%)`.
- * amount is 0-1 (0 = original, 1 = white).
- */
-export function lightenHex(hex: string, amount: number): string {
-  const normalized = hex.replace('#', '')
-
-  let r: number
-  let g: number
-  let b: number
-
-  if (normalized.length === 3) {
-    const [rh, gh, bh] = normalized.split('')
-    r = Number.parseInt(`${rh}${rh}`, 16)
-    g = Number.parseInt(`${gh}${gh}`, 16)
-    b = Number.parseInt(`${bh}${bh}`, 16)
-  } else if (normalized.length === 6) {
-    r = Number.parseInt(normalized.slice(0, 2), 16)
-    g = Number.parseInt(normalized.slice(2, 4), 16)
-    b = Number.parseInt(normalized.slice(4, 6), 16)
-  } else {
-    return hex
-  }
-
-  const blend = (channel: number) =>
-    Math.round(channel + (255 - channel) * amount)
-  return `rgb(${blend(r)},${blend(g)},${blend(b)})`
-}
 
 /**
- * Simulates `color-mix(in srgb, hex, black amount%)` — the web destructive
- * pressed fill. amount is 0-1 (0 = original, 1 = black).
+ * Mixes two opaque hex colors in sRGB to match the web pressed fills.
+ * amount is 0-1 (0 = original, 1 = target).
  */
-export function darkenHex(hex: string, amount: number): string {
-  const [r, g, b] = hexChannels(hex)
-  const blend = (channel: number) => Math.round(channel * (1 - amount))
-  return `rgb(${blend(r)},${blend(g)},${blend(b)})`
+export function mixHex(hex: string, targetHex: string, amount: number): string {
+  const channels = hexChannels(hex)
+  const target = hexChannels(targetHex)
+  const blended = channels.map((channel, index) => Math.round(channel * (1 - amount) + target[index]! * amount))
+  return `rgb(${blended.join(',')})`
 }

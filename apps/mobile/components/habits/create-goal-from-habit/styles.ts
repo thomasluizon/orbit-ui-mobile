@@ -1,0 +1,94 @@
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { StyleSheet } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+
+export type CreateGoalTokens = ReturnType<typeof createTokensV2>
+export type CreateGoalStyles = ReturnType<typeof createStyles>
+
+export function createStyles(tokens: CreateGoalTokens) {
+  return StyleSheet.create({
+    form: {
+      gap: 16,
+    },
+    row: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    halfField: {
+      flex: 1,
+    },
+    fullField: {
+      flex: 1,
+    },
+    fieldLabel: {
+      fontFamily: 'Geist_500Medium',
+      fontSize: 14,
+      color: tokens.fg2,
+      marginBottom: SPACING.s8,
+    },
+    labelOptional: {
+      fontFamily: 'Geist_400Regular',
+      color: tokens.fg3,
+    },
+    fieldError: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 12,
+      color: tokens.statusBadText,
+      marginTop: SPACING.s8,
+    },
+    typeCaption: {
+      marginTop: SPACING.s12,
+    },
+    typeDesc: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 12,
+      color: tokens.fg3,
+      lineHeight: 18,
+    },
+    typeHint: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 12,
+      color: tokens.fg3,
+      lineHeight: 16,
+      marginTop: SPACING.s4,
+    },
+    deadlineRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    deadlinePicker: {
+      flex: 1,
+    },
+    removeDeadlineButton: {
+      overflow: 'hidden',
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    warningText: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      color: tokens.statusOverdueText,
+      marginTop: SPACING.s8,
+    },
+    addDeadlineButton: {
+      borderRadius: 999,
+      overflow: 'hidden',
+      paddingHorizontal: SPACING.s12,
+      minHeight: TOUCH_TARGET_MIN,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: SPACING.s12,
+      alignSelf: 'flex-start',
+    },
+    addDeadlineText: {
+      fontFamily: 'Geist_500Medium',
+      fontSize: 14,
+      color: tokens.fg1,
+    },
+  })
+}

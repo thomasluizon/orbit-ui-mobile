@@ -1,4 +1,3 @@
-
 const { getAttribute, getAttributeValueNode, getPropertyKeyName, collectStyleProperties } = require('./_jsx-strings.cjs')
 
 const WILL_CHANGE_CLASS_RE = /(?:^|\s|:)(will-change-(?:[a-z-]+|\[[^\]]+\]))(?:\s|$)/

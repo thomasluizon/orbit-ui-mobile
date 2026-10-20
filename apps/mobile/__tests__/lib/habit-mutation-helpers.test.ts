@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { QueryClient } from '@tanstack/react-query'
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import {
   gamificationKeys,
   goalKeys,
@@ -15,6 +15,8 @@ import {
   buildOptimisticSubHabit,
   finalizeHabitMutation,
   optimisticMoveHabitParent,
+  snapshotHabitLists,
+  updateHabitLists,
 } from '@/lib/habit-mutation-helpers'
 import type { Goal } from '@orbit/shared/types/goal'
 import type {
@@ -50,6 +52,25 @@ function createQueryClient(): QueryClient {
     },
   })
 }
+
+it('invalidates all search pages at settlement while isolating them from optimistic list writers', () => {
+  expectTypeOf<ReturnType<typeof habitKeys.search>>().not.toMatchTypeOf<ReturnType<typeof snapshotHabitLists>[number][0]>()
+  const queryClient = createQueryClient()
+  const keys = [habitKeys.search({ search: 'Test', page: 1 }), habitKeys.search({ search: 'Test', page: 2 }), habitKeys.search({ search: 'other', page: 1 })]
+  const response = { items: [makeHabit()], page: 1, pageSize: 20, totalCount: 21, totalPages: 2 }
+  for (const key of keys) queryClient.setQueryData(key, response)
+  queryClient.setQueryData(habitKeys.list({}), response.items)
+  expect(snapshotHabitLists(queryClient)).toHaveLength(1)
+  updateHabitLists(queryClient, () => [])
+  expect(queryClient.getQueryData(habitKeys.list({}))).toEqual([])
+  for (const key of keys) expect(queryClient.getQueryData(key)).toEqual(response)
+  finalizeHabitMutation(queryClient, undefined, null)
+  for (const key of keys) {
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryData(key)).toEqual(response)
+  }
+  queryClient.clear()
+})
 
 function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
@@ -110,9 +131,11 @@ describe('finalizeHabitMutation', () => {
     vi.useRealTimers()
   })
 
-  it('skips invalidation for queued mutations', () => {
+  it('marks the calendar stale without refetching when a mutation enters the queue', () => {
     const queryClient = {
-      invalidateQueries: vi.fn(async () => {}),
+      getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}),
     }
 
     finalizeHabitMutation(
@@ -127,13 +150,19 @@ describe('finalizeHabitMutation', () => {
       },
     )
 
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(queryClient.invalidateQueries).toHaveBeenCalledOnce()
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
     expect(mocks.syncWidgetData).not.toHaveBeenCalled()
   })
 
   it('invalidates habit-related caches and refreshes the widget on success', () => {
     const queryClient = {
-      invalidateQueries: vi.fn(async () => {}),
+      getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}),
     }
 
     finalizeHabitMutation(
@@ -170,7 +199,9 @@ describe('finalizeHabitMutation', () => {
   it('returns immediately instead of waiting for invalidations to settle', () => {
     const pendingInvalidation = new Promise<void>(() => {})
     const queryClient = {
-      invalidateQueries: vi.fn(() => pendingInvalidation),
+      getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(() => pendingInvalidation),
     }
 
     const result = finalizeHabitMutation(
@@ -193,14 +224,24 @@ describe('finalizeHabitMutation', () => {
     expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
-  it('invalidates the habit count so the server reconciles it', () => {
-    const queryClient = { invalidateQueries: vi.fn(async () => {}) }
-    finalizeHabitMutation(queryClient as never, { ok: true }, null, { includeGoals: true })
-    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+  it('invalidates the habit count by default and allows writes to skip it', () => {
+    const withCount = { getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}) }
+    finalizeHabitMutation(withCount as never, { ok: true }, null, { includeCount: true })
+    expect(withCount.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+
+    const withoutCount = { getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}) }
+    finalizeHabitMutation(withoutCount as never, { ok: true }, null, { includeGoals: true, includeCount: false })
+    expect(withoutCount.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
   })
 
   it('still refetches on a plain (non-queued) online error so the cache reconciles', () => {
-    const queryClient = { invalidateQueries: vi.fn(async () => {}) }
+    const queryClient = { getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}) }
 
     finalizeHabitMutation(queryClient as never, { ok: true }, new Error('network'), {
       includeGoals: true,
@@ -211,8 +252,10 @@ describe('finalizeHabitMutation', () => {
     expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
-  it('still skips invalidation for a queued (offline) result even on error', () => {
-    const queryClient = { invalidateQueries: vi.fn(async () => {}) }
+  it('still limits queued error invalidation to the calendar cache', () => {
+    const queryClient = { getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}) }
 
     finalizeHabitMutation(
       queryClient as never,
@@ -221,7 +264,11 @@ describe('finalizeHabitMutation', () => {
       { includeGoals: true },
     )
 
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(queryClient.invalidateQueries).toHaveBeenCalledOnce()
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
     expect(mocks.syncWidgetData).not.toHaveBeenCalled()
   })
 })
@@ -413,6 +460,7 @@ describe('optimisticMoveHabitParent', () => {
   it('moves a child habit to the top level and reindexes the list', () => {
     const movingChild = makeChild({
       id: 'child-1',
+      createdAtUtc: '2025-01-20T09:00:00Z',
       scheduledDates: ['2025-02-10'],
       isOverdue: true,
     })
@@ -430,7 +478,7 @@ describe('optimisticMoveHabitParent', () => {
     expect(result[2]).toMatchObject({
       id: 'child-1',
       position: 2,
-      createdAtUtc: '2025-01-01T00:00:00Z',
+      createdAtUtc: '2025-01-20T09:00:00Z',
       scheduledDates: ['2025-02-10'],
       isOverdue: true,
     })
@@ -443,7 +491,7 @@ describe('optimisticMoveHabitParent', () => {
       children: [nestedParent],
       hasSubHabits: true,
     })
-    const movingHabit = makeHabit({ id: 'move-me', position: 1 })
+    const movingHabit = makeHabit({ id: 'move-me', position: 1, createdAtUtc: '2025-01-20T09:00:00Z' })
 
     const result = optimisticMoveHabitParent(
       [topLevelParent, movingHabit],
@@ -453,7 +501,23 @@ describe('optimisticMoveHabitParent', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0]?.children[0]?.children[0]?.id).toBe('move-me')
+    expect(result[0]?.children[0]?.children[0]?.createdAtUtc).toBe('2025-01-20T09:00:00Z')
     expect(result[0]?.children[0]?.hasSubHabits).toBe(true)
+  })
+
+  it('uses the move time when an older child response has no creation date', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-02-10T12:00:00Z'))
+    try {
+      const child = makeChild({ id: 'child-1', createdAtUtc: undefined })
+      const parent = makeHabit({ id: 'parent-1', children: [child], hasSubHabits: true })
+
+      const result = optimisticMoveHabitParent([parent], 'child-1', null)
+
+      expect(result[1]?.createdAtUtc).toBe('2025-02-10T12:00:00.000Z')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('prevents moving a habit under its own descendant', () => {
@@ -468,4 +532,20 @@ describe('optimisticMoveHabitParent', () => {
 
     expect(result).toEqual([parent])
   })
+})
+
+it('clears a mounted search observer before replay without starting a request', () => {
+  const client = createQueryClient()
+  const key = habitKeys.search({ search: 'Test' })
+  const response = { items: [makeHabit()], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }
+  client.setQueryData(key, response)
+  const fetch = vi.fn(() => Promise.resolve(response))
+  const observer = new QueryObserver(client, { queryKey: key, queryFn: fetch, enabled: false })
+  const unsubscribe = observer.subscribe(vi.fn())
+  finalizeHabitMutation(client, { queued: true, queuedMutationId: 'queued' }, null)
+  expect(observer.getCurrentResult().data).toBeUndefined()
+  expect(fetch).not.toHaveBeenCalled()
+  expect(client.getQueryData(key)).toBeUndefined()
+  unsubscribe()
+  client.clear()
 })

@@ -1,4 +1,3 @@
-
 const { getElementName } = require('./_jsx-strings.cjs')
 
 const CONTENT_TO_TITLE = new Map([

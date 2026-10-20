@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/base.css">
+  <link rel="stylesheet" href="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/styles.css">
+  <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
+  <style>
+    @keyframes ob-typing { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+    .ob-astra-in::placeholder { color: var(--fg-4); }
+    .ob-astra-in:focus-visible { box-shadow: inset 0 0 0 2px var(--primary); }
+    @media (prefers-reduced-motion: reduce) { .ob-astra-dots span { animation: none; } }
+  </style>
+</helmet>
+<section data-mode="{{ mode }}" style="min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;gap:24px;padding:48px;background:var(--bg);color:var(--fg-1)">
+  <p style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4);letter-spacing:.06em;text-transform:uppercase">batch 4 · astra · conversa</p>
+  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CanvasControls" value="{{ cv }}" on-change="{{ setCv }}" states="{{ cvStates }}" hint-size="100%,40px"></x-import>
+  <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
+    <div id="f1" data-screen-label="Astra conversa · 412" style="flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ chromeEl }}" hint-size="412px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:24px 16px 0">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="display:flex;color:var(--fg-1)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n28 }}" hint-size="28px,28px"></x-import></span>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">Astra</h1>
+          </div>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ tLoading }}" hint-size="100%,280px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showEmptyIntro }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <p style="font-size:16px;line-height:1.55;color:var(--fg-2);max-width:40ch">{{ tIntro }}</p>
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                <sc-for list="{{ openers }}" as="c" hint-placeholder-count="3">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ c.onClick }}" hint-size="auto,36px">{{ c.labelEl }}</x-import>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showThread }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="4">
+                <sc-if value="{{ m.isUser }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                    <div style="max-width:85%;background:var(--bg-well);border-radius:var(--r-well);padding:12px 16px;font-size:16px;line-height:1.55">
+                      <sc-for list="{{ m.parts }}" as="p" hint-placeholder-count="1">
+                        <sc-if value="{{ p.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true" style="font-variant-numeric:tabular-nums">{{ p.text }}</span></sc-if>
+                        <sc-if value="{{ p.plain }}" hint-placeholder-val="{{ true }}"><span>{{ p.text }}</span></sc-if>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ m.hasTime }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4)"><span data-mock="true">{{ m.time }}</span></span>
+                    </sc-if>
+                    <sc-if value="{{ m.failed }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+                        <span style="display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--status-bad)">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="alert-circle" size="{{ n16 }}" color="var(--status-bad)" hint-size="16px,16px"></x-import>
+                          {{ tFailed }}
+                        </span>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onRetry }}" hint-size="auto,36px">{{ tRetry }}</x-import>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ m.isAstra }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;gap:12px;align-items:flex-start">
+                    <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                    <div style="display:flex;flex-direction:column;gap:12px;min-width:0;max-width:65ch">
+                      <p style="font-size:16px;line-height:1.55">
+                        <sc-for list="{{ m.parts }}" as="p" hint-placeholder-count="1">
+                          <sc-if value="{{ p.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true" style="font-variant-numeric:tabular-nums">{{ p.text }}</span></sc-if>
+                          <sc-if value="{{ p.plain }}" hint-placeholder-val="{{ true }}"><span>{{ p.text }}</span></sc-if>
+                        </sc-for>
+                      </p>
+                      <sc-if value="{{ m.cap }}" hint-placeholder-val="{{ false }}">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capActionEl }}" hint-size="100%,88px"></x-import>
+                      </sc-if>
+                      <sc-if value="{{ m.hasChips }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                          <sc-for list="{{ m.chips }}" as="c" hint-placeholder-count="2">
+                            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ c.onClick }}" hint-size="auto,36px">{{ c.labelEl }}</x-import>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-if>
+              </sc-for>
+              <sc-if value="{{ typing }}" hint-placeholder-val="{{ false }}">
+                <div role="status" aria-label="{{ tTyping }}" style="display:flex;gap:12px;align-items:center">
+                  <span style="flex:0 0 auto;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <span class="ob-astra-dots" style="display:flex;gap:4px;color:var(--fg-3);font-size:18px;line-height:1">
+                    <span style="animation:ob-typing 1.2s ease-in-out infinite">·</span>
+                    <span style="animation:ob-typing 1.2s ease-in-out .2s infinite">·</span>
+                    <span style="animation:ob-typing 1.2s ease-in-out .4s infinite">·</span>
+                  </span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
+    <div id="f2" data-screen-label="Astra conversa · wide" style="position:relative;width:1332px;flex:0 0 auto">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ tabs }}" active-id="astra" account="Thomas" rail="{{ railEl }}" hint-size="1332px,820px">
+        <div style="display:flex;flex-direction:column;gap:24px;min-height:100%">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="display:flex;color:var(--fg-1)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n28 }}" hint-size="28px,28px"></x-import></span>
+            <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);font-weight:600;line-height:1.05;letter-spacing:var(--track-display)">Astra</h1>
+          </div>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n4 }}" label="{{ tLoading }}" hint-size="100%,280px"></x-import>
+          </sc-if>
+          <sc-if value="{{ showEmptyIntro }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <p style="font-size:16px;line-height:1.55;color:var(--fg-2);max-width:40ch">{{ tIntro }}</p>
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                <sc-for list="{{ openers }}" as="c" hint-placeholder-count="3">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ c.onClick }}" hint-size="auto,36px">{{ c.labelEl }}</x-import>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showThread }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="4">
+                <sc-if value="{{ m.isUser }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                    <div style="max-width:65%;background:var(--bg-well);border-radius:var(--r-well);padding:12px 16px;font-size:16px;line-height:1.55">
+                      <sc-for list="{{ m.parts }}" as="p" hint-placeholder-count="1">
+                        <sc-if value="{{ p.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true" style="font-variant-numeric:tabular-nums">{{ p.text }}</span></sc-if>
+                        <sc-if value="{{ p.plain }}" hint-placeholder-val="{{ true }}"><span>{{ p.text }}</span></sc-if>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ m.hasTime }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-4)"><span data-mock="true">{{ m.time }}</span></span>
+                    </sc-if>
+                    <sc-if value="{{ m.failed }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+                        <span style="display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--status-bad)">
+                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="alert-circle" size="{{ n16 }}" color="var(--status-bad)" hint-size="16px,16px"></x-import>
+                          {{ tFailed }}
+                        </span>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onRetry }}" hint-size="auto,36px">{{ tRetry }}</x-import>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ m.isAstra }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;gap:12px;align-items:flex-start">
+                    <span style="flex:0 0 auto;margin-top:4px;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                    <div style="display:flex;flex-direction:column;gap:12px;min-width:0;max-width:65ch">
+                      <p style="font-size:16px;line-height:1.55">
+                        <sc-for list="{{ m.parts }}" as="p" hint-placeholder-count="1">
+                          <sc-if value="{{ p.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true" style="font-variant-numeric:tabular-nums">{{ p.text }}</span></sc-if>
+                          <sc-if value="{{ p.plain }}" hint-placeholder-val="{{ true }}"><span>{{ p.text }}</span></sc-if>
+                        </sc-for>
+                      </p>
+                      <sc-if value="{{ m.cap }}" hint-placeholder-val="{{ false }}">
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ capMsgEl }}" action="{{ capActionEl }}" hint-size="100%,88px"></x-import>
+                      </sc-if>
+                      <sc-if value="{{ m.hasChips }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                          <sc-for list="{{ m.chips }}" as="c" hint-placeholder-count="2">
+                            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ c.onClick }}" hint-size="auto,36px">{{ c.labelEl }}</x-import>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-if>
+              </sc-for>
+              <sc-if value="{{ typing }}" hint-placeholder-val="{{ false }}">
+                <div role="status" aria-label="{{ tTyping }}" style="display:flex;gap:12px;align-items:center">
+                  <span style="flex:0 0 auto;display:flex;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n16 }}" hint-size="16px,16px"></x-import></span>
+                  <span class="ob-astra-dots" style="display:flex;gap:4px;color:var(--fg-3);font-size:18px;line-height:1">
+                    <span style="animation:ob-typing 1.2s ease-in-out infinite">·</span>
+                    <span style="animation:ob-typing 1.2s ease-in-out .2s infinite">·</span>
+                    <span style="animation:ob-typing 1.2s ease-in-out .4s infinite">·</span>
+                  </span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+          <div style="position:sticky;bottom:0;background:var(--bg);padding:16px 0 24px;margin-top:auto">{{ composerEl }}</div>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {cv:{mode:'dark', width:'412', state:'default', locale:'pt-BR'}, input:'', extras:[], typing:false, stream:-1, retried:false, retriedDone:false};
+  clearTimers(){ clearTimeout(this.t1); clearTimeout(this.t2); clearInterval(this.iv); }
+  componentWillUnmount(){ this.clearTimers(); }
+  mp(s){ return s.split(/(\d[\d:]*)/).filter(Boolean).map(t => /^\d/.test(t) ? {text:t, mock:true} : {text:t, plain:true}); }
+  streamText(en){ return en
+    ? 'Okay. I will freeze Read 10 pages from September 14 to 20. Nothing is lost, and I bring it back on the 21st.'
+    : 'Certo. Vou congelar Ler 10 páginas de 14 a 20 de setembro. Nada se perde, e eu reativo no dia 21.'; }
+  startStream(){
+    this.setState({typing:true, stream:0});
+    this.t1 = setTimeout(() => {
+      this.setState({typing:false});
+      this.iv = setInterval(() => {
+        this.setState(s => {
+          const L = this.mp(this.streamText(s.cv.locale==='en')).length;
+          if (s.stream >= L) { clearInterval(this.iv); return null; }
+          return {stream: s.stream + 1};
+        });
+      }, 160);
+    }, 1000);
+  }
+  send(){
+    const v = this.state.input.trim();
+    if (!v || this.state.typing) return;
+    const en = this.state.cv.locale==='en';
+    this.setState(s => ({input:'', typing:true, extras:s.extras.concat([{role:'user', text:v, time:en?'now':'agora'}])}));
+    this.t2 = setTimeout(() => {
+      const en2 = this.state.cv.locale==='en';
+      this.setState(s => ({typing:false, extras:s.extras.concat([{role:'astra',
+        text: en2 ? 'Got it. I will do that now.' : 'Entendi. Vou fazer isso agora.',
+        chips: [en2 ? 'Undo' : 'Desfazer']}])}));
+    }, 900);
+  }
+  retry(){
+    this.setState({retried:true, typing:true});
+    this.t2 = setTimeout(() => this.setState({typing:false, retriedDone:true}), 900);
+  }
+  renderVals(){
+    const DS = window.OrbitDesignSystem_918bd5 || {};
+    const E = React.createElement;
+    const st = this.state, cv = st.cv, en = cv.locale==='en';
+    const T = en ? {
+      intro:'I create, adjust and freeze your habits. Say what you want to change.',
+      openers:['Create a morning routine','I have 20 minutes a day. What fits?','Move the run to 07:00'],
+      composerPh:'Say what you want to change', send:'Send', responding:'Astra is responding',
+      typing:'Astra is typing', loading:'Loading', failed:'Not sent. Check your connection.', retry:'Try again',
+      undo:'Undo', adjustDates:'Adjust dates',
+      capMsg:'Limit of 10 habits. Archive a habit to create another.', capAction:'Archive a habit',
+      proposal:'proposal · action log', railTitle:'Recent actions',
+      railRows:[['Run moved to 07:00','today'],['Read 10 pages lowered from 20','today'],['Coffee without sugar created','Fri']],
+      railReason:'every Astra action stays auditable outside the conversation',
+      tabs:['Today','Goals','Astra','Profile'],
+      conv:[
+        {u:"I can't get any reading done at night.", t:'21:40'},
+        {a:'I see. Want to move reading to the morning, or lower the goal?', chips:['Move to the morning','Lower to 10 pages']},
+        {u:'Lower it to 10 pages and move the run to 07:00.', t:'21:41'},
+        {a:'Done. Read 20 pages is now Read 10 pages, and Run moved from 18:30 to 07:00.', chips:['Undo','View habits']}
+      ],
+      streamAsk:{u:'And freeze reading during the trip week.', t:'21:43'},
+      errAsk:'Move meditation to after lunch.',
+      errAck:'Done. Meditate now comes after lunch.',
+      capAsk:{u:'Create a stretching habit at 06:00.', t:'07:12'},
+      capReply:'I have not created it yet. You are at the limit.'
+    } : {
+      intro:'Eu crio, ajusto e congelo seus hábitos. Diga o que você quer mudar.',
+      openers:['Criar uma rotina de manhã','Tenho 20 minutos por dia. O que cabe?','Mover a corrida para as 07:00'],
+      composerPh:'Diga o que você quer mudar', send:'Enviar', responding:'Astra está respondendo',
+      typing:'Astra está digitando', loading:'Carregando', failed:'Não enviada. Verifique sua conexão.', retry:'Tentar de novo',
+      undo:'Desfazer', adjustDates:'Ajustar datas',
+      capMsg:'Limite de 10 hábitos. Arquive um hábito para criar outro.', capAction:'Arquivar um hábito',
+      proposal:'proposta · registro de ações', railTitle:'Ações recentes',
+      railRows:[['Correr movido para as 07:00','hoje'],['Ler 10 páginas reduzido de 20','hoje'],['Café sem açúcar criado','sex']],
+      railReason:'toda ação da Astra fica auditável fora da conversa',
+      tabs:['Hoje','Metas','Astra','Perfil'],
+      conv:[
+        {u:'Não estou conseguindo ler à noite.', t:'21:40'},
+        {a:'Entendo. Quer mover a leitura para a manhã ou reduzir a meta?', chips:['Mover para a manhã','Reduzir para 10 páginas']},
+        {u:'Reduz para 10 páginas e muda a corrida para as 07:00.', t:'21:41'},
+        {a:'Feito. Ler 20 páginas virou Ler 10 páginas, e Correr passou das 18:30 para as 07:00.', chips:['Desfazer','Ver hábitos']}
+      ],
+      streamAsk:{u:'E congela a leitura na semana da viagem.', t:'21:43'},
+      errAsk:'Muda a meditação para depois do almoço.',
+      errAck:'Feito. Meditar agora vem depois do almoço.',
+      capAsk:{u:'Cria um hábito de alongar às 06:00.', t:'07:12'},
+      capReply:'Ainda não criei. Você está no limite.'
+    };
+    const cstate = cv.state;
+    const isLoading = cstate==='loading', isWide = cv.width==='wide';
+    const noop = () => {};
+    const labelElOf = s => E(React.Fragment, null, ...this.mp(s).map((p,i) => p.mock
+      ? E('span', {key:i, 'data-mock':'true', style:{fontVariantNumeric:'tabular-nums'}}, p.text)
+      : E('span', {key:i}, p.text)));
+    const chip = (label, onClick) => ({labelEl:labelElOf(label), onClick:onClick||noop});
+    const uMsg = (text, time, o) => Object.assign({isUser:true, parts:this.mp(text), hasTime:!!time, time:time||''}, o||{});
+    const aMsg = (text, chips, o) => Object.assign({isAstra:true, parts:this.mp(text),
+      hasChips:!!(chips&&chips.length), chips:(chips||[]).map(c=>chip(c))}, o||{});
+    const fromConv = d => d.u !== undefined ? uMsg(d.u, d.t) : aMsg(d.a, d.chips);
+    const fromExtra = x => x.role==='user' ? uMsg(x.text, x.time) : aMsg(x.text, x.chips);
+    let msgs = [];
+    if (cstate==='default') msgs = T.conv.map(fromConv).concat(st.extras.map(fromExtra));
+    else if (cstate==='empty') msgs = st.extras.map(fromExtra);
+    else if (cstate==='streaming') {
+      msgs = T.conv.map(fromConv);
+      msgs.push(uMsg(T.streamAsk.u, T.streamAsk.t));
+      const parts = this.mp(this.streamText(en));
+      const done = st.stream >= parts.length;
+      if (!st.typing && st.stream > 0) msgs.push({isAstra:true, parts:parts.slice(0, st.stream),
+        hasChips:done, chips:done ? [chip(T.undo), chip(T.adjustDates)] : []});
+    }
+    else if (cstate==='error') {
+      msgs = T.conv.slice(0,2).map(fromConv);
+      if (!st.retried) msgs.push(uMsg(T.errAsk, null, {failed:true}));
+      else {
+        msgs.push(uMsg(T.errAsk, en?'now':'agora'));
+        if (st.retriedDone) msgs.push(aMsg(T.errAck, [T.undo]));
+      }
+    }
+    else if (cstate==='at capacity') { msgs = [uMsg(T.capAsk.u, T.capAsk.t), aMsg(T.capReply, null, {cap:true})]; }
+    const parts = this.mp(this.streamText(en));
+    const streamRunning = cstate==='streaming' && st.stream >= 0 && st.stream < parts.length;
+    const responding = st.typing || streamRunning;
+    const canSend = !!st.input.trim() && !responding;
+    const composerEl = DS.Button ? E('div', {style:{display:'flex', flexDirection:'column', gap:8}},
+      E('div', {style:{display:'flex', gap:8, alignItems:'center'}},
+        E('input', {className:'ob-astra-in', 'aria-label':T.composerPh, placeholder:T.composerPh, value:st.input,
+          onChange:e=>this.setState({input:e.target.value}),
+          onKeyDown:e=>{ if (e.key==='Enter') this.send(); },
+          style:{flex:1, height:44, minWidth:0, background:'var(--bg-field)', border:'none', borderRadius:'var(--r-well)',
+            padding:'0 16px', fontSize:16, fontFamily:'inherit', color:'var(--fg-1)', outline:'none',
+            boxShadow:'inset 0 0 0 1px var(--hairline)', transition:'box-shadow var(--dur-fast) var(--ease-standard)'}}),
+        E(DS.Button, {size:'sm', disabled:!canSend, onClick:()=>this.send()}, T.send)),
+      responding ? E('span', {style:{fontFamily:'var(--font-mono)', fontSize:'var(--fs-xs)', color:'var(--fg-4)'}}, T.responding) : null) : null;
+    const tabs = [
+      {id:'hoje', label:T.tabs[0], icon:'home'},
+      {id:'metas', label:T.tabs[1], icon:'target'},
+      {id:'astra', label:T.tabs[2], astra:true},
+      {id:'perfil', label:T.tabs[3], icon:'user'}];
+    const tabBarEl = DS.TabBar ? E(DS.TabBar, {items:tabs, activeId:'astra'}) : null;
+    const chromeEl = E(React.Fragment, null,
+      E('div', {style:{padding:'12px 16px 8px'}}, composerEl), tabBarEl);
+    const reason = t => E('span', {style:{fontSize:12, color:'var(--fg-4)', lineHeight:1.4}}, t);
+    const railEl = (isLoading && DS.Skeleton)
+      ? E('div', {style:{display:'flex', flexDirection:'column', gap:12}},
+          E(DS.Skeleton, {variant:'stat-tile', rows:1, label:T.loading}))
+      : E('div', {'data-proposal':'true', style:{display:'flex', flexDirection:'column', gap:12}},
+          E('p', {style:{fontFamily:'var(--font-mono)', fontSize:'var(--fs-xs)', color:'var(--fg-4)', letterSpacing:'.06em', textTransform:'uppercase'}}, T.proposal),
+          E('div', {style:{display:'flex', flexDirection:'column', gap:4}},
+            E('div', {style:{background:'var(--bg-card)', borderRadius:'var(--r-card)', boxShadow:'inset 0 0 0 1px var(--hairline)', padding:16, display:'flex', flexDirection:'column', gap:12}},
+              E('p', {style:{fontFamily:'var(--font-mono)', fontSize:'var(--fs-xs)', fontWeight:500, color:'var(--fg-3)', letterSpacing:'var(--track-label)', textTransform:'uppercase'}}, T.railTitle),
+              ...T.railRows.map((r,i) => E('div', {key:i, style:{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12}},
+                E('span', {style:{fontSize:'var(--fs-sm)', lineHeight:1.4}}, labelElOf(r[0])),
+                E('span', {style:{fontFamily:'var(--font-mono)', fontSize:'var(--fs-xs)', color:'var(--fg-3)', whiteSpace:'nowrap'}}, E('span', {'data-mock':'true'}, r[1]))))),
+            reason(T.railReason)));
+    const capMsgEl = labelElOf(T.capMsg);
+    const capActionEl = DS.Button ? E(DS.Button, {variant:'ghost', size:'sm', onClick:noop}, T.capAction) : null;
+    const openers = T.openers.map(o => ({labelEl:labelElOf(o), onClick:()=>this.setState({input:o})}));
+    const showEmptyIntro = cstate==='empty' && st.extras.length===0 && !st.typing;
+    const showThread = !isLoading && (msgs.length > 0 || st.typing);
+    return {
+      mode:cv.mode, cv,
+      setCv: next => { this.clearTimers();
+        this.setState({cv:next, input:'', extras:[], typing:false, stream:-1, retried:false, retriedDone:false});
+        if (next.state==='streaming') this.startStream(); },
+      cvStates:['default','streaming','loading','empty','error','at capacity'],
+      is412:!isWide, isWide, tabs, railEl, composerEl, chromeEl,
+      isLoading, showEmptyIntro, showThread, msgs, openers, typing:st.typing,
+      capMsgEl, capActionEl, onRetry:()=>this.retry(),
+      tIntro:T.intro, tLoading:T.loading, tFailed:T.failed, tRetry:T.retry, tTyping:T.typing,
+      n4:4, n16:16, n28:28
+    };
+  }
+}
+</script>
+</body>
+</html>

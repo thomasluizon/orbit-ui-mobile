@@ -1,10 +1,14 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
 import { ApiClientError } from '@orbit/shared'
 
-import { CalendarPickerSection } from '@/app/calendar-picker-section'
-import { createStyles } from '@/app/calendar-sync-styles'
+import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
+import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { expectPressPaint } from '@/__tests__/support/press-feedback'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -14,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   isError: false,
   mutate: vi.fn(),
   showError: vi.fn(),
+  reducedMotion: false,
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -22,11 +27,13 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
+  radius: new Proxy({}, { get: () => 8 }),
   easings: { smooth: [0.2, 0, 0, 1] },
   tintFromPrimary: () => 'rgba(127,70,247,0.1)',
 }))
 
 vi.mock('@/lib/motion', () => ({
+  usePrefersReducedMotion: () => mocks.reducedMotion,
   toAnimatedEasing: () => (value: number) => value,
 }))
 
@@ -54,16 +61,17 @@ function buildCalendar(overrides: Partial<UserCalendar> = {}): UserCalendar {
     name: 'Personal',
     accessRole: 'owner',
     primary: true,
-    backgroundColor: '#7f46f7',
+    backgroundColor: '#C4530F',
     isSynced: true,
     ...overrides,
   }
 }
 
-type TestNode = { props: Record<string, unknown>; type?: unknown }
+type TestNode = { parent: TestNode | null; props: Record<string, unknown>; type?: unknown }
 
 function render(enabled: boolean) {
   let tree: {
+    toJSON: () => Parameters<typeof measureInteractionFills>[0]
     root: {
       findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
     }
@@ -76,9 +84,9 @@ function render(enabled: boolean) {
   return tree!
 }
 
-function switches(tree: ReturnType<typeof render>) {
+function checkboxes(tree: ReturnType<typeof render>) {
   return tree.root.findAll(
-    (node) => node.props.accessibilityRole === 'switch' && typeof node.type === 'string',
+    (node) => node.props.accessibilityRole === 'checkbox' && typeof node.type === 'string',
   )
 }
 
@@ -91,6 +99,20 @@ beforeEach(() => {
 })
 
 describe('mobile CalendarPickerSection', () => {
+  it.each([false, true])('paints retry and restores its resting fill (reduced motion: %s)', async (reducedMotion) => {
+    mocks.reducedMotion = reducedMotion
+    mocks.isError = true
+    const { createTokensV2 } = await vi.importActual<typeof import('@/lib/theme')>('@/lib/theme')
+    const palette = createTokensV2('purple', 'dark')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarPickerSection styles={styles} tokens={palette} t={t} enabled />)
+    })
+    const retry = tree.root.findByType('Pressable')
+    expectPressPaint(retry, { fill: palette.bgHoverOpaque, restFill: palette.bgElev, overlay: true, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    TestRenderer.act(() => tree.unmount())
+    mocks.reducedMotion = false
+  })
   it('renders nothing when disabled', () => {
     mocks.calendars = [buildCalendar()]
     const tree = render(false)
@@ -98,20 +120,69 @@ describe('mobile CalendarPickerSection', () => {
     expect(hostNodes).toHaveLength(0)
   })
 
-  it('renders a switch per calendar reflecting its synced state', () => {
+  it('renders a check row per calendar reflecting its synced state', () => {
     mocks.calendars = [
       buildCalendar({ id: 'cal-1', isSynced: true }),
       buildCalendar({ id: 'cal-2', name: 'Work', primary: false, isSynced: false }),
     ]
-    const found = switches(render(true))
+    const found = checkboxes(render(true))
     expect(found).toHaveLength(2)
     expect((found[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
     expect((found[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(false)
   })
 
+  it('pages a long calendar list while keeping the total visible', () => {
+    mocks.calendars = Array.from({ length: 21 }, (_, index) =>
+      buildCalendar({ id: `cal-${index}`, name: `Calendar ${index}` }))
+    const tree = render(true)
+    expect(checkboxes(tree)).toHaveLength(20)
+    const showMore = tree.root.findAll((node) => node.props.children === 'calendar.showMore'
+      && typeof node.props.onClick === 'function')[0]
+    expect(showMore).toBeDefined()
+    TestRenderer.act(() => { (showMore!.props.onClick as () => void)() })
+    expect(checkboxes(tree)).toHaveLength(21)
+  })
+
+  it('opens the full Google calendar name without changing selection', () => {
+    const name = ('Calendário dos compromissos de toda a família ' + 'encontros '.repeat(12)).trim()
+    mocks.calendars = [buildCalendar({ name })]
+    const tree = render(true)
+    const title = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === name)[0]!
+    expect(title.props.numberOfLines).toBe(1)
+    const open = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === name)[0]!
+    const row = tree.root.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'list-row-body')[0]!
+    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ paddingStart: 16, paddingEnd: 4, marginHorizontal: -16 })
+    const fills = measureInteractionFills(tree.toJSON(), 412, false).filter((part) => 'data-press-fill' in part.host.props)
+    expect(fills[1]!.left - fills[0]!.right).toBe(4)
+    expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
+    TestRenderer.act(() => { (open.props.onPress as () => void)() })
+    expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(true)
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === name && node.props.expanded === true)).toHaveLength(1)
+    const scrollers = tree.root.findAll((node) => node.type === 'ScrollView')
+    expect(scrollers.length).toBeGreaterThan(0)
+    const primaryLabel = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.calendars.primaryLabel')[0]!
+    expect(primaryLabel).toBeDefined()
+    let supportingTextPassesPointer = false
+    for (let ancestor = primaryLabel.parent; ancestor; ancestor = ancestor.parent) {
+      if (ancestor.props.pointerEvents === 'none') supportingTextPassesPointer = true
+    }
+    expect(supportingTextPassesPointer).toBe(true)
+    for (const scroller of scrollers) {
+      for (let ancestor = scroller.parent; ancestor; ancestor = ancestor.parent) {
+        expect(ancestor.type).not.toBe('Pressable')
+      }
+    }
+    expect((checkboxes(tree)[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+    TestRenderer.act(() => { (open.props.onPress as () => void)() })
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === name && node.props.expanded === true)).toHaveLength(0)
+    expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
+    expect(mocks.mutate).not.toHaveBeenCalled()
+    expect((checkboxes(tree)[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+  })
+
   it('persists the flipped synced value on toggle', () => {
     mocks.calendars = [buildCalendar({ id: 'cal-1', isSynced: true })]
-    const found = switches(render(true))
+    const found = checkboxes(render(true))
 
     TestRenderer.act(() => {
       ;(found[0]!.props.onPress as () => void)()
@@ -125,7 +196,8 @@ describe('mobile CalendarPickerSection', () => {
 
   it('shows textless recovery when saving a calendar is blocked', () => {
     mocks.calendars = [buildCalendar()]
-    const found = switches(render(true))
+    const tree = render(true)
+    const found = checkboxes(tree)
 
     TestRenderer.act(() => {
       ;(found[0]!.props.onPress as () => void)()
@@ -133,7 +205,8 @@ describe('mobile CalendarPickerSection', () => {
       options.onError(new ApiClientError(403, 'Forbidden'))
     })
 
-    expect(mocks.showError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry')
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children === 'errors.api.edgeBlockedRetry')).toHaveLength(1)
+    expect(mocks.showError).not.toHaveBeenCalled()
   })
 
   it('renders the empty state when no calendars are returned', () => {

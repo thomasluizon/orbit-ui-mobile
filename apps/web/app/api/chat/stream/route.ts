@@ -1,8 +1,10 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { type NextRequest } from 'next/server'
 import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
+import { observeProxyFailure, type RecordProxyUpstream } from '@/lib/proxy-failure-log'
 
 /**
  * BFF: streaming proxy for the chat SSE endpoint. The catch-all proxy buffers
@@ -25,6 +27,7 @@ async function forwardStream(
       Authorization: `Bearer ${token}`,
       ...(eventOrigin && eventOrigin.length <= 128 ? { 'X-Orbit-Event-Origin': eventOrigin } : {}),
       ...buildForwardedClientHeaders(request),
+      ...API_VERSION_HEADERS,
     },
     body: formData,
     cache: 'no-store',
@@ -46,30 +49,30 @@ function accountChangedResponse(): Response {
   )
 }
 
-export async function POST(request: NextRequest) {
+async function handleStream(request: NextRequest, recordUpstream: RecordProxyUpstream) {
   const session = await resolveServerSession()
   if (!session.token) {
     return unauthorizedResponse(session.refreshFailed)
   }
   const heldAccountId = request.headers.get('x-orbit-held-account-id')
-  const cookieAccountId = getAccountIdFromToken(session.token)
-  if (heldAccountId && cookieAccountId && cookieAccountId !== heldAccountId) {
+  if (!heldAccountId || getAccountIdFromToken(session.token) !== heldAccountId) {
     return accountChangedResponse()
   }
 
   const formData = await request.formData()
   let upstream = await forwardStream(request, formData, session.token)
+  recordUpstream(upstream)
 
   if (upstream.status === 401) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (!refreshedSession.token) {
       return unauthorizedResponse(refreshedSession.refreshFailed)
     }
-    const refreshedAccountId = getAccountIdFromToken(refreshedSession.token)
-    if (heldAccountId && refreshedAccountId && refreshedAccountId !== heldAccountId) {
+    if (getAccountIdFromToken(refreshedSession.token) !== heldAccountId) {
       return accountChangedResponse()
     }
     upstream = await forwardStream(request, formData, refreshedSession.token)
+    recordUpstream(upstream)
   }
 
   if (!upstream.ok || !upstream.body) {
@@ -91,4 +94,8 @@ export async function POST(request: NextRequest) {
       'x-accel-buffering': 'no',
     },
   })
+}
+
+export async function POST(request: NextRequest) {
+  return observeProxyFailure('/api/chat/stream', (recordUpstream) => handleStream(request, recordUpstream))
 }

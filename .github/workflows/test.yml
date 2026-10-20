@@ -91,26 +91,63 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
+
       - run: npm ci
+
       - name: Test CI workflow behavior
-        run: node --test tools/__tests__/guards-consolidation.test.mjs tools/__tests__/ci-minutes.test.mjs .github/scripts/check-pr-metadata.test.mjs
+        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/unit-tests-workflow.test.mjs
+
+      # The unit suite's contrast scan is skipped on a Turbo cache hit, so this step runs the
+      # full-tree scan on every pull request. Findings stay advisory; a scanner error fails.
+      - name: Report surface scope findings across the full tree
+        if: ${{ !cancelled() }}
+        run: |
+          set +e
+          node tools/check-surface-scope.mjs
+          checker_status=$?
+          set -e
+          if [ "$checker_status" -eq 1 ]; then
+            echo "Surface scope findings are reported and do not fail this step."
+            exit 0
+          fi
+          exit "$checker_status"
+
       - name: Run tools harness
         if: ${{ !cancelled() }}
         run: node tools/test-tools.mjs
+
       - name: Run hooks harness
         if: ${{ !cancelled() }}
         run: node .claude/hooks/test-hooks.mjs
 
   unit-tests:
     name: Unit Tests
-    needs: build
+    if: ${{ always() }}
+    needs: [build, web-tests, workspace-tests]
     runs-on: ubuntu-latest
 
     steps:
+      - name: Require every test job
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          WEB_RESULT: ${{ needs.web-tests.result }}
+          WORKSPACE_RESULT: ${{ needs.workspace-tests.result }}
+        run: |
+          test "$BUILD_RESULT" = success
+          if [ "$BASE_REF" = redesign/main ]; then
+            test "$WEB_RESULT" = success
+            test "$WORKSPACE_RESULT" = success
+          else
+            test "$WEB_RESULT" = skipped
+            test "$WORKSPACE_RESULT" = skipped
+          fi
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
@@ -121,6 +158,7 @@ jobs:
       - run: npm ci
 
       - name: Cache turbo
+        if: github.base_ref != 'redesign/main'
         uses: actions/cache@v6
         with:
           path: .turbo
@@ -129,13 +167,56 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.job }}-
 
       - name: Run tests with coverage thresholds
+        if: github.base_ref != 'redesign/main'
         run: npx turbo run test --concurrency=1 -- --coverage
+
+      - name: Download web shard reports
+        if: github.base_ref == 'redesign/main'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: web-unit-shard-*
+          path: apps/web/.artifacts/unit-tests
+          merge-multiple: true
+
+      - name: Download workspace coverage
+        if: github.base_ref == 'redesign/main'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: workspace-unit-coverage-*
+          merge-multiple: true
+
+      - name: Verify every web report arrived
+        if: github.base_ref == 'redesign/main'
+        run: |
+          for shard in $(seq 1 2); do
+            test -s "apps/web/.artifacts/unit-tests/blobs/jsdom-${shard}.json"
+          done
+          for shard in $(seq 1 8); do
+            test -s "apps/web/.artifacts/unit-tests/blobs/chromium-${shard}.json"
+          done
+
+      - name: Merge web reports and enforce coverage thresholds
+        if: github.base_ref == 'redesign/main'
+        working-directory: apps/web
+        run: npx vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default --reporter=json --outputFile.json=.artifacts/unit-tests/merged.json
+
+      - name: Upload web test timings
+        if: ${{ always() && github.base_ref == 'redesign/main' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-unit-timings
+          path: |
+            apps/web/.artifacts/unit-tests/timings
+            apps/web/.artifacts/unit-tests/merged.json
+          include-hidden-files: true
+          if-no-files-found: error
 
       - name: Verify coverage reports
         run: |
           test -s apps/web/coverage/lcov.info
           test -s apps/mobile/coverage/lcov.info
           test -s packages/shared/coverage/lcov.info
+          test -s eslint-rules/coverage/lcov.info
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v7
@@ -145,6 +226,89 @@ jobs:
             apps/web/coverage/lcov.info
             apps/mobile/coverage/lcov.info
             packages/shared/coverage/lcov.info
+            eslint-rules/coverage/lcov.info
+          if-no-files-found: error
+
+  web-tests:
+    name: Web unit (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.total }})
+    if: github.base_ref == 'redesign/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        total: [8]
+        include:
+          - project: jsdom
+            shard: 1
+            total: 2
+          - project: jsdom
+            shard: 2
+            total: 2
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Partial runs collect coverage; Unit Tests applies the unchanged gate to their union.
+      - name: Run web shard with coverage
+        working-directory: apps/web
+        run: >-
+          npx vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
+          --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
+          --reporter=default --reporter=blob --reporter=json
+          --outputFile.blob=.artifacts/unit-tests/blobs/${{ matrix.project }}-${{ matrix.shard }}.json
+          --outputFile.json=.artifacts/unit-tests/timings/${{ matrix.project }}-${{ matrix.shard }}.json
+      - name: Upload web shard reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}
+          path: apps/web/.artifacts/unit-tests
+          include-hidden-files: true
+          if-no-files-found: error
+
+  workspace-tests:
+    name: Workspace unit (${{ matrix.workspace }})
+    if: github.base_ref == 'redesign/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: mobile
+            directory: apps/mobile
+          - workspace: shared
+            directory: packages/shared
+          - workspace: eslint-rules
+            directory: eslint-rules
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run workspace with coverage thresholds
+        run: npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage
+      # Preserve repository paths when artifacts from independent jobs are combined.
+      - name: Stage workspace coverage
+        run: |
+          test -s "${{ matrix.directory }}/coverage/lcov.info"
+          mkdir -p ".artifacts/workspace-coverage/${{ matrix.directory }}/coverage"
+          cp "${{ matrix.directory }}/coverage/lcov.info" ".artifacts/workspace-coverage/${{ matrix.directory }}/coverage/lcov.info"
+      - name: Upload workspace coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: workspace-unit-coverage-${{ matrix.workspace }}
+          path: .artifacts/workspace-coverage
+          include-hidden-files: true
           if-no-files-found: error
 
   sonarcloud:
@@ -246,6 +410,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve pull request changed paths
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"
 
       - uses: actions/setup-node@v7
         with:
@@ -262,4 +434,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-${{ github.job }}-
 
-      - run: npx turbo run lint
+      - name: Lint only files changed by this pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          web=()
+          mobile=()
+          shared=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              apps/web/*.js|apps/web/*.jsx|apps/web/*.mjs|apps/web/*.cjs|apps/web/*.ts|apps/web/*.tsx|apps/web/*.mts|apps/web/*.cts)
+                web+=("${file#apps/web/}") ;;
+              apps/mobile/*.js|apps/mobile/*.jsx|apps/mobile/*.mjs|apps/mobile/*.cjs|apps/mobile/*.ts|apps/mobile/*.tsx|apps/mobile/*.mts|apps/mobile/*.cts)
+                mobile+=("${file#apps/mobile/}") ;;
+              packages/shared/*.js|packages/shared/*.jsx|packages/shared/*.mjs|packages/shared/*.cjs|packages/shared/*.ts|packages/shared/*.tsx|packages/shared/*.mts|packages/shared/*.cts)
+                shared+=("${file#packages/shared/}") ;;
+            esac
+          done < "$RUNNER_TEMP/changed-paths-present.nul"
+          if [ "${#web[@]}" -gt 0 ]; then npm exec --workspace @orbit/web -- eslint -- "${web[@]}"; fi
+          if [ "${#mobile[@]}" -gt 0 ]; then npm exec --workspace @orbit/mobile -- eslint -- "${mobile[@]}"; fi
+          if [ "${#shared[@]}" -gt 0 ]; then npm exec --workspace @orbit/shared -- eslint -- "${shared[@]}"; fi
+          echo "Linted ${#web[@]} web, ${#mobile[@]} mobile and ${#shared[@]} shared files."

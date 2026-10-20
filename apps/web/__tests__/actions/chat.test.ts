@@ -35,9 +35,11 @@ describe('chat server actions', () => {
           expiresAtUtc: '2025-01-15T10:05:00Z',
         },
       })
-      expect(mockServerAuthMutate).toHaveBeenCalledWith('/api/ai/pending-operations/pending-1/confirm', {
-        method: 'POST',
-      }, null)
+      expect(mockServerAuthMutate).toHaveBeenCalledWith(
+        '/api/ai/pending-operations/pending-1/confirm',
+        { method: 'POST' },
+        null,
+      )
     })
 
     it('requests a step-up challenge', async () => {
@@ -50,10 +52,11 @@ describe('chat server actions', () => {
       const result = await issuePendingOperationStepUp('pending-1', 'en', null)
 
       expect(result.ok).toBe(true)
-      expect(mockServerAuthMutate).toHaveBeenCalledWith('/api/ai/pending-operations/pending-1/step-up', {
-        method: 'POST',
-        body: JSON.stringify({ language: 'en' }),
-      }, null)
+      expect(mockServerAuthMutate).toHaveBeenCalledWith(
+        '/api/ai/pending-operations/pending-1/step-up',
+        { method: 'POST', body: JSON.stringify({ language: 'en' }) },
+        null,
+      )
     })
 
     it('verifies a step-up challenge', async () => {
@@ -62,10 +65,11 @@ describe('chat server actions', () => {
       const result = await verifyPendingOperationStepUp('pending-1', 'challenge-1', '123456', null)
 
       expect(result.ok).toBe(true)
-      expect(mockServerAuthMutate).toHaveBeenCalledWith('/api/ai/pending-operations/pending-1/step-up/verify', {
-        method: 'POST',
-        body: JSON.stringify({ challengeId: 'challenge-1', code: '123456' }),
-      }, null)
+      expect(mockServerAuthMutate).toHaveBeenCalledWith(
+        '/api/ai/pending-operations/pending-1/step-up/verify',
+        { method: 'POST', body: JSON.stringify({ challengeId: 'challenge-1', code: '123456' }) },
+        null,
+      )
     })
 
     it('forwards the backend error code when a pending-operation call fails', async () => {
@@ -114,10 +118,11 @@ describe('chat server actions', () => {
       const result = await executePendingOperation('pending-1', 'confirm-token', null)
 
       expect(result.ok).toBe(true)
-      expect(mockServerAuthMutate).toHaveBeenCalledWith('/api/ai/pending-operations/pending-1/execute', {
-        method: 'POST',
-        body: JSON.stringify({ confirmationToken: 'confirm-token' }),
-      }, null)
+      expect(mockServerAuthMutate).toHaveBeenCalledWith(
+        '/api/ai/pending-operations/pending-1/execute',
+        { method: 'POST', body: JSON.stringify({ confirmationToken: 'confirm-token' }) },
+        null,
+      )
     })
   })
 })

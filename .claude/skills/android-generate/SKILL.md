@@ -37,7 +37,7 @@ npm run android:apk            # default
 npm run android:apk:emulator   # --emulator
 ```
 
-Run it with `run_in_background: true` and a log file: a cold build can take over 20 minutes, and
+Run it with `run_in_background: true` and a log file. Cold builds can take tens of minutes;
 later builds reuse the Gradle cache. Poll the log rather than blocking the session.
 
 The script stops Gradle daemons before `expo prebuild`, because a live daemon holds `apps/mobile/android`

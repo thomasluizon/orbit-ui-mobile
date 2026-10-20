@@ -1,4 +1,3 @@
-
 const { getAttribute } = require('./_jsx-strings.cjs')
 
 const IMAGE_ELEMENTS = new Set(['img', 'Image', 'NextImage'])

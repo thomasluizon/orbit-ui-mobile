@@ -45,34 +45,35 @@ export const motionDurations = {
   micro: 120,
   fast: 160,
   base: 220,
-  slow: 320,
-  route: 280,
-  overlay: 260,
+  slow: 280,
+  route: 220,
+  routeExit: 165,
+  overlay: 220,
   toast: 220,
-  theme: 260,
+  theme: 220,
   celebration: 560,
-  creationGlow: 1200,
   completePop: 500,
-  completeGlow: 800,
   completeSpark: 600,
   listStagger: 36,
 } as const
+
+export const skeletonPulseIterations = 4
 
 export const motionLayerTiming = {
   backdropEnterDelay: 0,
   panelEnterDelay: 32,
   panelExitLead: 0,
   contentStagger: motionDurations.listStagger,
-  routeShift: 18,
+  routeShift: 12,
   toastLift: 14,
   tabShift: 10,
 } as const
 
 export const orbitalMotion = {
   press: {
-    scale: 0.985,
-    translateY: -1,
-    duration: 100,
+    scale: 0.96,
+    translateY: 0,
+    duration: 150,
   },
   elevatedPress: {
     scale: 0.98,
@@ -92,7 +93,6 @@ export const orbitalMotion = {
     reducedPeakScale: 1.04,
     flashOpacity: 0.24,
     reducedFlashOpacity: 0.12,
-    glowScale: 1.4,
   },
 } as const
 
@@ -155,17 +155,17 @@ export interface MotionPreset {
 export const motionPresets: Record<MotionScenario, MotionPreset> = {
   'tab-switch': {
     scenario: 'tab-switch',
-    enterDuration: motionDurations.fast,
-    exitDuration: motionDurations.micro,
+    enterDuration: motionDurations.instant,
+    exitDuration: motionDurations.instant,
     enterEasing: motionEasings.enter,
     exitEasing: motionEasings.exit,
-    shift: motionLayerTiming.tabShift,
-    scaleFrom: 0.995,
+    shift: 0,
+    scaleFrom: 1,
     scaleTo: 1,
     spring: 'soft',
     reducedMotion: {
-      enterDuration: 90,
-      exitDuration: 70,
+      enterDuration: motionDurations.instant,
+      exitDuration: motionDurations.instant,
       enterEasing: motionEasings.linear,
       exitEasing: motionEasings.linear,
       shift: 0,
@@ -176,11 +176,11 @@ export const motionPresets: Record<MotionScenario, MotionPreset> = {
   'route-push': {
     scenario: 'route-push',
     enterDuration: motionDurations.route,
-    exitDuration: motionDurations.fast,
+    exitDuration: motionDurations.routeExit,
     enterEasing: motionEasings.enter,
     exitEasing: motionEasings.exit,
     shift: motionLayerTiming.routeShift,
-    scaleFrom: 0.992,
+    scaleFrom: 1,
     scaleTo: 1,
     spring: 'soft',
     reducedMotion: {

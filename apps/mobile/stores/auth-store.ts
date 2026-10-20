@@ -5,7 +5,7 @@ import type { RefreshResponse, User } from '@orbit/shared/types/auth'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
 import { profileKeys, resetAccountQueries } from '@orbit/shared/query'
-import { clearStoredAuthReturnUrl } from '@/lib/auth-flow'
+import { clearStoredAuthReturnUrl, getAuthReturnUrlAttempt } from '@/lib/auth-flow'
 import { clearGoogleErrorLogin, clearPendingGoogleAuthSessionForLogin, clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import {
   getToken,
@@ -16,23 +16,31 @@ import {
   getRefreshToken,
 } from '@/lib/secure-store'
 import { clearWidgetToken, saveWidgetToken } from '@/lib/orbit-widget'
-import { cancelPersistentReminder } from '@/lib/persistent-reminder'
 import { apiClient } from '@/lib/api-client'
 import * as offlineQueue from '@/lib/offline-queue'
 import { cancelScheduledFlush, resumeOfflineReplay } from '@/lib/offline-mutations'
 import { clearOfflineState } from '@/lib/offline-state'
 import { clearPersistedQueryCache, queryClient, setQueryCacheScope } from '@/lib/query-client'
-import { i18n } from '@/lib/i18n'
+import i18n, { changeLanguage } from 'i18next'
+import {
+  decodeJwtPayload,
+  getAccountIdFromPayload,
+  type JwtSessionPayload,
+} from '@/lib/jwt-session'
 import { setRuntimeTheme } from '@/lib/theme'
+import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
+import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
+import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
+import { advanceAccountGeneration, advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { useThrottleStore } from './throttle-store'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
 import { getAccountId } from '@/lib/account-scope'
 
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
-let sessionEpoch = 0
 let credentialVersion = 0
 let credentialMutationTail = Promise.resolve()
 
@@ -67,7 +75,7 @@ export function isAuthTransitionInFlight(): boolean {
 }
 
 export function getSessionGeneration(): SessionSnapshot {
-  return { epoch: sessionEpoch, credentialVersion }
+  return { epoch: getSessionEpoch(), credentialVersion }
 }
 
 /**
@@ -82,32 +90,6 @@ export function whenProfileHydrated(): Promise<void> {
 
 export type SessionPhase = 'signed-out' | 'establishing' | 'signed-in'
 
-interface JwtSessionPayload {
-  exp?: number
-  email?: string
-  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'?: string
-  sub?: string
-  nameid?: string
-  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'?: string
-}
-
-function decodeJwtPayload(token: string): JwtSessionPayload | null {
-  try {
-    const payload = token.split('.')[1]
-    if (!payload) return null
-    return JSON.parse(atob(payload)) as JwtSessionPayload
-  } catch {
-    return null
-  }
-}
-
-function getAccountIdFromPayload(payload: JwtSessionPayload | null): string | null {
-  return payload?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
-    ?? payload?.nameid
-    ?? payload?.sub
-    ?? null
-}
-
 interface AuthState {
   sessionPhase: SessionPhase
   isAuthenticated: boolean
@@ -115,7 +97,7 @@ interface AuthState {
   isLoading: boolean
   expiresAt: number | null
   login: (token: string, refreshToken: string | null, user: User, expectedEpoch?: number) => Promise<(() => boolean) | null>
-  logout: () => Promise<boolean>
+  logout: (observedCredential?: SessionSnapshot) => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
 }
@@ -156,7 +138,7 @@ function isTokenExpired(token: string): boolean {
 }
 
 function isCurrentSessionEpoch(epoch: number): boolean {
-  return sessionEpoch === epoch
+  return getSessionEpoch() === epoch
 }
 
 function matchesExpectedSessionEpoch(expectedEpoch?: number): boolean {
@@ -210,7 +192,9 @@ async function clearSessionCredentials(
       return null
     }
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
-    sessionEpoch += 1
+    clearPendingNotificationDeletes()
+    clearStepUpState()
+    advanceSessionEpoch()
     credentialVersion += 1
     configCache.setAccount(null)
     resetPostHogUser()
@@ -221,11 +205,22 @@ async function clearSessionCredentials(
       expiresAt: null,
     })
     await clearAllTokens()
-    clearPendingGoogleAuthSession()
+    await clearPendingGoogleAuthSession()
     clearGoogleErrorLogin()
     await clearWidgetToken().catch(() => {})
-    return { epoch: sessionEpoch, refreshToken }
+    return { epoch: getSessionEpoch(), refreshToken }
   })
+}
+
+/**
+ * Drops every unsent thing the previous account left on this device. Both drafts live under
+ * one key with no account in it, so one of them left behind is the next person reading, and
+ * sending, text that is not theirs.
+ */
+async function forgetPreviousAccountContent(): Promise<void> {
+  await useChatStore.getState().resetAccountScopedChat()
+  await forgetStoredSupportDraft()
+  advanceAccountGeneration()
 }
 
 async function runSessionTeardownStep(
@@ -244,17 +239,16 @@ async function runSessionTeardown(
   const teardown = await clearSessionCredentials(authority, captureRefreshToken)
   if (!teardown) return null
   const { epoch } = teardown
-  if (!(await runSessionTeardownStep(epoch, () => cancelPersistentReminder().catch(() => {})))) return null
+  if (!isCurrentSessionTeardown(epoch)) return null
 
   void resetAccountQueries(queryClient, 'signed-out')
   if (!(await runSessionTeardownStep(epoch, clearPersistedQueryCache))) return null
   if (!(await runSessionTeardownStep(epoch, () => setQueryCacheScope(null)))) return null
 
   cancelScheduledFlush()
-  offlineQueue.clear()
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
-  useChatStore.getState().clearMessages()
+  if (!(await runSessionTeardownStep(epoch, forgetPreviousAccountContent))) return null
   if (!(await runSessionTeardownStep(epoch, () => startAccountScopedSession(null)))) return null
   useReviewReminderStore.getState().setAccountScope(null)
   if (!isCurrentSessionTeardown(epoch)) return null
@@ -279,6 +273,24 @@ export type RefreshSessionOutcome =
   | { status: 'network-error' }
   | { status: 'superseded' }
 
+async function classifyRejectedRefresh(
+  response: Response,
+  ownership: SessionSnapshot,
+): Promise<RefreshSessionOutcome> {
+  if (response.status === 429) {
+    const throttlePayload = await response.json()
+      .then((value: unknown) => value)
+      .catch(() => null)
+    if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
+    useThrottleStore.getState().show(response.status, throttlePayload)
+  }
+  return { status: response.status === 401 ? 'unauthorized' : 'network-error' }
+}
+
+/**
+ * Uses raw fetch because apiClient's own 401 handler calls this function. Routing the
+ * refresh through apiClient would recurse instead of returning a discriminated outcome.
+ */
 async function rotateSessionToken(
   epoch: number,
   expectedCredentialVersion: number,
@@ -298,13 +310,13 @@ async function rotateSessionToken(
   try {
     const response = await fetch(`${MOBILE_API_BASE}${API.auth.refresh}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept-Language': i18n.language },
       body: JSON.stringify({ refreshToken }),
       signal: controller.signal,
     })
     if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
     if (!response.ok) {
-      return { status: response.status === 401 ? 'unauthorized' : 'network-error' }
+      return await classifyRejectedRefresh(response, ownership)
     }
     data = (await response.json()) as RefreshResponse
   } catch {
@@ -321,6 +333,7 @@ async function rotateSessionToken(
     await setToken(data.token)
     await setRefreshToken(data.refreshToken)
     await saveWidgetToken(data.token).catch(() => {})
+    if (tokenUser) bindStepUpStateToAccount(tokenUser.userId)
     credentialVersion += 1
     const sessionPhase = useAuthStore.getState().sessionPhase
     useAuthStore.setState({
@@ -386,11 +399,11 @@ export async function refreshSessionToken(): Promise<string | null> {
 
 function applyProfilePresentation(profile: Profile): void {
   if (profile.language && i18n.language !== profile.language) {
-    void i18n.changeLanguage(profile.language)
+    void changeLanguage(profile.language)
   }
 
   setRuntimeTheme({
-    scheme: (profile.colorScheme as Parameters<typeof setRuntimeTheme>[0]['scheme']) ?? 'purple',
+    scheme: 'orange',
     themeMode:
       profile.themePreference === 'light' || profile.themePreference === 'dark'
         ? profile.themePreference
@@ -432,11 +445,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
     const previousAccountId = get().user?.userId ?? null
     let ownership = getSessionGeneration()
+    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
     set(deriveSessionPhase('establishing'))
     try {
       const loginSession = await withCredentialMutationLock(async () => {
         if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
-        clearPendingGoogleAuthSessionForLogin()
+        await clearPendingGoogleAuthSessionForLogin()
         if (configCache.getSnapshot().accountId !== user.userId) configCache.setAccount(null)
         await setToken(token)
         if (refreshToken) {
@@ -445,7 +459,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           await clearRefreshToken()
         }
         await saveWidgetToken(token).catch(() => {})
-        sessionEpoch += 1
+        bindStepUpStateToAccount(user.userId)
+        clearPendingNotificationDeletes()
+        advanceSessionEpoch()
         credentialVersion += 1
         configCache.setAccount(user.userId)
         set({
@@ -465,10 +481,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await setQueryCacheScope(user.userId)
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       cancelScheduledFlush()
-      offlineQueue.clear()
+      offlineQueue.retainAccount(user.userId)
       await clearOfflineState()
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
-      useChatStore.getState().clearMessages()
+      await forgetPreviousAccountContent()
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       const preserveAnonymousDraft = previousAccountId === null
         && useOnboardingDraftStore.getState().habits.length > 0
       await startAccountScopedSession(user.userId, preserveAnonymousDraft)
@@ -491,6 +508,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } catch {}
 
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
+      bindStepUpStateToAccount(user.userId)
       set({
         ...deriveSessionPhase('signed-in'),
         user: hydratedUser,
@@ -510,15 +528,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: async () => {
-    const ownership = getSessionGeneration()
+  logout: async (observedCredential) => {
+    const ownership = observedCredential ?? getSessionGeneration()
+    if (observedCredential && !isCurrentCredentialObservation(observedCredential)) return false
+    const returnUrlAttempt = getAuthReturnUrlAttempt()
     await import('@/hooks/use-push-notifications')
       .then((module) => module.unsubscribePushToken())
       .catch(() => {})
 
     const teardown = await runSessionTeardown({
-      authority: 'session-owner',
-      epoch: ownership.epoch,
+      ...(observedCredential
+        ? { authority: 'observed-credential' as const, ...ownership }
+        : { authority: 'session-owner' as const, epoch: ownership.epoch }),
     }, true)
     const refreshToken = teardown?.refreshToken ?? null
     if (teardown && refreshToken && isCurrentSessionTeardown(teardown.epoch)) {
@@ -531,8 +552,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (!teardown) return false
     if (!isCurrentSessionTeardown(teardown.epoch)) return false
-    await clearStoredAuthReturnUrl()
+    await clearStoredAuthReturnUrl(returnUrlAttempt, () => isCurrentSessionTeardown(teardown.epoch))
     if (!isCurrentSessionTeardown(teardown.epoch)) return false
+    offlineQueue.clear()
     return true
   },
 
@@ -577,6 +599,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!isCurrentSessionEpoch(ownership.epoch)) return false
       if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
       await saveWidgetToken(token).catch(() => {})
+      if (accountId) bindStepUpStateToAccount(accountId)
       await setQueryCacheScope(accountId)
       if (!isCurrentSessionEpoch(ownership.epoch)) return false
       if (getAccountId() !== accountId) await startAccountScopedSession(accountId)

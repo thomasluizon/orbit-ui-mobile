@@ -10,8 +10,15 @@ import {
   monthlyEquivalent,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
+import { useAccountId } from '@/lib/account-scope'
 
-export function useSubscriptionPlans() {
+interface SubscriptionPlansQueryOptions {
+  enabled?: boolean
+  handlesError?: boolean
+}
+
+export function useSubscriptionPlans(options: SubscriptionPlansQueryOptions = {}) {
+  const accountId = useAccountId()
   const plansUrl = (() => {
     const timeZone = getClientTimeZone()
     return timeZone
@@ -22,6 +29,7 @@ export function useSubscriptionPlans() {
   const query = useQuery({
     queryKey: subscriptionKeys.plans(),
     queryFn: () => apiClient<SubscriptionPlans>(plansUrl),
+    enabled: accountId !== null && options.enabled !== false,
     staleTime: QUERY_STALE_TIMES.subscriptionPlans,
     refetchOnMount: 'always',
   })
@@ -37,6 +45,7 @@ export function useSubscriptionPlans() {
 
   return {
     ...query,
+    isLoading: accountId === null || query.isLoading,
     plans,
     formatPrice,
     discountedAmount,

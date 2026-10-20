@@ -1,18 +1,33 @@
 'use client'
 
-import { toast } from 'sonner'
+import { API_VERSION_HEADERS } from '@/lib/api-version'
+
+import { resolveRequestLanguage } from './resolve-request-language'
+
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { useThrottleStore } from '@/stores/throttle-store'
 import {
   buildClientTimeZoneHeaders,
   extractBackendError,
-  extractBackendErrorCode,
+  isPayGateError,
   validateApiResponse,
 } from '@orbit/shared/utils'
 import type { ZodType } from 'zod'
 import { responseReportsSessionRefreshFailure } from './session-refresh'
 import { getAccountEventOrigin } from './account-event-origin'
+import { isUpstreamStarting } from '@orbit/shared/query'
+import { wakeUpstream } from './wake-upstream'
 
+/**
+ * Centralized API fetch with error categorization. Handles:.
+ */
 
 type TranslateFn = (key: string) => string
+
+export interface ApiFetchBehavior {
+  handlesError?: boolean
+  handlesPayGate?: boolean
+}
 
 let _translate: TranslateFn | null = null
 
@@ -56,11 +71,26 @@ export class ApiError extends Error {
   status: number
   data: unknown
 
-  constructor(status: number, message: string, data?: unknown) {
+  constructor(status: number, message: string, data?: unknown, public retryAfter?: string | null) {
     super(message)
     this.status = status
     this.data = data
   }
+}
+
+const reportedApiErrors = new WeakSet<ApiError>()
+
+export function reportApiError(error: unknown): void {
+  if (!(error instanceof ApiError) || reportedApiErrors.has(error)) return
+  if (error.status === 401 || error.status === 426) return
+  if (isPayGateError(error)) {
+    return
+  }
+
+  reportedApiErrors.add(error)
+  const title = getToastTitle(error.status)
+  const detail = extractBackendError({ data: error.data })
+  useAppToastStore.getState().showError(detail ? `${title}: ${detail}` : title)
 }
 
 export async function applySessionRefreshFailure(response: Response): Promise<void> {
@@ -73,19 +103,39 @@ export async function applySessionRefreshFailure(response: Response): Promise<vo
   await useAuthStore.getState().recoverSessionRefreshFailure()
 }
 
+export async function fetchWithUpgradeGuidance(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers)
+  const selected = typeof document === 'undefined' ? undefined : /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)?.[1]
+  for (const [name, value] of Object.entries(API_VERSION_HEADERS)) headers.set(name, value)
+  headers.set('Accept-Language', resolveRequestLanguage(selected, headers.get('Accept-Language') ?? (typeof navigator === 'undefined' ? null : navigator.language)))
+  const response = await fetch(input, { ...init, headers })
+  if (response.status === 503) {
+    const payload: unknown = await response.clone().json().catch(() => null)
+    const error = new ApiError(response.status, 'Upstream service is starting', payload, response.headers.get('retry-after'))
+    if (isUpstreamStarting(error)) {
+      wakeUpstream()
+      throw error
+    }
+  }
+  if (response.status === 426) {
+    const { useVersionGateStore } = await import('@/stores/version-gate-store')
+    useVersionGateStore.getState().markUpgradeRequired(null)
+  }
+  return response
+}
+
 export async function sessionAwareFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
   const method = init?.method?.toUpperCase() ?? 'GET'
   const origin = getAccountEventOrigin()
-  let requestInit = init
+  const headers = new Headers(init?.headers)
+  const requestInit = { ...init, headers }
   if (origin && method !== 'GET' && method !== 'HEAD') {
-    const headers = new Headers(init?.headers)
     headers.set('X-Orbit-Event-Origin', origin)
-    requestInit = { ...init, headers }
   }
-  const response = await fetch(input, requestInit)
+  const response = await fetchWithUpgradeGuidance(input, requestInit)
   await applySessionRefreshFailure(response)
   return response
 }
@@ -93,13 +143,15 @@ export async function sessionAwareFetch(
 async function getStatusError(
   status: number,
   body: unknown,
+  behavior?: ApiFetchBehavior,
 ): Promise<ApiError | null> {
   if (status === 401) {
     return new ApiError(status, 'Unauthorized', body)
   }
 
-  if (status === 403 && extractBackendErrorCode({ data: body }) === 'PAY_GATE') {
+  if (isPayGateError({ status, data: body })) {
     if (
+      !behavior?.handlesPayGate &&
       typeof location !== 'undefined' &&
       globalThis.location.pathname !== '/upgrade'
     ) {
@@ -133,6 +185,7 @@ export async function apiFetch<T>(
   url: string,
   options?: RequestInit,
   schema?: ZodType<T>,
+  behavior?: ApiFetchBehavior,
 ): Promise<T> {
   const headers = new Headers(options?.headers)
   for (const [key, value] of Object.entries(buildClientTimeZoneHeaders())) {
@@ -144,26 +197,24 @@ export async function apiFetch<T>(
     headers,
   })
 
-
   if (!res.ok) {
     const body: unknown = await res.json().catch(() => null)
     const status = res.status
 
-    const statusError = await getStatusError(status, body)
+    const statusError = await getStatusError(status, body, behavior)
     if (statusError) {
       throw statusError
     }
 
     const backendMsg = extractBackendError({ data: body })
+    const error = new ApiError(status, backendMsg || getToastTitle(status), body, res.headers.get('retry-after'))
 
-    const title = getToastTitle(status)
+    if (status === 429 && ['GET', 'HEAD'].includes((options?.method ?? 'GET').toUpperCase())) throw error
 
-    toast.error(title, {
-      description: backendMsg || undefined,
-      duration: 5000,
-    })
+    const throttled = useThrottleStore.getState().show(status, body)
+    if (!throttled && !behavior?.handlesError) reportApiError(error)
 
-    throw new ApiError(status, backendMsg || title, body)
+    throw error
   }
 
   return validateApiResponse(await res.json(), schema, url)
@@ -173,6 +224,10 @@ export async function apiFetch<T>(
  * Convenience wrapper for GET requests matching the old fetchJson pattern. An optional Zod
  * `schema` is forwarded to {@link apiFetch} to validate the response at the trust boundary.
  */
-export function fetchJson<T>(url: string, schema?: ZodType<T>): Promise<T> {
-  return apiFetch<T>(url, undefined, schema)
+export function fetchJson<T>(
+  url: string,
+  schema?: ZodType<T>,
+  behavior?: ApiFetchBehavior,
+): Promise<T> {
+  return apiFetch<T>(url, undefined, schema, behavior)
 }

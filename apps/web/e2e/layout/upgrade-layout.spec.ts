@@ -1,0 +1,217 @@
+import { measureTextOverflow } from './text-overflow-geometry'
+import { expect, type Locator, type Page } from '@playwright/test'
+import en from '@orbit/shared/i18n/en.json'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { plural } from '@orbit/shared/utils/plural'
+import { formatPrice, monthlyEquivalent } from '@orbit/shared/utils/subscription-pricing'
+import { subscriptionPlansFixtures } from '../../test-support/hermetic/mock-api/fixtures/subscription-plans'
+import { test } from './upgrade-fixtures'
+
+function singleLineLabels(messages: typeof en, trial: boolean): string[] {
+  return [
+    ...(trial ? [
+      plural(messages.upgrade.convert.trialDaysLeft.replaceAll('{days}', '14'), 14),
+    ] : [
+      messages.upgrade.convert.freeEyebrow,
+      messages.upgrade.convert.trustLine,
+    ]),
+    messages.upgrade.free,
+    'Pro',
+    messages.upgrade.convert.freeAllowance,
+    messages.upgrade.convert.proAllowance,
+    messages.upgrade.convert.perDay,
+    messages.upgrade.plans.interval.monthly,
+    messages.upgrade.plans.interval.annual,
+    messages.upgrade.plans.monthly.name,
+    messages.upgrade.plans.yearly.name,
+    messages.upgrade.plans.recommended,
+    messages.upgrade.plans.cta,
+    messages.upgrade.convert.cancelAnytime,
+    messages.upgrade.convert.stayFree,
+  ]
+}
+
+async function assertSingleLineHeading(heading: Locator, context: string, width: number): Promise<void> {
+  await expect(heading, `${context}: heading was not found or is not visible`).toBeVisible({ timeout: 5000 })
+  const metrics = await heading.evaluate((element) => {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    const style = getComputedStyle(element)
+    return {
+      lines: new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top * 10) / 10)).size,
+      fontSize: Number.parseFloat(style.fontSize),
+      lineHeight: Number.parseFloat(style.lineHeight),
+    }
+  })
+  expect(metrics.lines, `${context} heading stays on one rendered line`).toBe(1)
+  const leading = metrics.lineHeight / metrics.fontSize
+  process.stdout.write(`${context} heading: lines=${metrics.lines}, font-size=${metrics.fontSize}px, line-height=${metrics.lineHeight}px, leading=${leading}\n`)
+  expect(metrics.fontSize, `${context} heading keeps the drawn type size`).toBe(width < 640 ? 28 : 34)
+}
+
+async function renderedLineCounts(page: Page, label: string): Promise<number[]> {
+  return page.locator('[data-upgrade-screen]').getByText(label, { exact: true }).evaluateAll((elements) =>
+    elements.map((element) => {
+      const range = document.createRange()
+      range.selectNodeContents(element)
+      const rectangles = Array.from(range.getClientRects()).sort((left, right) => left.top - right.top)
+      let lines = 0
+      let lineBottom = -Infinity
+      for (const rectangle of rectangles) {
+        if (rectangle.top >= lineBottom - 0.5) {
+          lines += 1
+          lineBottom = rectangle.bottom
+        } else {
+          lineBottom = Math.max(lineBottom, rectangle.bottom)
+        }
+      }
+      return lines
+    }),
+  )
+}
+
+async function assertSubscriptionOutcome(upgradeScreen: Locator, state: string, messages: typeof en): Promise<void> {
+  if (state === 'playCanceled') {
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.plan.canceledBadge, { exact: true })).toBeVisible()
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.plan.canceledBody, { exact: true })).toBeVisible()
+  }
+  if (state === 'lapsed') {
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.lapsed.title, { exact: true })).toBeVisible()
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.lapsed.lostCalendar, { exact: true })).toBeVisible()
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.lapsed.lostRetrospective, { exact: true })).toBeVisible()
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.usage.title, { exact: true })).toHaveCount(0)
+  } else {
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.usage.title, { exact: true })).toBeVisible()
+  }
+}
+
+for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
+  for (const subscriptionState of ['free', 'trial'] as const) {
+    for (const width of [320, 412, 640, 1440] as const) {
+      test.describe(`${locale} ${subscriptionState} at ${width}px`, () => {
+        test.use({ appLocale: locale, subscriptionState, viewport: { width, height: 1400 } })
+
+        test('keeps copy and actions inside the layout', async ({ page }) => {
+          await page.goto('/upgrade')
+          const upgradeScreen = page.locator('[data-upgrade-screen]')
+          const heading = subscriptionState === 'trial'
+            ? messages.upgrade.convert.trialHeading : messages.upgrade.convert.freeHeading
+          const pitchHeading = upgradeScreen.getByRole('heading', { level: 2, name: heading, exact: true })
+          await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+          await expect(pitchHeading, `${locale} ${subscriptionState}: pitch heading was not found`).toBeVisible({ timeout: 5000 })
+          await expect(upgradeScreen.getByText(messages.upgrade.convert.stayFree, { exact: true })).toBeVisible()
+          await expect(upgradeScreen.getByRole('progressbar')).toHaveCount(0)
+          await expect(upgradeScreen.getByText(messages.upgrade.billing.usage.title, { exact: true })).toHaveCount(0)
+          await page.evaluate(() => document.fonts.ready)
+
+          const overflows = await upgradeScreen.evaluate(measureTextOverflow, 'p,h1,h2,h3,a,button,span')
+          expect(overflows, `copy stays inside the layout at ${width}px`).toEqual([])
+
+          if (width === 320) {
+            const documentWidth = await page.evaluate(() => Math.max(
+              document.documentElement.scrollWidth,
+              document.body.scrollWidth,
+            ))
+            expect(documentWidth, `${locale} ${subscriptionState}: document width at 320px`)
+              .toBeLessThanOrEqual(width)
+
+            const clippedActions = await upgradeScreen.locator('button, a').evaluateAll((actions) =>
+              actions.filter((action) => action.checkVisibility()).filter((action) => {
+                const bounds = action.getBoundingClientRect()
+                return bounds.left < -0.5 || bounds.right > innerWidth + 0.5
+              }).map((action) => action.textContent.trim()),
+            )
+            expect(clippedActions, `${locale} ${subscriptionState}: actions stay inside 320px`)
+              .toEqual([])
+          }
+
+          await assertSingleLineHeading(pitchHeading,
+            `${locale} ${subscriptionState} at ${width}px`, width)
+
+          for (const label of singleLineLabels(messages, subscriptionState === 'trial')) {
+            const lines = await renderedLineCounts(page, label)
+            expect(lines.length, `${label} is present at ${width}px`).toBeGreaterThan(0)
+            if (width > 320) {
+              expect(lines.every((count) => count === 1), `${label} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
+            }
+          }
+
+          const plans = subscriptionPlansFixtures[locale === 'pt-BR' ? 'brl' : 'usd']
+          for (const [interval, amount, period] of [
+            ['monthly', plans.monthly.unitAmount, messages.upgrade.plans.monthly.period],
+            ['yearly', plans.yearly.unitAmount, messages.upgrade.plans.yearly.period],
+          ] as const) {
+            const price = `${formatPrice(amount, plans.currency)}${period}`
+            const lines = await renderedLineCounts(page, price)
+            process.stdout.write(`${locale} ${subscriptionState} at ${width}px ${interval} price: lines=${lines.join(',')}\n`)
+            expect(lines.length, `${locale} ${interval} price ${price} is rendered at ${width}px`).toBeGreaterThan(0)
+            if (width > 320) {
+              expect(lines.every((count) => count === 1), `${locale} ${interval} price ${price} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
+            }
+            if (locale === 'en' && subscriptionState === 'free' && width === 412 && interval === 'monthly') {
+              const priceLabel = upgradeScreen.getByText(price, { exact: true })
+              await priceLabel.evaluate((element) => { element.style.maxWidth = '80px' })
+              expect(await renderedLineCounts(page, price), 'a wrapped price is counted as two lines').toEqual([2])
+              await priceLabel.evaluate((element) => { element.style.removeProperty('max-width') })
+            }
+          }
+          const equivalent = messages.upgrade.plans.yearly.equivalent
+            .replace('{price}', formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency))
+            .replace('{percent}', String(plans.savingsPercent))
+          await expect(upgradeScreen.getByText(equivalent, { exact: true })).toBeVisible()
+
+          const allowance = upgradeScreen.getByRole('region', { name: messages.upgrade.convert.allowanceLabel })
+            .getByText(messages.upgrade.convert.freeAllowance, { exact: true })
+          await expect(allowance).toHaveCSS('font-size', width < 640 ? '34px' : '44px')
+        })
+      })
+    }
+  }
+
+  for (const subscriptionState of ['stripe', 'play', 'playCanceled', 'lifetime', 'canceled', 'pastDue', 'lapsed', 'loading', 'loadFailed', 'offline', 'portalOpening', 'portalFailed'] as const) {
+    for (const width of [320, 412, 640] as const) {
+      test.describe(`${locale} ${subscriptionState} at ${width}px`, () => {
+        test.use({ appLocale: locale, subscriptionState, viewport: { width, height: 1400 } })
+
+        test('keeps subscription management copy inside its box', async ({ page }) => {
+          await page.goto('/upgrade')
+          const upgradeScreen = page.locator('[data-upgrade-screen]')
+          if (subscriptionState === 'loading') {
+            await expect(upgradeScreen.locator('[aria-busy="true"]').first()).toBeVisible()
+          } else if (subscriptionState === 'loadFailed') {
+            await expect(upgradeScreen.getByText(messages.upgrade.billing.error, { exact: true })).toBeVisible({ timeout: 15000 })
+          } else {
+            await assertSubscriptionOutcome(upgradeScreen, subscriptionState, messages)
+            await page.evaluate(() => document.fonts.ready)
+            if (subscriptionState === 'offline') {
+              await page.context().setOffline(true)
+              await expect(upgradeScreen).toHaveAttribute('data-state', 'offline')
+            }
+            if (subscriptionState === 'portalOpening' || subscriptionState === 'portalFailed') {
+              await upgradeScreen.getByRole('button', { name: messages.upgrade.billing.actions.manage, exact: true }).click()
+              await expect(upgradeScreen).toHaveAttribute('data-state', subscriptionState === 'portalOpening' ? 'portal-opening' : 'portal-failed')
+            }
+          }
+          await page.evaluate(() => document.fonts.ready)
+
+          const overflows = await upgradeScreen.evaluate(measureTextOverflow, 'p,h1,h2,a,button,span')
+          expect(overflows, `subscription copy stays inside the layout at ${width}px`).toEqual([])
+
+          const usageLines = await renderedLineCounts(page, messages.upgrade.billing.usage.aiMessages)
+          if (subscriptionState === 'lapsed') {
+            expect(usageLines).toEqual([])
+          } else if (subscriptionState !== 'loading' && subscriptionState !== 'loadFailed') {
+            expect(usageLines.length).toBeGreaterThan(0)
+            expect(usageLines.every((count) => count === 1)).toBe(true)
+          }
+          if (subscriptionState === 'stripe') {
+            const paymentMethod = messages.upgrade.billing.payment.card
+              .replace('{brand}', 'Visa')
+              .replace('{last4}', '4242')
+            expect(await renderedLineCounts(page, paymentMethod)).toEqual([1])
+          }
+        })
+      })
+    }
+  }
+}
