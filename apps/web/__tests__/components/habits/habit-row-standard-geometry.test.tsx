@@ -286,12 +286,31 @@ async function measurePreviewRow(row: Locator) {
     const typeStyle = getComputedStyle(type)
     const typeText = document.createRange()
     typeText.selectNodeContents(type)
+    const typeLines = Array.from(typeText.getClientRects(), (rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }))
+    const wordLineCounts = Array.from(type.textContent!.matchAll(/\S+/gu), (match) => {
+      const word = typeText.cloneRange()
+      word.setStart(type.firstChild!, match.index)
+      word.setEnd(type.firstChild!, match.index + match[0].length)
+      return Array.from(word.getClientRects()).filter((rect) => rect.width > 0).length
+    })
+    const paintedControls = Array.from(element.querySelectorAll('[data-habit-row-control]')).flatMap((control) => {
+      const style = getComputedStyle(control)
+      const painted = style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent' || style.boxShadow !== 'none'
+      return (painted ? [control] : Array.from(control.querySelectorAll('[data-habit-check], svg'))).filter((node) => {
+        for (let owner: Element | null = node; owner; owner = owner.parentElement) {
+          const paint = getComputedStyle(owner)
+          if (paint.display === 'none' || paint.visibility === 'hidden' || Number(paint.opacity) === 0) return false
+        }
+        return node.getBoundingClientRect().width > 0
+      }).map(box)
+    })
     const heading = element.querySelector('[data-habit-row-heading]')
     const meta = element.querySelector('[data-habit-row-meta]')!
     const check = element.querySelector('[data-habit-check]')!
     let target = check.parentElement!
     while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
     return { row: box(element), title: box(title), titleSize: getComputedStyle(title).fontSize,
+      body: box(element.querySelector('[data-habit-row-body]')!), typeLines, wordLineCounts, paintedControls,
       content: box(type.parentElement!),
       type: { ...box(type), text: type.textContent, ink: box(typeText), overflow: typeStyle.textOverflow, whiteSpace: typeStyle.whiteSpace, clamp: typeStyle.webkitLineClamp, clientWidth: type.clientWidth, scrollWidth: type.scrollWidth, clientHeight: type.clientHeight, scrollHeight: type.scrollHeight },
       preview: preview && { ...box(preview), size: getComputedStyle(preview).fontSize, weight: getComputedStyle(preview).fontWeight, family: getComputedStyle(preview).fontFamily, lineHeight: getComputedStyle(preview).lineHeight, clamp: getComputedStyle(preview).webkitLineClamp, ellipsis: getComputedStyle(preview).textOverflow, whiteSpace: getComputedStyle(preview).whiteSpace },
@@ -316,10 +335,25 @@ function assertContentStack(measured: Awaited<ReturnType<typeof measurePreviewRo
   expect(measured.type.ink.right).toBeLessThanOrEqual(measured.type.right + 0.05)
   expect(measured.type.ink.top).toBeGreaterThanOrEqual(measured.type.top - 0.05)
   expect(measured.type.ink.bottom).toBeLessThanOrEqual(measured.type.bottom + 0.05)
+  assertTypePaintBounds(measured)
   expect(measured.content.top).toBeCloseTo(measured.title.top, 1)
   expect(measured.content.bottom).toBeCloseTo(stack.at(-1)!.bottom, 1)
   expect(measured.content.height).toBeCloseTo(stack.reduce((height, node) => height + node.height, 0) + (stack.length - 1) * 4, 1)
   assertRowContentHeight(measured, scale, described)
+}
+
+function assertTypePaintBounds(measured: Awaited<ReturnType<typeof measurePreviewRow>>) {
+  expect(measured.wordLineCounts.every((count) => count === 1), 'type words stay intact').toBe(true)
+  for (const line of measured.typeLines) {
+    for (const clip of [measured.row, measured.body]) {
+      expect(line.left - clip.left, 'type leading breathing room').toBeGreaterThanOrEqual(4)
+      expect(clip.right - line.right, 'type trailing breathing room').toBeGreaterThanOrEqual(4)
+      expect(line.top - clip.top, 'type top breathing room').toBeGreaterThanOrEqual(4)
+      expect(clip.bottom - line.bottom, 'type bottom breathing room').toBeGreaterThanOrEqual(4)
+    }
+    for (const paint of measured.paintedControls) expect(Math.max(paint.left - line.right, line.left - paint.right,
+      paint.top - line.bottom, line.top - paint.bottom), 'type clears visible control paint').toBeGreaterThanOrEqual(4)
+  }
 }
 
 function assertRowContentHeight(measured: Awaited<ReturnType<typeof measurePreviewRow>>, scale: number, described: boolean) {
@@ -382,9 +416,11 @@ async function assertPreviewRow(row: Locator, page: Page, scale: number, describ
   await page.mouse.up()
   for (const control of await row.locator('[data-habit-row-control]').all()) {
     await control.hover()
+    assertTypePaintBounds(await measurePreviewRow(row))
     expect(await row.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(expectedFill)
     expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
     await page.mouse.down()
+    assertTypePaintBounds(await measurePreviewRow(row))
     expect(await row.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(expectedFill)
     await page.mouse.up()
   }

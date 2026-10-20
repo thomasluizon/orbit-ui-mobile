@@ -50,6 +50,28 @@ const props = {
   onToggleSelect: noop, onToggleCollapse: noop, onRefresh: noop, onToggleCompleted: noop,
 }
 
+type TypeLabelRect = { left: number; right: number; top: number; bottom: number }
+
+function assertTypeLabelBounds(type: {
+  row: TypeLabelRect
+  body: TypeLabelRect
+  typeLines: TypeLabelRect[]
+  wordLineCounts: number[]
+  paintedControls: TypeLabelRect[]
+}) {
+  expect(type.wordLineCounts.every((count) => count === 1), 'type words stay intact').toBe(true)
+  for (const line of type.typeLines) {
+    for (const clip of [type.row, type.body]) {
+      expect(line.left - clip.left, 'type leading breathing room').toBeGreaterThanOrEqual(4)
+      expect(clip.right - line.right, 'type trailing breathing room').toBeGreaterThanOrEqual(4)
+      expect(line.top - clip.top, 'type top breathing room').toBeGreaterThanOrEqual(4)
+      expect(clip.bottom - line.bottom, 'type bottom breathing room').toBeGreaterThanOrEqual(4)
+    }
+    for (const paint of type.paintedControls) expect(Math.max(paint.left - line.right, line.left - paint.right,
+      paint.top - line.bottom, line.top - paint.bottom), 'type clears visible control paint').toBeGreaterThanOrEqual(4)
+  }
+}
+
 function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[], width: number, scale: number) {
   for (const [index, control] of controls.entries()) {
     expect(control.left).toBeGreaterThanOrEqual(16)
@@ -464,7 +486,28 @@ describe('Hoje header geometry', () => {
               const text = document.createRange()
               text.selectNodeContents(type)
               const paint = getComputedStyle(type)
-              return { text: type.textContent, width: text.getBoundingClientRect().width, available: bounds.width, height: bounds.height, ellipsis: paint.textOverflow, clamp: paint.webkitLineClamp, whiteSpace: paint.whiteSpace, scrollWidth: type.scrollWidth, clientWidth: type.clientWidth, scrollHeight: type.scrollHeight, clientHeight: type.clientHeight }
+              const box = (node: Element) => { const rect = node.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } }
+              const element = row
+              const typeText = text
+              const typeLines = Array.from(text.getClientRects(), (rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }))
+              const wordLineCounts = Array.from(type.textContent!.matchAll(/\S+/gu), (match) => {
+                const word = typeText.cloneRange()
+                word.setStart(type.firstChild!, match.index)
+                word.setEnd(type.firstChild!, match.index + match[0].length)
+                return Array.from(word.getClientRects()).filter((rect) => rect.width > 0).length
+              })
+              const paintedControls = Array.from(element.querySelectorAll('[data-habit-row-control]')).flatMap((control) => {
+                const style = getComputedStyle(control)
+                const painted = style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent' || style.boxShadow !== 'none'
+                return (painted ? [control] : Array.from(control.querySelectorAll('[data-habit-check], svg'))).filter((node) => {
+                  for (let owner: Element | null = node; owner; owner = owner.parentElement) {
+                    const paint = getComputedStyle(owner)
+                    if (paint.display === 'none' || paint.visibility === 'hidden' || Number(paint.opacity) === 0) return false
+                  }
+                  return node.getBoundingClientRect().width > 0
+                }).map(box)
+              })
+              return { row: box(row), body: box(row.querySelector('[data-habit-row-body]')!), typeLines, wordLineCounts, paintedControls, text: type.textContent, width: text.getBoundingClientRect().width, available: bounds.width, height: bounds.height, ellipsis: paint.textOverflow, clamp: paint.webkitLineClamp, whiteSpace: paint.whiteSpace, scrollWidth: type.scrollWidth, clientWidth: type.clientWidth, scrollHeight: type.scrollHeight, clientHeight: type.clientHeight }
             }),
             parentControls: Array.from(parent.querySelectorAll('[data-habit-row-control]')).map((control) => {
               const bounds = control.getBoundingClientRect()
@@ -513,6 +556,7 @@ describe('Hoje header geometry', () => {
           expect(type.whiteSpace).toBe('normal')
           expect(type.scrollWidth).toBeLessThanOrEqual(type.clientWidth)
           expect(type.scrollHeight).toBeLessThanOrEqual(type.clientHeight)
+          assertTypeLabelBounds(type)
         }
         if (textScale === 2) for (const control of geometry.parentControls) {
           expect(control.top).toBeLessThanOrEqual(control.firstLineCenter)
