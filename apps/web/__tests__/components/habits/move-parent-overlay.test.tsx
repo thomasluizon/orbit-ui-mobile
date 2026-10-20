@@ -243,7 +243,7 @@ describe('move picker initial positioning', () => {
     expect(document.querySelector<HTMLElement>('[data-slot="move-destinations-scroll"]')!.scrollTop).toBe(0)
     expect(screen.queryByText('habits.moveParent.currentParent')).not.toBeInTheDocument()
     expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.moveParent.titleMany')
-    expect(screen.getByText('habits.moveParent.descriptionMany')).toBeInTheDocument()
+    expect(screen.queryByText('habits.moveParent.descriptionMany')).not.toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('2 habits did not move')
   })
 })
@@ -271,14 +271,17 @@ describe('bulk move footer geometry in Chromium', () => {
       function Picker() {
         const t = useTranslations();
         const [selected, setSelected] = useState(parent);
+        const [error, setError] = useState(null);
         const options = [{ id: null, label: t('habits.moveParent.toRoot'), emoji: null, depth: 0,
           childCount: 0, disabled: parent === null, reason: parent === null ? t('habits.moveParent.invalidCurrentParent') : null },
           ...Array.from({ length: 40 }, (_, index) => ({ id: 'p' + index, label: 'Parent ' + index,
             emoji: null, depth: index === 19 ? 1 : index === 20 ? 2 : 0, childCount: 0,
             disabled: 'p' + index === parent, reason: 'p' + index === parent ? t('habits.moveParent.invalidCurrentParent') : null }))];
         return <MoveParentOverlay t={t} open isMoving={false} movingHabitTitle="Reading"
+          movingHabitCount={root.dataset.count ? Number(root.dataset.count) : undefined}
           movingHabitParentId={parent} selectedMoveParentId={selected} options={options}
-          canSubmit={false} onClose={() => {}} onConfirm={() => {}} onSelectOption={setSelected} />;
+          error={error} canSubmit={selected !== parent} onClose={() => {}}
+          onConfirm={async () => { setError(t('habits.moveParent.errorPartial')); return false; }} onSelectOption={setSelected} />;
       }
       createRoot(root).render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Picker /></NextIntlClientProvider>);
     `, {
@@ -316,20 +319,70 @@ describe('bulk move footer geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each(['dark', 'light'].flatMap((mode) => ['en', 'pt-BR'].map((locale) => ({ mode, locale }))))(
+    'keeps the empty live region out of the $locale picker spacing in $mode', async ({ mode, locale }) => {
+      const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+      try {
+        const declarations = Object.entries(resolveWebThemeVariables('orange', mode as 'dark' | 'light'))
+          .map(([key, value]) => `${key}:${value};`).join('')
+        await page.setContent(`<style>${stylesheet}:root{${declarations}}</style><div id="root" data-parent="p20" data-locale="${locale}"></div>`)
+        await page.addScriptTag({ content: pickerScript })
+        const dialog = page.getByRole('dialog')
+        await dialog.waitFor({ state: 'visible' })
+        const status = dialog.getByRole('status')
+        const measure = () => dialog.evaluate((element) => {
+          const group = element.querySelector('[role="radiogroup"]')!
+          const status = element.querySelector('[role="status"]')!
+          const content = status.parentElement!
+          return { trailingSpace: content.getBoundingClientRect().bottom - group.getBoundingClientRect().bottom,
+            groupTop: group.getBoundingClientRect().top, contentTop: content.getBoundingClientRect().top,
+            statusPosition: getComputedStyle(status).position }
+        })
+        const before = await measure()
+        expect(before.trailingSpace).toBe(0)
+        expect(await status.textContent()).toBe('')
+        await status.evaluate((element) => { element.setAttribute('data-original-region', 'true') })
+        await dialog.getByRole('radio', { name: /^Parent 21/ }).click()
+        await dialog.getByRole('button', { name: locale === 'en' ? 'Move' : 'Mover', exact: true }).click()
+        await expect.poll(() => status.textContent()).toBe((locale === 'en' ? en : ptBR).habits.moveParent.errorPartial)
+        expect(await status.getAttribute('data-original-region')).toBe('true')
+        const after = await measure()
+        expect(after.statusPosition).toBe('static')
+        expect(after.groupTop).toBeCloseTo(before.groupTop, 0)
+        expect(after.contentTop).toBeCloseTo(before.contentTop, 0)
+        expect(after.trailingSpace).toBeGreaterThan(8)
+      } finally { await page.close() }
+    },
+  )
+
   it.each([320, 412].flatMap((width) => ['en', 'pt-BR'].flatMap((locale) =>
-    ['dark', 'light'].flatMap((mode) => [12, 100].map((count) => ({ width, locale, mode, count }))),
+    ['dark', 'light'].flatMap((mode) => [1, 12, 100].map((count) => ({ width, locale, mode, count }))),
   )))('keeps $locale count $count on one line at $width in $mode', async ({ width, locale, mode, count }) => {
     const translate = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
     renderOverlay([], vi.fn(), null, { movingHabitCount: count, t: (key, values) => translate(key as Parameters<typeof translate>[0], values) })
     const actions = document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!
-    const expected = locale === 'en' ? `Move ${count} habits` : `Mover ${count} hábitos`
+    const expected = locale === 'en' ? 'Move' : 'Mover'
+    const title = locale === 'en' ? `Move ${count} habit${count === 1 ? '' : 's'}` : `Mover ${count} hábito${count === 1 ? '' : 's'}`
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(title)
     expect(actions.textContent).toContain(expected)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {
       const declarations = Object.entries(resolveWebThemeVariables('orange', mode as 'dark' | 'light'))
         .map(([key, value]) => `${key}:${value};`).join('')
-      await page.setContent(`<style>${stylesheet}:root{${declarations}}</style><div style="width:100%;padding:24px">${actions.outerHTML}</div>`)
+      await page.setContent(`<style>${stylesheet}:root{${declarations}}</style><div id="root" data-locale="${locale}" data-count="${count}"></div>`)
+      await page.addScriptTag({ content: pickerScript })
       const button = page.getByRole('button', { name: expected, exact: true })
+      await button.waitFor({ state: 'visible' })
+      const heading = page.getByRole('heading', { name: title, exact: true })
+      const titleGeometry = await heading.evaluate((element) => {
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        const text = range.getBoundingClientRect()
+        const bounds = element.getBoundingClientRect()
+        return { lines: range.getClientRects().length, textRight: text.right, right: bounds.right }
+      })
+      expect(titleGeometry.lines).toBe(1)
+      expect(titleGeometry.textRight).toBeLessThanOrEqual(titleGeometry.right)
       const dimensions = await button.evaluate((element) => ({
         label: element.querySelector('span')!.getBoundingClientRect().toJSON(),
         whitespace: getComputedStyle(element).whiteSpace,

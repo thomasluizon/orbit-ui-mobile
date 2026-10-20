@@ -107,7 +107,8 @@ export function MoveParentOverlay({
   const [searchQuery, setSearchQuery] = useState('')
   const hasPositionedRef = useRef(false)
   useEffect(() => { if (!open) hasPositionedRef.current = false }, [open])
-  const title = t(movingHabitCount === undefined ? 'habits.moveParent.title' : 'habits.moveParent.titleMany')
+  const title = movingHabitCount === undefined ? t('habits.moveParent.title')
+    : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(finishClose)
@@ -162,16 +163,13 @@ export function MoveParentOverlay({
             {t('common.cancel')}
           </PillButton>
           <PillButton size="sm" disabled={!canSubmit} loading={isMoving} onClick={() => void confirmMove()}>
-            {movingHabitCount === undefined ? t('habits.moveParent.confirm')
-              : plural(t('habits.moveParent.confirmMany', { count: movingHabitCount }), movingHabitCount)}
+            {t('habits.moveParent.confirm')}
           </PillButton>
         </ActionRow>
       }
     >
       <div ref={focusRef} tabIndex={-1} className="flex flex-col min-h-0" style={{ gap: 8 }}>
-        {movingHabitCount !== undefined ? (
-          <p className="text-sm text-[var(--fg-3)]">{t('habits.moveParent.descriptionMany')}</p>
-        ) : movingHabitTitle ? (
+        {movingHabitCount === undefined && movingHabitTitle ? (
           <p className="text-sm text-[var(--fg-3)]">
             {t('habits.moveParent.description', { name: movingHabitTitle })}
           </p>
@@ -223,7 +221,7 @@ export function MoveParentOverlay({
           </div>
         </RadioGroup>
 
-        <p role="status" className="whitespace-pre-line text-sm text-[var(--fg-2)]">{error}</p>
+        <p role="status" className={error ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
         {options.length > 0 && options.every((option) => option.disabled) && (
           <p className="text-sm text-[var(--fg-3)]">{t('habits.moveParent.noDestinations')}</p>
         )}

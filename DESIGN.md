@@ -145,7 +145,7 @@ below 1024) it is the default home for that content. The shell composer stays vi
 that compact shell only. Habit detail keeps its own composer at every width.
 Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
 Hoje's selection tray stays pinned at both widths while selection is active, with exit, select-all,
-delete, log and skip controls. It replaces the compact composer; on wide web it alone occupies
+delete, log, skip and move controls. It replaces the compact composer; on wide web it alone occupies
 the destination's bottom slot, named `composer` in the shell reference contract. Resting wide Hoje
 passes no bottom content. Transient notices keep the separate `notice` slot.
 

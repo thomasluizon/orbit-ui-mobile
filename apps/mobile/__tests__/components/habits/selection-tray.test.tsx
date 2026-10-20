@@ -111,6 +111,15 @@ describe('SelectionTray', () => {
     expect(text).toContain('selected')
   })
 
+  it('keeps move enabled when the selected day is completion read only', async () => {
+    const { tree, props } = await renderBar({ completionReadOnly: true })
+    const move = findButtonByLabel(tree, props.moveLabel)
+    expect(move.props.disabled).toBe(false)
+    expect(move.props.accessibilityState).toMatchObject({ disabled: false })
+    await TestRenderer.act(() => { (move.props.onPress as () => void)() })
+    expect(props.onMove).toHaveBeenCalledOnce()
+  })
+
   it('disables log, skip, and delete at zero selection but keeps close active', async () => {
     const { tree } = await renderBar({ count: 0 })
 

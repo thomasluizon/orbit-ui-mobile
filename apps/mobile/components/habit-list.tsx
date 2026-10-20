@@ -1,4 +1,4 @@
-import { getFriendlyErrorMessage, plural } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
@@ -1310,9 +1310,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           const failed = result.results.filter((item) => item.status === 'Failed')
           if (failed.length > 0) {
             setBulkMovingIds(failed.map((item) => item.habitId))
-            setMoveError([plural(t('habits.bulkBar.partialFailure', { count: failed.length }), failed.length),
-              ...new Set(failed.flatMap((item) => item.error ? [item.error] : [])),
-              t('habits.moveParent.errorPartial')].join('\n'))
+            setMoveError(t('habits.moveParent.errorPartial'))
             return false
           }
         } else if (movingHabitId) {

@@ -82,7 +82,7 @@ describe('SelectionTray', () => {
     expect(props.onBulkDelete).not.toHaveBeenCalled()
   })
 
-  it('explains the old-day limit while keeping bulk delete active', () => {
+  it('explains the old-day limit while keeping bulk move and delete active', () => {
     const props = renderBar({ completionReadOnly: true })
     for (const label of ['habits.bulkBar.log', 'habits.bulkBar.skip']) {
       const button = screen.getByRole('button', { name: label })
@@ -91,9 +91,13 @@ describe('SelectionTray', () => {
       fireEvent.click(button)
     }
     fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.delete' }))
+    const move = screen.getByRole('button', { name: 'habits.bulkBar.move' })
+    expect(move).toBeEnabled()
+    fireEvent.click(move)
     expect(props.onBulkLog).not.toHaveBeenCalled()
     expect(props.onBulkSkip).not.toHaveBeenCalled()
     expect(props.onBulkDelete).toHaveBeenCalledOnce()
+    expect(props.onBulkMove).toHaveBeenCalledOnce()
   })
 
   it('toggles between select-all and deselect-all', () => {

@@ -46,8 +46,7 @@ type Styles = ReturnType<typeof createStyles>
 function MoveDialogDescription({
   t, name, count, styles,
 }: Readonly<{ t: MoveParentDialogProps['t']; name: string | null; count?: number; styles: Styles }>) {
-  if (count !== undefined) return <Text style={styles.moveDialogDescription}>{t('habits.moveParent.descriptionMany')}</Text>
-  if (!name) return null
+  if (count !== undefined || !name) return null
   return <Text style={styles.moveDialogDescription}>{t('habits.moveParent.description', { name })}</Text>
 }
 
@@ -133,7 +132,8 @@ export function MoveParentDialog({
       contentLaidOutRef.current = false
     }
   }, [visible])
-  const { title } = moveLabels(t, movingHabitCount)
+  const title = movingHabitCount === undefined ? t('habits.moveParent.title')
+    : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(hideDialog, hideDialog)
@@ -177,8 +177,7 @@ export function MoveParentDialog({
             {t('common.cancel')}
           </PillButton>
           <PillButton size="sm" disabled={!canSubmit} loading={isPending} onClick={() => void confirmMove()}>
-            {movingHabitCount === undefined ? t('habits.moveParent.confirm')
-              : plural(t('habits.moveParent.confirmMany', { count: movingHabitCount }), movingHabitCount)}
+            {t('habits.moveParent.confirm')}
           </PillButton>
         </ActionRow>
       }
@@ -248,7 +247,7 @@ export function MoveParentDialog({
           </ScrollView>
         </RadioGroup>
 
-        <Text accessibilityLiveRegion="polite" style={styles.moveDialogError}>{error}</Text>
+        <Text accessibilityLiveRegion="polite" style={[styles.moveDialogError, !error && styles.emptyError]}>{error}</Text>
         <MoveEmptyState t={t} options={options} isSearchEmpty={isSearchEmpty} styles={styles} />
       </View>
     </Sheet>) : null
@@ -291,6 +290,9 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 14,
       color: tokens.fg2,
     },
+    emptyError: {
+      position: 'absolute',
+    },
     moveDialogEmpty: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
@@ -299,12 +301,6 @@ function createStyles(tokens: AppTokensV2) {
       paddingVertical: SPACING.s16,
     },
   })
-}
-
-function moveLabels(t: MoveParentDialogProps['t'], count?: number) {
-  return {
-    title: t(count === undefined ? 'habits.moveParent.title' : 'habits.moveParent.titleMany'),
-  }
 }
 
 function hasNoDestinations(options: MoveParentOption[]) {

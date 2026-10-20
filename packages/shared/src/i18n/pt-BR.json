@@ -602,14 +602,12 @@
       "invalidSelf": "Não dá para mover para dentro de si mesmo",
       "invalidDescendant": "Não dá para mover para dentro de um sub-hábito dele",
       "invalidDepth": "Passaria do limite de profundidade ({max})",
-      "titleMany": "Mover hábitos",
-      "descriptionMany": "Escolha onde colocar os hábitos selecionados",
-      "invalidForSome": "Não dá para mover alguns dos selecionados para aqui",
+      "titleMany": "Mover {count} hábito | Mover {count} hábitos",
+      "invalidForSome": "Alguns hábitos selecionados não podem ir para cá",
       "invalidCurrentParent": "Este hábito já está aqui",
       "invalidCurrentParentMany": "Os hábitos selecionados já estão aqui",
       "noDestinations": "Não há outro lugar para colocar esses hábitos",
-      "errorPartial": "Alguns hábitos não foram movidos. Escolha um lugar e tente novamente.",
-      "confirmMany": "Mover {count} hábito | Mover {count} hábitos"
+      "errorPartial": "Alguns hábitos não foram movidos. Escolha um lugar e tente de novo."
     },
     "actions": {
       "more": "Mais ações",

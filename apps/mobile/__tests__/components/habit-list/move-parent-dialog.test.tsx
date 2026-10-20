@@ -11,6 +11,7 @@ import { __resetTestHostConfig, __setScrollToImpl } from '../../../test-mocks/re
 import { Sheet as SheetDouble } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
+import { measureProfileRow } from '../../support/profile-row-geometry'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
@@ -29,6 +30,7 @@ type RenderedNode = {
 }
 
 type RenderedTree = {
+  update: ReturnType<typeof TestRenderer.create>['update']
   root: {
     findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[]
   }
@@ -449,7 +451,7 @@ describe('move picker initial positioning', () => {
     const scroll = tree.root.findAll((node) => node.type === 'ScrollView' && node.props.testID === 'move-destinations-scroll')[0]!
     await TestRenderer.act(() => { (scroll.props.onLayout as () => void)(); (scroll.props.onContentSizeChange as () => void)() })
     expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false })
-    expect(flattenRenderedText(tree.toJSON())).toContain('habits.moveParent.descriptionMany')
+    expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.moveParent.descriptionMany')
     expect(flattenRenderedText(tree.toJSON())).toContain('2 habits did not move')
     expect(tree.root.findAll((node) => node.type === 'Sheet')[0]!.props.title).toBe('habits.moveParent.titleMany')
   })
@@ -465,9 +467,42 @@ describe('bulk move translated footer styles', () => {
       return String(value).replaceAll('{count}', String(params?.count))
     }
     const { tree } = renderDialog({ t, movingHabitCount: 100 })
-    expect(flattenRenderedText(tree.toJSON())).toContain(expected)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')[0]!.props.title).toBe(expected)
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([messages.common.cancel, messages.habits.moveParent.confirm])
+    expect(flattenRenderedText(tree.toJSON())).not.toContain(messages === en ? 'Choose where to place the selected habits' : 'Escolha onde colocar os hábitos selecionados')
     expectSmallSheetActions(tree.root)
   })
+})
+
+it.each([320, 412])('keeps the empty live region out of native picker spacing at %s', async (width) => {
+  const { tree, props } = renderDialog({ movingHabitCount: 12 })
+  type Host = Parameters<typeof measureProfileRow>[0]
+  function findBody(host: Host): Host | undefined {
+    if (host.type === 'SheetBody') return host
+    return host.children?.filter((child): child is Host => typeof child !== 'string')
+      .map(findBody).find((child) => child !== undefined)
+  }
+  function contentGeometry() {
+    const host = tree.toJSON() as Host
+    const body = findBody(host)!
+    const content = body.children![0] as Host
+    return { content, measured: measureProfileRow(content, width - 48, 1) }
+  }
+  const before = contentGeometry()
+  const withoutStatus = { ...before.content, children: before.content.children!.filter((child) =>
+    typeof child === 'string' || !('accessibilityLiveRegion' in child.props)) }
+  expect(before.measured.height).toBe(measureProfileRow(withoutStatus, width - 48, 1).height)
+  const region = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]!
+  await TestRenderer.act(() => {
+    tree.update(withFocusProvenance(<MoveParentDialog {...props} error="Some habits did not move. Pick a place and try again." />))
+  })
+  expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]).toBe(region)
+  const after = contentGeometry().measured
+  const beforeRoot = before.measured.controls.find((control) => control.labels.includes('Top level'))!
+  const afterRoot = after.controls.find((control) => control.labels.includes('Top level'))!
+  expect(afterRoot.top).toBe(beforeRoot.top)
+  expect(after.height).toBeGreaterThan(before.measured.height)
+  expect(after.texts.some((text) => text.label === 'Some habits did not move. Pick a place and try again.')).toBe(true)
 })
 
 
