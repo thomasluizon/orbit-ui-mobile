@@ -163,7 +163,7 @@ describe('rendered light hover contrast', () => {
     const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce', hasTouch: phase === 'press' })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)"><div style="background:var(--bg-card)">${container.innerHTML}</div></body></html>`)
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)"><div>${container.innerHTML}</div></body></html>`)
       const body = page.locator('[data-habit-row-body]')
       const measure = () => body.evaluate((control) => {
         const row = control.closest('[data-testid="habit-row"]')!
@@ -181,6 +181,8 @@ describe('rendered light hover contrast', () => {
       const resting = await measure()
       expect(resting.color).toBe(rgb(neutralColors[mode].fg3))
       expect(resting.body).toBe('rgba(0, 0, 0, 0)')
+      expect(resting.card).toBe('rgba(0, 0, 0, 0)')
+      expect(resting.fill).not.toBe('rgba(0, 0, 0, 0)')
       expect(contrastOnSurface(resting.color, [resting.canvas, resting.card, resting.fill, resting.well])).toBeGreaterThanOrEqual(4.5)
       await body.hover()
       if (phase === 'press') await page.mouse.down()
