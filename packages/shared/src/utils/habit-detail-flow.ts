@@ -35,6 +35,7 @@ interface HabitScheduleSource {
   isBadHabit: boolean
   isGeneral: boolean
   isFlexible: boolean
+  scheduledStartDate?: string | null
 }
 
 export interface HabitStripModel {
@@ -166,12 +167,11 @@ function isScheduled(
     if (dateStr < source.dueDate) return false
     return !isFlexibleTargetMet(source, logs, date, weekStartsOn)
   }
-  if (
-    dateStr < source.dueDate &&
-    (source.frequencyUnit === 'Month' || source.frequencyUnit === 'Year')
-  ) return false
+  const isCalendarFrequency = source.frequencyUnit === 'Month' || source.frequencyUnit === 'Year'
+  const anchor = isCalendarFrequency ? source.scheduledStartDate ?? source.dueDate : source.dueDate
+  if (isCalendarFrequency && dateStr < anchor) return false
 
-  return matchesFrequency(source, date, parseAPIDate(source.dueDate))
+  return matchesFrequency(source, date, parseAPIDate(anchor))
 }
 
 function activeLogDates(logs: readonly HabitLog[]): Set<string> {

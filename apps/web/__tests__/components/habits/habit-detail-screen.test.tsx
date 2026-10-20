@@ -22,7 +22,7 @@ import {
   makeLoggedGeneralHabitDetailChild as makeLoggedGeneralChild,
 } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitLog } from '@orbit/shared/types/calendar'
-import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import { habitDetailSchema, type HabitDetail, type HabitMetrics, type NormalizedHabit, type RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { Sheet } from '@/components/ui/sheet'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -204,7 +204,7 @@ vi.mock('@/components/dates/day-cell', () => ({
     return <span aria-label={label} data-testid={`history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`}>{outcome}</span>
   },
 }))
-vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => <div data-testid="detail-strip" data-size={size} data-days={days.length} /> }))
+vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => <div data-testid="detail-strip" data-size={size} data-days={days.length} data-values={days.join(",")} /> }))
 vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children, label, loadingLabel }: { children: React.ReactNode; label: string; loadingLabel?: string }) => <div aria-label={label}><div role={loadingLabel ? 'progressbar' : undefined} aria-label={loadingLabel} aria-busy={loadingLabel ? true : undefined}>{children}</div></div>,
 }))
@@ -1101,6 +1101,27 @@ describe('HabitDetailScreen', () => {
       { path: '/?date=2026-08-28', selectedDate: '2026-08-28' },
     ])
     expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { unit: 'Month', origin: '2026-01-31', advanced: '2026-02-28', originalDay: 31, rejectedDay: 28 },
+    { unit: 'Year', origin: '2024-02-29', advanced: '2025-02-28', originalDay: 29, rejectedDay: 28 },
+  ])('keeps $unit strip and month history anchored after due date advancement', (example) => {
+    vi.setSystemTime(new Date(`${example.origin}T12:00:00Z`))
+    mocks.logs = []
+    mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
+      createdAtUtc: `${example.origin.slice(0, 7)}-01T12:00:00Z`,
+      frequencyUnit: example.unit, frequencyQuantity: 1, dueDate: example.origin,
+      scheduledStartDate: example.origin, originalDayOfMonth: example.originalDay })
+    const view = render(<HabitDetailScreen habitId="habit-1" date={example.origin} />)
+    expect(screen.getByTestId(`history-day-${example.originalDay}-inside`)).toHaveTextContent('none')
+    expect(screen.getByTestId(`history-day-${example.rejectedDay}-inside`)).toHaveTextContent('not-scheduled')
+    expect(screen.getByTestId('detail-strip').getAttribute('data-values')?.split(',').at(-1)).toBe('missed')
+    mocks.detail = { ...mocks.detail, dueDate: example.advanced }
+    view.rerender(<HabitDetailScreen habitId="habit-1" date={example.origin} />)
+    expect(screen.getByTestId(`history-day-${example.originalDay}-inside`)).toHaveTextContent('none')
+    expect(screen.getByTestId(`history-day-${example.rejectedDay}-inside`)).toHaveTextContent('not-scheduled')
+    expect(screen.getByTestId('detail-strip').getAttribute('data-values')?.split(',').at(-1)).toBe('missed')
   })
 
   it('reconciles an explicit-date log and unlog across the mounted detail', async () => {
