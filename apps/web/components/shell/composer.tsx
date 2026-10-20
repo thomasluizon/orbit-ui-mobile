@@ -211,7 +211,7 @@ function ComposerTextAction({ words, canClear, canPaste, inMenu, onClear, onPast
     data-composer-clear={canClear ? '' : undefined} data-composer-paste={canPaste ? '' : undefined}
     onMouseDown={event => event.preventDefault()}
     onClick={canClear ? onClear : onPaste}
-    className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
+    className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
     {canClear ? <X size={20} strokeWidth={2} aria-hidden="true" /> : <Clipboard size={20} strokeWidth={2} aria-hidden="true" />}
   </button>
 }

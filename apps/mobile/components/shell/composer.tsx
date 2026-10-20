@@ -357,7 +357,7 @@ function ComposerTextAction({ words, tokens, canClear, canPaste, inMenu, onClear
     focusColor={tokens.primary}
     onPress={canClear ? onClear : onPaste}
     style={({ pressed }) => [styles.iconButton, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-    {canClear ? <X size={20} strokeWidth={2} color={tokens.fg3} /> : <ClipboardIcon size={20} strokeWidth={2} color={tokens.fg3} />}
+    {canClear ? <X size={20} strokeWidth={2} color={tokens.fg2} /> : <ClipboardIcon size={20} strokeWidth={2} color={tokens.fg2} />}
   </InsetFocusPressable>
 }
 
