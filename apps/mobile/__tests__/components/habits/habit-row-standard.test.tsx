@@ -24,6 +24,46 @@ function assertParentProgressLabel(root: import('react-test-renderer').ReactTest
 }
 
 describe('habit row standard on Android', () => {
+  it.each([false, true])('gives the structural selection checkbox independent hover and cancellation feedback, selected=%s', (isSelected) => {
+    const actions = { onToggleSelection: vi.fn(), onDetail: vi.fn(), onToggleExpand: vi.fn(), onLog: vi.fn() }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })}
+      structuralColumn isSelectMode isSelected={isSelected} hasChildren actions={actions} />) })
+    const tokens = createTokensV2('orange', 'dark')
+    const selection = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'checkbox')!
+    const body = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith('Read'))!
+    const rowStyle = () => StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row' }).props.style)
+    const outline = () => StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row-outline' }).props.style).borderColor
+    const controlStyle = (pressed = false) => StyleSheet.flatten(selection.props.style({ pressed }))
+    expect(selection.props.onHoverIn).toBeTypeOf('function')
+    expect(selection.props.onHoverOut).toBeTypeOf('function')
+    expect(controlStyle()).toMatchObject({ width: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden' })
+    const restingFill = isSelected ? tokens.selectionBg : tokens.bgCard
+    for (let repeat = 0; repeat < 2; repeat++) {
+      TestRenderer.act(() => body.props.onHoverIn())
+      expect(outline()).toBe(tokens.hairlineStrong)
+      TestRenderer.act(() => body.props.onHoverOut())
+      TestRenderer.act(() => selection.props.onHoverIn())
+      expect(controlStyle().backgroundColor).toBe(tokens.bgHover)
+      expect(controlStyle().transform ?? []).not.toContainEqual({ scale: 0.96 })
+      expect(rowStyle().backgroundColor).toBe(restingFill)
+      expect(outline()).toBe(tokens.hairline)
+      TestRenderer.act(() => selection.props.onPressIn())
+      expect(controlStyle().backgroundColor).toBe(tokens.bgHover)
+      TestRenderer.act(() => selection.props.onHoverOut())
+      expect(controlStyle(true)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
+      TestRenderer.act(() => selection.props.onPressOut())
+      expect(controlStyle().backgroundColor).toBeUndefined()
+      expect(rowStyle().backgroundColor).toBe(restingFill)
+      for (const action of Object.values(actions)) expect(action).not.toHaveBeenCalled()
+    }
+    TestRenderer.act(() => selection.props.onPress())
+    expect(actions.onToggleSelection).toHaveBeenCalledOnce()
+    expect(actions.onDetail).not.toHaveBeenCalled()
+    expect(actions.onLog).not.toHaveBeenCalled()
+    expect(actions.onToggleExpand).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
   it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
     [1, 2].flatMap((fontScale) => [0, 1].map((depth) => ({ mode, width, fontScale, depth: depth as 0 | 1 }))),
   )))('keeps bordered rows and checks in $mode at $width with $fontScale text and depth $depth', ({ mode, width, fontScale, depth }) => {
@@ -89,3 +129,72 @@ describe('habit row standard on Android', () => {
     }
   })
 })
+
+
+it.each([320, 412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [0, 1].flatMap((depth) =>
+  [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) => ({ width, fontScale, depth: depth as 0 | 1, parent, described, selected })))),
+))))(
+  'measures native feedback at $width/$fontScale, depth=$depth parent=$parent description=$described selected=$selected', ({ width, fontScale, depth, parent, described, selected }) => {
+    __setWindowDimensions({ width, height: 892, scale: 1, fontScale })
+    const tokens = createTokensV2('orange', 'dark')
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read ten minutes', description: described ? 'Read two pages before breakfast. '.repeat(12) : null, dueTime: '08:00' })}
+      today="2025-01-01" selectedDate={new Date(2025, 0, 1)} depth={depth} hasChildren={parent} childrenDone={parent ? 1 : 0} childrenTotal={parent ? 3 : 0}
+      structuralColumn isSelectMode={selected !== undefined} isSelected={selected} actions={{ onEdit: vi.fn(), onDetail: vi.fn(), onToggleSelection: vi.fn() }} />) })
+    const body = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith('Read ten minutes'))!
+    const measure = () => measureInteractionFills(tree!.toJSON(), width, false, fontScale)
+    const geometry = measure()
+    const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
+    const check = geometry.find((part) => part.host.props.testID === 'habit-check')!
+    const target = geometry.find((part) => check.ancestors.includes(part.slot) && part.width === 48)!
+    expect(Math.abs((check.left + check.right) / 2 - (target.left + target.right) / 2)).toBeLessThanOrEqual(1)
+    expect(Math.abs((check.top + check.bottom) / 2 - (target.top + target.bottom) / 2)).toBeLessThanOrEqual(1)
+    if (fontScale === 1) expect(Math.abs((target.top + target.bottom) / 2 - (row.top + row.bottom) / 2)).toBeLessThanOrEqual(1)
+    else expect(target.top - row.top).toBe(depth ? 4 : 8)
+    expect(target.width).toBe(48)
+    const title = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes('Read ten minutes') && part.style.opacity !== 0)!
+    expect((title.style as import('react-native').TextStyle).fontSize).toBe(depth ? 14 : 17)
+    const preview = geometry.find((part) => part.host.props.testID === 'habit-row-description')
+    expect(Boolean(preview)).toBe(described)
+    if (preview) {
+      expect((preview.style as import('react-native').TextStyle).color).toBe(tokens.fg3)
+      const meta = geometry.find((part) => part.host.props.testID === 'habit-row-meta')!
+      expect(preview.top - title.bottom).toBeCloseTo(4, 1)
+      expect(row.bottom - meta.bottom).toBeGreaterThanOrEqual(3.99)
+      expect(meta.top - preview.bottom).toBeGreaterThanOrEqual(4)
+      expect(meta.left).toBe(title.left)
+      expect(preview.height).toBeLessThanOrEqual(21.7 * fontScale * (fontScale > 1.3 ? 2 : 1) + 1)
+      if (fontScale === 2) expect(preview.height).toBeGreaterThan(21.7 * fontScale + 1)
+      expect(preview.right).toBeLessThanOrEqual(row.right - 8)
+      expect(row.bottom - preview.bottom).toBeGreaterThanOrEqual(4)
+    }
+    function assertFeedback() {
+      for (const event of ['onPressIn', 'onHoverIn']) {
+        TestRenderer.act(() => body.props[event]())
+        const paints = measure().filter((part) => part.style.backgroundColor === tokens.bgHover)
+        expect(paints).toHaveLength(1)
+        expect(paints[0]).toMatchObject({ left: row.left, right: row.right, top: row.top, bottom: row.bottom })
+        expect(paints[0]!.style.borderRadius).toBe(20)
+        const preview = measure().find((part) => part.host.props.testID === 'habit-row-description')
+        if (preview) expect((preview.style as import('react-native').TextStyle).color).toBe(tokens.fg2)
+        TestRenderer.act(() => body.props[event === 'onPressIn' ? 'onPressOut' : 'onHoverOut']())
+        expect(measure().filter((part) => part.style.backgroundColor === tokens.bgHover)).toHaveLength(0)
+      }
+    }
+    assertFeedback()
+    const controls = tree!.root.findAllByType('Pressable').filter((node: import('react-test-renderer').ReactTestInstance) => node !== body)
+    for (const control of controls) {
+      expect(control.props.onHoverIn).toBeTypeOf('function')
+      expect(control.props.onHoverOut).toBeTypeOf('function')
+      TestRenderer.act(() => control.props.onHoverIn())
+      const paints = measure().filter((part) => part.style.backgroundColor === tokens.bgHover)
+      expect(paints).toHaveLength(1)
+      expect(paints[0]!.host.type).toBe('Pressable')
+      expect(paints[0]!.style.transform ?? []).not.toContainEqual({ scale: 0.96 })
+      expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row' }).props.style).backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgCard)
+      TestRenderer.act(() => control.props.onHoverOut())
+      expect(measure().filter((part) => part.style.backgroundColor === tokens.bgHover)).toHaveLength(0)
+    }
+    TestRenderer.act(() => tree.unmount())
+  },
+)

@@ -7,6 +7,7 @@ import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { TodayAstra } from '@/components/today/today-astra'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { HabitRow } from '@/components/habits/habit-row'
+import { createTokensV2 } from '@/lib/theme'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -137,7 +138,7 @@ function topPosition(node: YogaNode): number {
   return top
 }
 
-function assertPrimaryFill(nodes: Map<Host, YogaNode>, row: [Host, YogaNode]) {
+function assertPrimaryFill(renderer: ReturnType<typeof create>, nodes: Map<Host, YogaNode>, row: [Host, YogaNode]) {
   const primaryLayer = [...nodes].find(([element]) => element.type === 'Pressable' &&
     element.props.accessibilityLabel?.startsWith('Parent habit'))!
   const [, primaryNode] = primaryLayer
@@ -149,8 +150,23 @@ function assertPrimaryFill(nodes: Map<Host, YogaNode>, row: [Host, YogaNode]) {
   expect(typeof pressedStyle).toBe('function')
   if (typeof pressedStyle !== 'function') throw new Error('Primary target has no press feedback')
   expect(StyleSheet.flatten(pressedStyle({ pressed: true }))).toMatchObject({
-    borderRadius: 20, overflow: 'hidden', backgroundColor: expect.any(String),
+    borderRadius: 20, overflow: 'hidden',
   })
+  expect(StyleSheet.flatten(pressedStyle({ pressed: true })).backgroundColor).toBeUndefined()
+  const primary = renderer.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'button' &&
+    typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('Parent habit'))[0]!
+  const parentRow = renderer.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-row')
+    .find((row) => row.findAll((node) => node === primary).length > 0)!
+  const paint = () => StyleSheet.flatten(parentRow.props.style as StyleProp<ViewStyle>)
+  const restingFill = paint().backgroundColor
+  for (const pressed of [true, false]) {
+    const event = primary.props[pressed ? 'onPressIn' : 'onPressOut']
+    if (typeof event !== 'function') throw new Error('Primary target has no press feedback')
+    void act(() => event())
+    expect(paint()).toMatchObject({
+      borderRadius: 20, backgroundColor: pressed ? createTokensV2('orange', 'dark').bgHover : restingFill,
+    })
+  }
 }
 
 function containsHost(host: Host, element: Host): boolean {
@@ -262,7 +278,7 @@ describe('Hoje leading edges on Android', () => {
         expect(selectMode ? onToggleSelection : onDetail).toHaveBeenCalledExactlyOnceWith()
         expect(selectMode ? onDetail : onToggleSelection).not.toHaveBeenCalled()
         if (fontScale === 2) {
-          assertPrimaryFill(nodes, rows[1]!)
+          assertPrimaryFill(renderer!, nodes, rows[1]!)
           const parentHosts = new Set<Host>()
           const collectParentHosts = (host: Host) => {
             parentHosts.add(host)

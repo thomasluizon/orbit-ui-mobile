@@ -1,6 +1,7 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { stripInlineMarkdown } from '@orbit/shared/utils'
 
 /** Inline meta token rendered between dots in the row's meta strip.
  *  String tokens follow the row body's interaction color; tagged tokens get status color. */
@@ -15,22 +16,31 @@ interface HabitRowContentProps {
   titleSize: number
   titleColor: string
   expanded?: boolean
+  descriptionId?: string
+  largeText?: boolean
   meta: HabitRowMetaToken[]
 }
 
-/** Middle column of a habit row: title and the single caller-composed meta line. */
 export function HabitRowContent({
   habit,
   titleSize,
   titleColor,
   expanded = false,
+  descriptionId,
+  largeText = false,
   meta,
 }: Readonly<HabitRowContentProps>) {
+  const description = stripInlineMarkdown(habit.description ?? '')
   const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
   const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
   return (
     <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
       <TitleText expanded={expanded} title={habit.title} size={titleSize} color={titleColor} />
+      {description ? <span id={descriptionId} aria-hidden={descriptionId ? true : undefined} data-habit-row-description=""
+        className={`habit-row-description min-w-0 overflow-hidden ${largeText ? 'line-clamp-2' : 'block whitespace-nowrap text-ellipsis'}`}
+        style={{ fontFamily: 'var(--font-sans)', fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
+        {description}
+      </span> : null}
       {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
       {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>

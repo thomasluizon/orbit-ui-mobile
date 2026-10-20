@@ -303,11 +303,14 @@ vi.mock('react-i18next', async (importOriginal) => {
   return {
   ...actual,
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => key === 'habits.deleteListConfirmMessage'
-      ? messages.habits.deleteListConfirmMessage
-        .replaceAll('{name}', String(params?.name))
-        .replaceAll('{count}', String(params?.count))
-      : params ? `${key}(${JSON.stringify(params)})` : key,
+    t: (key: string, params?: Record<string, unknown>) => {
+      if (key === 'habits.deleteListConfirmMessage') {
+        return messages.habits.deleteListConfirmMessage
+          .replaceAll('{name}', String(params?.name))
+          .replaceAll('{count}', String(params?.count))
+      }
+      return params ? `${key}(${JSON.stringify(params)})` : key
+    },
     i18n: { language: 'en' },
   }),
   }
@@ -900,8 +903,8 @@ describe('HabitList', () => {
   it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].flatMap((drilling) =>
     [false, true].map((selectMode) => ({ view, drilling, selectMode })),
   )))('applies display depth once in $view, drilling=$drilling, selecting=$selectMode', ({ view, drilling, selectMode }) => {
-    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, isGeneral: view === 'general', scheduledDates: [TODAY] })
-    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', parentId: parent.id, isGeneral: parent.isGeneral, scheduledDates: [TODAY] })
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', description: '**Read** two pages before breakfast.', hasSubHabits: true, isGeneral: view === 'general', scheduledDates: [TODAY] })
+    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', description: '**Read** two pages before breakfast.', parentId: parent.id, isGeneral: parent.isGeneral, scheduledDates: [TODAY] })
     const branch = createMockHabit({ ...leaf, id: 'branch', title: 'Branch', hasSubHabits: true })
     const grandchild = createMockHabit({ ...leaf, id: 'grandchild', parentId: branch.id })
     seedHabits([parent, leaf, branch])
@@ -926,6 +929,7 @@ describe('HabitList', () => {
     const geometry = measureInteractionFills(composition.toJSON(), 320, false)
     const rowBounds = geometry.filter((part) => part.host.props.testID === 'habit-row')
     expect(rowBounds).toHaveLength(rows.length)
+    expect(composition.root.findAllByType('Text').filter((node: { props: { testID?: string; children?: string } }) => node.props.testID === 'habit-row-description').map((node: { props: { children: string } }) => node.props.children)).toEqual(rows.map(() => 'Read two pages before breakfast.'))
     rowBounds.forEach((bounds, index) => {
       const well = geometry.find((part) => [32, 46].includes(Number(part.style.width)) && part.style.borderRadius === 12 && part.ancestors.includes(bounds.slot))!
       expect(well.left - bounds.left).toBe(rows[index]!.props.depth === 1 ? 24 : 8)
@@ -1407,9 +1411,10 @@ describe('HabitList', () => {
     expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(1)
     expect(tree!.root.findAll((node) => node.type === HabitRow)
       .map((node) => (node.props.habit as NormalizedHabit).id)).toContain('anytime')
-    const geometry = measureSafeArea((tree! as GeometryTree).toJSON(), (host) =>
-      host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('habits.allDoneToday'))
-        ? 'banner' : host.props.testID === 'habit-row' ? 'row' : undefined)
+    const geometry = measureSafeArea((tree! as GeometryTree).toJSON(), (host) => {
+      if (host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('habits.allDoneToday'))) return 'banner'
+      return host.props.testID === 'habit-row' ? 'row' : undefined
+    })
     expect(geometry.get('row')!.top - geometry.get('banner')!.bottom).toBe(24)
   })
 
@@ -1747,7 +1752,7 @@ describe('HabitList', () => {
     expect(deleteMutateAsync).toHaveBeenCalledTimes(1)
   })
 
-  it('omits the habit description from the canonical row', () => {
+  it('restores the habit description in the canonical row', () => {
     seedHabits([
       createMockHabit({ id: 'habit-desc', title: 'Meditate', description: 'Ten minutes of breathing' }),
     ])
@@ -1762,7 +1767,7 @@ describe('HabitList', () => {
     const descriptionNodes = tree.root.findAll(
       (node: any) => node.props?.children === 'Ten minutes of breathing',
     )
-    expect(descriptionNodes).toHaveLength(0)
+    expect(descriptionNodes.length).toBeGreaterThan(0)
   })
 
   it('omits the description preview when the habit has none', () => {
