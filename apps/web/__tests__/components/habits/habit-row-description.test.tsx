@@ -1,9 +1,17 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { HabitRow } from '@/components/habits/habit-row'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+const rowLocale = vi.hoisted((): { value: 'en' | 'pt-BR' | null } => ({ value: null }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => {
+  if (!rowLocale.value) return key
+  const messages = rowLocale.value === 'en' ? en : ptBR
+  return key === 'habits.rowTypeTask' ? messages.habits.rowTypeTask : key === 'habits.form.typeTask' ? messages.habits.form.typeTask : key === 'habits.form.typeHabit' ? messages.habits.form.typeHabit : key
+} }))
+afterEach(() => { rowLocale.value = null; document.documentElement.style.removeProperty('font-size') })
 
 const descriptions = [
   ['Read two pages before breakfast.', 'Read two pages before breakfast.'],
@@ -61,7 +69,7 @@ describe('stored habit row descriptions', () => {
   })
 
   it.each([
-    [null, false, false, 'habits.form.typeTask'],
+    [null, false, false, 'habits.rowTypeTask'],
     ['Day', false, false, 'habits.form.typeHabit'],
     ['Week', true, false, 'habits.form.typeHabit'],
     [null, false, true, 'habits.form.typeHabit'],
@@ -75,4 +83,24 @@ describe('stored habit row descriptions', () => {
     expect(type.nextElementSibling).toHaveAttribute('data-habit-row-meta')
     expect(container.querySelector('[data-habit-row-body]')).toHaveAccessibleName(`${habit.title}, ${expectedType} 08:00`)
   })
+
+  it.each(([
+    { locale: 'en', caption: 'Task' },
+    { locale: 'pt-BR', caption: 'Tarefa' },
+  ] as const).flatMap((copy) => [1, 2].map((textScale) => ({ ...copy, textScale }))))(
+    'announces the short selection row caption once in $locale at $textScale text', ({ locale, caption, textScale }) => {
+      rowLocale.value = locale
+      document.documentElement.style.fontSize = `${16 * textScale}px`
+      const habit = createMockHabit({ title: 'Read ten minutes', frequencyUnit: null, isFlexible: false, isGeneral: false })
+      const { container } = render(<HabitRow habit={habit} depth={1} hasChildren structuralColumn selectMode />)
+      const types = container.querySelectorAll('[data-habit-row-type]')
+      expect(types).toHaveLength(1)
+      const type = types[0]!
+      expect(type.closest('[aria-hidden="true"]')).not.toBeNull()
+      expect(type.textContent).toBe(caption)
+      expect(container.querySelector('[data-habit-row-body]')).toHaveAccessibleName(`${habit.title}, ${caption}`)
+      expect(container.querySelector('[data-habit-row-control="selection"]')).toHaveAccessibleName(`${habit.title}, ${caption}`)
+      expect(container.querySelector('[aria-hidden="true"] button, [aria-hidden="true"] [tabindex]')).toBeNull()
+    },
+  )
 })

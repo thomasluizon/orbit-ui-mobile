@@ -16,9 +16,18 @@ emoji control for Task and General. Their date candidates use fg-3 inside the ne
 perimeter, with a trailing label-hugging Use date action; acceptance or manual selection restores
 normal ink. Detail's read-only DateRow states a date without claiming form dates are immutable.
 
-Hoje rows and Habit Detail show the full quiet type below the full-width title. The existing row
-status, counts, check and menu remain. `habit-form-surfaces.md` and `habit-row-surfaces.md` name the
-paired owners, retained controls and verification boundaries.
+Habit Detail retains the full quiet type below the full-width title, matching the form choices.
+`habit-form-surfaces.md` and `habit-row-surfaces.md` name the paired owners, retained controls and
+verification boundaries.
+
+### Habit row type vocabulary amendment
+
+Shared rows use the complete nouns `Tarefa` / `Task` or `Hábito` / `Habit` as quiet type metadata
+beneath the full-width title. This supersedes the longer task caption in exported rows, including
+detail children. Form choices and detail headers retain `Tarefa única` / `One-time task` and
+`Hábito` / `Habit`. Row primary and selection accessible names match the short visible caption
+exactly once. Typography, insets, widths, status, counts, checks and menus retain their geometry;
+default controls stay row-centred and every row keeps its supporting footer above 130% text.
 
 ## The authority
 

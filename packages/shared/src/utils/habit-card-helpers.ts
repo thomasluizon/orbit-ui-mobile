@@ -177,3 +177,7 @@ export function computeHabitMatchBadges(
 export function getHabitTypeLabelKey(habit: Pick<NormalizedHabit, 'isGeneral' | 'isFlexible' | 'frequencyUnit'>): 'habits.form.typeTask' | 'habits.form.typeHabit' {
   return !habit.isGeneral && !habit.isFlexible && !habit.frequencyUnit ? 'habits.form.typeTask' : 'habits.form.typeHabit'
 }
+
+export function getHabitRowTypeLabelKey(habit: Pick<NormalizedHabit, 'isGeneral' | 'isFlexible' | 'frequencyUnit'>): 'habits.rowTypeTask' | 'habits.form.typeHabit' {
+  return getHabitTypeLabelKey(habit) === 'habits.form.typeTask' ? 'habits.rowTypeTask' : 'habits.form.typeHabit'
+}

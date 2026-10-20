@@ -22,11 +22,16 @@ Web Vitest measures the production row with compiled CSS at 320, 412 and 1352, i
 
 ## Item type metadata
 
-The shared row content owners render `Tarefa única` / `One-time task` or `Hábito` / `Habit` on
+The shared row content owners render `Tarefa` / `Task` or `Hábito` / `Habit` on
 its own quiet line beneath the full-width title. Type never ellipsizes or becomes a badge. The
 existing time, status and parent counts remain beneath it. The same content reaches Hoje, Todos,
 Geral, search, inline children, drill lists, detail children and Astra-owned shared rows. Detail
-headers use the same selector beneath their full-width rename heading. Large text grows the row.
+headers retain `Tarefa única` / `One-time task` or `Hábito` / `Habit` beneath their full-width
+rename heading, matching the full form choices. The row selector derives from the same schedule
+classification and uses the dedicated task caption key. Primary and selection accessible names
+match the short visible row type exactly once; visual copies stay hidden from accessibility.
+This vocabulary change preserves typography, insets, controls, targets and available width.
+Large text grows the row.
 
 Above 130% text, every row uses a full-row primary action and a supporting footer. The heading
 keeps the title, optional description and independent first-line controls. Exactly one complete

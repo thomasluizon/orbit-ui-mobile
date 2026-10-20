@@ -14,7 +14,7 @@ const rowLocale = vi.hoisted((): { value: 'en' | 'pt-BR' } => ({ value: 'en' }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: theme.mode }) }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => {
   const messages = rowLocale.value === 'en' ? en : ptBR
-  return key === 'habits.form.typeTask' ? messages.habits.form.typeTask : key === 'habits.form.typeHabit' ? messages.habits.form.typeHabit : key
+  return key === 'habits.rowTypeTask' ? messages.habits.rowTypeTask : key === 'habits.form.typeTask' ? messages.habits.form.typeTask : key === 'habits.form.typeHabit' ? messages.habits.form.typeHabit : key
 }, i18n: { language: rowLocale.value } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
@@ -64,6 +64,29 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
 }
 
 describe('habit row standard on Android', () => {
+  it.each(([
+    { locale: 'en', caption: 'Task' },
+    { locale: 'pt-BR', caption: 'Tarefa' },
+  ] as const).flatMap((copy) => [1, 2].flatMap((fontScale) => [false, true].map((unavailable) => ({ ...copy, fontScale, unavailable })))))(
+    'announces the short selection row caption once in $locale at $fontScale text, unavailable=$unavailable', ({ locale, caption, fontScale, unavailable }) => {
+      rowLocale.value = locale
+      __setWindowDimensions({ width: 320, height: 892, scale: 1, fontScale })
+      const habit = createMockHabit({ title: 'Read ten minutes', frequencyUnit: null, isFlexible: false, isGeneral: false, dueTime: null })
+      let tree: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} depth={1} hasChildren structuralColumn isSelectMode
+        today="2025-01-01" selectedDate={new Date(2025, 0, 1)} completionStatusUnavailable={unavailable} />) })
+      const types = tree!.root.findAllByType('Text').filter((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-type')
+      expect(types).toHaveLength(1)
+      expect(types[0]!.props.children).toBe(caption)
+      const buttons = tree!.root.findAllByType('Pressable')
+      const primary = buttons.find((node: import('react-test-renderer').ReactTestInstance) => node.props.delayLongPress === 500)!
+      expect(primary.props.accessibilityLabel).toBe(`${habit.title}, ${caption}${unavailable ? '' : ', habits.statusDot.empty'}`)
+      const selection = buttons.find((node: import('react-test-renderer').ReactTestInstance) => node.props.accessibilityRole === 'checkbox')!
+      expect(selection.props.accessibilityLabel).toBe(`${habit.title}, ${caption}`)
+      TestRenderer.act(() => tree.unmount())
+    },
+  )
+
   it.each([false, true])('keeps one footer type without an empty metadata strip, selecting=%s', (isSelectMode) => {
     __setWindowDimensions({ width: 320, height: 892, scale: 1, fontScale: 2 })
     let tree: ReturnType<typeof TestRenderer.create>

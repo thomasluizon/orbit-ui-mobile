@@ -3,7 +3,7 @@
 import { SPACING } from '@orbit/shared/theme'
 
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
-import { getHabitTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
+import { getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
@@ -221,7 +221,7 @@ export function HabitRow({
   const controls = (
     <>
       {structuralColumn && selectMode ? (
-        <button type="button" data-habit-row-control="selection" aria-label={`${habit.title}, ${t(getHabitTypeLabelKey(habit))}`}
+        <button type="button" data-habit-row-control="selection" aria-label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
           aria-pressed={selected} onClick={() => onToggleSelection?.()}
           className="flex min-h-[48px] w-[48px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96]">
           <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
@@ -262,8 +262,8 @@ export function HabitRow({
   const rowContents = (
     <>
       <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
-        descriptionId={descriptionId} typeLabel={t(getHabitTypeLabelKey(habit))}
-        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={`${habit.title}, ${t(getHabitTypeLabelKey(habit))}`}
+        descriptionId={descriptionId} typeLabel={t(getHabitRowTypeLabelKey(habit))}
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>

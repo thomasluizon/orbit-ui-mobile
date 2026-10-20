@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl'
-import { getHabitTypeLabelKey, stripInlineMarkdown } from '@orbit/shared/utils'
+import { getHabitRowTypeLabelKey, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -45,7 +45,7 @@ export function HabitRowContent({
         style={{ fontFamily: 'var(--font-sans)', fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
         {description}
       </span> : null}
-      {typeOnSupportingLine ? null : <HabitRowTypeLabel label={t(getHabitTypeLabelKey(habit))} />}
+      {typeOnSupportingLine ? null : <HabitRowTypeLabel label={t(getHabitRowTypeLabelKey(habit))} />}
       {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
       {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>

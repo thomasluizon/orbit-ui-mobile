@@ -66,7 +66,7 @@ describe('stored native habit row descriptions', () => {
   })
 
   it.each([
-    [null, false, false, 'habits.form.typeTask'],
+    [null, false, false, 'habits.rowTypeTask'],
     ['Day', false, false, 'habits.form.typeHabit'],
     ['Week', true, false, 'habits.form.typeHabit'],
     [null, false, true, 'habits.form.typeHabit'],

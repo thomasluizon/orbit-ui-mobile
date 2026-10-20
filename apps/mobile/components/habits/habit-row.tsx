@@ -10,7 +10,7 @@ import {
   getTodayBoundary,
   isHabitDoneForRange,
   resolveHabitAccessibleStatus,
-  getHabitTypeLabelKey,
+  getHabitRowTypeLabelKey,
   stripInlineMarkdown,
   type TodayBoundary,
 } from '@orbit/shared/utils'
@@ -367,7 +367,7 @@ export const HabitRow = memo(function HabitRow({
   })
 
   const knownRowAccessibilityLabel = buildHabitRowAccessibilityLabel({
-    title: `${habit.title}, ${t(getHabitTypeLabelKey(habit))}`,
+    title: `${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`,
     dotState: resolveHabitAccessibleStatus(dotState, isDoneForRange),
     metaParts,
     linkedGoal: false,
@@ -375,7 +375,7 @@ export const HabitRow = memo(function HabitRow({
     streak: 0,
     t,
   })
-  const rowAccessibilityLabel = completionStatusUnavailable ? `${habit.title}, ${t(getHabitTypeLabelKey(habit))}` : knownRowAccessibilityLabel
+  const rowAccessibilityLabel = completionStatusUnavailable ? `${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}` : knownRowAccessibilityLabel
 
   const primaryContent = (
     <>
@@ -419,7 +419,7 @@ export const HabitRow = memo(function HabitRow({
   const rowContents = (
     <>
         {structuralColumn && isSelectMode ? (
-          <HabitRowSelection title={`${habit.title}, ${t(getHabitTypeLabelKey(habit))}`} selected={isSelected}
+          <HabitRowSelection title={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`} selected={isSelected}
             onToggleSelection={actions.onToggleSelection} tokens={tokens} />
         ) : null}
         {structuralColumn ? (
@@ -461,7 +461,7 @@ export const HabitRow = memo(function HabitRow({
     <View style={habitRowSpacing(panelEnd)}>
       <HabitRowLayout descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
-        metaColor={bodyPressFeedback.metaColor} typeLabel={t(getHabitTypeLabelKey(habit))} tokens={tokens}>
+        metaColor={bodyPressFeedback.metaColor} typeLabel={t(getHabitRowTypeLabelKey(habit))} tokens={tokens}>
         {rowContents}
       </HabitRowLayout>
 

@@ -200,6 +200,16 @@ describe('i18n locale parity', () => {
     expect(new Set([catalog.habits.form.typeTask, catalog.habits.form.typeHabit]).size).toBe(2)
   })
 
+  it.each([
+    { locale: 'en', catalog: en, task: 'Task', habit: 'Habit' },
+    { locale: 'pt-BR', catalog: ptBR, task: 'Tarefa', habit: 'Hábito' },
+  ])('keeps the short row type nouns exact and distinct in $locale', ({ catalog, task, habit }) => {
+    expect(catalog.habits.rowTypeTask).toBe(task)
+    expect(catalog.habits.form.typeHabit).toBe(habit)
+    expect(catalog.habits.rowTypeTask).not.toBe(catalog.habits.form.typeTask)
+    expect(new Set([catalog.habits.rowTypeTask, catalog.habits.form.typeHabit]).size).toBe(2)
+  })
+
   it('keeps internal habit type names out of copy while retaining the named General view', () => {
     const otherMeanings = new Set([
       'preferences.general',

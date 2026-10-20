@@ -16,7 +16,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 const geometryLocale = vi.hoisted(() => ({ value: 'en' as 'en' | 'pt-BR' }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => {
   const messages = geometryLocale.value === 'en' ? en : ptBR
-  return key === 'habits.form.typeTask' ? messages.habits.form.typeTask : key === 'habits.form.typeHabit' ? messages.habits.form.typeHabit : key
+  return key === 'habits.rowTypeTask' ? messages.habits.rowTypeTask : key === 'habits.form.typeTask' ? messages.habits.form.typeTask : key === 'habits.form.typeHabit' ? messages.habits.form.typeHabit : key
 } }))
 
 describe('habit row standard in Chromium', () => {
@@ -175,7 +175,7 @@ describe('habit row standard in Chromium', () => {
       expect(types).toHaveLength(10)
       const messages = locale === 'en' ? en : ptBR
       for (const [index, type] of types.entries()) {
-        expect(type.text).toBe(index === 0 ? messages.habits.form.typeTask : messages.habits.form.typeHabit)
+        expect(type.text).toBe(index === 0 ? messages.habits.rowTypeTask : messages.habits.form.typeHabit)
         expect(type.overflow).not.toBe('ellipsis')
         expect(type.whiteSpace).toBe('normal')
         expect(type.top).toBeGreaterThanOrEqual(type.bottom)
@@ -255,7 +255,7 @@ describe('habit row standard in Chromium', () => {
         const row = rows.nth(index)
         const described = Math.floor(index / 3) % 2 === 1
         const messages = locale === 'en' ? en : ptBR
-        await assertPreviewRow(row, page, scale, described, index % 3 === 1 ? messages.habits.form.typeTask : messages.habits.form.typeHabit)
+        await assertPreviewRow(row, page, scale, described, index % 3 === 1 ? messages.habits.rowTypeTask : messages.habits.form.typeHabit)
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
     } finally { await page.close() }

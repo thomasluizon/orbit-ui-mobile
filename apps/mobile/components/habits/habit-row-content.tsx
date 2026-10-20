@@ -1,4 +1,4 @@
-import { getHabitTypeLabelKey, stripInlineMarkdown } from '@orbit/shared/utils'
+import { getHabitRowTypeLabelKey, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
@@ -56,7 +56,7 @@ export function HabitRowContent({
         numberOfLines={largeText ? 2 : 1} ellipsizeMode="tail"
         style={[styles.description, { color: metaColor }]}>{description}</Text> : null}
 
-      {metaOnSupportingLine ? null : <HabitRowTypeLabel label={t(getHabitTypeLabelKey(habit))} color={metaColor} />}
+      {metaOnSupportingLine ? null : <HabitRowTypeLabel label={t(getHabitRowTypeLabelKey(habit))} color={metaColor} />}
       {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} />}
     </View>
   )

@@ -631,6 +631,7 @@
     "backToHabits": "Hábitos",
     "completed": "concluídos",
     "rowProgress": "{done} de {total}",
+    "rowTypeTask": "Tarefa",
     "drillProgress": "{done} de {total} feitos",
     "deleteConfirmTitle": "Apagar este hábito?",
     "deleteConfirmMessage": "Isso remove o hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece.",
