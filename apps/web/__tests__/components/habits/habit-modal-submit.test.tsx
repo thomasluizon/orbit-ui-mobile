@@ -143,6 +143,7 @@ describe('habit edit start date', () => {
   beforeEach(() => { vi.resetAllMocks() })
 
   it.each([
+    ['2026-01-01', 'Starts on January 1'],
     ['2026-08-20', 'Starts on August 20'],
     ['2026-08-28', 'Starts on August 28'],
     [undefined, `Starts on ${formatLocaleDayMonth('2026-08-29T00:30:00Z', 'en')}`],

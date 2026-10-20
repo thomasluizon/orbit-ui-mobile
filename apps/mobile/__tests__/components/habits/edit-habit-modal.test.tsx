@@ -246,11 +246,18 @@ describe('EditHabitModal (mobile)', () => {
     expect(findSaveButton(tree)?.props.disabled).toBe(false)
   })
 
-  it('passes the immutable creation timestamp as the start date', async () => {
-    const tree = await renderModal()
-    const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+  it.each([
+    ['2026-08-28', '2026-08-28'],
+    [undefined, '2026-08-29T00:30:00Z'],
+  ])('passes API start date %s to the edit form with legacy timestamp compatibility', async (startDate, expected) => {
+    const habit = createMockHabit({ startDate, createdAtUtc: '2026-08-29T00:30:00Z' })
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<EditHabitModal open onClose={vi.fn()} habit={habit} />)
+    })
 
-    expect(findFormFields(tree).props.startDate).toBe(habit.createdAtUtc)
+    expect(findFormFields(tree).props.startDate).toBe(expected)
+    await TestRenderer.act(() => tree.update(<></>))
   })
 
   it('sends the goal list from the explicit goal action', async () => {
