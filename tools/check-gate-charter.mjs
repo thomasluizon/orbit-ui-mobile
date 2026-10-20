@@ -22,6 +22,7 @@ const BLOCKING_INVENTORIES = new Set([
   ".github/workflows/guards.yml#architecture-map",
   ".github/workflows/guards.yml#contract-drift",
   ".github/workflows/guards.yml#dependency-audit",
+  ".github/workflows/guards.yml#workflow-syntax",
   "tools/check-dashes.mjs",
   "tools/check-sonar-paths.mjs",
 ])
@@ -337,7 +338,7 @@ function validateEntry(id, entry) {
     problems.push(`${id}: scope must be changed-files, whole-tree-advisory, or whole-tree-blocking`)
   }
   if (entry.scope === "whole-tree-blocking" && !BLOCKING_INVENTORIES.has(id)) {
-    problems.push(`${id}: whole-tree-blocking is reserved for registered inventories and dependency audit`)
+    problems.push(`${id}: whole-tree-blocking is reserved for registered inventories, dependency audit and workflow syntax`)
   }
   if (entry.snapshot !== "none" && (typeof entry.snapshot !== "string" || entry.snapshot.trim() === "")) {
     problems.push(`${id}: snapshot must be none or a regeneration command`)
@@ -376,6 +377,7 @@ function blockingInventoryRuns(group, job) {
     "architecture-map": ["node tools/arch-map.mjs", 'if ! cmp -s "$artifact" "$RUNNER_TEMP/first-$artifact"; then', "exit 1"],
     "contract-drift": ["npx --yes orval@8.37.0 --config ./orval.config.ts", "if ! git diff --quiet -- packages/shared/src/types/__generated__/api.generated.ts; then", "exit 1"],
     "dependency-audit": ["node --test .github/scripts/check-critical-production-cves.test.mjs", "node .github/scripts/check-critical-production-cves.mjs"],
+    "workflow-syntax": ['"$actionlint_dir/actionlint" -shellcheck= -pyflakes= .github/workflows/*.yml'],
   }[group]
   return required?.every((command) => scripts.some((script) => script.includes(command))) ?? false
 }
