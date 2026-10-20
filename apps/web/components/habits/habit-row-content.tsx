@@ -43,7 +43,7 @@ export function HabitRowContent({
         style={{ fontFamily: 'var(--font-sans)', fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
         {description}
       </span> : null}
-      <span data-habit-row-type="" className="habit-row-meta min-w-0 font-mono text-xs leading-[1.4]" style={{ overflowWrap: 'anywhere' }}>{t(getHabitTypeLabelKey(habit))}</span>
+      <span data-habit-row-type="" className="habit-row-meta min-w-0 self-start font-mono text-xs leading-[1.4]">{t(getHabitTypeLabelKey(habit))}</span>
       {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
       {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>
