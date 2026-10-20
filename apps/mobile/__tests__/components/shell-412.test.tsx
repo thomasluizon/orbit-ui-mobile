@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { __emitKeyboardEvent, __setWindowDimensions } from '../../test-mocks/react-native'
+import { __emitKeyboardEvent, __focusHost, __getFocusedNativeTag, __setWindowDimensions } from '../../test-mocks/react-native'
 import { Shell412 } from '@/components/shell/shell-412'
+import { Composer } from '@/components/shell/composer'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useShellScrollToTopSlot } from '@/components/shell/shell-scroll-to-top-slot'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
@@ -16,9 +17,6 @@ const safeArea = vi.hoisted(() => ({ bottom: 24 }))
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: safeArea.bottom, left: 0 }),
   SafeAreaView: (props: Record<string, unknown>) => React.createElement('SafeAreaView', props),
-}))
-vi.mock('@/lib/theme', () => ({
-  createTokensV2: () => ({ bg: '#111111', hairline: '#222222' }),
 }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
@@ -43,6 +41,36 @@ describe('Shell412 mobile', () => {
   beforeEach(() => {
     safeArea.bottom = 24
   })
+
+  it.each([[412, 915], [480, 915], [840, 900], [1100, 900], [1352, 915], [1200, 1600], [1600, 1200], [740, 240]])(
+    'preserves composer input focus and its expanded menu across FAB changes at %i by %i', async (width, height) => {
+      __setWindowDimensions({ width, height, scale: 1, fontScale: 1 })
+      const composer = <Composer state="idle" value="Keep this draft" onChangeValue={vi.fn()} onSend={vi.fn()} suggestions={[]}
+        words={{ placeholder: 'Ask Astra', send: 'Send', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
+        onAttachFile={vi.fn()} attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }} />
+      const shell = (floating: boolean) => <Shell412 composer={composer} tabBar={React.createElement('TabBar')}
+        fab={floating ? React.createElement('Fab') : undefined} />
+      let tree!: ReactTestRenderer
+      await TestRenderer.act(() => { tree = TestRenderer.create(shell(true)) })
+      try {
+        const textInput = () => tree.root.findAll(node => String(node.type) === 'TextInput')[0]!
+        const input = textInput()
+        const nativeTag = input.props.__nativeTag as number
+        const actions = () => tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'Attach')[0]!
+        const expanded = () => (actions().props.accessibilityState as { expanded: boolean }).expanded
+        await TestRenderer.act(() => __focusHost(nativeTag))
+        await TestRenderer.act(() => (actions().props.onPress as () => void)())
+        expect(__getFocusedNativeTag()).toBe(nativeTag)
+        expect(expanded()).toBe(true)
+        for (const floating of [false, true]) {
+          await TestRenderer.act(() => tree.update(shell(floating)))
+          expect.soft(textInput() === input, 'same mounted input').toBe(true)
+          expect.soft(__getFocusedNativeTag(), 'input keeps native focus').toBe(nativeTag)
+          expect.soft(expanded(), 'menu stays expanded').toBe(true)
+        }
+      } finally { await TestRenderer.act(() => tree.update(<></>)) }
+    },
+  )
 
   it('places the optional pill inside the scroller and removes registered content on unmount', async () => {
     function RegisteredPill() {

@@ -22,19 +22,19 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{
   const viewportSize = useRef({ height: 0, contentHeight: 0 })
   function revealBottomControls() {
     const { height, contentHeight } = viewportSize.current
-    viewportRef.current?.scrollTo({ y: Math.max(0, contentHeight - height - PADDING.screenGutter), animated: false })
+    viewportRef.current?.scrollTo({ y: floating ? Math.max(0, contentHeight - height - PADDING.screenGutter) : 0, animated: false })
   }
-  if (!floating) return children
   return <ScrollView
     ref={viewportRef}
     testID="shell-bottom-viewport"
-    style={[styles.bottomViewport, { minHeight: minimumHeight }]}
-    contentContainerStyle={styles.fabClearance}
+    style={[floating ? styles.bottomViewport : styles.pinnedSlot, { minHeight: minimumHeight }]}
+    contentContainerStyle={floating ? styles.fabClearance : styles.plainBottomContent}
+    scrollEnabled={floating}
     keyboardShouldPersistTaps="handled"
-    nestedScrollEnabled
+    nestedScrollEnabled={floating}
     onLayout={event => { viewportSize.current.height = event.nativeEvent.layout.height; revealBottomControls() }}
     onContentSizeChange={(_width, height) => { viewportSize.current.contentHeight = height; revealBottomControls() }}
-  ><View style={styles.bottomContent}>{children}</View></ScrollView>
+  ><View style={[styles.bottomContent, !floating && styles.plainBottomContent]}>{children}</View></ScrollView>
 }
 
 function ShellBottomChrome({
@@ -77,9 +77,9 @@ function ShellBottomChrome({
             {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
             {pinnedSlot !== undefined ? (
               <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum, display: conversationOpen ? 'none' : 'flex' }]}>
-                {fab !== undefined ? <View testID="shell-pinned-slot">{pinnedSlot}</View> : (
-                  <ScrollView testID="shell-pinned-slot" style={[styles.pinnedSlot, { minHeight: actionMinimum }]} keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
-                )}
+                <ScrollView testID="shell-pinned-slot" scrollEnabled={fab === undefined} nestedScrollEnabled={fab === undefined}
+                  style={[styles.pinnedSlot, fab !== undefined && styles.floatingPinnedSlot, { minHeight: actionMinimum }]}
+                  keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
               </View>
             ) : null}
             {fab !== undefined ? (
@@ -292,6 +292,7 @@ const styles = StyleSheet.create({
     zIndex: zLayers.sticky,
   },
   pinnedSlot: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
+  floatingPinnedSlot: { flexShrink: 0 },
   composerBand: {
     flexShrink: 1,
     minHeight: 0,
@@ -309,6 +310,7 @@ const styles = StyleSheet.create({
   },
   floatingColumn: { flexGrow: 1 },
   bottomContent: { position: 'relative' },
+  plainBottomContent: { flexShrink: 1 },
   bottomViewport: { flexGrow: 1, flexShrink: 1, minHeight: 0 },
   fabClearance: { paddingTop: SHELL_SCROLLER_CLEARANCE },
   fabBand: { position: 'absolute', top: 0, height: 0, left: 0, right: 0 },

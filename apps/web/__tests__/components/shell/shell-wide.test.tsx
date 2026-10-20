@@ -150,21 +150,36 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-destination-viewport]')?.parentElement).toHaveClass('pb-[var(--safe-bottom)]')
   })
 
-  it('keeps the composer mounted when the floating add control changes visibility', () => {
-    function DraftInput() {
-      const [draft, setDraft] = useState('')
-      return <input aria-label="Draft" value={draft} onChange={event => setDraft(event.target.value)} />
-    }
+  it.each([412, 480, 840, 1100, 1352])('preserves composer focus and its expanded menu across FAB changes at %ipx', async (width) => {
+    media.width = width
+    const composer = <Composer state="idle" value="Keep this draft" onChangeValue={vi.fn()} onSend={vi.fn()} suggestions={[]}
+      words={{ placeholder: 'Ask Astra', send: 'Send', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
+      onAttachFile={vi.fn()} attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }} />
     const shell = (floating: boolean) => <ShellWide astraRow={{ label: 'Astra', onOpen: vi.fn() }} items={items} activeId="hoje" navLabel="Main navigation"
-      composer={<DraftInput />} tabBar={<nav>Tabs</nav>}
+      composer={composer} tabBar={<nav>Tabs</nav>}
       fab={floating ? <button type="button">Create</button> : undefined} />
     const { rerender } = render(shell(true))
-    const input = screen.getByRole('textbox', { name: 'Draft' })
-    fireEvent.change(input, { target: { value: 'Keep this draft' } })
+    const input = screen.getByRole('textbox')
+    act(() => input.focus())
     for (const floating of [false, true]) {
       rerender(shell(floating))
-      expect(screen.getByRole('textbox', { name: 'Draft' })).toBe(input)
+      expect(screen.getByRole('textbox')).toBe(input)
       expect(input).toHaveValue('Keep this draft')
+      expect(input).toHaveFocus()
+    }
+    const trigger = screen.getByRole('button', { name: 'Attach' })
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    const menu = await screen.findByRole('menu', { name: 'Attach' })
+    const item = within(menu).getByRole('menuitem', { name: 'Document' })
+    act(() => item.focus())
+    expect(item).toHaveFocus()
+    for (const floating of [false, true]) {
+      rerender(shell(floating))
+      expect(screen.getByRole('textbox', { hidden: true })).toBe(input)
+      expect(screen.getByRole('menu', { name: 'Attach' })).toBe(menu)
+      expect(input.closest('[data-composer-root]')).toContainElement(trigger)
+      expect(trigger).toHaveAttribute('aria-expanded', 'true')
+      expect(item).toHaveFocus()
     }
   })
 

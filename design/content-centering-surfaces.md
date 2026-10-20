@@ -86,7 +86,10 @@ yields height before the page region, and the destination viewport scrolls when 
 and the measured header and tabs exceed the window.
 Android applies that minimum only while the floating target is present. Without it, the page
 keeps its 48px minimum and the pinned action or composer owns its bounded ScrollView, preserving
-the existing short-window budget. Only floating compositions use the shared bottom viewport.
+the existing short-window budget. Only floating compositions enable shared bottom scrolling.
+Both compositions retain the same bottom viewport and pinned ScrollView ancestry. Floating-add
+visibility changes update their scrolling props, flex styles and clearance without remounting
+the composer input or closing its action menu.
 Wide web removes the destination viewport from layout and resets its overflow to visible.
 Notices keep a measurable parent column with or without the floating target, including when
 the wide shell no longer needs the bottom viewport.
@@ -101,6 +104,13 @@ Both centring suites mount the production composer, Fab and BottomTabBar at 840 
 send, attachment and create controls, page separation and the tab bar's window bounds. Android
 also drives the native layout and content-size callbacks to check the initial composer reveal.
 The Yoga adapter includes ScrollView's installed flex and overflow defaults.
+
+The Android shell transition cases mount the production Composer, focus its input and open its
+attachment menu, then remove and restore only the floating-add prop. They require the same input
+instance, native focus and expanded menu at phone, foldable, inner-screen orientation and short
+window sizes. The web shell cases cover input focus and an expanded menu through the same
+transition, including the sheet and anchored presentations. Web retains its existing div ancestry
+and changes only layout classes when floating-add visibility changes.
 
 `use-content-frame-style.test.tsx` measures every shared Android cap. The web
 `foldable-shell-geometry.test.tsx` checks the corresponding content frame, shared shell,
