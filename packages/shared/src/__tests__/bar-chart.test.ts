@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { resolveBarChartReadout, resolveBarChartSelection, resolveBarChartGeometry, stepSelection } from '../contracts/display'
+import { resolveBarChartReadout, resolveBarChartSelection, resolveBarChartGeometry, stepSelection, BAR_CHART_HEIGHT } from '../contracts/display'
+import { INTERACTION_FILL_CLEARANCE } from '../theme/interaction'
 import { mapCompletionSeries } from '../utils/completion-series'
 
 describe('bar chart geometry', () => {
@@ -22,9 +23,29 @@ describe('bar chart geometry', () => {
     }
   })
 
+  it.each([0, 50, 100])('clears each fill edge for a %i percent bar', (rate) => {
+    const [bar] = resolveBarChartGeometry([rate], 100)
+    expect(bar!.y).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+    expect(BAR_CHART_HEIGHT - bar!.y - bar!.height).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+    expect(bar!.x).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+    expect(100 - bar!.x - bar!.width).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+  })
+
+  it.each([288, 380, 1320])('clears neighbouring bars in a %i pixel plot', (width) => {
+    const bars = resolveBarChartGeometry(Array.from({ length: 30 }, () => 100), width)
+    for (const [index, bar] of bars.entries()) {
+      const previous = bars[index - 1]
+      const next = bars[index + 1]
+      const fillLeft = bar.slotStart + bar.fillInsetInline
+      const fillRight = bar.slotEnd - bar.fillInsetInline
+      if (previous) expect(fillLeft - previous.x - previous.width).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE - 0.001)
+      if (next) expect(next.x - fillRight).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE - 0.001)
+    }
+  })
+
   it('uses a four pixel stub for empty and zero days', () => {
     const bars = resolveBarChartGeometry([null, 0, 100], 320)
-    expect(bars.map((bar) => bar.height)).toEqual([4, 4, 96])
+    expect(bars.map((bar) => bar.height)).toEqual([4, 4, 88])
     expect(stepSelection(1, 3, 'right')).toBe(2)
     expect(stepSelection(2, 3, 'right')).toBe(0)
     expect(stepSelection(2, 3, 'home')).toBe(0)

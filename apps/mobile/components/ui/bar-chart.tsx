@@ -58,8 +58,8 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           style={[styles.target, { left: index * width / points.length, width: width / points.length }]}
         >
           {({ pressed }) => <>
-            <View pointerEvents="none" accessible={false} style={[styles.feedback, { backgroundColor: pressed || hovered === index ? tokens.bgHover : 'transparent' }]} />
-            {focused === index ? <View pointerEvents="none" accessible={false} style={[styles.focusRing, { borderColor: tokens.fg1 }]} /> : null}
+            <View testID="bar-chart-fill" pointerEvents="none" accessible={false} style={[styles.feedback, { left: bars[index]?.fillInsetInline ?? 0, right: bars[index]?.fillInsetInline ?? 0, backgroundColor: pressed || hovered === index ? tokens.bgHover : 'transparent' }]} />
+            {focused === index ? <View pointerEvents="none" accessible={false} style={[styles.focusRing, { left: bars[index]?.fillInsetInline ?? 0, right: bars[index]?.fillInsetInline ?? 0, borderColor: tokens.fg1 }]} /> : null}
           </>}
         </Pressable>)}
         <Svg style={styles.paint} accessible={false} pointerEvents="none" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`}>

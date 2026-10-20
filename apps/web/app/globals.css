@@ -1842,6 +1842,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 
   .orbit-tab:focus-visible,
+  .orbit-bar-chart-column:focus-visible,
   .orbit-calendar-nav-control:focus-visible,
   .orbit-calendar-picker-control:focus-visible,
   .orbit-calendar-day-disclosure:focus-visible,
@@ -1851,6 +1852,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 
   .orbit-tab:focus-visible::after,
+  .orbit-bar-chart-column:focus-visible > [data-slot="bar-chart-focus"],
   .orbit-calendar-nav-control:focus-visible::before,
   .orbit-calendar-picker-control:focus-visible::before,
   .orbit-calendar-day-disclosure:focus-visible::before,

@@ -7,7 +7,7 @@ import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { mapCompletionSeries } from '@orbit/shared/utils'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { BarChart } from '@/components/ui/bar-chart'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -127,9 +127,36 @@ describe('BarChart on Android', () => {
       expect(style.left + 240).toBeLessThanOrEqual(width)
     }
     const paths = tree.root.findAll((node) => String(node.type) === 'Path')
-    expect(paths[0]!.props.d).toContain('92')
-    expect(paths[1]!.props.d).toContain('92')
+    expect(paths[0]!.props.d).toContain('88')
+    expect(paths[1]!.props.d).toContain('88')
     expect(new Set(paths.map((path) => path.props.fill)).size).toBe(2)
+  })
+
+  it.each([288, 380, 1320].flatMap((width) => [0, 50, 100].map((rate) => ({ width, rate }))))('keeps pressed fill clear of its $rate percent bar at $width', ({ width, rate }) => {
+    void act(() => tree.update(<BarChart points={points.map((point) => ({ ...point, rate }))} label="Completion" />))
+    layout(host(tree.root, 'bar-chart-control'), width)
+    const target = radios()[1]!
+    trigger(target, 'onPressIn')
+    const feedback = target.findAll((node) => typeof node.type === 'string' && node.props.pointerEvents === 'none')[0]!
+    const fill = StyleSheet.flatten(feedback.props.style) as { backgroundColor: string; top: number; bottom: number; left: number; right: number }
+    expect(fill.backgroundColor).not.toBe('transparent')
+    const path = tree.root.findAll((node) => String(node.type) === 'Path')[1]!
+    const numbers = String(path.props.d).match(/-?\d+(?:\.\d+)?/g)!.map(Number)
+    const bottom = numbers[1]!
+    const top = numbers[4]!
+    expect(top - fill.top).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+    expect(geometryStyle(target).height - fill.bottom - bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+    const targetBounds = geometryStyle(target)
+    const paths = tree.root.findAll((node) => String(node.type) === 'Path')
+    const previous = String(paths[0]!.props.d).match(/-?\d+(?:\.\d+)?/g)!.map(Number)
+    const next = String(paths[2]!.props.d).match(/-?\d+(?:\.\d+)?/g)!.map(Number)
+    expect(targetBounds.left + fill.left - previous[8]!).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE - 0.001)
+    expect(next[0]! - targetBounds.left - targetBounds.width + fill.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE - 0.001)
+    trigger(target, 'onPressOut')
+    trigger(target, 'onFocus')
+    const ring = target.findAll((node) => typeof node.type === 'string' && node.props.pointerEvents === 'none')[1]!
+    const focus = StyleSheet.flatten(ring.props.style) as { left: number; right: number; borderWidth: number }
+    expect(focus).toMatchObject({ left: fill.left, right: fill.right, borderWidth: 2 })
   })
 
   it.each(['en', 'pt-BR'] as const)('retains complete weekly ranges and values in %s', (locale) => {

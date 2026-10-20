@@ -106,10 +106,11 @@ export function inspectInteractionFill(control: Element, clearance: number) {
     && (!shellRegion || !node.closest('[data-shell-scroller], [data-shell-bottom]') || node.closest('[data-shell-scroller], [data-shell-bottom]') === shellRegion)
     && !(element.matches('input.orbit-field-hover, textarea.orbit-field-hover') && node.matches('svg[aria-hidden="true"]:not([tabindex]):not([role])')
       && node.parentElement === element.parentElement && getComputedStyle(node).pointerEvents === 'none')
-    && visible(node) && !node.parentElement?.closest('svg'))
+    && visible(node) && !node.matches('svg[data-interaction-fill-graphics]')
+    && (!node.parentElement?.closest('svg') || node.matches('svg[data-interaction-fill-graphics] > path')))
   const violations = hasFill ? neighbours.flatMap((neighbour) => {
     const style = getComputedStyle(neighbour)
-    const boxes = [painted(style) || neighbour.matches('img, svg, canvas, video') ? expand(neighbour.getBoundingClientRect(), style) : null,
+    const boxes = [painted(style) || neighbour.matches('img, svg, canvas, video, svg[data-interaction-fill-graphics] > path') ? expand(neighbour.getBoundingClientRect(), style) : null,
       pseudoBox(neighbour, '::before'), pseudoBox(neighbour, '::after')].filter((box) => box !== null)
     for (const child of neighbour.childNodes) {
       if (child.nodeType !== Node.TEXT_NODE || !child.textContent?.trim()) continue
@@ -123,9 +124,12 @@ export function inspectInteractionFill(control: Element, clearance: number) {
     return boxes.flatMap((box) => {
       const horizontal = Math.max(0, box.left - fill.right, fill.left - box.right)
       const vertical = Math.max(0, box.top - fill.bottom, fill.top - box.bottom)
-      const distance = Math.hypot(horizontal, vertical)
+      const ownGraphic = neighbour.matches('svg[data-interaction-fill-graphics] > path') && insideCell(box)
+      const distance = ownGraphic
+        ? Math.min(box.top - fill.top, fill.bottom - box.bottom)
+        : Math.hypot(horizontal, vertical)
       const outsideCell = box.right <= bounds.left + 0.1 || box.left >= bounds.right - 0.1 || box.bottom <= bounds.top + 0.1 || box.top >= bounds.bottom - 0.1
-      return !(containedCell && outsideCell) && distance + 0.1 < clearance ? [{ neighbour: name(neighbour), distance }] : []
+      return !(containedCell && outsideCell && !neighbour.matches('svg[data-interaction-fill-graphics] > path')) && distance + 0.1 < clearance ? [{ neighbour: name(neighbour), distance }] : []
     })
   }) : []
   return { control: name(control), fill, hasFill, violations: [...violations, ...boundaryViolations()] }

@@ -24,6 +24,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Destination tab focus | `components/navigation/bottom-tab-bar.tsx`, `app/globals.css` | `components/navigation/bottom-tab-bar.tsx` | The single focus perimeter sits 4px inside the full-column target, including at the page edge and in forced colors |
 | Wide sidebar brand controls | `components/shell/shell-wide.tsx` | Web-only navigation chrome | The 48px bell and collapse targets retain their 12px gap; a 4px trailing row inset reserves clearance from the lockup, and focus stays inset |
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Both platforms reserve 8px above the explanation, covering the menu control's outward focus indicator plus the shared clearance |
+| Progresso bar chart | `components/ui/bar-chart.tsx` | `components/ui/bar-chart.tsx` | Shared bar geometry reserves 4px at both block edges inside the unchanged full-height targets; narrow slots inset their fill enough to retain 4px before neighbouring bars |
 | Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date headers paint inside their own grid cells |
 | Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and a 4px checkbox gap; event fills retain 4px before their separate trailing action |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent 12px content gap retains 4px and focus stays inset |
@@ -76,3 +77,10 @@ style layout contract; it does not claim device rendering evidence.
 The habit detail composer retains the screen gutter on both sides of its field at every width,
 including in the capped wide column. The mounted shell style cases cover both locales while
 pressed and focused, retain the field's size and measure its 12px gap to the retry action.
+
+The Progresso fixture supplies zero, partial and complete bars. The inspector measures the marked
+SVG paths, including block clearance inside the active column, rather than the transparent SVG
+viewport. Chromium unit cases exercise hover and held press in both locales and reject a bar
+translated into the fill edge. The calendar inventory also opens Semana and measures all seven
+header controls. Android presses the mounted chart and measures its resolved fill against the
+rendered bar paths and both neighbours at compact and wide plot widths.
