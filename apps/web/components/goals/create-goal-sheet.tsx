@@ -27,7 +27,7 @@ import {
   parseGoalTargetValue,
 } from '@orbit/shared/utils/goal-form'
 import { ListRow } from '@/components/ui/list-row'
-import { GoalHabitsPicker } from './goal-habits-field'
+import { GoalHabitsPicker, GoalHabitsSelectionNote } from './goal-habits-field'
 import type { CreateGoalRequest, GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_TITLE_LENGTH, validateGoalForm } from '@orbit/shared/validation'
 import { FieldWell } from '@/components/goals/field-well'
@@ -39,7 +39,7 @@ interface CreateGoalSheetProps {
   open: boolean
   onClose: () => void
   initialHabitIds?: string[]
-  onCreated?: (goalId: string) => void
+  onCreated?: (goalId: string, habitIds: string[]) => void
 }
 
 
@@ -228,7 +228,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
         if (getAccountGeneration() !== accountGeneration) return
         closeSheet(() => {
           if (getAccountGeneration() !== accountGeneration) return
-          onCreated?.(created.id)
+          onCreated?.(created.id, habitIds)
           onClose()
           resetForm()
         })
@@ -263,6 +263,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
         )}
       >
         <form id={formId} onSubmit={(e) => void onSubmit(e)} noValidate>
+          <p className="max-w-prose pb-4 text-sm leading-[1.55] text-pretty text-[var(--fg-2)]">{t('goals.form.habitsExplainer')}</p>
           <div>
             <FieldWell
               inputRef={descriptionRef}
@@ -299,6 +300,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
 
           <GoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
           <ListRow title={t('goals.linkedHabits')} value={t('habits.form.selectedCount', { count: habitIds.length })} placement="column" disabled={isSubmitting} onClick={() => closeSheet(() => setSelectingHabits(true))} />
+          <GoalHabitsSelectionNote selectedIds={habitIds} />
           {formError ? <p role="alert" className="pt-3 text-sm text-[var(--status-bad-text)]">{formError}</p> : null}
         </form>
       </Sheet>) : null}

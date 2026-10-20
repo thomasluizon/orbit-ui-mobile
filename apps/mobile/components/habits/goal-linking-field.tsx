@@ -25,6 +25,7 @@ interface GoalLinkingFieldProps {
   selectedGoalIds: string[]
   atGoalLimit: boolean
   onToggleGoal: (goalId: string) => void
+  onGoalCreated?: (goalId: string) => void
 }
 
 async function fetchGoals(): Promise<Goal[]> {
@@ -49,7 +50,7 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<{ go
   </View>
 }
 
-export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onToggleGoal }: Readonly<GoalLinkingFieldProps>) {
+export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onToggleGoal, onGoalCreated }: Readonly<GoalLinkingFieldProps>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -66,14 +67,20 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
   })
 
 
+  const handleCreated = (goalId: string, habitIds: string[]) => {
+    if (atGoalLimit || (habitId && !habitIds.includes(habitId))) return
+    if (onGoalCreated) onGoalCreated(goalId)
+    else if (!habitId) onToggleGoal(goalId)
+  }
+
   return (
     <>
       <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} placement="column" onClick={() => setOpen(true)} />
       {selectedGoals.length > 0 ? <View style={styles.chips}>{selectedGoals.slice(0, 3).map((goal) => <View key={goal.id} style={styles.chip}><PersonalTextDetails lines={1} textStyle={styles.chipText}>{goal.title}</PersonalTextDetails></View>)}{selectedGoals.length > 3 ? <View style={[styles.chip, { paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s8 }]}><Text style={styles.chipText}>{t('habits.form.moreSelected', { count: selectedGoals.length - 3 })}</Text></View> : null}</View> : null}
       {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} virtualizedBody={activeGoals.length >= 21} actions={activeGoals.length ? <ActionRow><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('goals.create')}</PillButton></ActionRow> : undefined} onClose={() => setOpen(false)}>
-        {activeGoals.length === 0 ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noGoals')}</Text><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('habits.form.createGoal')}</PillButton></View> : <GoalPickerList goals={activeGoals} selectedIds={selectedGoalIds} atLimit={atGoalLimit} onToggle={onToggleGoal} />}
+        {activeGoals.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>{t('habits.form.goalInvitation')}</Text><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('habits.form.createGoal')}</PillButton></View> : <GoalPickerList goals={activeGoals} selectedIds={selectedGoalIds} atLimit={atGoalLimit} onToggle={onToggleGoal} />}
       </Sheet> : null}
-      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={habitId || atGoalLimit ? undefined : onToggleGoal} onClose={() => setCreating(false)} /> : null}
+      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={handleCreated} onClose={() => setCreating(false)} /> : null}
     </>
   )
 }

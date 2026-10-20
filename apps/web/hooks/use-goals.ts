@@ -21,7 +21,6 @@ import {
   updateGoalProgress as updateGoalProgressAction,
   updateGoalStatus as updateGoalStatusAction,
   reorderGoals as reorderGoalsAction,
-  linkHabitsToGoal as linkHabitsToGoalAction,
 } from '@/lib/actions/goals'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useUIStore } from '@/stores/ui-store'
@@ -44,6 +43,7 @@ export function useCreateGoal() {
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      await queryClient.invalidateQueries({ queryKey: habitKeys.details() })
     },
   })
 }
@@ -262,26 +262,6 @@ export function useReorderGoals() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-    },
-  })
-}
-
-export function useLinkHabitsToGoal() {
-  const queryClient = useQueryClient()
-
-  return useAccountScopedMutation({
-    mutationFn: ({
-      goalId,
-      habitIds,
-    }: {
-      goalId: string
-      habitIds: string[]
-    }, intendedAccountId) => linkHabitsToGoalAction(goalId, habitIds, intendedAccountId),
-
-    onSettled: (_data, _err, { goalId }) => {
-      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
     },
   })
 }

@@ -23,6 +23,7 @@ interface GoalLinkingFieldProps {
   selectedGoalIds: string[]
   atGoalLimit: boolean
   onToggleGoal: (goalId: string) => void
+  onGoalCreated?: (goalId: string) => void
 }
 
 interface GoalsListResponse { items: Goal[] }
@@ -63,7 +64,7 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
   }} />
 }
 
-export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onToggleGoal }: Readonly<GoalLinkingFieldProps>) {
+export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onToggleGoal, onGoalCreated }: Readonly<GoalLinkingFieldProps>) {
   const t = useTranslations()
   const [open, setOpen] = useAccountScopedState(false)
   const [creating, setCreating] = useAccountScopedState(false)
@@ -84,6 +85,12 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
     setCreating(true)
   })
 
+  const handleCreated = (goalId: string, habitIds: string[]) => {
+    if (atGoalLimit || (habitId && !habitIds.includes(habitId))) return
+    if (onGoalCreated) onGoalCreated(goalId)
+    else if (!habitId) onToggleGoal(goalId)
+  }
+
   return (
     <>
       <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} placement="column" onClick={() => setOpen(true)} />
@@ -97,7 +104,7 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
         <Sheet ref={sheetRef} open virtualizedBody={activeGoals.length >= 21} title={t('habits.form.goals')} actions={activeGoals.length ? <ActionRow><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('goals.create')}</PillButton></ActionRow> : undefined} onClose={() => setOpen(false)}>
           {activeGoals.length === 0 ? (
             <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}>
-              <p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noGoals')}</p>
+              <p className="max-w-full text-xl font-medium text-[var(--fg-1)]">{t('habits.form.goalInvitation')}</p>
               <PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('habits.form.createGoal')}</PillButton>
             </div>
           ) : (
@@ -105,7 +112,7 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
           )}
         </Sheet>
       ) : null}
-      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={habitId || atGoalLimit ? undefined : onToggleGoal} onClose={() => setCreating(false)} /> : null}
+      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={handleCreated} onClose={() => setCreating(false)} /> : null}
     </>
   )
 }

@@ -52,30 +52,6 @@ export function findLinkedHabits(
     .filter((habit): habit is LinkedHabitInfo => habit !== null)
 }
 
-export function updateGoalLinkedHabitsItem(goal: Goal, linkedHabits: LinkedHabitInfo[]): Goal {
-  return {
-    ...goal,
-    linkedHabits,
-  }
-}
-
-export function updateGoalLinkedHabitsDetail(
-  detail: GoalDetailWithMetrics | undefined,
-  linkedHabits: LinkedHabitInfo[],
-): GoalDetailWithMetrics | undefined {
-  if (!detail) {
-    return detail
-  }
-
-  return {
-    ...detail,
-    goal: {
-      ...detail.goal,
-      linkedHabits,
-    },
-  }
-}
-
 export async function invalidateGoalQueries(
   queryClient: QueryClient,
   options?: {

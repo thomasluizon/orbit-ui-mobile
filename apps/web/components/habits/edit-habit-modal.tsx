@@ -165,6 +165,10 @@ export function EditHabitModal({
     relationshipFieldsTouchedRef.current.goalIds = true
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
+  const selectCreatedGoal = (goalId: string) => {
+    relationshipFieldsTouchedRef.current.goalIds = true
+    setSelectedGoalIds((current) => current.includes(goalId) ? current : [...current, goalId])
+  }
 
   const handleSlipAlertEnabledChange = useCallback((nextEnabled: boolean) => {
     relationshipFieldsTouchedRef.current.slipAlertEnabled = true
@@ -463,12 +467,14 @@ export function EditHabitModal({
             }`}
           >
             <HabitFormFields
+              habitId={sessionHabitId ?? undefined}
               formHelpers={formHelpers}
               titleInputRef={titleInputRef}
               tags={trackedTags}
               selectedGoalIds={selectedGoalIds}
               atGoalLimit={atGoalLimit}
               onToggleGoal={toggleGoal}
+              onGoalCreated={selectCreatedGoal}
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
               onSlipAlertEnabledChange={handleSlipAlertEnabledChange}

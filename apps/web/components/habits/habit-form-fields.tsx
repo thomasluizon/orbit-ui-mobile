@@ -234,10 +234,12 @@ function ReminderEditors({
 
 export function HabitFormFields({
   formHelpers,
+  habitId,
   tags,
   selectedGoalIds,
   atGoalLimit,
   onToggleGoal,
+  onGoalCreated,
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
@@ -578,6 +580,8 @@ export function HabitFormFields({
 
             <section>
               <GoalLinkingField
+                habitId={habitId}
+                onGoalCreated={onGoalCreated ?? onToggleGoal}
                 selectedGoalIds={selectedGoalIds}
                 atGoalLimit={atGoalLimit}
                 onToggleGoal={onToggleGoal}

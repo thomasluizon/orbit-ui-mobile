@@ -10,6 +10,7 @@ interface HabitDetailFieldsState {
   reminderHabit: NormalizedHabit
   toggleField: (field: HabitDetailField) => void
   toggleGoal: (goalId: string) => void
+  selectCreatedGoal: (goalId: string) => void
   updateReminders: (changes: ReminderChanges) => string | null
 }
 
@@ -40,6 +41,7 @@ export function useHabitDetailFieldsState(
   const toggleField = useCallback((field: HabitDetailField) => {
     setOpenField(toggleHabitDetailField(openField, field))
   }, [openField])
+  const selectCreatedGoal = (goalId: string) => setGoalIds((current) => current.includes(goalId) ? current : [...current, goalId])
   const toggleGoal = useCallback((goalId: string) => {
     const next = toggleHabitDetailGoal(goalIds, goalId)
     setGoalIds(next)
@@ -67,6 +69,7 @@ export function useHabitDetailFieldsState(
     reminderHabit,
     toggleField,
     toggleGoal,
+    selectCreatedGoal,
     updateReminders,
   }
 }

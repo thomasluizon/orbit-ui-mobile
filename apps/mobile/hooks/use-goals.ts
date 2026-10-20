@@ -2,7 +2,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { goalKeys } from '@orbit/shared/query'
+import { goalKeys, habitKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type {
   Goal,
@@ -23,8 +23,6 @@ import {
   restoreGoalDetail,
   sortGoalsByPosition,
   updateGoalDetailItem,
-  updateGoalLinkedHabitsDetail,
-  updateGoalLinkedHabitsItem,
   updateGoalListItem,
   updateGoalProgressDetail,
   updateGoalProgressItem,
@@ -135,6 +133,7 @@ export function useCreateGoal() {
     onSettled: async (data) => {
       if (isQueuedResult(data)) return
       await invalidateGoalQueries(queryClient, { includeHabits: true })
+      await queryClient.invalidateQueries({ queryKey: habitKeys.details() })
     },
   })
 }
@@ -542,72 +541,6 @@ export function useReorderGoals() {
     onSettled: (data) => {
       if (isQueuedResult(data)) return
       void invalidateGoalQueries(queryClient)
-    },
-  })
-}
-
-export function useLinkHabitsToGoal() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({
-      goalId,
-      habitIds,
-    }: {
-      goalId: string
-      habitIds: string[]
-    }) => {
-      const mutation = buildQueuedMutation({
-        type: 'linkGoalHabits',
-        scope: 'goals',
-        endpoint: API.goals.habits(goalId),
-        method: 'PUT',
-        payload: { habitIds },
-        entityType: 'goal',
-        targetEntityId: goalId,
-        dependsOn: habitIds.filter((habitId) => habitId.startsWith('offline-')),
-      })
-
-      return queueOrExecute({
-        mutation,
-        execute: async () => apiClient<void>(API.goals.habits(goalId), {
-          method: 'PUT',
-          body: JSON.stringify({ habitIds }),
-        }),
-        queuedResult: createQueuedAck(mutation.id),
-      })
-    },
-
-    onMutate: async ({ goalId, habitIds }) => {
-      await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
-      await queryClient.cancelQueries({ queryKey: goalKeys.detail(goalId) })
-
-      const previousLists = queryClient.getQueriesData<Goal[]>({ queryKey: goalKeys.lists() })
-      const previousDetail = queryClient.getQueryData<GoalDetailWithMetrics>(goalKeys.detail(goalId))
-      const linkedHabits = findLinkedHabits(queryClient, habitIds)
-
-      queryClient.setQueriesData<Goal[]>(
-        { queryKey: goalKeys.lists() },
-        (old) => old?.map((goal) => (goal.id === goalId ? updateGoalLinkedHabitsItem(goal, linkedHabits) : goal)),
-      )
-      queryClient.setQueryData<GoalDetailWithMetrics | undefined>(
-        goalKeys.detail(goalId),
-        (old) => updateGoalLinkedHabitsDetail(old, linkedHabits),
-      )
-
-      return { previousLists, previousDetail }
-    },
-
-    onError: (_err, { goalId }, context) => {
-      if (context?.previousLists) {
-        restoreGoalLists(queryClient, context.previousLists)
-      }
-      restoreGoalDetail(queryClient, goalId, context?.previousDetail)
-    },
-
-    onSettled: (data, _err, { goalId }) => {
-      if (isQueuedResult(data)) return
-      void invalidateGoalQueries(queryClient, { goalId, includeHabits: true })
     },
   })
 }

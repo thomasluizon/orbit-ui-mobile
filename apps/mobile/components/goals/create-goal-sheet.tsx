@@ -28,7 +28,7 @@ import {
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ListRow } from '@/components/ui/list-row'
-import { GoalHabitsPicker } from './goal-habits-field'
+import { GoalHabitsPicker, GoalHabitsSelectionNote } from './goal-habits-field'
 import type { CreateGoalRequest, GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_TITLE_LENGTH, validateGoalForm } from '@orbit/shared/validation'
 import { GoalDeadlineField } from '../habits/create-goal-from-habit/goal-deadline-field'
@@ -40,7 +40,7 @@ interface CreateGoalSheetProps {
   open: boolean
   onClose: () => void
   initialHabitIds?: string[]
-  onCreated?: (goalId: string) => void
+  onCreated?: (goalId: string, habitIds: string[]) => void
 }
 
 
@@ -174,7 +174,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
       if (getAccountGeneration() !== accountGeneration) return
       const finishSave = () => {
         if (getAccountGeneration() !== accountGeneration) return
-        onCreated?.(created.id)
+        onCreated?.(created.id, habitIds)
         onClose()
         resetForm()
       }
@@ -208,6 +208,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
         )}
       >
         <View style={styles.form}>
+          <Text style={styles.explainer}>{t('goals.form.habitsExplainer')}</Text>
           <View>
             <Text style={styles.fieldLabel}>{t('goals.form.title')}</Text>
             <BottomSheetAppTextInput
@@ -257,6 +258,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
             onChangeDeadline={setDeadline}
           />
           {formError ? <Text accessibilityRole="alert" style={styles.fieldError}>{formError}</Text> : null}
+          <GoalHabitsSelectionNote selectedIds={habitIds} />
           <ListRow title={t('goals.linkedHabits')} value={t('habits.form.selectedCount', { count: habitIds.length })} placement="column" disabled={isSubmitting} onClick={() => closeSheet(() => setSelectingHabits(true))} />
         </View>
       </Sheet>) : null}

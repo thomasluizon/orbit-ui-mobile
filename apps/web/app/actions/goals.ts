@@ -81,14 +81,3 @@ export async function reorderGoals(
     body: JSON.stringify({ positions }),
   }, intendedAccountId))
 }
-
-export async function linkHabitsToGoal(
-  goalId: string,
-  habitIds: string[],
-  intendedAccountId: string | null,
-): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.goals.habits(goalId), {
-    method: 'PUT',
-    body: JSON.stringify({ habitIds }),
-  }, intendedAccountId))
-}

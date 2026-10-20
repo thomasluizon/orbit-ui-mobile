@@ -10,10 +10,12 @@
 | Habit create and edit | `goal-linking-field` | Empty and populated goal pickers open the same sheet; creation selects the new goal |
 | Habit detail | `habit-detail-fields`, `goal-linking-field` | Uses the same entry with the current habit preselected |
 | Create goal sheet | `goals/create-goal-sheet` | Title, type, target, unit, optional deadline, linked habits; validation, pending, failed save, dismissal and discard |
-| Linked habit picker | `goals/goal-habits-field` | Loading, failure and retry, empty, selection, capacity, long lists and search |
+| Linked habit picker | `goals/goal-habits-field` | Loading, failure and retry, habit creation and return with the goal draft retained, selection, capacity, long lists and search |
 
 The shell create action creates habits directly. There is no separate create menu or goal item to reroute.
 Astra conversation suggestion chips and accepted goal proposals retain their conversational flow.
+The create sheet explains linked progress and shows avoided-day guidance when a habit to avoid is selected.
+Habit edit and detail seed the current habit; successful creation selects its goal without a second write.
 The existing create form is reused across these entries; editing remains the second form implementation.
 The sheet primitive owns padding, scrolling, dismissal and focus. The footer keeps trailing ghost Cancelar
 and the filled create action outside the scrolling body.

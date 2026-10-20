@@ -40,6 +40,16 @@ describe('habit detail fields state', () => {
     await act(() => { fields.renderer.unmount() })
   })
 
+  it('selects a newly linked goal once without another save', async () => {
+    const onPatch = vi.fn().mockResolvedValue(true)
+    const fields = await renderFieldsState(onPatch)
+    await act(() => { fields.current().selectCreatedGoal('created-goal') })
+    await act(() => { fields.current().selectCreatedGoal('created-goal') })
+    expect(fields.current().goalIds).toEqual(['goal-1', 'created-goal'])
+    expect(onPatch).not.toHaveBeenCalled()
+    await act(() => { fields.renderer.unmount() })
+  })
+
   it('patches goals and valid reminder changes', async () => {
     const onPatch = vi.fn().mockResolvedValue(true)
     const fields = await renderFieldsState(onPatch)

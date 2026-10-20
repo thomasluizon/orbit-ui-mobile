@@ -202,10 +202,12 @@ export function createHabitFormSuggestionRevision(): HabitFormSuggestionRevision
 
 export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   formHelpers: FormHelpers
+  habitId?: string
   tags: TagState
   selectedGoalIds: string[]
   atGoalLimit: boolean
   onToggleGoal: (goalId: string) => void
+  onGoalCreated?: (goalId: string) => void
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
