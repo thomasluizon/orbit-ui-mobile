@@ -446,6 +446,85 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
 })
 
 describe('HabitDetailScreen', () => {
+  beforeEach(() => {
+    mocks.realHeaderRing = false
+    mocks.reducedMotion = false
+    mocks.realPressTokens = false
+    mocks.realListRows = false
+    mocks.realHabitRows = false
+    mocks.theme = 'dark'
+    mocks.metricsError = false
+    mocks.realMetrics = false
+    mocks.getStorage.mockReset().mockResolvedValue(null)
+    mocks.removeStorage.mockReset().mockResolvedValue(undefined)
+    queryClient.clear()
+    mocks.realTimeField = false;
+    mocks.realReminderSections = false;
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 29, 12))
+    clearOfflineQueue()
+    offlineMocks.serverLoggedHabits.clear()
+    offlineMocks.setOnline(false)
+    mocks.detail = makeDetail()
+    mocks.detailLoading = false
+    mocks.detailError = false
+    mocks.allHabitsFallback = null
+    mocks.allHabitsError = false
+    mocks.allHabitsLoading = false
+    mocks.allHabitsEnabled = undefined
+    mocks.logs = [
+      { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
+      { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
+    ]
+    mocks.metrics = {
+      currentStreak: 2,
+      longestStreak: 4,
+      weeklyCompletionRate: 80,
+      monthlyCompletionRate: 75,
+      totalCompletions: 2,
+      lastCompletedDate: '2026-08-27',
+    }
+    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
+    mocks.scopedHabits = new Map()
+    mocks.scopedHabitsByDate = new Map()
+    mocks.scopedRequests = []
+    mocks.log.mockReset()
+    mocks.update.mockReset()
+    mocks.updatePending = false
+    mocks.realUpdateHook = false
+    mocks.screenFocused = true
+    mocks.checklist.mockReset()
+    mocks.deleteHabit.mockReset()
+    mocks.showError.mockReset()
+    mocks.refetch.mockReset()
+    mocks.allHabitsRefetch.mockReset()
+    mocks.scopedLoading = false
+    mocks.scopedError = false
+    mocks.scopedRefetch.mockReset()
+    mocks.routerBack.mockReset()
+    mocks.routerPush.mockReset()
+    mocks.routerReplace.mockReset()
+    mocks.setStorage.mockReset()
+    mocks.setStorage.mockResolvedValue(undefined)
+    mocks.history = []
+    mocks.hasProAccess = true
+    mocks.timeZone = 'UTC'
+    mocks.profileReady = true
+    mocks.scopedCompleteDay = false
+    mocks.suggestion = null
+    mocks.rescheduleOptions = []
+    mocks.rescheduleError = null
+    mocks.rescheduleRefetch.mockReset()
+    mocks.language = 'en'
+    mocks.uses24HourClock = undefined
+    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
+  })
+
+  afterEach(() => {
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
+    vi.useRealTimers()
+  })
+
   it('keeps child progress in an unlogged bad habit parent header', () => {
     mocks.realHeaderRing = true
     mocks.logs = []
@@ -658,80 +737,6 @@ describe('HabitDetailScreen', () => {
       typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === mocks.detail!.title)
     expect(editingHeaders).toHaveLength(1)
   })
-  beforeEach(() => {
-    mocks.realHeaderRing = false
-    mocks.reducedMotion = false
-    mocks.realPressTokens = false
-    mocks.realListRows = false
-    mocks.realHabitRows = false
-    mocks.theme = 'dark'
-    mocks.metricsError = false
-    mocks.realMetrics = false
-    mocks.getStorage.mockReset().mockResolvedValue(null)
-    mocks.removeStorage.mockReset().mockResolvedValue(undefined)
-    queryClient.clear()
-    mocks.realTimeField = false;
-    mocks.realReminderSections = false;
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 7, 29, 12))
-    clearOfflineQueue()
-    offlineMocks.serverLoggedHabits.clear()
-    offlineMocks.setOnline(false)
-    mocks.detail = makeDetail()
-    mocks.detailLoading = false
-    mocks.detailError = false
-    mocks.allHabitsFallback = null
-    mocks.allHabitsError = false
-    mocks.allHabitsLoading = false
-    mocks.allHabitsEnabled = undefined
-    mocks.logs = [
-      { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
-      { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
-    ]
-    mocks.metrics = {
-      currentStreak: 2,
-      longestStreak: 4,
-      weeklyCompletionRate: 80,
-      monthlyCompletionRate: 75,
-      totalCompletions: 2,
-      lastCompletedDate: '2026-08-27',
-    }
-    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
-    mocks.scopedHabits = new Map()
-    mocks.scopedHabitsByDate = new Map()
-    mocks.scopedRequests = []
-    mocks.log.mockReset()
-    mocks.update.mockReset()
-    mocks.updatePending = false
-    mocks.realUpdateHook = false
-    mocks.screenFocused = true
-    mocks.checklist.mockReset()
-    mocks.deleteHabit.mockReset()
-    mocks.showError.mockReset()
-    mocks.refetch.mockReset()
-    mocks.allHabitsRefetch.mockReset()
-    mocks.scopedLoading = false
-    mocks.scopedError = false
-    mocks.scopedRefetch.mockReset()
-    mocks.routerBack.mockReset()
-    mocks.routerPush.mockReset()
-    mocks.routerReplace.mockReset()
-    mocks.setStorage.mockReset()
-    mocks.setStorage.mockResolvedValue(undefined)
-    mocks.history = []
-    mocks.hasProAccess = true
-    mocks.timeZone = 'UTC'
-    mocks.profileReady = true
-    mocks.scopedCompleteDay = false
-    mocks.suggestion = null
-    mocks.rescheduleOptions = []
-    mocks.rescheduleError = null
-    mocks.rescheduleRefetch.mockReset()
-    mocks.language = 'en'
-    mocks.uses24HourClock = undefined
-    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
-  })
-
   it.each(['valid', 'malformed'])('shows no data on a metrics error with %s cached values', (cached) => {
     if (cached === 'malformed') mocks.metrics = {} as HabitMetrics
     mocks.metricsError = true
@@ -1102,11 +1107,6 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: 'common.backToToday' }).props.onPress() })
     expect(mocks.routerReplace).toHaveBeenCalledWith({ pathname: '/(tabs)', params: { date: '2026-08-28' } })
     expect(mocks.routerBack).not.toHaveBeenCalled()
-  })
-
-  afterEach(() => {
-    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
-    vi.useRealTimers()
   })
 
   it('announces the habit name once on the rename control', () => {

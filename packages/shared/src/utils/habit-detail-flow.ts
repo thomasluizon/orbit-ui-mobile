@@ -183,7 +183,10 @@ function scheduledDayOutcome(
   logged: boolean,
   scheduled: boolean,
 ): HabitDayValue {
-  if (!scheduled) return habit.isBadHabit ? 'not-scheduled' : logged ? 'done' : 'not-scheduled'
+  if (!scheduled) {
+    if (habit.isBadHabit) return 'not-scheduled'
+    return logged ? 'done' : 'not-scheduled'
+  }
   if (habit.isBadHabit) return logged ? 'missed' : 'done'
   return logged ? 'done' : 'missed'
 }
@@ -205,13 +208,14 @@ export function buildHabitDetailChildDateModel(
   todayStr: string,
   source?: HabitDetailChild,
 ): HabitDetailChildDateModel {
-  const completed = scopedChild
-    ? scopedChild.isGeneral
+  let completed = false
+  if (scopedChild) {
+    completed = scopedChild.isGeneral
       ? scopedChild.isCompleted
       : scopedChild.instances.some(
           (instance) => instance.date === dateStr && instance.status === 'Completed',
         ) || scopedChild.isLoggedInRange
-    : false
+  }
   const habit = {
     ...detailChild,
     ...scopedChild,
@@ -269,7 +273,7 @@ export function isHabitSlipping(
   today: Date,
   accountTimeZone: string | null | undefined,
 ): boolean {
-  if (!metrics || metrics.currentStreak !== 0 || metrics.monthlyCompletionRate >= HABIT_SLIPPING_RATE_LIMIT) return false
+  if (metrics?.currentStreak !== 0 || metrics.monthlyCompletionRate >= HABIT_SLIPPING_RATE_LIMIT) return false
   const cutoff = formatAPIDate(addDays(today, -2))
   if (formatAPIDateInTimeZone(new Date(habit.createdAtUtc), accountTimeZone) > cutoff) return false
   const recentlyLogged = logs.some((log) => log.value > 0 && log.date >= cutoff)
@@ -337,15 +341,12 @@ export function buildHabitHistoryMonth(
     const future = dateStr > todayStr
     const scheduled = isScheduled(habit, date, logs, weekStartsOn)
     const stripOutcome = scheduledDayOutcome(habit, loggedAt !== null, scheduled)
-    const outcome = dateStr < cutoffStr
-      ? 'unavailable' as const
-      : future
-        ? 'future' as const
-        : stripOutcome === 'done'
-          ? 'full' as const
-          : stripOutcome === 'missed'
-            ? 'none' as const
-            : 'not-scheduled' as const
+    let outcome: HabitHistoryDay['outcome']
+    if (dateStr < cutoffStr) outcome = 'unavailable'
+    else if (future) outcome = 'future'
+    else if (stripOutcome === 'done') outcome = 'full'
+    else if (stripOutcome === 'missed') outcome = 'none'
+    else outcome = 'not-scheduled'
 
     return {
       date,

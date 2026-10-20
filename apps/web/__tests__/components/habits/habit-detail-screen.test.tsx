@@ -300,6 +300,72 @@ function openRescueGate() {
 }
 
 describe('HabitDetailScreen', () => {
+  beforeEach(() => {
+    mocks.realHeaderRing = false
+    mocks.realChildRows = false
+    mocks.pathname = '/habits/habit-1'
+    mocks.realTimeField = false;
+    mocks.realReminderSections = false;
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 29, 12))
+    mocks.detail = makeDetail()
+    mocks.detailLoading = false
+    mocks.detailError = false
+    mocks.allHabitsFallback = null
+    mocks.allHabitsError = false
+    mocks.allHabitsLoading = false
+    mocks.allHabitsEnabled = undefined
+    mocks.logs = [
+      { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
+      { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
+    ]
+    mocks.metricsError = false
+    mocks.metrics = {
+      currentStreak: 2,
+      longestStreak: 4,
+      weeklyCompletionRate: 80,
+      monthlyCompletionRate: 75,
+      totalCompletions: 2,
+      lastCompletedDate: '2026-08-27',
+    }
+    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
+    mocks.scopedHabits = new Map()
+    mocks.scopedHabitsByDate = new Map()
+    mocks.scopedRequests = []
+    mocks.log.mockReset()
+    mocks.update.mockReset()
+    mocks.updatePending = false
+    mocks.checklist.mockReset()
+    mocks.deleteHabit.mockReset()
+    mocks.showError.mockReset()
+    mocks.refetch.mockReset()
+    mocks.allHabitsRefetch.mockReset()
+    mocks.scopedLoading = false
+    mocks.scopedError = false
+    mocks.scopedRefetch.mockReset()
+    mocks.routerBack.mockReset()
+    mocks.routerPush.mockReset()
+    mocks.routerReplace.mockReset()
+    mocks.history = []
+    mocks.hasProAccess = true
+    mocks.timeZone = 'UTC'
+    mocks.profileReady = true
+    mocks.scopedCompleteDay = false
+    mocks.rescheduleOptions = []
+    mocks.rescheduleError = null
+    mocks.rescheduleRefetch.mockReset()
+    mocks.language = 'en'
+    mocks.uses24HourClock = undefined
+    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
+    mocks.suggestion = null
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
   it('keeps child progress in an unlogged bad habit parent header', () => {
     mocks.realHeaderRing = true
     mocks.logs = []
@@ -484,67 +550,6 @@ describe('HabitDetailScreen', () => {
     await act(async () => { vi.advanceTimersByTime(40) })
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
-  beforeEach(() => {
-    mocks.realHeaderRing = false
-    mocks.realChildRows = false
-    mocks.pathname = '/habits/habit-1'
-    mocks.realTimeField = false;
-    mocks.realReminderSections = false;
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 7, 29, 12))
-    mocks.detail = makeDetail()
-    mocks.detailLoading = false
-    mocks.detailError = false
-    mocks.allHabitsFallback = null
-    mocks.allHabitsError = false
-    mocks.allHabitsLoading = false
-    mocks.allHabitsEnabled = undefined
-    mocks.logs = [
-      { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
-      { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
-    ]
-    mocks.metricsError = false
-    mocks.metrics = {
-      currentStreak: 2,
-      longestStreak: 4,
-      weeklyCompletionRate: 80,
-      monthlyCompletionRate: 75,
-      totalCompletions: 2,
-      lastCompletedDate: '2026-08-27',
-    }
-    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
-    mocks.scopedHabits = new Map()
-    mocks.scopedHabitsByDate = new Map()
-    mocks.scopedRequests = []
-    mocks.log.mockReset()
-    mocks.update.mockReset()
-    mocks.updatePending = false
-    mocks.checklist.mockReset()
-    mocks.deleteHabit.mockReset()
-    mocks.showError.mockReset()
-    mocks.refetch.mockReset()
-    mocks.allHabitsRefetch.mockReset()
-    mocks.scopedLoading = false
-    mocks.scopedError = false
-    mocks.scopedRefetch.mockReset()
-    mocks.routerBack.mockReset()
-    mocks.routerPush.mockReset()
-    mocks.routerReplace.mockReset()
-    mocks.history = []
-    mocks.hasProAccess = true
-    mocks.timeZone = 'UTC'
-    mocks.profileReady = true
-    mocks.scopedCompleteDay = false
-    mocks.rescheduleOptions = []
-    mocks.rescheduleError = null
-    mocks.rescheduleRefetch.mockReset()
-    mocks.language = 'en'
-    mocks.uses24HourClock = undefined
-    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
-    mocks.suggestion = null
-    localStorage.clear()
-  })
-
   it.each([
     ['2026-08-20', 'Aug 20, 2026'],
     ['2026-08-28', 'Aug 28, 2026'],
@@ -835,11 +840,6 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.backToToday' }))
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
     expect(mocks.routerBack).not.toHaveBeenCalled()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.unstubAllGlobals()
   })
 
   it('shows loading feedback and a retry action after a load failure', () => {
