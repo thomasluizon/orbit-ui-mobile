@@ -158,3 +158,17 @@ describe('buildActionChipsModel', () => {
     expect(model.conflicts).toHaveLength(1)
   })
 })
+
+it.each([
+  ['UpdateChecklist', 'updatedChecklist', 'updateChecklistFailed'],
+  ['update_checklist', 'updatedChecklist', 'updateChecklistFailed'],
+  ['MoveHabitParent', 'changedHabitParent', 'changeHabitParentFailed'],
+  ['move_habit_parent', 'changedHabitParent', 'changeHabitParentFailed'],
+  ['LinkGoalsToHabit', 'linkedHabitGoals', 'linkHabitGoalsFailed'],
+  ['link_goals_to_habit', 'linkedHabitGoals', 'linkHabitGoalsFailed'],
+])('localizes folded action labels for %s in both states', (type, success, failed) => {
+  expect(buildActionChipsModel([
+    makeActionResult({ type, entityName: 'Leitura' }),
+    makeActionResult({ type, status: 'Failed', entityName: 'Leitura' }),
+  ], false).rows.map(row => row.labelKey)).toEqual([`chat.action.${success}`, `chat.action.${failed}`])
+})

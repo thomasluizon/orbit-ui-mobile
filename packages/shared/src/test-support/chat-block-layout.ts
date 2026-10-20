@@ -43,10 +43,11 @@ export const chatBlockLayoutCases = [
   } },
 ] satisfies { kind: string; count: number; fields: Partial<ChatMessage> }[]
 
-export function makeChatBlockLayoutMessage(scenario: typeof chatBlockLayoutCases[number], prose: boolean): ChatMessage {
-  return makeHeldHabitMessage({
-    id: 'blocks', content: prose ? 'Review the routine. '.repeat(20) : '', pendingOperations: [], ...scenario.fields,
+export function makeChatBlockLayoutMessage(scenario: typeof chatBlockLayoutCases[number], prose: boolean, messageId = 'blocks'): ChatMessage {
+  const message = makeHeldHabitMessage({
+    id: messageId, content: prose ? 'Review the routine. '.repeat(20) : '', pendingOperations: [], ...scenario.fields,
   })
+  return { ...message, pendingOperations: message.pendingOperations?.map(operation => ({ ...operation, id: `${messageId}-${operation.id}` })) }
 }
 
 export const chatPartsLayoutCases = [

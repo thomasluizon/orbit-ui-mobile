@@ -1,3 +1,4 @@
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
@@ -18,6 +19,12 @@ vi.mock('react-i18next', () => ({
         'chat.action.createFailed': 'Não foi possível criar {name}',
         'chat.action.updateFailed': 'Não foi possível atualizar {name}',
         'chat.action.deleteFailed': 'Não foi possível apagar {name}',
+        'chat.action.updatedChecklist': ptBR.chat.action.updatedChecklist,
+        'chat.action.updateChecklistFailed': ptBR.chat.action.updateChecklistFailed,
+        'chat.action.changedHabitParent': ptBR.chat.action.changedHabitParent,
+        'chat.action.changeHabitParentFailed': ptBR.chat.action.changeHabitParentFailed,
+        'chat.action.linkedHabitGoals': ptBR.chat.action.linkedHabitGoals,
+        'chat.action.linkHabitGoalsFailed': ptBR.chat.action.linkHabitGoalsFailed,
         'chat.unknownEntity': 'Desconhecido',
       }
       const template = translations[key]
@@ -59,6 +66,20 @@ function renderActions(actions: ActionResult[], onChipClick?: (id: string, type:
 }
 
 describe('ActionChips (mobile)', () => {
+  it.each([
+    { type: 'UpdateChecklist', label: 'Checklist atualizado: Leitura' },
+    { type: 'update_checklist', label: 'Checklist atualizado: Leitura' },
+    { type: 'MoveHabitParent', label: 'Hábito principal alterado: Leitura' },
+    { type: 'move_habit_parent', label: 'Hábito principal alterado: Leitura' },
+    { type: 'LinkGoalsToHabit', label: 'Metas vinculadas a Leitura' },
+    { type: 'link_goals_to_habit', label: 'Metas vinculadas a Leitura' },
+  ])('localizes $type with the real habit name', ({ type, label }) => {
+    const tree = renderActions([makeActionResult({ type, entityName: 'Leitura' })])
+    const frame = tree.root.findByType('BlockFrame')
+    expect(renderedText(frame.props.items[0].label)).toBe(label)
+    expect(renderedText(tree.toJSON())).not.toContain(type)
+  })
+
   it('renders legacy results as one block and omits suggestions', () => {
     const tree = renderActions([makeActionResult(), makeActionResult({ status: 'Suggestion' })])
     const frame = tree.root.findByType('BlockFrame')

@@ -176,6 +176,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
     <section
       className="flex max-h-full min-h-0 flex-col gap-6 bg-[var(--bg-card)] text-[var(--fg-1)]"
       data-state={props.state}
+      aria-busy={props.state === 'acting' || undefined}
       style={{
         borderRadius: PROPOSED_RADIUS.block,
         padding: SPACING.s24,
@@ -186,7 +187,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleMode === 'typed' ? <PersonalText>{props.title}</PersonalText> : props.title}</h3>
         <div className="flex shrink-0 items-center justify-end gap-3">
           {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
-            <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">{props.count ?? props.items.length}</span>
+            <span className="font-sans text-xs tabular-nums text-[var(--fg-3)]">{props.count ?? props.items.length}</span>
           ) : null}
           {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly>{props.title}</PersonalTextDetails> : null}
         </div>
@@ -197,9 +198,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       ) : (
         <>
           {props.body}
-          <div aria-live={props.items.length ? 'polite' : undefined} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-            <FrameRows frameProps={props} />
-          </div>
+          <FrameBody frameProps={props} />
           <FrameFooter
             canRenderActions={canRenderActions}
             frameProps={props}
@@ -216,4 +215,11 @@ function FrameStaleMessage({ frameProps }: Readonly<{ frameProps: BlockFrameProp
   return <p role={live ? 'status' : undefined} aria-live={live ? 'polite' : undefined} className={frameProps.state === 'stale' ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>
     {frameProps.state === 'stale' ? frameProps.staleMessage : ''}
   </p>
+}
+
+function FrameBody({ frameProps }: Readonly<{ frameProps: BlockFrameProps }>) {
+  if (frameProps.items.length === 0) return null
+  return <div aria-live="polite" className="flex min-h-0 shrink flex-col gap-2 overflow-y-auto">
+    <FrameRows frameProps={frameProps} />
+  </div>
 }

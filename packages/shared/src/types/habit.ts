@@ -371,6 +371,7 @@ export type LinkedGoalUpdate = z.infer<typeof linkedGoalUpdateSchema>
 export const logHabitResponseSchema = z.object({
   logId: z.string(),
   isFirstCompletionToday: z.boolean(),
+  previousStreak: z.number().nullish(),
   currentStreak: z.number(),
   linkedGoalUpdates: z.array(linkedGoalUpdateSchema).nullish(),
   xpEarned: z.number().nullish(),
@@ -575,6 +576,8 @@ const bulkLogItemResultSchema = z.object({
 })
 
 export const bulkLogResultSchema = z.object({
+  previousStreak: z.number().nullish(),
+  currentStreak: z.number().nullish(),
   results: z.array(bulkLogItemResultSchema),
 })
 

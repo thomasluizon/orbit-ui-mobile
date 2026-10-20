@@ -1,3 +1,4 @@
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { makeActionResult } from '@orbit/shared/test-support/chat-fixtures'
@@ -11,6 +12,12 @@ vi.mock('next-intl', () => ({
       'chat.action.createFailed': 'Não foi possível criar {name}',
       'chat.action.updateFailed': 'Não foi possível atualizar {name}',
       'chat.action.deleteFailed': 'Não foi possível apagar {name}',
+      'chat.action.updatedChecklist': ptBR.chat.action.updatedChecklist,
+      'chat.action.updateChecklistFailed': ptBR.chat.action.updateChecklistFailed,
+      'chat.action.changedHabitParent': ptBR.chat.action.changedHabitParent,
+      'chat.action.changeHabitParentFailed': ptBR.chat.action.changeHabitParentFailed,
+      'chat.action.linkedHabitGoals': ptBR.chat.action.linkedHabitGoals,
+      'chat.action.linkHabitGoalsFailed': ptBR.chat.action.linkHabitGoalsFailed,
       'chat.unknownEntity': 'Desconhecido',
     }
     const template = translations[key]
@@ -24,6 +31,19 @@ vi.mock('next-intl', () => ({
 }))
 
 describe('ActionChips', () => {
+  it.each([
+    { type: 'UpdateChecklist', label: 'Checklist atualizado: Leitura' },
+    { type: 'update_checklist', label: 'Checklist atualizado: Leitura' },
+    { type: 'MoveHabitParent', label: 'Hábito principal alterado: Leitura' },
+    { type: 'move_habit_parent', label: 'Hábito principal alterado: Leitura' },
+    { type: 'LinkGoalsToHabit', label: 'Metas vinculadas a Leitura' },
+    { type: 'link_goals_to_habit', label: 'Metas vinculadas a Leitura' },
+  ])('localizes $type with the real habit name', ({ type, label }) => {
+    render(<ActionChips actions={[makeActionResult({ type, entityName: 'Leitura' })]} />)
+    expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+    expect(screen.queryByText(type)).not.toBeInTheDocument()
+  })
+
   it('renders legacy results as one block and omits suggestions', () => {
     render(<ActionChips actions={[makeActionResult(), makeActionResult({ status: 'Suggestion' })]} />)
 
