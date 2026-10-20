@@ -174,6 +174,24 @@ export function makeEmojiToolResult(count: number): ActionResult {
 
 
 export const toolResultRegressionCases = [
+  { name: 'payment page opened', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.checkoutCreated', params: {} }, en: 'Payment page opened', ptBR: 'Página de pagamento aberta' },
+  ...[
+    { key: 'deletedHabits', en: 'Deleted', ptBR: 'Apaguei' },
+    { key: 'loggedHabits', en: 'Logged', ptBR: 'Registrei' },
+    { key: 'rescheduledHabits', en: 'Rescheduled', ptBR: 'Reagendei' },
+    { key: 'skippedHabits', en: 'Skipped', ptBR: 'Pulei' },
+    { key: 'updatedEmojis', en: 'Updated emojis for', ptBR: 'Atualizei os emojis de' },
+    { key: 'updatedHabits', en: 'Updated', ptBR: 'Atualizei' },
+  ].flatMap((operation) => ['', 'Partial'].flatMap((suffix) => [
+    { skippedCount: 0, en: 'None left out.', ptBR: 'Nenhum ficou de fora.' },
+    { skippedCount: 1, en: '1 left out.', ptBR: '1 ficou de fora.' },
+    { skippedCount: 2, en: '2 left out.', ptBR: '2 ficaram de fora.' },
+  ].map((remainder) => ({
+    name: `${operation.key}${suffix} with ${remainder.skippedCount} left out`,
+    payload: { type: 'unmapped_tool', status: 'Success', messageKey: `chat.toolResult.${operation.key}${suffix}`, params: { count: 3, totalCount: 3 + remainder.skippedCount, skippedCount: remainder.skippedCount } },
+    en: `${operation.en} 3 of ${3 + remainder.skippedCount} habits. ${remainder.en}`,
+    ptBR: `${operation.ptBR} 3 de ${3 + remainder.skippedCount} hábitos. ${remainder.ptBR}`,
+  })))),
   ...['updatedHabits', 'clockFormatSet', 'languageSet', 'referralCode', 'weekStartDaySet', 'argumentRequired'].map((key) => ({
     name: `missing parameters for ${key}`,
     payload: { type: 'unmapped_tool', status: 'Success', entityName: 'Legacy summary', messageKey: `chat.toolResult.${key}`, params: {} },
@@ -199,8 +217,8 @@ export const toolResultRegressionCases = [
   { name: 'named habit', payload: { type: 'CreateHabit', status: 'Success', messageKey: 'chat.toolResult.createdHabit', params: { entityName: 'Caminhada' } }, en: 'Created Caminhada', ptBR: 'Hábito criado: Caminhada' },
   { name: 'bare habit', payload: { type: 'CreateHabit', status: 'Success', messageKey: 'chat.toolResult.createdHabit', params: {} }, en: 'Habit created', ptBR: 'Hábito criado' },
   { name: 'named checklist', payload: { type: 'UpdateChecklist', status: 'Success', messageKey: 'chat.toolResult.updatedChecklist', params: { entityName: 'Caminhada' } }, en: 'Checklist updated: Caminhada', ptBR: 'Checklist atualizada: Caminhada' },
-  { name: 'locale formatted counts', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.updatedHabits', params: { count: 12345, totalCount: 12346, skippedCount: 1 } }, en: 'Updated 12,345 of 12,346 habits. 1 skipped.', ptBR: 'Atualizei 12.345 de 12.346 hábitos. 1 ficou de fora.' },
-  { name: 'zero skipped', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.loggedHabitsPartial', params: { count: 1, totalCount: 1, skippedCount: 0 } }, en: 'Logged 1 of 1 habit. None skipped.', ptBR: 'Registrei 1 de 1 hábito. Nenhum ficou de fora.' },
+  { name: 'locale formatted counts', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.updatedHabits', params: { count: 12345, totalCount: 12346, skippedCount: 1 } }, en: 'Updated 12,345 of 12,346 habits. 1 left out.', ptBR: 'Atualizei 12.345 de 12.346 hábitos. 1 ficou de fora.' },
+  { name: 'zero left out', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.loggedHabitsPartial', params: { count: 1, totalCount: 1, skippedCount: 0 } }, en: 'Logged 1 of 1 habit. None left out.', ptBR: 'Registrei 1 de 1 hábito. Nenhum ficou de fora.' },
   { name: 'created counts', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.createdHabits', params: { count: 1, totalCount: 2 } }, en: '1 of 2 habits created.', ptBR: '1 de 2 hábitos criados.' },
   { name: 'unused engine parameters', payload: { type: 'unmapped_tool', status: 'Failed', messageKey: 'chat.toolResult.unsupportedAction', params: { actionName: 'CreateHabit', toolName: 'create_habit', entityId: 'engineId42' } }, en: 'That action is not available here.', ptBR: 'Essa ação não está disponível aqui.' },
 ] as const

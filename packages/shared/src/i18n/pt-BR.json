@@ -2129,7 +2129,7 @@
       "cannotLogFutureDate": "Você pode registrar um dia quando ele chegar.",
       "checklistTemplateDeleted": "Modelo de checklist apagado",
       "checklistTemplateItemsRequired": "Dê um nome ao checklist e inclua pelo menos um item.",
-      "checkoutCreated": "Pagamento aberto",
+      "checkoutCreated": "Página de pagamento aberta",
       "clarificationLimitExceeded": "Preciso de um pedido mais curto. Peça uma alteração por vez.",
       "clockFormatSet": "Relógio no formato de {hours, number} horas",
       "completed": "{hasEntityName, select, yes {Concluído: {entityName}} other {Concluído}}",
