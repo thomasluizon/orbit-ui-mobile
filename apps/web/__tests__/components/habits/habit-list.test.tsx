@@ -447,6 +447,57 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  beforeEach(() => {
+    dragLocale.portuguese = false
+    dragLocale.english = false
+    skipFlow.active = false
+    skipFlow.retryRead = false
+    skipFlow.scheduleItems = null
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    rowImplementation.actual = false
+    accountDate.timeZone = undefined
+    capturedDrillOptions = undefined
+    vi.clearAllMocks()
+    sheetTestControls.defer(false)
+    mockHabitsDataUpdatedAt = 1
+    useActualHabitVisibility = false
+    drillRefreshCurrent.mockReset()
+    drillInto.mockReset()
+    getDrillChildrenMock.mockReset()
+    getDrillChildrenMock.mockReturnValue([])
+    mockDrillState.drillStack = []
+    mockDrillState.currentParentId = null
+    mockDrillState.currentParent = null
+    mockDrillState.drillChildren = []
+    mockDrillState.completedCount = 0
+    mockDrillState.hasUnfilteredChildren = false
+    mockDrillState.canRevealCompletedChildren = false
+    mockDrillState.drillLoading = false
+    mockDrillState.drillError = null
+    skipHabitMutateAsync.mockReset()
+    skipHabitMutateAsync.mockResolvedValue(undefined)
+    deleteHabitMutateAsync.mockReset()
+    duplicateHabitMutateAsync.mockReset()
+    toggleSelectionSpy.mockReset()
+    habitListRefetch.mockReset()
+    habitListRefetch.mockResolvedValue(undefined)
+    logHabitMutateAsync.mockReset()
+    logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
+      const habit = mockHabitsData.habitsById.get(habitId)
+      if (!habit) return
+      mockHabitsData.habitsById.set(habitId, {
+        ...habit,
+        isCompleted: true,
+      })
+    })
+    mockHabitsData.habitsById.clear()
+    mockHabitsData.childrenByParent.clear()
+    mockHabitsData.topLevelHabits = []
+    mockHabitsData.totalCount = 0
+    accountHabitCount.count = 0
+    accountHabitCount.isLoaded = true
+  })
+
   it.each(['today', 'all', 'general'] as const)('offers search recovery instead of first run in %s', (view) => {
     dragLocale.english = true
     const clearSearch = vi.fn()
@@ -1100,57 +1151,6 @@ describe('HabitList', () => {
       Reflect.deleteProperty(navigator, 'onLine')
     }
   })
-  beforeEach(() => {
-    dragLocale.portuguese = false
-    dragLocale.english = false
-    skipFlow.active = false
-    skipFlow.retryRead = false
-    skipFlow.scheduleItems = null
-    useAppToastStore.setState({ currentToast: null, queue: [] })
-    rowImplementation.actual = false
-    accountDate.timeZone = undefined
-    capturedDrillOptions = undefined
-    vi.clearAllMocks()
-    sheetTestControls.defer(false)
-    mockHabitsDataUpdatedAt = 1
-    useActualHabitVisibility = false
-    drillRefreshCurrent.mockReset()
-    drillInto.mockReset()
-    getDrillChildrenMock.mockReset()
-    getDrillChildrenMock.mockReturnValue([])
-    mockDrillState.drillStack = []
-    mockDrillState.currentParentId = null
-    mockDrillState.currentParent = null
-    mockDrillState.drillChildren = []
-    mockDrillState.completedCount = 0
-    mockDrillState.hasUnfilteredChildren = false
-    mockDrillState.canRevealCompletedChildren = false
-    mockDrillState.drillLoading = false
-    mockDrillState.drillError = null
-    skipHabitMutateAsync.mockReset()
-    skipHabitMutateAsync.mockResolvedValue(undefined)
-    deleteHabitMutateAsync.mockReset()
-    duplicateHabitMutateAsync.mockReset()
-    toggleSelectionSpy.mockReset()
-    habitListRefetch.mockReset()
-    habitListRefetch.mockResolvedValue(undefined)
-    logHabitMutateAsync.mockReset()
-    logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
-      const habit = mockHabitsData.habitsById.get(habitId)
-      if (!habit) return
-      mockHabitsData.habitsById.set(habitId, {
-        ...habit,
-        isCompleted: true,
-      })
-    })
-    mockHabitsData.habitsById.clear()
-    mockHabitsData.childrenByParent.clear()
-    mockHabitsData.topLevelHabits = []
-    mockHabitsData.totalCount = 0
-    accountHabitCount.count = 0
-    accountHabitCount.isLoaded = true
-  })
-
   it.each([false, true])('links disclosure panels through keyboard expansion without changing selection (select mode: %s)', async (selectMode) => {
     rowImplementation.actual = true
     const user = userEvent.setup()

@@ -330,9 +330,11 @@ function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild
   children: ReactNode
 }>) {
   const minHeight = isChild ? 52 : 68
+  const flexLayoutClass = largeText ? 'flex-col' : 'items-center gap-[4px]'
+  const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : flexLayoutClass
   return (
     <div data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
-      className={`relative rounded-[20px] shadow-[inset_0_0_0_1px_var(--hairline)] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : largeText ? 'flex-col' : 'items-center gap-[4px]'}`}
+      className={`relative rounded-[20px] shadow-[inset_0_0_0_1px_var(--hairline)] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
       style={{ minHeight }}>
       {largeText && !supportingMeta ? (
         <div className="flex w-full items-start gap-[4px]" style={{ minHeight, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>
@@ -358,8 +360,9 @@ function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefin
 }
 
 function habitRowPadding(isChild: boolean, largeText: boolean): CSSProperties {
+  const defaultPaddingBlock = isChild ? SPACING.s4 : SPACING.s8
   return {
-    paddingBlock: largeText ? SPACING.s0 : isChild ? SPACING.s4 : SPACING.s8,
+    paddingBlock: largeText ? SPACING.s0 : defaultPaddingBlock,
     paddingInlineStart: isChild ? SPACING.s24 : SPACING.s8,
   }
 }
