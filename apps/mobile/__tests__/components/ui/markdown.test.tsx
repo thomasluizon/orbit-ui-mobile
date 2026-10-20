@@ -519,6 +519,31 @@ describe('Astra block copying', () => {
     }
   })
 
+  it('does not confirm a pending or rejected native block write and allows retry', async () => {
+    renderSelection.current = true
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage({ role: 'ai', content: '```\nkeep me\n```', pendingOperations: [] })} />) })
+      const button = tree!.root.findAllByType('Pressable')[0]
+      setStringAsync.mockRejectedValueOnce(new Error('Clipboard unavailable'))
+      await TestRenderer.act(async () => { button.props.onPress(); await Promise.resolve() })
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copy')
+      expect(tree!.root.findAllByType('Text').some((node: { props: { children: unknown } }) => node.props.children === 'chat.blockCopy.copyError')).toBe(true)
+      let finishWrite!: (written: boolean) => void
+      const write = new Promise<boolean>((resolve) => { finishWrite = resolve })
+      setStringAsync.mockReturnValueOnce(write)
+      await TestRenderer.act(async () => { button.props.onPress(); await Promise.resolve() })
+      expect(setStringAsync).toHaveBeenLastCalledWith('keep me')
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copy')
+      await TestRenderer.act(async () => { finishWrite(true); await write })
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copied')
+      expect(tree!.root.findAllByType('Text').some((node: { props: { children: unknown } }) => node.props.children === 'chat.blockCopy.copyError')).toBe(false)
+    } finally {
+      renderSelection.current = false
+      TestRenderer.act(() => tree?.unmount())
+    }
+  })
+
   it('never gives user code blocks a control', () => {
     renderSelection.current = true
     let tree: ReturnType<typeof TestRenderer.create>

@@ -81,6 +81,24 @@ describe('Astra account rows on mobile', () => {
     expect(mocks.share).toHaveBeenCalledWith({ title: 'referral.share.title', message: 'https://example.com/r/ORBIT123' })
   })
 
+  it('confirms a referral code only after the native write and permits retry after rejection', async () => {
+    const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    mocks.setStringAsync.mockRejectedValueOnce(new Error('Clipboard unavailable'))
+    await act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' }).props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('chat.account.copyError')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.account.copied')
+    let finishWrite!: (written: boolean) => void
+    const write = new Promise<boolean>((resolve) => { finishWrite = resolve })
+    mocks.setStringAsync.mockReturnValueOnce(write)
+    await act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' }).props.onPress(); await Promise.resolve() })
+    expect(mocks.setStringAsync).toHaveBeenLastCalledWith('ORBIT123')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.account.copied')
+    await act(async () => { finishWrite(true); await write })
+    expect(renderedText(tree.toJSON())).toContain('chat.account.copied')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.account.copyError')
+    await act(() => tree.unmount())
+  })
+
   it('formats a plan date in pt-BR', () => {
     mocks.locale = 'pt-BR'
     const tree = render(<AccountRowsCard accountRows={{ kind: 'plan', surfaceId: 'profile', rows: [{ key: 'trialEnd', value: '2026-09-26T12:00:00Z', valueType: 'date' }] }} />)
