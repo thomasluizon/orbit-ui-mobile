@@ -204,7 +204,7 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
       const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
       await expect(disclosure).toBeVisible()
       if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
-      await expect(page.getByTestId('habit-row')).toHaveCount(5)
+      await expect(page.getByTestId('habit-row')).toHaveCount(6)
       await expect(page.locator('[data-habit-row-description]')).toHaveCount(3)
       for (const scale of [1, 2]) {
         await page.evaluate((size) => { document.documentElement.style.fontSize = `${16 * size}px`; window.dispatchEvent(new Event('resize')) }, scale)
@@ -222,7 +222,7 @@ async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: ty
     if (selecting) {
       await openTodayListOptions(page, copy.habits.listOptions)
       await page.getByRole('menuitem', { name: copy.common.select, exact: true }).click()
-      await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(5)
+      await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(6)
       await parent.locator('[data-habit-row-body]').click()
       await expect(parent.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
       const leaf = page.locator('[data-testid="habit-row"][data-habit-title="Timed"]')
