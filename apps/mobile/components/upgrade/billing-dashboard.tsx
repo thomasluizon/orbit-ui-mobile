@@ -42,8 +42,8 @@ function invoiceReason(reason: string, t: UpgradeTextFn) {
 
 function planPrice(data: BillingDetails | null, t: UpgradeTextFn, tokens: Tokens) {
   if (!data?.currency) return null
-  const price = formatPrice(data.amountPerPeriod, data.currency)
   if (data.interval !== 'monthly' && data.interval !== 'yearly') return null
+  const price = formatPrice(data.amountPerPeriod, data.currency)
   if (data.billedAmountPerPeriod != null && data.billedAmountPerPeriod !== data.amountPerPeriod) {
     const charge = formatPrice(data.billedAmountPerPeriod, data.currency)
     return <Text key="price" style={[styles.billingMeta, { color: tokens.fg2 }]}>

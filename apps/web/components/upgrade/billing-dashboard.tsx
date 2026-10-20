@@ -21,8 +21,8 @@ type UpgradeTranslations = ReturnType<typeof useTranslations>
 
 function planPrice(billing: BillingDetails, t: UpgradeTranslations) {
   if (!billing.currency) return null
-  const price = formatPrice(billing.amountPerPeriod, billing.currency)
   if (billing.interval !== 'monthly' && billing.interval !== 'yearly') return null
+  const price = formatPrice(billing.amountPerPeriod, billing.currency)
   if (billing.billedAmountPerPeriod != null && billing.billedAmountPerPeriod !== billing.amountPerPeriod) {
     const charge = formatPrice(billing.billedAmountPerPeriod, billing.currency)
     return <>

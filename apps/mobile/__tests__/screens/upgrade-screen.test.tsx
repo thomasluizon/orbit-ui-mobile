@@ -320,6 +320,31 @@ describe('UpgradeScreen', () => {
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
+  it.each([
+    { locale: 'pt-BR' as const, state: 'yearly', amountPerPeriod: 159900, billedAmountPerPeriod: 139920, currency: 'brl',
+      label: 'R$\u00a01.399,20/ano · Plano: R$\u00a01.599,00' },
+    { locale: 'en' as const, state: 'monthly', amountPerPeriod: 499, billedAmountPerPeriod: 399, currency: 'usd',
+      label: '$3.99/month · Plan: $4.99' },
+  ].flatMap((example) => (['light', 'dark'] as const).flatMap((mode) => [1, 2].map((fontScale) => ({ ...example, mode, fontScale })))))(
+    'keeps the Android $locale $state charge whole at 320 in $mode, scale $fontScale',
+    async ({ locale, state, amountPerPeriod, billedAmountPerPeriod, currency, label, mode, fontScale }) => {
+      await configureSubscription({ width: 320, locale, mode, state })
+      __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
+      mocks.billing = { ...mocks.billing, amountPerPeriod, billedAmountPerPeriod, currency }
+      const tree = await renderScreen()
+      try {
+        const measured = measureProfileRow(tree.toJSON(), 320, fontScale)
+        const charge = measured.texts.find((text) => text.label === label)
+        expect(charge, label).toBeDefined()
+        expect(charge!.clipped, label).toBe(false)
+        expect(charge!.left, label).toBeGreaterThanOrEqual(16)
+        expect(charge!.right, label).toBeLessThanOrEqual(304)
+        expect(charge!.height, label).toBeGreaterThanOrEqual(charge!.lines * 17 * fontScale)
+        if (fontScale === 1) expect(charge!.lines, label).toBe(1)
+      } finally { await TestRenderer.act(() => tree.unmount()) }
+    },
+  )
+
   it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
     'starts the shared $plan frame at the column edge at $width', async ({ width, plan }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
