@@ -126,6 +126,25 @@ export const suggestedSubHabitSchema = z.object({
 
 export type SuggestedSubHabit = z.infer<typeof suggestedSubHabitSchema>
 
+export const toolResultMessageParamsSchema = z.object({
+  entityName: z.string().optional(),
+  count: z.number().int().optional(),
+  totalCount: z.number().int().optional(),
+  skippedCount: z.number().int().optional(),
+  partial: z.boolean().optional(),
+  weekStartDay: z.number().int().optional(),
+  hours: z.number().int().optional(),
+  toolName: z.string().optional(),
+  bulkTool: z.string().optional(),
+  policyReason: z.string().optional(),
+  timeZone: z.string().optional(),
+  language: z.string().optional(),
+  referralCode: z.string().optional(),
+  fieldName: z.string().optional(),
+  actionName: z.string().optional(),
+  entityId: z.string().optional(),
+})
+
 export const actionResultSchema = z
   .object({
     type: z.string(),
@@ -137,6 +156,8 @@ export const actionResultSchema = z
     suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable().optional(),
     conflictWarning: conflictWarningSchema.nullable().optional(),
     clarificationRequest: clarificationRequestSchema.nullable().optional(),
+    messageKey: z.string().optional(),
+    params: toolResultMessageParamsSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.status === 'NeedsClarification' && !value.clarificationRequest) {

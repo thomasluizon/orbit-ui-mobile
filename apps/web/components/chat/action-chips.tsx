@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { buildActionChipsModel } from '@orbit/shared/chat'
+import { buildActionChipsModel, resolveActionChipText } from '@orbit/shared/chat'
 import type { ActionResult } from '@orbit/shared/types/chat'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -16,21 +16,22 @@ interface ActionChipsProps {
 export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>) {
   const t = useTranslations()
   const model = buildActionChipsModel(actions, Boolean(onChipClick))
-  if (model.rows.length === 0) return null
+  const rows = model.rows.flatMap((row) => {
+    const text = resolveActionChipText(row, { translate: t, has: (key) => t.has(key) })
+    return text ? [{ ...row, ...text }] : []
+  })
+  if (rows.length === 0) return null
 
   return (
     <BlockFrame
       state={model.state}
       title={t('chat.action.changes')}
-      items={model.rows.map((row) => {
+      items={rows.map((row) => {
         const navigation = row.navigation
-        const entityName = row.entityName || (row.status === 'failed' ? undefined : t('chat.unknownEntity'))
-        const label = row.labelKey ? entityName ? t(row.labelKey, { name: entityName }) : t(row.labelKey) : t('chat.action.completed')
-        const personal = Boolean(row.entityName && row.labelKey)
         return {
           id: row.id,
-          label: personal ? <PersonalTextDetails outset>{label}</PersonalTextDetails> : label,
-          wrapLabel: personal,
+          label: row.personal ? <PersonalTextDetails outset>{row.label}</PersonalTextDetails> : row.label,
+          wrapLabel: row.wrapLabel,
           meta: row.status === 'failed' ? t('chat.operation.status.Failed') : undefined,
           status: row.status,
           control: navigation.navigable ? (

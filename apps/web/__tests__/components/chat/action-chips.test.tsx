@@ -94,10 +94,10 @@ describe('ActionChips', () => {
     expect(screen.queryByRole('button', { name: 'chat.action.open' })).not.toBeInTheDocument()
   })
 
-  it('localizes unknown operation symbols instead of rendering them', () => {
+  it('keeps legacy content without rendering unknown operation symbols', () => {
     render(<ActionChips actions={[makeActionResult({ type: 'UnexpectedServerSymbol' })]} />)
 
-    expect(screen.getByText('chat.action.completed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Meditate' })).toBeInTheDocument()
     expect(screen.queryByText(/UnexpectedServerSymbol/)).not.toBeInTheDocument()
   })
   it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full attempted entity %s', (name) => {
