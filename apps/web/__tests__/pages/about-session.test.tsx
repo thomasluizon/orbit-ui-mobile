@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import type { HabitFormHelpers, HabitFormOptions } from '@/hooks/use-habit-form'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -81,23 +82,18 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
-vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
-  form: {
-    watch: (field: string) => field === 'title' ? 'Test Habit' : field === 'scheduledReminders' ? [] : undefined,
-    reset: vi.fn(),
-    setValue: vi.fn(),
-    trigger: vi.fn().mockResolvedValue(true),
-    formState: { isDirty: false },
-  },
-  validateAll: mocks.validateHabit,
-  clearBackendErrors: vi.fn(),
-  setGeneral: vi.fn(),
-}) }))
+vi.mock('@/hooks/use-habit-form', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-habit-form')>()
+  return { ...actual, useHabitForm: (options: HabitFormOptions) => ({ ...actual.useHabitForm(options), validateAll: mocks.validateHabit }) }
+})
 vi.mock('@/hooks/use-tag-selection', () => ({ useTagSelection: () => ({ selectedTagIds: [], resetTags: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'sub_habits': { enabled: true, planRequirement: 'Pro' } } } }) }))
 vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn() }) }))
-vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: () => <input aria-label="Habit title" defaultValue="Test Habit" /> }))
+vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: ({ formHelpers }: { formHelpers: HabitFormHelpers }) => <>
+  <button type="button" role="radio" aria-label="habits.form.typeTask" aria-checked={formHelpers.form.watch('itemType') === 'task'} onClick={() => formHelpers.chooseItemType('task')}>habits.form.typeTask</button>
+  <input aria-label="Habit title" value={formHelpers.form.watch('title')} onChange={(event) => formHelpers.form.setValue('title', event.target.value)} />
+</> }))
 vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubHabitEditor: () => null }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: 0, isLoaded: false }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
@@ -153,8 +149,11 @@ it('keeps failed form feedback and its action reachable on the creation screen',
   mocks.pathname = '/habits/new'
   mocks.validateHabit.mockReturnValue('Habit name is required')
   const action = vi.fn()
-  const view = render(<QueryAppLayout><CreateHabitModal open presentation="screen" onOpenChange={() => {}} /></QueryAppLayout>)
+  const view = render(<QueryAppLayout><CreateHabitModal open initialTitle="Test Habit" presentation="screen" onOpenChange={() => {}} /></QueryAppLayout>)
 
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Habit title' })).toHaveValue('Test Habit'))
+  fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+  expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toBeChecked()
   fireEvent.submit(view.container.querySelector('form')!)
   await waitFor(() => expect(mocks.validateHabit).toHaveBeenCalledOnce())
   await waitFor(() => expect(view.container.querySelector('[data-shell-notice] [data-kind="neutral"]')).toHaveTextContent('Habit name is required'))

@@ -422,6 +422,7 @@ describe('Hoje header geometry', () => {
           </div>)}
         </div>
       </NextIntlClientProvider>)
+      expect(container.querySelectorAll('[data-habit-row-heading]')).toHaveLength(textScale === 2 ? 1 : 0)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -439,10 +440,10 @@ describe('Hoje header geometry', () => {
           const sentence = document.querySelector('.today-astra-sentence')!
           const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
           const parent = rows[1]!
-          const progress = parent.querySelector('.habit-row-meta')!
+          const progress = parent.querySelector('[data-habit-row-meta]')!
           const progressText = document.createRange()
           progressText.selectNodeContents(progress)
-          const title = (parent.querySelector('[data-habit-row-heading] > div > span') ?? parent.querySelector('[data-habit-row-body] > div > span, [data-personal-text-content] > div > span'))!
+          const title = parent.querySelector('[data-personal-text]')!
           const titleText = document.createRange()
           titleText.selectNodeContents(title)
           const firstTitleLine = titleText.getClientRects()[0]!
@@ -456,6 +457,15 @@ describe('Hoje header geometry', () => {
               rowWidth: rowBounds.width, rowHeight: rowBounds.height, radius: getComputedStyle(body).borderRadius },
             progress: { width: progressText.getBoundingClientRect().width, available: progress.getBoundingClientRect().width,
               top: progress.getBoundingClientRect().top, titleBottom: title.getBoundingClientRect().bottom },
+            supporting: Boolean(parent.querySelector('[data-habit-row-heading]')),
+            types: rows.map((row) => {
+              const type = row.querySelector<HTMLElement>('[data-habit-row-type]')!
+              const bounds = type.getBoundingClientRect()
+              const text = document.createRange()
+              text.selectNodeContents(type)
+              const paint = getComputedStyle(type)
+              return { text: type.textContent, width: text.getBoundingClientRect().width, available: bounds.width, height: bounds.height, ellipsis: paint.textOverflow, clamp: paint.webkitLineClamp, whiteSpace: paint.whiteSpace, scrollWidth: type.scrollWidth, clientWidth: type.clientWidth, scrollHeight: type.scrollHeight, clientHeight: type.clientHeight }
+            }),
             parentControls: Array.from(parent.querySelectorAll('[data-habit-row-control]')).map((control) => {
               const bounds = control.getBoundingClientRect()
               const action = body.closest('[data-personal-text-action]') ?? body
@@ -493,6 +503,17 @@ describe('Hoje header geometry', () => {
         }
         expect(geometry.progress.width).toBeLessThanOrEqual(geometry.progress.available)
         expect(geometry.progress.top).toBeGreaterThanOrEqual(geometry.progress.titleBottom)
+        expect(geometry.supporting).toBe(textScale === 2)
+        for (const type of geometry.types) {
+          expect(type.text).toBe(ptBr.habits.form.typeHabit)
+          expect(type.height).toBeGreaterThan(0)
+          expect(type.width).toBeLessThanOrEqual(type.available)
+          expect(type.ellipsis).not.toBe('ellipsis')
+          expect(type.clamp).toBe('none')
+          expect(type.whiteSpace).toBe('normal')
+          expect(type.scrollWidth).toBeLessThanOrEqual(type.clientWidth)
+          expect(type.scrollHeight).toBeLessThanOrEqual(type.clientHeight)
+        }
         if (textScale === 2) for (const control of geometry.parentControls) {
           expect(control.top).toBeLessThanOrEqual(control.firstLineCenter)
           expect(control.bottom).toBeGreaterThan(control.firstLineCenter)

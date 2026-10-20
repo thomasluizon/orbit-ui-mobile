@@ -365,9 +365,9 @@ export function HabitFormFields({
   const rendersGranularSubHabits = typeof children === 'function'
   const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
   const [phraseOwnership, setPhraseOwnership] = useAccountScopedState({ cadence: false, dueTime: false })
-  const lastLocallyReadTitleRef = useRef<string | null>(null)
+  const lastLocallyReadPhraseRef = useRef<{ title: string; itemType: typeof itemType; general: boolean } | null>(null)
   useResetOnAccountChange(() => {
-    lastLocallyReadTitleRef.current = null
+    lastLocallyReadPhraseRef.current = null
   })
   useExpandAdvancedSignal(expandAdvancedSignal, () => {
     setDetailsPresented(true)
@@ -441,8 +441,12 @@ export function HabitFormFields({
   }), [atMessageLimit, form, frequencyUnit, isFlexible, lockedGeneral, onPhraseOwnershipChange, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestionContextChange, onSuggestSetup, phraseOwnership, setFlexible, setGeneral, setOneTime, setPhraseOwnership, setProposal, setRecurring, setValue, toggleDay])
 
   useEffect(() => {
-    if (lastLocallyReadTitleRef.current === title) return
-    lastLocallyReadTitleRef.current = title
+    const previous = lastLocallyReadPhraseRef.current
+    lastLocallyReadPhraseRef.current = { title, itemType, general: formHelpers.isGeneral }
+    if (previous?.title === title) {
+      if (readPhraseLocally && (previous.itemType !== itemType || previous.general !== formHelpers.isGeneral)) controller.reconcilePhraseOwnership(localRead)
+      return
+    }
     controller.readPhrase(readPhraseLocally, localRead, emoji)
   }, [controller, emoji, formHelpers.isGeneral, itemType, localRead, readPhraseLocally, title])
 
@@ -557,6 +561,7 @@ export function HabitFormFields({
               quantity={watch('frequencyQuantity') ?? null}
               flexible={isFlexible}
               disabled={lockedGeneral === true}
+              onModeChange={controller.setScheduleMode}
               onChange={controller.setSchedule}
             />
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />

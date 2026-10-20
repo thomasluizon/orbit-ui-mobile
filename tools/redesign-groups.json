@@ -112,6 +112,7 @@
     ],
     "Orbit Habit Create": [
       "m-overlay-create-goal-from-habit-goal-deadline-field",
+      "m-overlay-habit-form-fields-habit-date-field",
       "m-overlay-habit-form-fields-habit-emoji-selector",
       "m-overlay-habit-form-fields-scheduled-reminder-section",
       "m-overlay-habit-form-fields-tag-picker-field",
@@ -120,6 +121,7 @@
       "m-overlay-habits-habit-form-fields",
       "m-route-habits-new",
       "overlay-create-goal-from-habit-goal-deadline-field",
+      "overlay-habit-form-fields-habit-date-field",
       "overlay-habit-form-fields-habit-emoji-selector",
       "overlay-habit-form-fields-scheduled-reminder-section",
       "overlay-habit-form-fields-tag-picker-field",

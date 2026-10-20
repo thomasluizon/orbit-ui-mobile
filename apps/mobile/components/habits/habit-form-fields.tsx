@@ -373,7 +373,7 @@ export function HabitFormFields({
   const rendersGranularSubHabits = typeof children === 'function'
   const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
   const [phraseOwnership, setPhraseOwnership] = useState({ cadence: false, dueTime: false })
-  const lastLocallyReadTitleRef = useRef<string | null>(null)
+  const lastLocallyReadPhraseRef = useRef<{ title: string; itemType: typeof itemType; general: boolean } | null>(null)
   const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
   const editTagErrors = useBackendFieldErrors({ name: tags.editTagName }, { name: 'Name' })
   const descriptionFailure = formHelpers.backendFieldErrors.description
@@ -463,8 +463,12 @@ export function HabitFormFields({
   )
 
   useEffect(() => {
-    if (lastLocallyReadTitleRef.current === title) return
-    lastLocallyReadTitleRef.current = title
+    const previous = lastLocallyReadPhraseRef.current
+    lastLocallyReadPhraseRef.current = { title, itemType, general: formHelpers.isGeneral }
+    if (previous?.title === title) {
+      if (readPhraseLocally && (previous.itemType !== itemType || previous.general !== formHelpers.isGeneral)) controller.reconcilePhraseOwnership(localRead)
+      return
+    }
     controller.readPhrase(readPhraseLocally, localRead, emoji)
   }, [controller, emoji, formHelpers.isGeneral, itemType, localRead, readPhraseLocally, title])
 
@@ -553,6 +557,7 @@ export function HabitFormFields({
               quantity={watchedQuantity ?? null}
               flexible={isFlexible}
               disabled={lockedGeneral === true}
+              onModeChange={controller.setScheduleMode}
               onChange={controller.setSchedule}
             />
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />

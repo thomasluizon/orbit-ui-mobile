@@ -1596,6 +1596,64 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
+  it.each([false, true].flatMap((flexible) => [false, true].map((editAfterReturn) => ({ flexible, editAfterReturn }))))('saves the restored monthly draft after General, flexible=$flexible, edited=$editAfterReturn', async ({ flexible, editAfterReturn }) => {
+    await mount('habit')
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Read every Monday' } })
+    if (owner === 'create') fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    if (flexible) fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitMonth' }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
+    fireEvent.change(phraseInput(), { target: { value: 'tomorrow' } })
+    fireEvent.click(screen.getByRole('button', { name: /habits.form.endDate/ }))
+    fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-22"]')!)
+    await waitFor(() => expect(screen.queryByRole('grid')).toBeNull())
+    fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
+    fireEvent.click(screen.getByRole('radio', { name: flexible ? 'habits.form.timesPerUnit' : 'habits.form.every' }))
+    if (editAfterReturn) {
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitYear' }))
+      fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '4' } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: /habits.form.habitStartDate/ }))
+    fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-21"]')!)
+    await waitFor(() => expect(screen.queryByRole('grid')).toBeNull())
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const request = expect.objectContaining({ title: 'Read every Monday', frequencyUnit: editAfterReturn ? 'Year' : 'Month', frequencyQuantity: editAfterReturn ? 4 : 2, intervalWeeks: 2, startDate: '2026-10-21', endDate: '2026-10-22' })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    const submitted = owner === 'create' ? mutation().mock.calls[0]![0] : mutation().mock.calls[0]![0].data
+    expect(submitted.isFlexible ?? false).toBe(flexible)
+    expect(submitted.days ?? []).toEqual([])
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  if (owner === 'create') it.each((['en', 'pt-BR'] as const).flatMap((locale) =>
+    (['title-before-type', 'habit-to-task', 'general', 'recurring'] as const).map((transition) => ({ locale, transition })),
+  ))('saves the owned title for $locale after $transition', async ({ locale, transition }) => {
+    formLocale.language = locale
+    await mount(transition === 'title-before-type' ? null : 'habit')
+    const title = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: title } })
+    if (transition === 'general') {
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+      fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
+    } else if (transition !== 'recurring') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const request = modalFeedback.create.mock.calls[0]![0]
+    expect(request.title).toBe(transition === 'recurring' ? locale === 'en' ? 'Read' : 'Ler' : title)
+    if (transition === 'recurring') expect(request).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-20' })
+    else {
+      expect(request.isGeneral ?? false).toBe(transition === 'general')
+      expect(request.frequencyUnit).toBeUndefined()
+      expect(request.frequencyQuantity).toBeUndefined()
+      expect(request.days ?? []).toEqual([])
+      if (transition !== 'general') expect(request.dueDate).toBe('2026-10-20')
+    }
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
   if (owner === 'create') it('keeps a missing type inline and saves the retained draft after selection', async () => {
     await mount(null)
     await submit()

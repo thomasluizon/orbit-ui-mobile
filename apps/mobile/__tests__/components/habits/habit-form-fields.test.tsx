@@ -1686,6 +1686,65 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
+  it.each([false, true].flatMap((flexible) => [false, true].map((editAfterReturn) => ({ flexible, editAfterReturn }))))('saves the restored monthly draft after General, flexible=$flexible, edited=$editAfterReturn', async ({ flexible, editAfterReturn }) => {
+    await mount('habit')
+    const radio = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && String(node.props.accessibilityLabel).startsWith(`habits.form.${label}`))[0]!
+    await TestRenderer.act(() => input('habits.form.describe').props.onChangeText('Read every Monday'))
+    if (owner === 'create') await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
+    if (flexible) await TestRenderer.act(() => radio('timesPerUnit').props.onPress())
+    await TestRenderer.act(() => radio('unitMonth').props.onPress())
+    await TestRenderer.act(() => input('habits.form.frequency').props.onChangeText('2'))
+    await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.repeatMore')[0]!.props.onPress())
+    await TestRenderer.act(() => phraseInput().props.onChangeText('tomorrow'))
+    await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.endDate,'))[0]!.props.onPress())
+    const endDateLabel = formatLocaleDate('2026-10-22', 'en', { month: 'long', day: 'numeric', year: 'numeric' })
+    await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === endDateLabel)[0]!.props.onPress())
+    await TestRenderer.act(() => radio('noSchedule').props.onPress())
+    await TestRenderer.act(() => radio(flexible ? 'timesPerUnit' : 'every').props.onPress())
+    if (editAfterReturn) {
+      await TestRenderer.act(() => radio('unitYear').props.onPress())
+      await TestRenderer.act(() => input('habits.form.frequency').props.onChangeText('4'))
+    }
+    await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.habitStartDate,'))[0]!.props.onPress())
+    const startDateLabel = formatLocaleDate('2026-10-21', 'en', { month: 'long', day: 'numeric', year: 'numeric' })
+    await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === startDateLabel)[0]!.props.onPress())
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = expect.objectContaining({ title: 'Read every Monday', frequencyUnit: editAfterReturn ? 'Year' : 'Month', frequencyQuantity: editAfterReturn ? 4 : 2, intervalWeeks: 2, startDate: '2026-10-21', endDate: '2026-10-22' })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    const submitted = owner === 'create' ? mutation().mock.calls[0]![0] : mutation().mock.calls[0]![0].data
+    expect(submitted.isFlexible ?? false).toBe(flexible)
+    expect(submitted.days ?? []).toEqual([])
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  if (owner === 'create') it.each((['en', 'pt-BR'] as const).flatMap((locale) =>
+    (['title-before-type', 'habit-to-task', 'general', 'recurring'] as const).map((transition) => ({ locale, transition })),
+  ))('saves the owned title for $locale after $transition', async ({ locale, transition }) => {
+    formLocale.language = locale
+    await mount(transition === 'title-before-type' ? null : 'habit')
+    const title = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
+    await TestRenderer.act(() => input('habits.form.describe').props.onChangeText(title))
+    if (transition === 'general') {
+      await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
+      await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && String(node.props.accessibilityLabel).startsWith('habits.form.noSchedule'))[0]!.props.onPress())
+    } else if (transition !== 'recurring') await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeTask')[0]!.props.onPress())
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = modalFeedback.create.mock.calls[0]![0]
+    expect(request.title).toBe(transition === 'recurring' ? locale === 'en' ? 'Read' : 'Ler' : title)
+    if (transition === 'recurring') expect(request).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-20' })
+    else {
+      expect(request.isGeneral ?? false).toBe(transition === 'general')
+      expect(request.frequencyUnit).toBeUndefined()
+      expect(request.frequencyQuantity).toBeUndefined()
+      expect(request.days ?? []).toEqual([])
+      if (transition !== 'general') expect(request.dueDate).toBe('2026-10-20')
+    }
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
   if (owner === 'create') it('keeps a missing type inline and saves the retained draft after selection', async () => {
     await mount(null)
     expect(tree.root.findByType(HabitFormFields).props.formHelpers.form.getValues('itemType')).toBeUndefined()

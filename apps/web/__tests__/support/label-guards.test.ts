@@ -239,11 +239,11 @@ describe('label and interaction fill guards in Chromium', () => {
     ])(`checks $name status metadata from HabitRowContent in ${locale}`, async ({ clipped }) => {
       const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
       const title = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
-      const content = renderToStaticMarkup(createElement(HabitRowContent, {
+      const content = renderToStaticMarkup(cloneElement(createElement(NextIntlClientProvider), { locale, messages: words, timeZone: 'UTC' }, createElement(HabitRowContent, {
         habit: createMockHabit({ title }), titleSize: 17, titleColor: 'var(--fg-1)',
         meta: [{ kind: 'overdue', label: words.habits.overdue }, '08:00',
           words.habits.rowProgress.replace('{done}', '1').replace('{total}', '2')],
-      }))
+      })))
       try {
         await page.setContent(`<style>${stylesheet}
           [data-habit-row-meta] { ${clipped ? 'width: 10px;' : ''} }

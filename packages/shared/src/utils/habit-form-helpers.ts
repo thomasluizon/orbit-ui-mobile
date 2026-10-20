@@ -256,6 +256,7 @@ export interface HabitScheduleFieldsProps {
   quantity: number | null
   flexible: boolean
   disabled: boolean
+  onModeChange: (flexible: boolean) => void
   onChange: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
 }
 
@@ -399,6 +400,7 @@ export interface HabitFormController {
   resolveSetupProposal: () => void
   resolveSubHabitProposal: () => void
   releaseDueTime: () => void
+  reconcilePhraseOwnership: (read: HabitPhraseRead) => void
   readPhrase: (enabled: boolean, read: HabitPhraseRead, emoji: string) => void
   setDueTime: (dueTime: string) => void
   clearDueTime: () => void
@@ -410,6 +412,7 @@ export interface HabitFormController {
   setIntervalWeeks: (intervalWeeks: number) => void
   toggleDay: (day: string, daily?: boolean, selectedDays?: readonly string[]) => void
   setQuantity: (quantity: number) => void
+  setScheduleMode: (flexible: boolean) => void
   setSchedule: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
 }
 
@@ -428,6 +431,14 @@ export function createHabitFormController({
   const releaseOwnership = (field: keyof HabitPhraseFormOwnership) => {
     target.setOwnership(releaseHabitPhraseOwnership(target.getOwnership(), field))
   }
+  const setScheduleMode = (flexible: boolean): void => {
+    if (lockedGeneral === true) return
+    onSuggestionContextChange?.()
+    resolveSection('setup')
+    releaseOwnership('cadence')
+    if (flexible) target.setFlexible()
+    else target.setRecurring()
+  }
 
   return {
     askAstra: async (): Promise<void> => {
@@ -441,6 +452,10 @@ export function createHabitFormController({
     resolveSetupProposal: (): void => resolveSection('setup'),
     resolveSubHabitProposal: (): void => resolveSection('subHabits'),
     releaseDueTime: (): void => releaseOwnership('dueTime'),
+    reconcilePhraseOwnership: (read): void => {
+      const ownership = target.getOwnership()
+      target.setOwnership({ cadence: ownership.cadence && read.cadence !== null, dueTime: ownership.dueTime && read.dueTime !== null })
+    },
     readPhrase: (enabled, read, emoji) => readOwnedHabitPhrase(enabled, read, emoji, lockedGeneral, target),
     setDueTime: (dueTime: string): void => {
       releaseOwnership('dueTime')
@@ -486,13 +501,10 @@ export function createHabitFormController({
       releaseOwnership('cadence')
       applyHabitQuantityCorrection(quantity, lockedGeneral, target)
     },
+    setScheduleMode,
     setSchedule: (unit, quantity, flexible): void => {
       if (lockedGeneral === true) return
-      onSuggestionContextChange?.()
-      resolveSection('setup')
-      releaseOwnership('cadence')
-      if (flexible) target.setFlexible()
-      else target.setRecurring()
+      setScheduleMode(flexible)
       target.setField('frequencyUnit', unit)
       target.setField('frequencyQuantity', quantity)
       if (flexible || unit !== 'Day' || quantity !== 1) target.setField('days', [])

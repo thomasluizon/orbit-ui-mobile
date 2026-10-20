@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { resolve } from 'node:path'
 import { fireEvent, render } from '@testing-library/react'
 import postcss from 'postcss'
@@ -64,7 +65,8 @@ describe('Checklist add row geometry in Chromium', () => {
 
   it.each(['dark', 'light'] as const)('keeps the opening create disclosure gap exact with reduced motion in %s', async (mode) => {
     language.value = 'pt-BR'
-    const mounted = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><CreateForm /></NextIntlClientProvider>)
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const mounted = render(<QueryClientProvider client={client}><NextIntlClientProvider locale="pt-BR" messages={ptBR}><CreateForm /></NextIntlClientProvider></QueryClientProvider>)
     fireEvent.click(mounted.getByRole('button', { name: ptBR.habits.form.moreDetails }))
     const disclosure = mounted.container.querySelector<HTMLElement>('.habit-form-disclosure[data-open="true"]')!
     disclosure.hidden = true

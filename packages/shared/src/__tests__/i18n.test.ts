@@ -191,6 +191,15 @@ describe('i18n locale parity', () => {
     expect(catalog.shell.composer.inputLabel).toBe(catalog.shell.composer.placeholder)
   })
 
+  it.each([
+    { locale: 'en', catalog: en, task: 'One-time task', habit: 'Habit' },
+    { locale: 'pt-BR', catalog: ptBR, task: 'Tarefa única', habit: 'Hábito' },
+  ])('keeps the explicit type choices exact and distinct in $locale', ({ catalog, task, habit }) => {
+    expect(catalog.habits.form.typeTask).toBe(task)
+    expect(catalog.habits.form.typeHabit).toBe(habit)
+    expect(new Set([catalog.habits.form.typeTask, catalog.habits.form.typeHabit]).size).toBe(2)
+  })
+
   it('keeps internal habit type names out of copy while retaining the named General view', () => {
     const otherMeanings = new Set([
       'preferences.general',
@@ -199,18 +208,17 @@ describe('i18n locale parity', () => {
       'onboarding.featureGuide.astraSection.cannotDoDesc',
       'referral.drawer.disclaimer',
     ])
-    for (const [key, value] of ptFlat) {
-      if (otherMeanings.has(key)) continue
-      expect(value, `pt-BR: ${key}`).not.toMatch(/recorrente|flexíve(l|is)|tarefas? únicas?/i)
-      if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
-        expect(value, `pt-BR: ${key}`).not.toMatch(/\bgera(l|is)\b/i)
-      }
-    }
-    for (const [key, value] of enFlat) {
-      if (otherMeanings.has(key)) continue
-      expect(value, `en: ${key}`).not.toMatch(/\brecurring\b|\bflexible\b|\bone-time\b/i)
-      if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
-        expect(value, `en: ${key}`).not.toMatch(/\bgeneral\b/i)
+    for (const { catalog, locale, task, internal, general } of [
+      { catalog: ptFlat, locale: 'pt-BR', task: 'Tarefa única', internal: /recorrente|flexíve(l|is)|tarefas? únicas?/i, general: /\bgera(l|is)\b/i },
+      { catalog: enFlat, locale: 'en', task: 'One-time task', internal: /\brecurring\b|\bflexible\b|\bone-time\b/i, general: /\bgeneral\b/i },
+    ]) {
+      for (const [key, value] of catalog) {
+        if (otherMeanings.has(key)) continue
+        if (key === 'habits.form.typeTask' && value === task) continue
+        expect(value, `${locale}: ${key}`).not.toMatch(internal)
+        if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
+          expect(value, `${locale}: ${key}`).not.toMatch(general)
+        }
       }
     }
   })
