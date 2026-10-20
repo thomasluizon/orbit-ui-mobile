@@ -364,6 +364,10 @@ function CalendarScreenContent({
   );
 
   const rangeLoading = !profile || rangeQueryLoading;
+  const rangeLoadingLabel = useMemo(
+    () => rangeLoading ? t('calendar.loading') : undefined,
+    [rangeLoading, t],
+  );
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
@@ -519,6 +523,11 @@ function CalendarScreenContent({
     [selectedEntries, showRecurring],
   );
 
+  const monthDayEntries = useMemo(
+    () => filterRecurringEntries(orderCalendarDayEntries(monthQuery.loadingDayMap?.get(selectedDay) ?? selectedEntries), showRecurring),
+    [monthQuery.loadingDayMap, selectedDay, showRecurring, selectedEntries],
+  );
+
   const formattedSelectedDate = useMemo(() => {
     if (!selectedDay) return "";
     return formatCalendarDayTitle(selectedDay, i18n.language, todayKey, (date) => t('dates.todayWithDate', { date }));
@@ -669,7 +678,7 @@ function CalendarScreenContent({
             loadingLabel={calendarDayLoadingLabel(monthDisplayState, t('calendar.loading'))}
             selectedDate={selectedDay}
             title={formattedSelectedDate}
-            filteredEntries={filteredEntries}
+            filteredEntries={monthDayEntries}
             calendarEvents={selectedCalendarEvents}
             showEventSource={showEventSource}
             calendarEventsState={calendarEventsState}
@@ -777,6 +786,7 @@ function CalendarScreenContent({
       >
         <View style={styles.sheetContent}>
           <CalendarDayDetail
+            loadingLabel={rangeLoadingLabel}
             selectedDate={selectedDay}
             title={formattedSelectedDate}
             showTitle={false}

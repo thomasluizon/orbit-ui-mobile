@@ -1,25 +1,30 @@
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
+import { calendarMonthResponseSchema, createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { calendarAutoSyncStateSchema, calendarEventsResponseSchema } from '@orbit/shared/types/calendar'
 import { profileSchema } from '@orbit/shared/types/profile'
+import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { measureCalendarMonth } from './calendar-month-geometry'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
+import { setLayoutFixtureSession } from './profile-session'
 
-const selectedDate = '2026-09-04'
-const month = calendarMonthResponseSchema.parse({
-  habits: [makeHabitScheduleItem({ title: 'Ler', children: [], hasSubHabits: false, dueDate: selectedDate, dueTime: '08:00', scheduledDates: [selectedDate] })],
-  logs: {},
-})
+const selectedDate = LAYOUT_FIXED_TIME.slice(0, 10)
 const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR', weekStartDay: 1, hasProAccess: true, hasGoogleConnection: true, uses24HourClock: true })
 
-for (const { width, slow } of [320, 412, 840].flatMap((width) => [false, true].map((slow) => ({ width, slow })))) {
-  test.describe(`Calendar month loading at ${width}px${slow ? ' with slow CPU and delayed events' : ''}`, () => {
-    test.use({ appLocale: 'pt-BR', viewport: { width, height: 915 }, layoutProfile: profile, subscriptionState: 'trial', layoutCalendars: [] })
+for (const { width, slow, count, locale } of [412, 1352].flatMap((width) => [1, 2, 4].flatMap((count) => ['en', 'pt-BR'].flatMap((locale) => [false, true].map((slow) => ({ width, slow, count, locale }))))).concat([320, 840].flatMap((width) => [false, true].map((slow) => ({ width, slow, count: 1, locale: 'pt-BR' }))))) {
+  const messages = locale === 'en' ? en : ptBR
+  const localizedProfile = profileSchema.parse({ ...profile, language: locale })
+  const month = calendarMonthResponseSchema.parse({
+    habits: Array.from({ length: count }, (_, index) => makeHabitScheduleItem({ id: `habit-${index}`, title: index === 0 ? 'Ler' : index === 3 ? 'Caminhar pelo bairro depois do trabalho e conversar com amigos' : `Habit ${index}`, children: [], hasSubHabits: false, dueDate: selectedDate, dueTime: '08:00', scheduledDates: [selectedDate] })),
+    logs: {},
+  })
+  test.describe(`Calendar month loading ${count} habits in ${locale} at ${width}px${slow ? ' with slow CPU and delayed events' : ''}`, () => {
+    test.use({ appLocale: locale === 'en' ? 'en' : 'pt-BR', viewport: { width, height: 915 }, layoutProfile: localizedProfile, subscriptionState: 'trial', layoutCalendars: [] })
 
     test('keeps the grid, first element below it and figures stationary when the month lands', async ({ page, context }) => {
       let releaseMonth = () => {}
@@ -39,7 +44,7 @@ for (const { width, slow } of [320, 412, 840].flatMap((width) => [false, true].m
         await route.fulfill({ json: month })
       })
       const responses: ReadonlyArray<readonly [string, unknown]> = [
-        [API.profile.get, profile], [API.calendar.events, calendarEventsResponseSchema.parse([])],
+        [API.profile.get, localizedProfile], [API.calendar.events, calendarEventsResponseSchema.parse([])],
         [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ enabled: false, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true })],
       ]
       for (const [path, response] of responses) {
@@ -48,15 +53,20 @@ for (const { width, slow } of [320, 412, 840].flatMap((width) => [false, true].m
           await route.fulfill({ json: response })
         })
       }
-      const measure = () => measureCalendarMonth(page, ptBR.calendar.dayDetail.noEventsToImport)
+      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: createPaginatedSchema(habitScheduleItemSchema).parse({ items: month.habits, page: 1, pageSize: 50, totalCount: month.habits.length, totalPages: 1 }) }])
+      const measure = () => measureCalendarMonth(page, messages.calendar.dayDetail.noEventsToImport)
       try {
         const eventsResponse = page.waitForResponse((response) => new URL(response.url()).pathname === API.calendar.events)
-        await page.goto('/calendar')
+        await page.goto('/')
+        await expect(page.getByTestId('habit-row')).toHaveCount(count)
+        await expect(page.getByTestId('habit-row').filter({ hasText: 'Ler' })).toBeVisible()
+        await page.getByRole('navigation', { name: messages.nav.mainNavigation, exact: true }).getByRole('link', { name: messages.nav.calendar, exact: true }).click()
+        await expect(page).toHaveURL((url) => url.pathname === '/calendar')
         await monthRequested
-        await page.getByRole('radio', { name: ptBR.calendar.view.month, exact: true }).click()
+        await page.getByRole('radio', { name: messages.calendar.view.month, exact: true }).click()
         await expect(page.getByTestId('calendar-grid-card').getByRole('progressbar')).toBeVisible()
         await expect(page.getByTestId('calendar-day-card-slot')).toBeVisible()
-        if (slow) await expect(page.getByTestId('calendar-day-card-slot').getByRole('progressbar', { name: ptBR.calendar.fetchingEvents })).toBeVisible()
+        if (slow) await expect(page.getByTestId('calendar-day-card-slot').getByRole('progressbar', { name: messages.calendar.fetchingEvents })).toBeVisible()
         releaseEvents()
         await (await eventsResponse).finished()
         const loading = await measure()
@@ -65,7 +75,7 @@ for (const { width, slow } of [320, 412, 840].flatMap((width) => [false, true].m
         releaseMonth()
         await monthResponse
         await expect(page.getByTestId('calendar-day-skeleton')).toHaveCount(0)
-        await expect(page.getByRole('button', { name: 'Ler', exact: true }).first()).toBeVisible()
+        await expect(page.getByTestId('calendar-day-card-slot').getByRole('button', { name: 'Ler', exact: true })).toBeVisible()
         await expect(page.getByTestId('calendar-grid-card').getByRole('progressbar')).toHaveCount(0)
         await expect(page.getByTestId('calendar-stats').locator('[data-state="loading"]')).toHaveCount(0)
         expect(await measure()).toEqual(loading)

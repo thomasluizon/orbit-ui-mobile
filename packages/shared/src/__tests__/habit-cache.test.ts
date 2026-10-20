@@ -8,6 +8,7 @@ import {
   clearCachedOptimisticSkip,
   deduplicateHabitList,
   getTodayHabitList,
+  getCachedCalendarDayMap,
   getTodayHabitListAfterRefetch,
   invalidateHabitDependents,
   restoreCachedHabitLists,
@@ -552,5 +553,28 @@ describe('clearCachedOptimisticSkip', () => {
     expect(queryClient.getQueryData<HabitScheduleItem[]>(otherDateKey)).toBe(untouched)
     expect(queryClient.getQueryData(emptyKey)).toBeUndefined()
     expect(queryClient.getQueryData<number>(countKey)).toBe(2)
+  })
+})
+
+describe('cached calendar loading rows', () => {
+  it.each([0, 1, 2, 4])('uses the complete dated list with %i habits', (count) => {
+    const client = new QueryClient()
+    const date = '2026-09-04'
+    const habits = Array.from({ length: count }, (_, index) => createMockHabitScheduleItem({ id: `habit-${index}`, title: `Habit ${index}`, scheduledDates: [date], instances: [], isGeneral: false }))
+    client.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date, completeDay: true, includeOverdue: true }), habits)
+    const entries = getCachedCalendarDayMap(client, '2026-09-01', '2026-09-30')
+    expect(entries.get(date)?.map((entry) => entry.title)).toEqual(habits.map((habit) => habit.title))
+    expect(entries.has('2026-09-05')).toBe(false)
+    client.clear()
+  })
+
+  it('does not infer a complete day from filtered or paginated lists', () => {
+    const client = new QueryClient()
+    const date = '2026-09-04'
+    const habits = [createMockHabitScheduleItem({ scheduledDates: [date] })]
+    client.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date, includeOverdue: true }), habits)
+    client.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date, completeDay: true, includeOverdue: true, search: 'Read' }), habits)
+    expect(getCachedCalendarDayMap(client, date, date).has(date)).toBe(false)
+    client.clear()
   })
 })
