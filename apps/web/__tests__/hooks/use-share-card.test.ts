@@ -69,7 +69,7 @@ describe('useShareCard', () => {
     const { result } = renderHook(() => useShareCard())
     result.current.captureRef.current = document.createElement('div')
     act(() => { void result.current.share(payload) })
-
+    await act(async () => { await vi.dynamicImportSettled() })
     await replaceAccountWith('user-2')
     await act(async () => { finishCapture(new Blob(['old'], { type: 'image/png' })); await Promise.resolve() })
 
@@ -85,7 +85,7 @@ describe('useShareCard', () => {
     const { result } = renderHook(() => useShareCard())
     result.current.captureRef.current = document.createElement('div')
     act(() => { void result.current.download() })
-
+    await act(async () => { await vi.dynamicImportSettled() })
     await replaceAccountWith('user-2')
     await act(async () => { finishCapture(new Blob(['old'], { type: 'image/png' })); await Promise.resolve() })
 

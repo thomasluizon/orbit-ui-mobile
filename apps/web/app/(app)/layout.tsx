@@ -23,7 +23,7 @@ import { ActionRow } from '@/components/ui/action-row'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
-import { MilestoneSharePromptLoader } from '@/components/milestone-share/milestone-share-prompt-loader'
+import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
@@ -543,7 +543,7 @@ function GlobalOverlays({
       {showRetainedOnboarding && <RetainedOnboardingOverlay finalStepOnly={showPendingPro} onExit={retainedSession.dismiss} />}
       {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MarketingConsentPrompt />}
       {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <ReferralPrompt />}
-      {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MilestoneSharePromptLoader />}
+      {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MilestoneSharePrompt />}
       {showCalendarPrompt && !showRetainedOnboarding ? (<Sheet
         ref={calendarSheetRef}
         open

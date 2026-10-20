@@ -16,6 +16,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { ActionRow } from '@/components/ui/action-row'
 import { useShareCard } from '@/hooks/use-share-card'
+import type { ShareCardQrHandle } from '@/components/share/share-card-qr'
 import { getPublicOrigin } from '@/lib/public-origin'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
@@ -59,7 +60,10 @@ export function MilestoneSharePrompt() {
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
   const promptId = useId()
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
-  const { captureRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
+  const cachedReferral = queryClient.getQueryData<ReferralDashboard>(referralKeys.all)
+  const referralUrl = buildReferralUrl(cachedReferral?.code, getPublicOrigin())
+  const qrRef = useRef<ShareCardQrHandle>(null)
+  const { captureRef, isSharing, hasError, canShareFiles, share, download, resetFeedback, reportCaptureError } = useShareCard(referralUrl ? qrRef : undefined)
 
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
 
@@ -125,11 +129,10 @@ export function MilestoneSharePrompt() {
 
   const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
   const variant = visibleKey ? resolveVariant(visibleKey, profile) : null
-  const cachedReferral = queryClient.getQueryData<ReferralDashboard>(referralKeys.all)
-  const referralUrl = buildReferralUrl(cachedReferral?.code, getPublicOrigin())
 
   function dismiss() {
-    closeSheet()
+    resetFeedback()
+    closeSheet(() => setVisibleKey(null))
   }
 
   function handleShare() {
@@ -144,7 +147,7 @@ export function MilestoneSharePrompt() {
     variant !== null ? (<Sheet
       ref={sheetRef}
       open
-      onClose={() => setVisibleKey(null)}
+      onAttemptDismiss={dismiss}
       title={t('milestoneShare.title')}
       actions={(
         <>
@@ -188,7 +191,7 @@ export function MilestoneSharePrompt() {
       )}
     >
       <div className="flex flex-col items-center" style={{ gap: 16 }}>
-          <MilestoneShareCard ref={captureRef} variant={variant} referralUrl={referralUrl} />
+          <MilestoneShareCard key={referralUrl ? 'referral' : 'plain'} ref={captureRef} qrRef={referralUrl ? qrRef : undefined} onQrError={reportCaptureError} variant={variant} referralUrl={referralUrl} />
 
           <p
             style={{
