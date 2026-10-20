@@ -95,6 +95,33 @@ function applyGridInput(body: HTMLElement, input: string) {
 }
 
 describe('CalendarTimeGrid', () => {
+  it.each([320, 412, 600].flatMap((width) => [0, 3, 6].map((todayIndex) => ({ width, todayIndex }))))('opens on the nearest column boundary at the gutter with today fully visible ($width, today=$todayIndex)', ({ width, todayIndex }) => {
+    const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(2026, 9, 5 + index), isToday: index === todayIndex }))
+    const grid = (isLoading: boolean) => <CalendarTimeGrid columns={columns} dayMap={new Map()} onSelectDay={vi.fn()} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" isLoading={isLoading} />
+    const view = render(grid(true))
+    const scroller = screen.getByTestId('time-grid-hour-scroller')
+    const gutter = 96
+    const columnWidth = 192
+    Object.defineProperties(scroller, { clientWidth: { configurable: true, value: width }, clientHeight: { configurable: true, value: 400 } })
+    Object.defineProperty(screen.getByTestId('time-grid-any-time-label').parentElement!, 'clientWidth', { configurable: true, value: gutter })
+    const today = screen.getAllByTestId('time-grid-day-column')[todayIndex]!
+    Object.defineProperties(today, { offsetLeft: { configurable: true, value: gutter + todayIndex * columnWidth }, clientWidth: { configurable: true, value: columnWidth } })
+    vi.spyOn(today, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, columnWidth, 1280))
+    view.rerender(grid(false))
+    const leftmostIndex = Math.floor(scroller.scrollLeft / columnWidth)
+    expect(gutter + leftmostIndex * columnWidth - scroller.scrollLeft).toBe(gutter)
+    const todayLeft = gutter + todayIndex * columnWidth - scroller.scrollLeft
+    expect(todayLeft).toBeGreaterThanOrEqual(gutter)
+    expect(todayLeft + columnWidth).toBeLessThanOrEqual(width)
+    const centered = Math.max(0, todayIndex * columnWidth - (width - gutter - columnWidth) / 2)
+    expect(Math.abs(scroller.scrollLeft - centered)).toBeLessThanOrEqual(columnWidth / 2)
+    if (todayIndex > 0) expect(scroller.scrollLeft).toBeGreaterThan(0)
+    scroller.scrollLeft = 88
+    fireEvent.scroll(scroller)
+    view.rerender(grid(false))
+    expect(scroller.scrollLeft).toBe(88)
+  })
+
   it('preserves both grid scroll axes after closing a timed disclosure', async () => {
     const onSelectDay = vi.fn()
     const col = column(2025, 5, 16)
@@ -161,7 +188,7 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.getByTestId('time-grid-all-day-band')).toHaveStyle({
-      gridTemplateColumns: 'max(96px, calc(5ch + 16px)) repeat(1, minmax(12rem, 1fr))',
+      gridTemplateColumns: 'max(96px, calc(5ch + 16px)) repeat(1, minmax(12rem, 1fr)) var(--time-grid-trailing-space, 0px)',
     })
     for (const block of screen.getAllByTestId('time-grid-event')) {
       expect(block).toHaveStyle({ minWidth: '48px' })
@@ -334,10 +361,10 @@ describe('CalendarTimeGrid', () => {
       const columnWidth = () => Number(/minmax\(([\d.]+)rem/.exec(screen.getByTestId('time-grid-all-day-band').style.gridTemplateColumns)![1]) * 16
       Object.defineProperty(body, 'clientWidth', { configurable: true, value: 380 })
       Object.defineProperty(screen.getByTestId('time-grid-any-time-label').parentElement!, 'clientWidth', { configurable: true, value: 96 })
-      Object.defineProperties(today, { offsetLeft: { configurable: true, get: () => 96 + 3 * columnWidth() }, clientWidth: { configurable: true, get: columnWidth } })
+      vi.spyOn(today, 'getBoundingClientRect').mockImplementation(() => new DOMRect(0, 0, columnWidth(), 1280))
       act(() => callbacks.at(-1)!())
       expect(body.scrollTop).toBe(1232)
-      expect(body.scrollLeft).toBe(1202)
+      expect(body.scrollLeft).toBe(1152)
       fireEvent.scroll(body)
       paneHeight = 100
       const maximumTravel = distance < 0 ? 1400 : axis === 'vertical' ? 1152 : 1060
@@ -351,7 +378,7 @@ describe('CalendarTimeGrid', () => {
       view.rerender(grid(new Map()))
       act(() => callbacks.at(-1)!())
       expect(body.scrollTop).toBe(keepsOpening ? 957 : axis === 'vertical' ? offset : 1232)
-      expect(body.scrollLeft).toBe(keepsOpening ? 530 : axis === 'horizontal' ? offset : 1202)
+      expect(body.scrollLeft).toBe(keepsOpening ? 576 : axis === 'horizontal' ? offset : 1152)
     } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver); vi.useRealTimers() }
   })
 
@@ -365,7 +392,7 @@ describe('CalendarTimeGrid', () => {
     const columnWidth = () => Number(/minmax\(([\d.]+)rem/.exec(screen.getByTestId('time-grid-all-day-band').style.gridTemplateColumns)![1]) * 16
     Object.defineProperties(scroller, { clientWidth: { configurable: true, value: 380 }, clientHeight: { configurable: true, value: 400 } })
     Object.defineProperty(screen.getByTestId('time-grid-any-time-label').parentElement!, 'clientWidth', { configurable: true, value: 96 })
-    Object.defineProperties(today, { offsetLeft: { configurable: true, get: () => 96 + 3 * columnWidth() }, clientWidth: { configurable: true, get: columnWidth } })
+    vi.spyOn(today, 'getBoundingClientRect').mockImplementation(() => new DOMRect(0, 0, columnWidth(), 1280))
     view.rerender(grid(new Map(), true))
     expect(scroller.scrollLeft).toBe(0)
     if (input !== 'none') {
@@ -376,7 +403,7 @@ describe('CalendarTimeGrid', () => {
     }
     const crowded = new Map([[columns[3]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]])
     view.rerender(grid(crowded, false))
-    expect(scroller.scrollLeft).toBe(input === 'none' ? 530 : 88)
+    expect(scroller.scrollLeft).toBe(input === 'none' ? 576 : 88)
     pressScrollbar(scroller, 'horizontal')
     scroller.scrollLeft = 88
     fireEvent.scroll(scroller)

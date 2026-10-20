@@ -10,6 +10,15 @@ export type CalendarEventsDisplayState =
 export const CALENDAR_MONTH_SWIPE_THRESHOLD = 60
 export const CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO = 1.2
 
+export function resolveCalendarGridOpeningScroll(todayIndex: number, columnWidth: number, viewportWidth: number, columnCount: number): { left: number; trailingSpace: number } {
+  if (todayIndex < 0 || viewportWidth >= columnCount * columnWidth) return { left: 0, trailingSpace: 0 }
+  const todayStart = todayIndex * columnWidth
+  const centered = Math.max(0, Math.min(columnCount * columnWidth - viewportWidth, todayStart - (viewportWidth - columnWidth) / 2))
+  const firstVisibleStart = Math.max(0, Math.ceil((todayStart + columnWidth - viewportWidth) / columnWidth) * columnWidth)
+  const left = Math.min(todayStart, Math.max(firstVisibleStart, Math.round(centered / columnWidth) * columnWidth))
+  return { left, trailingSpace: Math.max(0, left + viewportWidth - columnCount * columnWidth) }
+}
+
 export function isCalendarGridScrollMovement(offset: number, openingOffset: number, maximumTravel: number): boolean {
   const isNativeClamp = offset < openingOffset && Math.abs(maximumTravel - offset) <= 1
   return offset !== openingOffset && !isNativeClamp

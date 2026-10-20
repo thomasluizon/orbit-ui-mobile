@@ -330,6 +330,7 @@ export {
   resolveCalendarEventsDisplayState,
   calendarEntryOutcome,
   isCalendarGridScrollMovement,
+  resolveCalendarGridOpeningScroll,
   orderCalendarDayEntries,
 } from './calendar-entries'
 export type { CalendarEventsDisplayState } from './calendar-entries'

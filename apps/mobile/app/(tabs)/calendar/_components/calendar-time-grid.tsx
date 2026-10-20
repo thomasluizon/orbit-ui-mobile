@@ -15,7 +15,7 @@ import { format } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from "@orbit/shared/utils";
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries, resolveCalendarGridOpeningScroll } from "@orbit/shared/utils";
 import { createTokensV2, radius } from "@/lib/theme";
 
 import { X } from '@/components/ui/icons';
@@ -354,6 +354,7 @@ export function CalendarTimeGrid({
     viewportWidth > 0 && columns.length > 0
       ? Math.max(minColumnWidth, viewportWidth / columns.length)
       : minColumnWidth;
+  const { left: openingLeft, trailingSpace } = resolveCalendarGridOpeningScroll(columns.findIndex(({ isToday }) => isToday), colWidth, viewportWidth, columns.length);
 
   const isEmpty =
     !isLoading &&
@@ -395,14 +396,12 @@ export function CalendarTimeGrid({
 
   useEffect(() => {
     if (hasMovedGrid.current || isLoading || viewportWidth <= 0 || contentWidth < colWidth * columns.length) return;
-    const todayIndex = columns.findIndex(({ isToday }) => isToday);
-    if (todayIndex >= 0) {
-      const offset = Math.max(0, Math.min(contentWidth - viewportWidth, todayIndex * colWidth - (viewportWidth - colWidth) / 2));
-      openingOffsets.current.horizontal.add(offset);
-      openingScroll.current.left = offset;
-      columnsScrollRef.current?.scrollTo({ x: offset, animated: false });
+    if (columns.some(({ isToday }) => isToday)) {
+      openingOffsets.current.horizontal.add(openingLeft);
+      openingScroll.current.left = openingLeft;
+      columnsScrollRef.current?.scrollTo({ x: openingLeft, animated: false });
     }
-  }, [colWidth, columns, contentWidth, isLoading, viewportWidth]);
+  }, [colWidth, columns, contentWidth, isLoading, openingLeft, viewportWidth]);
 
   const onColumnsLayout = (event: LayoutChangeEvent) => {
     setViewportWidth(event.nativeEvent.layout.width);
@@ -460,7 +459,7 @@ export function CalendarTimeGrid({
             }}
             scrollEventThrottle={16}
           >
-            <View style={styles.columnsContent}>
+            <View style={[styles.columnsContent, { paddingRight: trailingSpace }]}>
               <ScrollView
                 ref={bodyScrollRef}
                 style={{ flex: 1, minHeight: 0 }}

@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from '@orbit/shared/utils'
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries, resolveCalendarGridOpeningScroll } from '@orbit/shared/utils'
 
 import { X } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -221,8 +221,8 @@ export function CalendarTimeGrid({
   const gutterWidth = `max(96px, calc(${longestHourLabel}ch + 16px))`
   const columnMinWidth = `${minColumnWidth / 16}rem`
   const columnTrack = `minmax(${columnMinWidth}, 1fr)`
-  const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack})`
-  const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth})`
+  const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack}) var(--time-grid-trailing-space, 0px)`
+  const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth} + var(--time-grid-trailing-space, 0px))`
 
   const hasMovedGrid = useRef(false)
   const openingScroll = useRef({ top: 0, left: 0 })
@@ -252,9 +252,12 @@ export function CalendarTimeGrid({
         ? (getAccountDateTime(nowDate(), timeZone).minutes / 60) * HOUR_HEIGHT * scale - bodyHeight / 4
         : firstTop * scale) + (isPanePinned ? 0 : paneHeight)
       const todayColumn = node.querySelector<HTMLElement>('[data-today="true"]')
-      if (todayColumn) {
+      const columnWidth = todayColumn?.getBoundingClientRect().width ?? 0
+      if (todayColumn && columnWidth > 0) {
         const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
-        node.scrollLeft = Math.max(0, todayColumn.offsetLeft - gutter - (node.clientWidth - gutter - todayColumn.clientWidth) / 2)
+        const { left, trailingSpace } = resolveCalendarGridOpeningScroll(columns.findIndex(({ isToday }) => isToday), columnWidth, node.clientWidth - gutter, columns.length)
+        node.style.setProperty('--time-grid-trailing-space', `${trailingSpace}px`)
+        node.scrollLeft = left
       }
       openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
     }

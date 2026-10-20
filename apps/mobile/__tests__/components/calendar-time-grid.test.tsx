@@ -446,6 +446,38 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(tree.root.findAll((node) => node.type === CalendarEntryDetails)[0]!.props.entries[0].title).toBe("All 0");
   });
 
+  it.each([320, 412, 600].flatMap((width) => [0, 3, 6].map((todayIndex) => ({ width, todayIndex }))))('opens on the nearest column boundary at the gutter with today fully visible ($width, today=$todayIndex)', ({ width, todayIndex }) => {
+    let horizontalOffset = 0;
+    __setScrollToImpl((position) => { if (position.x !== undefined) horizontalOffset = position.x; });
+    try {
+      const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(`2026-10-${String(5 + index).padStart(2, '0')}`), isToday: index === todayIndex }));
+      const tree = renderGrid(columns, new Map());
+      const horizontal = () => tree.root.findAll((node) => node.type === 'ScrollView' && node.props.horizontal)[0]!;
+      const gutter = 96;
+      const viewportWidth = width - gutter;
+      const columnWidth = Number(resolveStyle(hostsByTestID(tree, 'time-grid-col-header')[0]!.props.style).width);
+      TestRenderer.act(() => {
+        horizontal().props.onLayout({ nativeEvent: { layout: { width: viewportWidth, height: 400 } } });
+        horizontal().props.onContentSizeChange(columns.length * columnWidth, 400);
+      });
+      const leftmostIndex = Math.floor(horizontalOffset / columnWidth);
+      expect(gutter + leftmostIndex * columnWidth - horizontalOffset).toBe(gutter);
+      const content = hostParent(hostsByTestID(tree, 'time-grid-hour-scroller')[0]!);
+      const trailingSpace = Number(resolveStyle(content.props.style).paddingRight ?? 0);
+      expect(horizontalOffset + viewportWidth).toBeLessThanOrEqual(columns.length * columnWidth + trailingSpace);
+      const todayLeft = gutter + todayIndex * columnWidth - horizontalOffset;
+      expect(todayLeft).toBeGreaterThanOrEqual(gutter);
+      expect(todayLeft + columnWidth).toBeLessThanOrEqual(width);
+      const centered = Math.max(0, todayIndex * columnWidth - (viewportWidth - columnWidth) / 2);
+      expect(Math.abs(horizontalOffset - centered)).toBeLessThanOrEqual(columnWidth / 2);
+      if (todayIndex > 0) expect(horizontalOffset).toBeGreaterThan(0);
+      TestRenderer.act(() => horizontal().props.onScrollBeginDrag());
+      horizontalOffset = 88;
+      TestRenderer.act(() => horizontal().props.onLayout({ nativeEvent: { layout: { width: viewportWidth + 16, height: 400 } } }));
+      expect(horizontalOffset).toBe(88);
+    } finally { __setScrollToImpl(() => {}); }
+  });
+
   it.each([false, true])("opens loaded concurrent lanes once and respects prior dragging (dragged=%s)", (dragged) => {
     const scrollTo = vi.fn();
     __setScrollToImpl(scrollTo);
@@ -466,7 +498,7 @@ describe("CalendarTimeGrid (mobile)", () => {
       update(crowded);
       expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toHaveLength(0);
       TestRenderer.act(() => horizontal().props.onContentSizeChange(2016, 400));
-      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual(dragged ? [] : [[{ x: 866, animated: false }]]);
+      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual(dragged ? [] : [[{ x: 864, animated: false }]]);
       TestRenderer.act(() => horizontal().props.onScrollBeginDrag());
       update(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'fourth', dueTime: '08:00' })]]]));
       TestRenderer.act(() => horizontal().props.onLayout({ nativeEvent: { layout: { width: 300, height: 400 } } }));
@@ -551,7 +583,7 @@ describe("CalendarTimeGrid (mobile)", () => {
   });
 
   it.each([
-    { movement: 'native clamp', offset: 1060, contentWidth: 1344, expected: 1044 },
+    { movement: 'native clamp', offset: 1060, contentWidth: 1344, expected: 1152 },
     { movement: 'upward input below the maximum', offset: 1000, contentWidth: 1344, expected: 1000 },
     { movement: 'input to the end', offset: 1788, contentWidth: 2072, expected: 1788 },
   ])("keeps horizontal opening ownership after $movement", ({ offset, contentWidth, expected }) => {
@@ -576,10 +608,10 @@ describe("CalendarTimeGrid (mobile)", () => {
         body().props.onLayout({ nativeEvent: { layout: { width: 2016, height: 400 } } });
         pane().props.onLayout({ nativeEvent: { layout: { width: 2016, height: 300 } } });
       });
-      expect(horizontalOffset).toBe(1730);
+      expect(horizontalOffset).toBe(1728);
       expect(verticalOffset).toBe(1232);
       TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: {
-        contentOffset: { x: 1730, y: 0 },
+        contentOffset: { x: 1728, y: 0 },
         contentSize: { width: 2016, height: 400 },
         layoutMeasurement: { width: 284, height: 400 },
       } }));
@@ -600,7 +632,7 @@ describe("CalendarTimeGrid (mobile)", () => {
         pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 100 } } });
       });
       expect(horizontalOffset).toBe(expected);
-      expect(verticalOffset).toBe(expected === 1044 ? 957 : 1232);
+      expect(verticalOffset).toBe(expected === 1152 ? 957 : 1232);
     } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
   });
 
@@ -657,7 +689,7 @@ describe("CalendarTimeGrid (mobile)", () => {
         body().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 400 } } });
         pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 300 } } });
       });
-      const horizontalOffset = todayIndex === 0 ? 0 : 1060;
+      const horizontalOffset = todayIndex === 0 ? 0 : 1152;
       expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual([[{ x: horizontalOffset, animated: false }]]);
       TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: { contentOffset: { x: horizontalOffset, y: 0 }, contentSize: { width: 1344, height: 400 }, layoutMeasurement: { width: 284, height: 400 } } }));
       scrollTo.mockClear();

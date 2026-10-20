@@ -52,6 +52,49 @@ describe('Week and agenda geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([320, 412, 600, 1352].flatMap((width) => [3, 6].map((todayIndex) => ({ width, todayIndex }))))('aligns the opening column and its paint at the pinned gutter ($width, today=$todayIndex)', async ({ width, todayIndex }) => {
+    const columns = Array.from({ length: 7 }, (_, index) => ({ date: new Date(2026, 9, 5 + index), dateStr: `day-${index}`, isToday: index === todayIndex, isFuture: index > todayIndex }))
+    const grid = (isLoading: boolean) => <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <div style={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+        <CalendarTimeGrid columns={columns} dayMap={new Map(columns.map(({ dateStr }) => [dateStr, [entry]]))} onSelectDay={vi.fn()} displayTime={timeLabel} dateFnsLocale={enUS}
+          allDayLabel={en.calendar.timeGrid.noSetTime} nowLabel={en.calendar.timeGrid.now} timeZone="UTC" isLoading={isLoading} />
+      </div>
+    </NextIntlClientProvider>
+    const view = render(grid(true))
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[data-time-grid-scroller]')!
+        const gutter = document.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!
+        return { width: scroller.clientWidth, height: scroller.clientHeight, gutter: gutter.clientWidth, column: document.querySelector('[data-today="true"]')!.getBoundingClientRect().width }
+      })
+      const scroller = view.getByTestId('time-grid-hour-scroller')
+      Object.defineProperties(scroller, { clientWidth: { configurable: true, value: measured.width }, clientHeight: { configurable: true, value: measured.height } })
+      Object.defineProperty(view.getByTestId('time-grid-any-time-label').parentElement!, 'clientWidth', { configurable: true, value: measured.gutter })
+      vi.spyOn(view.container.querySelector<HTMLElement>('[data-today="true"]')!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, measured.column, 1280))
+      view.rerender(grid(false))
+      const geometry = await page.evaluate(({ left, trailingSpace, todayIndex }) => {
+        const scroller = document.querySelector<HTMLElement>('[data-time-grid-scroller]')!
+        scroller.style.setProperty('--time-grid-trailing-space', trailingSpace)
+        scroller.scrollLeft = left
+        const gutter = document.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!.getBoundingClientRect()
+        const visible = [...document.querySelectorAll('[data-testid="time-grid-day-column"]')].map((column) => column.getBoundingClientRect()).filter((bounds) => bounds.right > gutter.right + 0.5)
+        const today = document.querySelector('[data-today="true"]')!.getBoundingClientRect()
+        const headers = [...document.querySelectorAll('[data-testid="time-grid-col-header"]')]
+        const firstHeader = headers.find((header) => header.getBoundingClientRect().right > gutter.right + 0.5)!
+        return { left: scroller.scrollLeft, firstStart: visible[0]!.left, firstPaintStart: firstHeader.firstElementChild!.getBoundingClientRect().left, gutterEnd: gutter.right, todayStart: today.left, todayEnd: today.right, todayPaintEnd: headers[todayIndex]!.firstElementChild!.getBoundingClientRect().right, viewportEnd: scroller.getBoundingClientRect().left + scroller.clientWidth }
+      }, { left: scroller.scrollLeft, trailingSpace: scroller.style.getPropertyValue('--time-grid-trailing-space'), todayIndex })
+      expect(geometry.left).toBeCloseTo(scroller.scrollLeft, 1)
+      expect(geometry.firstStart).toBeCloseTo(geometry.gutterEnd, 1)
+      expect(geometry.firstPaintStart - geometry.gutterEnd).toBeCloseTo(4, 1)
+      expect(geometry.todayStart).toBeGreaterThanOrEqual(geometry.gutterEnd - 0.5)
+      if (measured.column <= measured.width - measured.gutter) expect(geometry.todayEnd).toBeLessThanOrEqual(geometry.viewportEnd + 0.5)
+      expect(geometry.todayPaintEnd).toBeLessThanOrEqual(geometry.viewportEnd + 0.5)
+    } finally { await page.close(); view.unmount() }
+  })
+
   it.each([412, 600, 1100, 1352].flatMap((width) => locales.map((settings) => ({ width, ...settings }))))('keeps drawn week columns and complete short names in $locale at $width', async ({ width, locale, messages, dateLocale }) => {
     const shortName = locale === 'pt-BR' ? 'Revisar notas' : 'Review notes'
     const columns = Array.from({ length: 7 }, (_, index) => ({ date: new Date(2026, 9, 5 + index), dateStr: `day-${index}`, isToday: index === 3, isFuture: index > 3 }))
