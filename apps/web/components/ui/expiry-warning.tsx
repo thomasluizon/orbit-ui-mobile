@@ -39,7 +39,7 @@ export function ExpiryWarning() {
       style={{ top: 0, maxWidth: 'var(--app-max-w)' }}
     >
       <div
-        className="flex items-center rounded-[14px]"
+        className="flex items-center rounded-[var(--r-card)]"
         style={{
           padding: "var(--orbit-space-8) var(--orbit-space-12)",
           marginTop: 'calc(var(--safe-top) + 0.25rem)',

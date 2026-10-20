@@ -4,17 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { SPACING, TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
 import { getSessionGeneration, refreshSession, useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
-import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const WARN_AT_MINUTES = 5
 
 type RefreshState = 'ready' | 'refreshing' | 'retrying' | 'network-error' | 'rejected'
-
-function stripTrailingPeriod(text: string): string {
-  const trimmed = text.trimEnd()
-  return (trimmed.endsWith('.') ? trimmed.slice(0, -1) : trimmed).trimEnd()
-}
 
 function mixHexOver(baseHex: string, tintHex: string, alpha: number): string {
   const channels = (hex: string) => {
@@ -59,6 +54,8 @@ export function ExpiryWarning() {
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
   const [refreshState, setRefreshState] = useState<RefreshState>('ready')
+  const [actionHovered, setActionHovered] = useState(false)
+  const [actionFocused, setActionFocused] = useState(false)
   const refreshInFlight = useRef(false)
 
   const [prevExpiresAt, setPrevExpiresAt] = useState(expiresAt)
@@ -189,18 +186,20 @@ export function ExpiryWarning() {
           {isExpired || isTerminal ? (
             <Text style={styles.urgent}>{expiredMessage}</Text>
           ) : (
-            <>
-              {stripTrailingPeriod(t('auth.sessionExpiring', { minutes: '' }))}{' '}
-              <Text style={styles.monoCount}>
-                {`${minutesLeft ?? 0} min`}
-              </Text>
-            </>
+            t('auth.sessionExpiring', { minutes: minutesLeft ?? 0 })
           )}
         </Text>
         <Pressable
           onPress={() => void handleAction()}
           disabled={isRefreshing}
-          style={styles.actionPress}
+          onHoverIn={() => setActionHovered(true)}
+          onHoverOut={() => setActionHovered(false)}
+          onFocus={() => setActionFocused(true)}
+          onBlur={() => setActionFocused(false)}
+          style={({ pressed }) => [
+            styles.actionPress,
+            { backgroundColor: !isRefreshing && (pressed || actionHovered || actionFocused) ? tokens.bgHover : 'transparent' },
+          ]}
           accessibilityRole="button"
           accessibilityState={{
             busy: isRefreshing,
@@ -235,7 +234,7 @@ function createStyles(tokens: AppTokensV2) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 12,
-      borderRadius: 14,
+      borderRadius: radius.xl,
       borderWidth: 1,
       borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
       backgroundColor: mixHexOver(tokens.bg, tokens.statusOverdue, 0.1),
@@ -246,25 +245,22 @@ function createStyles(tokens: AppTokensV2) {
     text: {
       flex: 1,
       fontFamily: 'Geist_400Regular',
+      fontVariant: ['tabular-nums'],
       fontSize: 14,
       color: tokens.fg2,
     },
     urgent: {
       color: tokens.statusOverdueText,
     },
-    monoCount: {
-      fontFamily: 'GeistMono_400Regular',
-      fontVariant: ['tabular-nums'],
-      color: tokens.statusOverdueText,
-    },
     actionPress: {
+      borderRadius: radius.sm,
       minWidth: TOUCH_TARGET_MIN,
       minHeight: TOUCH_TARGET_MIN,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
       paddingVertical: SPACING.s8,
-      paddingHorizontal: SPACING.s4,
+      paddingHorizontal: SPACING.s8,
     },
     actionText: {
       fontFamily: 'Geist_500Medium',
