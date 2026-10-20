@@ -10,9 +10,14 @@ export async function setHabitTextScale(page: Page, scale: number, supportingTit
     await page.evaluate(async (scale) => {
       document.documentElement.style.fontSize = `${16 * scale}px`
       await document.fonts.ready
+    }, scale)
+    await expect.poll(() => page.locator('html').evaluate((root) => getComputedStyle(root).fontSize), {
+      message: 'Actual root font must match before the existing resize signal',
+    }).toBe(`${16 * scale}px`)
+    await page.evaluate(async () => {
       window.dispatchEvent(new Event('resize'))
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-    }, scale)
+    })
     await expect.poll(async () => {
       const actual = await page.evaluate(({ identities, supportingTitles }) => {
         const identify = (node: Element) => {

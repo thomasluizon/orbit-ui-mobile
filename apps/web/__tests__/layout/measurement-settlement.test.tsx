@@ -144,10 +144,16 @@ async function habitPage(script?: string) {
   await page.setContent(`<!doctype html><style>${stylesheet}html{font-size:16px}body{margin:0;padding:16px}</style><main id="habit-root">${renderToString(<HabitTextScaleFixture />)}</main>`)
   await page.evaluate(() => {
     const host = document.getElementById('habit-root')!
+    const notifiedFonts: string[] = []
     host.dataset.scaleNotifications = '0'
     host.dataset.scaleWrites = '0'
+    host.dataset.scaleNotifiedFonts = '[]'
     window.addEventListener('resize', (event) => {
-      if (!event.isTrusted) host.dataset.scaleNotifications = String(Number(host.dataset.scaleNotifications) + 1)
+      if (!event.isTrusted) {
+        host.dataset.scaleNotifications = String(Number(host.dataset.scaleNotifications) + 1)
+        notifiedFonts.push(getComputedStyle(document.documentElement).fontSize)
+        host.dataset.scaleNotifiedFonts = JSON.stringify(notifiedFonts)
+      }
     })
     new MutationObserver((records) => {
       host.dataset.scaleWrites = String(Number(host.dataset.scaleWrites) + records.length)
@@ -156,6 +162,40 @@ async function habitPage(script?: string) {
   if (script) await page.addScriptTag({ content: script })
   return page
 }
+
+it.each([2, 1])('waits for the actual root font before the scale %s resize', async (scale) => {
+  const page = await habitPage(habitScript)
+  let scaling: Promise<void> | undefined
+  try {
+    await page.getByRole('button', { name: 'Select rows', exact: true }).click()
+    if (scale === 1) await setHabitTextScale(page, 2, supportingHabitTitles)
+    const previousFont = scale === 2 ? '16px' : '32px'
+    const requestedFont = `${16 * scale}px`
+    const previousNotifications = scale === 2 ? 0 : 1
+    await page.evaluate((fontSize) => {
+      const stylesheet = document.createElement('style')
+      stylesheet.id = 'held-root-font'
+      stylesheet.textContent = `html{font-size:${fontSize}!important}`
+      document.head.append(stylesheet)
+    }, previousFont)
+
+    scaling = setHabitTextScale(page, scale, supportingHabitTitles)
+    await page.waitForFunction((fontSize) => document.documentElement.style.fontSize === fontSize, requestedFont)
+    await page.evaluate(async () => { await document.fonts.ready })
+    expect(await page.locator('html').evaluate((root) => getComputedStyle(root).fontSize)).toBe(previousFont)
+    expect(await page.locator('#habit-root').getAttribute('data-scale-writes')).toBe(String(previousNotifications + 1))
+    expect(await page.locator('#habit-root').getAttribute('data-scale-notifications')).toBe(String(previousNotifications))
+    expect(await page.locator('[data-habit-row-control="selection"]').count()).toBe(2)
+
+    await page.locator('#held-root-font').evaluate((stylesheet) => stylesheet.remove())
+    await scaling
+    expect(await page.locator('#habit-root').getAttribute('data-scale-writes')).toBe(String(previousNotifications + 1))
+    expect(await page.locator('#habit-root').getAttribute('data-scale-notifications')).toBe(String(previousNotifications + 1))
+    expect(await page.locator('#habit-root').getAttribute('data-scale-notified-fonts'))
+      .toBe(JSON.stringify(scale === 2 ? ['32px'] : ['32px', '16px']))
+    await assertHabitRows(page.getByTestId('habit-row'), 412, [0, 1], scale)
+  } finally { await page.close(); await scaling?.catch(() => {}) }
+})
 
 it('waits for both real supporting phases while habit hydration is withheld', async () => {
   const page = await habitPage()
