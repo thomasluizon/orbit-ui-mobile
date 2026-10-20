@@ -3,6 +3,8 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createRef } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -215,6 +217,14 @@ async function selectGoalFilter(view: string) {
 }
 
 describe('ProgressContent', () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(habitKeys.list({}), [])
+  })
+  afterEach(() => queryClient.clear())
+
   it('offers Share progress from the populated period window', () => {
     render(<ProgressContent />)
     expect(screen.getByRole('button', { name: 'shareCard.entry' })).toBeInTheDocument()
@@ -881,7 +891,7 @@ describe('ProgressContent', () => {
     mocks.account.profile.hasProAccess = hasProAccess
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    const { container } = render(<GoalsPage />)
+    const { container } = render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
     expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
@@ -902,7 +912,7 @@ describe('ProgressContent', () => {
   })
 
   it('starts a goal request from the in-section goals-empty action', () => {
-    render(<GoalsPage />)
+    render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
 
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
     expect(action).toHaveAttribute('data-variant', 'primary')
@@ -919,7 +929,7 @@ describe('ProgressContent', () => {
 
   it('keeps an unsent Astra draft when starting a goal', () => {
     useChatStore.getState().setDraft('Unsent note')
-    const { rerender } = render(<GoalsPage />)
+    const { rerender } = render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
 
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.createAction' }))
     expect(useChatStore.getState().draft).toBe('Unsent note')
@@ -927,7 +937,7 @@ describe('ProgressContent', () => {
     expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
     mocks.goals.data.allGoals = [createMockGoal()]
-    rerender(<GoalsPage />)
+    rerender(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
     expect(useChatStore.getState().contextualSuggestion).toBeNull()
   })
 
@@ -941,7 +951,7 @@ describe('ProgressContent', () => {
       mocks.goals.data.allGoals = [...mocks.goals.data.allGoals, createMockGoal({ id: 'goal-created', title: 'Walk 100 km' })]
       return { id: 'goal-created' }
     })
-    render(<GoalsPage />)
+    render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
     if (entry === 'populated') await selectGoalFilter('completed')
     fireEvent.click(screen.getByRole('button', { name: entry === 'populated' ? 'goals.create' : 'progressScreen.goals.createAction' }))
     fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Walk 100 km' } })
@@ -974,7 +984,7 @@ describe('ProgressContent', () => {
 
   it('keeps the Metas filter when goal creation is cancelled', async () => {
     mocks.goals.data.allGoals = [createMockGoal()]
-    render(<GoalsPage />)
+    render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
     await selectGoalFilter('completed')
     fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
