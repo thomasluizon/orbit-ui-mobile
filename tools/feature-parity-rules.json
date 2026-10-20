@@ -1,4 +1,7 @@
 {
+  "provenance": {
+    "legacyProduction": "75f00d37e18a4192dd2b0e8de872220c036f3f0a"
+  },
   "mappings": {
     "mobile:control:advancedSettings.title": {
       "targets": [
@@ -1115,15 +1118,15 @@
     },
     "mobile:display:common.no": {
       "targets": [
-        "mobile:content:common.no"
+        "mobile:display:orbitMcp.permReadWrite"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
     "mobile:display:common.yes": {
       "targets": [
-        "mobile:content:common.yes"
+        "mobile:display:orbitMcp.permReadOnly"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
     "mobile:display:gamification.carrot.toNextLevel": {
       "targets": [
@@ -1340,6 +1343,12 @@
         "mobile:control:profile.apiKeys.create"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:orbitMcp.replaceKey": {
+      "targets": [
+        "mobile:content:orbitMcp.replaceKey"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
     },
     "mobile:display:orbitMcp.revealHeading": {
       "targets": [
@@ -2115,6 +2124,18 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:habits.form.emojiSuggest": {
+      "targets": [
+        "web:content:habits.form.emojiSuggest"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
+    "web:control:habits.form.emojiSuggesting": {
+      "targets": [
+        "web:content:habits.form.emojiSuggesting"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
     "web:control:habits.form.habitTypeBuild": {
       "targets": [
         "web:control:habits.form.habitTypeAvoid"
@@ -2322,6 +2343,12 @@
       ],
       "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
     },
+    "web:control:orbitMcp.configInstructions": {
+      "targets": [
+        "web:content:orbitMcp.configInstructions"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
     "web:control:orbitMcp.confirm": {
       "targets": [
         "web:control:stepUp.confirm"
@@ -2339,6 +2366,12 @@
         "web:control:profile.apiKeys.create"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:orbitMcp.replaceKey": {
+      "targets": [
+        "web:content:orbitMcp.replaceKey"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
     },
     "web:control:orbitMcp.revokeConfirm": {
       "targets": [
@@ -2543,6 +2576,18 @@
         "web:control:profile.settingsRows.weekStart"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:shell.collapseSidebar": {
+      "targets": [
+        "web:content:shell.collapseSidebar"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
+    "web:control:shell.expandSidebar": {
+      "targets": [
+        "web:content:shell.expandSidebar"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
     },
     "web:control:shell.openPalette": {
       "targets": [
@@ -2774,15 +2819,15 @@
     },
     "web:display:common.no": {
       "targets": [
-        "web:content:common.no"
+        "web:display:orbitMcp.permReadWrite"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
     "web:display:common.yes": {
       "targets": [
-        "web:content:common.yes"
+        "web:display:orbitMcp.permReadOnly"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
     "web:display:errors.api.accountChanged": {
       "targets": [
@@ -3023,6 +3068,18 @@
         "web:content:auth.onboarding.title"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:orbitMcp.created": {
+      "targets": [
+        "web:content:orbitMcp.created"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
+    "web:display:orbitMcp.lastUsed": {
+      "targets": [
+        "web:content:orbitMcp.lastUsed"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
     },
     "web:display:profile.deleteAccount.deactivated": {
       "targets": [
@@ -4159,7 +4216,7 @@
     "mobile:control:summary.retry": "#1443",
     "mobile:control:summary.upgrade": "#1443",
     "mobile:control:today.setupChecklist.dismiss": "#1444",
-    "mobile:display:common.never": "#1437",
+    "mobile:display:common.never": "#1600",
     "mobile:display:goals.metrics.projectedCompletion": "#1429",
     "mobile:display:habits.form.every": "#1450",
     "mobile:display:habits.form.flexibleDescription": "#1450",
