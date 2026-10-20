@@ -80,6 +80,8 @@ type ComposerBase = {
   onOpenConversation?: () => void
   conversationLabel?: string
   errorMessage?: string
+  usageMessage?: string
+  renewalHint?: string
   errorRecovery?: { label: string; onSelect: () => void }
 }
 

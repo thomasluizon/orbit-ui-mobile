@@ -36,6 +36,7 @@ import {
   resolveComposerChipStatus,
   resolveComposerChipSurface,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
+  AI_MESSAGE_COUNTER_THRESHOLD,
   consumeChatSseStream,
 } from '@orbit/shared/chat'
 import {
@@ -738,6 +739,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       transcribing: t('shell.composer.voice.transcribing'),
     }
     const common = {
+      usageMessage: aiMessagesLimit - aiMessagesUsed <= AI_MESSAGE_COUNTER_THRESHOLD
+        ? t('shell.composer.usage', { used: aiMessagesUsed, limit: aiMessagesLimit }) : undefined,
+      renewalHint: t('shell.composer.limit.renewal'),
       words,
       value: input,
       errorMessage: speechError ?? sendError ?? undefined,
@@ -775,8 +779,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       const limitWords = { ...words, placeholder: t('shell.composer.limit.placeholder') }
       const limitReason = t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
       return speechSupported
-        ? { ...common, words: limitWords, state: 'atLimit', limitReason, onVoice: toggleRecording, voiceWords }
-        : { ...common, words: limitWords, state: 'atLimit', limitReason }
+        ? { ...common, words: limitWords, suggestions: [] as const, state: 'atLimit', limitReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, words: limitWords, suggestions: [] as const, state: 'atLimit', limitReason }
     }
 
     const state: 'idle' | 'sending' = isSending ? 'sending' : 'idle'
@@ -785,6 +789,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       : { ...common, state }
   }, [
     aiMessagesLimit,
+    aiMessagesUsed,
     attachments,
     atMessageLimit,
     canRetryLastSend,

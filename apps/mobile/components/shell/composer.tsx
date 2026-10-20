@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
@@ -155,6 +155,7 @@ function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: Compos
     return (
       <View style={styles.limitStatus}>
         <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.limitReason}</Text>
+        {props.state === 'atLimit' && props.renewalHint ? <Text style={[styles.renewalHint, { color: tokens.fg2 }]}>{props.renewalHint}</Text> : null}
         {props.limitRecovery}
       </View>
     )
@@ -464,8 +465,11 @@ export function Composer(props: Readonly<MobileComposerProps>) {
       ) : null}
 
       <ComposerError props={props} tokens={tokens} />
-      <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />
+      <View testID="composer-status-slot" style={props.renewalHint ? { minHeight: TOUCH_TARGET_MIN * 2 } : undefined}>
+        <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />
+      </View>
       <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} />
+      {props.renewalHint ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
       <RetryControl props={props} tokens={tokens} />
     </View>
   )
@@ -562,6 +566,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },
+  usage: { minHeight: 34, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'] },
+  renewalHint: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   limitReason: {
     minHeight: 48,
     fontFamily: 'Geist_400Regular',

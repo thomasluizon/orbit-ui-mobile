@@ -447,6 +447,17 @@ describe('web useChatComposer streaming send', () => {
     expect(useChatStore.getState().messages[0]?.content).toBe('Voice request')
   })
 
+  it.each([[0, 5, false], [2, 5, false], [3, 5, true], [5, 5, true], [47, 50, false], [48, 50, true], [50, 50, true]] as const)('shows the daily counter at %i of %i only near capacity', (used, limit, visible) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: used, aiMessagesLimit: limit })
+    const { result } = renderHook(() => useChatComposer())
+    expect(Boolean(result.current.composerProps.usageMessage)).toBe(visible)
+    if (visible) expect(result.current.composerProps.usageMessage).toContain('shell.composer.usage')
+    if (used === limit) {
+      expect(result.current.composerProps.state).toBe('atLimit')
+      expect(result.current.composerProps.suggestions).toHaveLength(0)
+    }
+  })
+
   it('sends the profile clock preference to Astra', async () => {
     mocks.state.profile = createMockProfile({ uses24HourClock: true })
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))

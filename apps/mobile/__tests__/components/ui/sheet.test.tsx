@@ -250,7 +250,7 @@ describe('Sheet (mobile)', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title, isOverdue: true, hasSubHabits: true })}
-        hasChildren hasProAccess actions={actions} />)
+        hasChildren actions={actions} />)
     })
     try {
       for (const [index, label] of labels.entries()) {

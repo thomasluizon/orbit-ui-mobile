@@ -116,6 +116,8 @@ type ExpectedComposerBase = {
   onOpenConversation?: () => void
   conversationLabel?: string
   errorMessage?: string
+  usageMessage?: string
+  renewalHint?: string
   errorRecovery?: { label: string; onSelect: () => void }
 }
 type ExpectedIdleState = { state: 'idle'; limitReason?: never; limitRecovery?: never }

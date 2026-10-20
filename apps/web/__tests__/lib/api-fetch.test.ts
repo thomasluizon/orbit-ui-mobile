@@ -271,6 +271,15 @@ describe('apiFetch', () => {
     expect(toastError).not.toHaveBeenCalled()
   })
 
+  it('surfaces the server habit ceiling to its owner without redirecting or publishing a toast', async () => {
+    const currentLocation = { href: '', pathname: '/habits/new' }
+    Object.defineProperty(globalThis, 'location', { value: currentLocation, writable: true, configurable: true })
+    mockFetch.mockResolvedValue(Response.json({ error: 'Habit ceiling', errorCode: 'HABIT_LIMIT_REACHED' }, { status: 400 }))
+    await expect(apiFetch('/api/habits', undefined, undefined, { handlesError: true, handlesPayGate: true })).rejects.toMatchObject({ status: 400 })
+    expect(currentLocation.href).toBe('')
+    expect(toastError).not.toHaveBeenCalled()
+  })
+
   it('does not redirect on a non-PAY_GATE 403 and shows an error toast', async () => {
     const mockHref = { href: '', pathname: '/today' }
     Object.defineProperty(globalThis, 'location', {

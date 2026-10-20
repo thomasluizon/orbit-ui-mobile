@@ -162,7 +162,7 @@ import { holdAccount } from '@/__tests__/support/account-change'
 
 function UsageStatsWithoutProfile() {
   const t = useTranslations()
-  return <UsageStats usagePercent={0} usageUrgent={false} profile={null} t={t} />
+  return <UsageStats usagePercent={0} profile={null} t={t} />
 }
 
 describe('UpgradePage subscription management', () => {
@@ -580,7 +580,7 @@ describe('UpgradePage subscription management', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the capacity notice when Pro usage reaches the warning threshold', () => {
+  it('shows a persistent notice only within two messages of the daily allowance', () => {
     mockHasProAccess = true
     mockProfile = {
       ...mockProfile,
@@ -599,9 +599,16 @@ describe('UpgradePage subscription management', () => {
       paymentMethod: null,
       recentInvoices: [],
     }
-    render(<UpgradePage />)
+    const { rerender } = render(<UpgradePage />)
+    expect(screen.queryByText('upgrade.billing.usage.nearLimit')).not.toBeInTheDocument()
+    mockProfile = { ...mockProfile, aiMessagesUsed: 48 }
+    rerender(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.usage.nearLimit')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.usage.nearLimitBody')).toBeInTheDocument()
+    expect(screen.getByText('shell.composer.limit.renewal')).toBeInTheDocument()
+    mockProfile = { ...mockProfile, aiMessagesUsed: 50 }
+    rerender(<UpgradePage />)
+    expect(screen.getByText('shell.composer.limit.exhausted')).toBeInTheDocument()
+    expect(screen.getByText('shell.composer.limit.renewal')).toBeInTheDocument()
   })
 
   it('keeps card details visible with a change action and one filled provider action', () => {

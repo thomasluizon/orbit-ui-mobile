@@ -15,6 +15,7 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Composer } from '@/components/shell/composer'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { Menu } from '@/components/ui/menu'
@@ -184,6 +185,71 @@ describe('Composer compact geometry in Chromium', () => {
     `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => (['light', 'dark'] as const).map((mode) => ({ width, locale, mode })))))('keeps daily allowance geometry stable at $width in $locale $mode', async ({ width, locale, mode }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const measured: Array<{ top: number; height: number }> = []
+    try {
+      for (const used of [0, 3, 5]) {
+        const configuration = {
+          ...geometryProps(used === 5 ? 'atLimit' : 'idle', messages, false),
+          value: 'Keep this draft',
+          usageMessage: used >= 3 ? messages.shell.composer.usage.replace('{used}', String(used)).replace('{limit}', '5') : undefined,
+          renewalHint: messages.shell.composer.limit.renewal,
+          ...(used === 5 ? { state: 'atLimit', limitReason: messages.shell.composer.limit.reason.replace('{allowance}', '5') } : {}),
+        } as ComposerProps
+        const view = render(<Composer {...configuration} />)
+        try {
+          await page.setContent(`<style>${stylesheet}:root{${theme}}</style>${view.container.innerHTML}`)
+          await loadAppFonts(page)
+          const geometry = await page.locator('[data-composer-root]').evaluate((root) => {
+            const input = root.querySelector('[data-composer-input]')!
+            const usage = root.querySelector('[data-composer-usage]')!
+            return { top: input.getBoundingClientRect().top, height: root.getBoundingClientRect().height,
+              overflow: root.scrollWidth > root.clientWidth, numeric: getComputedStyle(usage).fontVariantNumeric }
+          })
+          expect(geometry.overflow).toBe(false)
+          expect(geometry.numeric).toContain('tabular-nums')
+          measured.push(geometry)
+        } finally { view.unmount() }
+      }
+      expect(new Set(measured.map(({ top }) => top)).size).toBe(1)
+      expect(new Set(measured.map(({ height }) => height)).size).toBe(1)
+    } finally { await page.close() }
+  })
+
+  it.each((['en', 'pt-BR'] as const).flatMap((locale) => (['light', 'dark'] as const).map((mode) => ({ locale, mode }))))('keeps the habit capacity message neutral and contained in $locale $mode', async ({ locale, mode }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+    const body = messages.habits.form.capacityBody.replace('{limit}', new Intl.NumberFormat(locale).format(1000))
+    const view = render(<main style={{ padding: 16 }}><input aria-label="Draft" defaultValue="Morning walk" /><CapacityNotice message={messages.habits.form.capacityTitle} body={body} /></main>)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}:root{${theme}}</style>${view.container.innerHTML}`)
+      await loadAppFonts(page)
+      expect(await page.locator('input').inputValue()).toBe('Morning walk')
+      const geometry = await page.locator('[data-capacity-notice]').evaluate((notice) => {
+        const title = notice.querySelector('p')!
+        return { overflow: notice.scrollWidth > notice.clientWidth, titleHeight: title.getBoundingClientRect().height,
+          titleLine: Number.parseFloat(getComputedStyle(title).lineHeight), colors: [...notice.querySelectorAll('p')].map((element) => getComputedStyle(element).color),
+          neutral: ['--fg-1', '--fg-2'].map((token) => {
+            const probe = document.createElement('span')
+            probe.style.color = `var(${token})`
+            notice.append(probe)
+            const color = getComputedStyle(probe).color
+            probe.remove()
+            return color
+          }) }
+      })
+      expect(geometry.overflow).toBe(false)
+      expect(geometry.titleHeight).toBeLessThanOrEqual(geometry.titleLine + 1)
+      expect(await page.locator('[data-capacity-notice] button').count()).toBe(0)
+      expect(await page.locator('[data-capacity-notice]').textContent()).toContain(locale === 'pt-BR' ? '1.000' : '1,000')
+      expect(geometry.colors).toEqual(geometry.neutral)
+    } finally { view.unmount(); await page.close() }
+  })
 
   it.each([360, 412, 1200, 1600].flatMap(width => [false, true].map(withMessages => ({ width, withMessages }))))(
     'contains the prefilled conversation input at $width with messages $withMessages', async ({ width, withMessages }) => {

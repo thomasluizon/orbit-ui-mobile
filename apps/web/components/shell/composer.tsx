@@ -1,5 +1,6 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -153,6 +154,7 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
     return (
       <div className="flex flex-col gap-2">
         <p className="m-0 min-h-[var(--touch-min)] text-sm leading-5 text-[var(--fg-2)]">{props.limitReason}</p>
+        {props.state === 'atLimit' && props.renewalHint ? <p className="m-0 text-sm leading-5 text-[var(--fg-2)]">{props.renewalHint}</p> : null}
         {props.limitRecovery}
       </div>
     )
@@ -347,8 +349,11 @@ export function Composer(props: Readonly<WebComposerProps>) {
       ) : null}
 
       <ComposerError props={props} />
-      <ComposerStatus props={props} />
+      <div data-composer-status-slot style={{ minHeight: props.renewalHint ? TOUCH_TARGET_MIN * 2 : undefined }}>
+        <ComposerStatus props={props} />
+      </div>
       <ComposerInputRow props={props} />
+      {props.renewalHint ? <p data-composer-usage className="m-0 t-meta leading-[1.4]" style={{ minHeight: 34 }}>{props.usageMessage}</p> : null}
       <RetryControl props={props} />
     </div>
   )

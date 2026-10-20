@@ -861,7 +861,7 @@ await Promise.resolve()
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: phrase })
   })
 
-  it('omits nested sub-habits from a Free create request', async () => {
+  it('preserves nested sub-habits after a downgrade', async () => {
     mockGetValues.mockImplementation((field?: unknown) => field === 'title' ? 'Run' : field === 'checklistItems' ? [] : { title: 'Run' })
     mockSuggestMutateAsync.mockResolvedValue({
       emoji: null,
@@ -889,7 +889,7 @@ await Promise.resolve()
       findSubmit(tree.root).props.onPress()
     })
 
-    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual(['Warm up'])
   })
 
   it.each([['en', false], ['en', true], ['pt-BR', false], ['pt-BR', true]] as const)('keeps habit creation beneath Upgrade and resumes its Back guard in %s (dirty=%s)', async (locale, dirty) => {
@@ -901,7 +901,7 @@ await Promise.resolve()
       parentHabit={createMockHabit({ id: 'parent-1' })} />
     const tree = renderModal(modal)
     await TestRenderer.act(async () => {
-      findSubmit(tree.root).props.onPress()
+      tree.root.findAll((node) => node.type === 'HabitFormFields')[0].props.onUpgrade()
       await Promise.resolve()
     })
     if (dirty) {
@@ -934,36 +934,31 @@ await Promise.resolve()
     tree.unmount()
   })
 
-  it('routes a Free standalone sub-habit attempt after the sheet dismisses', async () => {
+  it('creates a Free standalone sub-habit without navigation', async () => {
     mockProfileState.hasProAccess = false
-    const onClose = vi.fn()
-    sheetTestControls.defer(true)
-    const tree = renderModal(
-      <CreateHabitModal
-        open
-        onClose={onClose}
-        parentHabit={createMockHabit({ id: 'parent-1' })}
-      />,
-    )
-
-    await TestRenderer.act(async () => {
-      findSubmit(tree.root).props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(sheetTestControls.isDismissPending).toBe(true)
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} parentHabit={createMockHabit({ id: 'parent-1' })} />)
+    await TestRenderer.act(async () => { findSubmit(tree.root).props.onPress(); await Promise.resolve() })
+    expect(mockCreateSubMutateAsync).toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
-    expect(onClose).not.toHaveBeenCalled()
-    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+  })
 
-    TestRenderer.act(() => {
-      sheetTestControls.completeDismissal()
-    })
-
-    expect(mockPush).toHaveBeenCalledWith('/upgrade')
-    expect(mockPush).toHaveBeenCalledTimes(1)
-    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
-    expect(onClose).toHaveBeenCalledOnce()
+  it.each(['HABIT_LIMIT_REACHED', 'PAY_GATE'])('shows an inline %s notice without a toast or closing', async (errorCode) => {
+    const legacySubHabit = errorCode === 'PAY_GATE'
+    const create = legacySubHabit ? mockCreateSubMutateAsync : mockCreateMutateAsync
+    create.mockRejectedValueOnce(new ApiClientError(legacySubHabit ? 403 : 400, 'Boundary', { code: errorCode, data: { error: 'Boundary', errorCode } }))
+    const close = vi.fn()
+    const tree = renderModal(<CreateHabitModal open onClose={close} parentHabit={legacySubHabit ? createMockHabit({ id: 'parent-1' }) : undefined} />)
+    mockSetValue.mockClear()
+    await TestRenderer.act(async () => { findSubmit(tree.root).props.onPress(); await Promise.resolve() })
+    expect(tree.root.findAll((node) => node.props.testID === 'capacity-notice').length).toBeGreaterThan(0)
+    expect(mockShowError).not.toHaveBeenCalled()
+    expect(mockSetValue).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(close).not.toHaveBeenCalled()
+    expect(findSubmit(tree.root).props.disabled).not.toBe(true)
+    await TestRenderer.act(async () => { findSubmit(tree.root).props.onPress(); await Promise.resolve() })
+    expect(create).toHaveBeenCalledTimes(2)
+    expect(close).toHaveBeenCalledOnce()
   })
 
   it('surfaces the validation error and does not create when the form is invalid', async () => {
@@ -1002,8 +997,6 @@ await Promise.resolve()
     [400, 'VALIDATION_ERROR', en.habits.form.titleTooLong, 'habits.form.titleTooLong'],
     [429, 'RATE_LIMITED', 'Rate limited', 'toast.errors.tooManyRequests'],
     [500, 'INTERNAL_SERVER_ERROR', 'Server failed', 'toast.errors.server'],
-    [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!', 'errors.api.calendarPro'],
-    [400, 'HABIT_LIMIT_REACHED', "You've reached the 1000 habit limit.", 'errors.api.habitLimit'],
   ])('shows the classified create error for %i %s', async (status, code, message, expected) => {
     mockCreateMutateAsync.mockRejectedValue(new ApiClientError(status, message, { code }))
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)

@@ -115,9 +115,12 @@ for (const width of [600, 1100]) {
             const composer = page.locator('[data-shell-pinned-slot] [data-composer-root]')
             await expect(composer).toHaveAttribute('data-state', atLimit ? 'atLimit' : 'idle')
             await expectRightEdge(composer.locator('[data-composer-input-row]'), rowRight)
+            await expect(composer.locator('[data-composer-status-slot]')).toHaveCSS('min-height', '96px')
             if (atLimit) {
               const reason = words.shell.composer.limit.reason.replace('{allowance}', '5')
               await expectRightEdge(composer.getByText(reason, { exact: true }), rowRight)
+              await expectRightEdge(composer.getByText(words.shell.composer.limit.renewal, { exact: true }), rowRight)
+              await expect(composer.locator('[data-composer-usage]')).toHaveText(words.shell.composer.usage.replace('{used}', '5').replace('{limit}', '5'))
             }
           }
         })

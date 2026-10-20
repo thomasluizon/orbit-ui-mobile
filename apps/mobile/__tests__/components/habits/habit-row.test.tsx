@@ -623,7 +623,7 @@ describe('HabitRow menu (mobile)', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Walk', isOverdue: true, hasSubHabits: true })}
-        hasChildren hasProAccess={false} actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(),
+        hasChildren actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(),
           onSkip: vi.fn(), onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
           onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
     })
@@ -638,7 +638,7 @@ describe('HabitRow menu (mobile)', () => {
       'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
-    expect(menu.props.items[0].badge).toBe('Pro')
+    expect(menu.props.items[0].badge).toBeUndefined()
     expect(menu.props.items[8].destructive).toBe(true)
     pressMoreButton(renderer)
     const icons = renderer!.root.findAllByType(Icon)
@@ -654,7 +654,7 @@ describe('HabitRow menu (mobile)', () => {
   it('omits overdue and child actions when their row conditions do not apply', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })} hasProAccess
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })}
         actions={{ onAddSubHabit: vi.fn(), onReschedule: vi.fn(), onDrillInto: vi.fn(), onEnterSelectMode: vi.fn() }} />)
     })
     const menu = renderer!.root.findByType(Menu)

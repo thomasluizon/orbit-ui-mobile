@@ -397,6 +397,17 @@ function inputHosts(tree: ReturnType<typeof TestRenderer.create>) {
 }
 
 describe('mobile useChatComposer', () => {
+  it.each([[0, 5, false], [2, 5, false], [3, 5, true], [5, 5, true], [47, 50, false], [48, 50, true], [50, 50, true]] as const)('shows the daily counter at %i of %i only near capacity', async (used, limit, visible) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: used, aiMessagesLimit: limit })
+    const composer = await renderComposer()
+    expect(Boolean(composer.current.composerProps.usageMessage)).toBe(visible)
+    if (visible) expect(composer.current.composerProps.usageMessage).toContain('shell.composer.usage')
+    if (used === limit) {
+      expect(composer.current.composerProps.state).toBe('atLimit')
+      expect(composer.current.composerProps.suggestions).toHaveLength(0)
+    }
+  })
+
   it('keeps the pending reply indicator static under reduced motion', async () => {
     const listeners = new Set<(enabled: boolean) => void>()
     const subscription = vi.spyOn(TestAccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {

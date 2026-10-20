@@ -8,6 +8,7 @@ import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Square } from '@/components/ui/icons'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Composer } from '@/components/shell/composer'
 import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
@@ -1033,4 +1034,33 @@ describe('Composer (mobile)', () => {
       expect(root.props.testID).not.toContain('retry')
     },
   )
+})
+
+
+describe('daily allowance and habit capacity styles', () => {
+  it.each([en, ptBR])('reserves the daily notice and uses neutral tabular counter text', (messages) => {
+    for (const state of ['idle', 'atLimit'] as const) {
+      const tree = renderComposer(props({ state, suggestions: [], renewalHint: messages.shell.composer.limit.renewal,
+        usageMessage: messages.shell.composer.usage.replace('{used}', '5').replace('{limit}', '5'),
+        ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason.replace('{allowance}', '5') } : {}) }))
+      const slot = StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-status-slot' }).props.style)
+      expect(slot.minHeight).toBe(96)
+      const usage = StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-usage' }).props.style)
+      expect(usage).toMatchObject({ fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] })
+      expect(usage.color).toBe(createTokensV2('orange', 'dark').fg3)
+      TestRenderer.act(() => tree.unmount())
+    }
+  })
+
+  it.each([['en', en], ['pt-BR', ptBR]] as const)('formats a neutral habit boundary in %s without an upgrade control', (locale, messages) => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    const body = messages.habits.form.capacityBody.replace('{limit}', new Intl.NumberFormat(locale).format(1000))
+    TestRenderer.act(() => { tree = TestRenderer.create(<CapacityNotice message={messages.habits.form.capacityTitle} body={body} />) })
+    const notice = tree.root.findByProps({ testID: 'capacity-notice' })
+    expect(StyleSheet.flatten(notice.props.style).backgroundColor).toBe(createTokensV2('orange', 'dark').bgWell)
+    expect(notice.findAllByType('Text').map((node: { props: { children: string } }) => node.props.children)).toContain(body)
+    expect(body).toContain(locale === 'pt-BR' ? '1.000' : '1,000')
+    expect(notice.findAllByType('Pressable')).toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
+  })
 })

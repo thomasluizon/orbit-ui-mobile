@@ -8,7 +8,6 @@ import type { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ArrowLeft } from '@/components/ui/icons'
-import { Badge } from '@/components/ui/badge'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
@@ -17,7 +16,6 @@ import { HabitListSkeleton } from './empty-state'
 interface HabitDrillProps {
   t: (key: string, values?: Record<string, string | number>) => string
   drill: ReturnType<typeof useDrillNavigation>
-  hasProAccess: boolean
   renderHabitCard: (
     habit: NormalizedHabit,
     depth: number,
@@ -53,7 +51,6 @@ function DrillEmptyMessage({
 export function HabitDrill({
   t,
   drill,
-  hasProAccess,
   renderHabitCard,
   onAddSubHabit,
   subHabitRefusal,
@@ -65,7 +62,6 @@ export function HabitDrill({
       icon="plus"
       title={t('habits.form.addSubHabit')}
       chevron={false}
-      trailing={hasProAccess ? undefined : <Badge>Pro</Badge>}
       onClick={() => onAddSubHabit(drill.currentParentId!)}
     />
   ) : null

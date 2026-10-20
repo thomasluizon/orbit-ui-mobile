@@ -5,6 +5,7 @@ import { useIsFocused, useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { useSheetHost } from '@/components/ui/sheet'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { HabitCreateActions } from './habit-create-actions'
 import { HabitCreateFrame } from './habit-create-frame'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -24,8 +25,6 @@ import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
-import { useConfig } from '@/hooks/use-config'
-import { useHasProAccess } from '@/hooks/use-profile'
 import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
@@ -40,7 +39,6 @@ import {
   getFriendlyErrorMessage,
   getHabitPhraseTitle,
   hasHabitFormProposal,
-  isFeatureEnabled,
   resolveAutoManagedReminderEnabled,
   resolveSupportedLocale,
   toggleSelectedId,
@@ -58,6 +56,18 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 let subHabitCounter = 0
+function CreateBoundaryNotice({ boundary }: Readonly<{ boundary: 'habit' | 'pro' | null }>) {
+  const { t, i18n } = useTranslation()
+  if (!boundary) return null
+  if (boundary === 'pro') return <CapacityNotice message={t('errors.api.payGate')} />
+  return (
+    <CapacityNotice
+      message={t('habits.form.capacityTitle')}
+      body={t('habits.form.capacityBody', { limit: new Intl.NumberFormat(i18n.language).format(1000) })}
+    />
+  )
+}
+
 function createSubHabitEntry(value = ''): SubHabitEntry {
   subHabitCounter += 1
   return { id: `sub-${subHabitCounter}-${Date.now()}`, value }
@@ -138,13 +148,11 @@ export function CreateHabitModal({
   const createSubHabit = useCreateSubHabit()
   const suggestion = useHabitSuggestion()
   const [isEmojiSuggesting, setIsEmojiSuggesting] = useState(false)
+  const [createBoundary, setCreateBoundary] = useState<'habit' | 'pro' | null>(null)
   const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean } | null>(null)
-  const { config } = useConfig()
-  const hasProAccess = useHasProAccess()
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const activeView = useUIStore((s) => s.activeView)
-  const canUseSubHabits = isFeatureEnabled(config, 'sub_habits', hasProAccess ? 'pro' : 'free')
 
   const formHelpers = useHabitForm({
     initialData: {
@@ -277,6 +285,7 @@ export function CreateHabitModal({
       const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
       setEmojiFailure(null)
+      setCreateBoundary(null)
       setReminderWasManuallyToggled(false)
       setExpandAdvancedSignal(0)
       formHelpers.clearBackendErrors()
@@ -364,15 +373,27 @@ export function CreateHabitModal({
     flushBufferedInputsRef.current = flush
   }, [])
 
+  const reportCreateFailure = useCallback((error: unknown) => {
+    const code = extractBackendErrorCode(error)
+    if (code === 'HABIT_LIMIT_REACHED' || code === 'PAY_GATE') {
+      setCreateBoundary(code === 'HABIT_LIMIT_REACHED' ? 'habit' : 'pro')
+      return
+    }
+    if (formHelpers.reportBackendErrors(error)) return
+    showError(
+      getFriendlyErrorMessage(
+        error,
+        translate,
+        isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
+        isSubHabitMode ? 'subHabit' : 'habit',
+      ),
+    )
+  }, [formHelpers, isSubHabitMode, showError, translate])
+
   const handleSubmit = useCallback(async () => {
     flushBufferedInputsRef.current()
 
-    if (isSubHabitMode && !canUseSubHabits) {
-      navigateToUpgrade()
-      return
-    }
-
-    const subHabitValues = canUseSubHabits ? subHabits.map((entry) => entry.value) : []
+    const subHabitValues = subHabits.map((entry) => entry.value)
     if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
 
     const error = formHelpers.validateAll({
@@ -411,15 +432,7 @@ export function CreateHabitModal({
       }
       finishClose(() => { onClose(); onCreated?.() })
     } catch (error: unknown) {
-      if (formHelpers.reportBackendErrors(error)) return
-      showError(
-        getFriendlyErrorMessage(
-          error,
-          translate,
-          isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
-          isSubHabitMode ? 'subHabit' : 'habit',
-        ),
-      )
+      reportCreateFailure(error)
     }
   }, [
     formHelpers,
@@ -428,8 +441,6 @@ export function CreateHabitModal({
     parentHabit,
     tags,
     selectedGoalIds,
-    canUseSubHabits,
-    navigateToUpgrade,
     subHabits,
     reminderTimes,
     createHabit,
@@ -438,7 +449,7 @@ export function CreateHabitModal({
     onClose,
     onCreated,
     showError,
-    translate,
+    reportCreateFailure,
   ])
 
   const handleSuggestEmoji = useCallback(async () => {
@@ -507,7 +518,6 @@ export function CreateHabitModal({
       const suggestedSubHabitTitles = selectSuggestedSubHabitTitles(
         filledSubHabits.map((entry) => entry.value),
         patch.subHabitTitles,
-        canUseSubHabits,
       )
       const appliedSubHabits = suggestedSubHabitTitles.length > 0
       if (appliedSubHabits) {
@@ -549,7 +559,7 @@ export function CreateHabitModal({
     } finally {
       suggestionRequests.finish()
     }
-  }, [canUseSubHabits, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
+  }, [formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
 
 
   const isPending = createHabit.isPending || createSubHabit.isPending
@@ -588,9 +598,14 @@ export function CreateHabitModal({
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={sheetTitle}
-        actions={<HabitCreateActions presentation={presentation} pending={isPending}
-          empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
-          onCancel={dismissGuard.requestDismiss} onSubmit={() => void handleSubmit()} />}
+        actions={<>
+          <View accessibilityLiveRegion="polite" style={createBoundary ? { paddingBottom: 12 } : undefined}>
+            <CreateBoundaryNotice boundary={createBoundary} />
+          </View>
+          <HabitCreateActions presentation={presentation} pending={isPending}
+            empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
+            onCancel={dismissGuard.requestDismiss} onSubmit={() => void handleSubmit()} />
+        </>}
 
       >
         <View style={styles.scrollContent}>

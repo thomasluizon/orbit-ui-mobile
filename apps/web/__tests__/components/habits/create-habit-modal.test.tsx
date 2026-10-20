@@ -809,7 +809,7 @@ describe('CreateHabitModal', () => {
 
     const draft = screen.getByRole('textbox', { name: 'draft' })
     fireEvent.change(draft, { target: { value: 'Keep this draft' } })
-    const offlineStatus = screen.getByRole('status')
+    const offlineStatus = screen.getAllByRole('status')[1]!
     Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true })
     act(() => { globalThis.dispatchEvent(new Event('offline')) })
     fireEvent.submit(screen.getByTestId('sheet').querySelector('form')!)
@@ -869,7 +869,31 @@ describe('CreateHabitModal', () => {
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: phrase })
   })
 
-  it('omits nested sub-habits from a Free create request', async () => {
+  it.each(['HABIT_LIMIT_REACHED', 'PAY_GATE'])('keeps the draft and submit enabled with an inline %s notice', async (errorCode) => {
+    const legacySubHabit = errorCode === 'PAY_GATE'
+    const create = legacySubHabit ? mockCreateSubMutateAsync : mockCreateMutateAsync
+    create.mockRejectedValueOnce(new ApiClientError(legacySubHabit ? 403 : 400, 'Boundary', { code: errorCode, data: { error: 'Boundary', errorCode } }))
+    const close = vi.fn()
+    renderWithProviders(<CreateHabitModal open onOpenChange={close} parentHabit={legacySubHabit ? createMockHabit({ id: 'parent-1' }) : undefined} />)
+    await waitFor(() => expect(mockFormReset).toHaveBeenCalled())
+    mockFormReset.mockClear()
+    const draft = screen.getByRole('textbox', { name: 'draft' })
+    fireEvent.change(draft, { target: { value: 'Keep this draft' } })
+    const submit = screen.getByRole('button', { name: legacySubHabit ? 'common.create' : 'habits.createHabit' })
+    fireEvent.click(submit)
+    await waitFor(() => expect(document.querySelector('[data-capacity-notice]')).toBeTruthy())
+    expect(draft).toHaveValue('Keep this draft')
+    expect(mockShowError).not.toHaveBeenCalled()
+    expect(mockFormReset).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(close).not.toHaveBeenCalled()
+    expect(submit).not.toBeDisabled()
+    fireEvent.click(submit)
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+  })
+
+  it('preserves nested sub-habits in a Free create request', async () => {
     mockProfileState.hasProAccess = false
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
 
@@ -881,10 +905,10 @@ describe('CreateHabitModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
-    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual(['Warm up'])
   })
 
-  it('routes a Free standalone sub-habit attempt to upgrade without calling the API', async () => {
+  it('creates a Free standalone sub-habit without an upgrade redirect', async () => {
     mockProfileState.hasProAccess = false
     const onOpenChange = vi.fn()
     renderWithProviders(
@@ -897,8 +921,8 @@ describe('CreateHabitModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/upgrade'))
-    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+    await waitFor(() => expect(mockCreateSubMutateAsync).toHaveBeenCalled())
+    expect(mockPush).not.toHaveBeenCalled()
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
@@ -964,8 +988,6 @@ describe('CreateHabitModal', () => {
     [400, 'VALIDATION_ERROR', en.habits.form.titleTooLong, 'habits.form.titleTooLong'],
     [429, 'RATE_LIMITED', 'Rate limited', 'toast.errors.tooManyRequests'],
     [500, 'INTERNAL_SERVER_ERROR', 'Server failed', 'toast.errors.server'],
-    [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!', 'errors.api.calendarPro'],
-    [400, 'HABIT_LIMIT_REACHED', "You've reached the 1000 habit limit.", 'errors.api.habitLimit'],
   ])('shows the classified create error for %i %s', async (status, code, message, expected) => {
     mockCreateMutateAsync.mockRejectedValue(new ApiClientError(status, message, { code }))
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
