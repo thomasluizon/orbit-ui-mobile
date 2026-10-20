@@ -178,7 +178,9 @@ test("pull requests run each source check through one owner", () => {
     assert.equal(step.if, "${{ !cancelled() && (github.event_name != 'pull_request') }}")
   }
   assert.ok(testWorkflow.jobs["tool-hook-tests"].steps.some((step) => step.run === "node tools/test-tools.mjs"))
-  assert.ok(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run === "npx turbo run test --concurrency=1 -- --coverage"))
+  assert.ok(testWorkflow.jobs["web-tests"].steps.some((step) => step.name === "Run web shard with coverage"))
+  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === 'npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage'))
+  assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("npx turbo run test")), false)
 })
 
 test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {

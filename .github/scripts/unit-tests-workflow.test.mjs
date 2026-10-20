@@ -9,14 +9,13 @@ import yaml from "js-yaml"
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const workflow = yaml.load(readFileSync(resolve(root, ".github/workflows/test.yml"), "utf8"))
 
-test("Unit Tests rejects failed, cancelled and skipped redesign prerequisites", () => {
+test("Unit Tests rejects failed, cancelled and skipped prerequisites for every pull request", () => {
   const gate = workflow.jobs["unit-tests"]
   assert.equal(gate.name, "Unit Tests")
   assert.equal(gate.if, "${{ always() }}")
   assert.deepEqual(gate.needs, ["build", "web-tests", "workspace-tests"])
   const step = gate.steps.find((candidate) => candidate.name === "Require every test job")
   assert.deepEqual(step.env, {
-    BASE_REF: "${{ github.base_ref }}",
     BUILD_RESULT: "${{ needs.build.result }}",
     WEB_RESULT: "${{ needs.web-tests.result }}",
     WORKSPACE_RESULT: "${{ needs.workspace-tests.result }}",
@@ -25,21 +24,17 @@ test("Unit Tests rejects failed, cancelled and skipped redesign prerequisites", 
     for (const web of ["success", "failure", "cancelled", "skipped"]) {
       for (const workspaces of ["success", "failure", "cancelled", "skipped"]) {
         const result = spawnSync("bash", ["-e", "-c", step.run], {
-          env: { ...process.env, BASE_REF: "redesign/main", BUILD_RESULT: build, WEB_RESULT: web, WORKSPACE_RESULT: workspaces },
+          env: { ...process.env, BUILD_RESULT: build, WEB_RESULT: web, WORKSPACE_RESULT: workspaces },
         })
         assert.equal(result.status === 0, [build, web, workspaces].every((value) => value === "success"), `${build}, ${web}, ${workspaces}`)
       }
     }
   }
-  const main = spawnSync("bash", ["-e", "-c", step.run], {
-    env: { ...process.env, BASE_REF: "main", BUILD_RESULT: "success", WEB_RESULT: "skipped", WORKSPACE_RESULT: "skipped" },
-  })
-  assert.equal(main.status, 0, main.stderr)
 })
 
-test("redesign distributes Chromium without increasing browser concurrency on a runner", () => {
+test("every pull request distributes Chromium without increasing browser concurrency on a runner", () => {
   const web = workflow.jobs["web-tests"]
-  assert.equal(web.if, "github.base_ref == 'redesign/main'")
+  assert.equal(web.if, undefined)
   assert.equal(web.needs, undefined)
   assert.equal(web.strategy["fail-fast"], false)
   assert.deepEqual(web.strategy.matrix.project, ["chromium"])
@@ -63,7 +58,7 @@ test("redesign distributes Chromium without increasing browser concurrency on a 
 
 test("Unit Tests requires every jsdom and Chromium shard blob to be nonempty", () => {
   const step = workflow.jobs["unit-tests"].steps.find((candidate) => candidate.name === "Verify every web report arrived")
-  assert.equal(step.if, "github.base_ref == 'redesign/main'")
+  assert.equal(step.if, undefined)
   const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
   const blobs = join(directory, "apps/web/.artifacts/unit-tests/blobs")
   const reports = ["jsdom-1.json", "jsdom-2.json", ...Array.from({ length: 8 }, (_, index) => `chromium-${index + 1}.json`)]
@@ -101,7 +96,7 @@ test("every non-web test workspace has an independent coverage job", () => {
       : []
   })
   const workspaces = workflow.jobs["workspace-tests"]
-  assert.equal(workspaces.if, "github.base_ref == 'redesign/main'")
+  assert.equal(workspaces.if, undefined)
   assert.equal(workspaces.needs, undefined)
   assert.ok(workspaces.strategy, "each non-web test workspace must run in the matrix")
   assert.equal(workspaces.strategy["fail-fast"], false)
@@ -158,7 +153,7 @@ test("workspace coverage keeps its directory tree and the gate rejects missing r
 test("Unit Tests preserves merged coverage thresholds and Sonar consumes the combined artifact", () => {
   const gate = workflow.jobs["unit-tests"]
   const download = gate.steps.find((step) => step.name === "Download workspace coverage")
-  assert.equal(download.if, "github.base_ref == 'redesign/main'")
+  assert.equal(download.if, undefined)
   assert.equal(download.with.pattern, "workspace-unit-coverage-*")
   assert.equal(download.with["merge-multiple"], true)
   assert.equal(download.with.path, undefined)

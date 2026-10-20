@@ -75,7 +75,7 @@ test("the layout check rejects failed, cancelled and skipped prerequisites", () 
   assert.ok(layout.on.pull_request.paths.includes("apps/web/**"))
 })
 
-test("CI gives sequential workspace suites the host while local worker caps stay bounded", () => {
+test("CI gives each suite runner the host while local worker caps stay bounded", () => {
   for (const path of ["apps/web", "apps/mobile", "packages/shared"]) {
     for (const ci of [false, true]) {
       const env = { ...process.env }
@@ -93,10 +93,10 @@ test("CI gives sequential workspace suites the host while local worker caps stay
       }
     }
   }
-  for (const name of ["test", "sonarcloud"]) {
-    const owner = Object.values(workflow(name).jobs).find((job) => job.steps?.some((step) => step.run?.includes("turbo run test")))
-    assert.ok(owner.steps.some((step) => step.run === "npx turbo run test --concurrency=1 -- --coverage"))
-  }
+  const workspaces = workflow("test").jobs["workspace-tests"]
+  assert.ok(workspaces.steps.some((step) => step.run === 'npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage'))
+  const nightly = workflow("sonarcloud").jobs.sonarcloud
+  assert.ok(nightly.steps.some((step) => step.run === "npx turbo run test --concurrency=1 -- --coverage"))
 })
 
 test("branch analysis runs nightly for both branches and PR coverage analysis stays present", () => {
