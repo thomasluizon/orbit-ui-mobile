@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
@@ -17,6 +17,8 @@ import { ShellWide } from '@/components/shell/shell-wide'
 import { Composer } from '@/components/shell/composer'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
+import { Toast } from '@/components/ui/toast'
+import { TodayAstraLine } from '@/components/today/today-astra-line'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -46,6 +48,85 @@ describe('page content centring and add control clearance', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1352].flatMap(width => [false, true].map(floating => ({ width, floating }))))(
+    'aligns the notice with its measurable parent at $width, floating=$floating', async ({ width, floating }) => {
+      const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
+        <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+          notice={<Toast kind="neutral" message="Habit deleted" actionLabel="Undo" onAction={vi.fn()} />}
+          fab={floating ? <Fab label="Create" onClick={vi.fn()}>+</Fab> : undefined}>
+          <div style={{ height: 1600 }} />
+        </ShellWide>
+      </NextIntlClientProvider>)
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const notice = document.querySelector('[data-shell-notice]')!
+          const parent = notice.parentElement!.getBoundingClientRect()
+          const toast = notice.querySelector('[data-kind]')!.getBoundingClientRect()
+          const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+          const gutter = scroller.offsetWidth - scroller.clientWidth
+          return { parent: { left: parent.left, right: parent.right, width: parent.width }, toast: { left: toast.left, right: toast.right }, gutter }
+        })
+        expect(geometry.parent.width).toBeGreaterThan(0)
+        expect(geometry.toast.left).toBe(geometry.parent.left + 16)
+        const parentGutter = floating && width < 1024 ? 0 : geometry.gutter
+        expect(geometry.toast.right).toBe(geometry.parent.right - 16 - parentGutter)
+      } finally { await page.close() }
+    },
+  )
+
+  it.each([1024, 1352])('keeps the wide destination wrapper outside focus clipping at %ipx', async (width) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
+      <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+        fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>}>
+        <TodayAstraLine text="Review your routine" destination="Astra" onPress={vi.fn()} />
+      </ShellWide>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const overflow = await page.evaluate(() => {
+        const viewport = document.querySelector('[data-shell-destination-viewport]')!
+        const style = getComputedStyle(viewport)
+        return { display: style.display, x: style.overflowX, y: style.overflowY }
+      })
+      expect(overflow).toEqual({ display: 'contents', x: 'visible', y: 'visible' })
+    } finally { await page.close() }
+  })
+
+  it.each([240, 360])('reveals complete page controls after centred scrolling at 740 by %ipx', async (height) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
+      <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+        header={<div style={{ height: 48 }} />}
+        composer={<Composer state="idle" value="Read" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
+          attachWords={{ ...en.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Astra" />}
+        fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
+        <div style={{ height: 0.5 }} />
+        {Array.from({ length: 12 }, (_, index) => <button key={index} type="button" style={{ display: 'block', height: 48 }}>{index}</button>)}
+      </ShellWide>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 740, height } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const controls = await page.evaluate(() => {
+        const scroller = document.querySelector('[data-shell-scroller]')!
+        return [...scroller.querySelectorAll('button')].map(control => {
+          control.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' })
+          const bounds = control.getBoundingClientRect()
+          const viewport = scroller.getBoundingClientRect()
+          return { top: bounds.top, bottom: bounds.bottom, viewportTop: viewport.top, viewportBottom: viewport.bottom, viewportHeight: viewport.height }
+        })
+      })
+      for (const control of controls) {
+        expect.soft(control.viewportHeight).toBeGreaterThanOrEqual(56)
+        expect.soft(control.top).toBeGreaterThanOrEqual(control.viewportTop)
+        expect.soft(control.bottom).toBeLessThanOrEqual(control.viewportBottom)
+      }
+    } finally { await page.close() }
+  })
 
   it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewport =>
     [{ top: 0, bottom: 0 }, { top: 24, bottom: 16 }].map(insets => ({ ...viewport, ...insets })),

@@ -121,6 +121,8 @@ it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewp
       const reportShellLayout = shell.props.onLayout as (event: Pick<LayoutChangeEvent, 'nativeEvent'>) => void
       await act(() => reportShellLayout({ nativeEvent: { layout: { x: 0, y: 0, width: viewport.width, height: viewport.height } } }))
       const boxes = measureSafeArea(tree.toJSON(), host => host.props.testID, viewport)
+      const page = boxes.get('control-region')!
+      expect(page.bottom - page.top).toBeGreaterThanOrEqual(56)
       const pinned = boxes.get('shell-pinned-slot')!
       expect(pinned.bottom - pinned.top).toBeGreaterThanOrEqual(56)
       const bottomViewport = boxes.get('shell-bottom-viewport')!

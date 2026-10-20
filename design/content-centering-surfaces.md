@@ -80,6 +80,12 @@ the destination itself scrolls inside those insets. Android reuses FlowViewport;
 uses the destination viewport. Header and tab measurements retain taller chrome, and both
 tab bars share their unchanged 80px minimum through `TAB_BAR_MIN_HEIGHT`.
 
+The page scroller retains a 56px minimum: a 48px control plus 8px of focus clearance. This
+also keeps fractional scroll offsets from clipping a control when it scrolls to the centre.
+Wide web removes the destination viewport from layout and resets its overflow to visible.
+Notices keep a measurable parent column with or without the floating target, including when
+the wide shell no longer needs the bottom viewport.
+
 Both centring suites mount the production composer, Fab and BottomTabBar at 840 x 240 and
 360 x 320, with a 48px header and both zero and 24px top/16px bottom insets. They check the minimum viewport, revealability of the input,
 send, attachment and create controls, page separation and the tab bar's window bounds. Android

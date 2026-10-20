@@ -127,12 +127,12 @@ function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, saf
   const minimumDestinationHeight = headerHeight + SPACING.s64 + tabBarHeight
   const constrainedFlow = !navigationEnabled && height !== null && height < minimumFlowHeight
   const constrainedDestination = navigationEnabled && hasFab && height !== null
-    && height - safeTop - safeBottom < minimumDestinationHeight + TOUCH_TARGET_MIN
+    && height - safeTop - safeBottom < minimumDestinationHeight + TOUCH_TARGET_MIN + SPACING.s8
   return {
     setHeight, setHeaderHeight, setTabBarHeight,
     scrollable: !navigationEnabled || constrainedDestination,
     constrained: constrainedFlow || constrainedDestination,
-    minimumHeight: navigationEnabled ? minimumDestinationHeight : minimumFlowHeight,
+    minimumHeight: navigationEnabled ? minimumDestinationHeight + SPACING.s8 : minimumFlowHeight,
     outerInsets: constrainedDestination ? { paddingTop: safeTop, paddingBottom: safeBottom } : undefined,
     innerInsets: constrainedDestination ? { top: 0, bottom: 0 } : { top: safeTop, bottom: safeBottom },
     relaxedScroller: !navigationEnabled && !constrainedFlow,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   },
   scroller: {
     flex: 1,
-    minHeight: TOUCH_TARGET_MIN,
+    minHeight: TOUCH_TARGET_MIN + SPACING.s8,
   },
   scrollToTop: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center', zIndex: zLayers.sticky },
   flowScroller: { minHeight: 0 },
