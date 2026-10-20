@@ -587,6 +587,7 @@ export const GetApiChatRecordsKindResponse = zod.object({
 
 
 export const PostApiChatHeader = zod.object({
+  "X-Orbit-Eval-Trace": zod.string().optional(),
   "api-version": zod.string().optional()
 })
 
@@ -981,11 +982,22 @@ export const PostApiChatResponse = zod.object({
   "type": zod.enum(['block']),
   "kind": zod.string(),
   "block": zod.unknown()
-})])).nullish()
+})])).nullish(),
+  "evalTrace": zod.union([zod.null(),zod.object({
+  "traceId": zod.string(),
+  "toolCalls": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "arguments": zod.unknown(),
+  "status": zod.string(),
+  "result": zod.union([zod.null(),zod.unknown()])
+}))
+})]).optional()
 })
 
 
 export const PostApiChatStreamHeader = zod.object({
+  "X-Orbit-Eval-Trace": zod.string().optional(),
   "api-version": zod.string().optional()
 })
 
@@ -1919,6 +1931,7 @@ export const getApiHabitsIdResponseChildrenItemReminderTimesItemRegExpTwo = new 
 export const getApiHabitsIdResponseChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdResponseOriginalDayOfMonthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 
 
 export const GetApiHabitsIdResponse = zod.object({
@@ -2011,7 +2024,9 @@ export const GetApiHabitsIdResponse = zod.object({
   "id": zod.uuid(),
   "name": zod.string(),
   "color": zod.string()
-})).nullish()
+})).nullish(),
+  "scheduledStartDate": zod.iso.date().nullish(),
+  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseOriginalDayOfMonthRegExpTwo)]).nullish()
 })
 
 
@@ -2097,6 +2112,7 @@ export const getApiHabitsIdDetailResponseHabitChildrenItemReminderTimesItemRegEx
 export const getApiHabitsIdDetailResponseHabitChildrenItemRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdDetailResponseHabitOriginalDayOfMonthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseMetricsLongestStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseMetricsWeeklyCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
@@ -2196,7 +2212,9 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "id": zod.uuid(),
   "name": zod.string(),
   "color": zod.string()
-})).nullish()
+})).nullish(),
+  "scheduledStartDate": zod.iso.date().nullish(),
+  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitOriginalDayOfMonthRegExpTwo)]).nullish()
 }),
   "metrics": zod.object({
   "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo)]),
@@ -2344,6 +2362,11 @@ export const GetApiHabitsIdLogsParams = zod.object({
   "id": zod.uuid()
 })
 
+export const GetApiHabitsIdLogsQueryParams = zod.object({
+  "from": zod.iso.date().optional(),
+  "to": zod.iso.date().optional()
+})
+
 export const GetApiHabitsIdLogsHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -2426,6 +2449,29 @@ export const DeleteApiHabitsBulkBody = zod.object({
 })
 
 export const DeleteApiHabitsBulkResponse = zod.unknown()
+
+
+export const PostApiHabitsBulkParentHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiHabitsBulkParentBody = zod.object({
+  "habitIds": zod.array(zod.uuid()),
+  "parentId": zod.uuid().nullable()
+})
+
+export const postApiHabitsBulkParentResponseResultsItemIndexRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const PostApiHabitsBulkParentResponse = zod.object({
+  "results": zod.array(zod.object({
+  "index": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBulkParentResponseResultsItemIndexRegExpTwo)]),
+  "status": zod.int(),
+  "habitId": zod.uuid(),
+  "error": zod.string().nullish(),
+  "errorCode": zod.string().nullish()
+}))
+})
 
 
 export const PostApiHabitsBulkLogHeader = zod.object({
@@ -3232,14 +3278,54 @@ export const GetApiReferralsStatsHeader = zod.object({
   "api-version": zod.string().optional()
 })
 
-export const GetApiReferralsStatsResponse = zod.unknown()
+export const getApiReferralsStatsResponseSuccessfulReferralsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsStatsResponsePendingReferralsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsStatsResponseMaxReferralsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsStatsResponseDiscountPercentRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsStatsResponseProDaysPerReferralDefaultOne = 0;
+export const getApiReferralsStatsResponseProDaysPerReferralDefaultTwo = 0;
+export const getApiReferralsStatsResponseProDaysPerReferralRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsStatsResponseProDaysPerReferralDefault = 0;
+
+export const GetApiReferralsStatsResponse = zod.object({
+  "referralCode": zod.string().nullable(),
+  "referralLink": zod.string().nullable(),
+  "successfulReferrals": zod.union([zod.int(),zod.stringFormat('int32', getApiReferralsStatsResponseSuccessfulReferralsRegExpTwo)]),
+  "pendingReferrals": zod.union([zod.int(),zod.stringFormat('int32', getApiReferralsStatsResponsePendingReferralsRegExpTwo)]),
+  "maxReferrals": zod.union([zod.int(),zod.stringFormat('int32', getApiReferralsStatsResponseMaxReferralsRegExpTwo)]),
+  "rewardType": zod.string(),
+  "discountPercent": zod.union([zod.int(),zod.stringFormat('int32', getApiReferralsStatsResponseDiscountPercentRegExpTwo)]),
+  "proDaysPerReferral": zod.union([zod.int().default(getApiReferralsStatsResponseProDaysPerReferralDefaultOne),zod.stringFormat('int32', getApiReferralsStatsResponseProDaysPerReferralRegExpTwo).default(getApiReferralsStatsResponseProDaysPerReferralDefaultTwo)]).optional()
+})
 
 
 export const GetApiReferralsDashboardHeader = zod.object({
   "api-version": zod.string().optional()
 })
 
-export const GetApiReferralsDashboardResponse = zod.unknown()
+export const getApiReferralsDashboardResponseStatsSuccessfulReferralsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsDashboardResponseStatsPendingReferralsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsDashboardResponseStatsMaxReferralsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsDashboardResponseStatsDiscountPercentRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsDashboardResponseStatsProDaysPerReferralDefaultOne = 0;
+export const getApiReferralsDashboardResponseStatsProDaysPerReferralDefaultTwo = 0;
+export const getApiReferralsDashboardResponseStatsProDaysPerReferralRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiReferralsDashboardResponseStatsProDaysPerReferralDefault = 0;
+
+export const GetApiReferralsDashboardResponse = zod.object({
+  "code": zod.string(),
+  "link": zod.string(),
+  "stats": zod.object({
+  "referralCode": zod.string().nullable(),
+  "referralLink": zod.string().nullable(),
+  "successfulReferrals": zod.union([zod.int(),zod.stringFormat('int32', getApiReferralsDashboardResponseStatsSuccessfulReferralsRegExpTwo)]),
+  "pendingReferrals": zod.union([zod.int(),zod.stringFormat('int32', getApiReferralsDashboardResponseStatsPendingReferralsRegExpTwo)]),
+  "maxReferrals": zod.union([zod.int(),zod.stringFormat('int32', getApiReferralsDashboardResponseStatsMaxReferralsRegExpTwo)]),
+  "rewardType": zod.string(),
+  "discountPercent": zod.union([zod.int(),zod.stringFormat('int32', getApiReferralsDashboardResponseStatsDiscountPercentRegExpTwo)]),
+  "proDaysPerReferral": zod.union([zod.int().default(getApiReferralsDashboardResponseStatsProDaysPerReferralDefaultOne),zod.stringFormat('int32', getApiReferralsDashboardResponseStatsProDaysPerReferralRegExpTwo).default(getApiReferralsDashboardResponseStatsProDaysPerReferralDefaultTwo)]).optional()
+})
+})
 
 
 export const PostApiGamificationStreakRepairGapHeader = zod.object({
@@ -3316,7 +3402,38 @@ export const GetApiSubscriptionsBillingHeader = zod.object({
   "api-version": zod.string().optional()
 })
 
-export const GetApiSubscriptionsBillingResponse = zod.unknown()
+export const getApiSubscriptionsBillingResponseAmountPerPeriodRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiSubscriptionsBillingResponsePaymentMethodTwoExpMonthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiSubscriptionsBillingResponsePaymentMethodTwoExpYearRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiSubscriptionsBillingResponseRecentInvoicesItemAmountPaidRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiSubscriptionsBillingResponseBilledAmountPerPeriodRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiSubscriptionsBillingResponse = zod.object({
+  "status": zod.string(),
+  "currentPeriodEnd": zod.iso.datetime({"offset":true}),
+  "cancelAtPeriodEnd": zod.boolean(),
+  "interval": zod.string(),
+  "amountPerPeriod": zod.union([zod.int(),zod.stringFormat('int64', getApiSubscriptionsBillingResponseAmountPerPeriodRegExpTwo)]),
+  "currency": zod.string(),
+  "paymentMethod": zod.union([zod.null(),zod.object({
+  "brand": zod.string(),
+  "last4": zod.string(),
+  "expMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiSubscriptionsBillingResponsePaymentMethodTwoExpMonthRegExpTwo)]),
+  "expYear": zod.union([zod.int(),zod.stringFormat('int32', getApiSubscriptionsBillingResponsePaymentMethodTwoExpYearRegExpTwo)])
+})]),
+  "recentInvoices": zod.array(zod.object({
+  "id": zod.string(),
+  "date": zod.iso.datetime({"offset":true}),
+  "amountPaid": zod.union([zod.int(),zod.stringFormat('int64', getApiSubscriptionsBillingResponseRecentInvoicesItemAmountPaidRegExpTwo)]),
+  "currency": zod.string(),
+  "status": zod.string(),
+  "hostedInvoiceUrl": zod.string().nullable(),
+  "invoicePdf": zod.string().nullable(),
+  "billingReason": zod.string()
+})),
+  "billedAmountPerPeriod": zod.union([zod.int().describe('Recurring subscription amount after Stripe-calculated discounts, before tax, in the subscription currency\'s minor units. Excludes prorations, one-time charges and customer balance. Null when no recurring preview is available, including trials, cancellation and pauses; clients fall back to AmountPerPeriod.'),zod.stringFormat('int64', getApiSubscriptionsBillingResponseBilledAmountPerPeriodRegExpTwo).describe('Recurring subscription amount after Stripe-calculated discounts, before tax, in the subscription currency\'s minor units. Excludes prorations, one-time charges and customer balance. Null when no recurring preview is available, including trials, cancellation and pauses; clients fall back to AmountPerPeriod.')]).nullish().describe('Recurring subscription amount after Stripe-calculated discounts, before tax, in the subscription currency\'s minor units. Excludes prorations, one-time charges and customer balance. Null when no recurring preview is available, including trials, cancellation and pauses; clients fall back to AmountPerPeriod.')
+})
 
 
 export const GetApiSubscriptionsPlansHeader = zod.object({
