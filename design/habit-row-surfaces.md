@@ -39,7 +39,7 @@ description; Android includes it in the hint alongside the existing future-date 
 Selection keeps one preview and no focusable action under an aria-hidden ancestor.
 
 Body feedback replaces the row's existing fill across its radius-20 perimeter, including the trailing
-region. Controls remain semantic siblings and paint independently. The check's flex wrapper removes
+region. Controls remain semantic siblings and paint independently, including the structural selection checkbox in checked and unchecked states. Body hover promotes the inset hairline to hairlineStrong. Web authors the 380ms background and outline transition on the painted row in both directions, with immediate press, sibling-control suppression and reduced-motion feedback. Android selection hover restores on exit and cancelled press without invoking selection or detail. The check's flex wrapper removes
 inline baseline space; no translation offsets its glyph. Normal rows centre the 28px check and its
 48px target on the actual row axis, with and without descriptions. Large text retains first-title-line
 alignment. The original single depth inset and family gaps remain unchanged.

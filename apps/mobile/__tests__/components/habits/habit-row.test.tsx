@@ -239,7 +239,8 @@ describe('HabitRow canonical content (mobile)', () => {
         actions={{ onToggleExpand, onToggleSelection }} />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [body, selection, disclosureColumn] = row.children[0].children
+    const [body, selectionColumn, disclosureColumn] = row.children[0].children
+    const selection = selectionColumn.findByProps({ accessibilityRole: 'checkbox' })
     expect(selection.props.accessibilityState).toMatchObject({ checked: true })
     const disclosure = disclosureColumn.findByProps({ accessibilityLabel: 'common.collapse' })
     expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
@@ -261,7 +262,8 @@ describe('HabitRow canonical content (mobile)', () => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [body, selection, trailing] = row.children[0].children
+    const [body, selectionColumn, trailing] = row.children[0].children
+    const selection = selectionColumn.findByProps({ accessibilityRole: 'checkbox' })
     expect(selection.props.accessibilityState).toMatchObject({ checked: false })
     expect(trailing).toBeDefined()
     expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)

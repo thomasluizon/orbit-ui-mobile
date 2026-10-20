@@ -311,7 +311,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
         data-habit-row-body=""
         aria-label={accessibleLabel}
         aria-describedby={[descriptionId, reorderInstructionsId].filter(Boolean).join(' ')}
-        className={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left duration-[var(--dur-hover)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
+        className={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
         style={paddingStyle}
       >
         {supportingMeta ? (
@@ -344,7 +344,7 @@ function HabitRowLayout({ descriptionPresent, habitTitle, depth, state, selected
   const minHeight = isChild ? 52 : 68
   return (
     <div data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
-      className={`habit-row relative rounded-[20px] shadow-[inset_0_0_0_1px_var(--hairline)] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : largeText ? 'flex-col' : 'items-center gap-[4px]'}`}
+      className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : largeText ? 'flex-col' : 'items-center gap-[4px]'}`}
       style={{ minHeight }}>
       {largeText && !supportingMeta ? (
         <div className="flex w-full items-start gap-[4px]" style={{ minHeight, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8, paddingBlockEnd: descriptionPresent ? SPACING.s4 : undefined }}>

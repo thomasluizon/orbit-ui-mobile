@@ -231,7 +231,6 @@ describe('HabitRow neutral metadata contrast', () => {
             expectedBodyFill: 'rgba(0, 0, 0, 0)',
             transition: getComputedStyle(metadata).transitionProperty,
             duration: getComputedStyle(metadata).transitionDuration,
-            fillDuration: getComputedStyle(body).transitionDuration,
             layers,
           }
           reference.remove()
@@ -241,7 +240,7 @@ describe('HabitRow neutral metadata contrast', () => {
         expect(contrastOnSurface(measured.foreground, measured.layers), state).toBeGreaterThanOrEqual(4.5)
         expect(measured.bodyFill.replaceAll(' ', ''), state).toBe(measured.expectedBodyFill.replaceAll(' ', ''))
         expect(measured.transition).toBe('color')
-        expect(measured.duration).toBe(measured.fillDuration)
+        expect(measured.duration).toBe('0.38s')
         if (interactive && mode === 'dark') {
           expect(contrastOnSurface(variables['--fg-3']!, measured.layers)).toBeCloseTo(4.567, 3)
         }

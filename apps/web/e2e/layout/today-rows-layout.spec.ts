@@ -2,6 +2,7 @@ import { openTodayListOptions } from './hydration-guard'
 import { expect, type Page, type Locator } from '@playwright/test'
 import { test } from './layout-test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import en from '@orbit/shared/i18n/en.json'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -35,7 +36,7 @@ for (const mode of ['dark', 'light'] as const) {
       await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items, totalCount: items.length } }])
       await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 5 } }))
       await page.goto('/')
-      const parent = page.getByTestId('habit-row').filter({ hasText: 'Parent' })
+      const parent = page.locator('[data-testid="habit-row"][data-habit-title="Parent"]')
       const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
       await expect(disclosure).toBeVisible()
       if (await disclosure.getAttribute('aria-expanded') === 'true') await disclosure.click()
@@ -185,7 +186,12 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
     test(`Habit previews and full-row feedback at ${width}px in ${mode} ${language}`, async ({ page, context }) => {
       await page.setViewportSize({ width, height: 1200 })
       const description = language === 'en' ? 'Read two pages before breakfast.' : 'Leia duas páginas antes do café.'
-      const describedItems = items.map((item, index) => ({ ...item, description: index === 2 ? null : `**${description}** `.repeat(12) }))
+      const preview = `**${description}** `.repeat(40)
+      const nested = makeHabitScheduleItem({ id: 'preview-nested', title: 'Child parent', description: preview,
+        children: [makeHabitScheduleItem({ id: 'preview-grandchild', title: 'Grandchild', children: [], hasSubHabits: false, scheduledDates: [selectedDate] })], scheduledDates: [selectedDate] })
+      const describedItems = items.map((item, index) => ({ ...item, description: index === 2 ? null : preview,
+        ...(index === 0 ? { children: [nested, { ...children[1]!, description: '   ' }] } : {}) }))
+      const copy = language === 'en' ? en : ptBr
       const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language })
       await setLayoutProfileSession(context, profile)
       await setLayoutFixtureSession(context, [
@@ -193,41 +199,103 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
         { path: API.habits.list, body: { ...emptyHabitsPageFixture, items: describedItems, totalCount: describedItems.length } },
       ])
       await page.goto('/')
-      const parent = page.getByTestId('habit-row').filter({ hasText: 'Parent' })
+      await page.evaluate(() => document.fonts.ready)
+      const parent = page.locator('[data-testid="habit-row"][data-habit-title="Parent"]')
       const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
       await expect(disclosure).toBeVisible()
-      if (await disclosure.getAttribute('aria-expanded') === 'true') await disclosure.click()
-      await expect(page.locator('[data-habit-row-description]')).toHaveCount(2)
+      if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
+      await expect(page.getByTestId('habit-row')).toHaveCount(5)
+      await expect(page.locator('[data-habit-row-description]')).toHaveCount(3)
       for (const scale of [1, 2]) {
         await page.evaluate((size) => { document.documentElement.style.fontSize = `${16 * size}px`; window.dispatchEvent(new Event('resize')) }, scale)
         await expect(parent.locator('[data-habit-row-description]')).toHaveCSS('font-size', `${14 * scale}px`)
-        await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
-        for (const row of await page.getByTestId('habit-row').all()) {
-          await assertHabitPreviewRow(row, scale, mode)
-        }
+        await expect(parent.locator('[data-habit-row-heading]')).toHaveCount(scale === 2 ? 1 : 0)
+        await assertPreviewSelectionModes(page, parent, copy, scale, mode)
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
       }
     })
   }
 }
 
-async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' | 'dark') {
+async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: typeof en | typeof ptBr, scale: number, mode: 'light' | 'dark') {
+  for (const selecting of [false, true]) {
+    if (selecting) {
+      await openTodayListOptions(page, copy.habits.listOptions)
+      await page.getByRole('menuitem', { name: copy.common.select, exact: true }).click()
+      await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(5)
+      await parent.locator('[data-habit-row-body]').click()
+      await expect(parent.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
+      const leaf = page.locator('[data-testid="habit-row"][data-habit-title="Timed"]')
+      await leaf.locator('[data-habit-row-body]').click()
+      await expect(leaf.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
+    }
+    for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page)
+  }
+  await page.getByRole('button', { name: copy.common.cancel, exact: true }).click()
+  await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(0)
+}
+
+async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' | 'dark', page: Page) {
   const geometry = await row.evaluate((element) => {
-    const bounds = (node: Element) => { const box = node.getBoundingClientRect(); return { top: box.top, bottom: box.bottom, x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height } }
+    const bounds = (node: Element) => { const box = node.getBoundingClientRect(); return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height } }
     const title = element.querySelector('[data-personal-text]')!
     const preview = element.querySelector('[data-habit-row-description]')
-    return { row: bounds(element), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
-      preview: preview && { ...bounds(preview), lineHeight: Number.parseFloat(getComputedStyle(preview).lineHeight) },
-      check: bounds(element.querySelector('[data-habit-check]')!), target: bounds(element.querySelector('[data-habit-row-control="check"]')!) }
+    const meta = element.querySelector('[data-habit-row-meta]')
+    const textEdge = title.closest('div')!.getBoundingClientRect().left
+    const well = Array.from(element.querySelectorAll('span')).find((node) => ['32px', '46px'].includes(getComputedStyle(node).width) && getComputedStyle(node).borderRadius === '12px')!
+    const check = element.querySelector('[data-habit-check]')!
+    let target = check.parentElement!
+    while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
+    return { row: bounds(element), depth: Number(element.getAttribute('data-depth')), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
+      supporting: Boolean(element.querySelector('[data-habit-row-heading]')),
+      parent: Boolean(element.querySelector('[data-habit-row-control="disclosure"]')),
+      preview: preview && { ...bounds(preview), size: getComputedStyle(preview).fontSize, lineHeight: Number.parseFloat(getComputedStyle(preview).lineHeight) },
+      textEdge, well: bounds(well), meta: meta && bounds(meta), check: bounds(check), target: bounds(target),
+      glyph: check.querySelector('svg') ? bounds(check.querySelector('svg')!) : null,
+      controls: Array.from(element.querySelectorAll('[data-habit-row-control]')).map(bounds) }
   })
-  expect(geometry.titleSize).toBe(`${17 * scale}px`)
-  expect(geometry.target.width).toBe(48)
-  expect(Math.abs(geometry.check.x - geometry.target.x)).toBeLessThanOrEqual(1)
-  expect(Math.abs(geometry.check.y - geometry.target.y)).toBeLessThanOrEqual(1)
-  if (scale === 1) expect(Math.abs(geometry.target.y - geometry.row.y)).toBeLessThanOrEqual(1)
-  if (geometry.preview) {
-    expect(geometry.preview.top - geometry.title.bottom).toBeCloseTo(4, 1)
-    expect(geometry.preview.height).toBeLessThanOrEqual(geometry.preview.lineHeight * (scale === 1 ? 1 : 2) + 1)
+  assertPreviewText()
+  assertPreviewControls()
+  function assertPreviewText() {
+    if (geometry.preview) {
+      expect(geometry.preview.size).toBe(`${14 * scale}px`)
+      expect(geometry.preview.top - geometry.title.bottom).toBeCloseTo(4, 1)
+      expect(geometry.preview.height).toBeCloseTo(geometry.preview.lineHeight * (scale === 1 ? 1 : 2), 0)
+      expect(geometry.preview.right).toBeLessThanOrEqual(geometry.row.right - 8)
+      if (geometry.meta) expect(geometry.meta.top - geometry.preview.bottom).toBeGreaterThanOrEqual(3.9)
+    } else if (geometry.meta && !geometry.supporting) {
+      expect(geometry.meta.top - geometry.title.bottom).toBeCloseTo(4, 1)
+    }
+    if (geometry.meta) {
+      expect(geometry.meta.left).toBeCloseTo(geometry.textEdge, 1)
+      expect(geometry.row.bottom - geometry.meta.bottom).toBeGreaterThanOrEqual(3.9)
+    }
+  }
+  function assertPreviewControls() {
+    expect(geometry.titleSize).toBe(`${(geometry.depth ? 14 : 17) * scale}px`)
+    expect(geometry.well.left - geometry.row.left).toBe(geometry.depth ? 24 : 8)
+    expect(geometry.supporting).toBe(scale === 2 && geometry.parent)
+    expect(geometry.target.width).toBe(48)
+    expect(geometry.target.height).toBeGreaterThanOrEqual(48)
+    expect(geometry.check.width).toBe(28)
+    expect(geometry.check.height).toBe(28)
+    expect(Math.abs(geometry.check.x - geometry.target.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(geometry.check.y - geometry.target.y)).toBeLessThanOrEqual(1)
+    if (scale === 1) expect(Math.abs(geometry.target.y - geometry.row.y)).toBeLessThanOrEqual(1)
+    else {
+      expect(geometry.target.top - geometry.row.top).toBe(geometry.depth ? 4 : 8)
+      expect(geometry.target.top).toBeCloseTo(geometry.title.top, 1)
+    }
+    if (geometry.glyph) {
+      expect(Math.abs(geometry.glyph.x - geometry.check.x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(geometry.glyph.y - geometry.check.y)).toBeLessThanOrEqual(1)
+    }
+    for (const control of geometry.controls) {
+      expect(control.width).toBeGreaterThanOrEqual(48)
+      expect(control.height).toBeGreaterThanOrEqual(48)
+      expect(control.left).toBeGreaterThanOrEqual(geometry.title.right - 1)
+      expect(control.right).toBeLessThanOrEqual(geometry.row.right)
+    }
   }
   const body = row.locator('[data-habit-row-body]')
   await body.hover({ position: { x: 12, y: 12 } })
@@ -238,4 +306,44 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
     await control.hover()
     await expect(row).not.toHaveCSS('background-color', mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.11)')
   }
+  await page.mouse.move(0, 0)
+}
+
+for (const width of [412, 1352]) for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+  test(`Habit row live feedback arrival and exit at ${width}px with ${reducedMotion}`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 915 })
+    await page.emulateMedia({ reducedMotion })
+    await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items, totalCount: items.length } }])
+    await page.goto('/')
+    const row = page.locator('[data-testid="habit-row"][data-habit-title="Timed"]')
+    const body = row.locator('[data-habit-row-body]')
+    await expect(row).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
+    const paint = () => row.evaluate((element) => ({ fill: getComputedStyle(element).backgroundColor, outline: getComputedStyle(element).boxShadow }))
+    const samples = () => row.evaluate(async (element) => {
+      const result: { fill: string; outline: string }[] = []
+      const start = performance.now()
+      do {
+        result.push({ fill: getComputedStyle(element).backgroundColor, outline: getComputedStyle(element).boxShadow })
+        await new Promise(requestAnimationFrame)
+      } while (performance.now() - start < 550)
+      return result
+    })
+    const rest = await paint()
+    const [arrival] = await Promise.all([samples(), body.hover({ position: { x: 12, y: 12 } })])
+    const hover = await paint()
+    expect(hover.fill).not.toBe(rest.fill)
+    expect(hover.outline).not.toBe(rest.outline)
+    const [exit] = await Promise.all([samples(), page.mouse.move(0, 0)])
+    expect(await paint()).toEqual(rest)
+    for (const property of ['fill', 'outline'] as const) for (const sequence of [arrival, exit]) {
+      expect(sequence.some((frame) => frame[property] !== rest[property] && frame[property] !== hover[property])).toBe(reducedMotion === 'no-preference')
+    }
+    await body.hover({ position: { x: 12, y: 12 } })
+    await page.mouse.down()
+    expect(await paint()).toEqual(hover)
+    await page.mouse.move(0, 0)
+    await page.mouse.up()
+    await expect.poll(paint).toEqual(rest)
+  })
 }

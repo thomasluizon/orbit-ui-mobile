@@ -157,6 +157,25 @@ function HabitRowStructuralColumn({
   )
 }
 
+function HabitRowSelection({ title, selected, onToggleSelection, tokens }: Readonly<{
+  title: string
+  selected: boolean
+  onToggleSelection?: () => void
+  tokens: ReturnType<typeof createTokensV2>
+}>) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Pressable onPress={onToggleSelection}
+      onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+      accessibilityRole="checkbox" accessibilityLabel={title} accessibilityState={{ checked: selected }}
+      style={({ pressed }) => [styles.structuralColumn,
+        hovered || pressed ? { backgroundColor: tokens.bgHover } : null,
+        pressed ? { transform: [{ scale: 0.96 }] } : null]}>
+      <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
+    </Pressable>
+  )
+}
+
 function renderHabitRowPrimaryButton({ supportingMeta, bodyLayout, children, ...props }: Readonly<InsetFocusPressableProps & {
   supportingMeta: boolean
   bodyLayout: ViewStyle
@@ -388,12 +407,8 @@ export const HabitRow = memo(function HabitRow({
   const rowContents = (
     <>
         {structuralColumn && isSelectMode ? (
-          <Pressable onPress={actions.onToggleSelection} accessibilityRole="checkbox"
-            accessibilityLabel={habit.title} accessibilityState={{ checked: isSelected }}
-            style={({ pressed }) => [styles.structuralColumn,
-              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
-            <Checkbox checked={isSelected} onChange={() => actions.onToggleSelection?.()} as="span" />
-          </Pressable>
+          <HabitRowSelection title={habit.title} selected={isSelected}
+            onToggleSelection={actions.onToggleSelection} tokens={tokens} />
         ) : null}
         {structuralColumn ? (
           <HabitRowStructuralColumn
