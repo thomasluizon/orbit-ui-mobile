@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { useEffect, useMemo, useRef, useState } from "react";
 import { InsetFocusPressable } from "@/components/ui/inset-focus-pressable";
 import {
@@ -16,7 +16,7 @@ import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from "@orbit/shared/utils";
-import { createTokensV2 } from "@/lib/theme";
+import { createTokensV2, radius } from "@/lib/theme";
 
 import { X } from '@/components/ui/icons';
 import { PersonalText } from '@/components/ui/personal-text';
@@ -229,52 +229,56 @@ function ColumnHeader({
 }>) {
   const locale = language === "pt-BR" ? ptBR : enUS;
   return (
-    <InsetFocusPressable
-      testID="time-grid-col-header"
-      focusOffset={-6}
-      accessibilityRole="button"
-      onPress={() => onSelectDay(column.dateStr)}
-      style={({ pressed }) => [
-        styles.colHeader,
-        { width: colWidth },
-        pressed && {
-          backgroundColor: tokens.bgHover,
-          transform: [{ scale: 0.96 }],
-        },
-      ]}
-    >
-      <Text
-        style={[
-          styles.colHeaderWeekday,
-          { color: tokens.fg2 },
+    <View style={{ width: colWidth }}>
+      <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={styles.colHeaderGridLines} />
+      <InsetFocusPressable
+        testID="time-grid-col-header"
+        focusOffset={-6}
+        accessibilityRole="button"
+        onPress={() => onSelectDay(column.dateStr)}
+        style={({ pressed }) => [
+          styles.colHeader,
+          { width: colWidth },
+          pressed && { transform: [{ scale: 0.96 }] },
         ]}
       >
-        {formatCalendarWeekday(column.dateStr, language)}
-      </Text>
-      <View
-        style={[
-          styles.colHeaderDatePill,
-          column.isToday && { backgroundColor: tokens.primary },
-        ]}
-      >
-        <Text
-          testID="time-grid-col-date"
-          style={[
-            styles.colHeaderDate,
-            {
-              color: column.isToday
-                ? tokens.fgOnPrimary
-                : column.isFuture
-                  ? tokens.fg2
-                  : tokens.fg1,
-              fontFamily: "GeistMono_500Medium",
-            },
-          ]}
-        >
-          {format(column.date, "d", { locale })}
-        </Text>
-      </View>
-    </InsetFocusPressable>
+        {({ pressed }) => <>
+          <View testID="time-grid-col-header-fill" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+            style={[styles.colHeaderFill, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} />
+          <Text
+            style={[
+              styles.colHeaderWeekday,
+              { color: tokens.fg2 },
+            ]}
+          >
+            {formatCalendarWeekday(column.dateStr, language)}
+          </Text>
+          <View
+            style={[
+              styles.colHeaderDatePill,
+              column.isToday && { backgroundColor: tokens.primary },
+            ]}
+          >
+            <Text
+              testID="time-grid-col-date"
+              style={[
+                styles.colHeaderDate,
+                {
+                  color: column.isToday
+                    ? tokens.fgOnPrimary
+                    : column.isFuture
+                      ? tokens.fg2
+                      : tokens.fg1,
+                  fontFamily: "GeistMono_500Medium",
+                },
+              ]}
+            >
+              {format(column.date, "d", { locale })}
+            </Text>
+          </View>
+        </>}
+      </InsetFocusPressable>
+    </View>
   );
 }
 
@@ -651,15 +655,32 @@ function createStyles(tokens: Tokens) {
       flexShrink: 0,
       flexDirection: "row",
     },
+    colHeaderGridLines: {
+      ...StyleSheet.absoluteFill,
+      borderLeftWidth: 1,
+      borderLeftColor: tokens.hairline,
+      borderBottomWidth: 1,
+      borderBottomColor: tokens.hairline,
+    },
+    colHeaderFill: {
+      position: 'absolute',
+      top: INTERACTION_FILL_CLEARANCE,
+      right: INTERACTION_FILL_CLEARANCE,
+      bottom: INTERACTION_FILL_CLEARANCE,
+      left: INTERACTION_FILL_CLEARANCE,
+      borderRadius: radius.sm,
+    },
     colHeader: {
+      flex: 1,
+      borderRadius: radius.sm,
       alignItems: "center",
       justifyContent: "center",
       gap: 4,
       paddingVertical: SPACING.s8,
       borderLeftWidth: 1,
-      borderLeftColor: tokens.hairline,
+      borderLeftColor: 'transparent',
       borderBottomWidth: 1,
-      borderBottomColor: tokens.hairline,
+      borderBottomColor: 'transparent',
     },
     colHeaderWeekday: {
       fontFamily: "GeistMono_500Medium",

@@ -5,12 +5,14 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { enUS, ptBR as ptBRLocale } from 'date-fns/locale'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { buildCalendarRangeModel } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -25,6 +27,40 @@ describe('calendar painted fill clearance', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 600, 1024, 1352].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('insets week header paint from the gutter and adjacent cells at $width in $locale', async ({ width, locale }) => {
+    const words = locale === 'en' ? en : ptBR
+    const columns = Array.from({ length: 7 }, (_, index) => ({ date: new Date(2026, 7, 31 + index), dateStr: index === 0 ? '2026-08-31' : `2026-09-0${index}`, isToday: index === 3, isFuture: index > 3 }))
+    const dayMap = new Map(columns.map(({ dateStr }) => [dateStr, [{ habitId: dateStr, title: 'Read', dueTime: null, status: 'upcoming' as const, isBadHabit: false, isOneTime: false }]]))
+    const view = render(<NextIntlClientProvider locale={locale} messages={words} timeZone="UTC">
+      <div style={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+        <CalendarWeekView columns={columns} dayMap={dayMap} slideDirection={null} onSelectDay={vi.fn()} displayTime={(time) => time}
+          dateFnsLocale={locale === 'en' ? enUS : ptBRLocale} allDayLabel={words.calendar.timeGrid.noSetTime} nowLabel={words.calendar.timeGrid.now} timeZone="UTC" />
+      </div>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet} * { transition: none !important }</style><body>${view.container.innerHTML}</body></html>`)
+      for (const header of await page.getByTestId('time-grid-col-header').all()) {
+        for (const state of ['hover', 'press', 'focus'] as const) {
+          if (state === 'focus') { await page.keyboard.press('Escape'); await header.focus() }
+          else { await header.hover(); if (state === 'press') await page.mouse.down() }
+          const paint = await header.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+          const bounds = await header.boundingBox()
+          expect(paint.hasFill).toBe(true)
+          expect(paint.violations, JSON.stringify({ state, paint, bounds })).toEqual([])
+          expect(await header.evaluate((element) => element.matches(':focus-visible'))).toBe(state === 'focus')
+          const gaps = [paint.fill.left - bounds!.x, bounds!.x + bounds!.width - paint.fill.right, paint.fill.top - bounds!.y, bounds!.y + bounds!.height - paint.fill.bottom]
+          gaps.forEach((gap) => expect(gap, JSON.stringify({ state, paint, bounds })).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE - 0.1))
+          const radius = await header.evaluate((element) => getComputedStyle(element).borderRadius)
+          expect(Number.parseFloat(radius)).toBeGreaterThan(0)
+          await page.mouse.up()
+          await header.blur()
+        }
+      }
+    } finally { await page.mouse.up(); await page.close(); view.unmount() }
+  })
 
   it.each([320, 412].flatMap((width) => ['en', 'pt-BR'].flatMap((locale) => ['hover', 'press', 'focus'].map((state) => ({ width, locale, state })))))('clears month paint at $width in $locale while $state', async ({ width, locale, state }) => {
     const view = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC">

@@ -1,6 +1,7 @@
 import React from "react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { StyleSheet } from "react-native";
+import { INTERACTION_FILL_CLEARANCE } from "@orbit/shared/theme";
 import * as ReactNative from "react-native";
 import { Resvg } from '@resvg/resvg-js';
 import en from '@orbit/shared/i18n/en.json';
@@ -146,6 +147,29 @@ function renderedAncestorHeight(node: TestNode): number | undefined {
 }
 
 describe("CalendarTimeGrid (mobile)", () => {
+  it.each([320, 412, 600, 1024, 1352])('insets every pressed week header fill from its cell edges at %ipx', (width) => {
+    vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 });
+    const columns = Array.from({ length: 7 }, (_, index) => column(`2026-10-${String(5 + index).padStart(2, '0')}`));
+    const tree = renderGrid(columns, new Map(columns.map(({ dateStr }) => [dateStr, [makeEntry()]])));
+    for (const header of hostsByTestID(tree, 'time-grid-col-header')) {
+      const target = StyleSheet.flatten(header.props.style({ pressed: true }));
+      expect(target.backgroundColor ?? 'transparent').toBe('transparent');
+      expect(Number(target.borderRadius)).toBeGreaterThan(0);
+      TestRenderer.act(() => header.props.onPressIn?.());
+      const fill = hostsByTestID(tree, 'time-grid-col-header-fill').find((candidate) => {
+        for (let parent = candidate.parent; parent; parent = parent.parent) if (parent === header) return true;
+        return false;
+      });
+      expect(fill).toBeDefined();
+      const painted = resolveStyle(fill!.props.style);
+      expect(painted.backgroundColor).toBe(tokens.bgHover);
+      expect(painted.borderRadius).toBe(target.borderRadius);
+      expect(painted.position).toBe('absolute');
+      for (const edge of ['top', 'right', 'bottom', 'left']) expect(Number(painted[edge])).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE);
+      TestRenderer.act(() => header.props.onPressOut?.());
+    }
+  });
+
   it.each([412, 600, 1100, 1352].flatMap((width) => ['en', 'pt-BR'].map((language) => ({ width, language }))))('keeps drawn week columns and complete short names in $language at $width', ({ width, language }) => {
     const title = language === 'pt-BR' ? 'Revisar notas' : 'Review notes';
     const words = language === 'pt-BR' ? ptBR : en;
@@ -252,7 +276,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     const weekday = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && resolveStyle(node.props.style).color === palette.fg2)[0]!;
     expect(resolveStyle(weekday.props.style).color).toBe(palette.fg2);
     TestRenderer.act(() => header.props.onPressIn?.());
-    const fill = StyleSheet.flatten(header.props.style({ pressed: true })).backgroundColor;
+    const fill = String(resolveStyle(hostsByTestID(tree, 'time-grid-col-header-fill')[0]!.props.style).backgroundColor);
     const color = String(resolveStyle(weekday.props.style).color);
     expect(fill).toBe(palette.bgHover);
     if (mode === 'light') expect(contrastOnSurface(color, [palette.bg, palette.bgCard, fill])).toBeGreaterThanOrEqual(4.5);

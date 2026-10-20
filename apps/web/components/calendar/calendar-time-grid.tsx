@@ -1,6 +1,6 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -326,56 +326,60 @@ export function CalendarTimeGrid({
                 style={{ minHeight: HEADER_HEIGHT, borderBottom: '1px solid var(--hairline)', ...pinnedPaneBackground }}
               />
               {perColumn.map(({ column }) => (
-                <button
-                  key={column.dateStr}
-                  type="button"
-                  data-testid="time-grid-col-header"
-                  data-interaction-fill-cell=""
-                  data-focus-inset="panel"
-                  onClick={() => onSelectDay(column.dateStr)}
-                  className="flex flex-col items-center justify-center bg-transparent transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]"
-                  style={{
-                    appearance: 'none',
-                    border: 0,
-                    minHeight: HEADER_HEIGHT,
-                    borderLeft: '1px solid var(--hairline)',
-                    borderBottom: '1px solid var(--hairline)',
-                    cursor: 'pointer',
-                    padding: "var(--orbit-space-8) var(--orbit-space-4)",
-                    gap: 4,
-                  }}
-                >
-                  <span
+                <div key={column.dateStr} style={{ display: 'flex', boxShadow: 'inset 1px 0 0 var(--hairline), inset 0 -1px 0 var(--hairline)' }}>
+                  <button
+                    type="button"
+                    data-testid="time-grid-col-header"
+                    data-interaction-fill-cell=""
+                    data-focus-inset="panel"
+                    onClick={() => onSelectDay(column.dateStr)}
+                    className="orbit-calendar-week-header group relative flex w-full flex-col items-center justify-center rounded-sm bg-transparent transition-[scale] duration-[var(--dur-fast)] ease-[var(--ease-out)] motion-safe:active:scale-[0.96]"
                     style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      color: 'var(--fg-2)',
+                      appearance: 'none',
+                      border: 0,
+                      minHeight: HEADER_HEIGHT,
+                      borderLeft: '1px solid transparent',
+                      borderBottom: '1px solid transparent',
+                      cursor: 'pointer',
+                      padding: "var(--orbit-space-8) var(--orbit-space-4)",
+                      gap: 4,
                     }}
                   >
-                    {formatCalendarWeekday(column.dateStr, dateFnsLocale.code)}
-                  </span>
-                  <span
-                    data-testid="time-grid-col-date"
-                    className="inline-flex items-center justify-center rounded-full"
-                    style={{
-                      minWidth: '1.5rem',
-                      minHeight: '1.5rem',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      fontVariantNumeric: 'tabular-nums',
-                      color: column.isToday
-                        ? 'var(--fg-on-primary)'
-                        : column.isFuture
-                          ? 'var(--fg-2)'
-                          : 'var(--fg-1)',
-                      background: column.isToday ? 'var(--primary)' : 'transparent',
-                    }}
-                  >
-                    {format(column.date, 'd', { locale: dateFnsLocale })}
-                  </span>
-                </button>
+                    <span aria-hidden="true" className="orbit-calendar-week-header-fill pointer-events-none absolute rounded-[inherit] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)]"
+                      style={{ inset: INTERACTION_FILL_CLEARANCE }} />
+                    <span
+                      className="relative"
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        color: 'var(--fg-2)',
+                      }}
+                    >
+                      {formatCalendarWeekday(column.dateStr, dateFnsLocale.code)}
+                    </span>
+                    <span
+                      data-testid="time-grid-col-date"
+                      className="relative inline-flex items-center justify-center rounded-full"
+                      style={{
+                        minWidth: '1.5rem',
+                        minHeight: '1.5rem',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        fontVariantNumeric: 'tabular-nums',
+                        color: column.isToday
+                          ? 'var(--fg-on-primary)'
+                          : column.isFuture
+                            ? 'var(--fg-2)'
+                            : 'var(--fg-1)',
+                        background: column.isToday ? 'var(--primary)' : 'transparent',
+                      }}
+                    >
+                      {format(column.date, 'd', { locale: dateFnsLocale })}
+                    </span>
+                  </button>
+                </div>
               ))}
             </div>
 

@@ -25,7 +25,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Wide sidebar brand controls | `components/shell/shell-wide.tsx` | Web-only navigation chrome | The 48px bell and collapse targets retain their 12px gap; a 4px trailing row inset reserves clearance from the lockup, and focus stays inset |
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Both platforms reserve 8px above the explanation, covering the menu control's outward focus indicator plus the shared clearance |
 | Progresso bar chart | `components/ui/bar-chart.tsx` | `components/ui/bar-chart.tsx` | Shared bar geometry reserves 4px at both block edges inside the unchanged full-height targets; narrow slots inset their fill enough to retain 4px before neighbouring bars |
-| Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date headers paint inside their own grid cells |
+| Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date targets keep rounded hover, press and focus paint inset by the shared 4px clearance from their own cell edges and the pinned time gutter |
 | Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and a 4px checkbox gap; event fills retain 4px before their separate trailing action |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent 12px content gap retains 4px and focus stays inset |
 | Toast text action | `components/ui/toast.tsx` | `components/ui/app-toast.tsx` | The 4px negative margin on the text action is inside the toast padding and retains clearance from adjacent content; the close control is a PillButton |
@@ -67,8 +67,14 @@ and skipped-sentinel counts, and bounded active-control reads retry once before 
 The inspector measures painted boxes and visible text or graphics on both sides. Transparent
 target-only geometry is excluded. Text neighbours use their text ranges rather than transparent
 control boxes. Adjacent time-grid date headers are explicitly marked as contained cell paint:
-their fills and inset focus indicators remain inside their unchanged column boxes. The exemption
-permits adjoining cell boundaries, never a fill extending outside its cell or covering content.
+their fills and inset focus indicators remain inside their unchanged column boxes. The header's
+empty pinned gutter corner is a painted neighbour when horizontal scrolling brings it under a
+column. Header feedback sits 4px inside the target with the target's 8px radius; static grid lines
+belong to the containing cell on both platforms. The exemption permits adjoining cell boundaries, never a
+fill extending outside its cell or covering content. Chromium unit cases measure all seven week
+headers in both locales at 320, 412, 600, 1024 and 1352px during hover, held press and keyboard
+focus. Android presses each mounted header and checks all four resolved fill insets against the
+shared clearance while keeping the column width and day action.
 
 Android's style regression renders the actual habit header with its emoji selector and summary,
 and the shared row, pill, icon pill and chip with adjacent controls. Yoga measures the resolved
