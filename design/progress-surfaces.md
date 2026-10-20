@@ -18,7 +18,7 @@ controls live on the overview.
 
 | State | Overview | Sequência | Metas | Conquistas |
 |---|---|---|---|---|
-| Loading | Chart and figure placeholders; entries remain available | Account placeholders, then reserved day-strip and freeze geometry while history loads | Goal placeholders | Level and achievement placeholders |
+| Loading | Chart and figure placeholders; entries remain available | Account placeholders, then the reserved day strip and disabled Freezes entry while history loads | Goal placeholders | Level and achievement placeholders |
 | Empty | Invitation to start a habit; entries remain available | Zero streak, neutral days and protected-days empty line | Invitation to create a goal; filtered empty state clears the filter | Level and XP remain above the achievement empty invitation |
 | Error | Local summary retry; entries remain available | Account, gamification, history and repair recovery in their owning regions | Goal loading and reorder recovery | Account and gamification retry |
 | Locked or capacity | Summary's Pro boundary | Freeze Pro boundary, empty or full bank, unaffordable and expired repairs | Existing creation and linked-habit limits | Existing Pro boundary |
@@ -50,3 +50,19 @@ The achievement grid geometry belongs to Conquistas. Its readable 260px minimum,
 wrapping earned chip, first-render columns, live resizing and enlarged Android text follow
 `design/progress-grid-surfaces.md`. Goal widths are measured on Metas, and window stat rows on
 the overview, so each geometry case mounts the composition that actually owns it.
+
+## Streak summary and freeze details
+
+The current streak figure, fourteen-day strip and one labelled Freezes or Congelamentos row
+occupy the same blocks while history loads and after every freeze-bank response. The entry is
+disabled while the history is unavailable. Both platforms place the longest streak, tier, legend,
+bank figures, earning bar, protected dates and frozen, covered-day, capacity and repair notices
+inside the shared sheet. The bank may omit its earning row at capacity inside that sheet.
+The existing repair confirmation, read-back, retry and account replacement behavior is retained.
+The sheet owns scrolling for long protected-day lists and restores focus to its entry on dismissal.
+
+The overview keeps Metas on its separate detail route. A hermetic Chromium Vitest mounts the real
+streak owner and measures a following heading at its bottom across the freeze-state matrix in both
+locales. Android checks identical summary block styles and sheet ownership for the same responses.
+The existing streak loading layout case measures the actual summary bottom and header; its
+execution remains with the layout workflow. Metas is a separate route with no streak response dependency.

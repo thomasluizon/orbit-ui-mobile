@@ -23,7 +23,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
         <View style={styles.figureBlock}><StatTile value={props.longestValue} label={props.longestLabel} /></View>
         <View style={styles.figureBlock}><StatTile value={props.tierValue} label={props.tierLabel} /></View>
       </View>
-      <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }, loading && styles.hidden]}>
+      <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={[props.inSheet ? styles.sheetBookkeeping : [styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }], loading && styles.hidden]}>
         <View style={[styles.bookkeepingRow, width / fontScale < 360 && styles.stacked]}>
           <View style={styles.figureBlock}>
             <Text style={[styles.figure, { color: tokens.fg1 }]}>{props.banked} <Text style={[styles.denominator, { fontFamily: 'SpaceGrotesk_500Medium', color: tokens.fg3 }]}>/ {props.ceiling}</Text></Text>
@@ -63,6 +63,7 @@ const styles = StyleSheet.create({
   root: { gap: 16 },
   hidden: { opacity: 0 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
+  sheetBookkeeping: { gap: 8 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: SPACING.s16 },
   stacked: { flexDirection: 'column' },
   figureRow: { flexDirection: 'row', gap: 16 },

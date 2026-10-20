@@ -1,3 +1,5 @@
+import { progressStreakNow, progressStreakStates } from '@orbit/shared/__tests__/progress-streak-fixtures'
+import { deriveStreakFreezeState } from '@orbit/shared/utils/gamification-selectors'
 import { personalText } from '@/__tests__/support/personal-text'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -204,7 +206,19 @@ function getGoalCards(): HTMLElement[] {
 }
 
 function getStreakStatus(): HTMLElement {
-  return within(screen.getByRole('region', { name: 'progressScreen.sections.streak' })).getByRole('status')
+  return screen.getByTestId('streak-frozen-status')
+}
+
+function renderStreakDetails() {
+  const view = render(<StreakPage />)
+  fireEvent.click(screen.getByRole('button', { name: 'progressScreen.streak.freezes' }))
+  return view
+}
+
+function getStreakDetailsScope(locked: boolean, catalog: typeof en | typeof ptBR) {
+  if (locked) return screen.getByRole('region', { name: catalog.progressScreen.sections.streak })
+  fireEvent.click(screen.getByRole('button', { name: catalog.progressScreen.streak.freezes }))
+  return screen.getByRole('dialog', { name: catalog.progressScreen.streak.freezes })
 }
 
 async function selectGoalFilter(view: string) {
@@ -340,15 +354,15 @@ describe('ProgressContent', () => {
       for (const [catalog, expected] of [[en, 'Longest streak'], [ptBR, 'Maior sequência']] as const) {
         mocks.useEnglishCatalog = catalog === en
         mocks.usePortugueseCatalog = catalog === ptBR
-        const { container, unmount } = render(<StreakPage />)
+        const { unmount } = render(<StreakPage />)
         const page = await browser.newPage({ viewport: { width, height: 1600 } })
         try {
-          const streak = screen.getByRole('region', { name: catalog.progressScreen.sections.streak })
+          const streak = getStreakDetailsScope(locked, catalog)
           expect(within(streak).getByText(expected)).toBeInTheDocument()
           expect(streak.querySelector('[data-component="freeze-bank"]') !== null).toBe(!locked)
-          await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+          await page.setContent(`<style>${stylesheet}</style>${streak.outerHTML}`)
           await loadAppFonts(page)
-          const figures = page.getByRole('region', { name: catalog.progressScreen.sections.streak })
+          const figures = page.locator('[data-component="freeze-bank"], section')
             .locator('[data-state="default"] > span')
           const geometry = await figures.evaluateAll((elements) => elements.map((element) => {
             const range = document.createRange()
@@ -381,7 +395,7 @@ describe('ProgressContent', () => {
                   overflow: style.overflow, textOverflow: style.textOverflow }
               })
               if (scale <= 1.3) expect(bounds.lines, JSON.stringify({ width, scale, bounds })).toBe(1)
-              expect(bounds.clipped).toBe(false)
+              expect(bounds.clipped, JSON.stringify({ width, scale, locale: catalog.progressScreen.streak.next, bounds })).toBe(false)
               expect(bounds.overflow).not.toBe('hidden')
               expect(bounds.textOverflow).not.toBe('ellipsis')
             }
@@ -479,11 +493,11 @@ describe('ProgressContent', () => {
   )
 
   it('uses the display family for the streak and every freeze bank numeral', async () => {
-    const { container } = render(<StreakPage />)
+    renderStreakDetails()
     await act(async () => {})
     const page = await browser.newPage()
     try {
-      await page.setContent(`<style>${stylesheet}:root { --font-space-grotesk: "Space Grotesk"; --font-geist: Geist; }</style>${container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}:root { --font-space-grotesk: "Space Grotesk"; --font-geist: Geist; }</style>${document.body.innerHTML}`)
       const families = await page.evaluate(() => {
         const streak = document.querySelector('section p')!
         const bank = document.querySelector('[data-component="freeze-bank"]')!
@@ -987,7 +1001,10 @@ describe('ProgressContent', () => {
     Object.assign(mocks.gamification.profile, { currentStreak: 0 })
     render(<ProgressContent screen={destination} />)
     expect(screen.getByRole('heading', { level: 1, name: `progressScreen.sections.${destination}` })).toBeInTheDocument()
-    if (destination === 'streak') expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
+    if (destination === 'streak') {
+      fireEvent.click(screen.getByRole('button', { name: 'progressScreen.streak.freezes' }))
+      expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
+    }
     else expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.goals.empty')).not.toBeInTheDocument()
   })
@@ -1098,6 +1115,7 @@ describe('ProgressContent', () => {
     expect(habit).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByText('progressScreen.streak.active')).not.toBeInTheDocument()
     view.rerender(<StreakPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.streak.freezes' }))
     const entry = screen.getByRole('button', { name: 'progressScreen.streak.legend' })
     expect(entry).toHaveAttribute('data-variant', 'ghost')
     expect(entry).toHaveAttribute('data-size', 'sm')
@@ -1106,9 +1124,9 @@ describe('ProgressContent', () => {
     entry.focus()
     fireEvent.click(entry)
     expect(entry).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('dialog')).toHaveTextContent('progressScreen.streak.active')
-    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('dialog', { name: 'progressScreen.streak.legend' })).toHaveTextContent('progressScreen.streak.active')
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'progressScreen.streak.legend' })).getByRole('button', { name: 'common.close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'progressScreen.streak.legend' })).not.toBeInTheDocument())
     expect(entry).toHaveFocus()
     expect(screen.queryByTestId('progress-top-habit')).not.toBeInTheDocument()
   })
@@ -1256,7 +1274,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.currentStreak = 1
     mocks.freeze.streakInfo.longestStreak = 4
     mocks.freeze.streakInfo.lastActiveDate = '2026-09-10'
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.getByText('progressScreen.streak.gapUnavailable')).toBeInTheDocument()
     expect(screen.queryByText(/^progressScreen\.streak\.repairAction/)).not.toBeInTheDocument()
@@ -1271,7 +1289,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     const action = screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')).closest('button')
     expect(action).toHaveAttribute('data-variant', 'secondary')
@@ -1289,7 +1307,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.currentStreak = 0
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.queryByRole('button', { name: 'progressScreen.goals.createAction' })).not.toBeInTheDocument()
     expect(screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')).closest('button')).toHaveAttribute('data-variant', 'primary')
@@ -1318,7 +1336,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
 
-    render(<StreakPage />)
+    renderStreakDetails()
     fireEvent.click(
       screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')),
     )
@@ -1339,7 +1357,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}'))).toBeInTheDocument()
   })
@@ -1348,7 +1366,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
     Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'automatic' })
-    const view = render(<StreakPage />)
+    const view = renderStreakDetails()
     expect(screen.getByText(personalText('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}'))).toBeInTheDocument()
 
     mocks.freeze.streakInfo.currentStreak = 0
@@ -1378,7 +1396,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.isRepairAvailable = false
     Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'manual' })
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}'))).toBeInTheDocument()
     expect(screen.queryByText(/automaticCovered/)).not.toBeInTheDocument()
@@ -1391,7 +1409,7 @@ describe('ProgressContent', () => {
       lastFreezeCoveredOrigin: origin,
     })
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}'))).toBeInTheDocument()
     expect(screen.queryByText(/automaticCovered/)).not.toBeInTheDocument()
@@ -1429,7 +1447,7 @@ describe('ProgressContent', () => {
     mocks.freeze.freezesAvailable = 0
     mocks.freeze.streakFreezesAccumulated = 0
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.getByText('progressScreen.streak.gapBody:{"count":1}')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.streak.repairEmpty')).toBeInTheDocument()
@@ -1447,7 +1465,7 @@ describe('ProgressContent', () => {
     mocks.freeze.freezesAvailable = 2
     mocks.freeze.streakFreezesAccumulated = 2
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.getByText('progressScreen.streak.gapBody:{"count":3}')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.streak.repairPartial:{"needed":3,"banked":2}')).toBeInTheDocument()
@@ -1471,7 +1489,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakFreezesAccumulated = 3
     mocks.freeze.maxStreakFreezesAccumulated = 3
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.getByText('progressScreen.streak.repairCapped:{"needed":4,"banked":3}')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.repairPartial:{"needed":4,"banked":3}')).not.toBeInTheDocument()
@@ -1482,7 +1500,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.streakFreezesAccumulated = 3
     mocks.freeze.streakFreezesAccumulated = 3
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.getByText('progressScreen.streak.bankFull:{"count":3}')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.next')).not.toBeInTheDocument()
@@ -1500,7 +1518,7 @@ describe('ProgressContent', () => {
     mocks.repair.isError = true
     mocks.repair.error = { status }
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.getByRole('alert')).toHaveTextContent(message)
   })
@@ -1513,7 +1531,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
     mocks.repair.isError = true
     mocks.repair.error = { status: 500 }
-    render(<StreakPage />)
+    renderStreakDetails()
     const stylesheet = document.createElement('style')
     stylesheet.textContent = textStyles
     document.head.append(stylesheet)
@@ -1535,7 +1553,7 @@ describe('ProgressContent', () => {
     mocks.repair.isError = true
     mocks.repair.error = { status: 409 }
 
-    render(<StreakPage />)
+    renderStreakDetails()
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -1567,6 +1585,38 @@ describe('ProgressContent', () => {
       expect(mocks.retrospectiveHook).toHaveBeenCalledTimes(1)
     } finally {
       mocks.retrospective.data = retrospectiveData
+    }
+  })
+
+  it.each([320, 360, 412, 1352].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('keeps the streak bottom fixed for every freeze state at $width in $locale', async ({ width, locale }) => {
+    vi.setSystemTime(new Date(progressStreakNow))
+    mocks.usePortugueseCatalog = locale === 'pt-BR'
+    mocks.useEnglishCatalog = locale === 'en'
+    mocks.isDesktop = width >= 1024
+    const words = locale === 'en' ? en : ptBR
+    const original = { ...mocks.freeze }
+    const page = await browser.newPage({ viewport: { width, height: 1200 } })
+    try {
+      for (const { name, streak } of progressStreakStates) {
+        Object.assign(mocks.freeze, deriveStreakFreezeState(null, mocks.account.profile), { streakInfo: null })
+        const { rerender, unmount } = render(<StreakPage />)
+        await act(async () => { await Promise.resolve() })
+        const section = screen.getByRole('region', { name: words.progressScreen.sections.streak })
+        const measure = async () => {
+          await page.setContent(`<style>${stylesheet}</style><div style="padding:16px;max-width:740px">${section.outerHTML}<h2 id="following">${words.progressScreen.sections.goals}</h2></div>`)
+          await loadAppFonts(page)
+          return page.locator('#following').evaluate((element) => element.getBoundingClientRect().top)
+        }
+        const before = await measure()
+        Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
+        rerender(<StreakPage />)
+        await act(async () => { await Promise.resolve() })
+        expect.soft(await measure(), name).toBe(before)
+        unmount()
+      }
+    } finally {
+      Object.assign(mocks.freeze, original)
+      await page.close()
     }
   })
 
@@ -1619,13 +1669,13 @@ describe('ProgressContent', () => {
     const section = screen.getByRole('region', { name: 'progressScreen.sections.streak' })
     expect(section.querySelector('[data-scope="account"]')?.querySelectorAll('[data-state]')).toHaveLength(14)
     expect(within(section).getByText('4')).toBeInTheDocument()
-    const bank = section.querySelector('[data-component="freeze-bank"]')!
-    expect(bank).toHaveAttribute('aria-busy', 'true')
+    expect(section.querySelector('[data-component="freeze-bank"]')).toBeNull()
+    expect(section).toHaveAttribute('aria-busy', 'true')
     const blockCount = section.children.length
     mocks.freeze.streakInfo = streakInfo
     rerender(<StreakPage />)
     expect(section.children).toHaveLength(blockCount)
-    expect(bank).toHaveAttribute('aria-busy', 'false')
+    expect(section).toHaveAttribute('aria-busy', 'false')
     mocks.freeze.streakInfo = null as unknown as typeof streakInfo
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
 
@@ -1639,7 +1689,7 @@ describe('ProgressContent', () => {
   })
 
   it('renders fourteen account days and exposes the bank on the owning page', () => {
-    const { container } = render(<StreakPage />)
+    const { container } = renderStreakDetails()
     const strip = container.querySelector('[data-scope="account"]')!
     expect(strip.querySelectorAll('[data-state]')).toHaveLength(14)
     expect(strip.querySelector('[data-state="today"]')).toBeInTheDocument()
@@ -1660,7 +1710,7 @@ describe('ProgressContent', () => {
   it.each([false, true])('stages a stable frozen status region when initially frozen is %s', async (initiallyFrozen) => {
     mocks.freeze.isFrozenToday = initiallyFrozen
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
-    const { rerender } = render(<StreakPage />)
+    const { rerender } = renderStreakDetails()
     const region = getStreakStatus()
     expect(region).toBeEmptyDOMElement()
     expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
@@ -1682,7 +1732,7 @@ describe('ProgressContent', () => {
     vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
     mocks.freeze.isFrozenToday = true
     mocks.freeze.streakInfo.recentFreezeDates = dates
-    const { rerender } = render(<StreakPage />)
+    const { rerender } = renderStreakDetails()
     await act(async () => { await Promise.resolve() })
     expect.soft(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 8')
     mocks.account.profile.timeZone = 'Pacific/Kiritimati'
@@ -1695,16 +1745,16 @@ describe('ProgressContent', () => {
     expect(screen.getByText(personalText('Sep 8'))).toBeInTheDocument()
   })
 
-  it('announces frozen today above the strip and includes its protected date', async () => {
+  it('shows frozen today in freeze protection and includes its protected date', async () => {
     vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
     mocks.freeze.isFrozenToday = true
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
-    const { container, rerender } = render(<StreakPage />)
+    const { container, rerender } = renderStreakDetails()
     await act(async () => { await Promise.resolve() })
     const banner = getStreakStatus()
     expect(banner).toHaveTextContent('progressScreen.streak.frozenToday')
     const strip = container.querySelector('[data-scope="account"]')!
-    expect(banner.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'progressScreen.streak.freezes' })).toContainElement(banner)
     expect(strip.lastElementChild).toHaveAttribute('data-state', 'frozen')
     expect(screen.getByText('progressScreen.streak.protectedToday')).toBeInTheDocument()
     mocks.freeze.isFrozenToday = false
@@ -1731,7 +1781,7 @@ describe('ProgressContent', () => {
     mocks.freeze.isFrozenToday = true
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-08']
     mocks.streakSnapshotZones = new Set(['America/Sao_Paulo'])
-    const { container, rerender } = render(<StreakPage />)
+    const { container, rerender } = renderStreakDetails()
     await act(async () => { await Promise.resolve() })
 
     expect(getStreakStatus()).toHaveTextContent('progressScreen.streak.frozenToday')
