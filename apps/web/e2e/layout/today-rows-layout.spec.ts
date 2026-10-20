@@ -47,20 +47,63 @@ for (const mode of ['dark', 'light'] as const) {
       await page.evaluate(() => document.fonts.ready)
       const geometry = await panels.evaluateAll((elements) => elements.map((panel) => {
         const row = panel.querySelector('[data-testid="habit-row"]')!
-        const well = row.querySelector('[data-habit-row-body] > span')!
+        const body = row.querySelector('[data-habit-row-body]')!
+        const well = body.querySelector(':scope > span > span')!
+        const title = body.querySelector('[data-personal-text]')!
+        const type = body.querySelector('[data-habit-row-type]')!
+        const content = type.parentElement!
+        const text = [title, type, ...body.querySelectorAll('[data-habit-row-meta]')]
+        const check = row.querySelector('[data-habit-check]')!
+        const target = check.closest('[data-habit-row-control]')!
         const bounds = panel.getBoundingClientRect()
         const wellBounds = well.getBoundingClientRect()
+        const rowBounds = row.getBoundingClientRect()
+        const center = (element: Element) => {
+          const box = element.getBoundingClientRect()
+          return { x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height }
+        }
         const track = row.querySelector('[data-habit-row-control="check"][aria-label*="/"] [data-habit-check]')
         return {
           height: bounds.height, above: wellBounds.top - bounds.top, below: bounds.bottom - wellBounds.bottom,
+          row: center(row), well: center(well), check: center(check), target: center(target),
+          inset: wellBounds.left - rowBounds.left,
+          paddingTop: Number.parseFloat(getComputedStyle(body).paddingTop),
+          paddingBottom: Number.parseFloat(getComputedStyle(body).paddingBottom),
+          contentHeight: content.getBoundingClientRect().height,
+          gap: Number.parseFloat(getComputedStyle(content).rowGap),
+          type: { label: type.textContent, height: type.getBoundingClientRect().height, lineHeight: Number.parseFloat(getComputedStyle(type).lineHeight) },
+          text: text.map((element) => {
+            const box = element.getBoundingClientRect()
+            return { top: box.top, bottom: box.bottom, height: box.height }
+          }),
           track: track ? getComputedStyle(track).boxShadow.match(/rgba?\([^)]+\)/)?.[0] ?? null : null,
           card: getComputedStyle(row).backgroundColor,
           canvas: getComputedStyle(document.body).backgroundColor,
         }
       }))
       for (const panel of geometry) {
-        expect(panel.height).toBe(68)
+        expect(panel.height).toBeGreaterThanOrEqual(68)
+        expect(panel.row.height).toBeCloseTo(panel.height, 1)
+        expect(panel.inset).toBe(8)
+        expect(panel.paddingTop).toBe(8)
+        expect(panel.paddingBottom).toBe(8)
+        expect(panel.type.label).toBe(ptBr.habits.form.typeHabit)
+        expect(panel.type.height).toBeCloseTo(panel.type.lineHeight, 1)
+        expect(panel.gap).toBe(4)
+        for (let index = 1; index < panel.text.length; index++) {
+          expect(panel.text[index]!.top - panel.text[index - 1]!.bottom).toBeCloseTo(4, 1)
+        }
+        const textHeight = panel.text.reduce((height, text) => height + text.height, 0) + 4 * (panel.text.length - 1)
+        expect(panel.contentHeight).toBeCloseTo(textHeight, 1)
+        expect(panel.height).toBeCloseTo(Math.max(68, Math.max(panel.well.height, textHeight) + 16), 1)
         expect(panel.above).toBeCloseTo(panel.below, 1)
+        expect(panel.target.width).toBe(48)
+        expect(panel.target.height).toBeGreaterThanOrEqual(48)
+        expect(panel.check.width).toBe(28)
+        expect(panel.check.height).toBe(28)
+        expect(Math.abs(panel.target.y - panel.row.y)).toBeLessThanOrEqual(1)
+        expect(Math.abs(panel.check.x - panel.target.x)).toBeLessThanOrEqual(1)
+        expect(Math.abs(panel.check.y - panel.target.y)).toBeLessThanOrEqual(1)
       }
       const parentTrack = geometry.find((panel) => panel.track !== null)!
       expect(parentTrack.track).toBe(mode === 'dark' ? 'rgb(139, 139, 142)' : 'rgb(126, 126, 130)')
