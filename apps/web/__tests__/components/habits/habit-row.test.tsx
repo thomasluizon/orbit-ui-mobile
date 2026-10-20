@@ -265,12 +265,12 @@ describe('HabitRow neutral metadata contrast', () => {
 })
 
 describe('HabitRow canonical content', () => {
-  it('keeps a child body on the shared leading edge', () => {
+  it('applies the child inset once inside the shared row edge', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Child' })} child depth={1} />)
     const row = screen.getByTestId('habit-row')
     expect(row.firstElementChild).toHaveAttribute('data-habit-row-body')
     expect(row.style.paddingInlineStart).toBe('')
-    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '8px' })
+    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '24px' })
   })
 
   it('keeps selection, disclosure, and a neutral checkbox on a parent row', () => {

@@ -4,6 +4,7 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'light' | 'dark' } => ({ mode: 'dark' }))
@@ -23,7 +24,7 @@ function assertParentProgressLabel(root: import('react-test-renderer').ReactTest
 }
 
 describe('habit row standard on Android', () => {
-  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 1352].flatMap((width) =>
+  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
     [1, 2].flatMap((fontScale) => [0, 1].map((depth) => ({ mode, width, fontScale, depth: depth as 0 | 1 }))),
   )))('keeps bordered rows and checks in $mode at $width with $fontScale text and depth $depth', ({ mode, width, fontScale, depth }) => {
     theme.mode = mode
@@ -33,6 +34,9 @@ describe('habit row standard on Android', () => {
       depth={depth} panelEnd={false} />) })
     const tokens = createTokensV2('orange', mode)
     const row = tree!.root.findByProps({ testID: 'habit-row' })
+    const geometry = measureInteractionFills(tree!.toJSON(), width, false, fontScale)
+    const well = geometry.find((part) => part.style.borderRadius === 12 && part.style.width === (depth === 1 ? 32 : 46))!
+    expect(well.left).toBe(depth === 1 ? 24 : 8)
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgCard })
     expect(StyleSheet.flatten(row.props.style).borderWidth ?? 0).toBe(0)
     const outline = tree!.root.findByProps({ testID: 'habit-row-outline' })
