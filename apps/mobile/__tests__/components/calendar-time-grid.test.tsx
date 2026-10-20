@@ -165,9 +165,31 @@ describe("CalendarTimeGrid (mobile)", () => {
       expect(painted.backgroundColor).toBe(tokens.bgHover);
       expect(painted.borderRadius).toBe(target.borderRadius);
       expect(painted.position).toBe('absolute');
-      for (const edge of ['top', 'right', 'bottom', 'left']) expect(Number(painted[edge])).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE);
+      for (const [edge, border] of [['top', 'borderTopWidth'], ['right', 'borderRightWidth'], ['bottom', 'borderBottomWidth'], ['left', 'borderLeftWidth']] as const) {
+        expect(Number(painted[edge]) + Number(target[border] ?? target.borderWidth ?? 0)).toBe(INTERACTION_FILL_CLEARANCE);
+      }
       TestRenderer.act(() => header.props.onPressOut?.());
     }
+  });
+
+  it.each(['light', 'dark'] as const)('paints week header focus and clears it on blur in %s mode', (mode) => {
+    setRuntimeTheme({ themeMode: mode });
+    const palette = createTokensV2('purple', mode);
+    const tree = renderGrid([column('2026-10-05')], new Map(), vi.fn(), false, displayTime, 'UTC', palette);
+    const header = hostsByTestID(tree, 'time-grid-col-header')[0]!;
+    const fillStyle = () => resolveStyle(hostsByTestID(tree, 'time-grid-col-header-fill')[0]!.props.style);
+    const focusEvent = { target: 1, currentTarget: 1 };
+    expect(fillStyle().backgroundColor).toBe('transparent');
+    TestRenderer.act(() => header.props.onFocus(focusEvent));
+    expect(fillStyle().backgroundColor).toBe(palette.bgHover);
+    const ring = tree.root.findAll((node) => typeof node.type === 'string' && resolveStyle(node.props.style).outlineStyle === 'solid')[0]!;
+    const outline = resolveStyle(ring.props.style);
+    expect(-Number(outline.outlineOffset) - Number(outline.outlineWidth)).toBe(INTERACTION_FILL_CLEARANCE);
+    TestRenderer.act(() => header.props.onPressIn());
+    TestRenderer.act(() => header.props.onPressOut());
+    expect(fillStyle().backgroundColor).toBe(palette.bgHover);
+    TestRenderer.act(() => header.props.onBlur(focusEvent));
+    expect(fillStyle().backgroundColor).toBe('transparent');
   });
 
   it.each([412, 600, 1100, 1352].flatMap((width) => ['en', 'pt-BR'].map((language) => ({ width, language }))))('keeps drawn week columns and complete short names in $language at $width', ({ width, language }) => {

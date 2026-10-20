@@ -233,7 +233,7 @@ function ColumnHeader({
       <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={styles.colHeaderGridLines} />
       <InsetFocusPressable
         testID="time-grid-col-header"
-        focusOffset={-6}
+        focusOffset={-(INTERACTION_FILL_CLEARANCE + 2)}
         accessibilityRole="button"
         onPress={() => onSelectDay(column.dateStr)}
         style={({ pressed }) => [
@@ -242,9 +242,9 @@ function ColumnHeader({
           pressed && { transform: [{ scale: 0.96 }] },
         ]}
       >
-        {({ pressed }) => <>
+        {({ pressed, focused }) => <>
           <View testID="time-grid-col-header-fill" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-            style={[styles.colHeaderFill, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} />
+            style={[styles.colHeaderFill, { backgroundColor: pressed || focused ? tokens.bgHover : 'transparent' }]} />
           <Text
             style={[
               styles.colHeaderWeekday,
@@ -677,10 +677,6 @@ function createStyles(tokens: Tokens) {
       justifyContent: "center",
       gap: 4,
       paddingVertical: SPACING.s8,
-      borderLeftWidth: 1,
-      borderLeftColor: 'transparent',
-      borderBottomWidth: 1,
-      borderBottomColor: 'transparent',
     },
     colHeaderWeekday: {
       fontFamily: "GeistMono_500Medium",

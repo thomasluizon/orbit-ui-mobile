@@ -52,7 +52,7 @@ describe('calendar painted fill clearance', () => {
           expect(paint.violations, JSON.stringify({ state, paint, bounds })).toEqual([])
           expect(await header.evaluate((element) => element.matches(':focus-visible'))).toBe(state === 'focus')
           const gaps = [paint.fill.left - bounds!.x, bounds!.x + bounds!.width - paint.fill.right, paint.fill.top - bounds!.y, bounds!.y + bounds!.height - paint.fill.bottom]
-          gaps.forEach((gap) => expect(gap, JSON.stringify({ state, paint, bounds })).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE - 0.1))
+          gaps.forEach((gap) => expect(gap, JSON.stringify({ state, paint, bounds })).toBeCloseTo(INTERACTION_FILL_CLEARANCE, 1))
           const radius = await header.evaluate((element) => getComputedStyle(element).borderRadius)
           expect(Number.parseFloat(radius)).toBeGreaterThan(0)
           await page.mouse.up()

@@ -338,8 +338,6 @@ export function CalendarTimeGrid({
                       appearance: 'none',
                       border: 0,
                       minHeight: HEADER_HEIGHT,
-                      borderLeft: '1px solid transparent',
-                      borderBottom: '1px solid transparent',
                       cursor: 'pointer',
                       padding: "var(--orbit-space-8) var(--orbit-space-4)",
                       gap: 4,
