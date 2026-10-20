@@ -603,7 +603,7 @@
       "invalidDescendant": "Não dá para mover para dentro de um sub-hábito dele",
       "invalidDepth": "Passaria do limite de profundidade ({max})",
       "titleMany": "Mover {count} hábito | Mover {count} hábitos",
-      "invalidForSome": "Alguns hábitos selecionados não podem ir para cá",
+      "invalidForSome": "Alguns hábitos selecionados não podem ficar aqui",
       "invalidCurrentParent": "Este hábito já está aqui",
       "invalidCurrentParentMany": "Os hábitos selecionados já estão aqui",
       "noDestinations": "Não há outro lugar para colocar esses hábitos",
