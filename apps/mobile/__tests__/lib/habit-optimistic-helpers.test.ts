@@ -51,7 +51,7 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
 
 function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
   return {
-    ...makeHabit(overrides),
+    ...makeHabit(),
     isLoggedInRange: false,
     instances: [],
     children: [],

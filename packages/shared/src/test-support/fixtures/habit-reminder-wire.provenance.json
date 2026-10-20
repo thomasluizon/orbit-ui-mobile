@@ -1,0 +1,18 @@
+{
+  "repository": "thomasluizon/orbit-api",
+  "revision": "49c0442128380129c5bfe7749c7baf62c4e5bcf9",
+  "origin": "Actual DTO declarations extracted verbatim and compiled with actual domain sources; synthetic scalar inputs serialized with MVC JsonOptions plus JsonStringEnumConverter. This is source serialization, not a captured HTTP response.",
+  "command": "dotnet run --project <scratchpad>/habit-detail-contract-probe/habit-detail-contract-probe.csproj --verbosity quiet",
+  "selection": "Parse each stdout row as type name followed by JSON; retain the 13 serialized DTO and value-object rows without changing fields or values.",
+  "sources": {
+    "src/Orbit.Api/Extensions/ServiceCollectionExtensions.Infrastructure.cs": "f06f76c03b4f1680b9defcfcb90093bb32869c016373658056dd40d97ad9bf31",
+    "src/Orbit.Api/Controllers/SyncController.cs": "a5dc77ebbed2d990c86649c1581987af9429a0adc32a34a0da7e513cc7a39b44",
+    "src/Orbit.Application/Habits/Queries/GetHabitByIdQuery.cs": "5a766721ee01b31f2c8998604616ab063ff6196a4c91ba5142a8cead4b22964c",
+    "src/Orbit.Application/Habits/Queries/GetHabitScheduleQuery.cs": "831da13de99c16245ed216992f4795bc10cce100d851919c6c5c07e22c08e993",
+    "src/Orbit.Application/Habits/Queries/GetCalendarMonthQuery.cs": "de9e5ad64face7d6fe63f8e7f6768fe2295327be8818493b0c2a778aae30d928",
+    "src/Orbit.Application/Habits/Queries/GetHabitFullDetailQuery.cs": "6185aaa21a4bbc7f1089052253816066a4e69e376c73e1929de3e3d710651099",
+    "src/Orbit.Domain/Enums/ScheduledReminderWhen.cs": "6590af81ba99e89ee964b65d74ae924ff92766c5524abc7fb8ac5fa9b55986e1",
+    "src/Orbit.Domain/ValueObjects/ScheduledReminderTime.cs": "df03683ab24d1d056e63740a91087ec68c6863966ab79a65a84948f88a722ca3",
+    "src/Orbit.Domain/ValueObjects/RelativeReminderTime.cs": "59a13ddaaff37cc659b64c465fe8ed5f9cc34941953b260cb0f85cd0ff460999"
+  }
+}
