@@ -34,6 +34,7 @@ export {
   rollbackDatedHabitLists,
   restoreCachedHabitSkip,
   getTodayHabitList,
+  getCachedCalendarDayMap,
   getTodayHabitListAfterRefetch,
   checkTodayAllDoneOrDefer,
   deduplicateHabitList,

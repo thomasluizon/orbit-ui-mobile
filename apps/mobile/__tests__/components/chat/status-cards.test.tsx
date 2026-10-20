@@ -43,7 +43,7 @@ vi.mock('@/components/chat/clarification-card', () => ({ ClarificationCard: () =
 vi.mock('@/components/chat/pending-operation-card', () => ({ PendingOperationCard: () => null }))
 vi.mock('@/components/chat/habit-list-card', () => ({ HabitListCard: () => null }))
 vi.mock('@/components/chat/goal-list-card', () => ({ GoalListCard: () => null }))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: {} }))
+vi.mock('expo-clipboard', () => ({ }))
 
 describe('Astra status cards on mobile', () => {
   beforeEach(() => { mocks.push.mockReset(); mocks.language = 'pt-BR'; mocks.uses24HourClock = false })

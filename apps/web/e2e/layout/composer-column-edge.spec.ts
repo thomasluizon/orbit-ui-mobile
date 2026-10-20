@@ -119,8 +119,8 @@ for (const width of [600, 1100]) {
               await expect(composer.locator('[data-composer-status-slot]')).toHaveCSS('min-height', '96px')
               const reason = words.shell.composer.limit.reason.replace('{allowance}', '5')
               await expectRightEdge(composer.getByText(reason, { exact: true }), rowRight)
-              await expect(composer.getByText(words.shell.composer.limit.renewal, { exact: true })).toHaveCount(0)
-              await expect(composer.locator('[data-composer-usage]')).toHaveText(words.shell.composer.usage.replace('{used}', '5').replace('{limit}', '5'))
+              await expect(composer.getByText(words.shell.composer.limit.renewal, { exact: true })).toHaveCount(1)
+              await expect(composer.locator('[data-composer-usage]')).toHaveCount(0)
             } else {
               await expect(composer.locator('[data-composer-status-slot]')).toHaveCount(0)
               await expect(composer.locator('[data-composer-usage]')).toHaveCount(0)

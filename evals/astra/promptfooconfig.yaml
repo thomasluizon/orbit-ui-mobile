@@ -1,0 +1,51 @@
+description: Astra prompt-to-behavior launch gate
+prompts:
+  - '{{input}}'
+providers:
+  - id: http
+    label: astra-http
+    config:
+      url: '{{env.ORBIT_EVAL_BASE_URL}}/api/chat'
+      method: POST
+      maxRetries: 0
+      validateStatus: status => status === 200 || status === 403
+      headers:
+        Authorization: 'Bearer {{env[credentialKey]}}'
+      multipart:
+        parts:
+          - kind: field
+            name: message
+            value: '{{prompt}}'
+          - kind: field
+            name: history
+            value: '[]'
+      transformResponse: file://response.mjs
+defaultTest:
+  options:
+    provider: '{{env.ORBIT_EVAL_GRADER}}'
+  assert:
+    - type: javascript
+      value: file://assertions.mjs:structural
+      metric: toolStructure
+    - type: javascript
+      value: file://assertions.mjs:behavior
+      metric: toolBehavior
+    - type: llm-rubric
+      transform: output.answer
+      value: '{{rubric}}'
+      metric: finalAnswer
+tests: file://scenarios.yaml
+evaluateOptions:
+  repeat: 3
+  maxConcurrency: 1
+  cache: false
+commandLineOptions:
+  cache: false
+  write: false
+  share: false
+  table: false
+sharing: false
+extensions:
+  - file://hooks.mjs:beforeAll
+  - file://hooks.mjs:beforeEach
+  - file://hooks.mjs:afterAll
