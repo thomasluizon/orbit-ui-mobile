@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-10-19",
+  "calibratedAt": "2026-10-20",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -136,9 +136,16 @@
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "aa3e4f3751833276",
-      "calibratedAt": "2026-10-19",
-      "verdict": "current: inherits the configured gpt-6.1-sol worker with low effort; native union and embedded staging instructions prescribe explicit workflow inputs, compatibility checks and an exact remote ref, so procedural reasoning remains sufficient."
+      "digest": "7b0f0c4eefc204a8",
+      "calibratedAt": "2026-10-20",
+      "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
+    },
+    ".claude/skills/astra-eval/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "c239be82f067d11e",
+      "calibratedAt": "2026-10-20",
+      "verdict": "undeclared, inherits the session: it selects disposable eval fixtures, interprets behavior and incomplete trace evidence, and extends the capability corpus; that judgment stays with the calling session."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,

@@ -63,6 +63,8 @@ const VERDICTS = {
     "current: a mechanical gradle build and emulator install, so low effort is right.",
   ".claude/skills/android-release/SKILL.md":
     "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right.",
+  ".claude/skills/astra-eval/SKILL.md":
+    "undeclared, inherits the session: it selects disposable eval fixtures, interprets behavior and incomplete trace evidence, and extends the capability corpus; that judgment stays with the calling session.",
   ".claude/skills/audit-code-quality/SKILL.md":
     "undeclared, inherits the session: the debt audit makes judgment calls and opens tickets; an explicit high effort would change cost.",
   ".claude/skills/audit-performance/SKILL.md":
