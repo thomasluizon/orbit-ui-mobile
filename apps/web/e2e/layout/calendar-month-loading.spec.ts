@@ -10,8 +10,10 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { measureCalendarMonth } from './calendar-month-geometry'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
+import { setLayoutFixtureSession } from './profile-session'
 
-const selectedDate = '2026-09-04'
+const selectedDate = LAYOUT_FIXED_TIME.slice(0, 10)
 const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR', weekStartDay: 1, hasProAccess: true, hasGoogleConnection: true, uses24HourClock: true })
 
 for (const { width, slow, count, locale } of [412, 1352].flatMap((width) => [1, 2, 4].flatMap((count) => ['en', 'pt-BR'].flatMap((locale) => [false, true].map((slow) => ({ width, slow, count, locale }))))).concat([320, 840].flatMap((width) => [false, true].map((slow) => ({ width, slow, count: 1, locale: 'pt-BR' }))))) {
@@ -51,12 +53,13 @@ for (const { width, slow, count, locale } of [412, 1352].flatMap((width) => [1, 
           await route.fulfill({ json: response })
         })
       }
-      await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: createPaginatedSchema(habitScheduleItemSchema).parse({ items: month.habits, page: 1, pageSize: 50, totalCount: month.habits.length, totalPages: 1 }) }))
+      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: createPaginatedSchema(habitScheduleItemSchema).parse({ items: month.habits, page: 1, pageSize: 50, totalCount: month.habits.length, totalPages: 1 }) }])
       const measure = () => measureCalendarMonth(page, messages.calendar.dayDetail.noEventsToImport)
       try {
         const eventsResponse = page.waitForResponse((response) => new URL(response.url()).pathname === API.calendar.events)
         await page.goto('/')
-        await expect(page.getByRole('button', { name: 'Ler', exact: true }).first()).toBeVisible()
+        await expect(page.getByTestId('habit-row')).toHaveCount(count)
+        await expect(page.getByTestId('habit-row').filter({ hasText: 'Ler' })).toBeVisible()
         await page.locator('a[href="/calendar"]').first().click()
         await monthRequested
         await page.getByRole('radio', { name: messages.calendar.view.month, exact: true }).click()
