@@ -283,8 +283,8 @@ describe('i18n locale parity', () => {
   })
 
   it('describes the Astra daily limit without promising an upgrade removes it', () => {
-    expect(en.chat.limitReachedError).toContain('tomorrow')
-    expect(ptBR.chat.limitReachedError).toMatch(/amanhã/i)
+    expect(en.chat.limitReachedError).toContain('midnight, your time')
+    expect(ptBR.chat.limitReachedError).toContain('meia-noite, no seu horário')
     for (const locale of [en, ptBR]) {
       expect(locale.errors.api.astraLimit).toBe(locale.chat.limitReachedError)
       expect(locale.chat.limitReachedError).not.toMatch(/upgrade|pro\b/i)
