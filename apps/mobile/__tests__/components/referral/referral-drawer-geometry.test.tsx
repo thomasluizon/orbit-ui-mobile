@@ -8,7 +8,7 @@ import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mock
 
 vi.unmock('@/components/ui/sheet')
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: () => { throw new Error('denied') } } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: () => { throw new Error('denied') } }))
 vi.mock('@/hooks/use-referral', () => ({
   useReferral: () => ({
     stats: { successfulReferrals: 1, pendingReferrals: 2, maxReferrals: 5, discountPercent: 20 },

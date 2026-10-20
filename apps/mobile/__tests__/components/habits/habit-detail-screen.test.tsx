@@ -39,8 +39,8 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
-const clipboard = vi.hoisted(() => ({ setString: vi.fn(), getString: vi.fn() }))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
+const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn() }))
+vi.mock('expo-clipboard', () => ({ ...clipboard }))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -1821,7 +1821,7 @@ describe('HabitDetailScreen', () => {
   it('keeps manual description selection outside the disclosure press target after copy fails', async () => {
     const description = 'A note worth selecting\nWith the complete second line'
     mocks.detail = { ...makeDetail(), description }
-    clipboard.getString.mockRejectedValue(new Error('denied'))
+    clipboard.getStringAsync.mockRejectedValue(new Error('denied'))
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const toggle = () => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === description || node.props.accessibilityLabel === 'common.collapse')!
@@ -1845,15 +1845,15 @@ describe('HabitDetailScreen', () => {
   it('copies the full description from habit details', async () => {
     const description = '**A full note**\n\n' + 'Long description. '.repeat(100)
     mocks.detail = { ...makeDetail(), description }
-    clipboard.getString.mockResolvedValue(description)
+    clipboard.getStringAsync.mockResolvedValue(description)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: description }).props.onPress())
     const copy = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.copyDescription')
     expect(copy).toBeDefined()
     await TestRenderer.act(async () => { await copy!.props.onPress() })
-    expect(clipboard.setString).toHaveBeenCalledWith(description)
-    expect(clipboard.getString).toHaveBeenCalled()
+    expect(clipboard.setStringAsync).toHaveBeenCalledWith(description)
+    expect(clipboard.getStringAsync).toHaveBeenCalled()
     expect(tree.root.findAllByType('Text').find((node: TestNode) => node.props.children === description && node.props.selectable)).toBeDefined()
   })
 

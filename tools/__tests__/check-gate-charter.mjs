@@ -70,6 +70,25 @@ export const cases = () => {
     ["--root", stageRepository("success-dependent", completeCharter(), { guardWorkflow: yaml.dump(successDependent) })],
     { status: 2, stderr: /independent !cancelled/ },
   )
+  const syntaxCharter = completeCharter()
+  syntaxCharter[".github/workflows/guards.yml#workflow-syntax"] = entry({ scope: "whole-tree-blocking" })
+  const syntaxWorkflow = yaml.load(scopedGuardWorkflow)
+  syntaxWorkflow.jobs["workflow-syntax"] = guardGroups(currentGuards)["workflow-syntax"]
+  check(
+    "check-gate-charter.mjs",
+    "accepts the blocking workflow syntax gate over every workflow",
+    ["--root", stageRepository("workflow-syntax", syntaxCharter, { guardWorkflow: yaml.dump(syntaxWorkflow) })],
+    { status: 0 },
+  )
+  const syntaxStep = syntaxWorkflow.jobs["workflow-syntax"].steps.find((step) => step.id === "workflow-syntax__1")
+  syntaxStep.run = "echo skipped"
+  check(
+    "check-gate-charter.mjs",
+    "rejects a blocking workflow syntax gate without its all-workflow invocation",
+    ["--root", stageRepository("missing-workflow-syntax-run", syntaxCharter, { guardWorkflow: yaml.dump(syntaxWorkflow) })],
+    { status: 1, stderr: /whole-tree-blocking job must run its path inventory as a blocking step/ },
+  )
+
   const missingGate = stageRepository("missing-gate", completeCharter())
   writeFileSync(join(missingGate, "tools", "check-new-gate.mjs"), "process.exit(0)\n")
   check(
