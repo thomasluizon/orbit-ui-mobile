@@ -82,6 +82,45 @@ vi.mock('@/components/ui/markdown', () => {
 })
 
 describe('MessageBubble write blocks (mobile)', () => {
+  it('renders a clarified operation and its repeated pending preview once', async () => {
+    realClarification.current = true
+    const message = makeClarificationPreviewMessage()
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    message.clarificationPreviews = { [message.actions![0]!.clarificationRequest!.operationId]: operation }
+    message.pendingOperations = [operation]
+    message.pendingOperationStates = { [operation.id]: { status: 'done' } }
+    const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} {...callbacks} />) })
+    expect(blocks(tree)).toHaveLength(1)
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+  })
+
+  it.each((['onPendingOperationConfirmExecute', 'onPendingOperationPrepareStepUp', 'onPendingOperationVerifyStepUp'] as const).flatMap(missing => [false, true].map(earlier => ({ missing, earlier }))))('keeps a clarification visible when $missing is absent (earlier=$earlier)', async ({ missing, earlier }) => {
+    realClarification.current = true
+    const message = makeClarificationPreviewMessage()
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    message.clarificationPreviews = { [message.actions![0]!.clarificationRequest!.operationId]: operation }
+    message.pendingOperations = [operation]
+    const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn(), [missing]: undefined }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} earlierMessages={earlier ? [makeHeldHabitMessage({ pendingOperations: [operation] })] : []} {...callbacks} />) })
+    expect(blocks(tree)).toHaveLength(1)
+    expect(renderedText(tree.root)).toContain(message.actions![0]!.clarificationRequest!.question)
+    expect(press(tree, 'habits.clarification.quickAction.daily')).toBeDefined()
+  })
+
+  it('renders an operation id once and retains the original reply state', async () => {
+    const message = makeHeldHabitMessage()
+    message.pendingOperations = [message.pendingOperations![0]!, message.pendingOperations![0]!]
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} {...callbacks} />) })
+    expect(blocks(tree)).toHaveLength(1)
+    await TestRenderer.act(() => { tree.update(<MessageBubble message={{ ...message, id: 'later-reply' }} earlierMessages={[message]} {...callbacks} />) })
+    expect(blocks(tree)).toHaveLength(0)
+  })
+
   function blocks(tree: TestInstance) {
     return tree.root.findAll((node) => node.type === BlockFrame)
   }

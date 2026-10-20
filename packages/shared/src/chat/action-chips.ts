@@ -10,6 +10,12 @@ function labelKeys(success: string, failed: string): Readonly<ActionLabelKeys> {
 }
 
 const ACTION_LABEL_KEYS: Readonly<Record<string, Readonly<ActionLabelKeys>>> = {
+  link_goals_to_habit: labelKeys('chat.action.linkedHabitGoals', 'chat.action.linkHabitGoalsFailed'),
+  LinkGoalsToHabit: labelKeys('chat.action.linkedHabitGoals', 'chat.action.linkHabitGoalsFailed'),
+  move_habit_parent: labelKeys('chat.action.changedHabitParent', 'chat.action.changeHabitParentFailed'),
+  MoveHabitParent: labelKeys('chat.action.changedHabitParent', 'chat.action.changeHabitParentFailed'),
+  update_checklist: labelKeys('chat.action.updatedChecklist', 'chat.action.updateChecklistFailed'),
+  UpdateChecklist: labelKeys('chat.action.updatedChecklist', 'chat.action.updateChecklistFailed'),
   log_habit: labelKeys('chat.action.logged', 'chat.action.logFailed'),
   create_habit: labelKeys('chat.action.created', 'chat.action.createFailed'),
   update_habit: labelKeys('chat.action.updated', 'chat.action.updateFailed'),

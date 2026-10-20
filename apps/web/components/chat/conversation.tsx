@@ -345,9 +345,11 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           </span> : null}
           <div className="flex min-w-0 w-full flex-col gap-4">
           {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={msg.content} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
+          {msg.role === 'ai' && msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
             message={msg}
+            earlierMessages={messages.slice(0, index)}
             laterMessages={messages.slice(index + 1)}
             blockAnswerInteraction={blockAnswerInteraction}
             animateEntry={msg.role === 'user' && !initialMessageIds.has(msg.id)}
@@ -361,7 +363,6 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             onPendingOperationVerifyStepUp={verifyStepUpForBubble}
           />
           {msg.proactiveItem ? <ProactiveAction isOnline={chat.isOnline} item={msg.proactiveItem} acted={msg.proactiveActed ?? false} onSend={sendMessage} /> : null}
-          {msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
           </div>
           </article>

@@ -68,6 +68,7 @@ type LayoutStyle = ViewStyle & TextStyle
 
 function applyActionStyle(node: YogaNode, style: LayoutStyle) {
   node.setFlex(style.flex)
+  if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
   node.setWidth(style.width as number | `${number}%` | undefined)
   node.setMaxWidth(style.maxWidth as number | `${number}%` | undefined)
   node.setHeight(style.height as number | `${number}%` | undefined)
@@ -116,6 +117,24 @@ afterEach(() => {
 })
 
 describe('BlockFrame on mobile', () => {
+  it.each([390, 840, 1352])('keeps the drawn inset and header gap without an empty description at %s', width => {
+    const tree = render(<BlockFrame {...frame()} />)
+    const config = Yoga.Config.create()
+    const nodes = new Map<string, YogaNode>()
+    const layout = buildActionLayout(tree.toJSON(), nodes, config)
+    try {
+      layout.calculateLayout(Math.min(width, 740) - 32, 'auto', Yoga.DIRECTION_LTR)
+      const root = nodes.get('block-frame-resting')!
+      const header = root.getChild(0)
+      const body = nodes.get('block-frame-body')!
+      expect(body.getComputedTop() - header.getComputedTop() - header.getComputedHeight()).toBeCloseTo(24, 1)
+      expect(root.getComputedPadding(Yoga.EDGE_LEFT)).toBe(24)
+      expect(nodes.get('block-frame-item-one-pending')!.getComputedPadding(Yoga.EDGE_LEFT)).toBe(12)
+      const count = tree.root.find(node => node.type === 'Text' && prop(node, 'children') === 2)
+      expect(StyleSheet.flatten(prop<TextStyle>(count, 'style')).fontFamily).toBe('Geist_400Regular')
+    } finally { layout.freeRecursive(); config.free(); void act(() => tree.unmount()) }
+  })
+
   it('keeps typed labels beside their trailing actions and aligns growing rows to the first line', () => {
     const name = 'Read the books I chose to learn about all the places and people around the world before breakfast every morning'
     const tree = render(<BlockFrame {...frame({ items: [{
@@ -436,8 +455,18 @@ describe('BlockFrame on mobile', () => {
     void act(() => {
       tree.update(<BlockFrame {...frame({ state: 'acting' })} />)
     })
-    expect(prop(tree.root.findByProps({ testID: 'block-frame-acting' }), 'accessibilityState')).toBeUndefined()
+    const body = tree.root.findByProps({ testID: 'block-frame-body' })
+    expect(prop(body, 'accessibilityLiveRegion')).toBe('polite')
+    expect(prop(body, 'accessibilityState')).toEqual({ busy: true })
     expect(textValues(tree).filter((value) => value === 'In progress')).toHaveLength(items.length)
+  })
+
+  it('keeps an itemless acting block busy without adding an empty announcement', () => {
+    const tree = render(<BlockFrame {...frame({ state: 'acting', items: [] })} body={<Text accessibilityLiveRegion="polite">Preparing preview</Text>} />)
+    expect(prop(tree.root.findByProps({ testID: 'block-frame-acting' }), 'accessibilityState')).toEqual({ busy: true })
+    const live = tree.root.findAll(node => typeof node.type === 'string' && prop(node, 'accessibilityLiveRegion') === 'polite')
+    expect(live).toHaveLength(1)
+    expect(prop(live[0]!, 'children')).toBe('Preparing preview')
   })
 
   it('removes acting actions from touch and TalkBack navigation', () => {

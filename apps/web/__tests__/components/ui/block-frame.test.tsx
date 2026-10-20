@@ -222,7 +222,7 @@ describe('BlockFrame on web', () => {
     expect(container.querySelector('[data-state="resting"]')).not.toHaveAttribute('aria-busy')
 
     rerender(<BlockFrame {...resting({ state: 'acting' })} />)
-    expect(container.querySelector('[data-state="acting"]')).not.toHaveAttribute('aria-busy')
+    expect(container.querySelector('[data-state="acting"]')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getAllByText('In progress')).toHaveLength(items.length)
   })
 })

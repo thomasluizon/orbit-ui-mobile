@@ -9,6 +9,7 @@ export interface PendingOperationCardLabels {
   formatTime: (value: string) => string
   approve: (count: number) => string
   acting: string
+  empty: string
   cancel: string
   edit: string
   edited: string
@@ -111,6 +112,7 @@ export function buildPendingOperationCardLabels(
       : actionKey && COUNTED_ACTIONS.includes(actionKey)
         ? translate(`chat.operation.approveCount.${actionKey}`, { count }) : actionLabel,
     acting: translate('blockFrame.status.acting'),
+    empty: translate('chat.operation.empty'),
     cancel: translate('common.cancel'),
     edit: translate('chat.operation.edit'),
     edited: translate('chat.operation.edited'),
