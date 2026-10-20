@@ -29,6 +29,7 @@ import {
   computeHabitDayProgress,
   computeHabitFrequencyLabel,
   formatLocaleDate,
+  getHabitDisplayStartDate,
   formatWeekdayLabels,
   formatAPIDateInTimeZone,
   extractBackendErrorCode,
@@ -714,7 +715,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <AskAstraRow habit={habit} />
       <HabitDetailSchedule habit={habit} summary={summary ?? ''} open={scheduleOpen} onToggle={() => setScheduleOpen((value) => !value)} onCancel={() => setScheduleOpen(false)} onSave={(patch) => { void patchHabit(patch).then((saved) => { if (saved) setScheduleOpen(false) }) }} />
       <section className="flex flex-col" style={{ gap: 12 }}><ListRow placement="column" icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><div hidden={!detailsOpen} id="habit-detail-fields" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}><HabitDetailFields key={habit.id} open={detailsOpen} habit={habit} hasProAccess={hasProAccess} relationshipControlsAvailable={relationshipControlsAvailable} onItemsChange={(items) => { void updateItems(items) }} onPatch={patchHabit} onUpgrade={() => router.push('/upgrade')} /></div></section>
-      <DateRow label={t('habits.detail.startedOn')} value={formatLocaleDate(new Date(habit.createdAtUtc), language, { dateStyle: 'medium' })} note={t('habits.form.startDateReason')} />
+      <DateRow label={t('habits.detail.startedOn')} value={formatLocaleDate(getHabitDisplayStartDate(habit), language, { dateStyle: 'medium' })} note={t('habits.form.startDateReason')} />
       <ListRow placement="column" icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void updateItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />

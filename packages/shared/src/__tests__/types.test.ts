@@ -9,6 +9,9 @@ import {
   createPaginatedSchema,
   createHabitRequestSchema,
   habitDetailSchema,
+  habitDetailChildSchema,
+  habitFullDetailSchema,
+  habitScheduleChildSchema,
   habitScheduleItemSchema,
 } from '../types/habit'
 import { goalSchema, paginatedGoalResponseSchema } from '../types/goal'
@@ -85,6 +88,8 @@ import { apiErrorSchema } from '../types/api'
 
 import {
   createMockHabit,
+  createMockHabitScheduleChild,
+  createMockHabitScheduleItem,
   createMockGoal,
   createMockProfile,
   createMockNotification,
@@ -97,6 +102,72 @@ import {
 const compareStrings = (left: string, right: string) => left.localeCompare(right)
 
 describe('habit schemas', () => {
+  describe.each([
+    ['detail', habitDetailSchema],
+    ['detail child', habitDetailChildSchema],
+    ['schedule item', habitScheduleItemSchema],
+    ['schedule child', habitScheduleChildSchema],
+    ['normalized habit', normalizedHabitSchema],
+  ] as const)('%s creation fields', (_name, schema) => {
+    const response = {
+      ...createMockHabit(),
+      ...createMockHabitScheduleItem(),
+      children: [createMockHabitScheduleChild()],
+    }
+
+    it.each(['OneTime', 'Recurring', 'Flexible', 'General'])('preserves the API date and %s schedule', (schedule) => {
+      const fields = { startDate: '2026-08-28', schedule }
+      const parsed = schema.parse({ ...response, ...fields })
+
+      expect(parsed).toMatchObject(fields)
+    })
+
+    it('accepts older responses without creation fields', () => {
+      const parsed = schema.parse(response)
+
+      expect(parsed).not.toHaveProperty('startDate')
+      expect(parsed).not.toHaveProperty('schedule')
+    })
+
+    it.each([
+      ['schedule', 'Daily'],
+      ['schedule', 1],
+      ['startDate', '2026-08-29T00:30:00Z'],
+      ['startDate', '2026-02-30'],
+    ])('rejects invalid %s %j', (field, value) => {
+      const result = schema.safeParse({ ...response, [field]: value })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error.issues.map((issue) => issue.path)).toContainEqual([field])
+    })
+  })
+
+  it.each([
+    { startDate: '2026-08-28', schedule: 'Recurring' },
+    {},
+  ])('preserves creation fields in full detail and its nested children: %j', (fields) => {
+    const child = { ...createMockHabitScheduleChild(), ...fields }
+    const parsed = habitFullDetailSchema.parse({
+      habit: { ...createMockHabit(), ...fields, children: [{ ...child, children: [child] }] },
+      metrics: {
+        currentStreak: 0,
+        longestStreak: 0,
+        weeklyCompletionRate: 0,
+        monthlyCompletionRate: 0,
+        totalCompletions: 0,
+        lastCompletedDate: null,
+      },
+      logs: [],
+    })
+
+    for (const habit of [parsed.habit, parsed.habit.children[0], parsed.habit.children[0]?.children[0]]) {
+      expect(habit).toBeDefined()
+      expect(habit?.startDate).toBe('startDate' in fields ? fields.startDate : undefined)
+      expect(habit?.schedule).toBe('schedule' in fields ? fields.schedule : undefined)
+    }
+  })
+
   describe('normalizedHabitSchema', () => {
     it('parses a valid NormalizedHabit', () => {
       const habit = createMockHabit()
@@ -1560,6 +1631,41 @@ describe('sync schemas', () => {
         notifications: { updated: [{ isRead: false }] },
         checklistTemplates: { updated: [{ items: ['Shoes', 'Towel', 'Water'] }] },
       })
+    })
+
+    it.each(['OneTime', 'Recurring', 'Flexible', 'General'])('preserves the API date and %s schedule in sync responses', (schedule) => {
+      const response = createMockSyncChangesV2Response()
+      const fields = { startDate: '2026-08-28', schedule }
+      const parsed = syncChangesV2ResponseSchema.parse({ ...response, habits: { ...response.habits, updated: response.habits.updated.map((habit) => ({ ...habit, ...fields })) } })
+      expect(parsed.habits.updated[0]).toMatchObject(fields)
+    })
+
+    it('accepts older sync habits without creation fields', () => {
+      const parsed = syncChangesV2ResponseSchema.parse(createMockSyncChangesV2Response())
+
+      expect(parsed.habits.updated).toHaveLength(1)
+      expect(parsed.habits.updated[0]).not.toHaveProperty('startDate')
+      expect(parsed.habits.updated[0]).not.toHaveProperty('schedule')
+    })
+
+    it.each([
+      ['schedule', 'Daily'],
+      ['schedule', 1],
+      ['startDate', '2026-08-29T00:30:00Z'],
+      ['startDate', '2026-02-30'],
+    ])('rejects invalid sync habit %s %j', (field, value) => {
+      const response = createMockSyncChangesV2Response()
+      const result = syncChangesV2ResponseSchema.safeParse({
+        ...response,
+        habits: {
+          ...response.habits,
+          updated: response.habits.updated.map((habit) => ({ ...habit, [field]: value })),
+        },
+      })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error.issues.map((issue) => issue.path)).toContainEqual(['habits', 'updated', 0, field])
     })
 
     it('rejects a response whose nested habit drops a required field', () => {

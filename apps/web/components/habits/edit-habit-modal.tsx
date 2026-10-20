@@ -30,6 +30,7 @@ import {
   createHabitFormSuggestionRevision,
   extractBackendErrorCode,
   getFriendlyErrorMessage,
+  getHabitDisplayStartDate,
   hasHabitFormProposal,
   rebaseSelectedIds,
   toggleSelectedId,
@@ -480,7 +481,7 @@ export function EditHabitModal({
               isSuggesting={suggestion.isPending}
               lockedGeneral={resolvedLockedGeneral}
               defaultExpanded
-              startDate={habit?.createdAtUtc ?? null}
+              startDate={habit && getHabitDisplayStartDate(habit)}
             />
           </fieldset>
         </form>
