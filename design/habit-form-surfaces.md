@@ -15,6 +15,19 @@ All component paths above are relative to each app's `components/habits/` unless
 named. Timezone context distinguishes unloaded from known null and valid cached profile values.
 Explicit dates remain calendar strings. Recurring/flexible root writes carry startDate; tasks and
 direct-child creation retain dueDate. General carries no date. End-date clearing carries clearEndDate.
+Converting a dated habit to a task clears its persisted end date explicitly before returning the
+task request. Untouched dated end dates keep their value.
+
+The date editor stays mounted while General hides its controls. Returning to a dated draft retains
+its phrase and picker value, reconstructs local parse availability and requires manual confirmation
+when its context changed. Unsupported wording keeps the explicit Astra recovery; impossible and
+ambiguous dates do not offer it. Consultation ownership includes the semantic cadence unit,
+quantity, sorted distinct weekdays and interval, in addition to mode and type. A changed cadence
+retires both delayed responses and visible candidates without another consultation.
+
+Only a date candidate receives DateField's proposed appearance, using resting fg-3 inside the
+existing dashed perimeter. Acceptance and manual picking restore normal ink. Use date sits in
+ActionRow at the trailing edge and hugs its label on both platforms.
 
 ## Production capability audit
 
@@ -52,6 +65,11 @@ paid actions, null/error responses, manual confirmation and accepted proposals. 
 cover the web Server Action and native direct client, including allowance refresh after failure and
 account replacement. The existing web layout specs carry both locales, themes, compact and wide
 widths, large text and proposal/validation states for the orchestrator's frozen build.
+Owning form guards cover General return across account-day, timezone, locale and account changes,
+cadence changes during and after consultation, task conversion requests and actual DateField ink.
+Web jsdom resolves the foreground token and ActionRow ownership; rendered RGB and candidate-state
+phone/desktop width remain frozen-build measurements. Native guards inspect flattened value color
+in both themes and intrinsic action alignment; these are not device font or TalkBack evidence.
 
 Whole-page rendering, keyboard and assistive technology inspection, Android font rendering and
 production create/edit/readback remain separate verification boundaries. API production promotion

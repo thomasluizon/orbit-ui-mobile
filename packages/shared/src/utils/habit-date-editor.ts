@@ -40,14 +40,13 @@ export class HabitDateEditor {
     const context = this.adapter.context()
     const serialized = JSON.stringify(context)
     if (serialized === this.context) return
-    const previous = this.context
     this.context = serialized
     this.abort?.abort()
     this.session.sync(context)
-    if (previous && context.phrase) {
+    if (context.phrase) {
       this.adapter.write('dateIssue', 'habits.form.dateStale')
     }
-    if (previous) this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: context.phrase ? 'unavailable' : 'empty' })
+    this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: this.session.parse(context).status })
   }
 
   setPhrase(phrase: string): void {

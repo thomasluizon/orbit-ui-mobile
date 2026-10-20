@@ -135,16 +135,16 @@ function applyUpdateScheduleFields(
     if (isOneTime) request.dueDate = data.dueDate
     else request.startDate = data.dueDate
   }
-  if (isOneTime) return
-  request.frequencyUnit = data.frequencyUnit ?? undefined
-  request.frequencyQuantity = data.frequencyQuantity ?? undefined
-  if (data.isFlexible || data.frequencyUnit) request.intervalWeeks = data.intervalWeeks ?? 1
-  if (data.days.length) request.days = data.days
   if (data.endDate) {
     request.endDate = data.endDate
   } else if (originalEndDate) {
     request.clearEndDate = true
   }
+  if (isOneTime) return
+  request.frequencyUnit = data.frequencyUnit ?? undefined
+  request.frequencyQuantity = data.frequencyQuantity ?? undefined
+  if (data.isFlexible || data.frequencyUnit) request.intervalWeeks = data.intervalWeeks ?? 1
+  if (data.days.length) request.days = data.days
 }
 
 /**

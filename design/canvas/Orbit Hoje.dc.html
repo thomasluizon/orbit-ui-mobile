@@ -348,8 +348,8 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">move&nbsp;&nbsp;</span>move parent matches move-parent-overlay.tsx: the habit being moved named at the top, a search field once there are more than eight destinations, root not counted (SEARCH_THRESHOLD = 8), case and accent insensitive, keeping a match’s ancestors and always the root, and one centred line when nothing matches. The root row is its own thing, a home glyph in a transparent 30px well with a 1px hairline, above a destinations eyebrow; the tree below is pre-order at 20px per level, and a row with selectable children carries that count in mono. The current parent carries a one word tag and stays selectable, because nothing in validateMoveTarget refuses it. Selection is real: the chosen row takes the tint, the ring and the radio glyph, one at a time. All three refusals are disabled rows at 50 percent with the reason stated on the row: the habit itself, everything inside it, and the depth ceiling, honest against this fixture because moving Rotina da casa (a 3 level subtree) under Anki (depth 3) passes maxHabitDepth = 5. Buscar o remédio, the completed one time habit, is absent as a destination, not disabled (isHabitSelectableAsMoveTarget). The footer is cancel and confirm: confirm waits for a target and takes loading while the move is in flight.</p>
       <p><span style="color:var(--fg-3)">reschedule&nbsp;&nbsp;</span>an Astra sheet with four states (reschedule-sheet.tsx), reached from the row menu on an overdue row, never from a merely open one. The gate is hasProAccess, and the plan axis draws it from both sides: on free the menu opens the sheet on its upsell, one paragraph on what Pro does beside not now; on Pro the menu opens it on working and it settles on the plan after a beat, the same transition retry takes, so the real flow is reachable by using the screen and not only by jumping the axis. Its head is the Astra glyph, the name and the small AI mark. Working is one line plus a skeleton where the card will be. Failed is one line plus try again and not now. The plan is a tinted card wrapped in Proposed carrying the new date, a middle dot and the time when there is one, and the new frequency sentence under it; then Astra’s reason in prose, then the AI fine print. Use this plan takes loading while it saves. All four states stay on the axis as a jump table for review. Every number in it is mock.</p>
       <p><span style="color:var(--fg-3)">parent&nbsp;&nbsp;</span>when the last child of a parent completes and the parent is due today and not itself done, a confirm asks whether to complete the parent too: log when any child was actually logged, skip when every child was skipped. It fires once per parent per day and the ledger clears when the date changes. So the all done state cannot hold a hollow parent: by the time the due list empties, the parent completed or this prompt is on screen.</p>
-      <p><span style="color:var(--fg-3)">create&nbsp;&nbsp;</span>the FAB opens it; a create sentence in a composer chip opens it carrying that sentence; Astra proposes it unasked with every value proposed. One input, the consumed words marked inside it, one preview sentence, tappable correction, an emoji well that is the control (a plus when empty, the picker behind it), and ONE disclosure holding everything else in this order: exact time, reminders, checklist items, sub habits, the bad habit toggle, the slip alert, tags, goal linking, end date, description. Reminders are two things: with a due time, a master switch and offset chips over the ten shipping presets plus a custom number and unit, default at the time plus 15 min, and the LAST offset cannot be removed, its reason beside it, because reminders on with nothing set is a lie; with no time, absolute clock times, each added through a small form of a time field and the two when chips whose add waits for a time, at most 5, with both refusals from validateScheduledReminders said in words: the same time on the same day twice, and a non time. A timed habit that also holds clock times nests them with no second switch. Checklist items are real inputs that retype in place, each duplicable, removable and draggable, up to 50, the cap stated in place; templates are the person’s own: load one, save the current items under a name, absent while the list is empty, and delete one, in a listed sheet that scrolls at any count. Sub habits stop at 20 and tags at 5, each cap stated the same way. The slip alert follows the plan (slip-alert-section.tsx:21): on free a row with the Pro badge, a route to the upgrade and never a disabled control; on Pro the real switch, shield glyph, its label and the description under it, and it turns on and off. The goal link stays ungated on both sides: D70 moved goals out of the paywall, and a gate a decision removed does not come back. Colour swatches stay deleted. The parser runs on every keystroke, calls nothing and costs nothing, and a value the device read renders as typed. When it resolves nothing the screen says so and offers the pills, the stepper and the explicit ask with its cost line beside it: Astra is a fallback the person asks for, and only that ask spends a message (SuggestHabitSetupCommand.cs:35). The ask reads for a beat and settles as a proposal, marked as Astra’s read and proposed until touched. At the daily ceiling the notice states the allowance, the ask alone goes quiet, and the pills, the stepper, the disclosure and the create action stay live, with the local read still running. The start date is an immutable fact with its reason. One surface with Orbit Habit Create, which is the authority for it.</p>
-      <p><span style="color:var(--fg-3)">detail&nbsp;&nbsp;</span>opens from the row body, and a sub habit’s body opens ITS detail with the parent one step back. One surface with Orbit Habit Detail, which is the authority for it. The header is the emoji control: a 76px well opening a picker with a search that clears, the eleven category chips and a grid, and a plus when the habit has no emoji, because there the well is an empty control and not a label. Beside the name and its rename in place sit the summary line, the tags as plain word pills with no colour dot (colour as data is dead), and the ring that logs, a real 44px button named by its action and direction, built on HabitRow’s pairing. The strip is DayStrip in its habit scope at 30 days, the window the third number describes, and the walk’s slipping line states the circumstance in words, no red. The reschedule block appears only on the slipping habit and follows the plan: the proposal with its reason, accept and not now on Pro; the upgrade route in the shipping sheet’s words on free, never an empty space. Then the drawer’s order: the interactive checklist with its reset rule stated only where Habit.cs:186-190 makes it true (a flexible habit’s list does not reset), the three numbers with their three states behind the frequency-or-general gate (a one time task draws no grid, Alongamento draws the one centred no data line, and every open runs the loading row for a beat), the reminders it holds, the end date, the linked goals as rows that leave for Progresso, the sub habits as HabitRows whose rings log through onLog and whose overflow holds log, open and delete (a third level drills), the whole history as a month calendar, and the ask Astra row into the conversation. The editable half is creation’s field set behind ONE disclosure in creation’s order; the checklist swaps into it while it is open so one list is never drawn twice, and sub habits keep their one section above rather than a second, smaller copy. The days edit in place as pills, the start date is a DateRow fact with its reason, and delete is last.</p>
+      <p><span style="color:var(--fg-3)">create&nbsp;&nbsp;</span>the FAB opens it; a create sentence in a composer chip opens it carrying that sentence; Astra proposes it unasked with every value proposed. Two plain-language type radios before the focal title, the consumed words marked inside it, one preview sentence, tappable correction, an emoji well that is the control (a plus when empty, the picker behind it), and ONE disclosure holding everything else in this order: exact time, reminders, checklist items, sub habits, the bad habit toggle, the slip alert, tags, goal linking, end date, description. Reminders are two things: with a due time, a master switch and offset chips over the ten shipping presets plus a custom number and unit, default at the time plus 15 min, and the LAST offset cannot be removed, its reason beside it, because reminders on with nothing set is a lie; with no time, absolute clock times, each added through a small form of a time field and the two when chips whose add waits for a time, at most 5, with both refusals from validateScheduledReminders said in words: the same time on the same day twice, and a non time. A timed habit that also holds clock times nests them with no second switch. Checklist items are real inputs that retype in place, each duplicable, removable and draggable, up to 50, the cap stated in place; templates are the person’s own: load one, save the current items under a name, absent while the list is empty, and delete one, in a listed sheet that scrolls at any count. Sub habits stop at 20 and tags at 5, each cap stated the same way. The slip alert follows the plan (slip-alert-section.tsx:21): on free a row with the Pro badge, a route to the upgrade and never a disabled control; on Pro the real switch, shield glyph, its label and the description under it, and it turns on and off. The goal link stays ungated on both sides: D70 moved goals out of the paywall, and a gate a decision removed does not come back. Colour swatches stay deleted. The parser runs on every keystroke, calls nothing and costs nothing, and a value the device read renders as typed. When it resolves nothing the screen says so and offers the pills, the stepper and the explicit ask with its cost line beside it: Astra is a fallback the person asks for, and only that ask spends a message (SuggestHabitSetupCommand.cs:35). The ask reads for a beat and settles as a proposal, marked as Astra’s read and proposed until touched. At the daily ceiling the notice states the allowance, the ask alone goes quiet, and the pills, the stepper, the disclosure and the create action stay live, with the local read still running. The editable date sits before More details and uses the task due date or habit start anchor. Habit keeps fixed, count-based and distinct General schedules under that disclosure. Explicit Astra dates use neutral Proposed ink and a trailing intrinsic Use date action. One surface with Orbit Habit Create, which is the authority for it.</p>
+      <p><span style="color:var(--fg-3)">detail&nbsp;&nbsp;</span>opens from the row body, and a sub habit’s body opens ITS detail with the parent one step back. One surface with Orbit Habit Detail, which is the authority for it. The header is the emoji control: a 76px well opening a picker with a search that clears, the eleven category chips and a grid, and a plus when the habit has no emoji, because there the well is an empty control and not a label. Beside the name and its rename in place sit the summary line, the tags as plain word pills with no colour dot (colour as data is dead), and the ring that logs, a real 44px button named by its action and direction, built on HabitRow’s pairing. The strip is DayStrip in its habit scope at 30 days, the window the third number describes, and the walk’s slipping line states the circumstance in words, no red. The reschedule block appears only on the slipping habit and follows the plan: the proposal with its reason, accept and not now on Pro; the upgrade route in the shipping sheet’s words on free, never an empty space. Then the drawer’s order: the interactive checklist with its reset rule stated only where Habit.cs:186-190 makes it true (a flexible habit’s list does not reset), the three numbers with their three states behind the frequency-or-general gate (a one time task draws no grid, Alongamento draws the one centred no data line, and every open runs the loading row for a beat), the reminders it holds, the end date, the linked goals as rows that leave for Progresso, the sub habits as HabitRows whose rings log through onLog and whose overflow holds log, open and delete (a third level drills), the whole history as a month calendar, and the ask Astra row into the conversation. The editable half is creation’s field set behind ONE disclosure in creation’s order; the checklist swaps into it while it is open so one list is never drawn twice, and sub habits keep their one section above rather than a second, smaller copy. The manual cadence edits live inside the disclosure. The start anchor remains a read-only DateRow here without an immutability claim; create and edit forms expose an editable date before details. Delete is last.</p>
       <p><span style="color:var(--fg-3)">rows&nbsp;&nbsp;</span>six treatments: pending as the bare status-empty ring, done as an fg-1 disc with a check, overdue and bad as hollow rings in their own colour with an empty middle, read only as the dimmed untappable indicator, and a parent as a ring of done over total that becomes the neutral done disc once the parent itself is logged. No glyph sits inside a ring, so overdue and bad also state themselves in words in the meta strip, 18:00 · atrasado and aconteceu hoje, the word in the status colour. A habit with no emoji gets its title’s first letter from HabitRow itself, fg-3 at 500. The ring that logs is HabitRow’s own onLog button, a real sibling of the row body named by its action and direction; only a parent’s fraction ring stays composed in the trailing slot, since onLog draws the StatusRing alone. Two levels nest inline and deeper levels live behind the drill; a leaf still reserves its chevron column, so the indentation is structural and there are no tree lines. Rows reorder by dragging with the whole row as the handle, and a duplicate arrives as an unlogged copy directly under its source.</p>
       <p><span style="color:var(--fg-3)">returning&nbsp;&nbsp;</span>lands on today, not on the gap. Astra names the circumstance once, as a count of days rather than of misses, and the one action goes to Progresso, where the repair lives. The rows carry only their times, so nothing on the screen counts what was missed, and the composer chips carry the ways back. The threshold is three days with nothing logged, decided 2026-08-20: three days is about where a routine is lost rather than interrupted, and a person who lost a week is not left unacknowledged until the ninth.</p>
       <p><span style="color:var(--fg-3)">bulk&nbsp;&nbsp;</span>selection mode replaces the composer with a floating tray: log, skip, delete, plus the count, and select all opposite it: one plain underlined word that flips to deselect all once everything visible is selected. Log and skip carry no confirmation because both are reversible, and a skip advances the schedule so the row leaves the day. Delete carries one confirmation, and it names that the subtree goes too. The partially failed batch is drawn on the Astra path, where the per-item result already lives: a glyph on every row and a retry whose label states it covers only the two that failed.</p>
@@ -794,8 +794,6 @@ const X = {
       { n: 'Fechar o dia', items: ['Louça da janta', 'Roupa de amanhã', 'Mochila pronta', 'Luzes apagadas'] },
     ],
     startLabel: 'Início',
-    startValue: (d) => ['Começa hoje, ', mock(d)],
-    startWhy: 'A data de início vem do dia em que você cria o hábito e não muda depois.',
     createAction: 'Criar hábito',
     limitCreate: ['As ', '5', ' mensagens de hoje foram usadas. O Orbit lê a frase no aparelho, e criar um hábito não usa mensagem: só pedir ao Astra usa. Escolha os dias ou um número de vezes por semana.'],
     breakdown: 'O que tem dentro',
@@ -912,8 +910,6 @@ const X = {
       { n: 'Close the day', items: ['Dinner dishes', 'Clothes for tomorrow', 'Bag packed', 'Lights off'] },
     ],
     startLabel: 'Start',
-    startValue: (d) => ['Starts today, ', mock(d)],
-    startWhy: 'The start date comes from the day you create the habit and does not change after that.',
     createAction: 'Create habit',
     limitCreate: ["Today's ", '5', ' messages have been used. Orbit reads the phrase on the device, and creating a habit uses no message: only asking Astra does. Pick the days or a number of times a week.'],
     breakdown: 'What is inside',
@@ -956,7 +952,7 @@ class Component extends DCLogic {
   state = {
     mode: 'dark', width: '412', st: 'default', loc: 'pt-BR', plan: 'free',
     off: 0, conv: false, selMode: false, sel: [], ov: {}, gone: [], exp: null, confirm: false,
-    view: null, menu: null, text: null, days: null, qty: null, resolved: false, disc: false,
+    view: null, menu: null, text: null, cItemType: null, cScheduleMode: 'fixed', cSelectedDate: '2026-08-17', cDatePhrase: '', cDateCandidate: null, days: null, qty: null, resolved: false, disc: false,
     dtProp: 0, dtEdit: false, confirmOne: null, slipOn: false,
     showCompleted: false, recent: {}, refreshing: false, ctrlOpen: false, moveKey: null,
     promptKey: null, promptMode: 'log', prompted: [],
@@ -1192,7 +1188,7 @@ class Component extends DCLogic {
       off: next.state === 'read only' ? -8 : 0,
       conv: false, selMode: next.state === 'select', sel: next.state === 'select' ? ['d:2', 'd:3'] : [],
       ov: {}, gone: [], exp: null, confirm: false,
-      view: null, menu: null, text: null, days: null, qty: null, resolved: false, disc: false,
+      view: null, menu: null, text: null, cItemType: null, cScheduleMode: 'fixed', cSelectedDate: '2026-08-17', cDatePhrase: '', cDateCandidate: null, days: null, qty: null, resolved: false, disc: false,
       dtProp: 0, dtEdit: false, confirmOne: null,
       showCompleted: false, recent: {}, refreshing: false, ctrlOpen: false, moveKey: null,
       promptKey: null, promptMode: 'log', prompted: [],
@@ -1336,7 +1332,7 @@ class Component extends DCLogic {
       /* No emoji: pass nothing and HabitRow draws the title's first letter itself (fix 2026-08-21). */
       icon: h.e || null,
       title: name,
-      meta: meta, trailing: trailing, status: status, statusLabel: statusLabel, onLog: onLog, logLabel: logLabel,
+      meta: H('span', { style: { display: 'flex', flexDirection: 'column', gap: 4, whiteSpace: 'normal', overflow: 'visible' } }, H('span', { style: { color: 'var(--fg-3)' } }, h.oneTime ? (t.lang === 'en' ? 'One-time task' : 'Tarefa única') : (t.lang === 'en' ? 'Habit' : 'Hábito')), meta ? H('span', null, meta) : null), trailing: trailing, status: status, statusLabel: statusLabel, onLog: onLog, logLabel: logLabel,
       hasDisc: hasDisc, noDisc: !hasDisc,
       discIcon: expandable ? (ctx.exp ? 'chevron-down' : 'chevron-right') : 'chevron-right',
       discLabel: expandable ? (ctx.exp ? t.hide : t.show) : x.menu.drill,
@@ -1487,6 +1483,57 @@ class Component extends DCLogic {
   }
   /* Everything else behind the ONE disclosure, in this order: when it happens, how it reminds, what is
      inside it, what kind it is, how it is watched, how it is filed, when it ends, prose last. */
+  createTypeNode(t) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const english = t.lang === 'en';
+    return H('section', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      H('p', { style: { fontSize: 14, color: 'var(--fg-2)' } }, english ? 'Type' : 'Tipo'),
+      H('div', { role: 'radiogroup', 'aria-label': english ? 'Type' : 'Tipo' },
+        H(D.RadioRow, { label: english ? 'One-time task' : 'Tarefa única', selected: this.state.cItemType === 'task', onSelect: () => this.setState({ cItemType: 'task', cDateCandidate: null }) }),
+        H(D.RadioRow, { label: english ? 'Habit' : 'Hábito', selected: this.state.cItemType === 'habit', onSelect: () => this.setState({ cItemType: 'habit', cDateCandidate: null }) })));
+  }
+  createScheduleNode(t, x, parsed) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    if (s.cItemType !== 'habit') return null;
+    const english = t.lang === 'en';
+    const days = s.days != null ? s.days : parsed.days || [];
+    return H('section', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+      H('div', { role: 'radiogroup', 'aria-label': english ? 'Frequency' : 'Frequência' },
+        H(D.RadioRow, { label: english ? 'Every' : 'A cada', selected: s.cScheduleMode === 'fixed', onSelect: () => this.setState({ cScheduleMode: 'fixed', cDateCandidate: null }) }),
+        H(D.RadioRow, { label: english ? 'Times per' : 'Vezes por', selected: s.cScheduleMode === 'count', onSelect: () => this.setState({ cScheduleMode: 'count', cDateCandidate: null }) }),
+        H(D.RadioRow, { label: english ? 'No schedule' : 'Sem data', description: english ? 'Log it whenever it happens.' : 'Registre quando acontecer.', selected: s.cScheduleMode === 'general', onSelect: () => this.setState({ cScheduleMode: 'general', cDateCandidate: null }) })),
+      s.cScheduleMode === 'fixed' ? this.dayPills(days, x, (day) => this.setState({ days: days.indexOf(day) >= 0 ? days.filter((value) => value !== day) : days.concat([day]) })) : null,
+      s.cScheduleMode === 'count' ? this.stepper(s.qty || 3, x, (quantity) => this.setState({ qty: quantity })) : null);
+  }
+  createDateNode(t, x) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    if (s.cItemType === 'habit' && s.cScheduleMode === 'general') return null;
+    const english = t.lang === 'en';
+    const candidate = s.cDateCandidate;
+    const atLimit = s.st === 'at limit' || (this._view && this._view.origin === 'limit');
+    const proposalLabel = english ? 'Astra suggested this date.' : 'Astra sugeriu esta data.';
+    const pickerLabel = s.cItemType === 'habit' ? (english ? 'Starts on' : 'Começar em') : (english ? 'Do on' : 'Fazer em');
+    return H('section', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+      H('label', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        H('span', null, english ? 'When' : 'Quando'),
+        H('span', { style: { fontSize: 14, color: 'var(--fg-3)' } }, s.cItemType === 'habit' ? (english ? 'When do you want to start?' : 'Quando você quer começar?') : (english ? 'When do you want to do this?' : 'Quando você quer fazer isso?')),
+        H('input', { value: s.cDatePhrase, onChange: (event) => this.setState({ cDatePhrase: event.target.value, cDateCandidate: null, cDateAccepted: true }), style: { padding: 16, minHeight: 54, background: 'var(--bg-field)', color: 'var(--fg-1)', borderRadius: 12, border: 0 } })),
+      H('label', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        H('span', null, pickerLabel),
+        H(D.Proposed, { scope: 'field', proposed: !!candidate, label: proposalLabel },
+          H('input', { type: 'date', 'aria-label': pickerLabel, 'data-mock': true, value: candidate || s.cSelectedDate,
+            onChange: (event) => this.setState({ cSelectedDate: event.target.value, cDatePhrase: '', cDateCandidate: null, cDateAccepted: true }),
+            style: { padding: 16, minHeight: 54, width: '100%', boxSizing: 'border-box', background: 'var(--bg-field)', color: candidate ? 'var(--fg-3)' : 'var(--fg-1)', borderRadius: 12, border: 0 } }))),
+      candidate ? H('p', { role: 'status', style: { fontSize: 14, color: 'var(--fg-3)' } }, proposalLabel) : null,
+      candidate ? H('div', { style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 } },
+        H(D.Button, { variant: 'ghost', size: 'sm', style: { width: 'auto' }, onClick: () => this.setState({ cSelectedDate: candidate, cDatePhrase: '', cDateCandidate: null, cDateAccepted: true }) }, english ? 'Use date' : 'Usar data')) : null,
+      !candidate && s.cDatePhrase ? H('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 16 } },
+        atLimit ? H(D.CapacityNotice, { message: H(F, null, x.limitCreate[0], mock(x.limitCreate[1]), x.limitCreate[2]) }) : null,
+        H(D.Button, { variant: 'ghost', size: 'sm', disabled: atLimit, onClick: () => this.setState({ cDateCandidate: '2026-08-26', cDateAccepted: false }) }, english ? 'Ask Astra' : 'Consultar Astra'),
+        H('p', { style: { fontSize: 12, color: 'var(--fg-3)' } }, x.askCost[0], mock(x.askCost[1]), x.askCost[2])) : null);
+  }
   discNode(t, x, parsed, det) {
     const D = window.OrbitDesignSystem_918bd5;
     const s = this.state;
@@ -1598,14 +1645,16 @@ class Component extends DCLogic {
     const goal = H('div', { style: { marginInline: -16 } },
       H(window.OrbitNativeMobile.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
         chevron: true, onClick: () => this.setState({ goalOpen: true }) }));
+    const general = !det && s.cItemType === 'habit' && s.cScheduleMode === 'general';
     return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingInline: 16 } },
-      H(D.TimeField, { key: 'time-' + (det ? det.src : 'new'), label: x.fTime, value: time, hint: x.fTimeHint,
-        onChange: (v) => this.setState({ fTime: v }) }),
+      det ? this.dayPills(s.days || parsed.days || [], x, (day) => this.setState((previous) => { const current = previous.days || parsed.days || []; return { days: current.indexOf(day) >= 0 ? current.filter((value) => value !== day) : current.concat([day]) }; })) : this.createScheduleNode(t, x, parsed),
+      !general ? H(D.TimeField, { key: 'time-' + (det ? det.src : 'new'), label: x.fTime, value: time, hint: x.fTimeHint,
+        onChange: (v) => this.setState({ fTime: v }) }) : null,
       /* On a detail the sub habits already hold their own section in the open part, doing both jobs,
          so the disclosure does not draw a second, smaller version of them. */
-      reminders, checklist, det ? null : subs, badRow, slip, tags, goal,
-      H(D.Input, { key: 'end-' + (det ? det.src : 'new'), label: x.fEnd, placeholder: '31/12/2026',
-        defaultValue: det ? det.endStr : undefined }),
+      !general ? reminders : null, checklist, det ? null : subs, !general ? badRow : null, !general ? slip : null, tags, goal,
+      !general && (det || s.cItemType === 'habit') ? H(D.Input, { key: 'end-' + (det ? det.src : 'new'), label: x.fEnd, placeholder: '31/12/2026',
+        defaultValue: det ? det.endStr : undefined }) : null,
       H(D.Input, { key: 'desc-' + (det ? det.src : 'new'), label: x.fDesc, placeholder: '',
         defaultValue: det ? det.descStr : undefined }));
   }
@@ -1981,10 +2030,6 @@ class Component extends DCLogic {
       return { days: cur.indexOf(d) >= 0 ? cur.filter((k) => k !== d) : cur.concat([d]).sort((a, b) => a - b),
         resolved: true };
     });
-    const controls = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
-      this.dayPills(days, x, pick),
-      (mode === 'flex' || !mode) ? this.stepper(qty, x, (n) => this.setState({ qty: n, days: [], resolved: true })) : null);
-
     const inner = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16, padding: 24,
       background: 'var(--bg-card)', borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)',
       color: resolved ? 'var(--fg-1)' : undefined } },
@@ -2003,7 +2048,6 @@ class Component extends DCLogic {
           H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } },
             (astra || askDone) ? x.understoodAstra : x.understood),
           H('p', { style: { fontSize: 'var(--fs-md)', fontWeight: 500 } }, sentence))),
-      controls,
       astra ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
         H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.breakdown),
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
@@ -2020,8 +2064,7 @@ class Component extends DCLogic {
             ? H(D.CapacityNotice, { message: H(F, null, x.limitCreate[0], mock(x.limitCreate[1]), x.limitCreate[2]) })
             : H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)', padding: 12,
                 background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } }, x.unclear),
-          controls,
-          /* Astra is the explicit fallback and the ONE action that spends a message: the ceiling
+              /* Astra is the explicit fallback and the ONE action that spends a message: the ceiling
              quiets this ask alone, with the reason stated in the notice above it. */
           atLimit
             ? H('div', null, H(D.Button, { variant: 'secondary', size: 'sm', disabled: true }, x.ask))
@@ -2030,21 +2073,20 @@ class Component extends DCLogic {
                 H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } },
                   x.askCost[0], mock(x.askCost[1]), x.askCost[2])));
 
-    const dateStr = new Date(BASE.getTime()).toLocaleDateString(t.intl, { day: 'numeric', month: 'long' });
     return H('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
       background: 'var(--bg-elev)' } },
       H(window.OrbitNativeMobile.NavHeader, { title: x.createTitle, backLabel: x.back, onBack: this.closeView }),
       H('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column',
         gap: 24, padding: 16 } },
-        field, preview,
+        this.createTypeNode(t), field,
+        s.cItemType === 'habit' && s.cScheduleMode !== 'general' ? preview : H('div', { style: { display: 'flex', alignItems: 'center' } },
+          H('button', { type: 'button', 'aria-label': x.emoWellLabel(text || x.createTitle), onClick: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }),
+            style: { width: 48, minHeight: 48, borderRadius: 12, border: 0, background: 'var(--bg-well)', color: 'var(--fg-2)', fontSize: 22 } }, s.cEmoji || parsed.emoji || H(D.Icon, { name: 'plus', size: 20 }))),
+        this.createDateNode(t, x),
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
           H(window.OrbitNativeMobile.ListRow, { icon: s.disc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
             onClick: () => this.setState({ disc: !s.disc }) }),
-          s.disc ? this.discNode(t, x, parsed) : null),
-        H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
-          H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.startLabel),
-          H('p', { style: { fontSize: 'var(--fs-md)' } }, x.startValue(dateStr)),
-          H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.startWhy))),
+          s.disc ? this.discNode(t, x, parsed) : null)),
       H('div', { style: { flex: '0 0 auto', padding: 16, borderTop: '1px solid var(--hairline)' } },
         H(D.Button, { variant: filled, onClick: this.closeView, style: { width: '100%' } }, x.createAction)));
   }
@@ -2157,23 +2199,16 @@ class Component extends DCLogic {
       H('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column',
         gap: 24, padding: 16 } },
         H('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
-          headerWell,
-          s.dtEdit
-            ? H('div', { style: { flex: 1, minWidth: 0, display: 'flex', alignItems: 'flex-end', gap: 8 } },
-                H('div', { style: { flex: 1, minWidth: 0 } },
-                  H(D.Input, { defaultValue: name, 'aria-label': x.rename, autoFocus: true })),
-                H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ dtEdit: false }) }, x.accept))
-            : H(F, null,
-                H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
-                  H('p', { style: { fontFamily: 'var(--font-display)', fontSize: 'var(--fs-2xl)', fontWeight: 500,
-                    letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, name),
-                  sum ? H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
-                    fontVariantNumeric: 'tabular-nums' } }, sum) : null),
-                H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.rename,
-                  onClick: () => this.setState({ dtEdit: true }),
-                  style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none', flex: '0 0 auto' } },
-                  H(D.Icon, { name: 'pencil', size: 20 })),
-                headerRing)),
+          headerWell, H('div', { style: { flex: 1 } }),
+          H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.rename, onClick: () => this.setState({ dtEdit: true }),
+            style: { width: 48, height: 48, paddingInline: 0, boxShadow: 'none', flex: '0 0 auto' } }, H(D.Icon, { name: 'pencil', size: 20 })), headerRing),
+        H('div', { style: { width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+          s.dtEdit ? H('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 8 } },
+            H('div', { style: { flex: 1, minWidth: 0 } }, H(D.Input, { defaultValue: name, 'aria-label': x.rename, autoFocus: true })),
+            H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ dtEdit: false }) }, x.accept))
+            : H('p', { style: { fontFamily: 'var(--font-display)', fontSize: 'var(--fs-2xl)', fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.4, whiteSpace: 'normal' } }, name),
+          H('p', { style: { fontSize: 12, color: 'var(--fg-3)', whiteSpace: 'normal' } }, h.oneTime ? (t.lang === 'en' ? 'One-time task' : 'Tarefa única') : (t.lang === 'en' ? 'Habit' : 'Hábito')),
+          sum ? H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums' } }, sum) : null),
         tags,
         /* The description shows under the name, one line, and opens in full when tapped. */
         dtl.desc ? H('button', { type: 'button', 'aria-label': x.dDescOpen, 'aria-expanded': s.dtDescOpen,
@@ -2186,19 +2221,13 @@ class Component extends DCLogic {
         stripBlock,
         resched,
         this.detailExtras(t, x, key, info, dtl, filled, src, kids),
-        H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-          H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, x.factCadence),
-          this.dayPills(days, x, (d) => this.setState((p) => {
-            const cur = p.days != null ? p.days : days;
-            return { days: cur.indexOf(d) >= 0 ? cur.filter((k) => k !== d) : cur.concat([d]).sort((a, b) => a - b) };
-          }))),
         /* Everything else the edit modal holds is creation's field set, behind the one disclosure. */
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
           H(window.OrbitNativeMobile.ListRow, { icon: s.dtDisc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
             onClick: () => this.setState({ dtDisc: !s.dtDisc }) }),
-          s.dtDisc ? this.discNode(t, x, { time: h.time || '' }, this.detCtx(t, key)) : null),
+          s.dtDisc ? this.discNode(t, x, { time: h.time || '', days: days }, this.detCtx(t, key)) : null),
         H('div', { style: { marginInline: -16 } },
-          H(D.DateRow, { label: x.startLabel, value: dateStr, note: x.startWhy })),
+          H(D.DateRow, { label: x.startLabel, value: dateStr })),
         H('div', { style: { marginInline: -16 } },
           H(window.OrbitNativeMobile.ListRow, { icon: 'trash', title: x.delHabit, danger: true, chevron: false,
             onClick: () => this.setState({ confirmOne: key }) }))),
@@ -2335,7 +2364,7 @@ class Component extends DCLogic {
             const nm = kh[lang];
             const kst = s.ov[kk] || this.statusOf(kh, 'today') || 'empty';
             const kEmoji = s.dEmoji[kk] !== undefined ? s.dEmoji[kk] : (kh.e || undefined);
-            return H(D.HabitRow, { key: kk, icon: kEmoji || undefined, title: nm, depth: 1,
+            return H(D.HabitRow, { key: kk, icon: kEmoji || undefined, title: nm, depth: 1, meta: kh.oneTime ? (t.lang === 'en' ? 'One-time task' : 'Tarefa única') : (t.lang === 'en' ? 'Habit' : 'Hábito'),
               status: kst, statusLabel: t.status[kst],
               onLog: () => this.toggleStatus(kk, kst, !!kh.bad),
               logLabel: kst === 'done' ? x.ringUnlog(nm) : x.ringLog(nm),

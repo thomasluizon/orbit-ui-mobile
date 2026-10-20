@@ -40,6 +40,9 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 - Errors state the fix, adjacent to the field: "Use um email completo, como nome@exemplo.com". Disabled controls carry the reason beside them: "Gerido pela sua assinatura."
 - At capacity is a boundary, not an error. **It is no longer a habit count**: the ceiling is an abuse guard at 1000, identical on every plan, so the live at-capacity case is the daily Astra allowance, which the composer's `atLimit` state carries.
 - **The form begins with plain Task/Habit type radios**, then the focal title and live understanding. Raw schedule enum names never render. Dated forms use editable DateField before details; read-only DateRow remains valid elsewhere. General is the reachable No schedule habit branch. Rows and detail show whole neutral type metadata beneath the full-width title.
+  Manual cadence stays inside the one details disclosure. Date candidates keep resting fg-3 ink
+  within the existing dashed perimeter, followed by a trailing intrinsic Use date action.
+  Acceptance and manual picking restore normal ink; Task and General retain manual emoji controls.
 - Emoji: only as user-chosen habit icons inside a row well (💧🏃📖), never in UI copy or as UI iconography.
 
 ## Visual foundations

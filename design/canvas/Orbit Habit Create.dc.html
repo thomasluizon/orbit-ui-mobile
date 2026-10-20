@@ -59,6 +59,7 @@ a:hover{color:var(--fg-1)}
             </div>
           </div>
 
+          {{ manualEmojiField }}
           <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ true }}">
             <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ isProposed }}" label="{{ proposedLabel }}" hint-size="100%,200px">
               <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
@@ -70,28 +71,6 @@ a:hover{color:var(--fg-1)}
                   <p style="font-size:12px;line-height:1.4">{{ lblUnderstood }}</p>
                 </div>
                 <p style="font-size:17px;line-height:1.4;font-weight:500;text-wrap:pretty"><sc-for list="{{ sentenceParts }}" as="sp" hint-placeholder-count="2"><sc-if value="{{ sp.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true">{{ sp.text }}</span></sc-if><sc-if value="{{ sp.plain }}" hint-placeholder-val="{{ true }}"><span>{{ sp.text }}</span></sc-if></sc-for></p>
-                <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
-                  <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
-                    <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
-                      <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary);transition:background-color var(--dur-fast) var(--ease-standard)">{{ p.label }}</button>
-                    </sc-if>
-                    <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
-                      <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
-                    </sc-if>
-                  </sc-for>
-                </div>
-                <sc-if value="{{ showStepper }}" hint-placeholder-val="{{ true }}">
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                    </x-import>
-                    <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center">{{ qty }}</p>
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                    </x-import>
-                    <p style="font-size:14px">{{ lblCount }}</p>
-                  </div>
-                </sc-if>
                 <sc-if value="{{ hasBreakdown }}" hint-placeholder-val="{{ false }}">
                   <div style="display:flex;flex-direction:column;gap:8px">
                     <p style="font-size:12px">{{ lblBreakdown }}</p>
@@ -109,26 +88,6 @@ a:hover{color:var(--fg-1)}
           <sc-if value="{{ showUnresolved }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-direction:column;gap:16px">
               <p style="font-size:14px;line-height:1.55;color:var(--fg-2);padding:12px;background:var(--bg-well);border-radius:var(--r-well);text-wrap:pretty">{{ unresolvedLine }}</p>
-              <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
-                <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
-                  <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
-                    <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary)">{{ p.label }}</button>
-                  </sc-if>
-                  <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
-                    <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
-                  </sc-if>
-                </sc-for>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                </x-import>
-                <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center;color:var(--fg-1)">{{ qty }}</p>
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                </x-import>
-                <p style="font-size:14px;color:var(--fg-3)">{{ lblCount }}</p>
-              </div>
               <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ onAsk }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
                 <p style="font-size:12px;color:var(--fg-3);line-height:1.4">{{ askCost }}</p>
@@ -139,26 +98,6 @@ a:hover{color:var(--fg-1)}
           <sc-if value="{{ showLimit }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-direction:column;gap:16px">
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitMessage }}" hint-size="100%,96px"></x-import>
-              <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
-                <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
-                  <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
-                    <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary)">{{ p.label }}</button>
-                  </sc-if>
-                  <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
-                    <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
-                  </sc-if>
-                </sc-for>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                </x-import>
-                <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center;color:var(--fg-1)">{{ qty }}</p>
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                </x-import>
-                <p style="font-size:14px;color:var(--fg-3)">{{ lblCount }}</p>
-              </div>
               <div style="display:flex;align-items:flex-start">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" dc-props="{{ askOffProps }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
               </div>
@@ -205,7 +144,8 @@ a:hover{color:var(--fg-1)}
               </div>
             </div>
 
-            <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ true }}">
+            {{ manualEmojiField }}
+          <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ true }}">
               <div style="max-width:560px">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ isProposed }}" label="{{ proposedLabel }}" hint-size="100%,200px">
                   <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
@@ -217,28 +157,6 @@ a:hover{color:var(--fg-1)}
                       <p style="font-size:12px;line-height:1.4">{{ lblUnderstood }}</p>
                     </div>
                     <p style="font-size:17px;line-height:1.4;font-weight:500;text-wrap:pretty"><sc-for list="{{ sentenceParts }}" as="sp" hint-placeholder-count="2"><sc-if value="{{ sp.mock }}" hint-placeholder-val="{{ false }}"><span data-mock="true">{{ sp.text }}</span></sc-if><sc-if value="{{ sp.plain }}" hint-placeholder-val="{{ true }}"><span>{{ sp.text }}</span></sc-if></sc-for></p>
-                    <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
-                      <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
-                        <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
-                          <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary);transition:background-color var(--dur-fast) var(--ease-standard)">{{ p.label }}</button>
-                        </sc-if>
-                        <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
-                          <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
-                        </sc-if>
-                      </sc-for>
-                    </div>
-                    <sc-if value="{{ showStepper }}" hint-placeholder-val="{{ true }}">
-                      <div style="display:flex;align-items:center;gap:8px">
-                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
-                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                        </x-import>
-                        <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center">{{ qty }}</p>
-                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
-                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                        </x-import>
-                        <p style="font-size:14px">{{ lblCount }}</p>
-                      </div>
-                    </sc-if>
                     <sc-if value="{{ hasBreakdown }}" hint-placeholder-val="{{ false }}">
                       <div style="display:flex;flex-direction:column;gap:8px">
                         <p style="font-size:12px">{{ lblBreakdown }}</p>
@@ -257,26 +175,6 @@ a:hover{color:var(--fg-1)}
             <sc-if value="{{ showUnresolved }}" hint-placeholder-val="{{ false }}">
               <div style="display:flex;flex-direction:column;gap:16px;max-width:560px">
                 <p style="font-size:14px;line-height:1.55;color:var(--fg-2);padding:12px;background:var(--bg-well);border-radius:var(--r-well);text-wrap:pretty">{{ unresolvedLine }}</p>
-                <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
-                  <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
-                    <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
-                      <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary)">{{ p.label }}</button>
-                    </sc-if>
-                    <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
-                      <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
-                    </sc-if>
-                  </sc-for>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                  </x-import>
-                  <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center;color:var(--fg-1)">{{ qty }}</p>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                  </x-import>
-                  <p style="font-size:14px;color:var(--fg-3)">{{ lblCount }}</p>
-                </div>
                 <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
                   <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ onAsk }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
                   <p style="font-size:12px;color:var(--fg-3);line-height:1.4">{{ askCost }}</p>
@@ -287,26 +185,6 @@ a:hover{color:var(--fg-1)}
             <sc-if value="{{ showLimit }}" hint-placeholder-val="{{ false }}">
               <div style="display:flex;flex-direction:column;gap:16px;max-width:560px">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitMessage }}" hint-size="100%,96px"></x-import>
-                <div role="group" aria-label="{{ lblDays }}" style="display:flex;gap:4px">
-                  <sc-for list="{{ pills }}" as="p" hint-placeholder-count="7">
-                    <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}">
-                      <button type="button" aria-pressed="true" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--primary-dim);color:var(--fg-1);box-shadow:inset 0 0 0 1.5px var(--primary)">{{ p.label }}</button>
-                    </sc-if>
-                    <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}">
-                      <button type="button" aria-pressed="false" aria-label="{{ p.aria }}" onClick="{{ p.pick }}" style="width:44px;height:44px;flex:0 0 auto;border:0;border-radius:var(--r-pill);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;background:var(--bg-well);color:var(--fg-2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background-color var(--dur-fast) var(--ease-standard)" style-hover="background:var(--bg-hover);color:var(--fg-1)">{{ p.label }}</button>
-                    </sc-if>
-                  </sc-for>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onLess }}" dc-props="{{ lessProps }}" hint-size="44px,44px">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="minus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                  </x-import>
-                  <p data-mock="true" style="font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;min-width:28px;text-align:center;color:var(--fg-1)">{{ qty }}</p>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onMore }}" dc-props="{{ moreProps }}" hint-size="44px,44px">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="plus" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                  </x-import>
-                  <p style="font-size:14px;color:var(--fg-3)">{{ lblCount }}</p>
-                </div>
                 <div style="display:flex;align-items:flex-start">
                   <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" dc-props="{{ askOffProps }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
                 </div>
@@ -576,7 +454,7 @@ const EMO = [
 ];
 
 class Component extends DCLogic {
-  state = { itemType: null, selectedDate: '2026-08-17', datePhrase: '', scheduleMode: 'fixed', mode: 'dark', width: '412', st: 'typed', loc: 'pt-BR', plan: 'free',
+  state = { itemType: null, selectedDate: '2026-08-17', datePhrase: '', dateCandidate: null, dateAccepted: false, scheduleMode: 'fixed', mode: 'dark', width: '412', st: 'typed', loc: 'pt-BR', plan: 'free',
     text: null, days: null, qty: null, resolved: null, disc: null, phase: null,
     cEmoji: null, emoOpen: false, emoQ: '', emoCat: null,
     fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [], schedForm: null,
@@ -595,7 +473,7 @@ class Component extends DCLogic {
 
   onCC = (next) => {
     clearTimeout(this._akT);
-    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale, plan: next.plan || 'free',
+    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale, plan: next.plan || 'free', dateCandidate: null, dateAccepted: false,
       text: null, days: null, qty: null, resolved: null, disc: null, phase: null,
       cEmoji: null, emoOpen: false, emoQ: '', emoCat: null,
       fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [], schedForm: null,
@@ -710,6 +588,49 @@ class Component extends DCLogic {
   }
   /* Everything else behind the ONE disclosure, in creation's order: when it happens, how it reminds,
      what is inside it, what kind it is, how it is watched, how it is filed, when it ends, prose last. */
+  scheduleNode(x) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    if (s.itemType !== 'habit') return null;
+    const english = x.lang === 'en';
+    const days = s.days || [];
+    return H('section', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+      H('div', { role: 'radiogroup', 'aria-label': english ? 'Frequency' : 'Frequência' },
+        H(D.RadioRow, { label: english ? 'Every' : 'A cada', selected: s.scheduleMode === 'fixed', onSelect: () => this.setState({ scheduleMode: 'fixed', dateCandidate: null, dateAccepted: true }) }),
+        H(D.RadioRow, { label: english ? 'Times per' : 'Vezes por', selected: s.scheduleMode === 'count', onSelect: () => this.setState({ scheduleMode: 'count', dateCandidate: null, dateAccepted: true }) }),
+        H(D.RadioRow, { label: english ? 'No schedule' : 'Sem data', description: english ? 'Log it whenever it happens.' : 'Registre quando acontecer.', selected: s.scheduleMode === 'general', onSelect: () => this.setState({ scheduleMode: 'general', dateCandidate: null, dateAccepted: true }) })),
+      s.scheduleMode === 'fixed' ? H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+        [0, 1, 2, 3, 4, 5, 6].map((day) => this.pill(x.dayShort[day], days.indexOf(day) >= 0, () => this.pick(day, days), x.dayOn(day), day))) : null,
+      s.scheduleMode === 'count' ? H(D.Input, { label: x.count, value: String(s.qty || 3), inputMode: 'numeric', onChange: (event) => this.setState({ qty: Number(event.target.value) }) }) : null);
+  }
+  dateNode(x, proposedState) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const s = this.state;
+    if (s.itemType === 'habit' && s.scheduleMode === 'general') return null;
+    const english = x.lang === 'en';
+    const candidate = s.dateCandidate || (proposedState && !s.dateAccepted ? '2026-08-26' : null);
+    const atLimit = s.st === 'at limit';
+    const proposalLabel = english ? 'Astra suggested this date.' : 'Astra sugeriu esta data.';
+    const pickerLabel = s.itemType === 'habit' ? (english ? 'Starts on' : 'Começar em') : (english ? 'Do on' : 'Fazer em');
+    return H('section', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+      H('label', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        H('span', null, english ? 'When' : 'Quando'),
+        H('span', { style: { fontSize: 14, color: 'var(--fg-3)' } }, s.itemType === 'habit' ? (english ? 'When do you want to start?' : 'Quando você quer começar?') : (english ? 'When do you want to do this?' : 'Quando você quer fazer isso?')),
+        H('input', { value: s.datePhrase, onChange: (event) => this.setState({ datePhrase: event.target.value, dateCandidate: null, dateAccepted: true }), style: { padding: 16, minHeight: 54, background: 'var(--bg-field)', color: 'var(--fg-1)', borderRadius: 12, border: 0 } })),
+      H('label', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        H('span', null, pickerLabel),
+        H(D.Proposed, { scope: 'field', proposed: !!candidate, label: proposalLabel },
+          H('input', { type: 'date', 'aria-label': pickerLabel, 'data-mock': true, value: candidate || s.selectedDate,
+            onChange: (event) => this.setState({ selectedDate: event.target.value, datePhrase: '', dateCandidate: null, dateAccepted: true }),
+            style: { padding: 16, minHeight: 54, width: '100%', boxSizing: 'border-box', background: 'var(--bg-field)', color: candidate ? 'var(--fg-3)' : 'var(--fg-1)', borderRadius: 12, border: 0 } }))),
+      candidate ? H('p', { role: 'status', style: { fontSize: 14, color: 'var(--fg-3)' } }, proposalLabel) : null,
+      candidate ? H('div', { style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 } },
+        H(D.Button, { variant: 'ghost', size: 'sm', style: { width: 'auto' }, onClick: () => this.setState({ selectedDate: candidate, datePhrase: '', dateCandidate: null, dateAccepted: true }) }, english ? 'Use date' : 'Usar data')) : null,
+      !candidate && s.datePhrase ? H('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 16 } },
+        atLimit ? H(D.CapacityNotice, { message: H(F, null, x.limit[0], mock(x.limit[1]), x.limit[2]) }) : null,
+        H(D.Button, { variant: 'ghost', size: 'sm', disabled: atLimit, onClick: () => this.setState({ dateCandidate: '2026-08-26', dateAccepted: false }) }, english ? 'Ask Astra' : 'Consultar Astra'),
+        H('p', { style: { fontSize: 12, color: 'var(--fg-3)' } }, x.askCost[0], mock(x.askCost[1]), x.askCost[2])) : null);
+  }
   discNode(x, parsedTime) {
     const D = window.OrbitDesignSystem_918bd5;
     const s = this.state;
@@ -817,10 +738,12 @@ class Component extends DCLogic {
       H(D.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
         chevron: true, onClick: () => this.setState({ goalOpen: true }) }));
     return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingInline: 16 } },
-      H(D.TimeField, { label: x.fTime, value: time, hint: x.fTimeHint,
-        onChange: (v) => this.setState({ fTime: v }) }),
-      reminders, checklist, subs, badRow, slip, tags, goal,
-      H(D.Input, { label: x.fEnd, placeholder: x.fEndPlaceholder }),
+      this.scheduleNode(x),
+      !(s.itemType === 'habit' && s.scheduleMode === 'general') ? H(D.TimeField, { label: x.fTime, value: time, hint: x.fTimeHint,
+        onChange: (v) => this.setState({ fTime: v }) }) : null,
+      !(s.itemType === 'habit' && s.scheduleMode === 'general') ? reminders : null, checklist, subs,
+      !(s.itemType === 'habit' && s.scheduleMode === 'general') ? badRow : null, !(s.itemType === 'habit' && s.scheduleMode === 'general') ? slip : null, tags, goal,
+      s.itemType === 'habit' && !(s.itemType === 'habit' && s.scheduleMode === 'general') ? H(D.Input, { label: x.fEnd, placeholder: x.fEndPlaceholder }) : null,
       H(D.Input, { label: x.fDesc, placeholder: '' }));
   }
   /* Saved checklist templates: the person's own. Load one, save the current items under a name (absent
@@ -909,7 +832,7 @@ class Component extends DCLogic {
     const base = {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
-      stateAxis: ['empty', 'typed', 'resolved', 'unresolved', 'from chat', 'proposed', 'details', 'parsing', 'at limit'],
+      stateAxis: ['date proposed', 'empty', 'typed', 'resolved', 'unresolved', 'from chat', 'proposed', 'details', 'parsing', 'at limit'],
       planAxis: ['free', 'Pro'],
       is412: s.width === '412', isWide: s.width === 'wide',
       n3: 3, n18: 18, n20: 20, no: false, noop: () => {},
@@ -978,17 +901,6 @@ class Component extends DCLogic {
       emoji: s.cEmoji != null ? s.cEmoji : parsed.emoji,
       emojiWellLabel: t.emoWell,
       onEmojiOpen: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }),
-      lblDays: t.days,
-      pills: [0, 1, 2, 3, 4, 5, 6].map((d) => {
-        const on = useDays.indexOf(d) >= 0;
-        return { label: t.dayShort[d], on: on, off: !on, aria: on ? t.dayOn(d) : t.dayOff(d),
-          pick: () => this.pick(d, useDays) };
-      }),
-      showStepper: useMode === 'flex', qty: qty, lblCount: t.count,
-      lessProps: { 'aria-label': t.less, style: { width: 44, height: 44, paddingInline: 0 } },
-      moreProps: { 'aria-label': t.more, style: { width: 44, height: 44, paddingInline: 0 } },
-      onLess: () => this.setState({ qty: Math.max(1, qty - 1), days: [], resolved: true }),
-      onMore: () => this.setState({ qty: Math.min(7, qty + 1), days: [], resolved: true }),
       hasBreakdown: astra, lblBreakdown: t.breakdown, subs: t.subs,
 
       showUnresolved: showUnresolved && s.itemType !== 'task' && s.scheduleMode !== 'general', unresolvedLine: t.unresolved,
@@ -1006,23 +918,17 @@ class Component extends DCLogic {
       onDisc: () => this.setState({ disc: !discOpen }),
       discBody: discOpen ? this.discNode(t, parsed.time || '') : null,
 
+      manualEmojiField: s.itemType === 'task' || s.scheduleMode === 'general' || !showPreview
+        ? H('div', { style: { display: 'flex', alignItems: 'center' } },
+            H('button', { type: 'button', 'aria-label': t.emoWell, onClick: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }),
+              style: { width: 48, minHeight: 48, borderRadius: 12, border: 0, background: 'var(--bg-well)', color: 'var(--fg-2)', fontSize: 22 } },
+              s.cEmoji || parsed.emoji || H(D.Icon, { name: 'plus', size: 20 }))) : null,
       typeField: H('section', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
         H('p', { style: { fontSize: 14, color: 'var(--fg-2)' } }, t.lang === 'en' ? 'Type' : 'Tipo'),
         H('div', { role: 'radiogroup', 'aria-label': t.lang === 'en' ? 'Type' : 'Tipo' },
-          H(D.RadioRow, { label: t.lang === 'en' ? 'One-time task' : 'Tarefa única', selected: s.itemType === 'task', onSelect: () => this.setState({ itemType: 'task' }) }),
-          H(D.RadioRow, { label: t.lang === 'en' ? 'Habit' : 'Hábito', selected: s.itemType === 'habit', onSelect: () => this.setState({ itemType: 'habit' }) })),
-        s.itemType === 'habit' ? H('div', { role: 'radiogroup', 'aria-label': t.lang === 'en' ? 'Frequency' : 'Frequência' },
-          H(D.RadioRow, { label: t.lang === 'en' ? 'Every' : 'A cada', selected: s.scheduleMode === 'fixed', onSelect: () => this.setState({ scheduleMode: 'fixed' }) }),
-          H(D.RadioRow, { label: t.lang === 'en' ? 'Times per' : 'Vezes por', selected: s.scheduleMode === 'count', onSelect: () => this.setState({ scheduleMode: 'count' }) }),
-          H(D.RadioRow, { label: t.lang === 'en' ? 'No schedule' : 'Sem data', description: t.lang === 'en' ? 'Log it whenever it happens.' : 'Registre quando acontecer.', selected: s.scheduleMode === 'general', onSelect: () => this.setState({ scheduleMode: 'general' }) })) : null),
-      dateField: s.itemType === 'habit' && s.scheduleMode === 'general' ? null : H('section', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
-        H('label', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-          H('span', null, t.lang === 'en' ? 'When' : 'Quando'),
-          H('span', { style: { fontSize: 14, color: 'var(--fg-3)' } }, s.itemType === 'habit' ? (t.lang === 'en' ? 'When do you want to start?' : 'Quando você quer começar?') : (t.lang === 'en' ? 'When do you want to do this?' : 'Quando você quer fazer isso?')),
-          H('input', { value: s.datePhrase, onChange: (event) => this.setState({ datePhrase: event.target.value }), style: { padding: 16, minHeight: 54, background: 'var(--bg-field)', color: 'var(--fg-1)', borderRadius: 12, border: 0 } })),
-        H('label', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-          H('span', null, s.itemType === 'habit' ? (t.lang === 'en' ? 'Starts on' : 'Começar em') : (t.lang === 'en' ? 'Do on' : 'Fazer em')),
-          H('input', { type: 'date', value: s.selectedDate, onChange: (event) => this.setState({ selectedDate: event.target.value, datePhrase: '' }), style: { padding: 16, minHeight: 54, background: 'var(--bg-field)', color: 'var(--fg-1)', borderRadius: 12, border: 0 } }))),
+          H(D.RadioRow, { label: t.lang === 'en' ? 'One-time task' : 'Tarefa única', selected: s.itemType === 'task', onSelect: () => this.setState({ itemType: 'task', dateCandidate: null, dateAccepted: true }) }),
+          H(D.RadioRow, { label: t.lang === 'en' ? 'Habit' : 'Hábito', selected: s.itemType === 'habit', onSelect: () => this.setState({ itemType: 'habit', dateCandidate: null, dateAccepted: true }) }))),
+      dateField: this.dateNode(t, st === 'date proposed'),
 
       onBack: () => {},
       astraRow: H(window.OrbitNativeMobile.AstraRow),

@@ -41,6 +41,7 @@ interface DateFieldProps {
   placeholder?: string
   label?: string
   focusRequest?: number
+  appearance?: 'normal' | 'proposed'
 }
 
 interface DatePickerMonthNavProps {
@@ -222,6 +223,7 @@ export function DateField({
   placeholder,
   label,
   focusRequest,
+  appearance = 'normal',
 }: Readonly<DateFieldProps>) {
   const { fontScale } = useWindowDimensions()
   const triggerRef = useRef<View>(null)
@@ -340,7 +342,7 @@ export function DateField({
         <Text
           style={[
             styles.triggerText,
-            !displayValue && { color: pressed ? tokens.fg2 : tokens.fg3 },
+            !displayValue || appearance === 'proposed' ? { color: pressed ? tokens.fg2 : tokens.fg3 } : null,
           ]}
           numberOfLines={fontScale > 1.3 ? undefined : 1}
         >

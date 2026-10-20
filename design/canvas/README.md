@@ -11,6 +11,10 @@ General remains a distinct undated habit with a reachable schedule group. Local 
 free; explicit Astra dates remain Proposed until accepted or manually selected. Validation preserves
 the draft and focuses the required choice or unresolved date. Offline draft editing and manual
 picking remain available; each platform retains its existing save connectivity boundary.
+The executable Create and Hoje forms put manual cadence inside that disclosure and retain a manual
+emoji control for Task and General. Their date candidates use fg-3 inside the neutral dashed
+perimeter, with a trailing label-hugging Use date action; acceptance or manual selection restores
+normal ink. Detail's read-only DateRow states a date without claiming form dates are immutable.
 
 Hoje rows and Habit Detail show the full quiet type below the full-width title. The existing row
 status, counts, check and menu remain. `habit-form-surfaces.md` and `habit-row-surfaces.md` name the

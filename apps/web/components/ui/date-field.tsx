@@ -29,6 +29,12 @@ interface DateFieldProps {
   placeholder?: string
   label?: string
   focusRequest?: number
+  appearance?: 'normal' | 'proposed'
+}
+
+function dateValueClassName(displayValue: string, appearance: DateFieldProps['appearance']): string | undefined {
+  if (displayValue && appearance !== 'proposed') return undefined
+  return `${!displayValue ? 'text-[var(--fg-3)] ' : ''}group-hover:text-[var(--fg-2)] group-active:text-[var(--fg-2)] group-focus-visible:text-[var(--fg-2)]`
 }
 
 export function DateField({
@@ -37,6 +43,7 @@ export function DateField({
   placeholder,
   label,
   focusRequest,
+  appearance = 'normal',
 }: Readonly<DateFieldProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -162,10 +169,12 @@ export function DateField({
         aria-label={label ? `${label}, ${selectionLabel}` : selectionLabel}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="w-full min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-md py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
+        data-appearance={appearance}
+        style={{ color: appearance === 'proposed' ? 'var(--fg-3)' : 'var(--fg-1)' }}
+        className="group w-full min-h-[54px] bg-[var(--bg-field)] rounded-md py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
-        <span className={displayValue ? undefined : 'text-[var(--fg-3)]'}>{displayValue || placeholder || t('common.selectDate')}</span>
+        <span className={dateValueClassName(displayValue, appearance)}>{displayValue || placeholder || t('common.selectDate')}</span>
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </button>
 

@@ -5,7 +5,7 @@ import { buildCreateHabitRequest, buildUpdateHabitRequest, buildSubHabitRequest 
 import { buildEmptyHabitFormValues, buildEditHabitFormState } from '../utils/habit-form-state'
 import { createMockHabit } from './factories'
 
-const context = (): DateInterpretationContext => ({ account: 1, locale: 'pt-BR', timeZone: 'America/Sao_Paulo', referenceDate: '2026-10-20', type: 'task', schedule: 'oneTime', date: '2026-10-20', endDate: '', phrase: 'depois das férias' })
+const context = (): DateInterpretationContext => ({ account: 1, locale: 'pt-BR', timeZone: 'America/Sao_Paulo', referenceDate: '2026-10-20', type: 'task', schedule: 'oneTime', cadence: { unit: null, quantity: null, days: [], intervalWeeks: 1 }, date: '2026-10-20', endDate: '', phrase: 'depois das férias' })
 const response = { date: '2026-10-26', referenceDate: '2026-10-20' }
 
 describe('explicit date consultation ownership', () => {

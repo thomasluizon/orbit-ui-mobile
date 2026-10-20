@@ -8,6 +8,12 @@ export interface DateInterpretationContext {
   referenceDate: string
   type: string | null | undefined
   schedule: string
+  cadence: {
+    unit: string | null
+    quantity: number | null
+    days: string[]
+    intervalWeeks: number
+  }
   date: string
   endDate: string
   phrase: string
