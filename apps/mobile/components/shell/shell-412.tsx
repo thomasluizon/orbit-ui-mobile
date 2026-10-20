@@ -13,6 +13,30 @@ import { ShellScrollToTopSlotProvider, useShellScrollToTopHost } from './shell-s
 import { RootScrollProvider } from './root-scroll-context'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
+function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{
+  floating: boolean
+  minimumHeight: number
+  children: ReactNode
+}>) {
+  const viewportRef = useRef<ScrollView>(null)
+  const viewportSize = useRef({ height: 0, contentHeight: 0 })
+  function revealBottomControls() {
+    const { height, contentHeight } = viewportSize.current
+    viewportRef.current?.scrollTo({ y: Math.max(0, contentHeight - height - PADDING.screenGutter), animated: false })
+  }
+  if (!floating) return children
+  return <ScrollView
+    ref={viewportRef}
+    testID="shell-bottom-viewport"
+    style={[styles.bottomViewport, { minHeight: minimumHeight }]}
+    contentContainerStyle={styles.fabClearance}
+    keyboardShouldPersistTaps="handled"
+    nestedScrollEnabled
+    onLayout={event => { viewportSize.current.height = event.nativeEvent.layout.height; revealBottomControls() }}
+    onContentSizeChange={(_width, height) => { viewportSize.current.contentHeight = height; revealBottomControls() }}
+  ><View style={styles.bottomContent}>{children}</View></ScrollView>
+}
+
 function ShellBottomChrome({
   visible,
   conversationOpen,
@@ -36,12 +60,6 @@ function ShellBottomChrome({
   safeAreaBottom: number
   onTabBarHeight: (height: number) => void
 }>) {
-  const viewportRef = useRef<ScrollView>(null)
-  const viewportSize = useRef({ height: 0, contentHeight: 0 })
-  function revealBottomControls() {
-    const { height, contentHeight } = viewportSize.current
-    viewportRef.current?.scrollTo({ y: Math.max(0, contentHeight - height - PADDING.screenGutter), animated: false })
-  }
   if (!visible) return null
   const actionMinimum = !navigationEnabled && pinnedSlot !== undefined ? BUTTON_SIZES.md.height : 0
   const minimumHeight = fab !== undefined ? SPACING.s64 : actionMinimum
@@ -54,22 +72,14 @@ function ShellBottomChrome({
         { backgroundColor, paddingBottom: safeAreaBottom },
       ]}
     >
-      <View style={[styles.bottomColumn, { minHeight: minimumHeight }]}>
-        <ScrollView
-          ref={viewportRef}
-          testID="shell-bottom-viewport"
-          style={[styles.bottomViewport, { minHeight: minimumHeight }]}
-          contentContainerStyle={fab !== undefined ? styles.fabClearance : undefined}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled
-          onLayout={event => { viewportSize.current.height = event.nativeEvent.layout.height; revealBottomControls() }}
-          onContentSizeChange={(_width, height) => { viewportSize.current.contentHeight = height; revealBottomControls() }}
-        >
-          <View style={styles.bottomContent}>
+      <View style={[styles.bottomColumn, { minHeight: minimumHeight }, fab !== undefined && styles.floatingColumn]}>
+        <ShellBottomViewport floating={fab !== undefined} minimumHeight={minimumHeight}>
             {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
             {pinnedSlot !== undefined ? (
               <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum, display: conversationOpen ? 'none' : 'flex' }]}>
-                <View testID="shell-pinned-slot" style={{ minHeight: actionMinimum }}>{pinnedSlot}</View>
+                {fab !== undefined ? <View testID="shell-pinned-slot">{pinnedSlot}</View> : (
+                  <ScrollView testID="shell-pinned-slot" style={[styles.pinnedSlot, { minHeight: actionMinimum }]} keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
+                )}
               </View>
             ) : null}
             {fab !== undefined ? (
@@ -77,8 +87,7 @@ function ShellBottomChrome({
                 <View testID="shell-fab" style={styles.fab}>{fab}</View>
               </View>
             ) : null}
-          </View>
-        </ScrollView>
+        </ShellBottomViewport>
       </View>
       {navigationEnabled ? <View testID="shell-tab-bar" onLayout={event => onTabBarHeight(event.nativeEvent.layout.height)}>{tabBar}</View> : null}
     </View>
@@ -198,7 +207,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
             )
           ) : null}
 
-          <View testID="shell-scroller" style={[styles.scroller, viewport.relaxedScroller && styles.flowScroller]}>
+          <View testID="shell-scroller" style={[styles.scroller, props.fab !== undefined && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
             {props.children}
             <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
           </View>
@@ -270,8 +279,9 @@ const styles = StyleSheet.create({
   },
   scroller: {
     flex: 1,
-    minHeight: SPACING.s96,
+    minHeight: TOUCH_TARGET_MIN,
   },
+  floatingScroller: { minHeight: SPACING.s96 },
   scrollToTop: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center', zIndex: zLayers.sticky },
   flowScroller: { minHeight: 0 },
   flowHeader: { minHeight: TOUCH_TARGET_MIN },
@@ -291,13 +301,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: PADDING.screenGutter,
   },
   bottomColumn: {
-    flexGrow: 1,
     flexShrink: 1,
     minHeight: 0,
     alignSelf: 'center',
     maxWidth: SHELL_CONTENT_MAX_WIDTH,
     width: '100%',
   },
+  floatingColumn: { flexGrow: 1 },
   bottomContent: { position: 'relative' },
   bottomViewport: { flexGrow: 1, flexShrink: 1, minHeight: 0 },
   fabClearance: { paddingTop: SHELL_SCROLLER_CLEARANCE },

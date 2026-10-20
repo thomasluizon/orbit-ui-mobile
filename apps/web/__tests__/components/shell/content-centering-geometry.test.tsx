@@ -54,7 +54,7 @@ describe('page content centring and add control clearance', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([412, 480, 740, 840, 1100, 841, 1101])('places centred columns on whole CSS pixels at %ipx', async (width) => {
+  it.each([412, 480, 740, 840, 1100, 841, 1101])('centres columns within their usable containers at %ipx', async (width) => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
       <ShellWide items={[]} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}>
         <HabitCreateFrame presentation="screen" open fromConversation={false} leaving={false} actionRefreshKey="test" onNavigate={vi.fn()} onReturn={vi.fn()}
@@ -76,8 +76,7 @@ describe('page content centring and add control clearance', () => {
       }))
       expect(columns).toHaveLength(3)
       for (const column of columns) {
-        expect.soft(Number.isInteger(column.left), JSON.stringify(column)).toBe(true)
-        expectCentred(column, { left: column.availableLeft, right: column.availableRight })
+        expect.soft(column.left + column.right, JSON.stringify(column)).toBeCloseTo(column.availableLeft + column.availableRight, 1)
       }
     } finally { await page.close() }
   })

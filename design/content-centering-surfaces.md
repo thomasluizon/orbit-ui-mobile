@@ -84,9 +84,17 @@ The page scroller retains a 96px minimum so the date title and numeric date, and
 habit-row control, fit with focus clearance when scrolled to the centre. The bottom viewport
 yields height before the page region, and the destination viewport scrolls when both minimums
 and the measured header and tabs exceed the window.
+Android applies that minimum only while the floating target is present. Without it, the page
+keeps its 48px minimum and the pinned action or composer owns its bounded ScrollView, preserving
+the existing short-window budget. Only floating compositions use the shared bottom viewport.
 Wide web removes the destination viewport from layout and resets its overflow to visible.
 Notices keep a measurable parent column with or without the floating target, including when
 the wide shell no longer needs the bottom viewport.
+
+Web reserves the trailing clearance with scroller padding. A full-height destination wrapper
+therefore fits short content without a scrollbar; long content still clears the floating target.
+The root-header geometry suite checks the shared bell edge with both content lengths at 320,
+412, 600 and 840 and at default and doubled text size.
 
 Both centring suites mount the production composer, Fab and BottomTabBar at 840 x 240 and
 360 x 320, with a 48px header and both zero and 24px top/16px bottom insets. They check the minimum viewport, revealability of the input,
@@ -112,9 +120,9 @@ Calendar figures retain equal tracks, start-aligned values and single-line capti
 text size. Habit creation retains its responsive submit cap and the explanation below it,
 centred at compact width and aligned to the submit start at wider widths.
 
-The web shell and habit-create columns round their leading margin down to a whole CSS pixel,
-retaining their widths and keeping opposite margins within one pixel, including odd window
-widths. Android's Yoga layout retains its native point rounding. The centring suites check
+The web shell and habit-create columns use native automatic inline margins with their existing
+maximum widths. Opposite margins remain equal, including at odd window widths. Android's Yoga
+layout retains its native point rounding. The centring suites check
 412, 480, 740, 840 and 1100, plus odd widths 841 and 1101.
 
 The create disclosure has no scale under reduced motion, including its starting style. Its

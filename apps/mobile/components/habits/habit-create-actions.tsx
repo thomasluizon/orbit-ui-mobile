@@ -18,21 +18,21 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onC
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { width } = useWindowDimensions()
   const screen = presentation === 'screen'
-  const buttonLabel = subHabit ? t('common.create') : t('habits.createHabit')
+  const label = subHabit ? t('common.create') : t('habits.createHabit')
   const reason = empty ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: screen && width < 640 ? 'center' : 'left' }}>{t('habits.form.createWhy')}</Text> : null
   return <View style={{ gap: screen ? 8 : 16 }}>
     {!screen ? reason : null}
       {screen ? (
         <PillButton size="md" loading={pending} disabled={empty}
         hint={empty ? t('habits.form.createWhy') : undefined} onClick={onSubmit}>
-        {buttonLabel}
+        {label}
       </PillButton>
       ) : (
         <ActionRow>
           <PillButton variant="ghost" disabled={pending} onClick={onCancel}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" loading={pending}
         hint={empty ? t('habits.form.createWhy') : undefined} onClick={onSubmit}>
-        {buttonLabel}
+        {label}
       </PillButton>
         </ActionRow>
       )}

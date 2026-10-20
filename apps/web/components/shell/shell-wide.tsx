@@ -348,7 +348,7 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
 
 function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boolean, floating: boolean) {
   if (!hasBottomChrome) return { padding: '', minimum: 'min-h-0' }
-  if (floating) return { padding: "after:block after:h-24 after:content-[''] lg:after:h-8", minimum: 'min-h-24 lg:min-h-8' }
+  if (floating) return { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8' }
   return reservesComposerSpace
     ? { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8' }
     : { padding: 'pb-8', minimum: 'min-h-8' }

@@ -2536,8 +2536,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 .orbit-centred-column {
-  margin-inline-start: round(down, max(0px, calc((100% - var(--orbit-column-cap, 740px)) / 2)), 1px);
-  margin-inline-end: auto;
+  margin-inline: auto;
 }
 
 .orbit-content-frame {
