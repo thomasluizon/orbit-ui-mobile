@@ -65,7 +65,7 @@ vi.mock('expo-router', () => ({ router: { replace: vi.fn() } }))
 
 const account = { userId: 'account-a', email: 'person@example.com', name: 'Person' }
 function authenticate(userId: string | null) {
-  auth.useAuthStore.setState({ isAuthenticated: userId !== null, user: userId ? { ...account, userId } : null })
+  auth.useAuthStore.setState({ sessionPhase: userId ? 'signed-in' : 'signed-out', isAuthenticated: userId !== null, user: userId ? { ...account, userId } : null })
 }
 function enqueue(id = 'queued-delete') {
   queue.enqueue({ id, timestamp: Date.now(), type: 'deleteHabit', endpoint: API.habits.delete(id), method: 'DELETE', payload: null, retries: 2, maxRetries: 3 })
@@ -73,15 +73,34 @@ function enqueue(id = 'queued-delete') {
 function stored() {
   return mocks.database.prepare('SELECT * FROM mutation_queue ORDER BY id').all()
 }
+function seedLegacyName(id = 'legacy-name', timestamp = 1) {
+  mocks.database.prepare(`INSERT INTO mutation_queue
+    (id, timestamp, type, endpoint, method, payload, retries, max_retries)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    id, timestamp, 'setName', API.profile.name, 'PUT',
+    JSON.stringify({ name: 'Account A private name' }), 0, 3,
+  )
+}
+function accountToken(userId: string) {
+  const payload = { sub: userId, email: account.email, exp: Math.floor(Date.now() / 1000) + 3_600 }
+  return `header.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.signature`
+}
+async function restoreSession(userId = account.userId) {
+  authenticate(null)
+  mocks.token = accountToken(userId)
+  expect(await auth.useAuthStore.getState().checkAuth()).toBe(true)
+  expect(auth.useAuthStore.getState().user?.userId).toBe(userId)
+}
 async function login(userId = account.userId) {
   mocks.fetch.mockResolvedValue(new Response(null, { status: 503 }))
-  await auth.useAuthStore.getState().login('new-access', 'new-refresh', { ...account, userId })
+  await auth.useAuthStore.getState().login(accountToken(userId), 'new-refresh', { ...account, userId })
 }
 
-it('migrates the legacy queue in place without losing its unowned write', () => {
+it('quarantines the shipped queue until its persisted session is restored', () => {
   authenticate(account.userId)
-  expect(queue.getAll()).toMatchObject([{ id: 'legacy', retries: 2 }])
-  expect(stored()).toMatchObject([{ id: 'legacy', account_id: null, meta: null }])
+  expect(queue.getAll()).toEqual([])
+  expect(queue.count()).toBe(0)
+  expect(stored()).toMatchObject([{ id: 'legacy', account_id: null, owner_state: 'legacy', meta: null, retries: 2 }])
 })
 
 describe('offline queue across the real API and auth boundary', () => {
@@ -122,7 +141,8 @@ describe('offline queue across the real API and auth boundary', () => {
     expect(queue.getAll().every((row) => row.retries === 2)).toBe(true)
   })
 
-  it('prunes other accounts on login while adopting unowned writes', async () => {
+  it('prunes other accounts and unclaimed legacy rows while adopting genuine anonymous work', async () => {
+    seedLegacyName()
     enqueue('account-a-delete')
     authenticate(null)
     enqueue('pre-login-delete')
@@ -131,6 +151,70 @@ describe('offline queue across the real API and auth boundary', () => {
     expect(stored()).toMatchObject([{ id: 'pre-login-delete', account_id: 'account-b' }])
     authenticate(account.userId)
     expect(queue.count()).toBe(0)
+  })
+
+  it('never replays an unclaimed legacy profile write after terminal teardown and another login', async () => {
+    seedLegacyName()
+    await auth.clearSessionAndResetAuth({
+      authority: 'observed-credential',
+      ...auth.getSessionGeneration(),
+    })
+    await login('account-b')
+    queue.enqueue({
+      id: 'account-b-name', timestamp: 2, type: 'setName', endpoint: API.profile.name,
+      method: 'PUT', payload: { name: 'Account B name' },
+    })
+    mocks.fetch.mockClear()
+    mocks.fetch.mockResolvedValue(new Response(null, { status: 204 }))
+    await flushQueuedMutations()
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+    expect(mocks.fetch.mock.calls[0]?.[1]).toMatchObject({
+      body: JSON.stringify({ name: 'Account B name' }),
+      headers: { Authorization: `Bearer ${accountToken('account-b')}` },
+    })
+    expect(mocks.fetch.mock.calls.some(([, request]) =>
+      request?.body?.includes('Account A private name'))).toBe(false)
+    expect(stored()).toEqual([])
+  })
+
+  it('replays legacy writes once in order under the restored account bearer token', async () => {
+    seedLegacyName('legacy-name-later', 2)
+    seedLegacyName('legacy-name-first', 1)
+    await restoreSession()
+    expect(queue.getAll().map((row) => row.id)).toEqual(['legacy-name-first', 'legacy-name-later'])
+    mocks.fetch.mockResolvedValue(new Response(null, { status: 204 }))
+    await flushQueuedMutations()
+    await flushQueuedMutations()
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch.mock.calls.map(([, request]) => request.headers['Idempotency-Key']))
+      .toEqual(['legacy-name-first', 'legacy-name-later'])
+    for (const [url, request] of mocks.fetch.mock.calls) {
+      expect(url).toContain(API.profile.name)
+      expect(request.body).toBe(JSON.stringify({ name: 'Account A private name' }))
+      expect(request.headers.Authorization).toBe(`Bearer ${accountToken(account.userId)}`)
+    }
+    expect(stored()).toEqual([])
+  })
+
+  it('drops unclaimed legacy rows when there is no persisted session', async () => {
+    seedLegacyName()
+    authenticate(null)
+    mocks.token = ''
+    expect(await auth.useAuthStore.getState().checkAuth()).toBe(false)
+    expect(stored()).toEqual([])
+    await login('account-b')
+    mocks.fetch.mockResolvedValue(new Response(null, { status: 204 }))
+    await flushQueuedMutations()
+    expect(mocks.fetch.mock.calls.some(([, request]) =>
+      request?.body?.includes('Account A private name'))).toBe(false)
+  })
+
+  it('deletes unclaimed legacy work on explicit logout', async () => {
+    seedLegacyName()
+    mocks.fetch.mockResolvedValue(new Response(null, { status: 204 }))
+    await auth.useAuthStore.getState().logout()
+    expect(stored()).toEqual([])
   })
 
   it('hides retained writes without a session and isolates queue compaction and updates', async () => {
