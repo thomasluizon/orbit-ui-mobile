@@ -42,6 +42,7 @@ const CHAT_HABIT_ACTION_TYPES: ReadonlySet<string> = new Set([
   'MoveHabit',
   'SuggestBreakdown',
   'ReorderHabits',
+  'UnlogHabit',
 ])
 
 export const CHAT_GOAL_ACTION_TYPES: ReadonlySet<string> = new Set([
