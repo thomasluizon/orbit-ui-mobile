@@ -43,6 +43,27 @@ describe('bar chart geometry', () => {
     }
   })
 
+  it.each([
+    { count: 53, width: 240 },
+    { count: 30, width: 288 },
+    { count: 240, width: 240 },
+    { count: 53, width: 1 },
+  ])('keeps visible feedback wider than all $count bars in $width pixels', ({ count, width }) => {
+    const bars = resolveBarChartGeometry(Array.from({ length: count }, () => 100), width)
+    for (const [index, bar] of bars.entries()) {
+      const fillLeft = bar.slotStart + bar.fillInsetInline
+      const fillRight = bar.slotEnd - bar.fillInsetInline
+      expect(bar.width).toBeGreaterThan(0)
+      expect(fillRight - fillLeft).toBeGreaterThan(bar.width)
+      expect(fillLeft).toBeGreaterThanOrEqual(bar.slotStart)
+      expect(fillRight).toBeLessThanOrEqual(bar.slotEnd)
+      expect(fillLeft).toBeLessThan(bar.x)
+      expect(fillRight).toBeGreaterThan(bar.x + bar.width)
+      if (index > 0) expect(fillLeft).toBeGreaterThan(bars[index - 1]!.x + bars[index - 1]!.width)
+      if (index + 1 < count) expect(fillRight).toBeLessThan(bars[index + 1]!.x)
+    }
+  })
+
   it('uses a four pixel stub for empty and zero days', () => {
     const bars = resolveBarChartGeometry([null, 0, 100], 320)
     expect(bars.map((bar) => bar.height)).toEqual([4, 4, 88])

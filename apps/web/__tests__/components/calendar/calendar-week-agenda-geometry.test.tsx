@@ -275,9 +275,11 @@ describe('Week and agenda geometry in Chromium', () => {
           }
           expectNoOverlap(column.targets)
         }
-        const lastRow = await page.locator('[data-time-grid-scroller]').evaluate((scroller: HTMLElement) => {
+        const lastRow = await page.locator('[data-time-grid-scroller]').evaluate(async (scroller: HTMLElement) => {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
           scroller.scrollTop = scroller.scrollHeight
           scroller.scrollLeft = scroller.scrollWidth
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
           const bounds = scroller.getBoundingClientRect()
           const lastColumn = scroller.querySelector('[data-testid="time-grid-day-column"]:last-child')!
           const lastEvent = lastColumn.querySelector('[data-testid="time-grid-event"]:last-child')!
@@ -285,12 +287,14 @@ describe('Week and agenda geometry in Chromium', () => {
           return { bottom: eventBounds.bottom, top: eventBounds.top, right: eventBounds.right,
             viewportBottom: bounds.top + scroller.clientHeight, viewportRight: bounds.left + scroller.clientWidth,
             viewportTop: bounds.top, horizontalGutter: scroller.offsetHeight - scroller.clientHeight,
-            paddingBottom: getComputedStyle(scroller).paddingBottom }
+            paddingBottom: getComputedStyle(scroller).paddingBottom, scrollLeft: scroller.scrollLeft, scrollWidth: scroller.scrollWidth,
+            snapMargin: getComputedStyle(lastColumn).scrollMarginInlineEnd, snapPadding: getComputedStyle(scroller).scrollPaddingLeft,
+            column: lastColumn.getBoundingClientRect().toJSON() }
         })
         expect(lastRow.horizontalGutter).toBe(4)
         expect(lastRow.paddingBottom).toBe('0px')
         expect(lastRow.bottom).toBeLessThanOrEqual(lastRow.viewportBottom)
-        expect(lastRow.right).toBeLessThanOrEqual(lastRow.viewportRight)
+        expect(lastRow.right, JSON.stringify(lastRow)).toBeLessThanOrEqual(lastRow.viewportRight)
         expect(lastRow.top).toBeGreaterThanOrEqual(lastRow.viewportTop)
       }
       await page.emulateMedia({ reducedMotion: 'reduce' })

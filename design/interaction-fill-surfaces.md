@@ -24,7 +24,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Destination tab focus | `components/navigation/bottom-tab-bar.tsx`, `app/globals.css` | `components/navigation/bottom-tab-bar.tsx` | The single focus perimeter sits 4px inside the full-column target, including at the page edge and in forced colors |
 | Wide sidebar brand controls | `components/shell/shell-wide.tsx` | Web-only navigation chrome | The 48px bell and collapse targets retain their 12px gap; a 4px trailing row inset reserves clearance from the lockup, and focus stays inset |
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Both platforms reserve 8px above the explanation, covering the menu control's outward focus indicator plus the shared clearance |
-| Progresso bar chart | `components/ui/bar-chart.tsx` | `components/ui/bar-chart.tsx` | Shared bar geometry reserves 4px at both block edges inside the unchanged full-height targets; narrow slots inset their fill enough to retain 4px before neighbouring bars |
+| Progresso bar chart | `components/ui/bar-chart.tsx` | `components/ui/bar-chart.tsx` | Shared bar geometry reserves 4px at both block edges inside the unchanged full-height targets; inline insets retain 4px before neighbouring bars where space permits, capped to keep feedback wider than its own bar and clear of both neighbours |
 | Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date targets keep rounded hover, press and focus paint inset by the shared 4px clearance from their own cell edges and the pinned time gutter |
 | Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and a 4px checkbox gap; event fills retain 4px before their separate trailing action |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent 12px content gap retains 4px and focus stays inset |
@@ -76,12 +76,14 @@ headers in both locales at 320, 412, 600, 1024 and 1352px during hover, held pre
 focus. Android presses each mounted header and checks all four resolved fill insets against the
 shared clearance while keeping the column width and day action.
 
-The web time grid snaps horizontally to the leading edge of each day header, any-time cell and
-hour column, using the time gutter as scroll padding. Leading-edge snap areas prevent free movement
-inside a column wider than the available viewport. Fractional, mid-column and terminal scroll
-offsets settle with a day boundary at the pinned gutter's trailing edge, retaining the header
-fill's 4px clearance. Vertical scrolling remains unsnapped. The opening position still selects
-today's column; trailing space keeps the last boundary reachable in every week.
+The web time grid uses horizontal snapping with the time gutter as scroll padding.
+A day that fits the gutter-adjusted viewport, allowing its existing 4px trailing fill inset,
+uses mandatory snapping and a leading-edge snap area to prevent a narrow free-pan strip. Its fractional, mid-column and
+terminal offsets settle on a day boundary, retaining the header fill's 4px clearance.
+A wider day uses proximity snapping and keeps its full header, any-time cell and hour column as covering snap areas, so the
+reader can pan within the day to reach enlarged dates and every concurrent lane.
+Vertical scrolling remains unsnapped. The opening position still selects today's column;
+trailing space keeps the last boundary reachable in every week.
 Android places the time gutter beside a separate, clipped horizontal column scroller in a flex row;
 its columns cannot scroll beneath the gutter. Chromium shell cases mount the live week grid at
 compact and wide widths, including 320px and doubled text, after small, mid-column and terminal
@@ -99,6 +101,13 @@ pressed and focused, retain the field's size and measure its 12px gap to the ret
 The Progresso fixture supplies zero, partial and complete bars. The inspector measures the marked
 SVG paths, including block clearance inside the active column, rather than the transparent SVG
 viewport. Chromium unit cases exercise hover and held press in both locales and reject a bar
-translated into the fill edge. The calendar inventory also opens Semana and measures all seven
+translated into the fill edge. Compact weekly-series cases mount the live chart with 53 points
+in 240px and 30 points in 288px, measuring positive hover and focus widths in both locales and
+forced colors. Web clips the decorative focus outline to its feedback box, containing the
+outline's minimum painted width within narrow columns. Shared geometry reserves a proportional bar gap even when a slot is narrower
+than 2px. Android caps the focus border at half the feedback width so Yoga cannot expand its
+paint beyond the column; the regression lays out the mounted focus view, including its borders,
+and checks both neighbours at compact and subpixel slot widths.
+The calendar inventory also opens Semana and measures all seven
 header controls. Android presses the mounted chart and measures its resolved fill against the
 rendered bar paths and both neighbours at compact and wide plot widths.

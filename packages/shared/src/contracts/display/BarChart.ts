@@ -31,7 +31,7 @@ export function resolveBarChartGeometry(
 ): readonly BarGeometry[] {
   if (rates.length === 0 || width <= 0) return []
   const slotWidth = width / rates.length
-  const gap = Math.min(8, Math.max(0, slotWidth - 2))
+  const gap = Math.min(8, slotWidth - Math.min(2, slotWidth / 2))
   const barWidth = slotWidth - gap
   const plotHeight = BAR_CHART_HEIGHT - INTERACTION_FILL_CLEARANCE * 2
 
@@ -46,7 +46,7 @@ export function resolveBarChartGeometry(
       width: barWidth,
       height,
       radius: Math.min(8, height / 2, barWidth / 2),
-      fillInsetInline: Math.max(0, INTERACTION_FILL_CLEARANCE - gap / 2),
+      fillInsetInline: Math.min(gap / 4, Math.max(0, INTERACTION_FILL_CLEARANCE - gap / 2)),
       slotStart,
       slotEnd: (index + 1) * slotWidth,
     }

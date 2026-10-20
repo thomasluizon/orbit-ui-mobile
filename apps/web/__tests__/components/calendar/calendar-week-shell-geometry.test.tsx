@@ -35,11 +35,11 @@ function renderDestination(content: React.ReactNode) {
   </NextIntlClientProvider>)
 }
 
-function weekBody() {
+function weekBody(entries = dayMap) {
   return <div data-page-viewport="" className="relative flex h-full min-h-0 flex-col">
     <div className="shrink-0"><button type="button" style={{ minHeight: 48 }}>Calendar options</button></div>
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <CalendarWeekView columns={columns} dayMap={dayMap} slideDirection={null} onSelectDay={vi.fn()} displayTime={(time) => time} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime} nowLabel={en.calendar.timeGrid.now} timeZone="UTC" />
+      <CalendarWeekView columns={columns} dayMap={entries} slideDirection={null} onSelectDay={vi.fn()} displayTime={(time) => time} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime} nowLabel={en.calendar.timeGrid.now} timeZone="UTC" />
     </div>
   </div>
 }
@@ -86,7 +86,7 @@ describe('Calendar week through the destination shell and route transition', () 
 
   it.each([
     { width: 320, scale: 1, top: 0 }, { width: 320, scale: 1, top: 123 }, { width: 320, scale: 1, top: 600 },
-    { width: 320, scale: 2, top: 600 }, { width: 412, scale: 1, top: 600 },
+    { width: 412, scale: 1, top: 600 },
     { width: 600, scale: 1, top: 600 }, { width: 1352, scale: 1, top: 600 },
   ].flatMap((viewport) => [2, 300, 10_000].map((offset) => ({ ...viewport, offset }))))('settles $offset horizontal pixels on a day boundary at $width, $scale text, $top vertical pixels', async ({ width, scale, top, offset }) => {
     route.pathname = '/calendar'
@@ -120,6 +120,63 @@ describe('Calendar week through the destination shell and route transition', () 
       else expect(geometry.offset).toBeGreaterThan(100)
       if (offset === 10_000) expect(geometry.lastRight).toBeGreaterThan(geometry.gutterRight)
       expect(geometry.top).toBe(top)
+    } finally { await page.close(); view.unmount() }
+  })
+
+  it.each([0, 6])('keeps the whole date reachable in oversized day %i at doubled text', async (column) => {
+    route.pathname = '/calendar'
+    const view = renderDestination(weekBody())
+    const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet} :root { font-size: 32px }</style>${view.container.innerHTML}<script id="week-fixture" type="application/json">${JSON.stringify({ columns, dayMap: [...dayMap] })}</script>`)
+      await page.addScriptTag({ content: weekScript })
+      const date = page.locator('[data-live-week] [data-testid="time-grid-col-date"]').nth(column)
+      await date.waitFor()
+      const geometry = await date.evaluate(async (element) => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+        element.scrollIntoView({ inline: 'center', block: 'nearest' })
+        for (let frame = 0; frame < 8; frame++) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const scroller = element.closest<HTMLElement>('[data-testid="time-grid-hour-scroller"]')!
+        const gutter = scroller.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!.getBoundingClientRect()
+        const bounds = scroller.getBoundingClientRect()
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        const text = range.getBoundingClientRect()
+        return { left: text.left, right: text.right, visibleLeft: gutter.right, visibleRight: bounds.left + scroller.clientWidth, offset: scroller.scrollLeft, columnWidth: element.parentElement!.getBoundingClientRect().width }
+      })
+      expect(geometry.left, JSON.stringify(geometry)).toBeGreaterThanOrEqual(geometry.visibleLeft)
+      expect(geometry.right, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.visibleRight)
+      expect(geometry.offset % geometry.columnWidth).toBeGreaterThan(1)
+    } finally { await page.close(); view.unmount() }
+  })
+
+  it('keeps every concurrent lane reachable inside an oversized day', async () => {
+    route.pathname = '/calendar'
+    const concurrent = new Map(columns.map(({ dateStr }) => [dateStr, Array.from({ length: 3 }, (_, index) => ({
+      habitId: `timed-${index}`, title: `Read ${index}`, dueTime: '08:00', status: 'upcoming' as const, isBadHabit: false, isOneTime: false,
+    }))]))
+    const view = renderDestination(weekBody(concurrent))
+    const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet}</style>${view.container.innerHTML}<script id="week-fixture" type="application/json">${JSON.stringify({ columns, dayMap: [...concurrent] })}</script>`)
+      await page.addScriptTag({ content: weekScript })
+      const lanes = page.locator('[data-live-week] [data-testid="time-grid-day-column"]').nth(3).getByTestId('time-grid-event')
+      await lanes.first().waitFor()
+      for (const lane of await lanes.all()) {
+        const geometry = await lane.evaluate(async (element) => {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+          element.scrollIntoView({ inline: 'nearest', block: 'center' })
+          for (let frame = 0; frame < 8; frame++) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+          const scroller = element.closest<HTMLElement>('[data-testid="time-grid-hour-scroller"]')!
+          const gutter = scroller.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!.getBoundingClientRect()
+          const viewport = scroller.getBoundingClientRect()
+          const bounds = element.getBoundingClientRect()
+          return { left: bounds.left, right: bounds.right, visibleLeft: gutter.right, visibleRight: viewport.left + scroller.clientWidth, hit: element.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)) }
+        })
+        expect(geometry.left, JSON.stringify(geometry)).toBeGreaterThanOrEqual(geometry.visibleLeft)
+        expect(geometry.right, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.visibleRight)
+        expect(geometry.hit).toBe(true)
+      }
     } finally { await page.close(); view.unmount() }
   })
 

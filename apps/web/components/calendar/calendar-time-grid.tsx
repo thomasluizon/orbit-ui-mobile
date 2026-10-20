@@ -220,8 +220,7 @@ export function CalendarTimeGrid({
   const longestHourLabel = Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, '0')}:00`).length))
   const gutterWidth = `max(96px, calc(${longestHourLabel}ch + 16px))`
   const columnMinWidth = `${minColumnWidth / 16}rem`
-  // WHY: A day wider than the gutter-adjusted snapport must still snap to its leading edge. https://github.com/thomasluizon/orbit-tickets/issues/1564
-  const columnSnapStyle = { scrollSnapAlign: 'start', scrollMarginInlineEnd: `-${columnMinWidth}` } as const
+  const columnSnapStyle = { scrollSnapAlign: 'start', scrollMarginInlineEnd: 'var(--time-grid-snap-margin, 0px)' } as const
   const columnTrack = `minmax(${columnMinWidth}, 1fr)`
   const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack}) var(--time-grid-trailing-space, 0px)`
   const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth} + var(--time-grid-trailing-space, 0px))`
@@ -250,6 +249,10 @@ export function CalendarTimeGrid({
       node.style.scrollPaddingTop = `${pinnedHeight}px`
       const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
       const viewportWidth = node.clientWidth - gutter
+      const measuredColumnWidth = node.querySelector('[data-testid="time-grid-col-header"]')?.getBoundingClientRect().width ?? 0
+      const fitsSnapport = measuredColumnWidth > 0 && measuredColumnWidth <= viewportWidth + INTERACTION_FILL_CLEARANCE
+      node.style.scrollSnapType = fitsSnapport ? 'x mandatory' : 'x proximity'
+      node.style.setProperty('--time-grid-snap-margin', fitsSnapport ? `${-measuredColumnWidth}px` : '0px')
       const { trailingSpace } = resolveCalendarGridOpeningScroll(columns.length - 1, minColumnWidth * scale, viewportWidth, columns.length)
       node.style.setProperty('--time-grid-trailing-space', `${trailingSpace}px`)
       if (hasMovedGrid.current || isLoading || bodyHeight <= 0) return
@@ -320,7 +323,7 @@ export function CalendarTimeGrid({
           onTouchMove={() => { hasMovedGrid.current = true }}
           data-testid="time-grid-hour-scroller"
           data-time-grid-scroller=""
-          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, scrollSnapType: 'x mandatory', overflowAnchor: 'none', overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, scrollSnapType: 'x proximity', overflowAnchor: 'none', overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
           <div data-testid="time-grid-day-pane" data-pinning={isPanePinned ? 'pinned' : 'scrolling'} className={`${isPanePinned ? 'sticky top-0' : 'relative'} z-[3]`} style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
             <div

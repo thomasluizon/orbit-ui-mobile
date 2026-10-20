@@ -42,6 +42,28 @@ function geometryStyle(node: ReactTestInstance) {
   return StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared) as { left: number; top: number; width: number; height: number }
 }
 
+function feedbackBounds(target: ReactTestInstance, feedback: ReactTestInstance) {
+  const config = Yoga.Config.create()
+  config.setPointScaleFactor(0)
+  const parent = Yoga.Node.create(config)
+  const child = Yoga.Node.create(config)
+  const bounds = geometryStyle(target)
+  const style = StyleSheet.flatten(feedback.props.style) as { left: number; right: number; top: number; bottom: number; borderWidth?: number }
+  parent.setWidth(bounds.width)
+  parent.setHeight(bounds.height)
+  child.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
+  child.setPosition(Yoga.EDGE_LEFT, style.left)
+  child.setPosition(Yoga.EDGE_RIGHT, style.right)
+  child.setPosition(Yoga.EDGE_TOP, style.top)
+  child.setPosition(Yoga.EDGE_BOTTOM, style.bottom)
+  child.setBorder(Yoga.EDGE_ALL, style.borderWidth ?? 0)
+  parent.insertChild(child, 0)
+  try {
+    parent.calculateLayout(bounds.width, bounds.height, Yoga.DIRECTION_LTR)
+    return child.getComputedLayout()
+  } finally { parent.freeRecursive(); config.free() }
+}
+
 beforeEach(() => {
   language.locale = 'en'
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -174,6 +196,41 @@ describe('BarChart on Android', () => {
     trigger(radios()[0]!, 'onPress')
     expect(host(tree.root, 'bar-chart-readout').props.children).toContain(weekly[0]!.readoutDateLabel)
     expect(radios()[0]!.props.accessibilityLabel).toContain(locale === 'en' ? 'Nothing scheduled' : 'Nada programado')
+  })
+
+  it.each([{ count: 53, width: 240 }, { count: 30, width: 288 }, { count: 240, width: 240 }, { count: 53, width: 1 }])('keeps press and focus visible for $count points in $width pixels', ({ count, width }) => {
+    const compactPoints = mapCompletionSeries({ granularity: 'week', points: Array.from({ length: count }, (_, index) => ({
+      startDate: new Date(Date.UTC(2025, 0, 1 + index * 7)).toISOString().slice(0, 10),
+      endDate: new Date(Date.UTC(2025, 0, 7 + index * 7)).toISOString().slice(0, 10),
+      scheduled: 4, completed: 2, completionRate: 50,
+    })) }, 'en')
+    void act(() => tree.update(<BarChart points={compactPoints} label="Completion" />))
+    layout(host(tree.root, 'bar-chart-control'), width)
+    const target = radios()[Math.floor(count / 2)]!
+    trigger(target, 'onPressIn')
+    const feedback = host(target, 'bar-chart-fill')
+    const fill = StyleSheet.flatten(feedback.props.style) as { left: number; right: number; backgroundColor: string }
+    const targetBounds = geometryStyle(target)
+    const paths = tree.root.findAll((node) => String(node.type) === 'Path')
+    const pathBounds = paths.map((path) => String(path.props.d).match(/-?\d+(?:\.\d+)?/g)!.map(Number))
+    const index = Math.floor(count / 2)
+    const barWidth = pathBounds[index]![8]! - pathBounds[index]![0]!
+    expect(fill.backgroundColor).not.toBe('transparent')
+    expect(targetBounds.width - fill.left - fill.right).toBeGreaterThan(barWidth)
+    expect(targetBounds.left + fill.left).toBeGreaterThan(pathBounds[index - 1]![8]!)
+    expect(targetBounds.left + targetBounds.width - fill.right).toBeLessThan(pathBounds[index + 1]![0]!)
+    trigger(target, 'onPressOut')
+    trigger(target, 'onFocus')
+    const ring = target.findAll((node) => typeof node.type === 'string' && node.props.pointerEvents === 'none')[1]!
+    const focus = StyleSheet.flatten(ring.props.style) as { left: number; right: number; borderWidth: number }
+    const measured = feedbackBounds(target, ring)
+    expect(measured.width).toBeGreaterThan(barWidth)
+    expect(measured.left).toBeGreaterThanOrEqual(0)
+    expect(measured.left + measured.width).toBeLessThanOrEqual(targetBounds.width + 0.0001)
+    expect(targetBounds.left + measured.left).toBeGreaterThan(pathBounds[index - 1]![8]!)
+    expect(targetBounds.left + measured.left + measured.width).toBeLessThan(pathBounds[index + 1]![0]!)
+    expect(focus.borderWidth).toBeGreaterThan(0)
+    expect(focus.borderWidth).toBeLessThanOrEqual(2)
   })
 
   it('keeps selection valid across a reduced or empty series', () => {

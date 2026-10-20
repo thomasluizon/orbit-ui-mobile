@@ -59,7 +59,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
         >
           {({ pressed }) => <>
             <View testID="bar-chart-fill" pointerEvents="none" accessible={false} style={[styles.feedback, { left: bars[index]?.fillInsetInline ?? 0, right: bars[index]?.fillInsetInline ?? 0, backgroundColor: pressed || hovered === index ? tokens.bgHover : 'transparent' }]} />
-            {focused === index ? <View pointerEvents="none" accessible={false} style={[styles.focusRing, { left: bars[index]?.fillInsetInline ?? 0, right: bars[index]?.fillInsetInline ?? 0, borderColor: tokens.fg1 }]} /> : null}
+            {focused === index ? <View pointerEvents="none" accessible={false} style={[styles.focusRing, { left: bars[index]?.fillInsetInline ?? 0, right: bars[index]?.fillInsetInline ?? 0, borderWidth: Math.min(2, width / points.length / 2 - (bars[index]?.fillInsetInline ?? 0)), borderColor: tokens.fg1 }]} /> : null}
           </>}
         </Pressable>)}
         <Svg style={styles.paint} accessible={false} pointerEvents="none" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`}>
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   feedback: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 8, overflow: 'hidden' },
   paint: { position: 'absolute', top: 0, left: 0 },
   target: { position: 'absolute', top: 0, height: BAR_CHART_HEIGHT },
-  focusRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2 },
+  focusRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   axis: { flexDirection: 'row', justifyContent: 'space-between' },
   axisLabel: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
 })
