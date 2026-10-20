@@ -60,7 +60,8 @@ for (const { width, slow, count, locale } of [412, 1352].flatMap((width) => [1, 
         await page.goto('/')
         await expect(page.getByTestId('habit-row')).toHaveCount(count)
         await expect(page.getByTestId('habit-row').filter({ hasText: 'Ler' })).toBeVisible()
-        await page.locator('a[href="/calendar"]').first().click()
+        await page.getByRole('navigation', { name: messages.nav.mainNavigation, exact: true }).getByRole('link', { name: messages.nav.calendar, exact: true }).click()
+        await expect(page).toHaveURL((url) => url.pathname === '/calendar')
         await monthRequested
         await page.getByRole('radio', { name: messages.calendar.view.month, exact: true }).click()
         await expect(page.getByTestId('calendar-grid-card').getByRole('progressbar')).toBeVisible()
@@ -74,7 +75,7 @@ for (const { width, slow, count, locale } of [412, 1352].flatMap((width) => [1, 
         releaseMonth()
         await monthResponse
         await expect(page.getByTestId('calendar-day-skeleton')).toHaveCount(0)
-        await expect(page.getByRole('button', { name: 'Ler', exact: true }).first()).toBeVisible()
+        await expect(page.getByTestId('calendar-day-card-slot').getByRole('button', { name: 'Ler', exact: true })).toBeVisible()
         await expect(page.getByTestId('calendar-grid-card').getByRole('progressbar')).toHaveCount(0)
         await expect(page.getByTestId('calendar-stats').locator('[data-state="loading"]')).toHaveCount(0)
         expect(await measure()).toEqual(loading)
