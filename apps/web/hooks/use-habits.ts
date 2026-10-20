@@ -63,6 +63,7 @@ import type {
   BulkMutationOutcome,
   BulkLogResult,
   BulkSkipResult,
+  BulkMoveHabitParentRequest,
   CalendarMonthResponse,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
@@ -81,6 +82,7 @@ import {
   updateChecklist as updateChecklistAction,
   createSubHabit as createSubHabitAction,
   moveHabitParent as moveHabitParentAction,
+  bulkMoveHabitParent as bulkMoveHabitParentAction,
   bulkCreateHabits as bulkCreateHabitsAction,
   bulkLogHabits as bulkLogHabitsAction,
   bulkSkipHabits as bulkSkipHabitsAction,
@@ -980,5 +982,14 @@ export function useBulkSkipHabits() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
       void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
+  })
+}
+
+export function useBulkMoveHabitParent() {
+  const queryClient = useQueryClient()
+  return useAccountScopedMutation({
+    mutationFn: (input: BulkMoveHabitParentRequest, intendedAccountId) =>
+      bulkMoveHabitParentAction(input, intendedAccountId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: habitKeys.all }),
   })
 }

@@ -66,6 +66,7 @@ export const API = {
     bulk: '/api/habits/bulk',
     bulkLog: '/api/habits/bulk/log',
     bulkSkip: '/api/habits/bulk/skip',
+    bulkParent: '/api/habits/bulk/parent',
     reorder: '/api/habits/reorder',
     summary: '/api/habits/summary',
     trends: '/api/habits/trends',

@@ -604,3 +604,20 @@ export const bulkSkipResultSchema = z.object({
 })
 
 export type BulkSkipResult = z.infer<typeof bulkSkipResultSchema>
+
+export const bulkMoveHabitParentRequestSchema = z.object({
+  habitIds: z.array(z.string().uuid()).min(1).max(100),
+  parentId: z.string().uuid().nullable(),
+})
+export type BulkMoveHabitParentRequest = z.infer<typeof bulkMoveHabitParentRequestSchema>
+
+export const bulkMoveHabitParentResultSchema = z.object({
+  results: z.array(z.object({
+    index: z.number().int(),
+    status: bulkItemStatusSchema,
+    habitId: z.string().uuid(),
+    error: z.string().nullable().optional(),
+    errorCode: z.string().nullable().optional(),
+  })),
+})
+export type BulkMoveHabitParentResult = z.infer<typeof bulkMoveHabitParentResultSchema>
