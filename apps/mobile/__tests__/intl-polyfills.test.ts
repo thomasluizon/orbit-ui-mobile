@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
+import { parse, TYPE, type MessageFormatElement } from '@formatjs/icu-messageformat-parser'
 import { formatStreakRepairDates } from '@orbit/shared/utils/progress'
 import { buildHabitUnderstandingSentence } from '@orbit/shared/utils/habit-form-helpers'
 import en from '@orbit/shared/i18n/en.json'
@@ -31,9 +32,39 @@ function collectIcuMessages(catalog: MessageCatalog, prefix = ''): { key: string
   })
 }
 
-function messageValues(count: number) {
-  return { count, n: count, unit: 'Week', days: count, needed: count, banked: count, overage: count,
-    streak: 4, limit: 80, time: '08:00', date: 'Oct 1' }
+type MessageValue = string | number | Date | ((parts: string[]) => string)
+type MessageValues = Record<string, MessageValue>
+
+function collectArgumentValues(
+  elements: MessageFormatElement[], count: number, candidates: Record<string, MessageValue[]>,
+) {
+  for (const element of elements) {
+    if (element.type === TYPE.literal || element.type === TYPE.pound) continue
+    if (element.type === TYPE.argument) {
+      candidates[element.value] ??= ['Example']
+    } else if (element.type === TYPE.number || element.type === TYPE.plural) {
+      candidates[element.value] = [count]
+    } else if (element.type === TYPE.date || element.type === TYPE.time) {
+      candidates[element.value] = [new Date('2026-10-01T08:00:00Z')]
+    } else if (element.type === TYPE.select) {
+      candidates[element.value] = [...new Set([
+        ...(candidates[element.value] ?? []), ...Object.keys(element.options),
+      ])]
+    } else {
+      candidates[element.value] = [(parts: string[]) => parts.join('')]
+      collectArgumentValues(element.children, count, candidates)
+    }
+    if (element.type === TYPE.select || element.type === TYPE.plural) {
+      for (const option of Object.values(element.options)) collectArgumentValues(option.value, count, candidates)
+    }
+  }
+}
+
+function messageValues(elements: MessageFormatElement[], count: number): MessageValues[] {
+  const candidates: Record<string, MessageValue[]> = {}
+  collectArgumentValues(elements, count, candidates)
+  return Object.entries(candidates).reduce<MessageValues[]>((combinations, [name, values]) =>
+    combinations.flatMap((combination) => values.map((value) => ({ ...combination, [name]: value }))), [{}])
 }
 
 beforeAll(async () => {
@@ -73,14 +104,17 @@ describe.each([
     repairThree: '3 dias sem registro. Os hábitos continuam como estavam.',
   },
 ])('mobile Intl startup in $locale', ({ locale, messages, dates, pair, triple, repairOne, repairThree }) => {
-  const icuCases = collectIcuMessages(messages).map(({ key, template }) => ({
-    key,
-    template,
-    expected: [0, 1, 3, 1.5].map((count) => ({
-      count,
-      sentence: new IntlMessageFormat(template, locale).format(messageValues(count)),
-    })),
-  }))
+  const icuCases = collectIcuMessages(messages).map(({ key, template }) => {
+    const elements = parse(template)
+    return {
+      key,
+      template,
+      expected: [0, 1, 3, 1.5].flatMap((count) => messageValues(elements, count).map((values) => ({
+        values,
+        sentence: new IntlMessageFormat(template, locale).format(values),
+      }))),
+    }
+  })
 
   it('formats the repair card without native PluralRules', async () => {
     await i18n.changeLanguage(locale)
@@ -90,12 +124,29 @@ describe.each([
 
   it.each(icuCases)('formats $key like native ICU without exposing its template', async ({ key, template, expected }) => {
     await i18n.changeLanguage(locale)
-    for (const { count, sentence } of expected) {
-      const rendered = i18n.t(key, messageValues(count))
+    for (const { values, sentence } of expected) {
+      const rendered = i18n.t(key, values)
       expect(rendered).toBe(sentence)
       expect(rendered).not.toBe(template)
       expect(rendered).not.toMatch(/[{}]/)
     }
+  })
+
+  it('covers every nested select option with new argument names', () => {
+    const template = '{selection, select, named {{detail, select, short {<em>{title}</em>} long {{amount, number}} other {Detail}}} empty {Empty} other {Fallback}}'
+    const formatter = new IntlMessageFormat(template, locale)
+    const sentences = messageValues(parse(template), 3).map((values) => formatter.format(values))
+    expect(new Set(sentences)).toEqual(new Set(['Example', '3', 'Detail', 'Empty', 'Fallback']))
+  })
+
+  it('derives numeric, ordinal, date and time arguments by their ICU types', () => {
+    const template = '{quantity, plural, other {#}} {position, selectordinal, other {#}} {amount, number} {appointment, date, short} {alarm, time, short}'
+    const fixtureDate = new Date('2026-10-01T08:00:00Z')
+    const date = new Intl.DateTimeFormat(locale, { year: '2-digit', month: 'numeric', day: 'numeric' }).format(fixtureDate)
+    const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: 'numeric' }).format(fixtureDate)
+    const formatter = new IntlMessageFormat(template, locale)
+    expect(messageValues(parse(template), 3).map((values) => formatter.format(values)))
+      .toEqual([`3 3 3 ${date} ${time}`])
   })
 
   it('formats repair dates without a native ListFormat', () => {
