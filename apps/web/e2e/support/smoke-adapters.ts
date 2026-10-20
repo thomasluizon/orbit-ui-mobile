@@ -28,6 +28,7 @@ export async function createSmokeHabit(page: Page, title: string): Promise<void>
   await localizedRole(page, 'button', en.nav.createHabit, ptBR.nav.createHabit).click()
   const titleInput = localizedRole(page, 'textbox', en.habits.form.describe, ptBR.habits.form.describe)
   await expect(titleInput).toBeVisible()
+  await localizedRole(page, 'radio', en.habits.form.typeTask, ptBR.habits.form.typeTask).click()
   await titleInput.fill(title)
   const submit = localizedRole(page, 'button', en.habits.createHabit, ptBR.habits.createHabit)
   await expect(submit).toBeEnabled()

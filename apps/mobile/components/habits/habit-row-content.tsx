@@ -1,4 +1,4 @@
-import { getHabitTypeLabelKey } from '@orbit/shared/utils'
+import { getHabitTypeLabelKey, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
@@ -18,6 +18,7 @@ interface HabitRowContentProps {
   titleSize: number
   titleColor: string
   expanded?: boolean
+  largeText?: boolean
   metaColor: string
   metaParts: HabitRowMetaPart[]
   tokens: ReturnType<typeof createTokensV2>
@@ -29,12 +30,14 @@ export function HabitRowContent({
   titleSize,
   titleColor,
   expanded = false,
+  largeText = false,
   metaColor,
   metaParts,
   tokens,
   metaOnSupportingLine = false,
 }: Readonly<HabitRowContentProps>) {
   const { t } = useTranslation()
+  const description = stripInlineMarkdown(habit.description ?? '')
   return (
     <View style={styles.titleBlock}>
       <PersonalText expanded={expanded}
@@ -48,6 +51,10 @@ export function HabitRowContent({
       >
         {habit.title}
       </PersonalText>
+
+      {description ? <Text testID="habit-row-description" accessible={false}
+        numberOfLines={largeText ? 2 : 1} ellipsizeMode="tail"
+        style={[styles.description, { color: metaColor }]}>{description}</Text> : null}
 
       <Text testID="habit-row-type" style={[styles.meta, { color: metaColor }]}>{t(getHabitTypeLabelKey(habit))}</Text>
       {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} />}
@@ -66,7 +73,7 @@ export function HabitRowMetaStrip({ metaParts, metaColor, tokens, expanded = fal
   const metaKeys = visibleMeta.map((_, index) => `meta-part-${index}`)
   if (visibleMeta.length === 0) return null
   return (
-    <Text
+    <Text testID="habit-row-meta"
       numberOfLines={expanded ? undefined : 1}
       style={[styles.meta, { color: metaColor }]}
     >

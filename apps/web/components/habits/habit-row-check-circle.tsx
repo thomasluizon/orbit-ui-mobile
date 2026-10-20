@@ -45,7 +45,7 @@ export function CheckCircle({ state, unavailable = false, onToggle, disabled, ar
       className={`appearance-none border-0 bg-transparent shrink-0 flex min-h-[48px] w-[48px] items-center justify-center rounded-[22px] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer active:scale-[0.96]'}`}
       style={{ opacity: disabled ? 0.4 : 1 }}
     >
-      <span aria-hidden="true" className={justCompleted ? 'animate-check-pop' : undefined}>
+      <span aria-hidden="true" className={`flex ${justCompleted ? 'animate-check-pop' : ''}`}>
         {unavailable
           ? <HabitCheck status={state} unavailable />
           : <HabitCheck status={state} label={ariaLabel} />}

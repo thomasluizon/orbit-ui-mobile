@@ -111,7 +111,7 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
       expect(foreground).toBe(pressed ? tokens.fg2 : tokens.fg3)
       expect(contrastOnSurface(foreground, layers), `${label}, pressed=${pressed}`).toBeGreaterThanOrEqual(4.5)
       if (pressed && mode === 'dark') {
-        expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.029, 3)
+        expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.567, 3)
       }
       for (const separator of metadata.findAllByType('Text').filter(
         (node: { children: unknown[] }) => node.children.includes(' · '),
@@ -239,7 +239,8 @@ describe('HabitRow canonical content (mobile)', () => {
         actions={{ onToggleExpand, onToggleSelection }} />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [body, selection, disclosureColumn] = row.children[0].children
+    const [body, selectionColumn, disclosureColumn] = row.children[0].children
+    const selection = selectionColumn.findByProps({ accessibilityRole: 'checkbox' })
     expect(selection.props.accessibilityState).toMatchObject({ checked: true })
     const disclosure = disclosureColumn.findByProps({ accessibilityLabel: 'common.collapse' })
     expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
@@ -261,14 +262,15 @@ describe('HabitRow canonical content (mobile)', () => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [body, selection, trailing] = row.children[0].children
+    const [body, selectionColumn, trailing] = row.children[0].children
+    const selection = selectionColumn.findByProps({ accessibilityRole: 'checkbox' })
     expect(selection.props.accessibilityState).toMatchObject({ checked: false })
     expect(trailing).toBeDefined()
     expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)
     expect(body.props.delayLongPress).toBe(500)
     expect(renderer!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
   })
-  it('omits descriptions and tags from the canonical row', () => {
+  it('restores descriptions while omitting retired tags from the canonical row', () => {
     const texts = renderRowText(
       createMockHabit({
         title: 'Read',
@@ -281,7 +283,7 @@ describe('HabitRow canonical content (mobile)', () => {
     )
 
     expect(texts).toContain('Read')
-    expect(texts).not.toContain('A long preview')
+    expect(texts).toContain('A long preview')
     expect(texts).not.toContain('Learning')
     expect(texts).not.toContain('Evening')
   })
@@ -442,15 +444,15 @@ describe('HabitRow status control names (mobile)', () => {
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     ) as Record<string, unknown>
     const restingRing = StyleSheet.flatten(ring.props.style({ pressed: false })) as Record<string, unknown>
-    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.13)')
     expect(pressedCard.borderWidth ?? 0).toBe(0)
     const outline = renderer!.root.findByProps({ testID: 'habit-row-outline' })
     expect(StyleSheet.flatten(outline.props.style)).toMatchObject({ position: 'absolute', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' })
     expect(StyleSheet.flatten(body.props.style({ pressed: true }))).toMatchObject({
-      backgroundColor: 'rgba(250,250,250,0.13)',
       borderRadius: 20,
       overflow: 'hidden',
     })
+    expect(StyleSheet.flatten(body.props.style({ pressed: true })).backgroundColor).toBeUndefined()
     expect(restingRing.backgroundColor).toBeUndefined()
 
     TestRenderer.act(() => body.props.onPressOut())

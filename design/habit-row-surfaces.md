@@ -31,3 +31,35 @@ headers use the same selector beneath their full-width rename heading. Large tex
 Stored description rendering is owned by its separate row amendment. When carried together, its
 order is title, description, type and existing metadata. This amendment adds no description copy,
 hover redesign or row inset change.
+
+## Description and feedback composition
+
+All canonical rows in Hoje, Todos, Geral, inline families, drill/reset and habit-detail children
+share the paired `habit-row-content.tsx` owners. Root leaves, parents, child leaves and child parents
+render stored plain text previews between title and metadata. Selection, done, overdue, bad,
+partial progress, unavailable and read-only rows retain that content and their independent actions.
+Empty, loading, error and capacity surfaces add no placeholder. Calendar events, detail headers,
+onboarding and Astra cards retain their separate owners.
+
+`stripInlineMarkdown` supplies the inert preview without changing source text or adding a request.
+Normalized-empty content adds no element or gap. The role is Geist Sans 14/400, line height 1.55,
+fg-3 at rest and fg-2 during row feedback, with the canonical 4px stack gap. Default text uses one
+naturally ellipsized line; above 130% text it permits two lines with row growth. Parent supporting
+metadata follows the preview with its existing per-depth text edge. The full description and copy
+action remain in the existing detail disclosure. Web uses the preview as the body's accessible
+description; Android includes it in the hint alongside the existing future-date explanation.
+Selection keeps one preview and no focusable action under an aria-hidden ancestor.
+
+Body feedback replaces the row's existing fill across its radius-20 perimeter, including the trailing
+region. Controls remain semantic siblings and paint independently, including the structural selection checkbox in checked and unchecked states. Body hover promotes the inset hairline to hairlineStrong. Web authors the 380ms background and outline transition on the painted row in both directions, with immediate press, sibling-control suppression and reduced-motion feedback. Android selection hover restores on exit and cancelled press without invoking selection or detail. The check's flex wrapper removes
+inline baseline space; no translation offsets its glyph. Normal rows centre the 28px check and its
+48px target on the actual row axis, with and without descriptions. Large text retains first-title-line
+alignment. The original single depth inset and family gaps remain unchanged.
+
+Paired description behavior tests cover plain text, Markdown labels, inert HTML-looking content,
+malformed input, normalized-empty content and unchanged source. Chromium Vitest measures title,
+preview and metadata order, role and one/two-line bounds, check/target centres, replacement paint,
+control isolation and overflow at 320, 412 and 1352 in both themes and normal/200% text. Android Yoga
+checks the corresponding layout and row-owned press/hover bounds. Native font rasterization and
+real assistive technology remain device-verification boundaries. The hermetic layout lane owns
+whole-page evidence and independent rendered review precedes pushing.

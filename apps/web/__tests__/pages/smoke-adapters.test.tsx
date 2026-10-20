@@ -157,6 +157,10 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke creation')
     expect(mocks.create).toHaveBeenCalledTimes(1)
     expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ title: 'Smoke creation' })
+    expect(mocks.create.mock.calls[0]?.[0]).toHaveProperty('dueDate')
+    for (const field of ['frequencyUnit', 'frequencyQuantity', 'isFlexible', 'isGeneral', 'startDate']) {
+      expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty(field)
+    }
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(mocks.suggestion).not.toHaveBeenCalled()
   })
@@ -166,7 +170,8 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     mount(<HabitCreation />, locale)
     await expect(createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke failure')).rejects.toThrow()
     expect(mocks.create).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('textbox')).toHaveValue('Smoke failure')
+    expect(screen.getByRole('textbox', { name: (locale === 'en' ? en : ptBR).habits.form.describe })).toHaveValue('Smoke failure')
+    expect(screen.getByRole('radio', { name: (locale === 'en' ? en : ptBR).habits.form.typeTask })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('dismisses the real trial and subsequent calendar prompt before navigation', async () => {

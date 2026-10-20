@@ -2226,6 +2226,8 @@ describe('HabitDetailScreen', () => {
     it.each(['light', 'dark'] as const)('leaves the child row group without a second surface in %s', async (mode) => {
       vi.useRealTimers()
       mocks.realChildRows = true
+      mocks.detail = { ...makeDetail(), children: makeDetail().children.map((child) => ({ ...child, description: '**Read** two pages before breakfast.' })) }
+      mocks.scopedHabits.set('child-1', { ...makeScopedChild('2026-08-28'), description: '**Read** two pages before breakfast.' })
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
       const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
       try {
@@ -2241,6 +2243,7 @@ describe('HabitDetailScreen', () => {
           return well.getBoundingClientRect().left - row.getBoundingClientRect().left
         })
         expect(inset).toBe(24)
+        expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(['Read two pages before breakfast.'])
       } finally { await page.close() }
     })
 

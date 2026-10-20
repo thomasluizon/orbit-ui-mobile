@@ -228,10 +228,9 @@ describe('HabitRow neutral metadata contrast', () => {
             stateWords: Array.from(metadata.querySelectorAll('span')).filter((span) => span.textContent !== '·').map((span) => getComputedStyle(span).color),
             expectedStateWords: [colorOf('--status-overdue-text'), colorOf('--status-bad-text')],
             bodyFill: getComputedStyle(body).backgroundColor,
-            expectedBodyFill: interactive ? getComputedStyle(panel).getPropertyValue('--bg-hover').trim() : 'rgba(0, 0, 0, 0)',
+            expectedBodyFill: 'rgba(0, 0, 0, 0)',
             transition: getComputedStyle(metadata).transitionProperty,
             duration: getComputedStyle(metadata).transitionDuration,
-            fillDuration: getComputedStyle(body).transitionDuration,
             layers,
           }
           reference.remove()
@@ -241,9 +240,9 @@ describe('HabitRow neutral metadata contrast', () => {
         expect(contrastOnSurface(measured.foreground, measured.layers), state).toBeGreaterThanOrEqual(4.5)
         expect(measured.bodyFill.replaceAll(' ', ''), state).toBe(measured.expectedBodyFill.replaceAll(' ', ''))
         expect(measured.transition).toBe('color')
-        expect(measured.duration).toBe(measured.fillDuration)
+        expect(measured.duration).toBe('0.38s')
         if (interactive && mode === 'dark') {
-          expect(contrastOnSurface(variables['--fg-3']!, measured.layers)).toBeCloseTo(4.029, 3)
+          expect(contrastOnSurface(variables['--fg-3']!, measured.layers)).toBeCloseTo(4.567, 3)
         }
         for (const separator of measured.separators) {
           expect(separator, state).toBe(measured.expectedForeground)
@@ -300,7 +299,7 @@ describe('HabitRow canonical content', () => {
     expect(within(row).getByRole('img', { name: 'habits.statusDot.empty' })).toBeInTheDocument()
     expect(within(row).queryByTestId('habit-status-toggle')).toBeNull()
   })
-  it('renders title and meta, not descriptions or tags', () => {
+  it('renders title, description and meta without retired tags', () => {
     render(
       <HabitRow
         habit={createMockHabit({
@@ -313,7 +312,7 @@ describe('HabitRow canonical content', () => {
     )
     expect(screen.getByText('Meditate')).toBeDefined()
     expect(screen.getByText('Daily')).toBeDefined()
-    expect(screen.queryByText('Ten minutes of breathing')).toBeNull()
+    expect(screen.getByText('Ten minutes of breathing')).toBeDefined()
     expect(screen.queryByText('Evening')).toBeNull()
   })
 
@@ -430,7 +429,8 @@ describe('HabitRow check circle accessible name', () => {
     expect(body).toHaveAttribute('data-habit-row-body')
     expect(body).not.toHaveAttribute('data-habit-row-control')
     fireEvent.mouseOver(body)
-    expect(matchingRowBackgrounds(body)).toEqual(['var(--bg-hover)'])
+    expect(matchingRowBackgrounds(body)).toEqual([])
+    expect(matchingRowBackgrounds(screen.getByTestId('habit-row'))).toEqual(['var(--bg-hover)'])
     expect(matchingRowBackgrounds(panel)).toEqual([])
     expect(matchingRowBackgrounds(ring)).toEqual([])
   })

@@ -11,6 +11,7 @@ import {
   isHabitDoneForRange,
   resolveHabitAccessibleStatus,
   getHabitTypeLabelKey,
+  stripInlineMarkdown,
   type TodayBoundary,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -133,15 +134,19 @@ function HabitRowStructuralColumn({
   collapseLabel: string
   expandLabel: string
 }>) {
+  const [hovered, setHovered] = useState(false)
   if (!hasChildren) return null
   return (
     <Pressable
       onPress={actions.onToggleExpand}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       accessibilityRole="button"
       accessibilityLabel={expanded ? collapseLabel : expandLabel}
       accessibilityState={{ expanded }}
       style={({ pressed }) => [
         styles.structuralColumn,
+        hovered ? { backgroundColor: tokens.bgHover } : null,
         pressed
           ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }
           : null,
@@ -154,17 +159,34 @@ function HabitRowStructuralColumn({
   )
 }
 
-function renderHabitRowPrimaryButton({ supportingMeta, bodyLayout, bgHover, children, ...props }: Readonly<InsetFocusPressableProps & {
+function HabitRowSelection({ title, selected, onToggleSelection, tokens }: Readonly<{
+  title: string
+  selected: boolean
+  onToggleSelection?: () => void
+  tokens: ReturnType<typeof createTokensV2>
+}>) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Pressable onPress={onToggleSelection}
+      onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+      accessibilityRole="checkbox" accessibilityLabel={title} accessibilityState={{ checked: selected }}
+      style={({ pressed }) => [styles.structuralColumn,
+        hovered || pressed ? { backgroundColor: tokens.bgHover } : null,
+        pressed ? { transform: [{ scale: 0.96 }] } : null]}>
+      <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
+    </Pressable>
+  )
+}
+
+function renderHabitRowPrimaryButton({ supportingMeta, bodyLayout, children, ...props }: Readonly<InsetFocusPressableProps & {
   supportingMeta: boolean
   bodyLayout: ViewStyle
-  bgHover: string
 }>) {
   return (
-    <Pressable {...props} style={({ pressed }) => [
+    <Pressable {...props} style={() => [
       styles.bodyButton,
       bodyLayout,
       supportingMeta ? StyleSheet.absoluteFill : null,
-      pressed ? [styles.bodyButtonPressed, { backgroundColor: bgHover }] : null,
     ]}>
       {supportingMeta ? null : children}
     </Pressable>
@@ -198,26 +220,36 @@ function useBodyPressFeedback(
   tokens: ReturnType<typeof createTokensV2>,
 ) {
   const [pressed, setPressed] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const active = pressed || hovered
   return {
-    metaColor: pressed ? tokens.fg2 : tokens.fg3,
-    outlineColor: pressed ? tokens.hairlineStrong : tokens.hairline,
+    active,
+    metaColor: active ? tokens.fg2 : tokens.fg3,
+    outlineColor: active ? tokens.hairlineStrong : tokens.hairline,
     onPressIn: () => setPressed(true),
     onPressOut: () => setPressed(false),
+    onHoverIn: () => setHovered(true),
+    onHoverOut: () => setHovered(false),
   }
 }
 
 function buildRowStyle({
   child,
   selected,
+  active,
   tokens,
 }: Readonly<{
   child: boolean
   selected: boolean
+  active: boolean
   tokens: ReturnType<typeof createTokensV2>
 }>): ViewStyle {
+  let backgroundColor = tokens.bgCard
+  if (active) backgroundColor = tokens.bgHover
+  else if (selected) backgroundColor = tokens.selectionBg
   return {
     minHeight: child ? 52 : 68,
-    backgroundColor: selected ? tokens.selectionBg : tokens.bgCard,
+    backgroundColor,
     borderRadius: 20,
   }
 }
@@ -286,6 +318,7 @@ export const HabitRow = memo(function HabitRow({
     locale,
   })
 
+  const description = stripInlineMarkdown(habit.description ?? '')
   const futureHint = metaParts.find((part): part is { kind: 'future'; label: string } => typeof part !== 'string' && part.kind === 'future')
 
   const dotState = resolveHabitRowDotState(isDoneForRange, habit.isBadHabit, isOverdue)
@@ -329,6 +362,7 @@ export const HabitRow = memo(function HabitRow({
   const rowStyle = buildRowStyle({
     child: isChild,
     selected: isSelected,
+    active: bodyPressFeedback.active,
     tokens,
   })
 
@@ -356,6 +390,7 @@ export const HabitRow = memo(function HabitRow({
       />
 
       <HabitRowContent expanded={isSelectMode && isSelected}
+        largeText={largeText}
         habit={habit}
         titleSize={titleSize}
         titleColor={titleColor}
@@ -370,25 +405,22 @@ export const HabitRow = memo(function HabitRow({
     onPress: handlePress,
     onPressIn: bodyPressFeedback.onPressIn,
     onPressOut: bodyPressFeedback.onPressOut,
+    onHoverIn: bodyPressFeedback.onHoverIn,
+    onHoverOut: bodyPressFeedback.onHoverOut,
     onLongPress: isSelectMode ? undefined : actions.onLongPressCard,
     delayLongPress: 500,
     accessibilityRole: 'button',
     accessibilityLabel: rowAccessibilityLabel,
-    accessibilityHint: futureHint?.label,
+    accessibilityHint: [description, futureHint?.label].filter(Boolean).join(' ') || undefined,
     supportingMeta,
     bodyLayout,
-    bgHover: tokens.bgHover,
     children: primaryContent,
   })
   const rowContents = (
     <>
         {structuralColumn && isSelectMode ? (
-          <Pressable onPress={actions.onToggleSelection} accessibilityRole="checkbox"
-            accessibilityLabel={`${habit.title}, ${t(getHabitTypeLabelKey(habit))}`} accessibilityState={{ checked: isSelected }}
-            style={({ pressed }) => [styles.structuralColumn,
-              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
-            <Checkbox checked={isSelected} onChange={() => actions.onToggleSelection?.()} as="span" />
-          </Pressable>
+          <HabitRowSelection title={`${habit.title}, ${t(getHabitTypeLabelKey(habit))}`} selected={isSelected}
+            onToggleSelection={actions.onToggleSelection} tokens={tokens} />
         ) : null}
         {structuralColumn ? (
           <HabitRowStructuralColumn
@@ -427,7 +459,7 @@ export const HabitRow = memo(function HabitRow({
 
   return (
     <View style={habitRowSpacing(panelEnd)}>
-      <HabitRowLayout largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}
+      <HabitRowLayout descriptionPresent={Boolean(description)} largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
         metaColor={bodyPressFeedback.metaColor} tokens={tokens}>
         {rowContents}
@@ -452,7 +484,8 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
+function HabitRowLayout({ descriptionPresent, largeText, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
+  descriptionPresent: boolean
   largeText: boolean
   isChild: boolean
   supportingMeta: boolean
@@ -469,7 +502,7 @@ function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, outlineC
     <View testID="habit-row" style={[largeText ? null : styles.row, rowStyle]}>
       {supportingMeta ? primaryButton : null}
       {largeText ? (
-        <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8 }]}>
+        <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8, paddingBottom: descriptionPresent ? SPACING.s4 : undefined }]}>
           {supportingMeta ? (
             <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
               style={[styles.bodyButton, habitRowBodyLayout(isChild, largeText)]}>

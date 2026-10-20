@@ -679,8 +679,8 @@ describe('HabitList', () => {
   it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].map((drilling) => ({ view, drilling }))))(
     'keeps the list inset and content edges per depth in $view, drilling=$drilling', async ({ view, drilling }) => {
     rowImplementation.actual = true
-    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY], isGeneral: view === 'general' })
-    const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY], isGeneral: parent.isGeneral })
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', description: '**Read** two pages before breakfast.', hasSubHabits: true, scheduledDates: [TODAY], isGeneral: view === 'general' })
+    const child = createMockHabit({ id: 'child', title: 'Child', description: '**Read** two pages before breakfast.', parentId: parent.id, scheduledDates: [TODAY], isGeneral: parent.isGeneral })
     const branch = createMockHabit({ ...child, id: 'branch', title: 'Branch', hasSubHabits: true })
     const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', scheduledDates: [TODAY], isGeneral: parent.isGeneral })
     for (const habit of [parent, child, branch, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
@@ -724,6 +724,7 @@ describe('HabitList', () => {
               }),
             }
           }))
+          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: drilling ? 2 : 3 }, () => 'Read two pages before breakfast.'))
           expect(geometry).toHaveLength(drilling ? 2 : 4)
           for (const row of geometry) {
             expect(row.inset).toBe(16)
@@ -3448,10 +3449,12 @@ describe('HabitList', () => {
         : page.getByRole('button', { name: 'common.back', exact: true })
       const controlBottom = await control.evaluate((element) => element.getBoundingClientRect().bottom)
       const contentTop = await page.evaluate((surface) => {
-        const content = surface === 'loading' ? document.querySelector('[data-variant="habit-row"]')!
-          : surface === 'error' ? document.querySelector('[role="alert"]')!.parentElement!
-          : surface === 'empty' || surface === 'filtered-empty' ? Array.from(document.querySelectorAll('p')).find((p) => p.textContent === (surface === 'empty' ? 'habits.noSubHabits' : 'habits.filterEmptySubHabits'))!.parentElement!
-          : document.querySelector('[data-testid="habit-card-first"]')!
+        let content: Element
+        if (surface === 'loading') content = document.querySelector('[data-variant="habit-row"]')!
+        else if (surface === 'error') content = document.querySelector('[role="alert"]')!.parentElement!
+        else if (surface === 'empty' || surface === 'filtered-empty') {
+          content = Array.from(document.querySelectorAll('p')).find((p) => p.textContent === (surface === 'empty' ? 'habits.noSubHabits' : 'habits.filterEmptySubHabits'))!.parentElement!
+        } else content = document.querySelector('[data-testid="habit-card-first"]')!
         return content.getBoundingClientRect().top
       }, surface)
       expect.soft(contentTop - controlBottom).toBe(24)

@@ -46,6 +46,10 @@ function readTextColors(button: Element) {
     .map((element) => getComputedStyle(element).color)
 }
 
+function rgb(hex: string) {
+  return `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`
+}
+
 describe('rendered light hover contrast', () => {
   let browser: Browser
   let browserLaunch: BrowserLaunch | undefined
@@ -115,7 +119,6 @@ describe('rendered light hover contrast', () => {
           indicatorFill: button.querySelector('[data-tab-indicator]') ? getComputedStyle(button.querySelector('[data-tab-indicator]')!).backgroundColor : null,
         }
       })
-      const rgb = (hex: string) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`
       const resting = await measure()
       expect(resting.color).toBe(rgb(resting.restingToken))
       expect(contrastOnSurface(resting.color, resting.backgrounds)).toBeGreaterThanOrEqual(4.5)
@@ -163,24 +166,31 @@ describe('rendered light hover contrast', () => {
       await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)"><div style="background:var(--bg-card)">${container.innerHTML}</div></body></html>`)
       const body = page.locator('[data-habit-row-body]')
       const measure = () => body.evaluate((control) => {
+        const row = control.closest('[data-testid="habit-row"]')!
         const well = [...control.querySelectorAll('span')].find((node) => node.childElementCount === 0 && node.textContent === 'W')!
         return {
           color: getComputedStyle(well).color,
           well: getComputedStyle(well).backgroundColor,
-          fill: getComputedStyle(control).backgroundColor,
-          card: getComputedStyle(control.parentElement!.parentElement!).backgroundColor,
+          fill: getComputedStyle(row).backgroundColor,
+          body: getComputedStyle(control).backgroundColor,
+          card: getComputedStyle(row.parentElement!).backgroundColor,
           canvas: getComputedStyle(document.body).backgroundColor,
           meta: getComputedStyle(control.querySelector('.habit-row-meta')!).color,
         }
       })
       const resting = await measure()
+      expect(resting.color).toBe(rgb(neutralColors[mode].fg3))
+      expect(resting.body).toBe('rgba(0, 0, 0, 0)')
       expect(contrastOnSurface(resting.color, [resting.canvas, resting.card, resting.fill, resting.well])).toBeGreaterThanOrEqual(4.5)
       await body.hover()
       if (phase === 'press') await page.mouse.down()
       await page.waitForTimeout(300)
       const painted = await measure()
       expect(contrastOnSurface(painted.color, [painted.canvas, painted.card, painted.fill, painted.well])).toBeGreaterThanOrEqual(4.5)
+      expect(painted.color).toBe(rgb(neutralColors[mode].fg2))
       expect(painted.color).toBe(painted.meta)
+      expect(painted.body).toBe(resting.body)
+      expect(painted.fill.replaceAll(' ', '')).toBe(neutralColors[mode].bgHover.replaceAll(' ', ''))
       expect(painted.fill).not.toBe(resting.fill)
       await page.mouse.move(0, 0)
       await page.mouse.up()
