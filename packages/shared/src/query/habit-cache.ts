@@ -289,3 +289,7 @@ export function rollbackDatedHabitLists(
     })
   }
 }
+
+export function invalidateBulkMoveParentQueries(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({ queryKey: habitKeys.all })
+}

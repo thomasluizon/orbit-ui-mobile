@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 import { useTranslation } from 'react-i18next'
@@ -28,6 +29,37 @@ interface SelectionTrayProps {
   closeLabel: string
   completionReadOnly?: boolean
   completionReason?: string
+}
+
+function SelectionAction({
+  label, hint, disabled, onPress, pressedFill, prefersReducedMotion, children,
+}: Readonly<{
+  label: string
+  hint?: string
+  disabled: boolean
+  onPress: () => void
+  pressedFill: string
+  prefersReducedMotion: boolean
+  children: ReactNode
+}>) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionBtn,
+        { backgroundColor: pressed && !disabled ? pressedFill : 'transparent' },
+        pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
+        disabled ? styles.disabled : null,
+      ]}
+    >
+      {children}
+    </Pressable>
+  )
 }
 
 /**
@@ -109,85 +141,45 @@ export function SelectionTray({
         </Pressable>
       </View>
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={logLabel}
-          accessibilityHint={completionReadOnly ? completionReason : undefined}
-          accessibilityState={{ disabled: completionDisabled }}
+        <SelectionAction
+          label={logLabel}
           disabled={completionDisabled}
+          hint={completionReadOnly ? completionReason : undefined}
           onPress={onLog}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: pressed && !completionDisabled ? tokens.bgHoverOpaque : 'transparent' },
-            pressed && !completionDisabled && !prefersReducedMotion ? styles.pressedScale : null,
-            completionDisabled ? styles.disabled : null,
-          ]}
+          pressedFill={tokens.bgHoverOpaque}
+          prefersReducedMotion={prefersReducedMotion}
         >
-          <CheckCircle2
-            size={20}
-            color={tokens.fg1}
-            strokeWidth={1.8}
-          />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={skipLabel}
-          accessibilityHint={completionReadOnly ? completionReason : undefined}
-          accessibilityState={{ disabled: completionDisabled }}
+          <CheckCircle2 size={20} color={tokens.fg1} strokeWidth={1.8} />
+        </SelectionAction>
+        <SelectionAction
+          label={skipLabel}
           disabled={completionDisabled}
+          hint={completionReadOnly ? completionReason : undefined}
           onPress={onSkip}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: pressed && !completionDisabled ? tokens.bgHoverOpaque : 'transparent' },
-            pressed && !completionDisabled && !prefersReducedMotion ? styles.pressedScale : null,
-            completionDisabled ? styles.disabled : null,
-          ]}
+          pressedFill={tokens.bgHoverOpaque}
+          prefersReducedMotion={prefersReducedMotion}
         >
-          <FastForward
-            size={20}
-            color={tokens.fg3}
-            strokeWidth={1.8}
-          />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={moveLabel}
-          accessibilityHint={moveLimitReason}
-          accessibilityState={{ disabled: moveDisabled }}
+          <FastForward size={20} color={tokens.fg3} strokeWidth={1.8} />
+        </SelectionAction>
+        <SelectionAction
+          label={moveLabel}
           disabled={moveDisabled}
+          hint={moveLimitReason}
           onPress={onMove}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: pressed && !moveDisabled ? tokens.bgHoverOpaque : 'transparent' },
-            pressed && !moveDisabled && !prefersReducedMotion ? styles.pressedScale : null,
-            moveDisabled ? styles.disabled : null,
-          ]}
+          pressedFill={tokens.bgHoverOpaque}
+          prefersReducedMotion={prefersReducedMotion}
         >
-          <ArrowsMove
-            size={20}
-            color={tokens.fg2}
-            strokeWidth={1.8}
-          />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={deleteLabel}
-          accessibilityState={{ disabled }}
+          <ArrowsMove size={20} color={tokens.fg2} strokeWidth={1.8} />
+        </SelectionAction>
+        <SelectionAction
+          label={deleteLabel}
           disabled={disabled}
           onPress={onDelete}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: pressed && !disabled ? tokens.bgHoverOpaque : 'transparent' },
-            pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
-            disabled ? styles.disabled : null,
-          ]}
+          pressedFill={tokens.bgHoverOpaque}
+          prefersReducedMotion={prefersReducedMotion}
         >
-          <Trash2
-            size={20}
-            color={tokens.statusBad}
-            strokeWidth={1.8}
-          />
-        </Pressable>
+          <Trash2 size={20} color={tokens.statusBad} strokeWidth={1.8} />
+        </SelectionAction>
         <View style={styles.spacer} />
         <Pressable
           accessibilityRole="button"

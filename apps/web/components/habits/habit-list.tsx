@@ -1,7 +1,7 @@
 'use client'
 
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
+import { createMoveParentActions, createMoveParentState } from '@orbit/shared/hooks'
 
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 
@@ -43,11 +43,9 @@ import {
 } from './habit-list/empty-state'
 import { HabitDrill } from './habit-list/habit-drill'
 import { SearchEmpty } from '@/components/search/search-results'
-import type { MoveParentOption } from './habit-list/move-parent-overlay'
 import {
   buildDragItemsFlat,
-  buildMoveParentOptions,
-  getSharedMoveParentId,
+  getMoveParentSelection,
   groupDragItemsByPanel,
   validateMoveTarget as computeMoveTargetValidation,
   type DragItem,
@@ -748,13 +746,9 @@ export function HabitList({
   } | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
 
-  const [bulkMovingIds, setBulkMovingIds] = useAccountScopedState<string[] | null>(null)
-  const [moveError, setMoveError] = useAccountScopedState<string | null>(null)
-
-  const [showMoveParentOverlay, setShowMoveParentOverlay] = useAccountScopedState(false)
-  const [movingHabitId, setMovingHabitId] = useAccountScopedState<string | null>(null)
-  const [selectedMoveParentId, setSelectedMoveParentId] = useAccountScopedState<string | null | undefined>(null)
-  const [isMovingParent, setIsMovingParent] = useAccountScopedState(false)
+  const [moveState, setMoveState] = useAccountScopedState(createMoveParentState)
+  const { bulkIds: bulkMovingIds, habitId: movingHabitId, selectedParentId: selectedMoveParentId,
+    error: moveError, pending: isMovingParent, open: showMoveParentOverlay } = moveState
 
   /**
    * The state above drops itself, but a ref carries the previous account's habit ids past an
@@ -983,16 +977,10 @@ export function HabitList({
     )
   }
 
-  const moveIds = bulkMovingIds ?? [movingHabitId].filter((id): id is string => id !== null)
-  const sharedMoveParentId = getSharedMoveParentId(habitsById, moveIds)
-  const moveParentOptions: MoveParentOption[] = buildMoveParentOptions(
+  const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption } = getMoveParentSelection(
     { topLevelHabits, getChildren, habitsById, maxHabitDepth, validateMoveTarget, t },
-    bulkMovingIds ?? movingHabitId,
+    bulkMovingIds ?? movingHabitId, selectedMoveParentId,
   )
-
-  const selectedMoveOption = moveParentOptions.find(
-    (option) => option.id === selectedMoveParentId,
-  ) ?? null
 
   const editHabitLockedGeneral = ((): boolean | null => {
     if (!habitToEdit) return null
@@ -1008,59 +996,14 @@ export function HabitList({
   const canSubmitMoveParent = moveIds.length > 0 && !isMovingParent &&
     selectedMoveOption !== null && !selectedMoveOption.disabled
 
-  function openBulkMove() {
-    const ids = Array.from(selectedHabitIds ?? [])
-    if (ids.length === 0 || ids.length > MAX_BULK_OPERATION_SIZE || !onBulkMove) return
-    setBulkMovingIds(ids)
-    setMovingHabitId(null)
-    setMoveError(null)
-    setSelectedMoveParentId(getSharedMoveParentId(habitsById, ids))
-    setShowMoveParentOverlay(true)
-  }
-
-  function openMoveParentPicker(habitId: string) {
-    const habit = habitsById.get(habitId)
-    if (!habit) return
-    setBulkMovingIds(null)
-    setMoveError(null)
-    setMovingHabitId(habitId)
-    setSelectedMoveParentId(habit.parentId)
-    setShowMoveParentOverlay(true)
-  }
-
-  function closeMoveParentPicker() {
-    setShowMoveParentOverlay(false)
-    setBulkMovingIds(null)
-    setMovingHabitId(null)
-    setSelectedMoveParentId(null)
-    setMoveError(null)
-  }
-
-  async function confirmMoveParent() {
-    if (!canSubmitMoveParent || selectedMoveParentId === undefined) return false
-    setIsMovingParent(true)
-    setMoveError(null)
-    try {
-      if (bulkMovingIds && onBulkMove) {
-        const result = await onBulkMove(bulkMovingIds, selectedMoveParentId)
-        if (!result) return false
-        const failed = result.results.filter((item) => item.status === 'Failed')
-        if (failed.length > 0) {
-          setBulkMovingIds(failed.map((item) => item.habitId))
-          setMoveError(t('habits.moveParent.errorPartial'))
-          return false
-        }
-      } else if (movingHabitId) {
-        await moveHabitParentMut.mutateAsync({ habitId: movingHabitId, data: { parentId: selectedMoveParentId } })
-      }
-      return true
-    } catch (error) {
-      setMoveError(getFriendlyErrorMessage(error, t, 'habits.moveParent.errorPartial'))
-      return false
-    } finally {
-      setIsMovingParent(false)
-    }
-  }
+  const { openBulk: openBulkMove, openSingle: openMoveParentPicker, close: closeMoveParentPicker,
+    confirm: confirmMoveParent, select: selectMoveParent } = createMoveParentActions({
+    state: moveState, applyState: setMoveState, habitsById, selectedHabitIds, canSubmit: canSubmitMoveParent,
+    moveBulk: onBulkMove,
+    moveSingle: (habitId, parentId) => moveHabitParentMut.mutateAsync({ habitId, data: { parentId } }),
+    partialError: t('habits.moveParent.errorPartial'),
+    formatError: (error) => getFriendlyErrorMessage(error, t, 'habits.moveParent.errorPartial'),
+  })
 
   function openDetail(habit: NormalizedHabit) {
     router.push(`/habits/${habit.id}?date=${selectedDateStr}&from=today`)
@@ -1575,7 +1518,7 @@ export function HabitList({
         canSubmit={canSubmitMoveParent}
         onClose={closeMoveParentPicker}
         onConfirm={confirmMoveParent}
-        onSelectOption={setSelectedMoveParentId}
+        onSelectOption={selectMoveParent}
       />
     </div>
   )

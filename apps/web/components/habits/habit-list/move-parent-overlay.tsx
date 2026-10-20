@@ -2,11 +2,10 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Home, Search } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
-import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
+import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -14,33 +13,13 @@ import { ActionRow } from '@/components/ui/action-row'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 
-export interface MoveParentOption {
-  id: string | null
-  label: string
-  emoji: string | null
-  depth: number
-  childCount: number
-  disabled: boolean
-  reason: string | null
-}
+export type { MoveParentOption } from '@orbit/shared/utils'
 
-interface MoveParentOverlayProps {
+interface MoveParentOverlayProps extends MoveParentPickerProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
   open: boolean
   isMoving: boolean
-  movingHabitTitle: string | null
-  movingHabitCount?: number
-  error?: string | null
-  movingHabitParentId: string | null | undefined
-  options: MoveParentOption[]
-  selectedMoveParentId: string | null | undefined
-  canSubmit: boolean
-  onClose: () => void
-  onConfirm: () => void | Promise<boolean>
-  onSelectOption: (optionId: string | null) => void
 }
-
-const SEARCH_THRESHOLD = 8
 
 const eyebrowStyle = {
   margin: SPACING.s0,
@@ -58,16 +37,8 @@ function MoveTargetRow({
   isCurrentParent,
   currentLabel,
   onSelect,
-}: Readonly<{
-  option: MoveParentOption
-  selected: boolean
-  isCurrentParent: boolean
-  currentLabel: string
-  onSelect: (optionId: string | null) => void
-}>) {
-  const availability = option.disabled
-    ? { disabled: true as const, reason: option.reason ?? currentLabel }
-    : { disabled: false as const }
+}: Readonly<MoveParentRowProps>) {
+  const availability = getMoveParentRowAvailability(option, currentLabel)
 
   return (
     <RadioRow
@@ -127,26 +98,13 @@ export function MoveParentOverlay({
     if (!element || hasPositionedRef.current) return
     const current = element.querySelector<HTMLElement>('[data-current-parent="true"]')
     const previous = current?.previousElementSibling as HTMLElement | null
-    element.scrollTop = current ? Math.max(0, current.offsetTop - (previous?.offsetHeight ?? 0)) : 0
+    element.scrollTop = getMoveParentScrollOffset(current ? { y: current.offsetTop, height: current.offsetHeight } : null, previous?.offsetHeight ?? 0)
     hasPositionedRef.current = true
   }, [])
 
-  const rootOption = useMemo(
-    () => options.find((option) => option.id === null) ?? null,
-    [options],
+  const { rootOption, showSearch, treeRows, isSearchEmpty } = useMemo(
+    () => getMoveParentPickerRows(options, searchQuery), [options, searchQuery],
   )
-  const destinationCount = useMemo(
-    () => options.reduce((total, option) => (option.id === null ? total : total + 1), 0),
-    [options],
-  )
-  const showSearch = destinationCount > SEARCH_THRESHOLD
-
-  const treeRows = useMemo(() => {
-    const rows = showSearch ? filterMoveTargetsBySearch(options, searchQuery) : options
-    return rows.filter((option) => option.id !== null)
-  }, [options, showSearch, searchQuery])
-
-  const isSearchEmpty = showSearch && searchQuery.trim().length > 0 && treeRows.length === 0
 
   return (
     open ? (<Sheet

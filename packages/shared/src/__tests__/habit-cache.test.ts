@@ -10,6 +10,7 @@ import {
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
   invalidateHabitDependents,
+  invalidateBulkMoveParentQueries,
   restoreCachedHabitLists,
   restoreCachedHabitSkip,
   rollbackDatedHabitLists,
@@ -18,6 +19,15 @@ import {
 } from '../query/habit-cache'
 import { buildOptimisticSkipPatch, optimisticPatchHabit, optimisticRemoveHabits, optimisticSetDatedCompletion, optimisticSkipMarker } from '../utils/habit-optimistic'
 import type { HabitScheduleItem } from '../types/habit'
+
+describe('habit structure invalidation', () => {
+  it('invalidates the entire habit tree after a bulk move', async () => {
+    const client = new QueryClient()
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    await invalidateBulkMoveParentQueries(client)
+    expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: habitKeys.all })
+  })
+})
 
 describe('skip undo cache', () => {
   it('retains a refetched completion and a subsequent direct rollback when the row later disappears', () => {

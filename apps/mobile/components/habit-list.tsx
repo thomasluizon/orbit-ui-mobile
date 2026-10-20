@@ -1,5 +1,5 @@
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
+import { createMoveParentActions, createMoveParentState } from '@orbit/shared/hooks'
 import { SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
@@ -83,12 +83,10 @@ import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { HabitDrill } from './habit-list/habit-drill'
 import {
   MoveParentDialog,
-  type MoveParentOption,
 } from './habit-list/move-parent-dialog'
 import {
   buildFlatHabitItems,
-  buildMoveParentOptions,
-  getSharedMoveParentId,
+  getMoveParentSelection,
   validateMoveTarget as computeMoveTargetValidation,
   type DragItem,
 } from './habit-list/tree-helpers'
@@ -552,15 +550,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [showRescheduleSheet, setShowRescheduleSheet] = useState(false)
     const [habitToReschedule, setHabitToReschedule] =
       useState<NormalizedHabit | null>(null)
-    const [bulkMovingIds, setBulkMovingIds] = useState<string[] | null>(null)
-    const [moveError, setMoveError] = useState<string | null>(null)
-    const [isMovingParent, setIsMovingParent] = useState(false)
-
-    const [showMoveParentDialog, setShowMoveParentDialog] = useState(false)
-    const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
-    const [selectedMoveParentId, setSelectedMoveParentId] = useState<
-      string | null | undefined
-    >(null)
+    const [moveState, setMoveState] = useState(createMoveParentState)
+    const { bulkIds: bulkMovingIds, habitId: movingHabitId, selectedParentId: selectedMoveParentId,
+      error: moveError, pending: isMovingParent, open: showMoveParentDialog } = moveState
     const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
     const selectedIds = useMemo(
       () => selectedHabitIds ?? new Set<string>(),
@@ -1245,14 +1237,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [getChildren, habitsById, maxHabitDepth, t],
     )
 
-    const moveIds = bulkMovingIds ?? [movingHabitId].filter((id): id is string => id !== null)
-    const sharedMoveParentId = getSharedMoveParentId(habitsById, moveIds)
-    const moveParentOptions: MoveParentOption[] = buildMoveParentOptions(
+    const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption } = getMoveParentSelection(
       { topLevelHabits, getChildren, habitsById, maxHabitDepth, validateMoveTarget, t },
-      bulkMovingIds ?? movingHabitId,
+      bulkMovingIds ?? movingHabitId, selectedMoveParentId,
     )
-
-    const selectedMoveOption = moveParentOptions.find((option) => option.id === selectedMoveParentId) ?? null
 
     const canSubmitMoveParent = moveIds.length > 0 && !isMovingParent &&
       !moveParentMutation.isPending && selectedMoveOption !== null && !selectedMoveOption.disabled
@@ -1272,59 +1260,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
     }, [duplicateMutation, habitToDuplicate])
 
-    const openBulkMove = useCallback(() => {
-      const ids = Array.from(selectedHabitIds ?? [])
-      if (ids.length === 0 || ids.length > MAX_BULK_OPERATION_SIZE || !onBulkMove) return
-      setBulkMovingIds(ids)
-      setMovingHabitId(null)
-      setMoveError(null)
-      setSelectedMoveParentId(getSharedMoveParentId(habitsById, ids))
-      setShowMoveParentDialog(true)
-    }, [habitsById, onBulkMove, selectedHabitIds])
-
-    function openMoveParentDialog(habitId: string) {
-      const habit = habitsById.get(habitId)
-      if (!habit) return
-      setBulkMovingIds(null)
-      setMoveError(null)
-      setMovingHabitId(habitId)
-      setSelectedMoveParentId(habit.parentId)
-      setShowMoveParentDialog(true)
-    }
-
-    function closeMoveParentDialog() {
-      setShowMoveParentDialog(false)
-      setBulkMovingIds(null)
-      setMovingHabitId(null)
-      setSelectedMoveParentId(null)
-      setMoveError(null)
-    }
-
-    async function confirmMoveParent() {
-      if (!canSubmitMoveParent || selectedMoveParentId === undefined) return false
-      setIsMovingParent(true)
-      setMoveError(null)
-      try {
-        if (bulkMovingIds && onBulkMove) {
-          const result = await onBulkMove(bulkMovingIds, selectedMoveParentId)
-          if (!result) return false
-          const failed = result.results.filter((item) => item.status === 'Failed')
-          if (failed.length > 0) {
-            setBulkMovingIds(failed.map((item) => item.habitId))
-            setMoveError(t('habits.moveParent.errorPartial'))
-            return false
-          }
-        } else if (movingHabitId) {
-          await moveParentMutation.mutateAsync({ habitId: movingHabitId, data: { parentId: selectedMoveParentId } })
-        }
-        return true
-      } catch (error) {
-        setMoveError(getFriendlyErrorMessage(error, t, 'habits.moveParent.errorPartial'))
-        return false
-      } finally {
-        setIsMovingParent(false)
-      }
-    }
+    const { openBulk: openBulkMove, openSingle: openMoveParentDialog, close: closeMoveParentDialog,
+      confirm: confirmMoveParent, select: selectMoveParent } = createMoveParentActions({
+      state: moveState, applyState: setMoveState, habitsById, selectedHabitIds, canSubmit: canSubmitMoveParent,
+      moveBulk: onBulkMove,
+      moveSingle: (habitId, parentId) => moveParentMutation.mutateAsync({ habitId, data: { parentId } }),
+      partialError: t('habits.moveParent.errorPartial'),
+      formatError: (error) => getFriendlyErrorMessage(error, t, 'habits.moveParent.errorPartial'),
+    })
 
     const startAddSubHabit = useCallback(
       (parentId: string) => {
@@ -1684,7 +1627,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           canSubmit={canSubmitMoveParent}
           onClose={closeMoveParentDialog}
           onConfirm={confirmMoveParent}
-          onSelectOption={setSelectedMoveParentId}
+          onSelectOption={selectMoveParent}
         />
       </>
     )

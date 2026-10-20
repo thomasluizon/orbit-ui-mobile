@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
-import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
+import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentOption, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -13,33 +13,13 @@ import { RadioRow } from '@/components/ui/select-check'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export interface MoveParentOption {
-  id: string | null
-  label: string
-  emoji: string | null
-  depth: number
-  childCount: number
-  disabled: boolean
-  reason: string | null
-}
+export type { MoveParentOption } from '@orbit/shared/utils'
 
-interface MoveParentDialogProps {
+interface MoveParentDialogProps extends MoveParentPickerProps {
   t: (key: string, params?: Record<string, unknown>) => string
   visible: boolean
   isPending: boolean
-  movingHabitTitle: string | null
-  movingHabitCount?: number
-  error?: string | null
-  movingHabitParentId: string | null | undefined
-  options: MoveParentOption[]
-  selectedMoveParentId: string | null | undefined
-  canSubmit: boolean
-  onClose: () => void
-  onConfirm: () => void | Promise<boolean>
-  onSelectOption: (optionId: string | null) => void
 }
-
-const SEARCH_THRESHOLD = 8
 
 type Styles = ReturnType<typeof createStyles>
 
@@ -58,18 +38,11 @@ function MoveTargetRow({
   tokens,
   styles,
   onSelect,
-}: Readonly<{
-  option: MoveParentOption
-  selected: boolean
-  isCurrentParent: boolean
-  currentLabel: string
+}: Readonly<MoveParentRowProps & {
   tokens: AppTokensV2
   styles: Styles
-  onSelect: (optionId: string | null) => void
 }>) {
-  const availability = option.disabled
-    ? { disabled: true as const, reason: option.reason ?? currentLabel }
-    : { disabled: false as const }
+  const availability = getMoveParentRowAvailability(option, currentLabel)
 
   return (
     <RadioRow
@@ -119,7 +92,7 @@ export function MoveParentDialog({
     const current = movingHabitParentId ? rowLayouts.current.get(movingHabitParentId) : null
     if (movingHabitParentId && !current) return
     const previous = Array.from(rowLayouts.current.values()).find((row) => current && row.y + row.height <= current.y && row.y + row.height >= current.y - 4)
-    scrollRef.current.scrollTo({ y: current ? Math.max(0, current.y - (previous?.height ?? current.height)) : 0, animated: false })
+    scrollRef.current.scrollTo({ y: getMoveParentScrollOffset(current ?? null, previous?.height), animated: false })
     hasPositionedRef.current = true
   }
   const [searchQuery, setSearchQuery] = useState('')
@@ -140,23 +113,9 @@ export function MoveParentDialog({
     }
   }
 
-
-  const rootOption = useMemo(
-    () => options.find((option) => option.id === null) ?? null,
-    [options],
+  const { rootOption, showSearch, treeRows, isSearchEmpty } = useMemo(
+    () => getMoveParentPickerRows(options, searchQuery), [options, searchQuery],
   )
-  const destinationCount = useMemo(
-    () => options.reduce((total, option) => (option.id === null ? total : total + 1), 0),
-    [options],
-  )
-  const showSearch = destinationCount > SEARCH_THRESHOLD
-
-  const treeRows = useMemo(() => {
-    const rows = showSearch ? filterMoveTargetsBySearch(options, searchQuery) : options
-    return rows.filter((option) => option.id !== null)
-  }, [options, showSearch, searchQuery])
-
-  const isSearchEmpty = showSearch && searchQuery.trim().length > 0 && treeRows.length === 0
 
   const hideDialog = () => {
     setSearchQuery('')

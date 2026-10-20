@@ -2,36 +2,17 @@
 
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { formatAPIDateInTimeZone, getTodayBoundary, type HabitResolutionMode } from '@orbit/shared/utils'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitResolutionMode } from '@orbit/shared/utils'
+import { executeBulkMoveParent, getFailedBulkHabitIds, isBulkCompletionAllowed, type BulkActionsOptions, type BulkResultItem } from '@orbit/shared/hooks'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits, useBulkMoveHabitParent } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
-import type { HabitListHandle } from '@/components/habits/habit-list'
-
-interface UseBulkActionsOptions {
-  selectedHabitIds: Set<string>
-  selectedDateStr: string
-  completionReadOnly: boolean
-  accountTimeZone?: string | null
-  habitsById: Map<string, NormalizedHabit>
-  habitListRef: React.RefObject<HabitListHandle | null>
-  onSuccess: () => void
-  onPartialFailure: (failedIds: string[]) => void
-}
-
-interface BulkResultItem { status: string; habitId: string }
-
 interface BulkActionOutcome {
   results: readonly BulkResultItem[]
   ambiguousIds?: readonly string[]
-}
-
-function failedHabitIds(results: readonly BulkResultItem[]): string[] {
-  return results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : [])
 }
 
 function reportAccountSwitch(error: unknown): boolean {
@@ -46,7 +27,7 @@ export function useBulkActions({
   habitListRef,
   onSuccess,
   onPartialFailure,
-}: UseBulkActionsOptions) {
+}: BulkActionsOptions) {
   const t = useTranslations()
   const { showToast, showQueued } = useAppToast()
   const bulkDelete = useBulkDeleteHabits()
@@ -74,7 +55,7 @@ export function useBulkActions({
   }, [habitListRef])
 
   const finish = useCallback((outcome: BulkActionOutcome, retry: (ids: string[]) => void) => {
-    const failedIds = failedHabitIds(outcome.results)
+    const failedIds = getFailedBulkHabitIds(outcome.results)
     if (outcome.ambiguousIds?.length) {
       showToast(t('habits.bulkBar.connectionRefreshed'))
     }
@@ -104,73 +85,35 @@ export function useBulkActions({
     }
   }
 
-  async function executeLog(ids: string[]) {
-    if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
-    if (accountTimeZone !== undefined && getTodayBoundary(selectedDateStr, formatAPIDateInTimeZone(new Date(), accountTimeZone)) === 'read-only') return
+  async function executeCompletion(ids: string[], mode: HabitResolutionMode) {
+    if (!isBulkCompletionAllowed(currentPermission.current, selectedDateStr, accountTimeZone)) return
     if (ids.length === 0) return
     const date = selectedDateStr
     const accountGeneration = getAccountGeneration()
     try {
-      const result = await bulkLog.mutateAsync(
+      const result = await (mode === 'log' ? bulkLog : bulkSkip).mutateAsync(
         ids.map((id) => ({ habitId: id, date })),
       )
       if (getAccountGeneration() !== accountGeneration) return
-      applyBulkMutationSuccesses(result.results, 'log', date)
+      applyBulkMutationSuccesses(result.results, mode, date)
       if (currentPermission.current.selectedDateStr !== date) return
       finish(result, (failedIds) => {
-        if (getAccountGeneration() === accountGeneration) void executeLog(failedIds)
+        if (getAccountGeneration() === accountGeneration) void executeCompletion(failedIds, mode)
       })
     } catch (error) {
       if (getAccountGeneration() !== accountGeneration) return
       if (!reportAccountSwitch(error)) throw error
     }
-  }
-
-  async function executeSkip(ids: string[]) {
-    if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
-    if (accountTimeZone !== undefined && getTodayBoundary(selectedDateStr, formatAPIDateInTimeZone(new Date(), accountTimeZone)) === 'read-only') return
-    if (ids.length === 0) return
-    const date = selectedDateStr
-    const accountGeneration = getAccountGeneration()
-    try {
-      const result = await bulkSkip.mutateAsync(
-        ids.map((id) => ({ habitId: id, date })),
-      )
-      if (getAccountGeneration() !== accountGeneration) return
-      applyBulkMutationSuccesses(result.results, 'skip', date)
-      if (currentPermission.current.selectedDateStr !== date) return
-      finish(result, (failedIds) => {
-        if (getAccountGeneration() === accountGeneration) void executeSkip(failedIds)
-      })
-    } catch (error) {
-      if (getAccountGeneration() !== accountGeneration) return
-      if (!reportAccountSwitch(error)) throw error
-    }
-  }
-
-  const confirmBulkDelete = () => executeDelete(Array.from(selectedHabitIds))
-
-  const confirmBulkLog = () => executeLog(Array.from(selectedHabitIds))
-
-  const confirmBulkSkip = () => executeSkip(Array.from(selectedHabitIds))
-
-
-  async function confirmBulkMove(habitIds: string[], parentId: string | null) {
-    const generation = getAccountGeneration()
-    const result = await bulkMove.mutateAsync({ habitIds, parentId })
-    if (getAccountGeneration() !== generation) return
-    const failedIds = failedHabitIds(result.results)
-    if (failedIds.length > 0) onPartialFailure(failedIds)
-    else onSuccess()
-    return result
   }
 
   return {
-    confirmBulkMove,
     showBulkDeleteConfirm,
     setShowBulkDeleteConfirm,
-    confirmBulkDelete,
-    confirmBulkLog,
-    confirmBulkSkip,
+    confirmBulkDelete: () => executeDelete(Array.from(selectedHabitIds)),
+    confirmBulkLog: () => executeCompletion(Array.from(selectedHabitIds), 'log'),
+    confirmBulkSkip: () => executeCompletion(Array.from(selectedHabitIds), 'skip'),
+    confirmBulkMove: (habitIds: string[], parentId: string | null) => executeBulkMoveParent(habitIds, parentId, {
+      mutate: bulkMove.mutateAsync, getAccountGeneration, onSuccess, onPartialFailure,
+    }),
   }
 }

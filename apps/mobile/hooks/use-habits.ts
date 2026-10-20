@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query'
 import {
   habitKeys,
+  invalidateBulkMoveParentQueries,
   goalKeys,
   gamificationKeys,
   profileKeys,
@@ -1578,6 +1579,6 @@ export function useBulkMoveHabitParent() {
         entityType: 'habit',
         dependsOn: [...input.habitIds, ...(input.parentId ? [input.parentId] : [])],
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: habitKeys.all }),
+    onSuccess: () => invalidateBulkMoveParentQueries(queryClient),
   })
 }
