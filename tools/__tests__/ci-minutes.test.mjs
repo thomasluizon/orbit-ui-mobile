@@ -27,51 +27,26 @@ function selectsAndroidJob(job, track, result = "success", cancelled = false, br
   return (checksStatus || context.success()) && runInNewContext(condition, context)
 }
 
-test("internal Android releases skip design publication", () => {
+test("every Android track builds its embedded bundle without design publication", () => {
   const jobs = workflow("android-release").jobs
-  for (const branch of ["main", "redesign/main", "feature/release"]) {
-    assert.equal(selectsAndroidJob(jobs["publish-design-bundles"], "internal", "success", false, branch), false, branch)
+  assert.equal(jobs["publish-design-bundles"], undefined)
+  const build = jobs["release-android"]
+  assert.equal(build.needs, undefined)
+  for (const track of ["internal", "open", "production"]) {
+    assert.equal(selectsAndroidJob(build, track), true, track)
+    assert.equal(selectsAndroidJob(build, track, "success", true), false, track)
   }
-})
-
-test("internal Android builds run after skipped publication", () => {
-  const jobs = workflow("android-release").jobs
-  assert.equal(jobs["release-android"].needs, "publish-design-bundles")
-  assert.equal(selectsAndroidJob(jobs["release-android"], "internal", "skipped"), true)
-  assert.match(jobs["release-android"].if ?? "", /always\(\)/)
-  for (const result of ["success", "failure", "cancelled"]) {
-    assert.equal(selectsAndroidJob(jobs["release-android"], "internal", result), false, result)
-  }
-  assert.equal(selectsAndroidJob(jobs["release-android"], "internal", "skipped", true), false)
-})
-
-test("open and production Android builds require successful guarded design publication", () => {
-  const jobs = workflow("android-release").jobs
-  const publication = jobs["publish-design-bundles"]
-  assert.ok(publication.steps.some((step) => step.run === "node redesign/apps/mobile/scripts/check-design-bundles.js legacy redesign"))
-  for (const track of ["open", "production"]) {
-    assert.equal(selectsAndroidJob(publication, track), true, track)
-    assert.equal(selectsAndroidJob(jobs["release-android"], track, "success"), true, track)
-    for (const result of ["failure", "cancelled", "skipped"]) {
-      assert.equal(selectsAndroidJob(jobs["release-android"], track, result), false, `${track}: ${result}`)
-    }
-    assert.equal(selectsAndroidJob(jobs["release-android"], track, "success", true), false)
-  }
+  assert.doesNotMatch(JSON.stringify(jobs), /eas-cli|EXPO_TOKEN|"path":"legacy"|"path":"redesign"/)
 })
 
 test("Android release branch guards accept internal on every branch and require main for public tracks", () => {
   const jobs = workflow("android-release").jobs
   const buildGuard = jobs["release-android"].steps.find((step) => step.name === "Validate track branch")
-  const publicationGuard = jobs["publish-design-bundles"].steps.find((step) => step.name === "Validate binary source and update credential")
   for (const track of ["internal", "open", "production"]) {
     for (const branch of ["main", "redesign/main", "feature/release"]) {
-      const env = { ...process.env, RELEASE_TRACK: track, GITHUB_REF_NAME: branch, EXPO_TOKEN: "fixture" }
+      const env = { ...process.env, RELEASE_TRACK: track, GITHUB_REF_NAME: branch }
       const build = spawnSync("bash", ["-e", "-c", buildGuard.run], { env, encoding: "utf8" })
       assert.equal(build.status, track === "internal" || branch === "main" ? 0 : 1, `${track}: ${branch}: ${build.stderr}`)
-      if (track !== "internal") {
-        const publish = spawnSync("bash", ["-e", "-c", publicationGuard.run], { env, encoding: "utf8" })
-        assert.equal(publish.status, branch === "main" ? 0 : 1, `${track}: ${branch}: ${publish.stderr}`)
-      }
     }
   }
 })
