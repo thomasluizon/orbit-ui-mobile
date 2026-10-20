@@ -477,7 +477,7 @@ describe('habit detail flow model', () => {
     expect(withSlip.days.filter((outcome) => outcome === 'done')).toHaveLength(29)
     expect(withSlipCompletionRate).toBeCloseTo(96.67, 2)
     expect(slipHistory.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('none')
-    expect(isHabitCompletedOnDate(badHabit, [slip], '2026-08-28')).toBe(false)
+    expect(isHabitCompletedOnDate(badHabit, [slip], '2026-08-28', 1)).toBe(false)
 
     const clean = buildHabitStripModel(badHabit, [], today, 'en')
     const cleanHistory = buildHabitHistoryMonth(badHabit, [], today, today, 1)
@@ -487,7 +487,24 @@ describe('habit detail flow model', () => {
     expect(clean.days.filter((outcome) => outcome === 'done')).toHaveLength(30)
     expect(cleanCompletionRate).toBeCloseTo(100)
     expect(cleanHistory.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('full')
-    expect(isHabitCompletedOnDate(badHabit, [], '2026-08-28')).toBe(true)
+    expect(isHabitCompletedOnDate(badHabit, [], '2026-08-28', 1)).toBe(true)
+  })
+
+  it.each([0, 1] as const)('uses week start %i for Sunday bad-habit completion', (weekStartsOn) => {
+    const habit = { ...makeHabitDetail(), children: [], days: [],
+      createdAtUtc: '2026-01-01T12:00:00Z', isBadHabit: true,
+      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2,
+      scheduledStartDate: '2026-01-31', dueDate: '2026-03-09' }
+    const dateStr = '2026-03-01'
+    const date = parseAPIDate(dateStr)
+    const scheduled = weekStartsOn === 1
+
+    expect(buildHabitHistoryMonth(habit, [], date, date, weekStartsOn)
+      .find((day) => day.dateStr === dateStr)?.outcome).toBe(scheduled ? 'full' : 'not-scheduled')
+    expect(buildHabitStripModel(habit, [], date, 'en', weekStartsOn).days.at(-1))
+      .toBe(scheduled ? 'done' : 'not-scheduled')
+    expect(isHabitCompletedOnDate(habit, [], dateStr, weekStartsOn)).toBe(scheduled)
+    expect(isHabitCompletedOnDate(habit, [log(dateStr)], dateStr, weekStartsOn)).toBe(false)
   })
 
   it('uses recent bad-habit logs as the slipping signal', () => {
@@ -869,8 +886,8 @@ describe('habit detail flow model', () => {
     const habit = { ...makeHabitDetail(), days: [], createdAtUtc: '2026-01-01T12:00:00Z',
       isBadHabit: true, frequencyUnit: 'Month', frequencyQuantity: 1, intervalWeeks: 2,
       scheduledStartDate: '2026-01-31', dueDate: '2026-06-30' }
-    expect(isHabitCompletedOnDate(habit, [], '2026-02-28')).toBe(true)
-    expect(isHabitCompletedOnDate(habit, [], '2026-03-31')).toBe(false)
+    expect(isHabitCompletedOnDate(habit, [], '2026-02-28', 1)).toBe(true)
+    expect(isHabitCompletedOnDate(habit, [], '2026-03-31', 1)).toBe(false)
   })
 
   it.each([{}, { scheduledStartDate: null }])('keeps the legacy fallback without a stable date: %j', (origin) => {

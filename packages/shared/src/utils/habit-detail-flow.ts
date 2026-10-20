@@ -205,10 +205,11 @@ export function isHabitCompletedOnDate(
   habit: HabitScheduleSource,
   logs: readonly HabitLog[],
   dateStr: string,
+  weekStartsOn: 0 | 1,
 ): boolean {
   const logged = activeLogDates(logs).has(dateStr)
   if (!habit.isBadHabit) return logged
-  return isScheduled(habit, parseAPIDate(dateStr)) && !logged
+  return isScheduled(habit, parseAPIDate(dateStr), logs, weekStartsOn) && !logged
 }
 
 export function buildHabitDetailChildDateModel(

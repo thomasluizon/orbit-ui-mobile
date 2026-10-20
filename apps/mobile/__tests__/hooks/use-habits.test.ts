@@ -883,7 +883,7 @@ describe('mobile habit hooks', () => {
     expect(response).toEqual({ queued: true, queuedMutationId: 'mutation-1' })
     const logs = mocks.queryClient.getQueryData(habitKeys.logs('habit-1')) as HabitLog[]
     const completed = intent === 'log'
-    expect(isHabitCompletedOnDate(datedHabit, logs, date)).toBe(completed)
+    expect(isHabitCompletedOnDate(datedHabit, logs, date, 1)).toBe(completed)
     expect(buildHabitHistoryMonth(
       datedHabit,
       logs,

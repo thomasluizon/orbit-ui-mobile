@@ -1150,6 +1150,26 @@ describe('HabitDetailScreen', () => {
     }
   })
 
+  it.each([0, 1] as const)('agrees on Sunday bad-habit completion with week start %i', (weekStartDay) => {
+    vi.setSystemTime(new Date('2026-03-01T12:00:00Z'))
+    mocks.weekStartDay = weekStartDay
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedHabits = new Map()
+    mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
+      createdAtUtc: '2026-01-01T12:00:00Z', isBadHabit: true,
+      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2,
+      scheduledStartDate: '2026-01-31', dueDate: '2026-03-09' })
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-03-01" />)
+    const scheduled = weekStartDay === 1
+
+    expect(screen.getByTestId('history-day-1-inside')).toHaveTextContent(scheduled ? 'full' : 'not-scheduled')
+    expect(screen.getByTestId('detail-strip').getAttribute('data-values')?.split(',').at(-1))
+      .toBe(scheduled ? 'done' : 'not-scheduled')
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[data-status]')).toHaveAttribute('data-status', scheduled ? 'done' : 'empty')
+  })
+
   it('reconciles an explicit-date log and unlog across the mounted detail', async () => {
     mocks.log.mockImplementation(({ date }: { habitId: string; date: string }) => {
       const existing = mocks.logs.some((entry) => entry.date === date)
