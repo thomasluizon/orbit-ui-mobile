@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { actionResultSchema } from '@orbit/shared/types/chat'
-import { makeEmojiToolResult } from '../../../../../packages/shared/src/test-support/tool-result-fixtures'
+import { makeEmojiToolResult, toolResultRegressionCases } from '../../../../../packages/shared/src/test-support/tool-result-fixtures'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
 import { ActionChips } from '@/components/chat/action-chips'
 
@@ -15,8 +15,8 @@ vi.unmock('react-i18next')
 const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
 
 describe.each([
-  { locale: 'en', zero: '0 matching habits', singular: '1 matching habit', plural: '185 matching habits' },
-  { locale: 'pt-BR', zero: '0 hábitos encontrados', singular: '1 hábito encontrado', plural: '185 hábitos encontrados' },
+  { locale: 'en', zero: '0 habits', singular: '1 habit', plural: '185 habits' },
+  { locale: 'pt-BR', zero: '0 hábitos', singular: '1 hábito', plural: '185 hábitos' },
 ])('ActionChips result messages in $locale on Android', ({ locale, zero, singular, plural }) => {
   async function renderAction(payload: unknown) {
     const i18n = createInstance()
@@ -30,6 +30,15 @@ describe.each([
     </I18nextProvider>) })
     return tree
   }
+
+
+  it.each(toolResultRegressionCases)('handles $name through the real translator', async (scenario) => {
+    const tree = await renderAction(scenario.payload)
+    const output = renderedText(tree.root)
+    expect(output).toContain(locale === 'en' ? scenario.en : scenario.ptBR)
+    expect(output).not.toContain('chat.toolResult.')
+    expect(output).not.toContain('{count}')
+  })
 
   it.each([0, 1, 185])('renders the producer emoji result with %i habits', async (count) => {
     const tree = await renderAction(makeEmojiToolResult(count))

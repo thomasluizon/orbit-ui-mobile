@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
+import { parse, isArgumentElement, isNumberElement, isPluralElement, isSelectElement, type MessageFormatElement } from '@formatjs/icu-messageformat-parser'
 import { buildActionChipsModel, resolveActionChipText } from '../chat/action-chips'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import { actionResultSchema, toolResultMessageParamsSchema } from '../types/chat'
-import { apiToolResultKeys, makeEmojiToolResult } from '../test-support/tool-result-fixtures'
+import { apiToolResultKeys, makeEmojiToolResult, toolResultRegressionCases } from '../test-support/tool-result-fixtures'
+
+function placeholders(elements: MessageFormatElement[]): string[] {
+  return elements.flatMap((element) => {
+    if (isSelectElement(element) || isPluralElement(element)) {
+      return [element.value, ...Object.values(element.options).flatMap((option) => placeholders(option.value))]
+    }
+    return isArgumentElement(element) || isNumberElement(element) ? [element.value] : []
+  })
+}
 
 function leaf(catalog: object, key: string): unknown {
   return key.split('.').reduce<unknown>((value, segment) =>
@@ -19,14 +29,24 @@ describe('tool result message contract', () => {
     })
   })
 
+  it.each(Object.keys(toolResultMessageParamsSchema.shape))('drops an invalid %s without losing valid parameters', (key) => {
+    const validKey = key === 'referralCode' ? 'entityName' : 'referralCode'
+    expect(toolResultMessageParamsSchema.parse({ [key]: [], [validKey]: 'KEEP' }))
+      .toMatchObject({ [key]: undefined, [validKey]: 'KEEP' })
+  })
+
+  it.each([null, 'invalid', 1, []])('keeps an action with an invalid params envelope %j', (params) => {
+    expect(actionResultSchema.parse({ type: 'LogHabit', status: 'Success', entityName: 'Legacy summary', params }).params).toBeUndefined()
+  })
+
   it('accepts legacy actions and empty interpolation params', () => {
     expect(actionResultSchema.parse({ type: 'LogHabit', status: 'Success' }).messageKey).toBeUndefined()
     expect(toolResultMessageParamsSchema.parse({})).toEqual({})
   })
 
-  it.each(['count', 'totalCount', 'skippedCount', 'weekStartDay', 'hours'])('rejects strings and fractional values for %s', (key) => {
-    expect(toolResultMessageParamsSchema.safeParse({ [key]: '1' }).success).toBe(false)
-    expect(toolResultMessageParamsSchema.safeParse({ [key]: 1.5 }).success).toBe(false)
+  it.each(['count', 'totalCount', 'skippedCount', 'weekStartDay', 'hours'])('drops strings and fractional values for %s', (key) => {
+    expect(toolResultMessageParamsSchema.parse({ [key]: '1' })[key as 'count']).toBeUndefined()
+    expect(toolResultMessageParamsSchema.parse({ [key]: 1.5 })[key as 'count']).toBeUndefined()
     expect(toolResultMessageParamsSchema.safeParse({ [key]: 1 }).success).toBe(true)
   })
 })
@@ -35,9 +55,10 @@ describe.each([{ locale: 'en', catalog: en }, { locale: 'pt-BR', catalog: ptBR }
   it.each(apiToolResultKeys)('has a renderable translation for %s', (suffix) => {
     const template = leaf(catalog.chat.toolResult, suffix)
     expect(template).toBeTypeOf('string')
+    expect(placeholders(parse(String(template))).filter((key) => key !== 'hasEntityName' && !Object.hasOwn(toolResultMessageParamsSchema.shape, key))).toEqual([])
     for (const count of [0, 1, 185]) {
       const message = new IntlMessageFormat(String(template), locale).format({
-        entityName: "Ler d'água {#}", count, totalCount: count, skippedCount: count,
+        entityName: "Ler d'água {#}", hasEntityName: 'yes', count, totalCount: count, skippedCount: count,
         partial: 'false', weekStartDay: 0, hours: 24, toolName: 'log_habit', bulkTool: 'bulk_log_habits',
         policyReason: 'policy', timeZone: 'America/Sao_Paulo', language: 'pt-BR', referralCode: 'MY-CODE',
         fieldName: 'title', actionName: 'action', entityId: 'entity-1',
@@ -61,8 +82,23 @@ describe.each([{ locale: 'en', catalog: en }, { locale: 'pt-BR', catalog: ptBR }
     return resolveActionChipText(row, translations)
   }
 
+  it.each(apiToolResultKeys)('uses legacy text when any required parameter for %s is missing', (suffix) => {
+    const required = new Set(placeholders(parse(String(leaf(catalog.chat.toolResult, suffix)))))
+    const parameters = { entityName: 'Habit', count: 1, totalCount: 2, skippedCount: 1, hours: 24, weekStartDay: 0, fieldName: 'title', language: 'en', timeZone: 'America/Sao_Paulo', referralCode: 'CODE' }
+    for (const key of required) {
+      if (key === 'entityName' || key === 'hasEntityName') continue
+      const incomplete = { ...parameters }
+      Reflect.deleteProperty(incomplete, key)
+      expect(textFor({ type: 'unmapped_tool', status: 'Success', entityName: 'Legacy summary', messageKey: `chat.toolResult.${suffix}`, params: incomplete })?.label).toBe('Legacy summary')
+    }
+  })
+
+  it.each(toolResultRegressionCases)('handles $name', (scenario) => {
+    expect(textFor(scenario.payload)?.label).toBe(locale === 'en' ? scenario.en : scenario.ptBR)
+  })
+
   it('uses numeric metadata instead of an English summary', () => {
-    expect(textFor(makeEmojiToolResult(185))?.label).toContain(locale === 'en' ? '185 matching habits' : '185 hábitos encontrados')
+    expect(textFor(makeEmojiToolResult(185))?.label).toContain(locale === 'en' ? '185 habits' : '185 hábitos')
   })
 
   it('keeps optional entity names optional', () => {

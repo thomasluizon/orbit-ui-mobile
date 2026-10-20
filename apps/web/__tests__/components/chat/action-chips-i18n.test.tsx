@@ -4,18 +4,26 @@ import { describe, expect, it } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { actionResultSchema } from '@orbit/shared/types/chat'
-import { makeEmojiToolResult } from '../../../../../packages/shared/src/test-support/tool-result-fixtures'
+import { makeEmojiToolResult, toolResultRegressionCases } from '../../../../../packages/shared/src/test-support/tool-result-fixtures'
 import { ActionChips } from '@/components/chat/action-chips'
 
 describe.each([
-  { locale: 'en', messages: en, zero: '0 matching habits', singular: '1 matching habit', plural: '185 matching habits' },
-  { locale: 'pt-BR', messages: ptBR, zero: '0 hábitos encontrados', singular: '1 hábito encontrado', plural: '185 hábitos encontrados' },
+  { locale: 'en', messages: en, zero: '0 habits', singular: '1 habit', plural: '185 habits' },
+  { locale: 'pt-BR', messages: ptBR, zero: '0 hábitos', singular: '1 hábito', plural: '185 hábitos' },
 ])('ActionChips result messages in $locale', ({ locale, messages, zero, singular, plural }) => {
   function renderAction(payload: unknown) {
     return render(<NextIntlClientProvider locale={locale} messages={messages}>
       <ActionChips actions={[actionResultSchema.parse(payload)]} />
     </NextIntlClientProvider>)
   }
+
+
+  it.each(toolResultRegressionCases)('handles $name through the real translator', (scenario) => {
+    const { container } = renderAction(scenario.payload)
+    expect(container).toHaveTextContent(locale === 'en' ? scenario.en : scenario.ptBR)
+    expect(container).not.toHaveTextContent('chat.toolResult.')
+    expect(container).not.toHaveTextContent('{count}')
+  })
 
   it.each([0, 1, 185])('renders the producer emoji result with %i habits', (count) => {
     const { container } = renderAction(makeEmojiToolResult(count))

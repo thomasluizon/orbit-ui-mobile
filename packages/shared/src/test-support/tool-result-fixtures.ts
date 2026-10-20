@@ -171,3 +171,36 @@ export function makeEmojiToolResult(count: number): ActionResult {
     params: { count, totalCount: count, skippedCount: 0, partial: false },
   })
 }
+
+
+export const toolResultRegressionCases = [
+  ...['updatedHabits', 'clockFormatSet', 'languageSet', 'referralCode', 'weekStartDaySet', 'argumentRequired'].map((key) => ({
+    name: `missing parameters for ${key}`,
+    payload: { type: 'unmapped_tool', status: 'Success', entityName: 'Legacy summary', messageKey: `chat.toolResult.${key}`, params: {} },
+    en: 'Legacy summary', ptBR: 'Legacy summary',
+  })),
+  ...['count', 'totalCount', 'skippedCount'].flatMap((key) => ['1', 1.5, -1, null].map((value) => ({
+    name: `invalid ${key}: ${value}`,
+    payload: { type: 'unmapped_tool', status: 'Success', entityName: 'Legacy summary', messageKey: 'chat.toolResult.updatedHabits', params: { count: 1, totalCount: 2, skippedCount: 1, [key]: value } },
+    en: 'Legacy summary', ptBR: 'Legacy summary',
+  }))),
+  ...['common.save', 'chat.toolResult.aiSummary', 'chat.toolResult'].map((messageKey) => ({
+    name: `non-leaf or foreign key ${messageKey}`,
+    payload: { type: 'unmapped_tool', status: 'Success', entityName: 'Legacy summary', messageKey },
+    en: 'Legacy summary', ptBR: 'Legacy summary',
+  })),
+  { name: 'mapped field', payload: { type: 'unmapped_tool', status: 'Failed', messageKey: 'chat.toolResult.argumentRequired', params: { fieldName: 'habitIds' } }, en: 'Fill in Habits to continue.', ptBR: 'Preencha Hábitos para continuar.' },
+  { name: 'mapped scalar field', payload: { type: 'unmapped_tool', status: 'Failed', messageKey: 'chat.toolResult.argumentRequired', params: { fieldName: 'dueDate' } }, en: 'Fill in Due date to continue.', ptBR: 'Preencha Data prevista para continuar.' },
+  { name: 'unmapped field', payload: { type: 'unmapped_tool', status: 'Failed', messageKey: 'chat.toolResult.argumentRequired', params: { fieldName: 'engineField42' } }, en: 'I need one more detail to continue.', ptBR: 'Preciso de mais um detalhe para continuar.' },
+  { name: 'unmapped invalid field', payload: { type: 'unmapped_tool', status: 'Failed', messageKey: 'chat.toolResult.invalidString', params: { fieldName: 'engineField42' } }, en: 'Check the details and try again.', ptBR: 'Confira os dados e tente de novo.' },
+  { name: 'mapped language', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.languageSet', params: { language: 'pt-BR' } }, en: 'Language set to Português', ptBR: 'Idioma alterado para Português' },
+  { name: 'unmapped language', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.languageSet', params: { language: 'engineLanguage42' } }, en: 'Language updated', ptBR: 'Idioma atualizado' },
+  { name: 'time zone identifier', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.timezoneSet', params: { timeZone: 'America/Sao_Paulo' } }, en: 'Time zone updated', ptBR: 'Fuso horário atualizado' },
+  { name: 'named habit', payload: { type: 'CreateHabit', status: 'Success', messageKey: 'chat.toolResult.createdHabit', params: { entityName: 'Caminhada' } }, en: 'Created Caminhada', ptBR: 'Hábito criado: Caminhada' },
+  { name: 'bare habit', payload: { type: 'CreateHabit', status: 'Success', messageKey: 'chat.toolResult.createdHabit', params: {} }, en: 'Habit created', ptBR: 'Hábito criado' },
+  { name: 'named checklist', payload: { type: 'UpdateChecklist', status: 'Success', messageKey: 'chat.toolResult.updatedChecklist', params: { entityName: 'Caminhada' } }, en: 'Checklist updated: Caminhada', ptBR: 'Checklist atualizada: Caminhada' },
+  { name: 'locale formatted counts', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.updatedHabits', params: { count: 12345, totalCount: 12346, skippedCount: 1 } }, en: 'Updated 12,345 of 12,346 habits. 1 skipped.', ptBR: 'Atualizei 12.345 de 12.346 hábitos. 1 ficou de fora.' },
+  { name: 'zero skipped', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.loggedHabitsPartial', params: { count: 1, totalCount: 1, skippedCount: 0 } }, en: 'Logged 1 of 1 habit. None skipped.', ptBR: 'Registrei 1 de 1 hábito. Nenhum ficou de fora.' },
+  { name: 'created counts', payload: { type: 'unmapped_tool', status: 'Success', messageKey: 'chat.toolResult.createdHabits', params: { count: 1, totalCount: 2 } }, en: '1 of 2 habits created.', ptBR: '1 de 2 hábitos criados.' },
+  { name: 'unused engine parameters', payload: { type: 'unmapped_tool', status: 'Failed', messageKey: 'chat.toolResult.unsupportedAction', params: { actionName: 'CreateHabit', toolName: 'create_habit', entityId: 'engineId42' } }, en: 'That action is not available here.', ptBR: 'Essa ação não está disponível aqui.' },
+] as const

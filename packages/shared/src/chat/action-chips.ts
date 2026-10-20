@@ -1,3 +1,4 @@
+import { resolveToolResultMessage } from './tool-result-message'
 import type { ActionResult, ConflictWarning } from '../types/chat'
 
 interface ActionLabelKeys {
@@ -93,13 +94,10 @@ interface ActionChipTranslations {
 }
 
 export function resolveActionChipText(row: ActionChipRow, { translate, has }: ActionChipTranslations): { label: string; personal: boolean; wrapLabel: boolean } | undefined {
-  if (row.messageKey && has(row.messageKey)) {
-    const parameters: Record<string, string | number> = { entityName: '' }
-    for (const [key, value] of Object.entries(row.params ?? {})) {
-      if (typeof value === 'string' || typeof value === 'number') parameters[key] = value
-    }
+  const message = resolveToolResultMessage(row, translate, has)
+  if (message) {
     return {
-      label: translate(row.messageKey, parameters).trim(),
+      label: message,
       personal: Boolean(row.params?.entityName || row.params?.referralCode),
       wrapLabel: true,
     }
