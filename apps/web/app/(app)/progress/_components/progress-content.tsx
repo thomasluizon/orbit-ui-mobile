@@ -311,8 +311,10 @@ function StreakFreezeEntry({ loading, banked, ceiling, detailsOpen, controls, on
   onClick: MouseEventHandler<HTMLElement>
 }>) {
   const t = useTranslations()
+  const label = t('progressScreen.streak.freezes')
+  const value = `${banked} / ${ceiling}`
   return (
-    <ListRow placement="column" textMode="label" title={t('progressScreen.streak.freezes')} accessibilityLabel={t('progressScreen.streak.freezes')} expanded={detailsOpen} controls={controls} disabled={loading} valueHidden={loading} value={`${banked} / ${ceiling}`} chevron={false} trailing={<ChevronRight size={24} strokeWidth={1.5} color={loading ? 'var(--fg-1)' : 'var(--fg-3)'} aria-hidden="true" focusable="false" />} onClick={onClick} />
+    <ListRow placement="column" textMode="label" title={label} accessibilityLabel={loading ? label : `${label}, ${value}`} expanded={detailsOpen} controls={controls} disabled={loading} valueHidden={loading} value={value} chevron onClick={onClick} />
   )
 }
 

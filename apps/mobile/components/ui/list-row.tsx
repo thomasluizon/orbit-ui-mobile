@@ -172,6 +172,15 @@ function accessoryLineStyle(props: ListRowProps, labelWrapped: boolean, firstLin
   return { minHeight: Math.max(props.toggle ? 28 : 24, firstLineHeight), justifyContent: 'center' as const }
 }
 
+function RowChevron({ ChevronIcon, disabled, tokens, lineStyle }: Readonly<{
+  ChevronIcon: typeof ChevronRight
+  disabled: boolean
+  tokens: ReturnType<typeof createTokensV2>
+  lineStyle: ReturnType<typeof accessoryLineStyle>
+}>) {
+  return <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={[styles.chevron, lineStyle]}><ChevronIcon size={24} color={disabled ? tokens.fg1 : tokens.fg3} strokeWidth={1.5} /></View>
+}
+
 function RowAction({ action, hasDescription, reducedMotion, tokens }: Readonly<{ action: ListRowProps['action']; hasDescription: boolean; reducedMotion: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   if (!action) return null
   return (
@@ -210,7 +219,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
       ) : null}
       <RowTextContent {...props} labelWrapped={labelWrapped} firstLineHeight={titleLayout.height} onTitleLayout={(event) => { const firstLine = event.nativeEvent.lines[0]; if (firstLine) { const wrapped = event.nativeEvent.lines.length > 1; setTitleLayout((previous) => previous.wrapped === wrapped && previous.height === firstLine.height ? previous : { wrapped, height: firstLine.height }) } }} trailing={rowTrailing} titleColor={titleColor} valueColor={interaction.highlighted ? tokens.fg2 : tokens.fg3} />
       {rowTrailing && props.textMode !== 'label' ? <View data-slot="list-row-trailing" style={[styles.trailing, switchLine]}>{rowTrailing}</View> : null}
-      {!readOnly && !props.toggle && chevron ? <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={[styles.chevron, switchLine]}><ChevronIcon size={24} color={tokens.fg3} strokeWidth={1.5} /></View> : null}
+      {!readOnly && !props.toggle && chevron ? <RowChevron ChevronIcon={ChevronIcon} disabled={disabled} tokens={tokens} lineStyle={switchLine} /> : null}
     </AnimatedContent>
   )
 

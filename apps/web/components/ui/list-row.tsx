@@ -20,6 +20,10 @@ type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
   personalTextInsetStart?: boolean
 }
 
+function RowChevron({ Chevron, disabled, textMode }: Readonly<Pick<WebListRowProps, 'disabled' | 'textMode'> & { Chevron: typeof ChevronRight }>) {
+  return <span data-slot="list-row-chevron" className="flex shrink-0 items-center justify-center" style={{ width: 24, minHeight: textMode === 'label' ? 'max(24px, 1.4875rem)' : 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color={disabled ? 'var(--fg-1)' : 'var(--fg-3)'} strokeWidth={1.5} /></span>
+}
+
 function hasSupportingLine({ description, textMode, value }: Readonly<Pick<WebListRowProps, 'description' | 'textMode' | 'value'>>) {
   return !!description || (textMode === 'personal' && !!value)
 }
@@ -172,7 +176,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
   const props = disclosedProps.toggle ? { ...disclosedProps, textMode: 'label' as const } : disclosedProps
   const { accessibilityLabel, action, chevron = true, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span data-slot="list-row-content" id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing, alignsFirstLine(props))}>{body}{!readOnly && !props.toggle && chevron ? <span data-slot="list-row-chevron" className="flex shrink-0 items-center justify-center" style={{ width: 24, minHeight: props.textMode === 'label' ? 'max(24px, 1.4875rem)' : 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.5} /></span> : null}</span>
+  const content = <span data-slot="list-row-content" id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing, alignsFirstLine(props))}>{body}{!readOnly && !props.toggle && chevron ? <RowChevron Chevron={Chevron} disabled={props.disabled} textMode={props.textMode} /> : null}</span>
   const bodyStyle = getBodyStyle(hasSupportingLine(props), props.placement === 'column')
 
   const actionBody = rowControl(props, content, bodyStyle)

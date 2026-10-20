@@ -251,7 +251,7 @@ async function renderProgress(createNodeMock?: (element: { props: Record<string,
     await Promise.resolve()
   })
   if (screen === 'streak' && openDetails) {
-    const entry = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.freezes')[0]
+    const entry = tree!.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]
     if (entry && !entry.props.disabled) await TestRenderer.act(() => (entry.props.onPress as () => void)())
   }
   return tree!
@@ -1009,7 +1009,7 @@ describe('mobile ProgressContent', () => {
     expect(habit.props.accessibilityRole).toBe('button')
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'progressScreen.streak.active')).toHaveLength(0)
     const streakTree = await renderProgress(undefined, 'streak', false)
-    const entry = streakTree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.freezes')[0]!
+    const entry = streakTree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
     expect(entry.props.accessibilityState).toMatchObject({ expanded: false })
     await TestRenderer.act(() => { (entry.props.onPress as () => void)() })
     expect(entry.props.accessibilityState).toMatchObject({ expanded: true })
@@ -1521,21 +1521,25 @@ describe('mobile ProgressContent', () => {
       const rowHost = () => {
         const hosts = tree.toJSON()!
         function find(host: HabitRowHost): HabitRowHost | undefined {
-          if (host.type === 'Pressable' && host.props.accessibilityLabel === (locale === 'en' ? en : ptBR).progressScreen.streak.freezes) return host
+          if (host.type === 'Pressable' && String(host.props.accessibilityLabel).startsWith((locale === 'en' ? en : ptBR).progressScreen.streak.freezes)) return host
           for (const child of host.children ?? []) {
             if (typeof child !== 'string') { const found = find(child); if (found) return found }
           }
         }
         return (Array.isArray(hosts) ? hosts : [hosts]).map(find).find(Boolean)!
       }
+      expect(rowHost().props.accessibilityLabel).toBe((locale === 'en' ? en : ptBR).progressScreen.streak.freezes)
+      const loadingEntry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === rowHost().props.accessibilityLabel)[0]!
+      expect(loadingEntry.props.disabled).toBe(true)
       const beforeHeight = measureProfileRow(rowHost(), Math.min(width, 740) - 32, fontScale).height
       expect(section.findAll((node) => node.props.testID === 'freeze-bank')).toHaveLength(0)
       Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
       await TestRenderer.act(() => tree.update(<StreakPage />))
       expect(blocks()).toEqual(before)
       const label = (locale === 'en' ? en : ptBR).progressScreen.streak.freezes
-      const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!
+      const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith(label))[0]!
       const expected = `${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`
+      expect(entry.props.accessibilityLabel).toBe(`${label}, ${expected}`)
       expect(entry.findAll((node) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1)
       const measured = measureProfileRow(rowHost(), Math.min(width, 740) - 32, fontScale)
       expect(measured.height).toBe(beforeHeight)
@@ -1565,7 +1569,7 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo
     try {
       const tree = await renderProgress(undefined, 'streak', false)
-      const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.freezes')[0]!
+      const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
       expect(entry.props.disabled).toBe(true)
       const icons = entry.findAll((node) => node.type === ChevronRight)
       expect(icons).toHaveLength(1)
@@ -1583,7 +1587,7 @@ describe('mobile ProgressContent', () => {
   it('keeps the loaded freeze count legible during light focus and press', async () => {
     theme.mode = 'light'
     const tree = await renderProgress(undefined, 'streak', false)
-    const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.freezes')[0]!
+    const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
     const tokens = createTokensV2('purple', 'light')
     for (const interaction of ['onFocus', 'onPressIn'] as const) {
       await TestRenderer.act(() => (entry.props[interaction] as () => void)())
@@ -1821,7 +1825,7 @@ describe('mobile ProgressContent', () => {
     let tree: { root: TestNode; update: (element: React.ReactNode) => void; unmount: () => void } | undefined
     TestRenderer.act(() => { tree = TestRenderer.create(<StreakPage />) })
     TestRenderer.act(() => {
-      const entry = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.freezes')[0]!
+      const entry = tree!.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
       ;(entry.props.onPress as () => void)()
     })
     const regions = tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && !['goal-reorder-status', 'progress-window-status'].includes(String(node.props.testID)))

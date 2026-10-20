@@ -211,13 +211,13 @@ function getStreakStatus(): HTMLElement {
 
 function renderStreakDetails() {
   const view = render(<StreakPage />)
-  fireEvent.click(screen.getByRole('button', { name: 'progressScreen.streak.freezes' }))
+  fireEvent.click(screen.getByRole('button', { name: /^progressScreen\.streak\.freezes/ }))
   return view
 }
 
 function getStreakDetailsScope(locked: boolean, catalog: typeof en | typeof ptBR) {
   if (locked) return screen.getByRole('region', { name: catalog.progressScreen.sections.streak })
-  fireEvent.click(screen.getByRole('button', { name: catalog.progressScreen.streak.freezes }))
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${catalog.progressScreen.streak.freezes}`) }))
   return screen.getByRole('dialog', { name: catalog.progressScreen.streak.freezes })
 }
 
@@ -1002,7 +1002,7 @@ describe('ProgressContent', () => {
     render(<ProgressContent screen={destination} />)
     expect(screen.getByRole('heading', { level: 1, name: `progressScreen.sections.${destination}` })).toBeInTheDocument()
     if (destination === 'streak') {
-      fireEvent.click(screen.getByRole('button', { name: 'progressScreen.streak.freezes' }))
+      fireEvent.click(screen.getByRole('button', { name: /^progressScreen\.streak\.freezes/ }))
       expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     }
     else expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
@@ -1114,7 +1114,7 @@ describe('ProgressContent', () => {
     expect(habit).toHaveAccessibleName('progressScreen.window.topHabit, Read')
     expect(habit).toHaveAttribute('aria-expanded', 'false')
     view.rerender(<StreakPage />)
-    const entry = screen.getByRole('button', { name: 'progressScreen.streak.freezes' })
+    const entry = screen.getByRole('button', { name: /^progressScreen\.streak\.freezes/ })
     entry.focus()
     fireEvent.click(entry)
     const dialog = screen.getByRole('dialog', { name: 'progressScreen.streak.freezes' })
@@ -1616,19 +1616,28 @@ describe('ProgressContent', () => {
               followingTop: summary.nextElementSibling!.getBoundingClientRect().top,
               rowHeight: entry.getBoundingClientRect().height,
               valueLines: new Set(Array.from(range.getClientRects(), (rect) => Math.round(rect.top))).size,
+              valueWidth: range.getBoundingClientRect().width,
+              fontFamily: getComputedStyle(value).fontFamily,
+              fontSize: getComputedStyle(value).fontSize,
+              numericStyle: getComputedStyle(value).fontVariantNumeric,
               valueInside: value.getBoundingClientRect().right <= entry.getBoundingClientRect().right,
             }
           })
         }
         expect(section.querySelector('[data-slot="list-row-value"]')).not.toBeNull()
+        expect(within(section).getByRole('button', { name: words.progressScreen.streak.freezes })).toBeDisabled()
         const before = await measure()
         Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
         rerender(<StreakPage />)
         await act(async () => { await Promise.resolve() })
-        const entry = within(section).getByRole('button', { name: words.progressScreen.streak.freezes })
+        const entry = within(section).getByRole('button', { name: new RegExp(`^${words.progressScreen.streak.freezes}`) })
+        expect(entry).toHaveAccessibleName(`${words.progressScreen.streak.freezes}, ${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`)
         expect(entry).toHaveTextContent(`${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`)
         const after = await measure()
         expect.soft(after, name).toEqual(before)
+        expect.soft(after.fontFamily, name).toContain('Geist Mono')
+        expect.soft(after.fontSize, name).toBe('12px')
+        expect.soft(after.numericStyle, name).toBe('tabular-nums')
         expect.soft(after.valueLines, name).toBe(1)
         expect.soft(after.valueInside, name).toBe(true)
         unmount()
