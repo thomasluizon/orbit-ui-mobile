@@ -22,6 +22,9 @@ The selected day loading card sizes each placeholder with the same habit row and
 personal title as the loaded card. Complete dated lists already cached by Hoje supply
 that shape while the month request is pending. Filtered and incomplete lists cannot
 reserve a day. Recurring visibility and row ordering follow the loaded path.
+Sizing entries travel only through the month loading map and its disabled skeleton
+rows. Loaded day maps and week ranges use the range response and its logs. A week
+day sheet keeps the loading state until that response arrives.
 
 A day without cached schedule information reserves the empty-day line from the
 calendar drawing. Its row count and title wrapping remain unknown until the response,

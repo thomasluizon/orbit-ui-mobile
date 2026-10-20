@@ -32,7 +32,6 @@ async function fetchCalendarMonth(
 }
 
 function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = true) {
-  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: habitKeys.calendar(rangeStart, rangeEnd),
     queryFn: () => fetchCalendarMonth(rangeStart, rangeEnd),
@@ -41,9 +40,9 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
   })
 
   const dayMap = useMemo<Map<string, CalendarDayEntry[]>>(() => {
-    if (!query.data) return getCachedCalendarDayMap(queryClient, rangeStart, rangeEnd)
+    if (!query.data) return new Map()
     return buildCalendarDayMap(query.data, { from: rangeStart, to: rangeEnd })
-  }, [query.data, queryClient, rangeStart, rangeEnd])
+  }, [query.data, rangeStart, rangeEnd])
 
   return {
     dayMap,
@@ -57,7 +56,13 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
 export function useCalendarData(currentMonth: Date) {
   const monthStart = formatAPIDate(startOfMonth(currentMonth))
   const monthEnd = formatAPIDate(endOfMonth(currentMonth))
-  return useCalendarRangeQuery(monthStart, monthEnd)
+  const queryClient = useQueryClient()
+  const query = useCalendarRangeQuery(monthStart, monthEnd)
+  const loadingDayMap = useMemo(
+    () => query.isLoading ? getCachedCalendarDayMap(queryClient, monthStart, monthEnd) : undefined,
+    [query.isLoading, queryClient, monthStart, monthEnd],
+  )
+  return { ...query, loadingDayMap }
 }
 
 /** Calendar entries for an arbitrary contiguous date range, powering the
