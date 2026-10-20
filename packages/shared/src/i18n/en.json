@@ -3770,7 +3770,7 @@
   },
   "streakDisplay": {
     "badge": {
-      "tooltip": "1 day streak | {count} day streak"
+      "tooltip": "1-day streak | {count}-day streak"
     },
     "detail": {
       "tierLegendary": "Legendary",
@@ -4063,6 +4063,7 @@
     "close": "Close",
     "streak": {
       "eyebrow": "Streak",
+      "unit": "day | days",
       "line": "Your streak reached {count} days."
     },
     "goal": {

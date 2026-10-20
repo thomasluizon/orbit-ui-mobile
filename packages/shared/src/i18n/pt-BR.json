@@ -4063,6 +4063,7 @@
     "close": "Fechar",
     "streak": {
       "eyebrow": "Sequência",
+      "unit": "dia | dias",
       "line": "A sua sequência chegou a {count} dias."
     },
     "goal": {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions, type HostInstance } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
@@ -10,6 +10,7 @@ import { ShellComposerSlotProvider, useShellComposerHost } from './shell-compose
 import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot'
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 import { ShellScrollToTopSlotProvider, useShellScrollToTopHost } from './shell-scroll-to-top-slot'
+import { ShellFocusTargetContext } from './shell-focus-target'
 import { RootScrollProvider } from './root-scroll-context'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
@@ -149,6 +150,11 @@ function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, saf
 }
 
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean }>) {
+  const mainRef = useRef<View>(null)
+  const focusTarget = useRef<number | null>(null)
+  const focusElement = useRef<HostInstance | null>(null)
+  const focusHost = useMemo(() => ({ currentTarget: () => focusTarget.current, currentHost: () => focusElement.current, focusMain: () => mainRef.current?.focus() }), [])
+  const focusCapture = { onFocusCapture: (event: { nativeEvent: { target: number }; target?: HostInstance }) => { focusTarget.current = event.nativeEvent.target; focusElement.current = event.target ?? null } }
   const registeredScrollToTop = useShellScrollToTopHost()
   const registeredHeader = useShellHeaderHost()
   const header = registeredHeader.content ?? props.header
@@ -191,6 +197,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 
   const shell = (
     <View
+      {...focusCapture}
       testID="shell-412"
       onLayout={(event) => viewport.setHeight(event.nativeEvent.layout.height)}
       style={[styles.root, { backgroundColor: tokens.bg }, viewport.outerInsets]}
@@ -207,7 +214,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
             )
           ) : null}
 
-          <View testID="shell-scroller" style={[styles.scroller, props.fab !== undefined && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
+          <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, props.fab !== undefined && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
             {props.children}
             <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
           </View>
@@ -244,6 +251,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   )
 
   return (
+    <ShellFocusTargetContext.Provider value={focusHost}>
     <ShellHeaderSlotProvider value={registeredHeader.value}>
       <ShellNoticeSlotProvider value={registeredNotice.value}>
         <ShellComposerSlotProvider value={registeredComposer.value}>
@@ -259,6 +267,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         </ShellComposerSlotProvider>
       </ShellNoticeSlotProvider>
     </ShellHeaderSlotProvider>
+    </ShellFocusTargetContext.Provider>
   )
 }
 

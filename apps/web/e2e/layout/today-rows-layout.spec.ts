@@ -1,5 +1,6 @@
 import { openTodayListOptions } from './hydration-guard'
 import { setHabitTextScale } from './subhabit-indent-geometry'
+import { writeFile } from 'node:fs/promises'
 import { expect, type Page, type Locator } from '@playwright/test'
 import { test } from './layout-test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -298,8 +299,19 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
       glyph: check.querySelector('svg') ? bounds(check.querySelector('svg')!) : null,
       controls: Array.from(element.querySelectorAll('[data-habit-row-control]')).map(bounds) }
   })
-  assertPreviewText()
-  assertPreviewControls()
+  try {
+    assertPreviewText()
+    assertPreviewControls()
+  } catch (assertionError) {
+    try {
+      const observationAfterGeometry = await row.evaluate(observeHabitPreviewFailure)
+      await writeFile(test.info().outputPath('habit-row-preview-failure.json'), JSON.stringify({
+        scale, mode, geometry, observationAfterGeometry,
+      }, null, 2))
+    } finally {
+      throw assertionError
+    }
+  }
   function assertPreviewText() {
     if (geometry.preview) {
       expect(geometry.preview.size).toBe(`${14 * scale}px`)
@@ -351,6 +363,43 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
     await expect(row).not.toHaveCSS('background-color', mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.11)')
   }
   await page.mouse.move(0, 0)
+}
+
+function observeHabitPreviewFailure(element: Element) {
+  const readStyle = (node: Element) => {
+    const style = getComputedStyle(node)
+    const box = node.getBoundingClientRect()
+    const inline = (node as HTMLElement).style
+    return {
+      tag: node.tagName, className: node.className,
+      inlinePadding: { block: inline.paddingBlock, start: inline.paddingBlockStart, end: inline.paddingBlockEnd },
+      rect: { left: box.left, right: box.right, top: box.top, bottom: box.bottom,
+        x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height },
+      display: style.display, alignItems: style.alignItems, minHeight: style.minHeight,
+      paddingBlockStart: style.paddingBlockStart, paddingBlockEnd: style.paddingBlockEnd,
+      lineHeight: style.lineHeight, fontSize: style.fontSize,
+      transitionProperty: style.transitionProperty, transitionDuration: style.transitionDuration, transform: style.transform,
+      transitions: node.getAnimations()
+        .filter((animation): animation is CSSTransition => animation instanceof CSSTransition)
+        .map((animation) => ({ property: animation.transitionProperty,
+          duration: animation.effect!.getTiming().duration, easing: animation.effect!.getTiming().easing })),
+    }
+  }
+  const titleChain = []
+  for (let node = element.querySelector('[data-personal-text]'); node && node !== element; node = node.parentElement) {
+    titleChain.push(readStyle(node))
+  }
+  const title = element.getAttribute('data-habit-title')
+  return {
+    habitTitle: ['Parent', 'Child parent', 'Grandchild', 'Child 1', 'Timed', 'Untimed'].includes(title ?? '') ? title : 'unexpected-fixture-row',
+    connected: element.isConnected,
+    rootInlineFont: document.documentElement.style.fontSize,
+    rootComputedFont: getComputedStyle(document.documentElement).fontSize,
+    rootClass: document.documentElement.className,
+    supporting: Boolean(element.querySelector('[data-habit-row-heading]')),
+    selectedMode: Boolean(element.querySelector('[data-habit-row-control="selection"]')),
+    row: readStyle(element), body: readStyle(element.querySelector('[data-habit-row-body]')!), titleChain,
+  }
 }
 
 for (const width of [412, 1352]) for (const reducedMotion of ['no-preference', 'reduce'] as const) {

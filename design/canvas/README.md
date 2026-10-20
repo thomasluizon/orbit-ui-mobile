@@ -68,6 +68,23 @@ that disagrees with production is a trap rather than an authority.
 | 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
 | 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
 
+### Streak notice amendment surface inventory
+
+| Paired web and Android surface | Contract |
+|---|---|
+| Daily earned streak | Existing shell notice, 16px inset, 12px gap, 28px tabular previous/final figure and plural day unit. One still monochrome 16px OrbitMark inside the 44px neutral measured ring. |
+| Milestone streak | Same lifecycle and mark/ring, with the complete final milestone sentence, 24px inset and 16px gap; no invented previous value. |
+| Other earned facts | Existing copy, queue priority and manual lifetime, with coherent exit handoff and the neutral measured ring replacing the native rotating accent adapter. |
+| Entry, hold and manual exit | Fully opaque +12px entrance, daily figure and ring together in 280ms ease-out; static hold; live-value +12px/fade exit in 220ms ease-in. Retain the actual queue item through completion. |
+| Daily automatic exit and pause | Exit at 2280ms, layout retained until 2500ms; late hover or keyboard focus cancels exit and fallback. Resume a fresh 2500ms schedule after every pause ends. Manual exit stays committed. |
+| Reduced motion and background | Final static mark, ring and value; immediate reduced-motion dismissal. Live changes preserve a held deadline or complete a pending exit. Background settles movement; resume uses the valid clock deadline without replay. |
+| Privacy, announcements and keyboard | Exact ID and account generation guard every callback. Account replacement and invalidation clear immediately. One empty-then-updated polite atomic final announcement; no arrival focus movement, and guarded manual focus recovery. |
+
+The active celebration drawing and DESIGN.md carry this amendment together. Unit guards cover the
+actual paired component/store lifecycle and shared deadlines. The layout workflow and orchestrator
+own rendered transforms, opacity, bounds, both locales/themes, normal/reduced motion and 200% text.
+Real Android rendering, movement feel and TalkBack remain device-verification boundaries.
+
 ### BarChart amendment surface inventory
 
 | Paired web and Android surface | Contract and evidence |
