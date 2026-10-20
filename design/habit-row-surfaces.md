@@ -28,6 +28,14 @@ existing time, status and parent counts remain beneath it. The same content reac
 Geral, search, inline children, drill lists, detail children and Astra-owned shared rows. Detail
 headers use the same selector beneath their full-width rename heading. Large text grows the row.
 
+Above 130% text, every row uses a full-row primary action and a supporting footer. The heading
+keeps the title, optional description and independent first-line controls. Exactly one complete
+type label leads the footer, followed by existing metadata with a 4px gap. The footer shares the
+title's leading edge through the existing 48px spacer, keeps an 8px trailing and bottom inset,
+and adds 4px above type only when the description heading supplies no bottom padding. Default
+text keeps its existing composition. Native visual heading and footer content stay hidden from
+accessibility because the primary action already names the type and metadata.
+
 Stored description rendering is owned by its separate row amendment. When carried together, its
 order is title, description, type and existing metadata. This amendment adds no description copy,
 hover redesign or row inset change.
@@ -44,8 +52,8 @@ onboarding and Astra cards retain their separate owners.
 `stripInlineMarkdown` supplies the inert preview without changing source text or adding a request.
 Normalized-empty content adds no element or gap. The role is Geist Sans 14/400, line height 1.55,
 fg-3 at rest and fg-2 during row feedback, with the canonical 4px stack gap. Default text uses one
-naturally ellipsized line; above 130% text it permits two lines with row growth. Parent supporting
-metadata follows the preview with its existing per-depth text edge. The full description and copy
+naturally ellipsized line; above 130% text it permits two lines with row growth. Supporting type and
+metadata follow the heading with its existing per-depth text edge. The full description and copy
 action remain in the existing detail disclosure. Web uses the preview as the body's accessible
 description; Android includes it in the hint alongside the existing future-date explanation.
 Selection keeps one preview and no focusable action under an aria-hidden ancestor.

@@ -5,15 +5,21 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'light' | 'dark' } => ({ mode: 'dark' }))
+const rowLocale = vi.hoisted((): { value: 'en' | 'pt-BR' } => ({ value: 'en' }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: theme.mode }) }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => {
+  const messages = rowLocale.value === 'en' ? en : ptBR
+  return key === 'habits.form.typeTask' ? messages.habits.form.typeTask : key === 'habits.form.typeHabit' ? messages.habits.form.typeHabit : key
+}, i18n: { language: rowLocale.value } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
 
-afterEach(() => { __resetTestHostConfig(); theme.mode = 'dark' })
+afterEach(() => { __resetTestHostConfig(); theme.mode = 'dark'; rowLocale.value = 'en' })
 
 function assertParentProgressLabel(root: import('react-test-renderer').ReactTestInstance, selecting: boolean, done: number, total: number) {
   if (total === 0) return
@@ -23,7 +29,57 @@ function assertParentProgressLabel(root: import('react-test-renderer').ReactTest
   expect(indicators.length).toBeGreaterThan(0)
 }
 
+function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills>, fontScale: number, depth: 0 | 1) {
+  const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
+  const primary = geometry.find((part) => part.host.type === 'Pressable' && 'delayLongPress' in part.host.props && part.host.props.delayLongPress === 500)!
+  const types = geometry.filter((part) => part.host.props.testID === 'habit-row-type')
+  expect(types).toHaveLength(1)
+  const type = types[0]!
+  const title = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes('Read ten minutes') && part.style.opacity !== 0)!
+  const metadata = geometry.find((part) => part.host.props.testID === 'habit-row-meta')!
+  expect(type.left).toBe(title.left)
+  expect(metadata.left).toBe(title.left)
+  expect(type.host.props.numberOfLines).toBeUndefined()
+  const typeLabel = type.host.children!.filter((child) => typeof child === 'string').join('')
+  expect(String(primary.host.props.accessibilityLabel).split(typeLabel)).toHaveLength(2)
+  if (fontScale === 1) {
+    expect(type.ancestors).toContain(primary.slot)
+    return
+  }
+  expect(primary).toMatchObject({ left: row.left, right: row.right, top: row.top, bottom: row.bottom })
+  expect(type.ancestors).not.toContain(primary.slot)
+  expect(metadata.ancestors).not.toContain(primary.slot)
+  expect(geometry.some((part) => type.ancestors.includes(part.slot) && 'importantForAccessibility' in part.host.props && part.host.props.importantForAccessibility === 'no-hide-descendants')).toBe(true)
+  const footerContent = geometry.find((part) => part.slot === type.ancestors.at(-1))!
+  expect(footerContent.right).toBe(row.right - 8)
+  expect(type.right).toBe(footerContent.right)
+  expect(footerContent.style).toMatchObject({ flex: 1, minWidth: 0, gap: 4 })
+  const heading = geometry.find((part) => title.ancestors.includes(part.slot) && part.style.minHeight === (depth ? 52 : 68) && part.style.paddingTop === (depth ? 4 : 8))!
+  const description = geometry.find((part) => part.host.props.testID === 'habit-row-description')
+  expect(type.top - heading.bottom).toBeCloseTo(description ? 0 : 4, 1)
+  expect(type.top - (description ?? title).bottom).toBeGreaterThanOrEqual(4)
+  expect(metadata.top - type.bottom).toBeCloseTo(4, 1)
+  expect(row.bottom - metadata.bottom).toBeCloseTo(8, 1)
+  expect(metadata.host.props.numberOfLines).toBeUndefined()
+}
+
 describe('habit row standard on Android', () => {
+  it.each([false, true])('keeps one footer type without an empty metadata strip, selecting=%s', (isSelectMode) => {
+    __setWindowDimensions({ width: 320, height: 892, scale: 1, fontScale: 2 })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf', dueTime: null })}
+      today="2025-01-01" selectedDate={new Date(2025, 0, 1)} isSelectMode={isSelectMode} />) })
+    const geometry = measureInteractionFills(tree!.toJSON(), 320, false, 2)
+    const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
+    const types = geometry.filter((part) => part.host.props.testID === 'habit-row-type')
+    expect(types).toHaveLength(1)
+    const type = types[0]!
+    expect(geometry.filter((part) => part.host.props.testID === 'habit-row-meta')).toHaveLength(0)
+    expect(type.host.children).toEqual([en.habits.form.typeHabit])
+    expect(row.bottom - type.bottom).toBeCloseTo(8, 1)
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each([false, true])('gives the structural selection checkbox independent hover and cancellation feedback, selected=%s', (isSelected) => {
     const actions = { onToggleSelection: vi.fn(), onDetail: vi.fn(), onToggleExpand: vi.fn(), onLog: vi.fn() }
     let tree: ReturnType<typeof TestRenderer.create>
@@ -73,7 +129,7 @@ describe('habit row standard on Android', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })}
       depth={depth} panelEnd={false} />) })
     const type = tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-type')[0]!
-    expect(type.props.children).toBe('habits.form.typeHabit')
+    expect(type.props.children).toBe(en.habits.form.typeHabit)
     expect(type.props.numberOfLines).toBeUndefined()
     expect(StyleSheet.flatten(type.props.style)).toMatchObject({ fontSize: 12 })
     const tokens = createTokensV2('orange', mode)
@@ -135,19 +191,21 @@ describe('habit row standard on Android', () => {
 })
 
 
-it.each([320, 412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [0, 1].flatMap((depth) =>
-  [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) => ({ width, fontScale, depth: depth as 0 | 1, parent, described, selected })))),
-))))(
-  'measures native feedback at $width/$fontScale, depth=$depth parent=$parent description=$described selected=$selected', ({ width, fontScale, depth, parent, described, selected }) => {
+it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [0, 1].flatMap((depth) =>
+  [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) => ({ locale, width, fontScale, depth: depth as 0 | 1, parent, described, selected })))),
+)))))(
+  'measures native feedback in $locale at $width/$fontScale, depth=$depth parent=$parent description=$described selected=$selected', ({ locale, width, fontScale, depth, parent, described, selected }) => {
+    rowLocale.value = locale
     __setWindowDimensions({ width, height: 892, scale: 1, fontScale })
     const tokens = createTokensV2('orange', 'dark')
     let tree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read ten minutes', description: described ? 'Read two pages before breakfast. '.repeat(12) : null, dueTime: '08:00' })}
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read ten minutes', description: described ? 'Read two pages before breakfast. '.repeat(12) : null, dueTime: '08:00', frequencyUnit: selected === false ? null : 'Day' })}
       today="2025-01-01" selectedDate={new Date(2025, 0, 1)} depth={depth} hasChildren={parent} childrenDone={parent ? 1 : 0} childrenTotal={parent ? 3 : 0}
       structuralColumn isSelectMode={selected !== undefined} isSelected={selected} actions={{ onEdit: vi.fn(), onDetail: vi.fn(), onToggleSelection: vi.fn() }} />) })
     const body = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith('Read ten minutes'))!
     const measure = () => measureInteractionFills(tree!.toJSON(), width, false, fontScale)
     const geometry = measure()
+    assertTypePlacement(geometry, fontScale, depth)
     const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
     const check = geometry.find((part) => part.host.props.testID === 'habit-check')!
     const target = geometry.find((part) => check.ancestors.includes(part.slot) && part.width === 48)!
@@ -158,6 +216,7 @@ it.each([320, 412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [0, 1]
     expect(target.width).toBe(48)
     const title = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes('Read ten minutes') && part.style.opacity !== 0)!
     expect((title.style as import('react-native').TextStyle).fontSize).toBe(depth ? 14 : 17)
+    if (fontScale === 2) expect(target.top).toBeCloseTo(title.top, 1)
     const preview = geometry.find((part) => part.host.props.testID === 'habit-row-description')
     expect(Boolean(preview)).toBe(described)
     if (preview) {

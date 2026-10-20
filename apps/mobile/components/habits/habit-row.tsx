@@ -22,7 +22,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { Menu, useAnchoredMenu } from '@/components/ui/menu'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
-import { HabitRowContent, HabitRowMetaStrip } from './habit-row-content'
+import { HabitRowContent, HabitRowMetaStrip, HabitRowTypeLabel } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import {
@@ -283,7 +283,7 @@ export const HabitRow = memo(function HabitRow({
   const locale = i18n.language
   const { fontScale } = useWindowDimensions()
   const largeText = fontScale > 1.3
-  const supportingMeta = showSupportingMeta(largeText, childrenTotal)
+  const supportingMeta = largeText
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -459,9 +459,9 @@ export const HabitRow = memo(function HabitRow({
 
   return (
     <View style={habitRowSpacing(panelEnd)}>
-      <HabitRowLayout descriptionPresent={Boolean(description)} largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}
+      <HabitRowLayout descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
-        metaColor={bodyPressFeedback.metaColor} tokens={tokens}>
+        metaColor={bodyPressFeedback.metaColor} typeLabel={t(getHabitTypeLabelKey(habit))} tokens={tokens}>
         {rowContents}
       </HabitRowLayout>
 
@@ -484,9 +484,8 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ descriptionPresent, largeText, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
+function HabitRowLayout({ descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, typeLabel, tokens, children }: Readonly<{
   descriptionPresent: boolean
-  largeText: boolean
   isChild: boolean
   supportingMeta: boolean
   rowStyle: StyleProp<ViewStyle>
@@ -495,28 +494,28 @@ function HabitRowLayout({ descriptionPresent, largeText, isChild, supportingMeta
   primaryContent: ReactNode
   metaParts: Parameters<typeof HabitRowContent>[0]['metaParts']
   metaColor: string
+  typeLabel: string
   tokens: ReturnType<typeof createTokensV2>
   children: ReactNode
 }>) {
   return (
-    <View testID="habit-row" style={[largeText ? null : styles.row, rowStyle]}>
+    <View testID="habit-row" style={[supportingMeta ? null : styles.row, rowStyle]}>
       {supportingMeta ? primaryButton : null}
-      {largeText ? (
+      {supportingMeta ? (
         <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8, paddingBottom: descriptionPresent ? SPACING.s4 : undefined }]}>
-          {supportingMeta ? (
-            <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-              style={[styles.bodyButton, habitRowBodyLayout(isChild, largeText)]}>
-              {primaryContent}
-            </View>
-          ) : primaryButton}
+          <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+            style={[styles.bodyButton, habitRowBodyLayout(isChild, supportingMeta)]}>
+            {primaryContent}
+          </View>
           {children}
         </View>
       ) : <>{primaryButton}{children}</>}
       {supportingMeta ? (
         <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-          style={{ flexDirection: 'row', gap: 12, paddingLeft: isChild ? SPACING.s24 : SPACING.s8, paddingBottom: SPACING.s8 }}>
-          <View style={{ width: 48 }} />
-          <View style={{ flex: 1, minWidth: 0 }}>
+          style={{ flexDirection: 'row', gap: 12, paddingLeft: isChild ? SPACING.s24 : SPACING.s8, paddingRight: SPACING.s8, paddingTop: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBottom: SPACING.s8 }}>
+          <View style={{ width: 48, flexShrink: 0 }} />
+          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+            <HabitRowTypeLabel label={typeLabel} color={metaColor} />
             <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} expanded />
           </View>
         </View>
@@ -534,8 +533,4 @@ function habitRowBodyLayout(isChild: boolean, largeText: boolean): ViewStyle {
     paddingLeft: isChild ? SPACING.s24 : SPACING.s8,
     alignItems: largeText ? 'flex-start' : 'center',
   }
-}
-
-function showSupportingMeta(largeText: boolean, childrenTotal: number): boolean {
-  return largeText && childrenTotal > 0
 }

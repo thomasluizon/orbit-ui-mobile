@@ -72,6 +72,26 @@ function assertTypeLabelBounds(type: {
   }
 }
 
+function assertSupportingTypeStack(type: {
+  row: TypeLabelRect
+  body: TypeLabelRect
+  bounds: TypeLabelRect
+  title: TypeLabelRect
+  heading: TypeLabelRect | null
+  metadata: TypeLabelRect | null
+  count: number
+  inHeading: boolean
+}, textScale: number) {
+  expect(type.count).toBe(1)
+  expect(type.inHeading).toBe(false)
+  expect(type.bounds.left).toBeCloseTo(type.title.left, 1)
+  if (textScale !== 2) return
+  expect(type.body).toEqual(type.row)
+  expect(type.bounds.top - type.heading!.bottom).toBeCloseTo(4, 1)
+  expect(type.row.bottom - (type.metadata ?? type.bounds).bottom).toBeCloseTo(8, 1)
+  if (type.metadata) expect(type.metadata.top - type.bounds.bottom).toBeCloseTo(4, 1)
+}
+
 function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[], width: number, scale: number) {
   for (const [index, control] of controls.entries()) {
     expect(control.left).toBeGreaterThanOrEqual(16)
@@ -444,7 +464,7 @@ describe('Hoje header geometry', () => {
           </div>)}
         </div>
       </NextIntlClientProvider>)
-      expect(container.querySelectorAll('[data-habit-row-heading]')).toHaveLength(textScale === 2 ? 1 : 0)
+      expect(container.querySelectorAll('[data-habit-row-heading]')).toHaveLength(textScale === 2 ? 3 : 0)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -507,7 +527,12 @@ describe('Hoje header geometry', () => {
                   return node.getBoundingClientRect().width > 0
                 }).map(box)
               })
-              return { row: box(row), body: box(row.querySelector('[data-habit-row-body]')!), typeLines, wordLineCounts, paintedControls, text: type.textContent, width: text.getBoundingClientRect().width, available: bounds.width, height: bounds.height, ellipsis: paint.textOverflow, clamp: paint.webkitLineClamp, whiteSpace: paint.whiteSpace, scrollWidth: type.scrollWidth, clientWidth: type.clientWidth, scrollHeight: type.scrollHeight, clientHeight: type.clientHeight }
+              const heading = row.querySelector('[data-habit-row-heading]')
+              const title = row.querySelector('[data-personal-text]')!
+              const metadata = row.querySelector('[data-habit-row-meta]')
+              return { row: box(row), body: box(row.querySelector('[data-habit-row-body]')!), bounds: box(type), title: box(title), heading: heading && box(heading), metadata: metadata && box(metadata),
+                count: row.querySelectorAll('[data-habit-row-type]').length, inHeading: Boolean(heading?.contains(type)),
+                typeLines, wordLineCounts, paintedControls, text: type.textContent, width: text.getBoundingClientRect().width, available: bounds.width, height: bounds.height, ellipsis: paint.textOverflow, clamp: paint.webkitLineClamp, whiteSpace: paint.whiteSpace, scrollWidth: type.scrollWidth, clientWidth: type.clientWidth, scrollHeight: type.scrollHeight, clientHeight: type.clientHeight }
             }),
             parentControls: Array.from(parent.querySelectorAll('[data-habit-row-control]')).map((control) => {
               const bounds = control.getBoundingClientRect()
@@ -548,6 +573,7 @@ describe('Hoje header geometry', () => {
         expect(geometry.progress.top).toBeGreaterThanOrEqual(geometry.progress.titleBottom)
         expect(geometry.supporting).toBe(textScale === 2)
         for (const type of geometry.types) {
+          assertSupportingTypeStack(type, textScale)
           expect(type.text).toBe(ptBr.habits.form.typeHabit)
           expect(type.height).toBeGreaterThan(0)
           expect(type.width).toBeLessThanOrEqual(type.available)

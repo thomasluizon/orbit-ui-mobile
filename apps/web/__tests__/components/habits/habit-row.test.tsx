@@ -581,6 +581,17 @@ describe('HabitRow check circle accessible name', () => {
 describe('HabitRow large text placement', () => {
   afterEach(() => document.documentElement.style.removeProperty('font-size'))
 
+  it.each([false, true])('keeps one footer type without an empty metadata strip, selecting=%s', (selectMode) => {
+    document.documentElement.style.fontSize = '32px'
+    const { container } = render(<HabitRow habit={createMockHabit({ title: 'Leaf' })} selectMode={selectMode} />)
+    expect(container.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
+    const type = container.querySelector('[data-habit-row-type]')!
+    expect(type.closest('[data-habit-row-heading]')).toBeNull()
+    expect(type.parentElement!.children).toHaveLength(1)
+    expect(container.querySelector('[data-habit-row-meta]')).toBeNull()
+    expect(container.querySelector('[data-habit-row-body]')).toHaveAccessibleName('Leaf, habits.form.typeHabit')
+  })
+
   it.each([1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ textScale, selectMode }))))(
     'activates progress once at $textScale text scale, selecting=$selectMode', ({ textScale, selectMode }) => {
       document.documentElement.style.fontSize = `${16 * textScale}px`
@@ -614,22 +625,26 @@ describe('HabitRow large text placement', () => {
     expect(screen.getByText('0 of 2').textContent).not.toContain(hint)
   })
 
-  it.each([false, true])('moves progress only above 130 percent text and restores it after resizing, selecting=%s', async (selectMode) => {
+  it.each([false, true].flatMap((parent) => [false, true].map((selectMode) => ({ parent, selectMode }))))('moves metadata only above 130 percent text and restores it after resizing, parent=$parent selecting=$selectMode', async ({ parent, selectMode }) => {
     document.documentElement.style.fontSize = '20.8px'
-    render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} selectMode={selectMode} />)
-    const progress = screen.getByText('0 of 2')
+    const metadata = parent ? '0 of 2' : '08:00'
+    render(<HabitRow habit={createMockHabit({ title: parent ? 'Parent' : 'Leaf' })} hasChildren={parent} childProgress={parent ? { done: 0, total: 2 } : undefined} meta={[metadata]} selectMode={selectMode} />)
+    const progress = screen.getByText(metadata)
     expect(progress.closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
     expect(document.querySelector('[data-habit-row-heading]')).toBeNull()
     document.documentElement.style.fontSize = '21px'
     await waitFor(() => {
       expect(document.querySelector('[data-habit-row-heading]')).not.toBeNull()
-      expect(screen.getByText('0 of 2').closest('[data-habit-row-heading]')).toBeNull()
-      expect(screen.getByText('0 of 2').closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
+      expect(document.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
+      expect(document.querySelector('[data-habit-row-type]')!.closest('[data-habit-row-heading]')).toBeNull()
+      expect(screen.getByText(metadata).closest('[data-habit-row-heading]')).toBeNull()
+      expect(screen.getByText(metadata).closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
     })
     document.documentElement.style.fontSize = '16px'
     await waitFor(() => {
       expect(document.querySelector('[data-habit-row-heading]')).toBeNull()
-      expect(screen.getByText('0 of 2').closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
+      expect(document.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
+      expect(screen.getByText(metadata).closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
     })
   })
 })

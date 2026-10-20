@@ -56,10 +56,14 @@ export function HabitRowContent({
         numberOfLines={largeText ? 2 : 1} ellipsizeMode="tail"
         style={[styles.description, { color: metaColor }]}>{description}</Text> : null}
 
-      <Text testID="habit-row-type" style={[styles.meta, { color: metaColor }]}>{t(getHabitTypeLabelKey(habit))}</Text>
+      {metaOnSupportingLine ? null : <HabitRowTypeLabel label={t(getHabitTypeLabelKey(habit))} color={metaColor} />}
       {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} />}
     </View>
   )
+}
+
+export function HabitRowTypeLabel({ label, color }: Readonly<{ label: string; color: string }>) {
+  return <Text testID="habit-row-type" style={[styles.meta, { color }]}>{label}</Text>
 }
 
 export function HabitRowMetaStrip({ metaParts, metaColor, tokens, expanded = false }: Readonly<{
