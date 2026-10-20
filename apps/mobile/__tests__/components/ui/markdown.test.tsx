@@ -93,8 +93,8 @@ function renderParsedMarkdown(content: string, tone?: Parameters<typeof Markdown
   return tree
 }
 
-const setString = vi.hoisted(() => vi.fn())
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString } }))
+const setStringAsync = vi.hoisted(() => vi.fn())
+vi.mock('expo-clipboard', () => ({ setStringAsync }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -409,9 +409,9 @@ describe('Astra block copying', () => {
     ['```sh\nprintf "<tag> & café"  \n  next\n```', ['printf "<tag> & café"  \n  next']],
     ['```\nfirst\n```\n\n    second', ['first', 'second']],
     ['A paragraph and `inline code`.', []],
-  ])('copies only reply blocks in %s and confirms each independently', (content, blocks) => {
+  ])('copies only reply blocks in %s and confirms each independently', async (content, blocks) => {
     vi.useFakeTimers()
-    setString.mockClear()
+    setStringAsync.mockClear()
     renderSelection.current = true
     let tree: ReturnType<typeof TestRenderer.create>
     try {
@@ -419,8 +419,8 @@ describe('Astra block copying', () => {
       const buttons = () => tree!.root.findAllByType('Pressable').filter((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'button')
       expect(buttons()).toHaveLength(blocks.length)
       for (const [index, text] of blocks.entries()) {
-        TestRenderer.act(() => { buttons()[index].props.onPress() })
-        expect(setString).toHaveBeenLastCalledWith(text)
+        await TestRenderer.act(async () => { await buttons()[index].props.onPress() })
+        expect(setStringAsync).toHaveBeenLastCalledWith(text)
         expect(buttons()[index].props.accessibilityLabel).toBe('chat.blockCopy.copied')
         const liveRegions = tree!.root.findAllByType('Text').filter((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')
         expect(liveRegions[index].props.children).toBe('chat.blockCopy.copied')
@@ -438,7 +438,7 @@ describe('Astra block copying', () => {
     }
   })
 
-  it('preserves copied feedback when more reply prose streams in', () => {
+  it('preserves copied feedback when more reply prose streams in', async () => {
     vi.useFakeTimers()
     renderSelection.current = true
     const content = '```\nkeep me\n```\n\nA reply'
@@ -448,7 +448,7 @@ describe('Astra block copying', () => {
       TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
       const button = tree!.root.findAllByType('Pressable')[0]
       const region = tree!.root.findAllByType('Text').find((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')
-      TestRenderer.act(() => { button.props.onPress() })
+      await TestRenderer.act(async () => { await button.props.onPress() })
       TestRenderer.act(() => { tree!.update(<MessageBubble message={{ ...message }} />) })
       expect(tree!.root.findAllByType('Pressable')[0]).toBe(button)
       TestRenderer.act(() => { tree!.update(<MessageBubble message={{ ...message, content: `${content} that continues.` }} />) })
@@ -467,7 +467,7 @@ describe('Astra block copying', () => {
   it.each([
     ['quote', '> ```\n> keep me\n> ```', '\n>\n> More prose.'],
     ['list', '- item\n\n  ```\n  keep me\n  ```', '\n\n  More prose.'],
-  ])('preserves nested %s copy feedback and attention while prose streams in', (_context, content, appended) => {
+  ])('preserves nested %s copy feedback and attention while prose streams in', async (_context, content, appended) => {
     vi.useFakeTimers()
     renderSelection.current = true
     let tree: ReturnType<typeof TestRenderer.create>
@@ -476,7 +476,7 @@ describe('Astra block copying', () => {
       TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
       const button = tree!.root.findAllByType('Pressable')[0]
       const region = tree!.root.findAllByType('Text').find((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')
-      TestRenderer.act(() => { button.props.onPress(); button.props.onFocus(); button.props.onHoverIn() })
+      await TestRenderer.act(async () => { await button.props.onPress(); button.props.onFocus(); button.props.onHoverIn() })
       TestRenderer.act(() => { tree!.update(<MessageBubble message={{ ...message, content: content + appended }} />) })
       const updatedButton = tree!.root.findAllByType('Pressable')[0]
       expect(updatedButton.props.accessibilityLabel).toBe('chat.blockCopy.copied')
@@ -498,14 +498,14 @@ describe('Astra block copying', () => {
     }
   })
 
-  it.each(['focus', 'hover'])('retains copied feedback during %s and resets after attention leaves', (attention) => {
+  it.each(['focus', 'hover'])('retains copied feedback during %s and resets after attention leaves', async (attention) => {
     vi.useFakeTimers()
     renderSelection.current = true
     let tree: ReturnType<typeof TestRenderer.create>
     try {
       TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage({ role: 'ai', content: '```\nkeep me\n```', pendingOperations: [] })} />) })
       const button = tree!.root.findAllByType('Pressable')[0]
-      TestRenderer.act(() => { button.props.onPress() })
+      await TestRenderer.act(async () => { await button.props.onPress() })
       TestRenderer.act(() => { if (attention === 'focus') button.props.onFocus(); else button.props.onHoverIn() })
       TestRenderer.act(() => { vi.advanceTimersByTime(6000) })
       expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copied')

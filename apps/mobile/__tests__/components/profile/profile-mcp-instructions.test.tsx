@@ -1,7 +1,7 @@
 import React from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { Pressable, Text } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { buildMcpConfigJson, getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { API_BASE } from '@/lib/api-base'
@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({ create: vi.fn(), clipboard: '' }))
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn((content: string) => { mocks.clipboard = content }), getString: vi.fn(() => Promise.resolve(mocks.clipboard)) } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn((content: string) => { mocks.clipboard = content }), getStringAsync: vi.fn(() => Promise.resolve(mocks.clipboard)) }))
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }))
 vi.mock('@/app/advanced-api-keys', () => ({
   useApiKeyManagement: () => ({
@@ -60,7 +60,7 @@ it('reaches the production code-client configuration and copies its JSON', async
   expect(textValues()).toContain('orbitMcp.replaceKey')
   expect(textValues()).toContain(configuration)
   await TestRenderer.act(async () => { await button('orbitMcp.copyConfig').props.onPress() })
-  expect(Clipboard.setString).toHaveBeenCalledExactlyOnceWith(configuration)
+  expect(Clipboard.setStringAsync).toHaveBeenCalledExactlyOnceWith(configuration)
   expect(JSON.parse(mocks.clipboard)).toEqual({
     mcpServers: {
       orbit: {
@@ -80,7 +80,7 @@ it('reaches the production code-client configuration and copies its JSON', async
 })
 
 it('shows a recoverable clipboard failure and permits a retry', async () => {
-  vi.mocked(Clipboard.setString).mockImplementationOnce(() => { throw new Error('clipboard unavailable') })
+  vi.mocked(Clipboard.setStringAsync).mockImplementationOnce(() => { throw new Error('clipboard unavailable') })
   renderKeys()
   TestRenderer.act(() => button('orbitMcp.claudeCode').props.onPress())
   await TestRenderer.act(async () => { await button('orbitMcp.copyConfig').props.onPress() })
@@ -99,10 +99,10 @@ it.each([[false, false], [true, false]])('keeps configuration behind the existin
 
 it('disables copying until Android confirms the clipboard content', async () => {
   let confirmCopy!: (content: string) => void
-  vi.mocked(Clipboard.getString).mockImplementationOnce(() => new Promise((resolve) => { confirmCopy = resolve }))
+  vi.mocked(Clipboard.getStringAsync).mockImplementationOnce(() => new Promise((resolve) => { confirmCopy = resolve }))
   renderKeys()
   TestRenderer.act(() => button('orbitMcp.claudeCode').props.onPress())
-  TestRenderer.act(() => button('orbitMcp.copyConfig').props.onPress())
+  await TestRenderer.act(async () => { button('orbitMcp.copyConfig').props.onPress(); await Promise.resolve() })
   expect(button('orbitMcp.copyConfig').props.disabled).toBe(true)
   expect(button('orbitMcp.copyConfig').props.onPress).toBeUndefined()
   await TestRenderer.act(async () => { confirmCopy(mocks.clipboard); await Promise.resolve() })
@@ -110,7 +110,7 @@ it('disables copying until Android confirms the clipboard content', async () => 
 })
 
 it('reports an unsuccessful native write instead of showing a false confirmation', async () => {
-  vi.mocked(Clipboard.getString).mockResolvedValueOnce('previous clipboard content')
+  vi.mocked(Clipboard.getStringAsync).mockResolvedValueOnce('previous clipboard content')
   renderKeys()
   TestRenderer.act(() => button('orbitMcp.claudeCode').props.onPress())
   await TestRenderer.act(async () => { await button('orbitMcp.copyConfig').props.onPress() })

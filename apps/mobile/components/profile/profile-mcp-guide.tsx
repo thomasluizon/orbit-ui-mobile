@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { useTranslation } from 'react-i18next'
 import { SPACING } from '@orbit/shared/theme'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
@@ -22,8 +22,8 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
     if (copyState === 'copying') return
     setCopyState('copying')
     try {
-      Clipboard.setString(endpoint)
-      const copiedText = await Clipboard.getString()
+      await Clipboard.setStringAsync(endpoint)
+      const copiedText = await Clipboard.getStringAsync()
       if (copiedText !== endpoint) throw new Error('Clipboard content mismatch')
       setCopyState('copied')
     } catch {
