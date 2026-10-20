@@ -1,11 +1,11 @@
 'use client'
 
-import type { HabitDetailSnapshots, HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
+import type { HabitDetailUpdates, HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
 import { snapshotHabitLists, restoreHabitLists } from '@/lib/habit-mutation-helpers'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { habitKeys, tagKeys, QUERY_STALE_TIMES, restoreCachedHabitDetails, updateCachedHabitDetails } from '@orbit/shared/query'
-import type { HabitDetail, HabitScheduleItem } from '@orbit/shared/types/habit'
+import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import type { Tag } from '@orbit/shared/types/tag'
 import {
   appendTag,
@@ -27,7 +27,7 @@ type TagQueryClient = ReturnType<typeof useQueryClient>
 type TagMutationContext = {
   previousLists?: ReadonlyArray<readonly [readonly unknown[], Tag[] | undefined]>
   previousHabitLists?: HabitListSnapshots
-  previousHabitDetails?: HabitDetailSnapshots
+  previousHabitDetails?: HabitDetailUpdates
   tempId?: string
 }
 
@@ -66,10 +66,12 @@ function restoreTagMutationContext(
 }
 
 async function invalidateTagMutationQueries(queryClient: TagQueryClient): Promise<void> {
-  await queryClient.invalidateQueries({ queryKey: tagKeys.all })
-  await queryClient.invalidateQueries({ queryKey: habitKeys.details() })
-  await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-  await queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: tagKeys.all }),
+    queryClient.invalidateQueries({ queryKey: habitKeys.details() }),
+    queryClient.invalidateQueries({ queryKey: habitKeys.lists() }),
+    queryClient.invalidateQueries({ queryKey: habitKeys.searches() }),
+  ])
 }
 
 function getAvailableTags(queryClient: TagQueryClient): Tag[] {
@@ -81,12 +83,12 @@ function getAvailableTags(queryClient: TagQueryClient): Tag[] {
 function updateHabitTagReferences(
   queryClient: TagQueryClient,
   updater: (tags: Tag[]) => Tag[],
-): void {
+): HabitDetailUpdates {
   queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
     { queryKey: habitKeys.lists() },
     (old) => mapHabitTagReferences(old, updater),
   )
-  updateCachedHabitDetails(queryClient, (habit) => habit.tags ? { tags: updater(habit.tags) } : {})
+  return updateCachedHabitDetails(queryClient, (habit) => habit.tags ? { tags: updater(habit.tags) } : {})
 }
 
 function appendOptimisticTag(
@@ -131,12 +133,12 @@ function setOptimisticAssignedTags(
   queryClient: TagQueryClient,
   habitId: string,
   nextTags: Tag[],
-): void {
+): HabitDetailUpdates {
   queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
     { queryKey: habitKeys.lists() },
     (old) => setHabitTags(old, habitId, nextTags),
   )
-  updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? { tags: nextTags } : {})
+  return updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? { tags: nextTags } : {})
 }
 
 export function useTags() {
@@ -203,10 +205,9 @@ export function useUpdateTag() {
 
       const previousLists = queryClient.getQueriesData<Tag[]>({ queryKey: tagKeys.lists() })
       const previousHabitLists = snapshotHabitLists(queryClient)
-      const previousHabitDetails = queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() })
 
       setOptimisticTagDetails(queryClient, tagId, name, color)
-      updateHabitTagReferences(queryClient, renameHabitTagReferences(tagId, name, color))
+      const previousHabitDetails = updateHabitTagReferences(queryClient, renameHabitTagReferences(tagId, name, color))
 
       return { previousLists, previousHabitLists, previousHabitDetails }
     },
@@ -260,10 +261,9 @@ export function useDeleteTag() {
 
       const previousLists = queryClient.getQueriesData<Tag[]>({ queryKey: tagKeys.lists() })
       const previousHabitLists = snapshotHabitLists(queryClient)
-      const previousHabitDetails = queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() })
 
       setOptimisticDeletedTag(queryClient, tagId)
-      updateHabitTagReferences(queryClient, removeHabitTagReferences(tagId))
+      const previousHabitDetails = updateHabitTagReferences(queryClient, removeHabitTagReferences(tagId))
 
       return { previousLists, previousHabitLists, previousHabitDetails }
     },
@@ -305,11 +305,10 @@ export function useAssignTags() {
       await queryClient.cancelQueries({ queryKey: habitKeys.details() })
 
       const previousHabitLists = snapshotHabitLists(queryClient)
-      const previousHabitDetails = queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() })
       const availableTags = getAvailableTags(queryClient)
       const nextTags = resolveHabitTags(availableTags, tagIds)
 
-      setOptimisticAssignedTags(queryClient, habitId, nextTags)
+      const previousHabitDetails = setOptimisticAssignedTags(queryClient, habitId, nextTags)
 
       return { previousHabitLists, previousHabitDetails }
     },

@@ -55,4 +55,4 @@ export type { DailySummaryOptions } from './daily-summary'
 export { createConfigCache } from './config-cache'
 export type { ConfigCache, ConfigSnapshot } from './config-cache'
 
-export type { HabitDetailSnapshots } from './habit-cache'
+export type { HabitDetailSnapshots, HabitDetailUpdates } from './habit-cache'

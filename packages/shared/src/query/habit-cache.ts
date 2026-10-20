@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/query-core'
+import { replaceEqualDeep } from '@tanstack/query-core'
 import type { HabitDetail, HabitDetailChild, HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import { buildOptimisticSkipPatch, optimisticSetDatedCompletion, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
@@ -292,20 +293,40 @@ export function rollbackDatedHabitLists(
 
 export type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
 
-export function restoreCachedHabitDetails(queryClient: QueryClient, snapshots: HabitDetailSnapshots): void {
-  for (const [key, detail] of snapshots) {
-    if (detail) queryClient.setQueryData(key, detail)
+export type HabitDetailUpdates = readonly {
+  queryKey: readonly unknown[]
+  previous: HabitDetail
+  optimistic: HabitDetail
+}[]
+
+export function restoreCachedHabitDetails(queryClient: QueryClient, updates: HabitDetailUpdates): void {
+  for (const { queryKey, previous, optimistic } of updates) {
+    try {
+      if (queryClient.getQueryData(queryKey) === optimistic) {
+        queryClient.setQueryData(queryKey, previous)
+      } else {
+        void queryClient.invalidateQueries({ queryKey, exact: true })
+      }
+    } catch {
+      void queryClient.invalidateQueries({ queryKey, exact: true })
+    }
   }
 }
 
 export function updateCachedHabitDetails(
   queryClient: QueryClient,
   updater: (habit: HabitDetailChild) => Partial<HabitDetail>,
-): void {
+): HabitDetailUpdates {
   function updateBranch<T extends HabitDetailChild>(habit: T): T {
     return { ...habit, ...updater(habit), children: habit.children.map(updateBranch) }
   }
-  queryClient.setQueriesData<HabitDetail>({ queryKey: habitKeys.details() }, (detail) =>
-    detail ? updateBranch(detail) : detail,
-  )
+  const updates: { queryKey: readonly unknown[]; previous: HabitDetail; optimistic: HabitDetail }[] = []
+  for (const [queryKey, detail] of queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() })) {
+    if (!detail) continue
+    const next = replaceEqualDeep(detail, updateBranch(detail))
+    if (next === detail) continue
+    const optimistic = queryClient.setQueryData<HabitDetail>(queryKey, next)
+    if (optimistic) updates.push({ queryKey, previous: detail, optimistic })
+  }
+  return updates
 }

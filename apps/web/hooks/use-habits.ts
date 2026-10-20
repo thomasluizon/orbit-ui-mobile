@@ -441,13 +441,12 @@ export function useUpdateHabit() {
       ])
 
       const previousLists = snapshotHabitLists(queryClient)
-      const previousDetails = queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() })
       const patch = buildOptimisticHabitPatch(queryClient, data)
       updateHabitLists(queryClient, (items) =>
         optimisticPatchHabit(items, habitId, patch),
       )
 
-      updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? patch : {})
+      const previousDetails = updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? patch : {})
 
       return { previousLists, previousDetails }
     },

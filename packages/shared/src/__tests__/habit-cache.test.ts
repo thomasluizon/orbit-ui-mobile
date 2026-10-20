@@ -10,14 +10,17 @@ import {
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
   invalidateHabitDependents,
+  restoreCachedHabitDetails,
   restoreCachedHabitLists,
   restoreCachedHabitSkip,
   rollbackDatedHabitLists,
+  updateCachedHabitDetails,
   updateCachedHabitLists,
   updateHabitListsForDate,
 } from '../query/habit-cache'
 import { buildOptimisticSkipPatch, optimisticPatchHabit, optimisticRemoveHabits, optimisticSetDatedCompletion, optimisticSkipMarker } from '../utils/habit-optimistic'
-import type { HabitScheduleItem } from '../types/habit'
+import type { HabitDetail, HabitScheduleItem } from '../types/habit'
+import { makeEnrichedHabitDetail } from '../test-support/habit-detail-fixtures'
 
 describe('skip undo cache', () => {
   it('retains a refetched completion and a subsequent direct rollback when the row later disappears', () => {
@@ -552,5 +555,94 @@ describe('clearCachedOptimisticSkip', () => {
     expect(queryClient.getQueryData<HabitScheduleItem[]>(otherDateKey)).toBe(untouched)
     expect(queryClient.getQueryData(emptyKey)).toBeUndefined()
     expect(queryClient.getQueryData<number>(countKey)).toBe(2)
+  })
+})
+
+
+describe('habit detail rollback ownership', () => {
+  it('tracks only changed details and restores matching nested children', () => {
+    const client = new QueryClient()
+    const original = makeEnrichedHabitDetail()
+    const other = { ...original, id: 'other', children: [] }
+    const key = habitKeys.detail(original.id)
+    const otherKey = habitKeys.detail(other.id)
+    client.setQueryData(key, original)
+    client.setQueryData(otherKey, other)
+    const untouched = client.getQueryData(otherKey)
+    const updates = updateCachedHabitDetails(client, (habit) => habit.id === 'child-1' ? { title: 'Pending' } : {})
+
+    expect(updates.map((update) => update.queryKey)).toEqual([key])
+    expect(updates[0]!.optimistic).toBe(client.getQueryData(key))
+    expect(client.getQueryData<HabitDetail>(key)?.children[0]?.title).toBe('Pending')
+    restoreCachedHabitDetails(client, updates)
+
+    expect(client.getQueryData(key)).toEqual(original)
+    expect(client.getQueryData(otherKey)).toBe(untouched)
+    expect(client.getQueryState(otherKey)?.isInvalidated).toBe(false)
+    client.clear()
+  })
+
+  it('preserves a later sibling change in a touched parent and invalidates that parent', () => {
+    const client = new QueryClient()
+    const original = makeEnrichedHabitDetail()
+    const key = habitKeys.detail(original.id)
+    client.setQueryData(key, original)
+    const updates = updateCachedHabitDetails(client, (habit) => habit.id === 'child-1' ? { title: 'Pending A' } : {})
+    const current = { ...client.getQueryData<HabitDetail>(key)!, title: 'Saved parent B' }
+    client.setQueryData(key, current)
+    restoreCachedHabitDetails(client, updates)
+
+    expect(client.getQueryData(key)).toEqual(current)
+    expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+    client.clear()
+  })
+
+  it('invalidates a removed entry without resurrecting its snapshot', () => {
+    const client = new QueryClient()
+    const original = makeEnrichedHabitDetail()
+    const key = habitKeys.detail(original.id)
+    client.setQueryData(key, original)
+    const updates = updateCachedHabitDetails(client, () => ({ title: 'Pending' }))
+    client.removeQueries({ queryKey: key, exact: true })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    restoreCachedHabitDetails(client, updates)
+
+    expect(client.getQueryData(key)).toBeUndefined()
+    expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: key, exact: true })
+    client.clear()
+  })
+
+  it('invalidates a failed restore and continues restoring the remaining touched entries', () => {
+    const client = new QueryClient()
+    const original = makeEnrichedHabitDetail()
+    const other = { ...original, id: 'other' }
+    const key = habitKeys.detail(original.id)
+    const otherKey = habitKeys.detail(other.id)
+    client.setQueryData(key, original)
+    client.setQueryData(otherKey, other)
+    const updates = updateCachedHabitDetails(client, (habit) => habit.id === 'child-1' ? { title: 'Pending' } : {})
+    const optimistic = client.getQueryData(key)
+    const write = vi.spyOn(client, 'setQueryData').mockImplementationOnce(() => { throw new Error('Cache write failed') })
+    restoreCachedHabitDetails(client, updates)
+
+    expect(client.getQueryData(key)).toBe(optimistic)
+    expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+    expect(client.getQueryData(otherKey)).toEqual(other)
+    expect(client.getQueryState(otherKey)?.isInvalidated).toBe(false)
+    write.mockRestore()
+    client.clear()
+  })
+
+  it('leaves a no-op update and an empty detail untouched', () => {
+    const client = new QueryClient()
+    const original = makeEnrichedHabitDetail()
+    const key = habitKeys.detail(original.id)
+    client.setQueryData(key, original)
+    client.getQueryCache().build(client, { queryKey: habitKeys.detail('empty') })
+    const write = vi.spyOn(client, 'setQueryData')
+    expect(updateCachedHabitDetails(client, () => ({}))).toEqual([])
+    expect(write).not.toHaveBeenCalled()
+    write.mockRestore()
+    client.clear()
   })
 })

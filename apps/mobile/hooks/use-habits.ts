@@ -1,5 +1,5 @@
 import { randomUUID } from 'expo-crypto'
-import type { HabitDetailSnapshots, HabitListSnapshots } from '@orbit/shared/query'
+import type { HabitDetailSnapshots, HabitDetailUpdates, HabitListSnapshots } from '@orbit/shared/query'
 import {
   useMutation,
   useQueryClient,
@@ -693,7 +693,7 @@ export function useUpdateHabit() {
     void | QueuedMarker,
     Error,
     { habitId: string; data: UpdateHabitRequest; dependsOn?: string[] },
-    { previousLists: HabitListSnapshots; previousDetails: HabitDetailSnapshots }
+    { previousLists: HabitListSnapshots; previousDetails: HabitDetailUpdates }
   >({
     mutationFn: async ({ habitId, data, dependsOn }) => {
       const request = validateApiRequest(data, updateHabitRequestSchema)
@@ -717,12 +717,11 @@ export function useUpdateHabit() {
       ])
 
       const previousLists = snapshotHabitLists(queryClient)
-      const previousDetails = queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() })
       const patch = buildOptimisticHabitPatch(queryClient, data)
       updateHabitLists(queryClient, (items) =>
         optimisticPatchHabit(items, habitId, patch),
       )
-      updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? patch : {})
+      const previousDetails = updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? patch : {})
 
       return { previousLists, previousDetails }
     },

@@ -1,3 +1,5 @@
+import React from 'react'
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query'
 import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -16,6 +18,8 @@ import {
   useTags,
   useUpdateTag,
 } from '@/hooks/use-tags'
+
+const TestRenderer = require('react-test-renderer')
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -89,6 +93,7 @@ const mocks = vi.hoisted(() => {
     showError: vi.fn(),
     showUndoToast: vi.fn(),
     useQuery: vi.fn(),
+    useRealQueryHooks: false,
     useQueryClient: vi.fn(() => queryClient),
     useMutation: vi.fn((config: unknown) => config),
     buildQueuedMutation: vi.fn((options) => ({
@@ -125,11 +130,16 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: mocks.useQuery,
-  useQueryClient: mocks.useQueryClient,
-  useMutation: mocks.useMutation,
-}))
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
+  return {
+    ...actual,
+    useQuery: mocks.useQuery,
+    useQueryClient: () => mocks.useRealQueryHooks ? actual.useQueryClient() : mocks.useQueryClient(),
+    useMutation: (...parameters: Parameters<typeof actual.useMutation>) => mocks.useRealQueryHooks
+      ? actual.useMutation(...parameters) : mocks.useMutation(parameters[0]),
+  }
+})
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
@@ -551,4 +561,97 @@ it.each(['rename', 'delete', 'assign'] as const)('updates detail tags and embedd
   mutation.onError?.(new Error('Tag update failed'), variables, context)
   expect(client.getQueryData(key)).toEqual(detail)
   client.clear()
+})
+
+it.each(['rename', 'delete', 'assign'] as const)('keeps B saved and refetched when tag %s on A fails', async (operation) => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  mocks.useRealQueryHooks = true
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+  const original = makeEnrichedHabitDetail()
+  original.children[0]!.tags = original.tags
+  const other = { ...makeEnrichedHabitDetail(), id: 'habit-b', tags: [], children: [] }
+  const nextTag = { id: 'tag-3', name: 'Saved B', color: '#123456' }
+  const saved = { ...other, tags: [nextTag], title: 'Saved B from server' }
+  const key = habitKeys.detail(original.id)
+  const otherKey = habitKeys.detail(other.id)
+  client.setQueryData(key, original)
+  client.setQueryData(otherKey, other)
+  client.setQueryData(tagKeys.lists(), [nextTag])
+  const refetch = vi.fn<() => Promise<HabitDetail>>().mockResolvedValueOnce(saved)
+    .mockImplementation(() => new Promise(() => {}))
+  const observer = new QueryObserver(client, { queryKey: otherKey, queryFn: refetch, staleTime: Infinity })
+  const unsubscribe = observer.subscribe(() => {})
+  let rejectFirst!: (error: Error) => void
+  mocks.queueOrExecute.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject }))
+  mocks.queueOrExecute.mockResolvedValueOnce(undefined)
+  let rename!: ReturnType<typeof useUpdateTag>
+  let remove!: ReturnType<typeof useDeleteTag>
+  let first!: ReturnType<typeof useAssignTags>
+  let second!: ReturnType<typeof useAssignTags>
+  function Probe() {
+    rename = useUpdateTag()
+    remove = useDeleteTag()
+    first = useAssignTags()
+    second = useAssignTags()
+    return null
+  }
+  let renderer: { unmount: () => void } | undefined
+  try {
+    await TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe))) })
+    await TestRenderer.act(async () => {
+      if (operation === 'rename') rename.mutate({ tagId: 'tag-1', name: 'Pending', color: '#123456' })
+      else if (operation === 'delete') remove.mutate('tag-1')
+      else first.mutate({ habitId: 'child-1', tagIds: ['tag-3'] })
+      await Promise.resolve()
+    })
+    expect(rejectFirst).toBeTypeOf('function')
+    await TestRenderer.act(() => second.mutateAsync({ habitId: other.id, tagIds: ['tag-3'] }))
+    expect(client.getQueryData(otherKey)).toEqual(saved)
+    expect(refetch).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => {
+      rejectFirst(new Error('A failed'))
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    })
+    expect([rename, remove, first].some((mutation) => mutation.isError)).toBe(true)
+    expect(client.getQueryData(otherKey)).toEqual(saved)
+    expect(client.getQueryData(key)).toEqual(original)
+  } finally {
+    await TestRenderer.act(() => { renderer?.unmount() })
+    unsubscribe()
+    mocks.useRealQueryHooks = false
+    vi.unstubAllGlobals()
+    client.clear()
+  }
+})
+
+it('refreshes restored list tags while a detail refresh is still pending', async () => {
+  const client = new QueryClient()
+  mocks.useRealQueryHooks = true
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+  mocks.queueOrExecute.mockResolvedValueOnce(undefined)
+  const original = makeEnrichedHabitDetail()
+  const listKey = habitKeys.list({})
+  const restored = [makeHabit()]
+  client.setQueryData(habitKeys.detail(original.id), original)
+  client.setQueryData(listKey, [makeHabit({ tags: [] })])
+  const detailObserver = new QueryObserver(client, { queryKey: habitKeys.detail(original.id), queryFn: () => new Promise<HabitDetail>(() => {}), staleTime: Infinity })
+  const listObserver = new QueryObserver(client, { queryKey: listKey, queryFn: () => Promise.resolve(restored), staleTime: Infinity })
+  const unsubscribeDetail = detailObserver.subscribe(() => {})
+  const unsubscribeList = listObserver.subscribe(() => {})
+  let mutation!: ReturnType<typeof useRestoreTag>
+  function Probe() { mutation = useRestoreTag(); return null }
+  let renderer: { unmount: () => void } | undefined
+  try {
+    await TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe))) })
+    await TestRenderer.act(() => mutation.mutateAsync('tag-1'))
+    expect(client.getQueryData(listKey)).toEqual(restored)
+    expect(client.getQueryState(habitKeys.detail(original.id))?.fetchStatus).toBe('fetching')
+  } finally {
+    await TestRenderer.act(() => { renderer?.unmount() })
+    unsubscribeDetail()
+    unsubscribeList()
+    mocks.useRealQueryHooks = false
+    vi.unstubAllGlobals()
+    client.clear()
+  }
 })

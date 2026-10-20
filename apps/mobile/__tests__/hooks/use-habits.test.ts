@@ -1637,6 +1637,60 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.cancelQueries).toHaveBeenCalledWith({ queryKey: habitKeys.fullDetail('habit-1') })
   })
 
+  it.each([false, true])('keeps B saved and refetched when A fails, embedded child=%s', async (embedded) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    mocks.useRealQueryHooks = true
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    const original = makeEnrichedHabitDetail()
+    const target = embedded ? original.children[0]! : original
+    const key = habitKeys.detail(original.id)
+    const otherKey = habitKeys.detail('habit-b')
+    const other = { ...makeEnrichedHabitDetail(), id: 'habit-b', title: 'Original B', children: [] }
+    const saved = { ...other, title: 'Saved B from server' }
+    client.setQueryData(key, original)
+    client.setQueryData(otherKey, other)
+    const refetch = vi.fn(() => Promise.resolve(saved))
+    const observer = new QueryObserver(client, { queryKey: otherKey, queryFn: refetch, staleTime: Infinity })
+    const unsubscribe = observer.subscribe(() => {})
+    let rejectFirst!: (error: Error) => void
+    mocks.runQueuedMutation.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject }))
+    mocks.runQueuedMutation.mockResolvedValueOnce(undefined)
+    let first!: ReturnType<typeof useUpdateHabit>
+    let second!: ReturnType<typeof useUpdateHabit>
+    function Probe() {
+      first = useUpdateHabit()
+      second = useUpdateHabit()
+      return null
+    }
+    let renderer: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe))) })
+      await TestRenderer.act(async () => {
+        first.mutate({ habitId: target.id, data: { title: 'Pending A', isBadHabit: false } })
+        await Promise.resolve()
+      })
+      expect(rejectFirst).toBeTypeOf('function')
+      const optimistic = client.getQueryData<HabitDetail>(key)!
+      expect(embedded ? optimistic.children[0]!.title : optimistic.title).toBe('Pending A')
+      await TestRenderer.act(() => second.mutateAsync({ habitId: other.id, data: { title: 'Saving B', isBadHabit: false } }))
+      expect(client.getQueryData(otherKey)).toEqual(saved)
+      expect(refetch).toHaveBeenCalledOnce()
+      await TestRenderer.act(async () => {
+        rejectFirst(new Error('A failed'))
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      })
+      expect(first.isError).toBe(true)
+      expect(client.getQueryData(otherKey)).toEqual(saved)
+      expect(client.getQueryData(key)).toEqual(original)
+    } finally {
+      await TestRenderer.act(() => { renderer?.unmount() })
+      unsubscribe()
+      mocks.useRealQueryHooks = false
+      vi.unstubAllGlobals()
+      client.clear()
+    }
+  })
+
   it.each([false, true])('updates checked and enriched detail fields before rejection, embedded child=%s', async (embedded) => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     const { useQuery: useRealQuery } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')

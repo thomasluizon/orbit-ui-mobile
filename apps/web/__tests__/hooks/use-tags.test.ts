@@ -2,7 +2,7 @@ import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail
 import { useAuthStore } from '@/stores/auth-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query'
 import React from 'react'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -88,6 +88,76 @@ beforeEach(() => {
 })
 
 describe('web tag hooks', () => {
+  it.each(['rename', 'delete', 'assign'] as const)('keeps B saved and refetched when tag %s on A fails', async (operation) => {
+    const actions = await import('@/lib/actions/tags')
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const original = makeEnrichedHabitDetail()
+    original.children[0]!.tags = original.tags
+    const other = { ...makeEnrichedHabitDetail(), id: 'habit-b', tags: [], children: [] }
+    const nextTag = { id: 'tag-3', name: 'Saved B', color: '#123456' }
+    const saved = { ...other, tags: [nextTag], title: 'Saved B from server' }
+    const key = habitKeys.detail(original.id)
+    const otherKey = habitKeys.detail(other.id)
+    queryClient.setQueryData(key, original)
+    queryClient.setQueryData(otherKey, other)
+    queryClient.setQueryData(tagKeys.lists(), [nextTag])
+    const refetch = vi.fn<() => Promise<HabitDetail>>().mockResolvedValueOnce(saved)
+      .mockImplementation(() => new Promise(() => {}))
+    const observer = new QueryObserver(queryClient, { queryKey: otherKey, queryFn: refetch, staleTime: Infinity })
+    const unsubscribe = observer.subscribe(() => {})
+    let rejectFirst!: (error: Error) => void
+    const pending = () => new Promise<void>((_resolve, reject) => { rejectFirst = reject })
+    vi.mocked(actions.updateTag).mockImplementation(pending)
+    vi.mocked(actions.deleteTag).mockImplementation(pending)
+    vi.mocked(actions.assignTags).mockImplementation((habitId) => habitId === other.id ? Promise.resolve() : pending())
+    const { result, unmount } = renderHook(() => ({ rename: useUpdateTag(), remove: useDeleteTag(), first: useAssignTags(), second: useAssignTags() }), { wrapper: createWrapper(queryClient) })
+    try {
+      act(() => {
+        if (operation === 'rename') result.current.rename.mutate({ tagId: 'tag-1', name: 'Pending', color: '#123456' })
+        else if (operation === 'delete') result.current.remove.mutate('tag-1')
+        else result.current.first.mutate({ habitId: 'child-1', tagIds: ['tag-3'] })
+      })
+      await waitFor(() => expect(rejectFirst).toBeTypeOf('function'))
+      await act(() => result.current.second.mutateAsync({ habitId: other.id, tagIds: ['tag-3'] }))
+      await waitFor(() => expect(queryClient.getQueryData(otherKey)).toEqual(saved))
+      expect(refetch).toHaveBeenCalledOnce()
+      await act(async () => { rejectFirst(new Error('A failed')) })
+      await waitFor(() => expect([result.current.rename, result.current.remove, result.current.first].some((mutation) => mutation.isError)).toBe(true))
+      expect(queryClient.getQueryData(otherKey)).toEqual(saved)
+      expect(queryClient.getQueryData(key)).toEqual(original)
+    } finally {
+      unmount()
+      unsubscribe()
+      queryClient.clear()
+    }
+  })
+
+  it('refreshes restored list tags while a detail refresh is still pending', async () => {
+    const { restoreTag } = await import('@/lib/actions/tags')
+    vi.mocked(restoreTag).mockResolvedValue(undefined)
+    const queryClient = new QueryClient()
+    const original = makeEnrichedHabitDetail()
+    const listKey = habitKeys.list({})
+    const restored = [makeHabit()]
+    queryClient.setQueryData(habitKeys.detail(original.id), original)
+    queryClient.setQueryData(listKey, [makeHabit({ tags: [] })])
+    const detailObserver = new QueryObserver(queryClient, { queryKey: habitKeys.detail(original.id), queryFn: () => new Promise<HabitDetail>(() => {}), staleTime: Infinity })
+    const listObserver = new QueryObserver(queryClient, { queryKey: listKey, queryFn: async () => restored, staleTime: Infinity })
+    const unsubscribeDetail = detailObserver.subscribe(() => {})
+    const unsubscribeList = listObserver.subscribe(() => {})
+    const { result, unmount } = renderHook(() => useRestoreTag(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync('tag-1'))
+      await waitFor(() => expect(queryClient.getQueryData(listKey)).toEqual(restored))
+      expect(queryClient.getQueryState(habitKeys.detail(original.id))?.fetchStatus).toBe('fetching')
+    } finally {
+      unmount()
+      unsubscribeDetail()
+      unsubscribeList()
+      queryClient.clear()
+    }
+  })
+
   it.each(['rename', 'delete', 'assign'] as const)('updates detail tags and embedded children on %s and rolls back failure', async (operation) => {
     const actions = await import('@/lib/actions/tags')
     let rejectWrite!: (error: Error) => void
