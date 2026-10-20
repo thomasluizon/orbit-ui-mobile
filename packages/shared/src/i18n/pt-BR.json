@@ -3469,6 +3469,7 @@
       "legend": "Legenda dos dias da sequência",
       "legendTitle": "Legenda",
       "freezes": "Congelamentos",
+      "freezesCount": "Congelamentos, {banked} de {ceiling}",
       "banked": "Guardados",
       "used": "Usados neste mês",
       "next": "Próximo congelamento",

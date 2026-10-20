@@ -241,8 +241,9 @@ function StreakRepairPanel({
     : null
 }
 
-function StreakFreezeDetails({ freeze, timeZone, longestStreak, currentStreak }: Readonly<{
+function StreakFreezeDetails({ freeze, repair, timeZone, longestStreak, currentStreak }: Readonly<{
   freeze: ReturnType<typeof useStreakFreeze>
+  repair: ReturnType<typeof useRepairStreak>
   timeZone: string | null
   longestStreak: number
   currentStreak: number
@@ -250,7 +251,6 @@ function StreakFreezeDetails({ freeze, timeZone, longestStreak, currentStreak }:
   const t = useTranslations()
   const locale = useLocale()
   const isDesktop = useIsDesktop()
-  const repair = useRepairStreak(timeZone)
   const tier = t(getStreakTierLabelKey(currentStreak))
   const repairState = deriveStreakRepairState({
     streak: freeze.streakInfo,
@@ -314,7 +314,7 @@ function StreakFreezeEntry({ loading, banked, ceiling, detailsOpen, controls, on
   const label = t('progressScreen.streak.freezes')
   const value = `${banked} / ${ceiling}`
   return (
-    <ListRow placement="column" textMode="label" title={label} accessibilityLabel={loading ? label : `${label}, ${value}`} expanded={detailsOpen} controls={controls} disabled={loading} valueHidden={loading} value={value} chevron onClick={onClick} />
+    <ListRow placement="column" textMode="label" title={label} accessibilityLabel={loading ? label : t('progressScreen.streak.freezesCount', { banked, ceiling })} expanded={detailsOpen} controls={controls} disabled={loading} valueHidden={loading} value={value} chevron onClick={onClick} />
   )
 }
 
@@ -333,6 +333,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
   const detailsId = useId()
   const timeZone = accountProfile?.timeZone ?? null
   const freeze = useStreakFreeze(accountProfile, timeZone, canView)
+  const repair = useRepairStreak(timeZone)
   const currentStreak = freeze.streakInfo?.currentStreak ?? gamificationProfile?.currentStreak ?? accountProfile?.currentStreak ?? 0
   const longestStreak = freeze.streakInfo?.longestStreak ?? gamificationProfile?.longestStreak ?? accountProfile?.longestStreak ?? 0
   const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14, timeZone ?? undefined)
@@ -374,7 +375,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
         <StreakFreezeEntry loading={loading} banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} detailsOpen={detailsOpen} controls={detailsOpen ? detailsId : undefined} onClick={(event) => { entryRef.current = event.currentTarget; setDetailsOpen(true) }} />
         {detailsOpen ? <Sheet ref={sheetRef} finalFocus={entryRef} open title={t('progressScreen.streak.freezes')} onClose={() => setDetailsOpen(false)}>
           <div id={detailsId} className="flex flex-col gap-4">
-            <StreakFreezeDetails freeze={freeze} timeZone={timeZone} longestStreak={longestStreak} currentStreak={currentStreak} />
+            <StreakFreezeDetails freeze={freeze} repair={repair} timeZone={timeZone} longestStreak={longestStreak} currentStreak={currentStreak} />
           </div>
         </Sheet> : null}
       </> : <><div className="flex flex-wrap gap-4"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}

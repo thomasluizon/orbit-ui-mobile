@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -25,6 +26,7 @@ const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items: sch
 const event = createMockCalendarSyncEvent({ title: 'Team meeting', startDate: today, startTime: '09:00', isImported: false })
 const events = calendarEventsResponseSchema.parse([event, createMockCalendarSyncEvent({ id: 'event-2', title: 'Planning', startDate: today, startTime: '13:00' }), createMockCalendarSyncEvent({ id: 'event-3', title: 'Review', startDate: today, startTime: '16:00' })])
 const notifications = notificationsResponseSchema.parse({ items: [createMockNotification({ isRead: false }), createMockNotification({ id: 'notif-2', title: 'Weekly summary', isRead: true })], unreadCount: 1 })
+const streak = streakInfoSchema.parse({ currentStreak: 7, longestStreak: 14, lastActiveDate: today, freezesUsedThisMonth: 0, freezesAvailable: 1, maxFreezesPerMonth: 3, isFrozenToday: false, recentFreezeDates: [] })
 const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
 
 async function installActionFixtures(context: BrowserContext, profile: Profile) {
@@ -35,7 +37,7 @@ async function installActionFixtures(context: BrowserContext, profile: Profile) 
     [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: schedules, logs: {} })],
     [API.goals.list, paginatedGoalResponseSchema.parse({ items: [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Walk each week', position: 1 })], page: 1, pageSize: 100, totalCount: 2, totalPages: 1 })],
     [API.gamification.profile, gamificationProfileSchema.parse(createMockGamificationProfile({ lastActiveDate: today }))],
-    [API.gamification.streak, streakInfoSchema.parse({ currentStreak: 7, longestStreak: 14, lastActiveDate: today, freezesUsedThisMonth: 0, freezesAvailable: 1, maxFreezesPerMonth: 3, isFrozenToday: false, recentFreezeDates: [] })],
+    [API.gamification.streak, streak],
     [API.habits.retrospective, retrospectiveResponseSchema.parse({ period: 'month', metrics: createMockRetrospectiveMetrics(), narrative: { highlights: 'A steady month.', missed: 'Keep reading.', trends: 'Consistent weeks.', suggestion: 'Continue.' }, fromCache: false })],
     [API.calendar.events, events],
     [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ hasGoogleConnection: true, enabled: true, status: 'Idle', lastSyncedAt: null })],
@@ -94,6 +96,7 @@ async function assertActionGeometry(page: Page, surface?: Locator) {
 for (const width of [412, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
     const messages = locale === 'en' ? en : ptBR
+    const t = createTranslator({ locale, messages })
     test.describe(`Action rows at ${width}px in ${locale}`, () => {
       const profile = profileSchema.parse({ ...profileFixture, plan: 'pro', hasProAccess: true, language: locale, googleCalendarAutoSyncEnabled: true, canViewGamification: true, marketingEmailConsent: null })
       test.use({ viewport: { width, height: 915 }, appLocale: locale, subscriptionState: 'stripe', layoutProfile: profile })
@@ -103,7 +106,7 @@ for (const width of [412, 1352]) {
         '/': '[data-testid="habit-row"]',
         '/progress': '[data-progress-screen="overview"] a[href="/progress/goals"]',
         '/progress/goals': '[data-goal-id]',
-        '/progress/streak': '[data-component="freeze-bank"]',
+        '/progress/streak': '[data-progress-streak-summary]',
         '/progress/achievements': '[data-testid="progress-xp-summary"]',
         '/profile/account': '[data-testid="profile-settings-group-account"] [data-slot="list-row-title"]',
         '/profile/preferences': '[data-testid="profile-settings-group-preferences"] [data-slot="list-row-title"]',
@@ -121,6 +124,7 @@ for (const width of [412, 1352]) {
           const inspectActions = async () => {
             const main = page.locator('#orbit-main')
             const column = page.locator('[data-shell-column]')
+            if (route === '/progress/streak') await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }).click()
             if (route !== `/habits/${habitId}`) await expect(column.locator(readySelectors[route]!).first()).toBeVisible()
             await expect(main.locator('[aria-busy="true"], .skeleton-pulse')).toHaveCount(0)
             if (route === '/habits/new') {
@@ -154,7 +158,7 @@ for (const width of [412, 1352]) {
               await expect(actions).toHaveCSS('gap', '12px')
               await assertActionGeometry(page, confirmation)
             }
-            await assertActionGeometry(page)
+            await assertActionGeometry(page, route === '/progress/streak' ? page.getByRole('dialog', { name: messages.progressScreen.streak.freezes, exact: true }) : undefined)
           }
           if (route === `/habits/${habitId}`) await inspectDestinationHeading(page, route, habit.title, inspectActions, async () => {
             await page.goto(route)

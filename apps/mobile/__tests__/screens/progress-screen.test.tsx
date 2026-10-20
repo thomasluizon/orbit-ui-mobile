@@ -1,6 +1,8 @@
 import { progressStreakNow, progressStreakStates } from '@orbit/shared/__tests__/progress-streak-fixtures'
 import { deriveStreakFreezeState } from '@orbit/shared/utils/gamification-selectors'
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createApiClientError } from '@orbit/shared'
 import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { __setScrollToImpl } from '../../test-mocks/react-native'
@@ -71,6 +73,8 @@ const mocks = vi.hoisted(() => ({
   router: { dismissTo: vi.fn(), push: vi.fn() },
   retrospectiveHook: vi.fn(),
   gamificationEnabled: vi.fn(),
+  useRealRepair: false,
+  repairRequest: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
   reorder: { mutate: vi.fn(), isPending: false, isError: false },
   drag: vi.fn(),
@@ -203,24 +207,28 @@ vi.mock('@/hooks/use-goals', () => ({
   useReorderGoals: () => mocks.reorder,
   useUpdateGoalStatus: () => mocks.updateStatus,
 }))
-vi.mock('@/hooks/use-gamification', () => ({
-  useGamificationProfile: (enabled?: boolean) => {
-    mocks.gamificationEnabled(enabled)
-    return mocks.gamification
-  },
-  useRepairStreak: () => mocks.repair,
-  useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
-    if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
-    if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
-    if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
-    return {
-      ...mocks.freeze,
-      streakInfo: null,
-      isFrozenToday: false,
-      streakQuery: { ...mocks.freeze.streakQuery, isError: false },
-    }
-  },
-}))
+vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.repairRequest(...args) }))
+vi.mock('@/hooks/use-gamification', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-gamification')>()
+  return {
+    useGamificationProfile: (enabled?: boolean) => {
+      mocks.gamificationEnabled(enabled)
+      return mocks.gamification
+    },
+    useRepairStreak: (timeZone: string | null) => mocks.useRealRepair ? actual.useRepairStreak(timeZone) : mocks.repair,
+    useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
+      if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
+      if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
+      if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
+      return {
+        ...mocks.freeze,
+        streakInfo: null,
+        isFrozenToday: false,
+        streakQuery: { ...mocks.freeze.streakQuery, isError: false },
+      }
+    },
+  }
+})
 vi.mock('@/hooks/use-retrospective', () => ({
   useProgressRetrospective: () => {
     mocks.retrospectiveHook()
@@ -727,6 +735,7 @@ describe('mobile ProgressContent', () => {
   beforeEach(() => {
     useChatStore.setState({ draft: '', contextualSuggestion: null })
     useUIStore.getState().setAstraConversationOpen(false)
+    mocks.useRealRepair = false
     theme.mode = 'dark'
     mocks.dragActive = false
     mocks.account.profile.timeZone = 'America/Sao_Paulo'
@@ -1246,6 +1255,60 @@ describe('mobile ProgressContent', () => {
     expect(text).toContain('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')
   })
 
+  it.each(['pending', 'error'] as const)('retains a real repair mutation across details dismissal while %s', async (state) => {
+    vi.setSystemTime(new Date(progressStreakNow))
+    mocks.useRealRepair = true
+    const streak = structuredClone(progressStreakStates.find(({ name }) => name === 'repair available')!.streak)
+    Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
+    let rejectRequest!: (error: Error) => void
+    mocks.repairRequest.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRequest = reject }))
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    let tree!: TestTree & { unmount: () => void }
+    await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={client}><StreakPage /></QueryClientProvider>) })
+    const openDetails = async () => {
+      const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
+      await TestRenderer.act(() => (entry.props.onPress as () => void)())
+    }
+    const repairAction = () => findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')
+    const dismissDetails = async () => {
+      const dismiss = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!
+      await TestRenderer.act(() => (dismiss.props.onPress as () => void)())
+      expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+    }
+    const flushMutation = async () => {
+      await TestRenderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)) })
+    }
+    try {
+      await openDetails()
+      await TestRenderer.act(() => (repairAction().props.onPress as () => void)())
+      const confirm = tree.root.findAll((node) => node.type === 'ConfirmSheet')[0]!
+      await TestRenderer.act(() => (confirm.props.onConfirm as () => void)())
+      await flushMutation()
+      expect(mocks.repairRequest).toHaveBeenCalledOnce()
+      expect(mocks.repairRequest.mock.calls[0]![1]).toEqual({ method: 'POST', body: JSON.stringify({ dates: ['2026-09-09'] }) })
+      const repairHost = repairAction
+      expect(repairHost().props.disabled).toBe(true)
+      expect(repairHost().props.accessibilityState).toMatchObject({ busy: true })
+      await dismissDetails()
+      if (state === 'pending') {
+        await openDetails()
+        expect(repairHost().props.disabled).toBe(true)
+        expect(repairHost().props.accessibilityState).toMatchObject({ busy: true })
+        expect(mocks.repairRequest).toHaveBeenCalledOnce()
+        await dismissDetails()
+      }
+      await TestRenderer.act(() => rejectRequest(createApiClientError(500, null, 'Repair failed')))
+      await flushMutation()
+      await openDetails()
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert').map((node) => node.props.children)).toContain('progressScreen.streak.repairError')
+      expect(repairHost().props.disabled).toBe(false)
+      expect(mocks.repairRequest).toHaveBeenCalledOnce()
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+      client.clear()
+    }
+  })
+
   it('names automatic coverage, then keeps a confirmed manual repair source-neutral', async () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
@@ -1539,7 +1602,7 @@ describe('mobile ProgressContent', () => {
       const label = (locale === 'en' ? en : ptBR).progressScreen.streak.freezes
       const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith(label))[0]!
       const expected = `${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`
-      expect(entry.props.accessibilityLabel).toBe(`${label}, ${expected}`)
+      expect(entry.props.accessibilityLabel).toBe(i18n.t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }))
       expect(entry.findAll((node) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1)
       const measured = measureProfileRow(rowHost(), Math.min(width, 740) - 32, fontScale)
       expect(measured.height).toBe(beforeHeight)

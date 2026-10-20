@@ -5,6 +5,8 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createRef } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createApiClientError } from '@orbit/shared'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -27,6 +29,8 @@ const mocks = vi.hoisted(() => ({
   router: { push: vi.fn(), replace: vi.fn() },
   retrospectiveHook: vi.fn(),
   gamificationEnabled: vi.fn(),
+  useRealRepair: false,
+  repairRequest: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
   reorder: { mutate: vi.fn(), isPending: false, isError: false },
   updateStatus: { mutate: vi.fn(), isPending: false },
@@ -151,24 +155,28 @@ vi.mock('@/hooks/use-goals', () => ({
   useReorderGoals: () => mocks.reorder,
   useUpdateGoalStatus: () => mocks.updateStatus,
 }))
-vi.mock('@/hooks/use-gamification', () => ({
-  useGamificationProfile: (enabled?: boolean) => {
-    mocks.gamificationEnabled(enabled)
-    return mocks.gamification
-  },
-  useRepairStreak: () => mocks.repair,
-  useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
-    if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
-    if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
-    if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
-    return {
-      ...mocks.freeze,
-      streakInfo: null,
-      isFrozenToday: false,
-      streakQuery: { ...mocks.freeze.streakQuery, isError: false },
-    }
-  },
-}))
+vi.mock('@/lib/actions/gamification', () => ({ repairStreakGap: (...args: unknown[]) => mocks.repairRequest(...args) }))
+vi.mock('@/hooks/use-gamification', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-gamification')>()
+  return {
+    useGamificationProfile: (enabled?: boolean) => {
+      mocks.gamificationEnabled(enabled)
+      return mocks.gamification
+    },
+    useRepairStreak: (timeZone: string | null) => mocks.useRealRepair ? actual.useRepairStreak(timeZone) : mocks.repair,
+    useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
+      if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
+      if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
+      if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
+      return {
+        ...mocks.freeze,
+        streakInfo: null,
+        isFrozenToday: false,
+        streakQuery: { ...mocks.freeze.streakQuery, isError: false },
+      }
+    },
+  }
+})
 vi.mock('@/hooks/use-retrospective', () => ({
   useProgressRetrospective: () => {
     mocks.retrospectiveHook()
@@ -802,6 +810,7 @@ describe('ProgressContent', () => {
 
   afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
+    mocks.useRealRepair = false
     mocks.usePortugueseCatalog = false
     mocks.useEnglishCatalog = false
     useChatStore.setState({ draft: '', contextualSuggestion: null })
@@ -1302,6 +1311,49 @@ describe('ProgressContent', () => {
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
   })
 
+  it.each(['pending', 'error'] as const)('retains a real repair mutation across details dismissal while %s', async (state) => {
+    vi.setSystemTime(new Date(progressStreakNow))
+    mocks.useRealRepair = true
+    holdAccount('user-1')
+    const streak = structuredClone(progressStreakStates.find(({ name }) => name === 'repair available')!.streak)
+    Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
+    let rejectRequest!: (error: Error) => void
+    mocks.repairRequest.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRequest = reject }))
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const view = render(<QueryClientProvider client={client}><StreakPage /></QueryClientProvider>)
+    const openDetails = () => fireEvent.click(screen.getByRole('button', { name: /^progressScreen\.streak\.freezes/ }))
+    const repairAction = () => screen.getByRole('button', { name: /^progressScreen\.streak\.repairAction/ })
+    const dismissDetails = async () => {
+      fireEvent.keyDown(screen.getByRole('dialog', { name: 'progressScreen.streak.freezes' }), { key: 'Escape' })
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'progressScreen.streak.freezes' })).not.toBeInTheDocument())
+    }
+    try {
+      openDetails()
+      fireEvent.click(repairAction())
+      fireEvent.click(screen.getByRole('button', { name: 'progressScreen.streak.repairConfirmAction' }))
+      await waitFor(() => expect(mocks.repairRequest).toHaveBeenCalledOnce())
+      expect(mocks.repairRequest).toHaveBeenCalledWith(['2026-09-09'], expect.anything())
+      await waitFor(() => expect(repairAction()).toBeDisabled())
+      expect(repairAction()).toHaveAttribute('aria-busy', 'true')
+      await dismissDetails()
+      if (state === 'pending') {
+        openDetails()
+        expect(repairAction()).toBeDisabled()
+        expect(repairAction()).toHaveAttribute('aria-busy', 'true')
+        expect(mocks.repairRequest).toHaveBeenCalledOnce()
+        await dismissDetails()
+      }
+      await act(async () => rejectRequest(createApiClientError(500, null, 'Repair failed')))
+      openDetails()
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.streak.repairError'))
+      expect(repairAction()).toBeEnabled()
+      expect(mocks.repairRequest).toHaveBeenCalledOnce()
+    } finally {
+      view.unmount()
+      client.clear()
+    }
+  })
+
   it('keeps goal creation off the streak detail', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
@@ -1631,7 +1683,7 @@ describe('ProgressContent', () => {
         rerender(<StreakPage />)
         await act(async () => { await Promise.resolve() })
         const entry = within(section).getByRole('button', { name: new RegExp(`^${words.progressScreen.streak.freezes}`) })
-        expect(entry).toHaveAccessibleName(`${words.progressScreen.streak.freezes}, ${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`)
+        expect(entry).toHaveAccessibleName(createTranslator({ locale, messages: words })('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }))
         expect(entry).toHaveTextContent(`${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`)
         const after = await measure()
         expect.soft(after, name).toEqual(before)
