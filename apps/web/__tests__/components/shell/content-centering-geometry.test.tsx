@@ -19,11 +19,16 @@ import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { Toast } from '@/components/ui/toast'
 import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayDateControl } from '@/app/(app)/today-shell'
+import { HabitRow } from '@/components/habits/habit-row'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { normalizeHabits } from '@orbit/shared/utils'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('@/hooks/use-habit-create-navigation-guard', () => ({ useHabitCreateNavigationGuard: () => {} }))
 vi.mock('@/components/shell/destination-shell', () => ({ useShellComposerSlot: () => {} }))
+vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 
 const windows = [320, 360, 412, 480, 840, 1100, 1352, 1440].map((width) => ({ width, height: 915 }))
   .concat([{ width: 1200, height: 1600 }, { width: 1600, height: 1200 }])
@@ -48,6 +53,34 @@ describe('page content centring and add control clearance', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 480, 740, 840, 1100, 841, 1101])('places centred columns on whole CSS pixels at %ipx', async (width) => {
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
+      <ShellWide items={[]} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}>
+        <HabitCreateFrame presentation="screen" open fromConversation={false} leaving={false} actionRefreshKey="test" onNavigate={vi.fn()} onReturn={vi.fn()}
+          actions={<HabitCreateActions presentation="screen" pending={false} empty={false} subHabit={false} online formId="create" onCancel={vi.fn()} />}>
+          <form id="create"><label>Hábito<input /></label></form>
+        </HabitCreateFrame>
+      </ShellWide>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const columns = await page.evaluate(() => [...document.querySelectorAll('[data-shell-column], [data-habit-create-screen], [data-habit-create-action]')].map(element => {
+        const bounds = element.getBoundingClientRect()
+        const parent = element.parentElement!
+        const available = parent.getBoundingClientRect()
+        const style = getComputedStyle(parent)
+        return { left: bounds.left, right: bounds.right, availableLeft: available.left + parseFloat(style.paddingLeft),
+          availableRight: available.left + parent.clientWidth - parseFloat(style.paddingRight) }
+      }))
+      expect(columns).toHaveLength(3)
+      for (const column of columns) {
+        expect.soft(Number.isInteger(column.left), JSON.stringify(column)).toBe(true)
+        expectCentred(column, { left: column.availableLeft, right: column.availableRight })
+      }
+    } finally { await page.close() }
+  })
 
   it.each([412, 1352].flatMap(width => [false, true].map(floating => ({ width, floating }))))(
     'aligns the notice with its measurable parent at $width, floating=$floating', async ({ width, floating }) => {
@@ -98,6 +131,7 @@ describe('page content centring and add control clearance', () => {
   })
 
   it.each([240, 360])('reveals complete page controls after centred scrolling at 740 by %ipx', async (height) => {
+    const habits = normalizeHabits(Array.from({ length: 12 }, (_, index) => makeHabitScheduleItem({ id: `habit-${index}`, title: 'Read a longer book chapter '.repeat(4) })))
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
       <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
         header={<div style={{ height: 48 }} />}
@@ -105,25 +139,32 @@ describe('page content centring and add control clearance', () => {
           attachWords={{ ...en.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Astra" />}
         fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
         <div style={{ height: 0.5 }} />
-        {Array.from({ length: 12 }, (_, index) => <button key={index} type="button" style={{ display: 'block', height: 48 }}>{index}</button>)}
+        <TodayDateControl dayName="Friday" numericDate="04/09/2026" isTodaySelected={false} nextDisabled={false}
+          previousLabel="Previous day" goToTodayLabel="Today" nextLabel="Next day" moreLabel="Options" searchLabel="Search"
+          selectLabel="Select" collapseLabel="Collapse" refreshLabel="Refresh" completedLabel="Completed" allCollapsed={false} showCompleted isFetching={false}
+          onGoToPreviousDay={vi.fn()} onGoToToday={vi.fn()} onGoToNextDay={vi.fn()} onSearch={vi.fn()}
+          onToggleSelect={vi.fn()} onToggleCollapse={vi.fn()} onRefresh={vi.fn()} onToggleCompleted={vi.fn()} />
+        {[...habits.values()].map(habit => <HabitRow key={habit.id} habit={habit} actions={{ onDetail: vi.fn() }} />)}
       </ShellWide>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width: 740, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
       const controls = await page.evaluate(() => {
         const scroller = document.querySelector('[data-shell-scroller]')!
         return [...scroller.querySelectorAll('button')].map(control => {
           control.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' })
           const bounds = control.getBoundingClientRect()
           const viewport = scroller.getBoundingClientRect()
-          return { top: bounds.top, bottom: bounds.bottom, viewportTop: viewport.top, viewportBottom: viewport.bottom, viewportHeight: viewport.height }
+          return { label: control.getAttribute('aria-label') ?? control.textContent, top: bounds.top, bottom: bounds.bottom, height: bounds.height, viewportTop: Math.max(0, viewport.top), viewportBottom: Math.min(innerHeight, viewport.bottom), viewportHeight: viewport.height }
         })
       })
+      expect(controls.length).toBeGreaterThanOrEqual(17)
       for (const control of controls) {
-        expect.soft(control.viewportHeight).toBeGreaterThanOrEqual(56)
-        expect.soft(control.top).toBeGreaterThanOrEqual(control.viewportTop)
-        expect.soft(control.bottom).toBeLessThanOrEqual(control.viewportBottom)
+        expect.soft(control.viewportHeight, control.label).toBeGreaterThanOrEqual(control.height + 8)
+        expect.soft(control.top, control.label).toBeGreaterThanOrEqual(control.viewportTop)
+        expect.soft(control.bottom, control.label).toBeLessThanOrEqual(control.viewportBottom)
       }
     } finally { await page.close() }
   })

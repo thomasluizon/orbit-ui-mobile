@@ -348,7 +348,7 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
 
 function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boolean, floating: boolean) {
   if (!hasBottomChrome) return { padding: '', minimum: 'min-h-0' }
-  if (floating) return { padding: "after:block after:h-24 after:content-[''] lg:after:h-8", minimum: 'min-h-14 lg:min-h-8' }
+  if (floating) return { padding: "after:block after:h-24 after:content-[''] lg:after:h-8", minimum: 'min-h-24 lg:min-h-8' }
   return reservesComposerSpace
     ? { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8' }
     : { padding: 'pb-8', minimum: 'min-h-8' }
@@ -366,14 +366,14 @@ function ShellDestinationViewport({ floating, hasHeader, hasTabBar, children }: 
   children: ReactNode
 }>) {
   const viewportRef = useRef<HTMLDivElement>(null)
-  const minimumHeight = TOUCH_TARGET_MIN + SPACING.s8 + SPACING.s64 + (hasHeader ? TOUCH_TARGET_MIN : 0) + (hasTabBar ? TAB_BAR_MIN_HEIGHT : 0)
+  const minimumHeight = SPACING.s96 + SPACING.s64 + (hasHeader ? TOUCH_TARGET_MIN : 0) + (hasTabBar ? TAB_BAR_MIN_HEIGHT : 0)
   useEffect(() => {
     const viewport = viewportRef.current
     if (!floating || !viewport) return
     const header = viewport.querySelector('[data-shell-header]')
     const tabs = viewport.querySelector('[data-shell-tab-bar]')
     const resize = () => {
-      const height = TOUCH_TARGET_MIN + SPACING.s8 + SPACING.s64 + (header?.getBoundingClientRect().height ?? 0) + (tabs?.getBoundingClientRect().height ?? 0)
+      const height = SPACING.s96 + SPACING.s64 + (header?.getBoundingClientRect().height ?? 0) + (tabs?.getBoundingClientRect().height ?? 0)
       viewport.style.setProperty('--shell-destination-min-height', `${height}px`)
     }
     const observer = new ResizeObserver(resize)
@@ -434,7 +434,7 @@ function ShellWideBackground({
       {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
 
       <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:px-8">
-        <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+        <div data-shell-column="" className="orbit-centred-column relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
           <ShellDestinationViewport floating={props.fab !== undefined} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
             className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>

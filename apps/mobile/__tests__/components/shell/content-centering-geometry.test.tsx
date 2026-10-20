@@ -12,6 +12,8 @@ import { Shell412 } from '@/components/shell/shell-412'
 import { Composer } from '@/components/shell/composer'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
+import { TodayDateControl } from '@/components/today/today-date-control'
+import { SPACING } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -21,8 +23,9 @@ vi.mock('react-native-safe-area-context', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-native-safe-area-context')>(),
   useSafeAreaInsets: () => ({ ...safeArea, left: 0, right: 0 }),
 }))
+vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 
-const windows = [320, 360, 412, 480, 840, 1100, 1352, 1440].map((width) => ({ width, height: 915 }))
+const windows = [320, 360, 412, 480, 740, 840, 1100, 1352, 1440].map((width) => ({ width, height: 915 }))
   .concat([{ width: 1200, height: 1600 }, { width: 1600, height: 1200 }])
 const tokens = createTokensV2()
 const stats = [
@@ -36,6 +39,23 @@ afterEach(() => {
   __setScrollToImpl(() => {})
   safeArea.top = 0
   safeArea.bottom = 0
+})
+
+it.each([412, 480, 740, 840, 841, 1100, 1101])('places native shell and create columns on whole points at %ipx', async (width) => {
+  const viewport = { width, height: 915 }
+  __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
+  let tree!: GeometryTree
+  await act(() => { tree = create(<HabitCreateFrame presentation="screen" open fromConversation={false} leaving={false}>
+    <View testID="form" style={{ height: 100 }} />
+  </HabitCreateFrame>) as GeometryTree })
+  try {
+    const boxes = measureSafeArea(tree.toJSON(), host => host.props.testID, viewport)
+    for (const key of ['shell-background', 'form']) {
+      const column = boxes.get(key)!
+      expect(Number.isInteger(column.left), key).toBe(true)
+      expect(Math.abs(column.left + column.width / 2 - width / 2), key).toBeLessThanOrEqual(0.5)
+    }
+  } finally { await act(() => tree.unmount()) }
 })
 
 it.each(windows)('centres Todos actions, calendar navigation and figures at $width by $height', async (viewport) => {
@@ -93,6 +113,37 @@ it.each(windows)('keeps the floating add target outside every scrolling control 
     expect(fab.top).toBeGreaterThanOrEqual(control.bottom)
     const band = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab-band')[0]!
     expect(StyleSheet.flatten(band.props.style as StyleProp<ViewStyle>).position).toBe('absolute')
+  } finally { await act(() => tree.unmount()) }
+})
+
+it.each([240, 360])('reserves room for complete Hoje controls at 740 by %ipx', async (height) => {
+  const viewport = { width: 740, height }
+  __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
+  let tree!: GeometryTree
+  await act(() => { tree = create(<Shell412 header={<View style={{ height: 48 }} />}
+    composer={<Composer state="idle" value="Ler" suggestions={[]} words={ptBR.shell.composer}
+      onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
+      attachWords={{ ...ptBR.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Astra" />}
+    fab={<Fab label="Criar" onClick={vi.fn()}>+</Fab>} tabBar={<View style={{ height: 80 }} />}>
+    <TodayDateControl dayName="Sexta-feira" numericDate="04/09/2026" isTodaySelected={false} nextDisabled={false}
+      previousLabel="Anterior" goToTodayLabel="Hoje" nextLabel="Próximo" moreLabel="Opções" searchLabel="Buscar"
+      selectLabel="Selecionar" collapseLabel="Recolher" refreshLabel="Atualizar" completedLabel="Concluídos" allCollapsed={false} showCompleted isFetching={false}
+      onGoToPreviousDay={vi.fn()} onGoToToday={vi.fn()} onGoToNextDay={vi.fn()} onSearch={vi.fn()}
+      onToggleSelect={vi.fn()} onToggleCollapse={vi.fn()} onRefresh={vi.fn()} onToggleCompleted={vi.fn()} />
+  </Shell412>) as GeometryTree })
+  try {
+    const shell = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-412')[0]!
+    const reportLayout = shell.props.onLayout as (event: Pick<LayoutChangeEvent, 'nativeEvent'>) => void
+    await act(() => reportLayout({ nativeEvent: { layout: { x: 0, y: 0, ...viewport } } }))
+    const boxes = measureSafeArea(tree.toJSON(), host => host.props.accessibilityLabel ?? host.props.testID, viewport)
+    const scroller = boxes.get('shell-scroller')!
+    expect(scroller.bottom - scroller.top).toBeGreaterThanOrEqual(SPACING.s96)
+    const date = boxes.get('Sexta-feira, 04/09/2026, Hoje')!
+    expect(scroller.bottom - scroller.top).toBeGreaterThanOrEqual(date.bottom - date.top + SPACING.s8)
+    const background = boxes.get('shell-background')!
+    expect(Number.isInteger(background.left)).toBe(true)
+    const fab = boxes.get('Criar')!
+    expect(fab.top).toBeGreaterThanOrEqual(scroller.bottom)
   } finally { await act(() => tree.unmount()) }
 })
 

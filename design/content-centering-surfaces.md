@@ -80,8 +80,10 @@ the destination itself scrolls inside those insets. Android reuses FlowViewport;
 uses the destination viewport. Header and tab measurements retain taller chrome, and both
 tab bars share their unchanged 80px minimum through `TAB_BAR_MIN_HEIGHT`.
 
-The page scroller retains a 56px minimum: a 48px control plus 8px of focus clearance. This
-also keeps fractional scroll offsets from clipping a control when it scrolls to the centre.
+The page scroller retains a 96px minimum so the date title and numeric date, and a two-line
+habit-row control, fit with focus clearance when scrolled to the centre. The bottom viewport
+yields height before the page region, and the destination viewport scrolls when both minimums
+and the measured header and tabs exceed the window.
 Wide web removes the destination viewport from layout and resets its overflow to visible.
 Notices keep a measurable parent column with or without the floating target, including when
 the wide shell no longer needs the bottom viewport.
@@ -109,3 +111,13 @@ remain unchanged. Header back controls retain their shell inset and stable hydra
 Calendar figures retain equal tracks, start-aligned values and single-line captions at default
 text size. Habit creation retains its responsive submit cap and the explanation below it,
 centred at compact width and aligned to the submit start at wider widths.
+
+The web shell and habit-create columns round their leading margin down to a whole CSS pixel,
+retaining their widths and keeping opposite margins within one pixel, including odd window
+widths. Android's Yoga layout retains its native point rounding. The centring suites check
+412, 480, 740, 840 and 1100, plus odd widths 841 and 1101.
+
+The create disclosure has no scale under reduced motion, including its starting style. Its
+checklist test mounts HabitFormFields inside HabitCreateFrame and ShellWide, opens the real
+details control and pauses the entrance at its first frame. It requires the exact 8px gap in
+both themes. The ordinary entrance and exit retain their existing scale and opacity treatment.

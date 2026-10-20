@@ -124,15 +124,15 @@ function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, saf
   const [headerHeight, setHeaderHeight] = useState<number>(hasHeader ? TOUCH_TARGET_MIN : 0)
   const [tabBarHeight, setTabBarHeight] = useState<number>(hasTabBar ? TAB_BAR_MIN_HEIGHT : 0)
   const minimumFlowHeight = safeTop + TOUCH_TARGET_MIN + BUTTON_SIZES.md.height + safeBottom
-  const minimumDestinationHeight = headerHeight + SPACING.s64 + tabBarHeight
+  const minimumDestinationHeight = headerHeight + SPACING.s96 + SPACING.s64 + tabBarHeight
   const constrainedFlow = !navigationEnabled && height !== null && height < minimumFlowHeight
   const constrainedDestination = navigationEnabled && hasFab && height !== null
-    && height - safeTop - safeBottom < minimumDestinationHeight + TOUCH_TARGET_MIN + SPACING.s8
+    && height - safeTop - safeBottom < minimumDestinationHeight
   return {
     setHeight, setHeaderHeight, setTabBarHeight,
     scrollable: !navigationEnabled || constrainedDestination,
     constrained: constrainedFlow || constrainedDestination,
-    minimumHeight: navigationEnabled ? minimumDestinationHeight + SPACING.s8 : minimumFlowHeight,
+    minimumHeight: navigationEnabled ? minimumDestinationHeight - TOUCH_TARGET_MIN : minimumFlowHeight,
     outerInsets: constrainedDestination ? { paddingTop: safeTop, paddingBottom: safeBottom } : undefined,
     innerInsets: constrainedDestination ? { top: 0, bottom: 0 } : { top: safeTop, bottom: safeBottom },
     relaxedScroller: !navigationEnabled && !constrainedFlow,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   },
   scroller: {
     flex: 1,
-    minHeight: TOUCH_TARGET_MIN + SPACING.s8,
+    minHeight: SPACING.s96,
   },
   scrollToTop: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center', zIndex: zLayers.sticky },
   flowScroller: { minHeight: 0 },
