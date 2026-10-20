@@ -148,10 +148,7 @@ export function subscribeAnalyticsOptOut(listener: () => void): () => void {
 }
 
 export async function setAnalyticsOptOut(next: boolean): Promise<void> {
-  try {
-    localStorage.setItem(PREFERENCE_KEY, String(next))
-  } catch {
-  }
+  localStorage.setItem(PREFERENCE_KEY, String(next))
   optedOut = next
   preferenceListeners.forEach((listener) => listener())
   await applyPostHogGate(serverEnabled)
