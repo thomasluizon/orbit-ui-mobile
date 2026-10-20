@@ -1,6 +1,8 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider, focusManager, onlineManager } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
+import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { finalizeHabitMutation } from '@/lib/habit-mutation-helpers'
 import { useHabits, useTotalHabitCount } from '@/hooks/use-habit-queries'
@@ -23,6 +25,29 @@ afterEach(() => {
 })
 
 describe('habit request budget on mobile', () => {
+  it.each([false, true])('observes cached habits without fetching with a warm list=%s', async (warm) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const habit = createMockHabitScheduleItem()
+    if (warm) queryClient.setQueryData(habitKeys.list({}), [habit])
+    let title: string | undefined
+    function DetailCache() {
+      title = useHabits({}, { enabled: false }).data?.habitsById.get(habit.id)?.title
+      return null
+    }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<QueryClientProvider client={queryClient}><DetailCache /></QueryClientProvider>)
+    })
+    try {
+      expect(title).toBe(warm ? habit.title : undefined)
+      await TestRenderer.act(async () => { await queryClient.invalidateQueries({ queryKey: habitKeys.lists() }) })
+      expect(mocks.apiClient).not.toHaveBeenCalled()
+    } finally {
+      TestRenderer.act(() => tree!.unmount())
+      queryClient.clear()
+    }
+  })
+
   it('counts Today requests for a 450-habit account across focus, reconnect, log, and skip', async () => {
     const date = formatAPIDate(new Date())
     let now = Date.now()
