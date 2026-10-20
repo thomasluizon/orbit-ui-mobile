@@ -7,6 +7,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { formatPrice } from '@orbit/shared/utils'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { subscriptionStatusSchema } from '@orbit/shared/types/profile'
 import { billingDetailsSchema } from '@orbit/shared/types/subscription'
@@ -62,6 +63,38 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 375, 412, 480].flatMap((w
         expect.soft(text, JSON.stringify(text)).toMatchObject({ clipped: false, outside: false, ellipsis: false })
         if (scale === 1) expect.soft(text.lines, text.label!).toBe(1)
       }
+    }
+  } finally { await page.close() }
+})
+
+it.each(['en', 'pt-BR'].flatMap((locale) => ['light', 'dark'].flatMap((mode) => [320, 360, 384, 412, 740].flatMap((width) => [1, 2].map((scale) => ({ locale, mode, width, scale }))))))('keeps the billed charge and reference readable in $locale $mode at $width, scale $scale', async ({ locale, mode, width, scale }) => {
+  const t = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+  const page = await browser.newPage({ viewport: { width, height: 2000 } })
+  try {
+    for (const interval of ['monthly', 'yearly']) {
+      const discounted = billingDetailsSchema.parse({ ...billing, interval, billedAmountPerPeriod: 3992, recentInvoices: [] })
+      const markup = renderToStaticMarkup(<main style={{ padding: 16 }}><BillingDashboard state="stripe" billing={discounted} status={status} locale={locale} usagePercent={0} usageUrgent={false} onOpenPortal={vi.fn()} onRetryPortal={vi.fn()} t={t} /></main>)
+      await page.setContent(`<html class="${mode}"><style>${stylesheet}:root { font-size: ${16 * scale}px }</style>${markup}</html>`)
+      await loadAppFonts(page)
+      const price = await page.evaluate(({ charge, reference }) => {
+        const line = [...document.querySelectorAll('p')].find((element) => element.textContent.includes(charge) && element.textContent.includes(reference))
+        if (!line) return null
+        const range = document.createRange(); range.selectNodeContents(line)
+        const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
+        const figures = [...line.querySelectorAll('span')].map((element) => ({ color: getComputedStyle(element).color, decoration: getComputedStyle(element).textDecorationLine }))
+        return { lines: new Set(fragments.map((rect) => Math.round(rect.top))).size,
+          clipped: line.scrollWidth > line.clientWidth || line.scrollHeight > line.clientHeight,
+          outside: fragments.some((rect) => rect.left < 16 - 1 || rect.right > innerWidth - 16 + 1),
+          figures }
+      }, { charge: formatPrice(3992, 'brl'), reference: formatPrice(billing.amountPerPeriod, 'brl') })
+      expect(price).not.toBeNull()
+      expect(price).toMatchObject({ clipped: false, outside: false, figures: [{ decoration: 'none' }, { decoration: 'none' }] })
+      if (scale === 1) expect(price?.lines).toBe(1)
+      const colors = await page.evaluate(() => ['--fg-1', '--fg-3'].map((token) => {
+        const probe = document.createElement('span'); probe.style.color = `var(${token})`; document.body.append(probe)
+        const color = getComputedStyle(probe).color; probe.remove(); return color
+      }))
+      expect(price?.figures.map((figure) => figure.color)).toEqual(colors)
     }
   } finally { await page.close() }
 })

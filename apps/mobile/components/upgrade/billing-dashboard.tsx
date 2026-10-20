@@ -40,16 +40,22 @@ function invoiceReason(reason: string, t: UpgradeTextFn) {
   return labels[reason] ?? reason
 }
 
-function planPrice(data: BillingDetails | null, t: UpgradeTextFn) {
+function planPrice(data: BillingDetails | null, t: UpgradeTextFn, tokens: Tokens) {
   if (!data?.currency) return null
   const price = formatPrice(data.amountPerPeriod, data.currency)
+  if (data.interval !== 'monthly' && data.interval !== 'yearly') return null
+  if (data.billedAmountPerPeriod != null && data.billedAmountPerPeriod !== data.amountPerPeriod) {
+    const charge = formatPrice(data.billedAmountPerPeriod, data.currency)
+    return <Text key="price" style={[styles.billingMeta, { color: tokens.fg2 }]}>
+      <Text style={{ color: tokens.fg1 }}>{t(data.interval === 'yearly' ? 'upgrade.billing.plan.yearlyCharge' : 'upgrade.billing.plan.monthlyCharge', { price: charge })}</Text>
+      {' · '}
+      <Text style={{ color: tokens.fg3 }}>{t('upgrade.billing.plan.planReference', { price })}</Text>
+    </Text>
+  }
   if (data.interval === 'yearly') {
     return t('upgrade.billing.plan.yearlyPrice', { price })
   }
-  if (data.interval === 'monthly') {
-    return t('upgrade.billing.plan.monthlyPrice', { price })
-  }
-  return null
+  return t('upgrade.billing.plan.monthlyPrice', { price })
 }
 
 function PlanDetails({ status, data, locale, t, tokens }: Readonly<{
@@ -61,7 +67,7 @@ function PlanDetails({ status, data, locale, t, tokens }: Readonly<{
   tokens: Tokens
 }>) {
   const summary = subscriptionSummary(status, data)
-  const price = status.isLifetimePro ? null : planPrice(data, t)
+  const price = status.isLifetimePro ? null : planPrice(data, t, tokens)
   const renewal = summary.renewal ? t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) }) : null
   return <PlanSummaryCard planLabel={t(summary.nameKey)}
     body={t(summary.bodyKey, { limit: status.aiMessagesLimit })}
