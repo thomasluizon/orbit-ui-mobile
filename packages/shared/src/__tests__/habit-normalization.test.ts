@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { HabitDetail, HabitScheduleChild, HabitScheduleItem } from '../types/habit'
-import { habitDetailChildSchema, habitScheduleChildSchema } from '../types/habit'
-import { makeHabitDetailChild, makeHabitScheduleItem } from '../test-support/habit-detail-fixtures'
+import { habitDetailSchema, habitDetailChildSchema, habitFullDetailSchema, habitScheduleChildSchema, habitScheduleItemSchema, normalizedHabitSchema } from '../types/habit'
+import { normalizeHabitDetailForDrill } from '../utils/drill-navigation'
+import { makeHabitDetail, makeHabitDetailChild, makeHabitScheduleItem } from '../test-support/habit-detail-fixtures'
 import type { Goal } from '../types/goal'
 import {
   applyLinkedGoalUpdates,
@@ -316,5 +317,33 @@ describe('habitDetailToNormalized', () => {
   it('does not include the children property on the result', () => {
     const result = habitDetailToNormalized(makeHabitDetail())
     expect('children' in result).toBe(false)
+  })
+})
+
+describe('habit creation anchor contract', () => {
+  it.each(['OneTime', 'Recurring', 'Flexible', 'General'] as const)('preserves the optional creation fields for %s responses', (schedule) => {
+    const fields = { startDate: '2026-08-28', schedule }
+    const child = { ...makeHabitDetailChild(), ...fields }
+    const detail = { ...makeHabitDetail(), ...fields, children: [child] }
+    const item = makeHabitScheduleItem(fields)
+    item.children = item.children.map((entry) => ({ ...entry, ...fields, children: [{ ...entry, ...fields, id: 'grandchild', children: [] }] }))
+    expect(habitDetailSchema.parse(detail)).toMatchObject({ ...fields, children: [fields] })
+    expect(habitDetailChildSchema.parse(child)).toMatchObject(fields)
+    expect(habitScheduleItemSchema.parse(item)).toMatchObject({ ...fields, children: [{ ...fields, children: [fields] }] })
+    expect(habitScheduleChildSchema.parse(item.children[0])).toMatchObject(fields)
+    const normalized = normalizeHabitQueryData([item]).habitsById
+    for (const habit of normalized.values()) expect(normalizedHabitSchema.parse(habit)).toMatchObject(fields)
+    const drill = normalizeHabitDetailForDrill(detail, '2026-08-29')
+    expect(drill.parent).toMatchObject(fields)
+    expect(drill.childrenByParent.get(detail.id)?.[0]).toMatchObject(fields)
+    expect(habitFullDetailSchema.parse({ habit: detail, metrics: { currentStreak: 0, longestStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 0, totalCompletions: 0, lastCompletedDate: null }, logs: [] }).habit).toMatchObject(fields)
+  })
+
+  it('accepts older responses and rejects malformed creation fields', () => {
+    const detail = makeHabitDetail()
+    expect(habitDetailSchema.parse(detail)).not.toHaveProperty('startDate')
+    expect(habitDetailSchema.parse(detail)).not.toHaveProperty('schedule')
+    expect(habitDetailSchema.safeParse({ ...detail, startDate: '2026-08-28T00:00:00Z' }).success).toBe(false)
+    expect(habitDetailSchema.safeParse({ ...detail, schedule: 'Daily' }).success).toBe(false)
   })
 })

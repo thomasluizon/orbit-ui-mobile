@@ -10,7 +10,7 @@ import { queryClient, restoreQueryCache, setQueryCacheScope, QUERY_CACHE_VERSION
 import { AccessibilityInfo, StyleSheet, View, type TextStyle, type ViewStyle } from 'react-native'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApiClientError, formatAPIDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { createApiClientError, formatAPIDate, formatLocaleDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -25,6 +25,7 @@ import {
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { StatusRing } from '@/components/ui/status-ring'
+import { DateRow } from '@/components/ui/date-row'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
@@ -766,6 +767,19 @@ describe('HabitDetailScreen', () => {
     const opened = tree.root.findAllByType('ListRow').find((node: TestNode) => node.props.title === 'habits.detail.moreDetails')!
     expect(opened.props).toMatchObject({ icon: 'chevron-down', chevron: false, expanded: true })
     expect(opened.findAllByType('Pressable')[0]!.props.accessibilityState).toMatchObject({ expanded: true })
+  })
+
+  it.each([
+    ['2026-08-20', 'Aug 20, 2026'],
+    ['2026-08-28', 'Aug 28, 2026'],
+    [undefined, formatLocaleDate('2026-08-29T00:30:00Z', 'en', { dateStyle: 'medium' })],
+  ])('shows the API start date %s in the detail row with legacy timestamp compatibility', async (startDate, expected) => {
+    mocks.detail = { ...makeDetail(), startDate, createdAtUtc: '2026-08-29T00:30:00Z' }
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const row = tree.root.findAll((node) => node.type === DateRow)[0]!
+    expect(row.findAll((node) => (node.type as unknown) === 'Text' && node.props.children === expected)).toHaveLength(1)
+    await TestRenderer.act(() => tree.update(<></>))
   })
 
   it('opens Creation controls seeded from the habit in one disclosure', () => {

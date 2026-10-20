@@ -252,6 +252,7 @@ export {
   toggleHabitDaySelection,
   releaseHabitPhraseOwnership,
   requestHabitFormProposal,
+  getHabitDisplayStartDate,
   resolveHabitStartDate,
   shouldShowHabitAstraFallback,
   isValidHabitTimeInput,

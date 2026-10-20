@@ -176,6 +176,8 @@ export function normalizeDrillDetailChild(
     endDate: child.endDate ?? '',
     position: child.position ?? 0,
     checklistItems: child.checklistItems,
+    startDate: child.startDate,
+    schedule: child.schedule,
     createdAtUtc: child.createdAtUtc ?? '',
     createdAtUtcIsInherited: child.createdAtUtc === undefined,
     parentId,

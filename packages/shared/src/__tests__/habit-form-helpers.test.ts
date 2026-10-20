@@ -19,6 +19,7 @@ import {
   createHabitFormSuggestionRevision,
   formatHabitReminderLabel,
   formatHabitTimeInput,
+  getHabitDisplayStartDate,
   getHabitFormFlags,
   habitFeaturePlan,
   hasHabitFormProposal,
@@ -38,6 +39,17 @@ import {
 } from '../utils/habit-emoji-options'
 
 describe('habit form helpers', () => {
+  it.each([
+    ['2026-08-20', '2026-08-20'],
+    ['2026-08-28', '2026-08-28'],
+    [undefined, '2026-08-29T00:30:00Z'],
+  ])('resolves display start date %s without converting the API calendar day', (startDate, expected) => {
+    expect(getHabitDisplayStartDate({
+      startDate,
+      createdAtUtc: '2026-08-29T00:30:00Z',
+    })).toBe(expected)
+  })
+
   it('normalizes missing habit form values', () => {
     expect(normalizeHabitFormData({ title: 'Exercise' })).toMatchObject({
       title: 'Exercise',

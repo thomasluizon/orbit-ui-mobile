@@ -160,6 +160,8 @@ it.each(['single', 'multi', 'pickList'])('announces one acting reason outside An
   expect(live).toHaveLength(1)
   expect(live[0]!.findAll(node => ['radio', 'checkbox', 'button'].includes(node.props.accessibilityRole as string))).toHaveLength(0)
   expect(live[0]!.props.children).toBe(kind === 'pickList' ? 'Preparando a prévia' : words.acting)
+  expect(tree.root.findAll(node => node.props.importantForAccessibility === 'no-hide-descendants'
+    && node.findAll(child => child === live[0]).length > 0)).toHaveLength(0)
   await renderer.act(() => finish({ ok: true }))
   expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(0)
 })
