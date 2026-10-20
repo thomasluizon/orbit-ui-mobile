@@ -1853,6 +1853,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     scroll-behavior: auto !important;
   }
 
+  .habit-row [data-habit-row-body],
+  .habit-row [data-personal-text-content] {
+    transition-duration: 0s !important;
+  }
+
   .orbit-essential-loading {
     animation-duration: 3s !important;
     animation-iteration-count: infinite !important;
