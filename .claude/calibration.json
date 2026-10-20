@@ -145,7 +145,7 @@
       "effort": null,
       "digest": "c239be82f067d11e",
       "calibratedAt": "2026-10-20",
-      "verdict": "undeclared, inherits the session: it selects disposable eval fixtures, interprets behavior and incomplete trace evidence, and extends the capability corpus; that judgment stays with the calling session."
+      "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,

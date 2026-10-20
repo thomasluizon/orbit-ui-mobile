@@ -134,3 +134,30 @@ it('keeps the Web guide reachable after visiting Code', () => {
   TestRenderer.act(() => button('orbitMcp.claudeCode').props.onPress())
   expect(textValues()).toContain(buildMcpConfigJson(getMcpEndpointUrl(API_BASE)))
 })
+
+it.each(['code', 'web'])('waits for the native %s write and allows retry after rejection', async (client) => {
+  renderKeys()
+  TestRenderer.act(() => button(client === 'code' ? 'orbitMcp.claudeCode' : 'orbitMcp.connectionInstructions').props.onPress())
+  const label = client === 'code' ? 'orbitMcp.copyConfig' : 'orbitMcp.copy'
+  const error = client === 'code' ? 'orbitMcp.configCopyError' : 'orbitMcp.copyError'
+  const endpoint = getMcpEndpointUrl(API_BASE)
+  const expected = client === 'code' ? buildMcpConfigJson(endpoint) : endpoint
+  vi.mocked(Clipboard.getStringAsync).mockClear()
+  vi.mocked(Clipboard.setStringAsync).mockRejectedValueOnce(new Error('Clipboard unavailable'))
+  await TestRenderer.act(async () => { button(label).props.onPress(); await Promise.resolve() })
+  expect(textValues()).toContain(error)
+  expect(textValues()).not.toContain('orbitMcp.copied')
+  expect(Clipboard.getStringAsync).not.toHaveBeenCalled()
+  let finishWrite!: (written: boolean) => void
+  const write = new Promise<boolean>((resolve) => { finishWrite = resolve })
+  vi.mocked(Clipboard.setStringAsync).mockReturnValueOnce(write)
+  await TestRenderer.act(async () => { button(label).props.onPress(); await Promise.resolve() })
+  expect(Clipboard.setStringAsync).toHaveBeenLastCalledWith(expected)
+  expect(button(label).props.disabled).toBe(true)
+  expect(Clipboard.getStringAsync).not.toHaveBeenCalled()
+  expect(textValues()).not.toContain('orbitMcp.copied')
+  await TestRenderer.act(async () => { mocks.clipboard = expected; finishWrite(true); await write })
+  expect(textValues()).toContain('orbitMcp.copied')
+  expect(textValues()).not.toContain(error)
+  expect(Clipboard.getStringAsync).toHaveBeenCalledTimes(1)
+})

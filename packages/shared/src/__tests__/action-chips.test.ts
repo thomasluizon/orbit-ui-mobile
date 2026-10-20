@@ -47,8 +47,9 @@ const EXPECTED_ACTION_LABEL_KEYS = {
     success: 'chat.action.reorderedHabits',
     failed: 'chat.action.reorderHabitsFailed',
   },
+  UnlogHabit: { success: undefined, failed: 'chat.action.failedNamed' },
 } as const satisfies Readonly<Record<AiActionType, Readonly<{
-  success: string
+  success: string | undefined
   failed: string
 }>>>
 

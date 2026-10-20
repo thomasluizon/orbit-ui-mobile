@@ -6,6 +6,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { Check, Copy } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { captureError } from '@/lib/sentry'
 import { createTokensV2 } from '@/lib/theme'
 
 export function DescriptionCopyButton({ description }: Readonly<{ description: string }>) {
@@ -23,7 +24,8 @@ export function DescriptionCopyButton({ description }: Readonly<{ description: s
       await Clipboard.setStringAsync(description)
       const copiedDescription = await Clipboard.getStringAsync()
       setStatus(copiedDescription === description ? 'copied' : 'error')
-    } catch {
+    } catch (error) {
+      captureError(error)
       setStatus('error')
     }
   }

@@ -1,3 +1,6 @@
+import { buildCalendarDayMap } from '../utils/habits'
+import { formatAPIDate, parseAPIDate } from '../utils/dates'
+import type { CalendarDayEntry } from '../types/calendar'
 import type { QueryClient } from '@tanstack/query-core'
 import type { HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
@@ -208,6 +211,18 @@ function findTodayHabitList(queryClient: QueryClient, date: string, requireFresh
 
 export function getTodayHabitList(queryClient: QueryClient, date: string): HabitScheduleItem[] | undefined {
   return findTodayHabitList(queryClient, date, false)
+}
+
+export function getCachedCalendarDayMap(queryClient: QueryClient, from: string, to: string): Map<string, CalendarDayEntry[]> {
+  const dayMap = new Map<string, CalendarDayEntry[]>()
+  const date = parseAPIDate(from)
+  while (formatAPIDate(date) <= to) {
+    const day = formatAPIDate(date)
+    const habits = getTodayHabitList(queryClient, day)
+    if (habits) dayMap.set(day, buildCalendarDayMap({ habits, logs: {} }, { from: day, to: day }).get(day) ?? [])
+    date.setDate(date.getDate() + 1)
+  }
+  return dayMap
 }
 
 export function checkTodayAllDoneOrDefer(

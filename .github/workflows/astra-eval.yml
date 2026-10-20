@@ -28,11 +28,15 @@ jobs:
       ORBIT_EVAL_SECOND_HABIT_ID: ${{ secrets.ORBIT_EVAL_SECOND_HABIT_ID }}
       ORBIT_EVAL_OVERDUE_DATE: ${{ secrets.ORBIT_EVAL_OVERDUE_DATE }}
       ORBIT_EVAL_RESET_SCRIPT_CONTENT: ${{ secrets.ORBIT_EVAL_RESET_SCRIPT_CONTENT }}
-      ORBIT_EVAL_RESET_SCRIPT: ${{ runner.temp }}/astra-reset.sh
-      PROMPTFOO_CONFIG_DIR: ${{ runner.temp }}/astra-promptfoo
       PROMPTFOO_DISABLE_TELEMETRY: '1'
       PROMPTFOO_DISABLE_SHARING: '1'
     steps:
+      - name: Set eval temporary paths
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          printf 'ORBIT_EVAL_RESET_SCRIPT=%s/astra-reset.sh\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'PROMPTFOO_CONFIG_DIR=%s/astra-promptfoo\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:

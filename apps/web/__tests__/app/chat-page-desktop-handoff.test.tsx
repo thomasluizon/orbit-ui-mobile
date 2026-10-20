@@ -42,7 +42,7 @@ const mocks = vi.hoisted(() => ({
     handleFileSelect: vi.fn(),
     removeImage: vi.fn(),
     composerProps: {
-      words: { placeholder: 'placeholder', send: 'send', actions: 'actions', suggestionsLabel: 'live suggestions' },
+      words: { placeholder: 'placeholder', send: 'send', clear: 'clear', actions: 'actions', suggestionsLabel: 'live suggestions' },
       state: 'idle' as const, value: '', onChangeValue: vi.fn(), onSend: vi.fn(),
       suggestions: [] as { id: string; label: string; onSelect: () => void }[],
     },
