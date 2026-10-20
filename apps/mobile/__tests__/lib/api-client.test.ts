@@ -4,6 +4,8 @@ import { habitDetailSchema } from '@orbit/shared/types/habit'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { proactiveItemSchema } from '@orbit/shared/types'
+import { proactiveApiResponses } from '@orbit/shared/__tests__/factories'
 
 import { apiClient, apiClientWithAuthorizingToken } from '@/lib/api-client'
 import { API } from '@orbit/shared/api'
@@ -70,6 +72,29 @@ vi.mock('expo-router', () => ({
 vi.stubGlobal('fetch', fetchMock)
 
 describe('mobile apiClient', () => {
+  it.each(proactiveApiResponses)('accepts serialized $trigger facts from the current-item endpoint', async (response) => {
+    getTokenMock.mockResolvedValue('test-token')
+    fetchMock.mockResolvedValue(Response.json(response))
+    await expect(apiClient(API.proactive.current, {}, proactiveItemSchema)).resolves.toEqual(response)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves null facts and the no-current-item response', async () => {
+    getTokenMock.mockResolvedValue('test-token')
+    const response = { ...proactiveApiResponses[0], facts: null }
+    fetchMock.mockResolvedValueOnce(Response.json(response))
+    await expect(apiClient(API.proactive.current, {}, proactiveItemSchema)).resolves.toEqual(response)
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    await expect(apiClient(API.proactive.current, {}, proactiveItemSchema)).resolves.toBeUndefined()
+  })
+
+  it.each([1, true, {}, null])('rejects malformed proactive facts trigger %j', async (trigger) => {
+    getTokenMock.mockResolvedValue('test-token')
+    const response = proactiveApiResponses[0]!
+    fetchMock.mockResolvedValue(Response.json({ ...response, facts: { ...response.facts, trigger } }))
+    await expect(apiClient(API.proactive.current, {}, proactiveItemSchema)).rejects.toMatchObject({ status: 502, code: 'INVALID_RESPONSE_SCHEMA' })
+  })
+
   it('does not show a throttle toast for an empty retrospective on repeated requests', async () => {
     getTokenMock.mockResolvedValue('token')
     fetchMock.mockResolvedValue(new Response(JSON.stringify({

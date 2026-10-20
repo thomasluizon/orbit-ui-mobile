@@ -1,3 +1,4 @@
+import { habitDetailSchema } from '../types/habit'
 import type { HabitDetail, HabitScheduleItem, NormalizedHabit } from '../types/habit'
 
 export function makeHabitDetailChild(): HabitDetail['children'][number] {
@@ -23,7 +24,7 @@ export function makeHabitDetailChild(): HabitDetail['children'][number] {
   }
 }
 
-export function makeHabitDetail(): HabitDetail {
+export function makeHabitDetail(): Omit<HabitDetail, 'linkedGoals' | 'slipAlertEnabled' | 'tags'> {
   return {
     ...makeHabitDetailChild(),
     id: 'habit-1',
@@ -123,4 +124,23 @@ export function makeHabitDetailScopedParent(): NormalizedHabit {
     tags: [{ id: 'tag-1', name: 'Focus', color: '#123456' }],
     linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
   }
+}
+
+export function makeEnrichedHabitDetail(): HabitDetail {
+  return habitDetailSchema.parse({
+    ...makeHabitDetail(),
+    isBadHabit: true,
+    linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
+    slipAlertEnabled: true,
+    tags: [{ id: 'tag-1', name: 'Focus', color: '#123456' }],
+    children: [{
+      ...makeHabitDetailChild(),
+      tags: [{ id: 'tag-2', name: 'Health', color: '#123456' }],
+      reminderEnabled: true,
+      reminderTimes: [15],
+      scheduledReminders: [{ when: 'same_day', time: '08:00:00' }],
+      relativeReminders: [{ minutesBefore: 30 }],
+      slipAlertEnabled: true,
+    }],
+  })
 }

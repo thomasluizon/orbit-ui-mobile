@@ -8,8 +8,10 @@ import {
 } from '../types/habit'
 import { syncChangesV2ResponseSchema } from '../types/sync'
 import { buildEditHabitFormState } from '../utils/habit-form-state'
-import { buildHabitDetailReminderRows } from '../utils/habit-detail-flow'
-import { normalizeHabits } from '../utils/habit-normalization'
+import { buildHabitDetailReminderRows, mergeHabitDetailWithScopedHabit } from '../utils/habit-detail-flow'
+import { habitDetailToNormalized, normalizeHabits } from '../utils/habit-normalization'
+import { normalizeHabitDetailForDrill } from '../utils/drill-navigation'
+import { createMockHabit } from './factories'
 import wire from '../test-support/fixtures/habit-reminder-wire.json'
 
 const canonical = ['same_day', 'day_before']
@@ -51,6 +53,33 @@ describe('serialized reminder response boundaries', () => {
     const child = { ...wire.HabitScheduleChildItem, id: 'child', reminderEnabled: true }
     const parent = habitScheduleItemSchema.parse({ ...wire.HabitScheduleItem, children: [child] })
     expect(normalizeHabits([parent]).get('child')).toMatchObject({ ...clocks, reminderEnabled: true })
+  })
+
+  it.each([false, true])('retains decoded clocks and own-detail authority with populated relationships: %s', (populated) => {
+    const tags = [{ id: 'tag', name: 'Tag', color: '#123456' }]
+    const linkedGoals = [{ id: 'goal', title: 'Goal' }]
+    const ownFields = {
+      tags: populated ? tags : [],
+      linkedGoals: populated ? linkedGoals : [],
+      slipAlertEnabled: populated,
+    }
+    const child = { ...wire.HabitChildResponse, id: 'child', tags: ownFields.tags }
+    const detail = habitDetailSchema.parse({
+      ...wire.HabitDetailResponse,
+      ...ownFields,
+      children: [{ ...child, children: [{ ...child, id: 'grandchild' }] }],
+    })
+    const expected = { ...clocks, ...ownFields, reminderEnabled: false }
+    const stale = createMockHabit({ tags, linkedGoals, slipAlertEnabled: true })
+    expect(habitDetailToNormalized(detail)).toMatchObject(expected)
+    expect(mergeHabitDetailWithScopedHabit(detail, stale, detail.dueDate)).toMatchObject(expected)
+    const drill = normalizeHabitDetailForDrill(detail, detail.dueDate)
+    expect(drill.parent).toMatchObject(expected)
+    for (const parentId of [detail.id, child.id]) {
+      expect(drill.childrenByParent.get(parentId)?.[0]).toMatchObject({
+        ...clocks, tags: ownFields.tags, reminderEnabled: false, reminderTimes: [], slipAlertEnabled: false,
+      })
+    }
   })
 
   it('keeps previous-day labels, editor selection and clock deduplication', () => {
