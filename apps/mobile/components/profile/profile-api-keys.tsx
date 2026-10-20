@@ -33,6 +33,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { apiClient } from '@/lib/api-client'
 import { API_BASE } from '@/lib/api-base'
+import { captureError } from '@/lib/sentry'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
@@ -256,7 +257,8 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
     try {
       await Clipboard.setStringAsync(createdKey.key)
       setCopied(true)
-    } catch {
+    } catch (error) {
+      captureError(error)
       setCopied(false)
     }
   }

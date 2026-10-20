@@ -14,6 +14,7 @@ import { Check, Copy } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { useReferral } from '@/hooks/use-referral'
+import { captureError } from '@/lib/sentry'
 import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
@@ -180,7 +181,8 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
       setFailedAction(null)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
+    } catch (error) {
+      captureError(error)
       setFailedAction('copy')
     }
   }, [referralUrl, t])
