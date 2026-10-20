@@ -908,7 +908,7 @@
       "endTimeBeforeStartTime": "O horário final precisa ser depois do inicial",
       "invalidTime": "Horário inválido (use HH:MM, de 00:00 a 23:59)",
       "goals": "Metas",
-      "goalInvitation": "Dê uma meta ao hábito",
+      "goalInvitation": "Crie uma meta para este hábito",
       "createGoal": "Criar meta",
       "searchGoals": "Buscar metas",
       "selectedCount": "{count, plural, =0 {# selecionadas} one {# selecionada} other {# selecionadas}}",
