@@ -20,13 +20,13 @@ describe('ActionRow', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<ActionRow><View style={{ flexDirection: 'column' }}><ActionRow><ConditionalActions /></ActionRow></View></ActionRow>) })
     const rows = tree.root.findAll((node: any) => node.type === 'View' && node.props.testID === 'action-row')
     expect(rows).toHaveLength(2)
-    expect(rows[1].props.style).toEqual(expect.objectContaining({ flexDirection: 'row', gap: 12, justifyContent: 'flex-end' }))
+    expect(StyleSheet.flatten(rows[1].props.style)).toEqual(expect.objectContaining({ flexDirection: 'row', gap: 12, justifyContent: 'flex-end' }))
   })
   it('owns trailing alignment, wrapping, a twelve pixel gap and one small size through compositions', () => {
     let tree: any
     TestRenderer.act(() => { tree = TestRenderer.create(<ActionRow><ConditionalActions /></ActionRow>) })
     const row = tree.root.findByProps({ testID: 'action-row' })
-    expect(row.props.style).toEqual(expect.objectContaining({
+    expect(StyleSheet.flatten(row.props.style)).toEqual(expect.objectContaining({
       justifyContent: 'flex-end', flexDirection: 'row', flexWrap: 'wrap', gap: 12, width: '100%',
     }))
     expect(tree.root.findAllByType('Pressable').map((button: any) => button.props.testID)).toEqual(['button-ghost-sm', 'button-primary-sm'])

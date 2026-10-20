@@ -18,6 +18,18 @@ const habits = [0, 1, 2].map((position) => makeHabitScheduleItem({
   children: [], hasSubHabits: false, scheduledDates: [selectedDate], dueDate: selectedDate,
 }))
 
+async function centredContentLeft(frame: Locator) {
+  // WHY: #1570 retains the 592px frame and 16px child inset while centring in the usable scroller. https://github.com/thomasluizon/orbit-tickets/issues/1570
+  const bounds = await frame.evaluate((element) => {
+    const frame = element.getBoundingClientRect()
+    const scroller = element.closest<HTMLElement>('[data-shell-scroller]')!
+    const left = scroller.getBoundingClientRect().left
+    return { left: frame.left, before: frame.left - left, after: left + scroller.clientWidth - frame.right }
+  })
+  expect(Math.abs(bounds.before - bounds.after)).toBeLessThanOrEqual(0.5)
+  return bounds.left + 16
+}
+
 async function assertRowEdge(row: Locator, expectedLeft: number, expectedWidth: number) {
   await expect(row).toBeVisible()
   const bounds = await row.evaluate((element) => {
@@ -59,9 +71,10 @@ for (const locale of ['en', 'pt-BR'] as const) {
       const accountRow = page.getByTestId('profile-settings-group-you').locator('.orbit-row-list > div').first()
       await expect(accountRow).toContainText(profile.name)
       await page.evaluate(() => document.fonts.ready)
-      await assertRowEdge(accountRow, todayLeft, contentWidth)
+      const profileLeft = width < 1024 ? todayLeft : await centredContentLeft(groups)
+      await assertRowEdge(accountRow, profileLeft, contentWidth)
       expect(await groups.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(contentWidth + 32, 0)
-      for (const panel of await groups.locator('.orbit-row-list').all()) await assertRowEdge(panel, todayLeft, contentWidth)
+      for (const panel of await groups.locator('.orbit-row-list').all()) await assertRowEdge(panel, profileLeft, contentWidth)
       if (width === 600 || width === 840) {
         const bellInset = await page.locator('[data-root-notification-header]').evaluate((element) =>
           element.getBoundingClientRect().left + 16)
@@ -76,9 +89,10 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await expect(firstRow).toBeVisible()
         await expect(group.locator('[aria-busy="true"]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
-        await assertRowEdge(firstRow, todayLeft, contentWidth)
+        const groupLeft = width < 1024 ? todayLeft : await centredContentLeft(group)
+        await assertRowEdge(firstRow, groupLeft, contentWidth)
         expect(await group.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(contentWidth + 32, 0)
-        if (screen === 'astra') await assertRowEdge(group.getByTestId('astra-allowance-panel'), todayLeft, contentWidth)
+        if (screen === 'astra') await assertRowEdge(group.getByTestId('astra-allowance-panel'), groupLeft, contentWidth)
         const back = page.getByRole('button', { name: words.common.backToProfile })
         await expect(back).toBeVisible()
         const backLeft = await back.evaluate((element) => element.getBoundingClientRect().left)

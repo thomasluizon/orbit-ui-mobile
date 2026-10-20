@@ -141,13 +141,58 @@ describe('ShellWide', () => {
     )
     const bottom = container.querySelector('[data-shell-bottom]')
     const pinnedSlot = container.querySelector('[data-shell-pinned-slot]')
-    const column = pinnedSlot?.parentElement ?? null
+    const column = pinnedSlot?.closest<HTMLElement>('[data-shell-bottom] > div') ?? null
     expect(column).toHaveStyle({ maxWidth: '740px' })
     expect(column).toContainElement(container.querySelector('[data-shell-notice]'))
     expect(column).toContainElement(container.querySelector('[data-shell-fab]'))
     expect(bottom).toContainElement(column)
     expect(bottom).not.toHaveClass('max-w-[740px]')
-    expect(bottom).toHaveClass('pb-[var(--safe-bottom)]')
+    expect(container.querySelector('[data-shell-destination-viewport]')?.parentElement).toHaveClass('pb-[var(--safe-bottom)]')
+  })
+
+  it.each([412, 480, 840, 1100, 1352])('preserves composer focus, its clear action and expanded menu across FAB changes at %ipx', async (width) => {
+    media.width = width
+    const onChangeValue = vi.fn()
+    const onSend = vi.fn()
+    function DraftComposer() {
+      const [draft, setDraft] = useState('Keep this draft')
+      return <Composer state="idle" value={draft} onChangeValue={value => { onChangeValue(value); setDraft(value) }} onSend={onSend} suggestions={[]}
+        words={{ placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
+        onAttachFile={vi.fn()} attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }} />
+    }
+    const composer = <DraftComposer />
+    const shell = (floating: boolean) => <ShellWide astraRow={{ label: 'Astra', onOpen: vi.fn() }} items={items} activeId="hoje" navLabel="Main navigation"
+      composer={composer} tabBar={<nav>Tabs</nav>}
+      fab={floating ? <button type="button">Create</button> : undefined} />
+    const { rerender } = render(shell(true))
+    const input = screen.getByRole('textbox')
+    act(() => input.focus())
+    for (const floating of [false, true]) {
+      rerender(shell(floating))
+      expect(screen.getByRole('textbox')).toBe(input)
+      expect(input).toHaveValue('Keep this draft')
+      expect(input).toHaveFocus()
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Clear message' }))
+    expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('')
+    expect(input).toHaveValue('')
+    expect(input).toHaveFocus()
+    expect(onSend).not.toHaveBeenCalled()
+    fireEvent.change(input, { target: { value: 'Keep this draft' } })
+    const trigger = screen.getByRole('button', { name: 'Attach' })
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    const menu = await screen.findByRole('menu', { name: 'Attach' })
+    const item = within(menu).getByRole('menuitem', { name: 'Document' })
+    act(() => item.focus())
+    expect(item).toHaveFocus()
+    for (const floating of [false, true]) {
+      rerender(shell(floating))
+      expect(screen.getByRole('textbox', { hidden: true })).toBe(input)
+      expect(screen.getByRole('menu', { name: 'Attach' })).toBe(menu)
+      expect(input.closest('[data-composer-root]')).toContainElement(trigger)
+      expect(trigger).toHaveAttribute('aria-expanded', 'true')
+      expect(item).toHaveFocus()
+    }
   })
 
   it('keeps the wide pinned slot inside the existing content column', () => {

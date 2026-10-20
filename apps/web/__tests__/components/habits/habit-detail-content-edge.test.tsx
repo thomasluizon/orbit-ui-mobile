@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ back: vi.fn(), replace: 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined, isError: mocks.isError, refetch: vi.fn() }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 
-const cases = [412, 840, 1200, 1600].flatMap((width) => (['pt-BR', 'en'] as const).flatMap((locale) =>
+const cases = [320, 412, 480, 840, 1100, 1200, 1352, 1600].flatMap((width) => (['pt-BR', 'en'] as const).flatMap((locale) =>
   [false, true].map((isError) => ({ width, locale, isError })),
 ))
 
@@ -45,7 +45,10 @@ describe('habit detail frame content edge in Chromium', () => {
         const style = getComputedStyle(content)
         const bounds = content.getBoundingClientRect()
         const paddingLeft = Number.parseFloat(style.paddingLeft)
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
         return {
+          columnCenter: scroller.getBoundingClientRect().left + scroller.clientWidth / 2,
+          contentCenter: bounds.left + bounds.width / 2,
           calendarWidth: document.querySelector('[data-testid="month-grid-days"]')?.getBoundingClientRect().width,
           availableWidth: document.querySelector<HTMLElement>('[data-shell-scroller]')!.clientWidth,
           contentLeft: bounds.left + paddingLeft,
@@ -54,6 +57,7 @@ describe('habit detail frame content edge in Chromium', () => {
         }
       })
       expect(Math.abs(geometry.contentLeft - geometry.backLeft)).toBeLessThanOrEqual(0.5)
+      expect(geometry.contentCenter).toBeCloseTo(geometry.columnCenter, 0)
       expect(geometry.contentWidth).toBeGreaterThan(0)
       expect(geometry.contentWidth).toBe(Math.min(geometry.availableWidth - 32, 620))
       if (!isError) expect(geometry.calendarWidth).toBe(geometry.contentWidth)

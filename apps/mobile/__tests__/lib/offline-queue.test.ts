@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
+import type { SQLInputValue } from 'node:sqlite'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 import { buildQueuedMutation, cancelScheduledFlush, flushQueuedMutations, queueOrExecute } from '@/lib/offline-mutations'
 
 import {
+  claimLegacyAccount,
   clear,
+  discardLegacy,
   count,
   dequeue,
   enqueue,
@@ -13,6 +16,7 @@ import {
   incrementRetries,
   replaceEntityReferences,
   remove,
+  retainAccount,
   subscribeQueueCount,
   update,
 } from '@/lib/offline-queue'
@@ -51,104 +55,51 @@ vi.mock('@/stores/offline-sync-store', () => ({
   useOfflineSyncStore: { getState: () => ({ addDrop: vi.fn() }) },
 }))
 
-interface StoredRow {
-  id: string
-  timestamp: number
-  type: string
-  endpoint: string
-  method: string
-  payload: string
-  retries: number
-  max_retries: number
-  meta: string | null
-}
-
-const { storedRows, withTransactionSyncMock } = vi.hoisted(() => ({
-  storedRows: new Map<string, StoredRow>(),
-  withTransactionSyncMock: vi.fn((task: () => void) => {
-    task()
-  }),
-}))
+const { database, withTransactionSyncMock } = await vi.hoisted(async () => {
+  const { DatabaseSync } = await import('node:sqlite')
+  const database = new DatabaseSync(':memory:')
+  database.exec(`CREATE TABLE mutation_queue (
+    id TEXT PRIMARY KEY NOT NULL, timestamp INTEGER NOT NULL, type TEXT NOT NULL,
+    endpoint TEXT NOT NULL, method TEXT NOT NULL, payload TEXT,
+    retries INTEGER NOT NULL DEFAULT 0, max_retries INTEGER NOT NULL DEFAULT 3
+  ); INSERT INTO mutation_queue VALUES
+    ('legacy-first', 1, 'setName', '/api/profile/name', 'PUT', '{"name":"First"}', 0, 3),
+    ('legacy-later', 2, 'setName', '/api/profile/name', 'PUT', '{"name":"Later"}', 1, 3);`)
+  return {
+    database,
+    withTransactionSyncMock: vi.fn((task: () => void) => {
+      database.exec('BEGIN')
+      try { task(); database.exec('COMMIT') }
+      catch (error) { database.exec('ROLLBACK'); throw error }
+    }),
+  }
+})
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: { getState: () => ({ isAuthenticated: true, user: { userId: 'account-a' } }), subscribe: () => () => {} },
 }))
 
-vi.mock('expo-sqlite', () => {
-  const columns = [{ name: 'meta' }]
+vi.mock('expo-sqlite', () => ({
+  openDatabaseSync: () => ({
+    execSync: (sql: string) => database.exec(sql),
+    runSync: (sql: string, params: SQLInputValue[] = []) => { database.prepare(sql).run(...params) },
+    getAllSync: (sql: string, params: SQLInputValue[] = []) => database.prepare(sql).all(...params),
+    getFirstSync: (sql: string, params: SQLInputValue[] = []) => database.prepare(sql).get(...params) ?? null,
+    withTransactionSync: withTransactionSyncMock,
+  }),
+}))
 
-  return {
-    openDatabaseSync: () => ({
-      execSync: (sql: string) => {
-        if (sql.includes('DELETE FROM mutation_queue')) {
-          storedRows.clear()
-        }
-      },
-      getAllSync: <T,>(sql: string) => {
-        if (sql.startsWith('PRAGMA table_info')) {
-          return columns as T[]
-        }
-        if (sql.startsWith('SELECT * FROM mutation_queue')) {
-          return Array.from(storedRows.values()).sort((a, b) => a.timestamp - b.timestamp) as T[]
-        }
-        return [] as T[]
-      },
-      runSync: (sql: string, params: unknown[] = []) => {
-        if (sql.startsWith('INSERT OR REPLACE INTO mutation_queue')) {
-          const [
-            id,
-            timestamp,
-            type,
-            endpoint,
-            method,
-            payload,
-            retries,
-            maxRetries,
-            meta,
-          ] = params as [
-            string,
-            number,
-            string,
-            string,
-            string,
-            string,
-            number,
-            number,
-            string | null,
-          ]
-
-          storedRows.set(id, {
-            id,
-            timestamp,
-            type,
-            endpoint,
-            method,
-            payload,
-            retries,
-            max_retries: maxRetries,
-            meta,
-          })
-          return
-        }
-
-        if (sql === 'DELETE FROM mutation_queue' || sql.startsWith('DELETE FROM mutation_queue WHERE account_id IS ?')) {
-          storedRows.clear()
-          return
-        }
-
-        if (sql.startsWith('DELETE FROM mutation_queue WHERE id = ?')) {
-          storedRows.delete(String(params[0]))
-        }
-      },
-      getFirstSync: <T,>(sql: string) => {
-        if (sql.startsWith('SELECT COUNT(*) as cnt')) {
-          return { cnt: storedRows.size } as T
-        }
-        return null as T
-      },
-      withTransactionSync: withTransactionSyncMock,
-    }),
-  }
+it('marks every shipped-schema row as legacy and hides it until the persisted account claims it', () => {
+  expect(getAll()).toEqual([])
+  expect(count()).toBe(0)
+  expect(database.prepare('SELECT id, owner_state, account_id FROM mutation_queue ORDER BY timestamp').all()).toEqual([
+    { id: 'legacy-first', owner_state: 'legacy', account_id: null },
+    { id: 'legacy-later', owner_state: 'legacy', account_id: null },
+  ])
+  claimLegacyAccount('account-a')
+  expect(getAll()).toMatchObject([{ id: 'legacy-first', retries: 0 }, { id: 'legacy-later', retries: 1 }])
+  claimLegacyAccount('account-b')
+  expect(count()).toBe(2)
 })
 
 let mutationSequence = 0
@@ -187,26 +138,45 @@ describe('mobile offline queue', () => {
 
   it('preserves a retired persisted operation without assigning current metadata', () => {
     const retiredType = ['delete', 'User', 'Fact'].join('')
-    storedRows.set('retired-scope-row', {
-      id: 'retired-scope-row',
-      timestamp: Date.now(),
-      type: retiredType,
-      endpoint: ['/api/user', '-facts/retired'].join(''),
-      method: 'DELETE',
-      payload: 'null',
-      retries: 0,
-      max_retries: 3,
-      meta: JSON.stringify({
-        scope: ['user', 'Facts'].join(''),
-        entityType: ['user', 'Fact'].join(''),
-      }),
-    })
+    database.prepare(`INSERT INTO mutation_queue
+      (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id, owner_state)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      'retired-scope-row', Date.now(), retiredType, ['/api/user', '-facts/retired'].join(''),
+      'DELETE', 'null', 0, 3, JSON.stringify({
+        scope: ['user', 'Facts'].join(''), entityType: ['user', 'Fact'].join(''),
+      }), 'account-a', 'account',
+    )
 
     expect(getAll()[0]).toEqual(expect.objectContaining({
       type: retiredType,
       scope: undefined,
       entityType: undefined,
     }))
+  })
+
+  it('keeps legacy rows quarantined across compaction and prunes them instead of adopting them', () => {
+    database.prepare(`INSERT INTO mutation_queue
+      (id, timestamp, type, endpoint, method, payload)
+      VALUES (?, ?, ?, ?, ?, ?)`).run('legacy-name', 1, 'setName', '/api/profile/name', 'PUT', '{"name":"Private"}')
+    enqueue(makeMutation({ id: 'owned-create' }))
+    update('legacy-name', { payload: { name: 'Changed' } })
+    remove('legacy-name')
+    expect(getAll().map((mutation) => mutation.id)).toEqual(['owned-create'])
+    expect(count()).toBe(1)
+    expect(database.prepare("SELECT owner_state FROM mutation_queue WHERE id = 'legacy-name'").get())
+      .toEqual({ owner_state: 'legacy' })
+    retainAccount('account-a')
+    expect(database.prepare("SELECT id FROM mutation_queue WHERE id = 'legacy-name'").get()).toBeUndefined()
+    expect(getAll().map((mutation) => mutation.id)).toEqual(['owned-create'])
+  })
+
+  it('discards only legacy rows when an unclaimed session ends', () => {
+    database.prepare(`INSERT INTO mutation_queue
+      (id, timestamp, type, endpoint, method, payload)
+      VALUES (?, ?, ?, ?, ?, ?)`).run('legacy-name', 1, 'setName', '/api/profile/name', 'PUT', '{"name":"Private"}')
+    enqueue(makeMutation({ id: 'owned-create' }))
+    discardLegacy()
+    expect(database.prepare('SELECT id FROM mutation_queue').all()).toEqual([{ id: 'owned-create' }])
   })
 
   it('rewrites the queue inside a single transaction so a crash cannot drop it', () => {

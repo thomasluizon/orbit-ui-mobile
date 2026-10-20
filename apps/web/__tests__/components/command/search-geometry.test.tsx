@@ -294,8 +294,10 @@ describe('search result geometry in Chromium', () => {
         }
       })
       expect(measured.rows).toHaveLength(count)
-      expect(measured.field.left).toBe(16)
-      expect(measured.field.right).toBe(Math.min(width, 620) - 16)
+      // WHY: #1570 centres the retained search column. https://github.com/thomasluizon/orbit-tickets/issues/1570
+      const columnLeft = (width - Math.min(width, 620)) / 2
+      expect(measured.field.left).toBe(columnLeft + 16)
+      expect(measured.field.right).toBe(columnLeft + Math.min(width, 620) - 16)
       expect(measured.documentWidth).toBe(width)
       for (const row of measured.rows) {
         expect(row.left, JSON.stringify(measured)).toBe(measured.field.left)
