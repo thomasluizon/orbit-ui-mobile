@@ -1,3 +1,5 @@
+import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
+import { habitScheduleChildSchema } from '@orbit/shared/types/habit'
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import {
@@ -111,7 +113,7 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
 
 function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
   return {
-    ...makeHabit(overrides),
+    ...makeHabit(),
     isLoggedInRange: false,
     instances: [],
     children: [],
@@ -457,6 +459,21 @@ describe('habit mutation helper builders', () => {
 })
 
 describe('optimisticMoveHabitParent', () => {
+  it('retains decoded child reminders while moving between parents and the top level', () => {
+    const child = habitScheduleChildSchema.parse({ ...reminderWire.HabitScheduleChildItem, id: 'child', reminderEnabled: false })
+    const parent = makeHabit({ id: 'parent', children: [child], hasSubHabits: true })
+    const target = makeHabit({ id: 'target' })
+    const nested = optimisticMoveHabitParent([parent, target], 'child', 'target')
+    expect(nested[1]?.children[0]).toMatchObject({
+      reminderEnabled: false, scheduledReminders: [{ when: 'same_day' }, { when: 'day_before' }],
+      relativeReminders: [{ when: 'same_day' }, { when: 'day_before' }],
+    })
+    const promoted = optimisticMoveHabitParent(nested, 'child', null)
+    expect(promoted.find((habit) => habit.id === 'child')).toMatchObject({
+      reminderEnabled: false, scheduledReminders: child.scheduledReminders, relativeReminders: child.relativeReminders,
+    })
+  })
+
   it('moves a child habit to the top level and reindexes the list', () => {
     const movingChild = makeChild({
       id: 'child-1',

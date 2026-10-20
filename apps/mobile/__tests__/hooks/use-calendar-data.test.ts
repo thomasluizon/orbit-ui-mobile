@@ -1,3 +1,4 @@
+import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { habitKeys } from '@orbit/shared/query'
@@ -264,4 +265,14 @@ describe('useCalendarData (mobile)', () => {
       mocks.useRealQueries = false
     }
   })
+})
+
+
+it('decodes source-serialized clock reminders in the calendar query', async () => {
+  mocks.apiClient.mockResolvedValue(reminderWire.CalendarMonthResponse)
+  renderCalendarData(new Date(2026, 9, 1))
+  await expect(mocks.captured.at(-1)!.queryFn()).resolves.toMatchObject({ habits: [{
+    scheduledReminders: [{ when: 'same_day' }, { when: 'day_before' }],
+    relativeReminders: [{ when: 'same_day' }, { when: 'day_before' }],
+  }] })
 })

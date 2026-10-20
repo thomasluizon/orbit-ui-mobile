@@ -7,6 +7,8 @@ import {
   scheduledReminderTimeSchema, updateHabitRequestSchema,
 } from '../types/habit'
 import { syncChangesV2ResponseSchema } from '../types/sync'
+import { buildEditHabitFormState } from '../utils/habit-form-state'
+import { buildHabitDetailReminderRows } from '../utils/habit-detail-flow'
 import { normalizeHabits } from '../utils/habit-normalization'
 import wire from '../test-support/fixtures/habit-reminder-wire.json'
 
@@ -49,6 +51,15 @@ describe('serialized reminder response boundaries', () => {
     const child = { ...wire.HabitScheduleChildItem, id: 'child', reminderEnabled: true }
     const parent = habitScheduleItemSchema.parse({ ...wire.HabitScheduleItem, children: [child] })
     expect(normalizeHabits([parent]).get('child')).toMatchObject({ ...clocks, reminderEnabled: true })
+  })
+
+  it('keeps previous-day labels, editor selection and clock deduplication', () => {
+    const parent = habitScheduleItemSchema.parse({ ...wire.HabitScheduleItem, reminderEnabled: true })
+    const habit = normalizeHabits([parent]).get(parent.id)!
+    const editor = buildEditHabitFormState(habit)
+    expect(editor.formValues.scheduledReminders).toEqual(clocks.scheduledReminders)
+    const rows = buildHabitDetailReminderRows(habit, (key) => key)
+    expect(rows.map((row) => row.label)).toEqual(['habits.detail.reminderSameDay', 'habits.detail.reminderDayBefore'])
   })
 
   it('normalizes scheduled sync independently of relative sync validation', () => {
