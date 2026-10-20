@@ -14,6 +14,7 @@ import { within } from '@testing-library/react'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import HabitCreateRoute from '@/app/(app)/habits/new/page'
 import { createMockConfigResponse, createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
@@ -38,6 +39,7 @@ const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
 const mockPush = vi.fn()
+const mockReplace = vi.fn()
 const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
@@ -78,10 +80,11 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/habits/new',
+  useSearchParams: () => new URLSearchParams('from=%2Fprogress'),
   useParams: () => ({}),
   useRouter: () => ({
     push: mockPush,
-    replace: vi.fn(),
+    replace: mockReplace,
     back: vi.fn(),
     refresh: vi.fn(),
   }),
@@ -888,6 +891,7 @@ describe('CreateHabitModal', () => {
     expect(mockPush).not.toHaveBeenCalled()
     expect(close).not.toHaveBeenCalled()
     expect(submit).not.toBeDisabled()
+    expect(screen.getByText(legacySubHabit ? 'habits.form.proRequired' : 'habits.form.capacityBody({"limit":1000})')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'common.upgrade' }) !== null).toBe(legacySubHabit)
     fireEvent.click(submit)
     await waitFor(() => expect(create).toHaveBeenCalledTimes(2))
@@ -917,6 +921,20 @@ describe('CreateHabitModal', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledExactlyOnceWith('/upgrade'))
     expect(close).toHaveBeenCalledWith(false)
     expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('navigates only to Upgrade from the create route (dirty=%s)', async (dirty) => {
+    mockFormStatus.dirty = dirty
+    mockCreateMutateAsync.mockRejectedValueOnce(new ApiClientError(403, 'Boundary', { code: 'PAY_GATE' }))
+    renderWithProviders(<HabitCreateRoute />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'common.upgrade' }))
+    if (dirty) {
+      expect(mockPush).not.toHaveBeenCalled()
+      fireEvent.click(await screen.findByRole('button', { name: 'common.discardChangesAction' }))
+    }
+    await waitFor(() => expect(mockPush).toHaveBeenCalledExactlyOnceWith('/upgrade'))
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 
   it('preserves nested sub-habits in a Free create request', async () => {

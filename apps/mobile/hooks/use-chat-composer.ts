@@ -425,7 +425,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         setLastFailedSend(failedAttempt);
       } else if (failure.kind === "limit") {
         setSendError(null);
-        const limitReason = t("shell.composer.limit.reason", { allowance: aiMessagesLimit });
+        const limitReason = t("chat.limitReachedError");
         if (draftMessageId) {
           updateMessage(draftMessageId, { content: limitReason });
         } else {
@@ -455,7 +455,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       }
       scrollToBottom();
     },
-    [addMessage, aiMessagesLimit, scrollToBottom, setInput, setIsTyping, t, updateMessage],
+    [addMessage, scrollToBottom, setInput, setIsTyping, t, updateMessage],
   );
 
   const applyFinalResponse = useCallback(
@@ -745,7 +745,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         addMessage({
           id: createChatMessageId(),
           role: "ai",
-          content: t("shell.composer.limit.reason", { allowance: aiMessagesLimit }),
+          content: t("chat.limitReachedError"),
           timestamp: new Date(),
         });
         scrollToBottom();
@@ -776,7 +776,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     [
       attachments,
       addMessage,
-      aiMessagesLimit,
       atMessageLimit,
       imagePreview,
       input,
@@ -840,8 +839,13 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     }));
   }, [surface, chipStatus, habitsQuery.data, detailQuery.data, contextualSuggestion, totalHabitCount, profile, date, today, sendMessage, t]);
 
-  const renewalHint = aiMessagesLimit - aiMessagesUsed <= AI_MESSAGE_COUNTER_THRESHOLD
-    ? t("shell.composer.limit.renewal") : undefined
+  const remainingMessages = aiMessagesLimit - aiMessagesUsed
+  const nearMessageLimit = remainingMessages <= AI_MESSAGE_COUNTER_THRESHOLD
+  const renewalHint = nearMessageLimit ? t("shell.composer.limit.renewal") : undefined
+  const allowanceReason = nearMessageLimit ? t("shell.composer.limit.reason", { allowance: aiMessagesLimit }) : undefined
+
+  const usageMessage = nearMessageLimit && remainingMessages > 0
+    ? t("shell.composer.usage", { used: aiMessagesUsed, limit: aiMessagesLimit }) : undefined
 
   const composerProps = useMemo(() => {
     const words = {
@@ -860,9 +864,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       transcribing: t("shell.composer.voice.transcribing"),
     };
     const common = {
-      usageMessage: aiMessagesLimit - aiMessagesUsed <= AI_MESSAGE_COUNTER_THRESHOLD
-        ? t("shell.composer.usage", { used: aiMessagesUsed, limit: aiMessagesLimit }) : undefined,
+      usageMessage,
       renewalHint,
+      allowanceReason,
       words,
       value: input,
       errorMessage: speechError ?? sendError ?? undefined,
@@ -911,9 +915,10 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       ? { ...common, state, onVoice: toggleRecording, voiceWords }
       : { ...common, state };
   }, [
+    allowanceReason,
+    usageMessage,
     renewalHint,
     aiMessagesLimit,
-    aiMessagesUsed,
     attachments,
     atMessageLimit,
     canRetryLastSend,

@@ -456,17 +456,18 @@ describe('web useChatComposer streaming send', () => {
     render(<Composer {...result.current.composerProps} />)
     const notice = messages.shell.composer.limit.reason.replace('{allowance}', '5')
     expect(screen.getAllByText(notice)).toHaveLength(1)
-    expect(notice).toContain(locale === 'en' ? 'midnight' : 'meia-noite')
-    expect(screen.queryByText(messages.shell.composer.limit.renewal)).not.toBeInTheDocument()
+    expect(notice).not.toContain(locale === 'en' ? 'midnight' : 'meia-noite')
+    expect(screen.getAllByText(messages.shell.composer.limit.renewal)).toHaveLength(1)
+    expect(screen.queryByText(mocks.translate('shell.composer.usage', { used: 5, limit: 5 }))).not.toBeInTheDocument()
     expect(screen.queryByText(messages.shell.composer.limit.exhausted)).not.toBeInTheDocument()
   })
 
-  it.each([[0, 5, false], [2, 5, false], [3, 5, true], [5, 5, true], [47, 50, false], [48, 50, true], [50, 50, true]] as const)('shows the daily counter at %i of %i only near capacity', (used, limit, visible) => {
+  it.each([[0, 5, false], [2, 5, false], [3, 5, true], [4, 5, true], [5, 5, false], [47, 50, false], [48, 50, true], [49, 50, true], [50, 50, false]] as const)('shows the daily counter at %i of %i only near capacity', (used, limit, visible) => {
     mocks.state.profile = createMockProfile({ aiMessagesUsed: used, aiMessagesLimit: limit })
     const { result } = renderHook(() => useChatComposer())
     expect(Boolean(result.current.composerProps.usageMessage)).toBe(visible)
     if (visible) expect(result.current.composerProps.usageMessage).toContain('shell.composer.usage')
-    expect(Boolean(result.current.composerProps.renewalHint)).toBe(visible)
+    expect(Boolean(result.current.composerProps.renewalHint)).toBe(visible || used === limit)
     if (used === limit) {
       expect(result.current.composerProps.state).toBe('atLimit')
       expect(result.current.composerProps.suggestions).toHaveLength(0)
@@ -1240,7 +1241,7 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.sendError).toBeNull()
     expect(useChatStore.getState().messages.at(-1)).toMatchObject({
       role: 'ai',
-      content: 'shell.composer.limit.reason:{"allowance":5}',
+      content: 'chat.limitReachedError',
     })
     expect(result.current.canRetryLastSend).toBe(false)
   })
@@ -1471,7 +1472,7 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.sendError).toBeNull()
     expect(useChatStore.getState().messages.at(-1)).toMatchObject({
       role: 'ai',
-      content: 'shell.composer.limit.reason:{"allowance":5}',
+      content: 'chat.limitReachedError',
     })
     expect(result.current.canRetryLastSend).toBe(false)
     expect(mocks.routerPush).not.toHaveBeenCalledWith('/upgrade')
@@ -1491,7 +1492,7 @@ describe('web useChatComposer streaming send', () => {
 
     expect(useChatStore.getState().messages.at(-1)).toMatchObject({
       role: 'ai',
-      content: 'shell.composer.limit.reason:{"allowance":5}',
+      content: 'chat.limitReachedError',
     })
     expect(result.current.sendError).toBeNull()
     expect(result.current.canRetryLastSend).toBe(false)
@@ -1745,7 +1746,7 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.fetch).not.toHaveBeenCalled()
     expect(useChatStore.getState().messages.at(-1)).toMatchObject({
       role: 'ai',
-      content: 'shell.composer.limit.reason:{"allowance":5}',
+      content: 'chat.limitReachedError',
     })
     expect(result.current.sendError).toBeNull()
   })

@@ -82,6 +82,7 @@ type ComposerBase = {
   errorMessage?: string
   usageMessage?: string
   renewalHint?: string
+  allowanceReason?: string
   errorRecovery?: { label: string; onSelect: () => void }
 }
 

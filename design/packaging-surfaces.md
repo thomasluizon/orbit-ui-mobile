@@ -22,7 +22,10 @@ its form keeps the discard guard and completes sheet dismissal before navigation
 
 The composer counter and reserved allowance space appear only with two or fewer messages left.
 Below that threshold, the composer keeps its compact inset. Near capacity and exhausted states
-share the reservation; exhaustion states the boundary and renewal together once.
+share a text-measured notice above the input. Near capacity shows live suggestions and the counter,
+or the counter and renewal when no suggestions are available. Exhaustion shows its reason and
+renewal. The upcoming notice measures the space while hidden from sight and assistive technology,
+so the populated composer stays in place without a fixed spacer.
 
 The Pro pitch, tier cards, onboarding paywall and annual billing retain their compositions.
 Retrospective has no route; its former annual entitlement is removed from shared utilities.

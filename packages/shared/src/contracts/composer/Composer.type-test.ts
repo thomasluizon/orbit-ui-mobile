@@ -118,6 +118,7 @@ type ExpectedComposerBase = {
   errorMessage?: string
   usageMessage?: string
   renewalHint?: string
+  allowanceReason?: string
   errorRecovery?: { label: string; onSelect: () => void }
 }
 type ExpectedIdleState = { state: 'idle'; limitReason?: never; limitRecovery?: never }

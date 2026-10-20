@@ -1,4 +1,4 @@
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
@@ -148,6 +148,27 @@ function VoiceStatus({
       {state === 'recording' ? <Text accessibilityLiveRegion="none" style={[styles.recordingTime, { color: tokens.fg2 }]}>{elapsed}</Text> : null}
     </View>
   )
+}
+
+function AllowanceStatus({ props, tokens, focusTarget }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
+  const atLimit = props.state === 'atLimit'
+  const withSuggestions = props.state === 'idle' && props.suggestions.length > 0
+  return <View testID="composer-status-slot" style={styles.limitStatus}>
+    <View accessible={false} accessibilityElementsHidden={!atLimit}
+      importantForAccessibility={atLimit ? 'auto' : 'no-hide-descendants'}
+      style={[styles.limitStatus, !atLimit && styles.allowancePreview]}>
+      <Text testID="composer-allowance-reason" style={[styles.limitReason, { color: tokens.fg2 }]}>
+        {atLimit ? props.limitReason : props.allowanceReason}
+      </Text>
+      <Text testID="composer-renewal" style={[styles.allowanceText, { color: tokens.fg2 }]}>{props.renewalHint}</Text>
+    </View>
+    {!atLimit ? <View style={[styles.limitStatus, styles.allowanceUsage]}>
+      {withSuggestions ? <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} tokens={tokens} focusTarget={focusTarget} /> : null}
+      {props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
+      {!withSuggestions ? <Text style={[styles.allowanceText, { color: tokens.fg2 }]}>{props.renewalHint}</Text> : null}
+    </View> : null}
+    {atLimit ? props.limitRecovery : null}
+  </View>
 }
 
 function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
@@ -408,6 +429,8 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
   const canRetry = props.onRetry !== undefined
+  const showAllowanceStatus = Boolean(props.allowanceReason && props.renewalHint)
+    && (props.state === 'idle' || props.state === 'sending' || props.state === 'atLimit')
   const focusTarget = useRef<TextInput>(null)
   const composerRef = useRef<View>(null)
   const focusedTarget = useRef<'container' | 'input' | null>(null)
@@ -464,13 +487,9 @@ export function Composer(props: Readonly<MobileComposerProps>) {
       ) : null}
 
       <ComposerError props={props} tokens={tokens} />
-      {props.renewalHint ? (
-        <View testID="composer-status-slot" style={{ minHeight: TOUCH_TARGET_MIN * 2 }}>
-          <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />
-        </View>
-      ) : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />}
+      {showAllowanceStatus ? <AllowanceStatus props={props} tokens={tokens} focusTarget={focusTarget} /> : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />}
       <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} />
-      {props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
+      {!showAllowanceStatus && props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
       <RetryControl props={props} tokens={tokens} />
     </View>
   )
@@ -568,6 +587,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   usage: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'] },
+  allowanceText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  allowancePreview: { opacity: 0 },
+  allowanceUsage: { position: 'absolute', top: 0, start: 0, end: 0 },
   limitReason: {
     minHeight: 48,
     fontFamily: 'Geist_400Regular',

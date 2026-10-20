@@ -1,6 +1,5 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -168,6 +167,26 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
   return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} />
 }
 
+function AllowanceStatus({ props }: Readonly<{ props: ComposerProps }>) {
+  const atLimit = props.state === 'atLimit'
+  const withSuggestions = props.state === 'idle' && props.suggestions.length > 0
+  return <div data-composer-status-slot className="grid min-w-0 gap-2">
+    <div aria-hidden={!atLimit || undefined}
+      className={`col-start-1 row-start-1 flex min-w-0 flex-col gap-2 ${atLimit ? '' : 'invisible'}`}>
+      <p data-composer-allowance-reason className="m-0 min-h-[var(--touch-min)] text-sm leading-5 text-[var(--fg-2)]">
+        {atLimit ? props.limitReason : props.allowanceReason}
+      </p>
+      <p data-composer-renewal className="m-0 text-sm leading-5 text-[var(--fg-2)]">{props.renewalHint}</p>
+    </div>
+    {!atLimit ? <div className="col-start-1 row-start-1 flex min-w-0 flex-col gap-2 self-start">
+      {withSuggestions ? <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} /> : null}
+      {props.usageMessage ? <p data-composer-usage className="m-0 t-meta leading-[1.4]">{props.usageMessage}</p> : null}
+      {!withSuggestions ? <p className="m-0 text-sm leading-5 text-[var(--fg-2)]">{props.renewalHint}</p> : null}
+    </div> : null}
+    {atLimit ? props.limitRecovery : null}
+  </div>
+}
+
 function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
   const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
@@ -329,6 +348,8 @@ export function Composer(props: Readonly<WebComposerProps>) {
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
   const canRetry = props.onRetry !== undefined
+  const showAllowanceStatus = Boolean(props.allowanceReason && props.renewalHint)
+    && (props.state === 'idle' || props.state === 'sending' || props.state === 'atLimit')
 
   return (
     <div
@@ -348,13 +369,9 @@ export function Composer(props: Readonly<WebComposerProps>) {
       ) : null}
 
       <ComposerError props={props} />
-      {props.renewalHint ? (
-        <div data-composer-status-slot style={{ minHeight: TOUCH_TARGET_MIN * 2 }}>
-          <ComposerStatus props={props} />
-        </div>
-      ) : <ComposerStatus props={props} />}
+      {showAllowanceStatus ? <AllowanceStatus props={props} /> : <ComposerStatus props={props} />}
       <ComposerInputRow props={props} />
-      {props.usageMessage ? <p data-composer-usage className="m-0 t-meta leading-[1.4]">{props.usageMessage}</p> : null}
+      {!showAllowanceStatus && props.usageMessage ? <p data-composer-usage className="m-0 t-meta leading-[1.4]">{props.usageMessage}</p> : null}
       <RetryControl props={props} />
     </div>
   )

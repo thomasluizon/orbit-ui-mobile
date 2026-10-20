@@ -14,6 +14,7 @@ import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { IntlMessageFormat } from 'intl-messageformat'
 import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
 
@@ -1038,23 +1039,32 @@ describe('Composer (mobile)', () => {
 
 
 describe('daily allowance and habit capacity styles', () => {
-  it.each([en, ptBR])('reserves the daily notice and uses neutral tabular counter text', (messages) => {
+  it('keeps live suggestions available near the daily limit', () => {
+    const tree = renderComposer(props({ allowanceReason: 'Daily allowance used', renewalHint: 'Returns tonight', usageMessage: '3 of 5' }))
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === words.suggestionsLabel).length).toBeGreaterThan(0)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([en, ptBR])('fills the daily notice with neutral tabular usage or the exhausted reason', (messages) => {
     for (const state of ['idle', 'atLimit'] as const) {
       const tree = renderComposer(props({ state, suggestions: [], renewalHint: messages.shell.composer.limit.renewal,
-        usageMessage: messages.shell.composer.usage.replace('{used}', '5').replace('{limit}', '5'),
+        allowanceReason: messages.shell.composer.limit.reason.replace('{allowance}', '5'),
+        usageMessage: state === 'idle' ? messages.shell.composer.usage.replace('{used}', '3').replace('{limit}', '5') : undefined,
         ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason.replace('{allowance}', '5') } : {}) }))
-      const slot = StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-status-slot' }).props.style)
-      expect(slot.minHeight).toBe(96)
-      const usage = StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-usage' }).props.style)
-      expect(usage).toMatchObject({ fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] })
-      expect(usage.color).toBe(createTokensV2('orange', 'dark').fg3)
+      const slot = tree.root.findByProps({ testID: 'composer-status-slot' })
+      expect(slot.findAllByType('Text').map((text: { props: { children: string } }) => text.props.children)).toContain(messages.shell.composer.limit.renewal)
+      if (state === 'idle') {
+        const usage = StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-usage' }).props.style)
+        expect(usage).toMatchObject({ fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] })
+        expect(usage.color).toBe(createTokensV2('orange', 'dark').fg3)
+      } else expect(tree.root.findAllByProps({ testID: 'composer-usage' })).toHaveLength(0)
       TestRenderer.act(() => tree.unmount())
     }
   })
 
   it.each([['en', en], ['pt-BR', ptBR]] as const)('formats a neutral habit boundary in %s without an upgrade control', (locale, messages) => {
     let tree!: ReturnType<typeof TestRenderer.create>
-    const body = messages.habits.form.capacityBody.replace('{limit}', new Intl.NumberFormat(locale).format(1000))
+    const body = new IntlMessageFormat(messages.habits.form.capacityBody, locale).format({ limit: 1000 }) as string
     TestRenderer.act(() => { tree = TestRenderer.create(<CapacityNotice message={messages.habits.form.capacityTitle} body={body} />) })
     const notice = tree.root.findByProps({ testID: 'capacity-notice' })
     expect(StyleSheet.flatten(notice.props.style).backgroundColor).toBe(createTokensV2('orange', 'dark').bgWell)

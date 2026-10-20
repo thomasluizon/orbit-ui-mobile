@@ -48,6 +48,12 @@ function props(overrides: Record<string, unknown> = {}): ComposerProps {
 }
 
 describe('Composer', () => {
+  it('keeps live suggestions available near the daily limit', () => {
+    render(<Composer {...props({ allowanceReason: 'Daily allowance used', renewalHint: 'Returns tonight', usageMessage: '3 of 5' })} />)
+    expect(screen.getByRole('group', { name: words.suggestionsLabel })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /chip sentinel/ })).toHaveLength(3)
+  })
+
   it('opens and names its menu from the keyboard without changing the draft', async () => {
     render(<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords })} />)
     const trigger = screen.getByRole('button', { name: words.actions })

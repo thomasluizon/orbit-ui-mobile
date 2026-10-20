@@ -230,7 +230,7 @@
     "closeRail": "Close panel",
     "openPalette": "Open command palette",
     "composer": {
-      "usage": "Astra messages today: {used} of {limit}",
+      "usage": "Messages today: {used} of {limit}",
       "placeholder": "Ask Astra",
       "send": "Send",
       "suggestionsLabel": "Suggestions",
@@ -251,7 +251,7 @@
         "renewal": "Messages return at midnight, your time.",
         "exhausted": "Today's Astra messages are used.",
         "placeholder": "No messages today",
-        "reason": "Today's allowance of {allowance} Astra messages is used. Messages return at midnight, your time."
+        "reason": "Today's allowance of {allowance} Astra messages is used."
       },
       "busy": {
         "reason": "Astra is still answering. Wait for this response before sending another message."
@@ -681,8 +681,9 @@
     },
     "frequencyLabel": "Frequency",
     "form": {
+      "proRequired": "This is part of Orbit Pro.",
       "capacityTitle": "Habit limit reached",
-      "capacityBody": "An account can hold {limit} active habits. Delete a habit to add another. Sub-habits do not count toward this limit.",
+      "capacityBody": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",
       "emojiSuggest": "Suggest emoji",
       "emojiSuggesting": "Finding emoji…",
       "aiSuggest": "Suggest with AI",
@@ -3271,7 +3272,7 @@
       "appUpdated": "Orbit was updated. Reload the page and try again. Unsaved text will be lost.",
       "edgeBlocked": "This request was blocked before it reached Orbit. Change the text and try again.",
       "edgeBlockedRetry": "This request was blocked before it reached Orbit. Try again in a few minutes. If it keeps happening, contact support.",
-      "habitLimit": "You can have up to {limit, number} active habits, not counting sub-habits. Delete a habit to add another.",
+      "habitLimit": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",
       "calendarPro": "Calendar sync needs Orbit Pro. Open Upgrade to turn it on.",
       "astraLimit": "You've used today's Astra messages. More arrive at midnight, your time.",
       "payGate": "This feature needs Orbit Pro. Open Upgrade to see your options.",

@@ -59,16 +59,16 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 let subHabitCounter = 0
 function CreateBoundaryNotice({ boundary, onUpgrade }: Readonly<{ boundary: 'habit' | 'pro' | null; onUpgrade: () => void }>) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   if (!boundary) return null
   if (boundary === 'pro') return <CapacityNotice
-    message={t('errors.api.payGate')}
+    message={t('habits.form.proRequired')}
     action={<ActionRow><PillButton size="sm" variant="ghost" onClick={onUpgrade}>{t('common.upgrade')}</PillButton></ActionRow>}
   />
   return (
     <CapacityNotice
       message={t('habits.form.capacityTitle')}
-      body={t('habits.form.capacityBody', { limit: new Intl.NumberFormat(i18n.language).format(MAX_ACTIVE_HABITS) })}
+      body={t('habits.form.capacityBody', { limit: MAX_ACTIVE_HABITS })}
     />
   )
 }

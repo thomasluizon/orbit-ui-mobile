@@ -60,16 +60,15 @@ import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
 
 function CreateBoundaryNotice({ boundary, onUpgrade }: Readonly<{ boundary: 'habit' | 'pro' | null; onUpgrade: () => void }>) {
   const t = useTranslations()
-  const locale = useLocale()
   if (!boundary) return null
   if (boundary === 'pro') return <CapacityNotice
-    message={t('errors.api.payGate')}
+    message={t('habits.form.proRequired')}
     action={<ActionRow><PillButton size="sm" variant="ghost" onClick={onUpgrade}>{t('common.upgrade')}</PillButton></ActionRow>}
   />
   return (
     <CapacityNotice
       message={t('habits.form.capacityTitle')}
-      body={t('habits.form.capacityBody', { limit: new Intl.NumberFormat(locale).format(MAX_ACTIVE_HABITS) })}
+      body={t('habits.form.capacityBody', { limit: MAX_ACTIVE_HABITS })}
     />
   )
 }
@@ -209,11 +208,11 @@ export function CreateHabitModal({
   })
   const navigateToUpgrade = useCallback(() => {
     pendingNavigation.current = () => {
-      onOpenChange(false)
+      if (presentation === 'sheet') onOpenChange(false)
       router.push('/upgrade')
     }
     dismissGuard.requestDismiss()
-  }, [dismissGuard, onOpenChange, router])
+  }, [dismissGuard, onOpenChange, presentation, router])
   const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
   const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
   const suggestionSessionId = open ? (parentHabit?.id ?? 'root') : null
