@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { HabitDetail, HabitDetailChild, NormalizedHabit } from '../types/habit'
+import { habitDetailSchema, type HabitDetail, type HabitDetailChild, type NormalizedHabit } from '../types/habit'
 import { createMockHabit } from './factories'
 import {
   addRecentCompletion,
@@ -67,6 +67,33 @@ function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
 }
 
 describe('drill navigation utils', () => {
+  it.each([
+    { startDate: '2026-08-28', schedule: 'Recurring' },
+    {},
+  ])('preserves API creation fields through drill loading: %j', async (fields) => {
+    const detail = habitDetailSchema.parse({
+      ...makeDetail(),
+      ...fields,
+      children: [{
+        ...makeDetailChild(),
+        ...fields,
+        children: [{ ...makeDetailChild({ id: 'grand-1' }), ...fields }],
+      }],
+    })
+
+    const normalized = await loadDrillChildren('parent-1', async () => detail, '2026-08-29')
+
+    for (const habit of [
+      normalized.parent,
+      normalized.childrenByParent.get('parent-1')?.[0],
+      normalized.childrenByParent.get('child-1')?.[0],
+    ]) {
+      expect(habit).toBeDefined()
+      expect(habit?.startDate).toBe(detail.startDate)
+      expect(habit?.schedule).toBe(detail.schedule)
+    }
+  })
+
   it('normalizes drill detail child with defaults and overdue flag', () => {
     const child = makeDetailChild({
       dueDate: '2025-01-01',

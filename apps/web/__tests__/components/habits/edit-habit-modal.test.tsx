@@ -277,12 +277,16 @@ describe('EditHabitModal', () => {
     expect(body?.firstElementChild).toBe(form)
   })
 
-  it('passes the immutable creation timestamp as the start date', () => {
+  it.each([
+    ['2026-08-28', '2026-08-28'],
+    [undefined, '2026-08-29T00:30:00Z'],
+  ])('passes API start date %s to the edit form with legacy timestamp compatibility', (startDate, expected) => {
+    const habit = createMockHabit({ startDate, createdAtUtc: '2026-08-29T00:30:00Z' })
     renderWithProviders(
-      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={habit} />,
     )
 
-    expect(screen.getByTestId('start-date').textContent).toBe(defaultHabit.createdAtUtc)
+    expect(screen.getByTestId('start-date').textContent).toBe(expected)
   })
 
   it('renders cancel and save buttons', () => {
