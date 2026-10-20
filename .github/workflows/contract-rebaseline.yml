@@ -107,7 +107,7 @@ jobs:
               exit 1
             fi
             git switch --create "$branch" --track "origin/$branch"
-            git -c core.hooksPath=/dev/null merge --no-commit --no-ff -X theirs "origin/main"
+            git merge --no-commit --no-ff -X theirs "origin/main"
           else
             status=$?
             if [ "$status" -ne 2 ]; then

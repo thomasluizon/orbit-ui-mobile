@@ -1,4 +1,4 @@
-import { coverageConfigDefaults, defineConfig } from 'vitest/config'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
@@ -8,7 +8,6 @@ export default defineConfig({
     testTimeout: 15000,
     hookTimeout: 15000,
     coverage: {
-      exclude: [...coverageConfigDefaults.exclude, 'src/types/__generated__/**'],
       provider: 'v8',
       reporter: ['text', 'lcov'],
       reportsDirectory: './coverage',

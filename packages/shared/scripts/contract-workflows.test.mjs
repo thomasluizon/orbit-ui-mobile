@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import yaml from 'js-yaml'
 import { afterEach, describe, expect, it } from 'vitest'
 import { contractFiles, generatedDirectory } from './contract-source.mjs'
+import sharedConfig from '../vitest.config.ts'
 
 const repository = new URL('../../../', import.meta.url).pathname
 const directory = `packages/shared/${generatedDirectory}`
@@ -50,6 +51,11 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
+it('keeps generated contract artifacts eligible for workspace coverage', () => {
+  expect(sharedConfig.test.coverage).not.toHaveProperty('exclude')
+  expect(sharedConfig.test.coverage).not.toHaveProperty('include')
+})
+
 describe.each([
   ['contract-rebaseline.yml', 'main', 'chore/contract-snapshot'],
   ['contract-rebaseline-redesign.yml', 'redesign/main', 'chore/contract-snapshot-redesign'],
@@ -57,6 +63,12 @@ describe.each([
   const definition = workflow(filename)
   const carry = definition.jobs.publish.steps.find((step) => step.name?.startsWith('Carry the target branch'))
   const publish = definition.jobs.publish.steps.find((step) => step.name === 'Commit and open or update one pull request')
+
+  it('carries the target before token creation without disabling merge hooks', () => {
+    const steps = definition.jobs.publish.steps
+    expect(steps.indexOf(carry)).toBeLessThan(steps.findIndex((step) => step.id === 'app-token'))
+    expect(carry.run).not.toMatch(/core\.hooksPath|--no-verify/)
+  })
 
   it('carries target selection into an old routine branch and publishes all three files', () => {
     const staged = prepare(base, branch)

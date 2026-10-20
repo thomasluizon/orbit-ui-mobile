@@ -26,7 +26,8 @@ regenerate the matching legacy snapshot in the same change.
 The selected corrected v1 document describes the existing HTTP v1 API. Choosing
 its documentation revision does not change web HTTP v2 headers, Android's default
 HTTP v1 transport, enum writes, reminders or queue formats. Generated Zod remains
-a diff target, excluded from runtime barrels, type checks, lint and coverage.
+a diff target, excluded from runtime barrels, type checks, lint and Sonar
+analysis. Workspace Vitest coverage includes generated schemas imported by tests.
 Handwritten schemas remain the runtime contract. Review consumed discrepancies
 separately under the append-only and deploy-API-first rules in `CLAUDE.md`.
 
@@ -93,9 +94,10 @@ The publication runner alone mints the repository-scoped GitHub App token with
 Contents and Pull requests read/write permissions. Set the repository Actions
 variable `CONTRACT_REBASELINE_APP_ID` and secret
 `CONTRACT_REBASELINE_APP_PRIVATE_KEY` for an App installed on the UI repository.
-Without both, publication fails before pushing. Hooks are disabled for CI git
-operations on this isolated runner so repository code never runs with the write
-token. Generation receives neither App credential.
+Without both, publication fails before pushing. The target-branch merge uses
+normal hooks before token creation. Only the existing CI commit and push disable
+hooks on this isolated runner so repository code never runs with the write token.
+Generation receives neither App credential.
 
 Review the generated diff and source identity before merging, retain accepted
 producer additions, and update handwritten schemas only for independently proven
