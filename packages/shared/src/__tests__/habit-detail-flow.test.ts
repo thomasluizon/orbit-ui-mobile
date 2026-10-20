@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { HabitLog } from '../types/calendar'
-import type { HabitMetrics } from '../types/habit'
+import { habitDetailSchema, type HabitMetrics } from '../types/habit'
+import { normalizeHabitDetailForDrill } from '../utils/drill-navigation'
 import {
   appendHabitDetailChild,
   buildHabitDetailSchedulePatch,
@@ -33,12 +34,13 @@ import {
 import { createMockHabit } from './factories'
 import {
   makeHabitDetail,
+  makeEnrichedHabitDetail,
   makeHabitScheduleItem,
   makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedParent,
   makeLoggedGeneralHabitDetailChild,
 } from '../test-support/habit-detail-fixtures'
-import { normalizeHabitQueryData } from '../utils/habit-normalization'
+import { habitDetailToNormalized, normalizeHabitQueryData } from '../utils/habit-normalization'
 import { formatAPIDate, parseAPIDate } from '../utils/dates'
 
 const recurring = {
@@ -75,6 +77,22 @@ const log = (date: string, createdAtUtc = `${date}T12:00:00Z`): HabitLog => ({
 })
 
 describe('habit detail flow model', () => {
+  it('accepts a one-time detail with nullable frequency and no weekdays', () => {
+    const schedule = {
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      schedule: 'OneTime',
+      dueDate: '2026-10-26',
+      startDate: '2026-10-20',
+      days: [],
+    }
+    const detail = habitDetailSchema.parse({ ...makeEnrichedHabitDetail(), ...schedule })
+
+    expect(detail).toMatchObject(schedule)
+    expect(mergeHabitDetailWithScopedHabit(detail, undefined, schedule.startDate))
+      .toMatchObject({ ...schedule, title: detail.title })
+  })
+
   it('appends and removes children in a mounted detail tree', () => {
     const parent = { ...createMockHabit({ id: 'parent-1', isGeneral: true }), children: [] }
     const withChild = appendHabitDetailChild(parent, 'offline-child-1', {
@@ -1102,5 +1120,44 @@ describe('habit detail flow model', () => {
     expect(model.habit.isCompleted).toBe(false)
     expect(model.canLog).toBe(true)
     expect(model.completionReadOnly).toBe(false)
+  })
+})
+
+describe('detail response enrichment', () => {
+  it('keeps parent relationships and tags from detail ahead of cached list values', () => {
+    const detail = makeEnrichedHabitDetail()
+    const cached = makeHabitDetailScopedParent()
+    const merged = mergeHabitDetailWithScopedHabit(detail, cached, '2026-08-28')
+    expect(merged).toMatchObject({ linkedGoals: detail.linkedGoals, tags: detail.tags, slipAlertEnabled: true })
+    expect(habitDetailToNormalized(detail)).toMatchObject({ linkedGoals: detail.linkedGoals, tags: detail.tags, slipAlertEnabled: true })
+    expect(hasAuthoritativeHabitRelationshipState(detail, undefined, undefined)).toBe(true)
+    const cleared = { ...detail, linkedGoals: [], tags: [], slipAlertEnabled: false }
+    expect(mergeHabitDetailWithScopedHabit(cleared, merged, '2026-08-28')).toMatchObject({ linkedGoals: [], tags: [], slipAlertEnabled: false })
+  })
+
+  it('keeps child reminder settings and tags from detail ahead of dated list values', () => {
+    const detail = makeEnrichedHabitDetail()
+    const source = detail.children[0]!
+    const child = normalizeHabitDetailForDrill(detail, '2026-08-28').childrenByParent.get(detail.id)![0]!
+    const cached = { ...child, tags: [], reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [], slipAlertEnabled: false }
+    expect(buildHabitDetailChildDateModel(child, cached, '2026-08-28', '2026-08-28', source).habit).toMatchObject({
+      tags: source.tags, reminderEnabled: true, reminderTimes: [15],
+      scheduledReminders: source.scheduledReminders, relativeReminders: source.relativeReminders, slipAlertEnabled: true,
+    })
+    const cleared = { ...source, tags: [], reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [], slipAlertEnabled: false }
+    expect(buildHabitDetailChildDateModel(child, child, '2026-08-28', '2026-08-28', cleared).habit).toMatchObject({
+      tags: [], reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [], slipAlertEnabled: false,
+    })
+  })
+
+  it.each([undefined, null])('accepts an older response with enrichment=%s and retains cached controls', (absent) => {
+    const detail = habitDetailSchema.parse({ ...makeHabitDetail(), tags: absent, linkedGoals: absent, slipAlertEnabled: absent })
+    const cached = { ...makeHabitDetailScopedParent(), linkedGoals: [{ id: 'goal-1', title: 'Read' }], tags: [{ id: 'tag-1', name: 'Focus', color: '#123456' }], slipAlertEnabled: true }
+    expect(mergeHabitDetailWithScopedHabit(detail, cached, '2026-08-28')).toMatchObject({ linkedGoals: cached.linkedGoals, tags: cached.tags, slipAlertEnabled: true })
+    expect(hasAuthoritativeHabitRelationshipState(detail, cached, undefined)).toBe(true)
+    expect(hasAuthoritativeHabitRelationshipState(detail, undefined, undefined)).toBe(false)
+    expect(mergeHabitDetailWithScopedHabit(detail, undefined, '2026-08-28')).toMatchObject({ linkedGoals: [], tags: [], slipAlertEnabled: false })
+    const child = normalizeHabitDetailForDrill(detail, '2026-08-28').childrenByParent.get(detail.id)![0]!
+    expect(buildHabitDetailChildDateModel(child, cached, '2026-08-28', '2026-08-28', detail.children[0]).habit.tags).toEqual(cached.tags)
   })
 })
