@@ -8,14 +8,14 @@ import { AccountRowsCard } from '@/components/chat/account-rows-card'
 import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
-const mocks = vi.hoisted(() => ({ push: vi.fn(), setString: vi.fn(), share: vi.fn(), locale: 'en' }))
+const mocks = vi.hoisted(() => ({ push: vi.fn(), setStringAsync: vi.fn(), share: vi.fn(), locale: 'en' }))
 vi.mock('react-native', async () => {
   const reactNative = await import('../../../test-mocks/react-native')
   return { ...reactNative, Share: { share: mocks.share } }
 })
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key, i18n: { language: mocks.locale } }) }))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: mocks.setString } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: mocks.setStringAsync }))
 vi.mock('@/components/ui/settings-group', () => ({ SettingsGroup: ({ children }: { children: React.ReactNode }) => <View>{children}</View> }))
 vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ body, actions }: BlockFrameProps) => <View>{body}{actions}</View> }))
@@ -73,8 +73,8 @@ describe('Astra account rows on mobile', () => {
     const code = tree.root.findAll((node: any) => node.type === Text && node.props.children === 'ORBIT123')[0]
     expect(code.props.numberOfLines).toBeUndefined()
     const copy = tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' })
-    TestRenderer.act(() => copy.props.onPress())
-    expect(mocks.setString).toHaveBeenCalledWith('ORBIT123')
+    await TestRenderer.act(async () => { copy.props.onPress(); await Promise.resolve() })
+    expect(mocks.setStringAsync).toHaveBeenCalledWith('ORBIT123')
     expect(renderedText(tree.toJSON())).toContain('chat.account.copied')
     const openShare = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.account.share'))[0]
     await TestRenderer.act(async () => { openShare.props.onPress(); await Promise.resolve() })

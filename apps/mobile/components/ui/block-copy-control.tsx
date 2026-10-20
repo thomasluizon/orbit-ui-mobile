@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { useTranslation } from 'react-i18next'
 import { SPACING, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -22,10 +22,10 @@ export function BlockCopyControl({ text }: Readonly<{ text: string }>) {
     return () => clearTimeout(resetTimer)
   }, [feedback, focused, hovered])
 
-  function copyBlock() {
+  async function copyBlock() {
     setFeedback({ status: 'idle' })
     try {
-      Clipboard.setString(text)
+      await Clipboard.setStringAsync(text)
       setFeedback({ status: 'copied' })
     } catch {
       setFeedback({ status: 'error' })
@@ -34,7 +34,7 @@ export function BlockCopyControl({ text }: Readonly<{ text: string }>) {
 
   const label = t(status === 'copied' ? 'chat.blockCopy.copied' : 'chat.blockCopy.copy')
   return <View style={{ alignItems: 'flex-end', gap: SPACING.s8, padding: SPACING.s8 }}>
-    <Button variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} accessibleName={label} leadingIcon={<Copy size={16} color={tokens.fg1} />} onClick={copyBlock} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}>{label}</Button>
+    <Button variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} accessibleName={label} leadingIcon={<Copy size={16} color={tokens.fg1} />} onClick={() => void copyBlock()} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}>{label}</Button>
     <Text accessibilityLiveRegion="polite" style={status === 'error' ? { color: tokens.statusBadText, fontSize: 14 } : styles.announcement}>
       {status === 'idle' ? '' : t(status === 'error' ? 'chat.blockCopy.copyError' : 'chat.blockCopy.copied')}
     </Text>

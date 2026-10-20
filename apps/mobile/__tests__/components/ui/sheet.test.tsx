@@ -31,7 +31,7 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DescriptionViewer } from '@/components/habits/description-viewer'
 
 vi.unmock('@/components/ui/sheet')
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }))
 
 const safeArea = vi.hoisted(() => ({ bottom: 24 }))

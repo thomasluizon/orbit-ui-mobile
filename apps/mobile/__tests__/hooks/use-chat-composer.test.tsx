@@ -124,7 +124,7 @@ vi.mock('expo-router', () => ({
 vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
 vi.mock('expo-sharing', () => ({ isAvailableAsync: vi.fn().mockResolvedValue(true), shareAsync: vi.fn() }))
 vi.mock('expo-device', () => ({ __esModule: true, default: { isDevice: true }, isDevice: true }))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }))
 vi.mock('react-native', async (importOriginal) => {
   const original = await importOriginal<typeof import('react-native')>()
   return {

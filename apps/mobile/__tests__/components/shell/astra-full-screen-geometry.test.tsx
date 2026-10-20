@@ -14,7 +14,7 @@ import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-are
 const safeArea = vi.hoisted(() => ({ top: 24, bottom: 16 }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...safeArea, left: 0, right: 0 }) }))
 vi.mock('@/hooks/use-habits', () => ({}))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: {} }))
+vi.mock('expo-clipboard', () => ({}))
 await vi.hoisted(async () => {
   const { createRequire, Module } = await import('node:module')
   const load = createRequire(import.meta.url)

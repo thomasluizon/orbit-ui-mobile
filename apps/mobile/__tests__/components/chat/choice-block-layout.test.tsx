@@ -11,7 +11,7 @@ import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 vi.unmock('react-i18next')
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: {} }))
+vi.mock('expo-clipboard', () => ({}))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),

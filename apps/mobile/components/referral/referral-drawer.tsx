@@ -9,11 +9,12 @@ import {
   Text,
   View,
 } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { Check, Copy } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { useReferral } from '@/hooks/use-referral'
+import { captureError } from '@/lib/sentry'
 import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
@@ -172,15 +173,16 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
     }
   }, [referralUrl, stats, t])
 
-  const copyLink = useCallback(() => {
+  const copyLink = useCallback(async () => {
     if (!referralUrl) return
     try {
-      Clipboard.setString(referralUrl)
+      await Clipboard.setStringAsync(referralUrl)
       AccessibilityInfo.announceForAccessibility(t('referral.drawer.linkCopied'))
       setFailedAction(null)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
+    } catch (error) {
+      captureError(error)
       setFailedAction('copy')
     }
   }, [referralUrl, t])
@@ -227,7 +229,7 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
             copyFailed={failedAction === 'copy'}
             tokens={tokens}
             styles={styles}
-            onCopy={copyLink}
+            onCopy={() => void copyLink()}
           />
         ) : null}
       </View>

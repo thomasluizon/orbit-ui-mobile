@@ -24,7 +24,7 @@ import type { GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
 vi.unmock('@/components/ui/icons')
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn(), getString: vi.fn().mockResolvedValue('') } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn(), getStringAsync: vi.fn().mockResolvedValue('') }))
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({
