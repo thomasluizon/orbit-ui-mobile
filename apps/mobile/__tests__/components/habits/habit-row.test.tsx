@@ -218,7 +218,7 @@ describe('HabitRow canonical content (mobile)', () => {
     TestRenderer.act(() => renderer.unmount())
   })
 
-  it('keeps a child body on the shared leading edge', () => {
+  it('applies the child leading inset once inside the body', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Child' })} depth={1} />)

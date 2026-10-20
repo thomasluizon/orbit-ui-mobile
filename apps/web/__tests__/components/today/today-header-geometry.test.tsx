@@ -407,7 +407,7 @@ describe('Hoje header geometry', () => {
   })
 
   it.each([320, 384, 600].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode })))))(
-    'shares two leading edges at $width with $textScale text scale, selecting=$selectMode', async ({ width, textScale, selectMode }) => {
+    'shares leading edges per depth at $width with $textScale text scale, selecting=$selectMode', async ({ width, textScale, selectMode }) => {
       document.documentElement.style.fontSize = `${16 * textScale}px`
       const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
         <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
@@ -505,7 +505,8 @@ describe('Hoje header geometry', () => {
         expect(geometry.leafBody).toBe(16)
         expect(geometry.insetEdges).toEqual([16, 16, 16])
         expect(geometry.dateCenter).toBeCloseTo(width / 2, 0)
-        expect(geometry.contentEdges).toEqual([84, 84, 84, 84])
+        expect(geometry.contentEdges.slice(0, 3)).toEqual([84, 84, 84])
+        expect(geometry.contentEdges.slice(3)).toEqual([100])
         expect(geometry.overflow).toBeLessThanOrEqual(width)
         expect(geometry.rowHeights.every((height) => height >= 52)).toBe(true)
         if (textScale === 2) expect(geometry.rowHeights.every((height) => height > 68)).toBe(true)

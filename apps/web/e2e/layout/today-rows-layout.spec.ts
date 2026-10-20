@@ -1,4 +1,5 @@
 import { openTodayListOptions } from './hydration-guard'
+import { setHabitTextScale } from './subhabit-indent-geometry'
 import { expect, type Page, type Locator } from '@playwright/test'
 import { test } from './layout-test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -134,8 +135,8 @@ for (const width of [320, 600]) {
         if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
         await expect(page.getByTestId('habit-row')).toHaveCount(3)
         await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.text)
+        await setHabitTextScale(page, textScale, [habits[0]!.title])
         await page.evaluate(async (scale) => {
-          document.documentElement.style.fontSize = `${16 * scale}px`
           for (const label of document.querySelectorAll<HTMLElement>('.today-astra-sentence')) {
             label.style.fontSize = `${Number.parseFloat(getComputedStyle(label).fontSize) * scale}px`
           }
@@ -207,7 +208,7 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
       await expect(page.getByTestId('habit-row')).toHaveCount(6)
       await expect(page.locator('[data-habit-row-description]')).toHaveCount(3)
       for (const scale of [1, 2]) {
-        await page.evaluate((size) => { document.documentElement.style.fontSize = `${16 * size}px`; window.dispatchEvent(new Event('resize')) }, scale)
+        await setHabitTextScale(page, scale, ['Parent', 'Child parent'])
         await expect(parent.locator('[data-habit-row-description]')).toHaveCSS('font-size', `${14 * scale}px`)
         await expect(parent.locator('[data-habit-row-heading]')).toHaveCount(scale === 2 ? 1 : 0)
         await assertPreviewSelectionModes(page, parent, copy, scale, mode)
