@@ -4,14 +4,6 @@
     android:layout_width="match_parent"
     android:layout_height="@dimen/widget_row_height">
 
-    <ImageView
-        android:id="@+id/item_bg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:contentDescription="@null"
-        android:scaleType="fitXY"
-        android:src="@drawable/widget_item_bg_fallback" />
-
     <LinearLayout
         android:id="@+id/widget_item_content"
         android:layout_width="match_parent"

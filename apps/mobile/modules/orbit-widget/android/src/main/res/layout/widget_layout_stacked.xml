@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_gravity="top"
+    android:background="@drawable/widget_bg_fallback"
+    android:clipToOutline="true">
+
+    <!-- Dynamic background (rendered programmatically with theme colors).
+         Static fallback drawable guarantees a visible surface if the bitmap is
+         not yet applied or fails. -->
+    <ImageView
+        android:id="@+id/widget_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_bg_fallback"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:id="@+id/widget_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/widget_inset_card">
+
+        <include layout="@layout/widget_header_stacked" />
+        <include layout="@layout/widget_body" />
+
+    </LinearLayout>
+</FrameLayout>

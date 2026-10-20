@@ -253,7 +253,9 @@ describe('toWidgetColors', () => {
     const widgetServiceSource = readWidgetSource(
       'java/org/useorbit/app/widget/OrbitWidgetService.kt',
     )
-    const widgetLayout = readWidgetSource('res/layout/widget_layout.xml')
+    const headers = ['widget_header', 'widget_header_stacked'].map(
+      layout => readWidgetSource(`res/layout/${layout}.xml`),
+    )
     const lightResources = readWidgetSource('res/values/widget_colors.xml')
     const darkResources = readWidgetSource('res/values-night/widget_colors.xml')
 
@@ -268,9 +270,11 @@ describe('toWidgetColors', () => {
       expect(source).not.toContain('widget_flame')
     }
 
-    expect(widgetLayout).toContain('android:textColor="@color/widget_streak_text"')
-    expect(widgetLayout).toContain('android:textColor="@color/widget_fg_3"')
-    expect(widgetLayout).not.toContain('widget_flame')
+    for (const header of headers) {
+      expect(header).toContain('android:textColor="@color/widget_streak_text"')
+      expect(header).toContain('android:textColor="@color/widget_fg_3"')
+      expect(header).not.toContain('widget_flame')
+    }
 
     expect(lightResources).toContain('<color name="widget_streak_text">#A63A00</color>')
     expect(darkResources).toContain('<color name="widget_streak_text">#ED773E</color>')
@@ -297,17 +301,12 @@ describe('toWidgetColors', () => {
     )
     expect(widgetServiceSource).toContain('getThemeColorModes(context)')
     expect(widgetServiceSource).toContain(
-      'setModeAwareBitmap(R.id.item_bg, lightBackground, darkBackground)',
+      'setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textPrimary }',
     )
     expect(widgetServiceSource).toContain(
       'R.id.item_time, "setTextColor", colorModes',
     )
-    expect(widgetServiceSource).toContain(
-      'Build.VERSION.SDK_INT < Build.VERSION_CODES.S',
-    )
-    expect(widgetServiceSource).toContain(
-      'views.setImageViewResource(R.id.item_bg, backgroundResource)',
-    )
+    expect(widgetItemLayout).not.toContain('item_bg')
     expect(widgetLayout).toContain('android:src="@drawable/widget_bg_fallback"')
     expect(widgetItemLayout).toContain('android:textColor="@color/widget_item_title"')
     expect(lightResources).toContain('<color name="widget_bg">#FAFAFA</color>')

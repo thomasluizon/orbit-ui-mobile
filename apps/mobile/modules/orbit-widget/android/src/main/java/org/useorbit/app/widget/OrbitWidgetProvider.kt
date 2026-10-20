@@ -4,7 +4,6 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.net.Uri
@@ -256,60 +255,48 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             return RemoteViews(layouts)
         }
 
-        private fun applyProgressRing(
+        private fun applyProgressSummary(
             context: Context,
             views: RemoteViews,
-            colorModes: WidgetColorModes,
-            completed: Int,
-            total: Int,
-            visible: Boolean
+            lang: String,
+            widgetWidthDp: Float,
+            syncedOnce: Boolean,
+            completedCount: Int,
+            habitCount: Int,
+            streak: Int,
+            unitVisibility: Int,
+            stackedHeader: Boolean
         ) {
-            views.setViewVisibility(R.id.widget_progress_ring, if (visible) View.VISIBLE else View.GONE)
-            if (!visible) return
-            val density = context.resources.displayMetrics.density
-            val light = createWidgetProgressBitmap(completed, total, density, colorModes.light)
-            val dark = createWidgetProgressBitmap(completed, total, density, colorModes.dark)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                views.setModeAwareBitmap(R.id.widget_progress_ring, light, dark)
+            val subtitleText = if (syncedOnce) {
+                "$completedCount ${OrbitWidgetFactory.tr(context, lang, WidgetString.OF)} " +
+                    "$habitCount ${OrbitWidgetFactory.tr(context, lang, WidgetString.COMPLETED)}"
             } else {
-                val nightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                views.setImageViewBitmap(
-                    R.id.widget_progress_ring,
-                    if (nightMode == Configuration.UI_MODE_NIGHT_YES) dark else light
+                ""
+            }
+            val progressPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textSize = context.resources.getDimension(R.dimen.widget_label_text_size)
+            }
+            val streakPaint = Paint(progressPaint).apply {
+                typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                textSize = context.resources.getDimension(R.dimen.widget_streak_text_size)
+            }
+            val streakWidth = if (streak > 0) {
+                streakPaint.measureText("$streak") + if (unitVisibility == View.VISIBLE) {
+                    progressPaint.measureText(OrbitWidgetFactory.streakUnit(context, lang, streak)) +
+                        context.resources.getDimension(R.dimen.widget_unit_gap)
+                } else 0f
+            } else 0f
+            val summaryWidth = widgetWidthDp * context.resources.displayMetrics.density -
+                context.resources.getDimension(R.dimen.widget_row_inset_inline) -
+                context.resources.getDimension(R.dimen.widget_touch_target) - streakWidth -
+                context.resources.getDimension(
+                    if (stackedHeader) R.dimen.widget_unit_gap else R.dimen.widget_inline_gap
                 )
-            }
-        }
-
-        private fun applyNextHabit(
-            context: Context,
-            views: RemoteViews,
-            widthDp: Float,
-            spacing: WidgetSpacing,
-            label: String,
-            ownsRows: Boolean
-        ) {
-            val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-            val title = if (ownsRows) preferences.getString("next_habit_title", null) else null
-            val resources = context.resources
-            val density = resources.displayMetrics.density
-            fun dimension(resource: Int) = resources.getDimension(resource)
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                textSize = dimension(R.dimen.widget_day_text_size)
-            }
-            val gap = dimension(R.dimen.widget_inline_gap)
-            paint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            val labelWidth = paint.measureText(label)
-            paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            paint.textSize = dimension(R.dimen.widget_label_text_size)
-            val availableWidth = (widthDp - 2 * spacing.insetDp) * density -
-                dimension(R.dimen.widget_ring_size) - gap - dimension(R.dimen.widget_touch_target) -
-                labelWidth - gap * 2
-            val showTitle = title != null && !title.contains('\n') && !title.contains('\r') && paint.measureText(title) <= availableWidth
-            views.setTextViewText(R.id.widget_next_habit, if (showTitle) title else "")
-            views.setViewVisibility(R.id.widget_next_habit, if (showTitle) View.VISIBLE else View.GONE)
-            views.setModeAwareColor(R.id.widget_next_habit, "setTextColor", OrbitWidgetFactory.getThemeColorModes(context)) {
-                it.textPrimary
-            }
+            val progressText = if (!syncedOnce) "" else if (
+                progressPaint.measureText(subtitleText) <= summaryWidth
+            ) subtitleText else "$completedCount/$habitCount"
+            views.setTextViewText(R.id.widget_subtitle, progressText)
+            views.setContentDescription(R.id.widget_subtitle, subtitleText)
         }
 
         private fun buildWidgetViews(
@@ -321,8 +308,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             widgetHeightDp: Float,
             widgetWidthDp: Float = if (streakUnitVisibility == View.GONE) NARROW_WIDTH_DP else STREAK_UNIT_BREAKPOINT_DP + 1f
         ): RemoteViews {
-            val spacing = WidgetSpacing.read(context, widgetWidthDp, widgetHeightDp)
-            val compact = calculateWidgetGeometry(widgetHeightDp, 0, spacing).compact
             val colorModes = OrbitWidgetFactory.getThemeColorModes(context)
             val density = context.resources.displayMetrics.density
 
@@ -346,22 +331,20 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val showSkeleton = !signedOut && (!ownsRows || prefs.getBoolean(CACHE_LOADING_SKELETON, !syncedOnce))
 
             val rowCount = if (showSkeleton) 5 else if (ownsRows) prefs.getInt("row_count", 0) else 0
-            val geometry = calculateWidgetGeometry(widgetHeightDp, rowCount, spacing)
-            val layout = when {
-                widgetWidthDp <= STREAK_UNIT_BREAKPOINT_DP -> R.layout.widget_layout_narrow
-                compact && !signedOut -> R.layout.widget_layout_compact
-                else -> R.layout.widget_layout
-            }
+            val headerHeight = widgetHeaderHeightDp(widgetWidthDp, widgetHeightDp, context.resources.configuration.fontScale)
+            val geometry = calculateWidgetGeometry(widgetHeightDp, rowCount, headerHeightDp = headerHeight)
+            val stackedHeader = widgetWidthDp <= STREAK_UNIT_BREAKPOINT_DP && widgetHeightDp >= TWO_BY_TWO_HEIGHT_DP
+            val layout = if (stackedHeader) {
+                R.layout.widget_layout_stacked
+            } else R.layout.widget_layout
             val views = RemoteViews(context.packageName, layout)
-            val inset = Math.round(spacing.insetDp * context.resources.displayMetrics.density)
-            views.setViewPadding(R.id.widget_root, inset, inset, inset, inset)
-            views.setViewVisibility(R.id.widget_content, if (compact) View.GONE else View.VISIBLE)
+            views.setInt(R.id.widget_header_height, "setHeight", (headerHeight * density).toInt())
             views.setInt(
                 R.id.widget_content_height, "setHeight", (geometry.contentHeightDp * density).toInt()
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 views.setViewLayoutHeight(
-                    R.id.widget_content, geometry.contentHeightDp, TypedValue.COMPLEX_UNIT_DIP
+                    R.id.widget_content, (geometry.contentHeightDp * density).toInt().toFloat(), TypedValue.COMPLEX_UNIT_PX
                 )
             }
 
@@ -376,19 +359,12 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             )
             views.setModeAwareBitmap(R.id.widget_bg, lightBackground, darkBackground)
 
-            applyProgressRing(context, views, colorModes, completedCount, habitCount, syncedOnce && !signedOut)
-            if (layout == R.layout.widget_layout) {
-                val ringInset = if (syncedOnce && !signedOut) {
-                    context.resources.getDimensionPixelSize(R.dimen.widget_header_ring_offset)
-                } else 0
-                views.setViewPadding(R.id.widget_header, ringInset, 0, 0, 0)
-            }
-
             // Apply dynamic text colors
             // The drawing renders the day label in fg-3 and the subtitle below it in fg-4. fg-4
             // measures 2.83 dark and 3.48 light as 11sp text against a 4.5 floor, so the subtitle
             // stays on fg-3: the drawn step survives as size and weight, which is how this system
             // separates a label from its value on a raised surface.
+            views.setModeAwareColor(R.id.widget_header_divider, "setBackgroundColor", colorModes) { it.border }
             views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
             views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
             views.setModeAwareColor(R.id.widget_empty_text, "setTextColor", colorModes) { it.textPrimary }
@@ -420,14 +396,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 applySignedOutCard(context, views)
             } else {
                 views.setTextViewText(R.id.widget_header, safeHeaderLabel)
-                val subtitleText = if (syncedOnce) {
-                    "$completedCount ${OrbitWidgetFactory.tr(context, lang, WidgetString.OF)} " +
-                        "$habitCount ${OrbitWidgetFactory.tr(context, lang, WidgetString.COMPLETED)}"
-                } else {
-                    ""
-                }
-                views.setTextViewText(R.id.widget_subtitle, if (syncedOnce) "$completedCount/$habitCount" else "")
-                views.setContentDescription(R.id.widget_subtitle, subtitleText)
+                applyProgressSummary(context, views, lang, widgetWidthDp, syncedOnce,
+                    completedCount, habitCount, streak, unitVisibility, stackedHeader)
                 val streakVisible = if (streak > 0) View.VISIBLE else View.GONE
                 views.setTextViewText(R.id.widget_streak, "$streak")
                 views.setTextViewText(
@@ -457,10 +427,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             }
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)
 
-            if (compact && !signedOut && widgetWidthDp > STREAK_UNIT_BREAKPOINT_DP) {
-                applyNextHabit(context, views, widgetWidthDp, spacing, safeHeaderLabel,
-                    ownsRows && !showSkeleton)
-            }
             applyOpenAppActions(context, views)
             views.setViewVisibility(
                 R.id.widget_empty,

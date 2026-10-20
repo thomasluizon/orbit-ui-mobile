@@ -24,9 +24,11 @@ const exceptions = [
   { path: 'apps/mobile/components/share/share-card.tsx', size: 88, element: 'createStyles.primaryValue.fontSize', drawing: 'design/canvas/Orbit Wrapped.dc.html', drawingElement: 'String(data.completions)' },
   { path: 'apps/web/components/share/share-card.tsx', size: 88, element: 'share-card-figure[1].style.fontSize', drawing: 'design/canvas/Orbit Wrapped.dc.html', drawingElement: 'String(data.completions)' },
   { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml', size: 15, element: '@+id/item_title', drawing: widgetDrawing, drawingElement: 'r.name' },
-  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml', size: 13, element: '@+id/widget_header', drawing: widgetDrawing, drawingElement: 'o.title || t.today' },
-  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml', size: 15, element: '@+id/widget_streak', drawing: widgetDrawing, drawingElement: 'o.streak' },
-  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml', size: 15, element: '@+id/widget_empty_text', drawing: widgetDrawing, drawingElement: 't.allClear' },
+  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_header.xml', size: 13, element: '@+id/widget_header', drawing: widgetDrawing, drawingElement: 'o.title || t.today' },
+  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_header.xml', size: 15, element: '@+id/widget_streak', drawing: widgetDrawing, drawingElement: 'o.streak' },
+  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_header_stacked.xml', size: 13, element: '@+id/widget_header', drawing: widgetDrawing, drawingElement: 'o.title || t.today' },
+  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_header_stacked.xml', size: 15, element: '@+id/widget_streak', drawing: widgetDrawing, drawingElement: 'o.streak' },
+  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_body.xml', size: 15, element: '@+id/widget_empty_text', drawing: widgetDrawing, drawingElement: 't.allClear' },
   { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 13, element: 'widget_preview_header', drawing: widgetDrawing, drawingElement: 'o.title || t.today' },
   { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 15, element: 'widget_preview_habit', drawing: widgetDrawing, drawingElement: 'r.name' },
   { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 15, element: 'widget_preview_streak', drawing: widgetDrawing, drawingElement: 'o.streak' },
@@ -136,13 +138,8 @@ function authoredSizes(source: string, path: string): AuthoredSize[] {
   return values
 }
 
-function widgetExceptionPath(path: string, element: string): string {
-  const hasDrawnRole = exceptions.some((entry) => entry.path === widgetCanonicalLayout && entry.element === element)
-  return widgetLayouts.includes(path) && hasDrawnRole ? widgetCanonicalLayout : path
-}
-
 function violations(source: string, path: string): AuthoredSize[] {
-  return authoredSizes(source, path).filter(({ size, element }) => !scale.has(size) && !exceptions.some((entry) => entry.path === widgetExceptionPath(path, element) && entry.size === size && entry.element === element))
+  return authoredSizes(source, path).filter(({ size, element }) => !scale.has(size) && !exceptions.some((entry) => entry.path === path && entry.size === size && entry.element === element))
 }
 
 function drawingSizes(source: string): AuthoredSize[] {
@@ -222,8 +219,21 @@ describe('authored app typography', () => {
     expect(widgetLayouts).toEqual(selectedLayouts)
   })
 
-  it('retains element boundaries for resource fonts in each widget layout variant', () => {
-    for (const path of widgetLayouts) {
+  it('rejects drawn header and streak sizes outside their owning resource files', () => {
+    const path = `${widgetDirectory}/res/layout/widget_header.xml`
+    const source = readFileSync(resolve(root, path), 'utf8')
+    const drawn = authoredSizes(source, path).filter(({ size }) => !scale.has(size))
+    expect(drawn).toEqual([
+      { size: 13, element: '@+id/widget_header' },
+      { size: 15, element: '@+id/widget_streak' },
+    ])
+    expect(violations(source, widgetCanonicalLayout)).toEqual(drawn)
+    expect(violations(source, `${widgetDirectory}/res/layout/widget_body.xml`)).toEqual(drawn)
+  })
+
+  it('retains element boundaries for resource fonts in each widget header variant', () => {
+    for (const header of ['widget_header', 'widget_header_stacked']) {
+      const path = `${widgetDirectory}/res/layout/${header}.xml`
       const source = readFileSync(resolve(root, path), 'utf8')
       expect(violations(source, path)).toEqual([])
       const mutated = source.replace(/(android:id="@\+id\/widget_subtitle"[\s\S]*?android:textSize=")@dimen\/widget_label_text_size"/,
@@ -231,6 +241,15 @@ describe('authored app typography', () => {
       expect(mutated).not.toBe(source)
       expect(violations(mutated, path)).toEqual([{ size: 15, element: '@+id/widget_subtitle' }])
     }
+  })
+
+  it('rejects the drawn empty message size on another body element', () => {
+    const path = `${widgetDirectory}/res/layout/widget_body.xml`
+    const source = readFileSync(resolve(root, path), 'utf8')
+    expect(violations(source, path)).toEqual([])
+    const mutated = source.replace('@+id/widget_empty_text', '@+id/widget_other_text')
+    expect(mutated).not.toBe(source)
+    expect(violations(mutated, path)).toEqual([{ size: 15, element: '@+id/widget_other_text' }])
   })
 
   it('rejects a secondary share figure at the primary figure exception size', () => {
