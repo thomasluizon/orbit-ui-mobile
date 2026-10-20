@@ -42,6 +42,60 @@ describe('web PostHog adapter', () => {
     expect(sdk.init).toHaveBeenCalledOnce()
   })
 
+  it('imports opted out and keeps preference changes in memory when storage access is denied', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')!
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() { throw new DOMException('denied', 'SecurityError') },
+    })
+
+    try {
+      const importing = import('@/lib/posthog')
+      await expect(importing).resolves.toBeDefined()
+      const analytics = await importing
+      expect(analytics.getAnalyticsOptOut()).toBe(true)
+      await analytics.applyPostHogGate(true)
+      expect(sdkImports.count).toBe(0)
+      const listener = vi.fn()
+      const unsubscribe = analytics.subscribeAnalyticsOptOut(listener)
+
+      await expect(analytics.setAnalyticsOptOut(false)).resolves.toBeUndefined()
+      expect(analytics.getAnalyticsOptOut()).toBe(false)
+      expect(listener).toHaveBeenCalledOnce()
+      expect(sdk.opt_in_capturing).toHaveBeenCalledOnce()
+
+      await expect(analytics.setAnalyticsOptOut(true)).resolves.toBeUndefined()
+      expect(analytics.getAnalyticsOptOut()).toBe(true)
+      expect(listener).toHaveBeenCalledTimes(2)
+      expect(sdk.opt_out_capturing).toHaveBeenCalledOnce()
+      unsubscribe()
+    } finally {
+      Object.defineProperty(window, 'localStorage', descriptor)
+    }
+  })
+
+  it('notifies listeners and applies the gate when a storage write is denied', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(true)
+    const listener = vi.fn()
+    const unsubscribe = analytics.subscribeAnalyticsOptOut(listener)
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError')
+    })
+
+    try {
+      await expect(analytics.setAnalyticsOptOut(true)).resolves.toBeUndefined()
+      expect(analytics.getAnalyticsOptOut()).toBe(true)
+      expect(listener).toHaveBeenCalledOnce()
+      expect(sdk.opt_out_capturing).toHaveBeenCalledOnce()
+    } finally {
+      write.mockRestore()
+      unsubscribe()
+    }
+  })
+
   it('defaults to capture, persists opt out across reload, and resumes without reload', async () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')

@@ -55,8 +55,8 @@ function beforeSend(event: CaptureResult | null): CaptureResult | null {
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
 const PREFERENCE_KEY = 'analytics-opt-out'
 function readAnalyticsOptOut(): boolean {
-  if (typeof localStorage === 'undefined') return false
   try {
+    if (typeof localStorage === 'undefined') return false
     return localStorage.getItem(PREFERENCE_KEY) === 'true'
   } catch {
     return true
@@ -148,7 +148,10 @@ export function subscribeAnalyticsOptOut(listener: () => void): () => void {
 }
 
 export async function setAnalyticsOptOut(next: boolean): Promise<void> {
-  localStorage.setItem(PREFERENCE_KEY, String(next))
+  try {
+    localStorage.setItem(PREFERENCE_KEY, String(next))
+  } catch {
+  }
   optedOut = next
   preferenceListeners.forEach((listener) => listener())
   await applyPostHogGate(serverEnabled)
