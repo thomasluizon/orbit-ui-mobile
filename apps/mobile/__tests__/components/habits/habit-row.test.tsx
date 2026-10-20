@@ -239,10 +239,10 @@ describe('HabitRow canonical content (mobile)', () => {
         actions={{ onToggleExpand, onToggleSelection }} />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [body, selectionColumn, disclosureColumn] = row.children[0].children
-    const selection = selectionColumn.findByProps({ accessibilityRole: 'checkbox' })
+    const [body, controls] = row.children[0].children
+    const selection = controls.findByProps({ accessibilityRole: 'checkbox' })
     expect(selection.props.accessibilityState).toMatchObject({ checked: true })
-    const disclosure = disclosureColumn.findByProps({ accessibilityLabel: 'common.collapse' })
+    const disclosure = controls.findByProps({ accessibilityLabel: 'common.collapse' })
     expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
     expect(body.props.delayLongPress).toBe(500)
     const checkbox = selection.findAll((node: { props: { pointerEvents?: string } }) => node.props.pointerEvents === 'none')[0]
@@ -262,8 +262,9 @@ describe('HabitRow canonical content (mobile)', () => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [body, selectionColumn, trailing] = row.children[0].children
-    const selection = selectionColumn.findByProps({ accessibilityRole: 'checkbox' })
+    const [body, controls] = row.children[0].children
+    const selection = controls.findByProps({ accessibilityRole: 'checkbox' })
+    const trailing = controls.findAllByProps({ testID: 'habit-check' })[0]
     expect(selection.props.accessibilityState).toMatchObject({ checked: false })
     expect(trailing).toBeDefined()
     expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)

@@ -267,7 +267,7 @@ export function HabitRow({
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
-      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : controls}
+      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : <div className="flex shrink-0 items-center gap-[4px]">{controls}</div>}
     </>
   )
 
@@ -353,7 +353,7 @@ function HabitRowLayout({ habitTitle, depth, state, selected, isChild, supportin
   children: ReactNode
 }>) {
   const minHeight = isChild ? 52 : 68
-  const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : 'items-center gap-[4px]'
+  const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : 'items-center gap-0'
   return (
     <div data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
       className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
@@ -382,5 +382,6 @@ function habitRowPadding(isChild: boolean, largeText: boolean): CSSProperties {
   return {
     paddingBlock: largeText ? SPACING.s0 : defaultPaddingBlock,
     paddingInlineStart: isChild ? SPACING.s24 : SPACING.s8,
+    paddingInlineEnd: largeText ? SPACING.s0 : SPACING.s4,
   }
 }

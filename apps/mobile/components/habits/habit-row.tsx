@@ -499,7 +499,7 @@ function HabitRowLayout({ descriptionPresent, isChild, supportingMeta, rowStyle,
   children: ReactNode
 }>) {
   return (
-    <View testID="habit-row" style={[supportingMeta ? null : styles.row, rowStyle]}>
+    <View testID="habit-row" style={[supportingMeta ? null : [styles.row, { gap: SPACING.s0 }], rowStyle]}>
       {supportingMeta ? primaryButton : null}
       {supportingMeta ? (
         <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8, paddingBottom: descriptionPresent ? SPACING.s4 : undefined }]}>
@@ -509,7 +509,7 @@ function HabitRowLayout({ descriptionPresent, isChild, supportingMeta, rowStyle,
           </View>
           {children}
         </View>
-      ) : <>{primaryButton}{children}</>}
+      ) : <>{primaryButton}<View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0, gap: SPACING.s4 }}>{children}</View></>}
       {supportingMeta ? (
         <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
           style={{ flexDirection: 'row', gap: 12, paddingLeft: isChild ? SPACING.s24 : SPACING.s8, paddingRight: SPACING.s8, paddingTop: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBottom: SPACING.s8 }}>
@@ -531,6 +531,7 @@ function habitRowBodyLayout(isChild: boolean, largeText: boolean): ViewStyle {
   return {
     paddingVertical: largeText ? SPACING.s0 : defaultPaddingVertical,
     paddingLeft: isChild ? SPACING.s24 : SPACING.s8,
+    paddingRight: largeText ? SPACING.s0 : SPACING.s4,
     alignItems: largeText ? 'flex-start' : 'center',
   }
 }

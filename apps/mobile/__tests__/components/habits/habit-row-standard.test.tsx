@@ -44,6 +44,7 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
   expect(String(primary.host.props.accessibilityLabel).split(typeLabel)).toHaveLength(2)
   if (fontScale === 1) {
     expect(type.ancestors).toContain(primary.slot)
+    expect(primary.style.paddingRight).toBe(4)
     return
   }
   expect(primary).toMatchObject({ left: row.left, right: row.right, top: row.top, bottom: row.bottom })

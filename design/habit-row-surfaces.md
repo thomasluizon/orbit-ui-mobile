@@ -33,6 +33,10 @@ match the short visible row type exactly once; visual copies stay hidden from ac
 This vocabulary change preserves typography, insets, controls, targets and available width.
 Large text grows the row.
 
+At default text, the primary action owns the first 4px of trailing clearance as internal padding.
+Its sibling control group retains 4px gaps with no outer gap. The clipping and focus owner extends
+through that space while text columns, control positions and whole-row centring remain unchanged.
+
 Above 130% text, every row uses a full-row primary action and a supporting footer. The heading
 keeps the title, optional description and independent first-line controls. Exactly one complete
 type label leads the footer, followed by existing metadata with a 4px gap. The footer shares the
