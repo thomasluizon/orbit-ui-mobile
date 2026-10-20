@@ -119,6 +119,7 @@ it.each(['single', 'multi', 'pickList'])('announces one acting reason outside th
     : choice(context, kind === 'multi'))
   fireEvent.click(screen.getAllByRole(kind === 'single' ? 'radio' : 'checkbox')[0]!)
   fireEvent.click(screen.getByRole('button', { name: kind === 'pickList' ? words.review : words.submit }))
+  expect(container.querySelectorAll('[aria-live="polite"]')).toHaveLength(1)
   const status = container.querySelector('[aria-live="polite"]')!
   expect(status.querySelector('[role="radio"], [role="checkbox"], button, input')).toBeNull()
   expect(screen.getAllByText(kind === 'pickList' ? 'Preparando a prévia' : words.acting)).toHaveLength(1)

@@ -271,8 +271,10 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       </View> : null}
       <View style={styles.messageContent}>
       {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
+      {item.role === 'ai' && item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       <MessageBubble
         message={item}
+        earlierMessages={messages.slice(0, index)}
         laterMessages={messages.slice(index + 1)}
         blockAnswerInteraction={blockAnswerInteraction}
         animateEntry={item.role === 'user' && !initialMessageIds.has(item.id)}
@@ -286,7 +288,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onPendingOperationVerifyStepUp={verifyStepUpForBubble}
       />
       {item.proactiveItem ? <ProactiveAction isOnline={chat.isOnline} item={item.proactiveItem} acted={item.proactiveActed ?? false} onSend={sendMessage} /> : null}
-      {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
       </View>
       </View>

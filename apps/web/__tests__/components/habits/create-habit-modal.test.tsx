@@ -1,3 +1,4 @@
+import { appConfigSchema } from '@orbit/shared/types/config'
 import type { ActiveView } from '@orbit/shared/stores'
 import en from '@orbit/shared/i18n/en.json'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -13,7 +14,7 @@ import { within } from '@testing-library/react'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { createMockConfigResponse, createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
@@ -107,7 +108,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/hooks/use-config', () => ({
-  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+  useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
 
 vi.mock('@/hooks/use-habit-suggestion', () => ({

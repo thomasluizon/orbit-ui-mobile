@@ -45,7 +45,7 @@ it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks
     makeHeldHabitMessage({ id: 'first', content: 'First paragraph.\n\nSecond paragraph.', pendingOperations: [] }),
     makeChatBlockLayoutMessage(chatBlockLayoutCases[0]!, false),
     makeHeldHabitMessage({ id: 'person', role: 'user', content: 'My reply.', pendingOperations: [] }),
-    { ...makeChatBlockLayoutMessage(chatBlockLayoutCases[0]!, false), id: 'next-turn' },
+    makeChatBlockLayoutMessage(chatBlockLayoutCases[0]!, false, 'next-turn'),
     makeHeldHabitMessage({ id: 'continuation', content: 'Another reply.', pendingOperations: [] }),
   ]
   const chat = {
@@ -67,6 +67,7 @@ it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks
     </View>) as GeometryTree })
     const turns = items.map((_, index) => feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === `turn-${index}`)[0]!)
     expect(turns.map(turn => turn.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar').length)).toEqual([1, 0, 0, 1, 0])
+    expect(turns.map(turn => turn.findAll(node => typeof node.type === 'string' && node.props.testID === 'block-frame-resting').length)).toEqual([0, 2, 0, 2, 0])
     let avatarIndex = 0
     let proseIndex = 0
     let blockIndex = 0

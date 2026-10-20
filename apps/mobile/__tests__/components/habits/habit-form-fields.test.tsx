@@ -1,3 +1,5 @@
+import { appConfigSchema } from '@orbit/shared/types/config'
+import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import React from 'react'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import type { HabitTag } from '@orbit/shared/types/habit'
@@ -57,7 +59,7 @@ vi.mock('react-hook-form', async (importOriginal) => ({
 }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translateTestValue, i18n: { language: formLocale.language } }) }))
 vi.mock('@/hooks/use-config', () => ({
-  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+  useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => mockProfileState.hasProAccess,
@@ -109,6 +111,21 @@ function createTags(): TagSelectionState {
 }
 
 describe('HabitFormFields mobile', () => {
+  it.each([false, true])('uses the API sub-habit flag for Pro access %s', async (hasProAccess) => {
+    mockProfileState.hasProAccess = hasProAccess
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded>
+          <Text>sub-habit-editor</Text>
+        </HabitFormFields>,
+      )
+    })
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'sub-habit-editor')).toHaveLength(hasProAccess ? 1 : 0)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === ListRow && node.props.title === 'common.upgrade')).toHaveLength(hasProAccess ? 0 : 1)
+    await TestRenderer.act(() => { tree.unmount() })
+  })
+
   it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
     const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
     let tree: ReturnType<typeof TestRenderer.create>

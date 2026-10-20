@@ -1,3 +1,5 @@
+import { appConfigSchema } from '@orbit/shared/types/config'
+import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import React from 'react'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import type { HabitTag } from '@orbit/shared/types/habit'
@@ -57,7 +59,7 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
 vi.mock('@/hooks/use-config', () => ({
-  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+  useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -151,6 +153,13 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it.each([false, true])('uses the API sub-habit flag for Pro access %s', (hasProAccess) => {
+    mockProfileState.hasProAccess = hasProAccess
+    renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
+    expect(screen.queryByText('sub-habit-editor') !== null).toBe(hasProAccess)
+    expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(!hasProAccess)
+  })
+
   it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
     const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
     renderForm(createFormHelpers({ title }), undefined, false, false, null, undefined, { onSuggestEmoji })

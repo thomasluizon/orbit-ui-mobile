@@ -1,10 +1,11 @@
+import { appConfigSchema } from '@orbit/shared/types/config'
 import type { ActiveView } from '@orbit/shared/stores'
 import en from '@orbit/shared/i18n/en.json'
 import React from 'react'
 import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { createMockConfigResponse, createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { ApiClientError, applyHabitPhraseRead, readHabitPhrase } from '@orbit/shared/utils'
@@ -92,7 +93,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/hooks/use-config', () => ({
-  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+  useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({

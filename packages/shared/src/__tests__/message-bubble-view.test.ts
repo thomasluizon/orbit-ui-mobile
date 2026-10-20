@@ -57,3 +57,29 @@ it('writes clarification previews and operation patches against the current mess
   expect(pending.onVerifyStepUp).toBe(callbacks.onPendingOperationVerifyStepUp)
   expect(getMessageBubbleOperations({ message }, transition).pendingOperations).toEqual([])
 })
+
+it.each([
+  { status: 'done' as const }, { rejected: true }, { stale: true },
+  { operation: makeHeldHabitMessage().pendingOperations![0]!, editedItemIds: ['chosen'] },
+])('keeps repeated operation ownership and durable state on its first reply: %j', savedState => {
+  const original = makeHeldHabitMessage()
+  const operation = original.pendingOperations![0]!
+  original.pendingOperationStates = { [operation.id]: savedState }
+  const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+  const later = { ...makeHeldHabitMessage(), id: 'later-reply' }
+  expect(getMessageBubbleOperations({ message: original, laterMessages: [later], ...callbacks }, vi.fn()).pendingOperations[0]?.savedState).toEqual(savedState)
+  expect(getMessageBubbleOperations({ message: later, earlierMessages: [original], ...callbacks }, vi.fn()).pendingOperations).toHaveLength(0)
+  const clarified = makeClarificationPreviewMessage({ clarificationPreviews: { 'clarification-id': operation } })
+  expect(getMessageBubbleOperations({ message: later, earlierMessages: [clarified], ...callbacks }, vi.fn()).pendingOperations).toHaveLength(0)
+})
+
+it.each((['onPendingOperationConfirmExecute', 'onPendingOperationPrepareStepUp', 'onPendingOperationVerifyStepUp'] as const).flatMap(missing => [false, true].map(earlier => ({ missing, earlier }))))('leaves clarification ownership available without $missing (earlier=$earlier)', ({ missing, earlier }) => {
+  const operation = makeHeldHabitMessage().pendingOperations![0]!
+  const message = makeClarificationPreviewMessage({ pendingOperations: [operation] })
+  message.clarificationPreviews = { [message.actions![0]!.clarificationRequest!.operationId]: operation }
+  const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn(), [missing]: undefined }
+  const owned = getMessageBubbleOperations({ message, earlierMessages: earlier ? [makeHeldHabitMessage({ pendingOperations: [operation] })] : [], ...callbacks }, vi.fn())
+  expect(owned.pendingOperations).toHaveLength(0)
+  expect(owned.clarifications).toHaveLength(1)
+  expect(owned.clarifications[0]?.pendingOperation).toEqual(operation)
+})

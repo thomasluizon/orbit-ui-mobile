@@ -144,7 +144,7 @@ export function CreateHabitModal({
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const activeView = useUIStore((s) => s.activeView)
-  const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', hasProAccess ? 'pro' : 'free')
+  const canUseSubHabits = isFeatureEnabled(config, 'sub_habits', hasProAccess ? 'pro' : 'free')
 
   const formHelpers = useHabitForm({
     initialData: {

@@ -282,9 +282,11 @@ describe('daily streak moment lifetime', () => {
     expect(restored.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 6 } });
   });
 
-  it('does not invent a previous streak when the profile has not loaded', () => {
+  it.each([undefined, null])('does not invent an unavailable previous streak: %s', (previousStreak) => {
     const store = createStoreHarness();
-    store.getState().showStreakMoment(5, undefined, { intent: 'log', countsTowardStreak: true });
+    store.getState().showStreakMoment(1, previousStreak, { intent: 'log', countsTowardStreak: true });
     expect(store.getState().activeCelebration).toBeNull();
+    expect(store.getState().queuedCelebrations).toEqual([]);
+    expect(store.getState().dailyStreakMomentDate).toBe('');
   });
 });

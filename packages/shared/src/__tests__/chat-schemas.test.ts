@@ -128,12 +128,25 @@ describe('chatStreamEventSchema discriminatedUnion', () => {
     for (const prose of [true, false]) {
       const message = makeChatBlockLayoutMessage(scenario, prose)
       const event = chatStreamEventSchema.parse({ type: 'final', response: {
-        ...scenario.fields, aiMessage: message.content, actions: message.actions ?? [],
+        ...scenario.fields, pendingOperations: message.pendingOperations, aiMessage: message.content, actions: message.actions ?? [],
       } })
       expect(event.type).toBe('final')
       if (event.type !== 'final') return
       expect(event.response.actions).toEqual(message.actions ?? [])
+      expect(event.response.pendingOperations).toEqual(message.pendingOperations)
     }
+  })
+
+  it('gives separate layout requests distinct preview operation IDs', () => {
+    const scenario = chatBlockLayoutCases[0]!
+    const first = makeChatBlockLayoutMessage(scenario, true, 'first-request')
+    const second = makeChatBlockLayoutMessage(scenario, false, 'second-request')
+    expect(first.id).not.toBe(second.id)
+    const firstIds = first.pendingOperations!.map(operation => operation.id)
+    const secondIds = second.pendingOperations!.map(operation => operation.id)
+    expect(firstIds).toHaveLength(scenario.count)
+    expect(secondIds).toHaveLength(scenario.count)
+    expect(secondIds.filter(id => firstIds.includes(id))).toEqual([])
   })
 
   it.each(['today', 'overdue', 'general', 'none', 'done'])(
