@@ -1,6 +1,6 @@
 import type { Ref } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -48,6 +48,7 @@ vi.mock('@/hooks/use-share-card', () => ({
     canShareFiles: shareCard.canShareFiles,
     share: vi.fn(),
     download: vi.fn(),
+    resetFeedback: vi.fn(),
   }),
 }))
 
@@ -132,6 +133,46 @@ describe('MilestoneSharePrompt', () => {
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'share-streak-7',
     )
+  })
+
+  it('retains its consumed arm and manual lifetime across rerenders', async () => {
+    const owner = render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await act(async () => { await vi.advanceTimersByTimeAsync(499) })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toEqual([])
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(useEngagementPromptStore.getState().armedPrompt).toBeNull()
+    owner.rerender(<MilestoneSharePrompt />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(10000) })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toEqual(['share-streak-7'])
+    fireEvent.click(screen.getByRole('button', { name: 'milestoneShare.later' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(useUIStore.getState().openOverlayIds).toEqual([])
+  })
+
+  it('cancels an unmounted settle timer without consuming eligibility', async () => {
+    const owner = render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    owner.unmount()
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toEqual([])
+    expect(useUIStore.getState().openOverlayIds).toEqual([])
+  })
+
+  it('retires an old arm across an account round trip and permits a newly earned arm', async () => {
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await replaceAccountWith('user-2')
+    await replaceAccountWith('user-1')
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toEqual([])
+    await armMilestoneShare('share-streak-7')
+    await settle()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   it('pins Download and Later in the sheet footer, never in the scrolling body', async () => {

@@ -1380,13 +1380,50 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 | occasional (modals, sheets, drawers, toasts, settings) | the standard scale below |
 | rare / first-run (onboarding, milestone, celebration) | the only place the delight budget lives |
 
-**Daily streak feedback is state indication, once per day.** The daily streak moment uses the
-280ms movement token and ease-out curve for a 12px number change and a single day-ring sweep.
-It stays neutral, leaves the screen and composer interactive, and dismisses after 2500ms.
-Reduced motion shows the final number and completed ring immediately, with no movement.
-There is no glow, gradient, confetti, looping or exclamation. Logging has no additional Android
-haptic unless its logging interaction already uses one. Milestone days show only the milestone
-panel for the streak; other earned facts retain their queue order.
+**Daily streak feedback is state indication, once per day.** One panel occupies the existing
+shell notice slot above the composer, leaving every underlying control interactive. Daily inset
+and gap are 16px and 12px; milestone and other fact inset and gap remain 24px and 16px. The
+44px neutral day ring centres a still monochrome `OrbitMark` at `size={16}`, `accent={false}`.
+Its track uses the empty role and its completed stroke uses `fg-1`, including during movement.
+Measure SVG length at runtime; absent measurement leaves a completed static ring.
+
+| Phase | Purpose | Normal motion | Reduced motion |
+|---|---|---|---|
+| Enter | Preventing a jarring change | Fully opaque panel, +12px to 0 in 280ms, ease-out | Final panel immediately |
+| Daily figure and ring | State indication | Old/new figures cross-fade and move 12px within one clip; one measured ring sweep on the same 280ms timeline | Final figure, unit, mark and completed ring |
+| Hold | Static fact | Final value and quiet localized day unit, no movement | Same fact |
+| Exit | Preventing a jarring change | Live presentation to +12px and opacity 0 in 220ms, ease-in | Immediate removal |
+
+The daily figure is display 28px with tabular numbers. Reserve both figures before movement;
+never animate layout dimensions. Static resting styles carry the final fact. At 200% text the
+panel grows and text may wrap without clipping the figure, unit, label or distinct 48px close.
+Only daily eligibility proves the previous value; milestones retain their complete final sentence.
+Other earned facts remain manual and acquire neither rolling figures nor an automatic deadline.
+The native rotating accent ring is replaced by the same single measured neutral sweep for parity.
+
+Daily automatic exit begins at 2280ms and retains its layout reservation through 2500ms. Hover
+or keyboard focus pauses that deadline, including during automatic exit: cancel the exit and its
+fallback, settle visibly and keep observing the retained container. Restart a fresh 2500ms schedule
+only after every pause reason ends. Close stays available during entrance. Manual dismissal is
+committed; repeated close or subsequent hover cannot restart it. Keep the actual departing queue
+item active until completion, with one exact-ID, account-generation-guarded, idempotent path shared
+by animation completion and a bounded exit-deadline fallback. Cancel every callback on unmount,
+account replacement or invalidation; privacy and invalid facts take precedence over exit continuity.
+
+Reduced motion has no translation, scale, numeral change, sweep or delayed manual removal. A live
+preference change settles a held fact without resetting its deadline and completes a pending exit
+immediately. Hiding or backgrounding settles cosmetic movement without a new pause reason. Preserve
+the valid deadline and compare the clock on resume: expired daily facts complete immediately,
+remaining facts stay static and manual facts gain no expiry. Never replay entry or announcements
+for the same ID on refresh, theme change or resume.
+
+One initially empty polite atomic region announces the localized final fact once. Animated
+fragments and the ring are decorative; retain an accessible static description and an accessible
+close. Arrival and automatic expiry never move focus. After manual keyboard close, hand off only
+when the close still owned focus: to the next close, a connected origin, or the stable shell main
+target. Never restore focus across accounts. Native keyboard focus requires separate TalkBack
+verification. There is no glow, gradient, confetti, looping or exclamation, and no additional
+Android haptic. Milestone days show only their milestone panel; queue priority and receipts remain.
 
 **Every animation must name its purpose from this closed list:** feedback · spatial consistency · state indication · preventing a jarring change · explanation · delight (rare/first-run tier only). **If you cannot name it, delete it.**
 
