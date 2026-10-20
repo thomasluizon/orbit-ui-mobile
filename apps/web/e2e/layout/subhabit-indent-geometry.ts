@@ -5,6 +5,7 @@ export async function setHabitTextScale(page: Page, scale: number) {
     document.documentElement.style.fontSize = `${16 * scale}px`
     await document.fonts.ready
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    window.dispatchEvent(new Event('resize'))
   }, scale)
 }
 

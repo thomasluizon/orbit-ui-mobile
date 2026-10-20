@@ -41,9 +41,25 @@ async function openFamily(page: Page) {
   const parent = page.locator('[data-habit-title="Parent"]')
   await expect(parent).toBeVisible()
   const leaf = habitRow(page, child.title)
-  if (!await leaf.isVisible()) await parent.locator('[data-habit-row-control="disclosure"]').click()
+  const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
+  if (!await leaf.isVisible()) {
+    await disclosure.click()
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    await expect(leaf).toBeVisible()
+  }
+  await disclosure.click()
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+  await expect(leaf).toBeHidden()
+  await disclosure.click()
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true')
   await expect(leaf).toBeVisible()
   await expect(habitRow(page, branch.title)).toBeVisible()
+}
+
+async function expectSupportingHeadings(page: Page, scale: number) {
+  for (const item of [habit, branch]) {
+    await expect(habitRow(page, item.title).locator('[data-habit-row-heading]')).toHaveCount(scale === 2 ? 1 : 0)
+  }
 }
 
 async function drillInto(page: Page, title: string, words: typeof en | typeof ptBR) {
@@ -81,6 +97,7 @@ for (const width of [320, 412, 1352]) {
             }
             for (const scale of [1, 2]) {
               await setHabitTextScale(page, scale)
+              await expectSupportingHeadings(page, scale)
               const rows = await assertHabitRows(page.locator('[data-testid="habit-row"]:visible'), width, [0, 1, 1, 1])
               for (const row of rows.slice(1)) {
                 expect(row.bounds.left).toBe(rows[0]!.bounds.left)
