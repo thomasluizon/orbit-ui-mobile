@@ -17,23 +17,22 @@ describe('resolved config', () => {
     const { features: _features, ...response } = createMockConfigResponse()
     const config = appConfigSchema.parse(response)
     expect(config.features).toEqual({})
-    expect(resolveFlag(config, 'analytics')).toBe(false)
+    expect(resolveFlag(config, 'redesign')).toBe(false)
   })
 
   it('uses the server resolution without applying another plan check', () => {
     const config = appConfigSchema.parse(createMockConfigResponse({
-      analytics: { enabled: true, planRequirement: 'Pro' },
-      chat: { enabled: false, planRequirement: null },
+      redesign: { enabled: true, planRequirement: 'Pro' },
+      ai_chat: { enabled: false, planRequirement: null },
     }))
-    expect(resolveFlag(config, 'analytics')).toBe(true)
-    expect(resolveFlag(config, 'chat')).toBe(false)
-    expect(resolveFlag(config, 'unknown')).toBe(false)
-    expect(resolveFlag(config, 'toString')).toBe(false)
-    expect(resolveFlag(undefined, 'analytics')).toBe(false)
+    expect(resolveFlag(config, 'redesign')).toBe(true)
+    expect(resolveFlag(config, 'ai_chat')).toBe(false)
+    expect(resolveFlag(config, 'sub_habits')).toBe(false)
+    expect(resolveFlag(undefined, 'redesign')).toBe(false)
   })
 
   it.each([
-    { ...createMockConfigResponse(), features: { analytics: { enabled: 'true', planRequirement: null } } },
+    { ...createMockConfigResponse(), features: { redesign: { enabled: 'true', planRequirement: null } } },
     createMockConfigResponse(undefined, { MaxHabitDepth: 'invalid' }),
     { ...createMockConfigResponse(), settings: { syncIntervalSeconds: '300', syncMaxBatchSize: 100 } },
   ])('rejects malformed config', (response) => {
@@ -49,19 +48,22 @@ describe('DEFAULT_CONFIG', () => {
 })
 
 describe('isFeatureEnabled', () => {
-  it('returns true for enabled free features', () => {
-    expect(isFeatureEnabled(DEFAULT_CONFIG, 'gamification', 'free')).toBe(true)
+  const config = appConfigSchema.parse(createMockConfigResponse({
+    sub_habits: { enabled: true, planRequirement: 'Pro' },
+    goal_tracking: { enabled: true, planRequirement: null },
+  }))
+
+  it.each(['free', 'pro'] as const)('allows enabled free features for %s', (plan) => {
+    expect(isFeatureEnabled(config, 'goal_tracking', plan)).toBe(true)
   })
 
-  it('returns true for goals on pro', () => {
-    expect(isFeatureEnabled(DEFAULT_CONFIG, 'goals', 'pro')).toBe(true)
+  it.each(['free', 'pro'] as const)('checks the sub-habit plan for %s', (plan) => {
+    expect(isFeatureEnabled(config, 'sub_habits', plan)).toBe(plan === 'pro')
   })
 
-  it('returns true for goals on free', () => {
-    expect(isFeatureEnabled(DEFAULT_CONFIG, 'goals', 'free')).toBe(true)
-  })
-
-  it('returns false for unknown features', () => {
-    expect(isFeatureEnabled(DEFAULT_CONFIG, 'missing.feature', 'pro')).toBe(false)
+  it('keeps missing and disabled features off for Pro', () => {
+    expect(isFeatureEnabled(config, 'notion_integration', 'pro')).toBe(false)
+    const disabled = { ...config, features: { sub_habits: { enabled: false, planRequirement: 'Pro' } } }
+    expect(isFeatureEnabled(disabled, 'sub_habits', 'pro')).toBe(false)
   })
 })

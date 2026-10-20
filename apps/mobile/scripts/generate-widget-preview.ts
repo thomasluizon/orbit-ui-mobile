@@ -133,14 +133,14 @@ function previewSvg(
 ) {
   const fixture = PICKER_PREVIEW_FIXTURE
   const card = requiredResource(colors, 'widget_card')
-  const well = requiredResource(colors, 'widget_well')
   const hairline = requiredResource(colors, 'widget_hairline')
   const fg1 = requiredResource(colors, 'widget_fg_1')
   const fg3 = requiredResource(colors, 'widget_fg_3')
   const streak = requiredResource(colors, 'widget_streak_text')
   const overdue = requiredResource(colors, 'widget_overdue')
   const today = requiredResource(strings, 'widget_today')
-  const subtitle = `${fixture.completed}/${fixture.total}`
+  const subtitle = `${fixture.completed} ${requiredResource(strings, 'widget_of')} ` +
+    `${fixture.total} ${requiredResource(strings, 'widget_completed')}`
   const streakUnit = requiredResource(strings, 'widget_streak_unit')
   const dimension = (name: string) => Number.parseFloat(requiredResource(dimensions, name))
   const inset = dimension('widget_inset_card')
@@ -157,14 +157,10 @@ function previewSvg(
     const centerY = rowTop + rowHeight / 2
     const titleColor = row.status === 'done' ? fg3 : fg1
     const timeColor = row.status === 'overdue' ? overdue : fg3
-    const rowBorder = row.status === 'done' ? '' : ` stroke="${hairline}" stroke-width="1"`
-    const rowBackground = `<rect x="${inset + 0.5}" y="${rowTop + 0.5}" width="${fixture.width - 2 * inset - 1}" ` +
-      `height="${rowHeight - 1}" rx="16" fill="${well}"${rowBorder}/>`
-    return rowBackground + `<g transform="translate(${inset + 4} 0)">` +
-      statusMark(row.status, centerY, colors) + '</g>' +
-      `<text id="widget_preview_habit" x="${inset + 44}" y="${rowTop + 28}" fill="${titleColor}" font-size="15">` +
+    return statusMark(row.status, centerY, colors) +
+      `<text id="widget_preview_habit" x="${inset + 42}" y="${rowTop + 23}" fill="${titleColor}" font-size="15">` +
       `${escaped(requiredResource(strings, row.nameKey))}</text>` +
-      `<text x="${inset + 44}" y="${rowTop + 46}" fill="${timeColor}" font-size="12" ` +
+      `<text x="${inset + 42}" y="${rowTop + 39}" fill="${timeColor}" font-size="12" ` +
       `letter-spacing="0.22">${row.time}</text>`
   }).join('')
 
@@ -176,17 +172,13 @@ function previewSvg(
     `<rect width="336" height="${cardHeight}" fill="${card}"/>` +
     `<rect x="0.5" y="0.5" width="335" height="${cardHeight - 1}" rx="23.5" fill="none" ` +
     `stroke="${hairline}" stroke-width="1"/>` +
-    `<circle cx="36" cy="48" r="10" fill="none" ` +
-    `stroke="${requiredResource(colors, 'widget_track_empty')}" stroke-width="2"/>` +
-    `<circle cx="36" cy="48" r="10" fill="none" stroke="${fg1}" stroke-width="2" ` +
-    `stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 10 * fixture.completed / fixture.total} ` +
-    `${2 * Math.PI * 10}" transform="rotate(-90 36 48)"/>` +
-    `<text id="widget_preview_header" x="56" y="42" fill="${fg3}" font-size="13" font-weight="500">${escaped(today)}</text>` +
-    `<text x="56" y="59" fill="${fg3}" font-size="12">${escaped(subtitle)}</text>` +
-    `<text id="widget_preview_streak" x="84" y="59" fill="${streak}" font-size="15" ` +
+    `<path d="M0 47.5H336" stroke="${hairline}" stroke-width="1"/>` +
+    `<text id="widget_preview_header" x="12" y="21" fill="${fg3}" font-size="13" font-weight="500">${escaped(today)}</text>` +
+    `<text x="12" y="37" fill="${fg3}" font-size="12">${escaped(subtitle)}</text>` +
+    `<text id="widget_preview_streak" x="224" y="29" fill="${streak}" font-size="15" ` +
     `font-weight="500">${fixture.streak}</text>` +
-    `<text x="106" y="59" fill="${fg3}" font-size="12">${escaped(streakUnit)}</text>` +
-    `<path d="M296 48a8 8 0 1 1-2.3-5.7M296 40v6h-6" fill="none" ` +
+    `<text x="246" y="29" fill="${fg3}" font-size="12">${escaped(streakUnit)}</text>` +
+    `<path d="M320 24a8 8 0 1 1-2.3-5.7M320 16v6h-6" fill="none" ` +
     `stroke="${fg3}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` +
     `${rows}</g></svg>`
 

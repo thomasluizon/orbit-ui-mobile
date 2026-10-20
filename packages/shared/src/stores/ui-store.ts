@@ -97,7 +97,7 @@ export interface UIStoreState {
   dailyStreakMomentDate: string;
   showStreakMoment: (
     streak: number,
-    previousStreak: number | undefined,
+    previousStreak: number | null | undefined,
     log: { date?: string; timeZone?: string | null; intent: "log" | "unlog"; countsTowardStreak: boolean },
   ) => void;
   streakCelebration: { streak: number } | null;
@@ -240,7 +240,7 @@ export function createUIStoreState(
     showStreakMoment: (streak, previousStreak, log) => {
       const today = getAccountDay(new Date(), log.timeZone);
       if (log.intent !== "log" || !log.countsTowardStreak || (log.date && log.date !== today)) return;
-      if (previousStreak === undefined || streak !== previousStreak + 1) return;
+      if (previousStreak === undefined || previousStreak === null || streak !== previousStreak + 1) return;
       set((state) => {
         if (state.dailyStreakMomentDate === today) return {};
         const kind = isStreakCelebrationMilestone(streak) ? "streak" : "daily-streak";

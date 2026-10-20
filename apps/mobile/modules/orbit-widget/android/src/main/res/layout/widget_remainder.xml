@@ -7,7 +7,7 @@
     <TextView
         android:id="@+id/widget_remainder_text"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/widget_ring_size"
+        android:layout_height="@dimen/widget_remainder_height"
         android:layout_gravity="center_vertical"
         android:fontFamily="sans-serif"
         android:gravity="center_vertical"

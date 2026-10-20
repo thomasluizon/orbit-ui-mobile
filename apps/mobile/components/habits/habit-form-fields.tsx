@@ -309,7 +309,7 @@ export function HabitFormFields({
   const checklistItems = useWatch({ control: form.control, name: 'checklistItems' }) ?? []
   const isBadHabit = useWatch({ control: form.control, name: 'isBadHabit' }) ?? false
   const slipAlertEnabled = useWatch({ control: form.control, name: 'slipAlertEnabled' }) ?? false
-  const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', habitFeaturePlan(hasProAccess))
+  const canUseSubHabits = isFeatureEnabled(config, 'sub_habits', habitFeaturePlan(hasProAccess))
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposal, setProposal] = useState(EMPTY_HABIT_FORM_PROPOSAL)

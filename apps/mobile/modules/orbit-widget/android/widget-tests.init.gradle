@@ -1,0 +1,11 @@
+gradle.beforeProject { project ->
+  if (project.name == 'orbit-widget') {
+    project.pluginManager.withPlugin('com.android.library') {
+      project.android.defaultConfig.testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
+      project.dependencies.add('testImplementation', 'junit:junit:4.13.2')
+      project.dependencies.add('androidTestImplementation', 'androidx.test:core:1.7.0')
+      project.dependencies.add('androidTestImplementation', 'androidx.test:runner:1.7.0')
+      project.dependencies.add('androidTestImplementation', 'androidx.test.ext:junit:1.3.0')
+    }
+  }
+}
