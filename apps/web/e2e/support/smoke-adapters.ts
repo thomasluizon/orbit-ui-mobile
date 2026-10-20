@@ -51,6 +51,8 @@ export async function logSmokeHabit(page: Page, title: string): Promise<void> {
   await expect(toggle).not.toHaveAttribute('aria-label', initialState ?? '')
   await expect(row).toHaveAttribute('data-status', 'done')
   await page.reload()
+  await localizedRole(page, 'button', en.habits.listOptions, ptBR.habits.listOptions).click()
+  await localizedRole(page, 'menuitem', en.habits.showCompletedMenu, ptBR.habits.showCompletedMenu).click()
   await expect(row).toHaveAttribute('data-status', 'done')
 }
 

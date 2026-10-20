@@ -39,16 +39,16 @@ export class SmokeDomLocator {
   }
 
   async fill(value: string) {
-    await this.page.checkpoint()
-    const element = this.element()
+    await this.page.checkpoint(this)
+    const element = await waitFor(() => this.element())
     if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) throw new Error('fill requires a text control')
     expect(element).toBeEnabled()
     await act(async () => { fireEvent.change(element, { target: { value } }) })
   }
 
   async click() {
-    await this.page.checkpoint()
-    const element = this.element()
+    await this.page.checkpoint(this)
+    const element = await waitFor(() => this.element())
     expect(element).toBeEnabled()
     expect(element).not.toHaveAttribute('aria-disabled', 'true')
     await act(async () => { fireEvent.click(element) })
@@ -80,18 +80,22 @@ export class SmokeDomPage {
     this.handlers.push({ locator, run })
   }
 
-  async checkpoint() {
-    if (this.handling) return
-    this.handling = true
-    try {
-      for (const handler of this.handlers) {
-        if (!handler.locator.matches().length) continue
-        await handler.run(handler.locator)
-        await waitFor(() => expect(handler.locator.matches()).toHaveLength(0))
+  async checkpoint(target: SmokeDomLocator) {
+    if (!this.handling) {
+      this.handling = true
+      try {
+        for (const handler of this.handlers) {
+          if (!handler.locator.matches().length) continue
+          await handler.run(handler.locator)
+          await waitFor(() => expect(handler.locator.matches()).toHaveLength(0))
+        }
+      } finally {
+        this.handling = false
       }
-      if (queryAllByRole(document.body, 'dialog').length) throw new Error('An undismissed dialog blocks the smoke action')
-    } finally {
-      this.handling = false
+    }
+    const dialogs = queryAllByRole(document.body, 'dialog')
+    if (dialogs.some((dialog) => !target.matches().some((element) => dialog.contains(element)))) {
+      throw new Error('An undismissed dialog blocks the smoke action')
     }
   }
 
@@ -101,13 +105,13 @@ export class SmokeDomPage {
     })
   }
 
-  async reload() { await act(this.onReload) }
+  async reload() { await this.onReload() }
 }
 
 export function expectSmokeDom(subject: unknown) {
   if (!(subject instanceof SmokeDomLocator)) return expect(subject)
   const check = async (assert: () => void) => {
-    await subject.page.checkpoint()
+    await subject.page.checkpoint(subject)
     await waitFor(assert)
   }
   return {

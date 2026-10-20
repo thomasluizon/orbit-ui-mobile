@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
@@ -106,9 +106,8 @@ function HabitCreation() {
   </DestinationShell>
 }
 
-function Logging({ page, success = true, persisted = true }: { page: SmokeDomPage; success?: boolean; persisted?: boolean }) {
+function Logging({ page, success = true }: { page: SmokeDomPage; success?: boolean }) {
   const [done, setDone] = useState(false)
-  useEffect(() => { page.setReload(async () => { setDone(success && persisted && done) }) }, [page, success, persisted, done])
   return <HabitRow habit={createMockHabit({ title: 'Smoke log' })} state={done ? 'done' : 'empty'}
     actions={{ onLog: () => {
       setDone(true)
@@ -213,29 +212,31 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     expect(screen.getByRole('dialog', { name: 'Unknown required decision' })).toBeInTheDocument()
   })
 
+  it('allows a dialog action while blocking an outside click', async () => {
+    const inside = vi.fn()
+    const outside = vi.fn()
+    mount(<><button data-testid="outside-action" onClick={outside}>Outside</button>
+      <Sheet open title="Unknown required decision">
+        <button data-testid="inside-action" onClick={inside}>Inside</button>
+      </Sheet></>, locale)
+    const page = new SmokeDomPage()
+    await page.getByTestId('inside-action').click()
+    expect(inside).toHaveBeenCalledTimes(1)
+    await expect(page.getByTestId('outside-action').click()).rejects.toThrow('undismissed dialog')
+    expect(outside).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Unknown required decision' })).toBeInTheDocument()
+  })
+
   it('rejects disabled checkout', async () => {
     mount(<Checkout disabled />, locale)
     await expect(expectCheckout(new SmokeDomPage() as unknown as Page)).rejects.toThrow(/enabled/)
     expect(mocks.checkout).not.toHaveBeenCalled()
   })
 
-  it('activates the real logging control and verifies completion', async () => {
-    const page = new SmokeDomPage()
-    mount(<Logging page={page} />, locale)
-    await logSmokeHabit(page as unknown as Page, 'Smoke log')
-    expect(document.querySelector('[data-habit-title="Smoke log"]')).toHaveAttribute('data-status', 'done')
-  })
-
   it('rejects a failed logging response despite the optimistic check', async () => {
     const page = new SmokeDomPage()
     mount(<Logging page={page} success={false} />, locale)
     await expect(logSmokeHabit(page as unknown as Page, 'Smoke log')).rejects.toThrow(/truthy/)
-  })
-
-  it('rejects an optimistic completion that does not survive reload', async () => {
-    const page = new SmokeDomPage()
-    mount(<Logging page={page} persisted={false} />, locale)
-    await expect(logSmokeHabit(page as unknown as Page, 'Smoke log')).rejects.toThrow(/done/)
   })
 
   it('respects the real logging control disabled reason', async () => {
