@@ -22,6 +22,7 @@ import {
   applyLinkedGoalUpdates,
   appendHabitDetailChild,
   buildSuccessfulLogPatch,
+  deriveBulkLogStreakTransition,
   findHabitInList,
   getAccountDay,
   getFriendlyErrorMessage,
@@ -1459,16 +1460,11 @@ export function useBulkLogHabits() {
       return profileRefresh?.then(() => {
         const profile = queryClient.getQueryData<Profile>(profileKeys.detail())
         if (!profile || !context.account.stillCurrent() || today !== getAccountDay(new Date(), profile.timeZone)) return
-        const countsTowardStreak = data.streakResponses.some((response) => {
-          if (response.previousStreak == null || response.currentStreak !== response.previousStreak + 1) return false
-          return response.results.some((entry) => {
-            if (entry.logId === null || !successfulEntries.some((success) => success.index === entry.index)) return false
-            const habit = findHabitInList(context.previousLists.flatMap(([, habits]) => habits ?? []), entry.habitId)
-            return habit !== null && !habit.isBadHabit
-          })
-        })
-        const previousStreak = data.streakResponses[0]?.previousStreak ?? undefined
-        const currentStreak = data.streakResponses[data.streakResponses.length - 1]?.currentStreak ?? undefined
+        const { previousStreak, currentStreak, countsTowardStreak } = deriveBulkLogStreakTransition(
+          data.streakResponses,
+          successfulEntries,
+          context.previousLists.flatMap(([, habits]) => habits ?? []),
+        )
         if (currentStreak !== undefined) showStreakMoment(currentStreak, previousStreak, { date: today, timeZone: profile.timeZone, intent: 'log', countsTowardStreak })
         checkTodayCompletionAfterLogs(queryClient, successfulIds, today,
           (habits, children, date) => checkAllDoneCelebration(habits, children, date, profile.timeZone))
