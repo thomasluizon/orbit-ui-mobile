@@ -65,7 +65,9 @@ function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
           <Text selectable style={textStyle}>{apiKey.lastUsedAtUtc ? displayDateMedium(apiKey.lastUsedAtUtc) : t('orbitMcp.never')}</Text>
         </View>
       </View>
-      {apiKey.expiresAtUtc ? <Text selectable style={textStyle}>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</Text> : null}
+      <Text selectable style={textStyle}>{apiKey.expiresAtUtc
+        ? t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })
+        : t('common.never')}</Text>
     </View>
   )
 }

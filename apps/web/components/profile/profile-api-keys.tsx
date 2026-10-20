@@ -62,7 +62,9 @@ function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
             : t('orbitMcp.never')}</dd>
         </div>
       </dl>
-      {apiKey.expiresAtUtc ? <p>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</p> : null}
+      <p>{apiKey.expiresAtUtc
+        ? t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })
+        : t('common.never')}</p>
     </div>
   )
 }
