@@ -14,7 +14,9 @@
 
 The shell create action creates habits directly. There is no separate create menu or goal item to reroute.
 Astra conversation suggestion chips and accepted goal proposals retain their conversational flow.
-The create sheet explains linked progress and shows avoided-day guidance when a habit to avoid is selected.
+The create sheet and linked habit picker explain how selected habits to avoid affect progress:
+Streak goals count avoided days; Standard goals count logged slips. Changing type updates the note
+while preserving the selected habits.
 Habit edit and detail seed the current habit; successful creation selects its goal without a second write.
 The existing create form is reused across these entries; editing remains the second form implementation.
 The sheet primitive owns padding, scrolling, dismissal and focus. The footer keeps trailing ghost Cancelar

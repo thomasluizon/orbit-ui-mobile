@@ -78,18 +78,50 @@ async function openHabitPicker(tree: TestTree) {
 }
 
 describe('goal creation with habits', () => {
-  it('explains progress and shows avoided days only after selecting a bad habit', async () => {
+  it.each(['Standard', 'Streak'])('explains selected bad habits for %s goals', async (goalType) => {
     const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
     mocks.habits.data.habitsById.set(habit.id, habit)
     const tree = await mount()
     const text = (key: string) => tree.root.findAll((node) => node.type === 'Text' && node.props.children === key)
+    const note = goalType === 'Streak' ? 'goals.form.avoidedDays' : 'goals.form.loggedSlips'
+    const excluded = goalType === 'Streak' ? 'goals.form.loggedSlips' : 'goals.form.avoidedDays'
     expect(text('goals.form.habitsExplainer')).toHaveLength(1)
+    if (goalType === 'Streak') {
+      await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'segment-Streak-unselected-enabled')[0]!.props.onPress())
+    }
     await openHabitPicker(tree)
     expect(text('goals.form.avoidedDays')).toHaveLength(0)
+    expect(text('goals.form.loggedSlips')).toHaveLength(0)
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!.props.onPress())
-    expect(text('goals.form.avoidedDays')).toHaveLength(1)
+    expect(text(note)).toHaveLength(1)
+    expect(text(excluded)).toHaveLength(0)
     await TestRenderer.act(() => button(tree, 'common.done').props.onClick())
-    expect(text('goals.form.avoidedDays')).toHaveLength(1)
+    expect(text(note)).toHaveLength(1)
+    expect(text(excluded)).toHaveLength(0)
+    await TestRenderer.act(() => tree.unmount())
+  })
+
+  it('updates bad-habit guidance when the goal type changes', async () => {
+    const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
+    mocks.habits.data.habitsById.set(habit.id, habit)
+    const tree = await mount()
+    const text = (key: string) => tree.root.findAll((node) => node.type === 'Text' && node.props.children === key)
+    await openHabitPicker(tree)
+    await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!.props.onPress())
+    await TestRenderer.act(() => button(tree, 'common.done').props.onClick())
+    for (const [type, note, excluded] of [
+      ['Streak', 'goals.form.avoidedDays', 'goals.form.loggedSlips'],
+      ['Standard', 'goals.form.loggedSlips', 'goals.form.avoidedDays'],
+    ]) {
+      await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === `segment-${type}-unselected-enabled`)[0]!.props.onPress())
+      expect(text(note!)).toHaveLength(1)
+      expect(text(excluded!)).toHaveLength(0)
+      await openHabitPicker(tree)
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!.props.accessibilityState).toMatchObject({ selected: true })
+      expect(text(note!)).toHaveLength(1)
+      expect(text(excluded!)).toHaveLength(0)
+      await TestRenderer.act(() => button(tree, 'common.done').props.onClick())
+    }
     await TestRenderer.act(() => tree.unmount())
   })
 

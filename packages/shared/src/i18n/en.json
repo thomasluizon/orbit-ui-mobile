@@ -3175,6 +3175,7 @@
       "habitsInvitation": "Start with a habit",
       "habitFormError": "Could not open the habit form. Try again.",
       "avoidedDays": "For habits you want to avoid, progress counts the days you avoid them.",
+      "loggedSlips": "For this goal, logged slips in habits you want to avoid count as progress.",
       "createError": "Could not create the goal. Try again.",
       "title": "Title",
       "searchHabits": "Search habits",

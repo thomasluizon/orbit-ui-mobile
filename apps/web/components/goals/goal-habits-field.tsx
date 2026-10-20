@@ -5,6 +5,7 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { lazy, Suspense } from 'react'
 import { Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
+import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
 import { toggleSelectedId } from '@orbit/shared/utils'
 import { useHabits } from '@/hooks/use-habit-queries'
@@ -25,14 +26,14 @@ interface GoalHabitsFieldProps {
   disabled: boolean
 }
 
-export function GoalHabitsSelectionNote({ selectedIds }: Readonly<{ selectedIds: string[] }>) {
+export function GoalHabitsSelectionNote({ selectedIds, goalType }: Readonly<{ selectedIds: string[]; goalType: GoalType }>) {
   const t = useTranslations()
   const habits = useHabits({})
   const hasAvoidedHabit = selectedIds.some((id) => habits.data?.habitsById.get(id)?.isBadHabit)
-  return hasAvoidedHabit ? <p className="max-w-prose text-sm leading-[1.55] text-pretty text-[var(--fg-2)]">{t('goals.form.avoidedDays')}</p> : null
+  return hasAvoidedHabit ? <p className="max-w-prose text-sm leading-[1.55] text-pretty text-[var(--fg-2)]">{t(goalType === 'Streak' ? 'goals.form.avoidedDays' : 'goals.form.loggedSlips')}</p> : null
 }
 
-export function GoalHabitsPicker({ selectedIds, onChange, disabled, onClose }: Readonly<GoalHabitsFieldProps & { onClose: () => void }>) {
+export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, onClose }: Readonly<GoalHabitsFieldProps & { goalType: GoalType; onClose: () => void }>) {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
   const [creatingHabit, setCreatingHabit] = useAccountScopedState(false)
@@ -60,7 +61,7 @@ export function GoalHabitsPicker({ selectedIds, onChange, disabled, onClose }: R
       return <PickerRow name={habit.title} selected={selected} disabled={disabled || (!selected && atLimit)} onToggle={() => onChange(toggleSelectedId(selectedIds, habit.id))} value={selected ? '✓' : ''} valueHidden valueClassName="flex-1 text-sm text-[var(--fg-2)]" controlClassName="orbit-list-row-body flex min-h-12 w-full items-center rounded-[12px] px-2 py-1 text-left disabled:opacity-40" actionsClassName="flex items-center justify-between gap-2" />
     }} />}
     {habitFormState === 'error' ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('goals.form.habitFormError')}</p> : null}
-    <GoalHabitsSelectionNote selectedIds={selectedIds} />
+    <GoalHabitsSelectionNote selectedIds={selectedIds} goalType={goalType} />
     {atLimit ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}
   </Sheet>
 }

@@ -3175,6 +3175,7 @@
       "habitsInvitation": "Comece com um hábito",
       "habitFormError": "Não foi possível abrir o formulário do hábito. Tente de novo.",
       "avoidedDays": "Nos hábitos que você quer evitar, cada dia sem praticar conta como progresso.",
+      "loggedSlips": "Nesta meta, cada deslize registrado em um hábito que você quer evitar conta como progresso.",
       "createError": "Não foi possível criar a meta. Tente de novo.",
       "title": "Título",
       "searchHabits": "Buscar hábitos",

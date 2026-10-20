@@ -6,6 +6,7 @@ import { Plus } from '@/components/ui/icons'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
 import { toggleSelectedId } from '@orbit/shared/utils'
 import { useHabits } from '@/hooks/use-habit-queries'
@@ -28,12 +29,12 @@ interface GoalHabitsFieldProps {
   disabled: boolean
 }
 
-export function GoalHabitsSelectionNote({ selectedIds }: Readonly<{ selectedIds: string[] }>) {
+export function GoalHabitsSelectionNote({ selectedIds, goalType }: Readonly<{ selectedIds: string[]; goalType: GoalType }>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const habits = useHabits({})
   const hasAvoidedHabit = selectedIds.some((id) => habits.data?.habitsById.get(id)?.isBadHabit)
-  return hasAvoidedHabit ? <Text style={[styles.note, { color: tokens.fg2 }]}>{t('goals.form.avoidedDays')}</Text> : null
+  return hasAvoidedHabit ? <Text style={[styles.note, { color: tokens.fg2 }]}>{t(goalType === 'Streak' ? 'goals.form.avoidedDays' : 'goals.form.loggedSlips')}</Text> : null
 }
 
 function GoalHabitRow({ habit, selectedIds, onChange, disabled }: Readonly<GoalHabitsFieldProps & { habit: NormalizedHabit }>) {
@@ -57,7 +58,7 @@ function GoalHabitList({ items, selectedIds, onChange, disabled, onClose, onCrea
   </View>
 }
 
-export function GoalHabitsPicker({ selectedIds, onChange, disabled, onClose }: Readonly<GoalHabitsFieldProps & { onClose: () => void }>) {
+export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, onClose }: Readonly<GoalHabitsFieldProps & { goalType: GoalType; onClose: () => void }>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const { sheetRef, closeSheet } = useSheetHost()
@@ -82,7 +83,7 @@ export function GoalHabitsPicker({ selectedIds, onChange, disabled, onClose }: R
   return <Sheet ref={sheetRef} open actions={<PillButton onClick={() => closeSheet()}>{t('common.done')}</PillButton>} title={t('goals.linkedHabits')} onClose={onClose} virtualizedBody={items.length >= 21}>
     {habits.isLoading ? <Skeleton variant="settings" rows={3} label={t('common.loading')} /> : habits.isError ? <View accessibilityRole="alert"><Text style={{ color: tokens.fg2 }}>{t('goals.form.habitsError')}</Text><PillButton variant="ghost" onClick={() => void habits.refetch()}>{t('common.retry')}</PillButton></View> : <GoalHabitList items={items} selectedIds={selectedIds} onChange={onChange} disabled={disabled} onClose={() => closeSheet()} openingHabitForm={habitFormState === 'loading'} onCreateHabit={() => void openHabitForm()} />}
     {habitFormState === 'error' ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{t('goals.form.habitFormError')}</Text> : null}
-    <GoalHabitsSelectionNote selectedIds={selectedIds} />
+    <GoalHabitsSelectionNote selectedIds={selectedIds} goalType={goalType} />
     {selectedIds.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}
   </Sheet>
 }

@@ -258,11 +258,11 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
             onChangeDeadline={setDeadline}
           />
           {formError ? <Text accessibilityRole="alert" style={styles.fieldError}>{formError}</Text> : null}
-          <GoalHabitsSelectionNote selectedIds={habitIds} />
+          <GoalHabitsSelectionNote selectedIds={habitIds} goalType={goalType} />
           <ListRow title={t('goals.linkedHabits')} value={t('habits.form.selectedCount', { count: habitIds.length })} placement="column" disabled={isSubmitting} onClick={() => closeSheet(() => setSelectingHabits(true))} />
         </View>
       </Sheet>) : null}
-      {open && selectingHabits ? <GoalHabitsPicker selectedIds={habitIds} onChange={setHabitIds} disabled={isSubmitting} onClose={() => setSelectingHabits(false)} /> : null}
+      {open && selectingHabits ? <GoalHabitsPicker selectedIds={habitIds} goalType={goalType} onChange={setHabitIds} disabled={isSubmitting} onClose={() => setSelectingHabits(false)} /> : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
         onKeepEditing={dismissGuard.cancelDismiss}

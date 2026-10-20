@@ -52,20 +52,62 @@ async function openHabitPicker() {
 }
 
 describe('goal creation with habits', () => {
-  it.each(['en', 'pt-BR'])('explains habit progress and avoided days only for selected habits in %s', async (locale) => {
+  it.each([
+    ['en', 'Standard'], ['en', 'Streak'], ['pt-BR', 'Standard'], ['pt-BR', 'Streak'],
+  ])('explains selected bad habits for %s %s goals', async (locale, goalType) => {
     mocks.locale = locale
     const messages = locale === 'en' ? en : ptBR
+    const loggedSlips = locale === 'en'
+      ? 'For this goal, logged slips in habits you want to avoid count as progress.'
+      : 'Nesta meta, cada deslize registrado em um hábito que você quer evitar conta como progresso.'
+    const expectedNote = goalType === 'Streak' ? messages.goals.form.avoidedDays : loggedSlips
+    const otherNote = goalType === 'Streak' ? loggedSlips : messages.goals.form.avoidedDays
     const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
     mocks.habits.data.habitsById.set(habit.id, habit)
     render(<CreateGoalSheet open onClose={vi.fn()} />)
     expect(screen.getByText(messages.goals.form.habitsExplainer)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: goalType === 'Streak' ? messages.goals.form.typeStreak : messages.goals.form.typeStandard }))
     fireEvent.click(screen.getByRole('button', { name: new RegExp(messages.goals.linkedHabits) }))
     const picker = await screen.findByRole('dialog', { name: messages.goals.linkedHabits })
     expect(screen.queryByText(messages.goals.form.avoidedDays)).not.toBeInTheDocument()
+    expect(screen.queryByText(loggedSlips)).not.toBeInTheDocument()
     fireEvent.click(within(picker).getByRole('button', { name: habit.title, pressed: false }))
-    expect(within(picker).getByText(messages.goals.form.avoidedDays)).toBeInTheDocument()
+    expect(within(picker).getByText(expectedNote)).toBeInTheDocument()
+    expect(within(picker).queryByText(otherNote)).not.toBeInTheDocument()
     fireEvent.click(within(picker).getByRole('button', { name: messages.common.done }))
-    expect(await screen.findByText(messages.goals.form.avoidedDays)).toBeInTheDocument()
+    expect(await screen.findByText(expectedNote)).toBeInTheDocument()
+    expect(screen.queryByText(otherNote)).not.toBeInTheDocument()
+  })
+
+  it.each(['en', 'pt-BR'])('updates bad-habit guidance when the goal type changes in %s', async (locale) => {
+    mocks.locale = locale
+    const messages = locale === 'en' ? en : ptBR
+    const loggedSlips = locale === 'en'
+      ? 'For this goal, logged slips in habits you want to avoid count as progress.'
+      : 'Nesta meta, cada deslize registrado em um hábito que você quer evitar conta como progresso.'
+    const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
+    mocks.habits.data.habitsById.set(habit.id, habit)
+    render(<CreateGoalSheet open onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(messages.goals.linkedHabits) }))
+    let picker = await screen.findByRole('dialog', { name: messages.goals.linkedHabits })
+    fireEvent.click(within(picker).getByRole('button', { name: habit.title, pressed: false }))
+    fireEvent.click(within(picker).getByRole('button', { name: messages.common.done }))
+    await screen.findByRole('radio', { name: messages.goals.form.typeStreak })
+    for (const [type, note, excluded] of [
+      [messages.goals.form.typeStreak, messages.goals.form.avoidedDays, loggedSlips],
+      [messages.goals.form.typeStandard, loggedSlips, messages.goals.form.avoidedDays],
+    ]) {
+      fireEvent.click(screen.getByRole('radio', { name: type }))
+      expect(screen.getByText(note!)).toBeInTheDocument()
+      expect(screen.queryByText(excluded!)).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(messages.goals.linkedHabits) }))
+      picker = await screen.findByRole('dialog', { name: messages.goals.linkedHabits })
+      expect(within(picker).getByRole('button', { name: habit.title, pressed: true })).toBeEnabled()
+      expect(within(picker).getByText(note!)).toBeInTheDocument()
+      expect(within(picker).queryByText(excluded!)).not.toBeInTheDocument()
+      fireEvent.click(within(picker).getByRole('button', { name: messages.common.done }))
+      await screen.findByRole('radio', { name: messages.goals.form.typeStreak })
+    }
   })
 
   it('opens habit creation from the empty picker and returns to the goal draft', async () => {
