@@ -78,7 +78,8 @@ describe('Avisos content edge on Android', () => {
         layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
         const list = [...nodes].find(([host]) => host.props.accessibilityLabel === 'notifications.title')![1]
         const firstRow = list.getChild(0)
-        expect(leadingEdge(firstRow)).toBe(16)
+        // WHY: #1570 centres the list while its rows keep the 16 inset. https://github.com/thomasluizon/orbit-tickets/issues/1570
+        expect(leadingEdge(firstRow)).toBe((width - list.getComputedWidth()) / 2 + 16)
         expect(nodes.get(screen)!.getComputedWidth()).toBe(width)
         expect(nodes.get(header)!.getComputedWidth()).toBe(width)
         expect(leadingEdge(nodes.get(header)!)).toBe(0)

@@ -410,8 +410,8 @@ function LogDateError({ visible, tokens }: Readonly<{ visible: boolean; tokens: 
 
 function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Readonly<{ parentId?: string | null; onBack: () => void; titleIsHeading?: boolean }>) {
   const { t } = useTranslation()
-  return <AppBar title={t('habits.detail.screenTitle')} titleIsHeading={titleIsHeading} onBack={onBack}
-    backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} />
+  return <View style={styles.navigation}><AppBar title={t('habits.detail.screenTitle')} titleIsHeading={titleIsHeading} onBack={onBack}
+    backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} /></View>
 }
 
 function DetailChecklist({ editing, ...props }: Readonly<React.ComponentProps<typeof HabitChecklist> & { editing: boolean }>) {
@@ -685,7 +685,8 @@ const styles = StyleSheet.create({
   reminderTime: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   stripSection: { gap: 8, paddingTop: SPACING.s24 },
   stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
-  content: { width: '100%', maxWidth: 620, gap: 24 },
+  navigation: { alignSelf: 'center', width: '100%', maxWidth: 652 },
+  content: { alignSelf: 'center', width: '100%', maxWidth: 620, gap: 24 },
   summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
   profileLoading: { gap: 16 },
   surface: { gap: 8 },

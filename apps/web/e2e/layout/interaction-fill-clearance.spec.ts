@@ -3,10 +3,50 @@ import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { completeInstallOnboarding } from './install-onboarding'
 import { test } from './layout-test'
 import { inspectControls } from './interaction-fill-states'
+import { captureControlInventory } from './interaction-fill-inventory'
 import { layoutRouteInventory } from './layout-route-inventory'
 import { installInteractionFillFixtures } from './interaction-fill-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+
+for (const change of ['remove', 'add', 'replace'] as const) {
+  test(`interaction fill inventory settles after controls ${change} during capture`, async ({ page }) => {
+    await page.setContent('<button>First</button><button>Second</button>')
+    const controls = page.locator('button')
+    const nth = controls.nth.bind(controls)
+    const failures: string[] = []
+    let changed = false
+    controls.nth = index => {
+      const control = nth(index)
+      const ariaSnapshot = control.ariaSnapshot.bind(control)
+      control.ariaSnapshot = async options => {
+        let snapshot: string
+        try { snapshot = await ariaSnapshot(options) }
+        catch (cause) { failures.push(String(cause)); throw cause }
+        if (index === 0 && !changed) {
+          changed = true
+          await page.evaluate(change => {
+            if (change === 'remove') document.body.innerHTML = '<button class="orbit-habit-rename">Replacement</button>'
+            if (change === 'add') document.body.insertAdjacentHTML('beforeend', '<button>Added</button>')
+            if (change === 'replace') document.body.innerHTML = '<button>Replacement</button><button>Second</button>'
+          }, change)
+        }
+        return snapshot
+      }
+      return control
+    }
+    const expected = change === 'remove'
+      ? [{ index: 0, identity: 'button "Replacement"', order: 0, title: true }]
+      : [
+        { index: 0, identity: `button "${change === 'replace' ? 'Replacement' : 'First'}"`, order: 0, title: false },
+        { index: 1, identity: 'button "Second"', order: 0, title: false },
+      ]
+    if (change === 'add') expected.push({ index: 2, identity: 'button "Added"', order: 0, title: false })
+    expect(await captureControlInventory(controls, '/habits/new, 320px, en')).toEqual(expected)
+    await expect(controls).toHaveCount(expected.length)
+    expect(failures.join('\n')).not.toContain('Timeout')
+  })
+}
 
 for (const width of [320, 412, 600, 1024, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {

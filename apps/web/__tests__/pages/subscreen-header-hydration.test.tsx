@@ -68,12 +68,14 @@ describe('sub-screen header first paint', () => {
             const bounds = (element: Element | null) => {
               if (!element) return null
               const rectangle = element.getBoundingClientRect()
-              return { left: rectangle.left, top: rectangle.top }
+              return { left: rectangle.left, top: rectangle.top, width: rectangle.width }
             }
             return {
               body: bounds(document.querySelector('[data-testid="about-identity"]')),
               back: bounds(document.querySelector('header button')),
               column: bounds(document.querySelector('[data-shell-column]')),
+              frame: bounds(document.querySelector('[data-testid="about-content"]')),
+              available: document.querySelector<HTMLElement>('[data-shell-scroller]')!.clientWidth,
             }
           })
         }
@@ -84,7 +86,8 @@ describe('sub-screen header first paint', () => {
         expect.soft(hydrated.body).toEqual(firstPaint.body)
         expect.soft(hydrated.back).toEqual(firstPaint.back)
         expect(hydrated.column).toEqual(firstPaint.column)
-        expect(Math.abs(hydrated.body!.left - hydrated.back!.left - 8)).toBeLessThanOrEqual(0.5)
+        // WHY: #1570 centres the retained body column without moving the header on hydration. https://github.com/thomasluizon/orbit-tickets/issues/1570
+        expect(Math.abs(hydrated.body!.left - hydrated.back!.left - 8 - (hydrated.available - hydrated.frame!.width) / 2)).toBeLessThanOrEqual(0.5)
         expect(container.querySelectorAll('header button')).toHaveLength(1)
         expect(container.querySelector('[data-shell-header] header button')).not.toBeNull()
         expect(recoverableError).not.toHaveBeenCalled()

@@ -80,7 +80,7 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH }, columnInset: { alignSelf: 'flex-start', width: '100%', maxWidth: 620, paddingHorizontal: SPACING.s16 }, field: { paddingVertical: SPACING.s16, gap: 8, flexDirection: 'row', alignItems: 'center' }, input: { flex: 1, minWidth: 0 },
+  screen: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH }, columnInset: { alignSelf: 'center', width: '100%', maxWidth: 620, paddingHorizontal: SPACING.s16 }, field: { paddingVertical: SPACING.s16, gap: 8, flexDirection: 'row', alignItems: 'center' }, input: { flex: 1, minWidth: 0 },
   list: { paddingTop: SPACING.s16, gap: 8, minHeight: 400 }, count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: SPACING.s4 },
   heading: { fontFamily: 'GeistMono_400Regular', fontSize: 12, textTransform: 'uppercase', padding: SPACING.s12 },
   chip: { padding: SPACING.s8, borderRadius: radius.sm, borderWidth: 1, fontFamily: 'Geist_500Medium', fontSize: 12 }, pagination: { flexDirection: 'row', gap: 12 },

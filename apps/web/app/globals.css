@@ -1815,6 +1815,10 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 /* Reduced motion: keep essential loading feedback while suppressing other motion. */
 @media (prefers-reduced-motion: reduce) {
+  .habit-form-disclosure[data-open] {
+    transform: none;
+  }
+
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
@@ -2531,9 +2535,14 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
+.orbit-centred-column {
+  margin-inline: auto;
+}
+
 .orbit-content-frame {
   width: 100%;
   min-width: 0;
+  margin-inline: auto;
   padding-inline: var(--padding-screen-gutter);
 }
 

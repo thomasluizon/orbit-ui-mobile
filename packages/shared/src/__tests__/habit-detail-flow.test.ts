@@ -77,6 +77,22 @@ const log = (date: string, createdAtUtc = `${date}T12:00:00Z`): HabitLog => ({
 })
 
 describe('habit detail flow model', () => {
+  it('accepts a one-time detail with nullable frequency and no weekdays', () => {
+    const schedule = {
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      schedule: 'OneTime',
+      dueDate: '2026-10-26',
+      startDate: '2026-10-20',
+      days: [],
+    }
+    const detail = habitDetailSchema.parse({ ...makeEnrichedHabitDetail(), ...schedule })
+
+    expect(detail).toMatchObject(schedule)
+    expect(mergeHabitDetailWithScopedHabit(detail, undefined, schedule.startDate))
+      .toMatchObject({ ...schedule, title: detail.title })
+  })
+
   it('appends and removes children in a mounted detail tree', () => {
     const parent = { ...createMockHabit({ id: 'parent-1', isGeneral: true }), children: [] }
     const withChild = appendHabitDetailChild(parent, 'offline-child-1', {
