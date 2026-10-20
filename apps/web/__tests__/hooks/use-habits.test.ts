@@ -13,7 +13,7 @@ import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitSched
 import { DailyStreakMoment } from '@/components/gamification/daily-streak-moment'
 import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
 
-import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { makeEnrichedHabitDetail, makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
@@ -1693,6 +1693,37 @@ describe('useLogHabit onSuccess', () => {
 
 
 describe('useUpdateHabit', () => {
+  it.each([false, true])('updates checked and enriched detail fields before rejection, embedded child=%s', async (embedded) => {
+    const { updateHabit } = await import('@/lib/actions/habits')
+    const queryClient = createQueryClient()
+    const detail = makeEnrichedHabitDetail()
+    const target = embedded ? detail.children[0]! : detail
+    const key = habitKeys.detail(detail.id)
+    queryClient.setQueryData(key, detail)
+    let rejectWrite!: (error: Error) => void
+    vi.mocked(updateHabit).mockImplementation(() => new Promise<void>((_resolve, reject) => { rejectWrite = reject }))
+    function Probe() {
+      const { data: current } = useQuery<HabitDetail>({ queryKey: key, queryFn: () => Promise.resolve(detail), enabled: false })
+      const mutation = useUpdateHabit()
+      const habit = embedded ? current!.children[0]! : current!
+      return React.createElement('input', { type: 'checkbox', role: 'switch', 'aria-label': 'Slip alert', checked: habit.slipAlertEnabled ?? false, onChange: () => mutation.mutate({ habitId: target.id, data: {
+        title: 'Changed', isBadHabit: true, slipAlertEnabled: false, goalIds: [], reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [],
+      } }) })
+    }
+    const { getByRole } = render(React.createElement(QueryClientProvider, { client: queryClient }, React.createElement(Probe)))
+    expect(getByRole('switch')).toBeChecked()
+    act(() => getByRole('switch').click())
+    await waitFor(() => expect(getByRole('switch')).not.toBeChecked())
+    expect(rejectWrite).toBeTypeOf('function')
+    const updated = queryClient.getQueryData<HabitDetail>(key)!
+    expect(embedded ? updated.children[0] : updated).toMatchObject({ title: 'Changed', reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+    if (!embedded) expect(updated.linkedGoals).toEqual([])
+    await act(async () => { rejectWrite(new Error('Update failed')) })
+    await waitFor(() => expect(getByRole('switch')).toBeChecked())
+    expect(queryClient.getQueryData(key)).toEqual(detail)
+    queryClient.clear()
+  })
+
   beforeEach(() => {
     mockFetch.mockReset()
   })

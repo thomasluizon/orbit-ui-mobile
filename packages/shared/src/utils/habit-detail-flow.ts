@@ -613,6 +613,10 @@ function getHabitListEnrichmentSource(
   return listHabit ?? scopedHabit
 }
 
+export function needsHabitDetailListFallback(detail: HabitDetail | null | undefined): boolean {
+  return detail != null && (detail.tags == null || detail.linkedGoals == null || detail.slipAlertEnabled == null)
+}
+
 export function hasAuthoritativeHabitRelationshipState(
   detail: Pick<HabitDetail, 'isGeneral' | 'linkedGoals' | 'slipAlertEnabled'>,
   listHabit: NormalizedHabit | undefined,

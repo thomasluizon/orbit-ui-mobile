@@ -1,3 +1,4 @@
+import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { useAuthStore } from '@/stores/auth-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -5,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
-import type { HabitScheduleItem } from '@orbit/shared/types/habit'
+import type { HabitDetail, HabitScheduleItem } from '@orbit/shared/types/habit'
 import { useAssignTags, useCreateTag, useDeleteTag, useRestoreTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 
 const mockShowQueued = vi.fn()
@@ -87,6 +88,36 @@ beforeEach(() => {
 })
 
 describe('web tag hooks', () => {
+  it.each(['rename', 'delete', 'assign'] as const)('updates detail tags and embedded children on %s and rolls back failure', async (operation) => {
+    const actions = await import('@/lib/actions/tags')
+    let rejectWrite!: (error: Error) => void
+    const pending = () => new Promise<void>((_resolve, reject) => { rejectWrite = reject })
+    vi.mocked(actions.updateTag).mockImplementation(pending)
+    vi.mocked(actions.deleteTag).mockImplementation(pending)
+    vi.mocked(actions.assignTags).mockImplementation(pending)
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const detail = makeEnrichedHabitDetail()
+    detail.children[0]!.tags = detail.tags
+    const key = habitKeys.detail(detail.id)
+    queryClient.setQueryData(key, detail)
+    queryClient.setQueryData(tagKeys.lists(), [{ id: 'tag-2', name: 'Health', color: '#123456' }])
+    const { result } = renderHook(() => {
+      const rename = useUpdateTag()
+      const remove = useDeleteTag()
+      const assign = useAssignTags()
+      return () => operation === 'rename' ? rename.mutate({ tagId: 'tag-1', name: 'Renamed', color: '#123456' })
+        : operation === 'delete' ? remove.mutate('tag-1') : assign.mutate({ habitId: 'child-1', tagIds: ['tag-2'] })
+    }, { wrapper: createWrapper(queryClient) })
+    act(() => result.current())
+    const expected = operation === 'rename' ? [{ ...detail.tags![0], name: 'Renamed' }]
+      : operation === 'delete' ? [] : [{ id: 'tag-2', name: 'Health', color: '#123456' }]
+    await waitFor(() => expect(queryClient.getQueryData<HabitDetail>(key)?.children[0]?.tags).toEqual(expected))
+    expect(queryClient.getQueryData<HabitDetail>(key)?.tags).toEqual(operation === 'assign' ? detail.tags : expected)
+    await act(async () => { rejectWrite(new Error('Tag update failed')) })
+    await waitFor(() => expect(queryClient.getQueryData(key)).toEqual(detail))
+    queryClient.clear()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })

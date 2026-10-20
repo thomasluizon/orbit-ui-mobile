@@ -41,6 +41,7 @@ import {
   getHabitLogDateConfirmationKeys,
   getFriendlyErrorMessage,
   getTodayBoundary,
+  needsHabitDetailListFallback,
   hasAuthoritativeHabitRelationshipState,
   hasHabitScheduleOnDate,
   isHabitHistoryMonthLoaded,
@@ -472,7 +473,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     includeOverdue: true,
     includeGeneral: true,
   }, { completeDay: true })
-  const cachedHabitsQuery = useHabits({}, { enabled: false })
+  const cachedHabitsQuery = useHabits({}, { enabled: needsHabitDetailListFallback(detailQuery.data) })
   const logHabit = useLogHabit()
   const updateHabit = useUpdateHabit()
   const detailAccountGeneration = useAccountGeneration()
@@ -628,7 +629,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       completionStatusUnavailable: scopedChild === undefined,
     }
   })
-const subHabitCreation = <ListRow placement="column" icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} />
+  const subHabitCreation = <ListRow placement="column" icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} />
   const childProgress = computeHabitDayProgress(
     children.filter((child) => !child.completionStatusUnavailable).map((child) => child.habit),
     (child) => hasHabitScheduleOnDate(child, dateStr),

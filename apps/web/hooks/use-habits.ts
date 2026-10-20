@@ -5,6 +5,8 @@ import type { HabitListKey } from '@orbit/shared/query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import {
+  restoreCachedHabitDetails,
+  updateCachedHabitDetails,
   habitKeys, goalKeys, gamificationKeys, profileKeys,
   applyCachedHabitSkip, rollbackDatedHabitLists,
   updateHabitListsForDate, invalidateHabitDependents,
@@ -434,23 +436,27 @@ export function useUpdateHabit() {
     onMutate: async ({ habitId, data }) => {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
-        queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId) }),
+        queryClient.cancelQueries({ queryKey: habitKeys.details() }),
         queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
       ])
 
       const previousLists = snapshotHabitLists(queryClient)
+      const previousDetails = queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() })
       const patch = buildOptimisticHabitPatch(queryClient, data)
       updateHabitLists(queryClient, (items) =>
         optimisticPatchHabit(items, habitId, patch),
       )
 
-      return { previousLists }
+      updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? patch : {})
+
+      return { previousLists, previousDetails }
     },
 
     onError: (_err, _vars, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
+      if (context?.previousDetails) restoreCachedHabitDetails(queryClient, context.previousDetails)
     },
 
     onSettled: (_data, error, { habitId }) => {

@@ -1,8 +1,7 @@
-import { habitDetailSchema } from '../types/habit'
-import { normalizeHabitDetailForDrill } from '../utils/drill-navigation'
 import { describe, expect, it, vi } from 'vitest'
 import type { HabitLog } from '../types/calendar'
-import type { HabitMetrics } from '../types/habit'
+import { habitDetailSchema, type HabitMetrics } from '../types/habit'
+import { normalizeHabitDetailForDrill } from '../utils/drill-navigation'
 import {
   appendHabitDetailChild,
   buildHabitDetailSchedulePatch,

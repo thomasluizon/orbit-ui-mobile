@@ -95,6 +95,7 @@ const mocks = vi.hoisted(() => ({
   detailLoading: false,
   detailError: false,
   refetch: vi.fn(),
+  allHabitsFallback: null as Map<string, NormalizedHabit> | null,
   allHabitsError: false,
   allHabitsLoading: false,
   allHabitsEnabled: undefined as boolean | undefined,
@@ -174,7 +175,7 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
         mocks.scopedCompleteDay = options?.completeDay ?? false
         mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
       }
-      return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: filters.dateFrom ? mocks.scopedLoading : mocks.allHabitsLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+      return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : (options?.enabled && mocks.allHabitsFallback ? mocks.allHabitsFallback : mocks.allHabits), topLevelHabits: [] }, isLoading: filters.dateFrom ? mocks.scopedLoading : mocks.allHabitsLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
     },
   }
 })
@@ -673,6 +674,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = makeDetail()
     mocks.detailLoading = false
     mocks.detailError = false
+    mocks.allHabitsFallback = null
     mocks.allHabitsError = false
     mocks.allHabitsLoading = false
     mocks.allHabitsEnabled = undefined
@@ -1199,18 +1201,19 @@ describe('HabitDetailScreen', () => {
     expect(child().props.completionReason).toBeUndefined()
   })
 
-  it('renders detail while the unrelated list is pending and then rejected', () => {
+  it.each([false, true])('renders detail while the unrelated list is pending and then rejected, legacy=%s', (legacy) => {
+    mocks.detail = legacy ? makeDetail() : makeEnrichedHabitDetail()
     mocks.allHabits.clear()
     mocks.allHabitsLoading = true
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    expect(textsOf(tree!.root)).toContain(mocks.detail!.title)
+    expect(textsOf(tree!.root)).toContain(mocks.detail.title)
     mocks.allHabitsLoading = false
     mocks.allHabitsError = true
     TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" />))
-    expect(textsOf(tree!.root)).toContain(mocks.detail!.title)
+    expect(textsOf(tree!.root)).toContain(mocks.detail.title)
     expect(textsOf(tree!.root)).not.toContain('habits.detail.loadError')
-    expect(mocks.allHabitsEnabled).toBe(false)
+    expect(mocks.allHabitsEnabled).toBe(legacy)
     expect(mocks.allHabitsRefetch).not.toHaveBeenCalled()
   })
 
@@ -1236,16 +1239,20 @@ describe('HabitDetailScreen', () => {
     expect(child.slipAlertEnabled).toBe(true)
   })
 
-  it('renders an older detail without a warm list using existing empty states', () => {
+  it('restores older detail controls from the on-demand list fallback', () => {
     mocks.allHabits.clear()
     mocks.scopedHabits.clear()
+    mocks.allHabitsFallback = new Map([['habit-1', { ...makeScopedParent(), isBadHabit: true, slipAlertEnabled: true }]])
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    expect(textsOf(tree!.root)).toContain(mocks.detail!.title)
+    expect(textsOf(tree!.root)).toContain(mocks.detail.title)
     const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
-    expect(tree!.root.findAllByProps({ title: 'habits.detail.linkedGoals' })).toHaveLength(0)
-    expect(tree!.root.findAllByProps({ testID: 'slip-alert-switch' })).toHaveLength(0)
+    expect(mocks.allHabitsEnabled).toBe(true)
+    expect(textsOf(tree!.root)).toContain('Focus')
+    expect(tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.value).toBe('1')
+    expect(tree!.root.findByProps({ testID: 'slip-alert-switch' }).props.checked).toBe(true)
   })
 
   it.each(['UnbrokenToken'.repeat(24), 'A tag name with many words describing the people and activities I enjoy'])('discloses the full habit detail tag %s', async (name) => {

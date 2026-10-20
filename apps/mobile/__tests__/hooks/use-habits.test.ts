@@ -1,3 +1,5 @@
+import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { Switch } from '@/components/ui/switch'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { DailyStreakMoment } from '@/components/gamification/daily-streak-moment'
 import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
@@ -1631,8 +1633,55 @@ describe('mobile habit hooks', () => {
       unknown, { habitId: string; data: UpdateHabitRequest }, unknown
     >
     await mutation.onMutate?.({ habitId: 'habit-1', data: { title: 'Habit', isBadHabit: false, dueTime: '10:15' } })
-    expect(mocks.queryClient.cancelQueries).toHaveBeenCalledWith({ queryKey: habitKeys.detail('habit-1') })
+    expect(mocks.queryClient.cancelQueries).toHaveBeenCalledWith({ queryKey: habitKeys.details() })
     expect(mocks.queryClient.cancelQueries).toHaveBeenCalledWith({ queryKey: habitKeys.fullDetail('habit-1') })
+  })
+
+  it.each([false, true])('updates checked and enriched detail fields before rejection, embedded child=%s', async (embedded) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const { useQuery: useRealQuery } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+    mocks.useRealQueryHooks = true
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    const detail = makeEnrichedHabitDetail()
+    const target = embedded ? detail.children[0]! : detail
+    const key = habitKeys.detail(detail.id)
+    client.setQueryData(key, detail)
+    let rejectWrite!: (error: Error) => void
+    mocks.runQueuedMutation.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectWrite = reject }))
+    function Probe() {
+      const { data: current } = useRealQuery<HabitDetail>({ queryKey: key, queryFn: () => Promise.resolve(detail), enabled: false })
+      const mutation = useUpdateHabit()
+      const habit = embedded ? current!.children[0]! : current!
+      return React.createElement(Switch, { label: 'Slip alert', checked: habit.slipAlertEnabled ?? false, onChange: () => mutation.mutate({ habitId: target.id, data: {
+        title: 'Changed', isBadHabit: true, slipAlertEnabled: false, goalIds: [], reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [],
+      } }) })
+    }
+    let renderer: (import('react-test-renderer').ReactTestRenderer & { unmount: () => void }) | undefined
+    try {
+      await TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe))) })
+      const toggle = () => renderer!.root.findAll((node) => node.type === Switch)[0]!.props as { checked: boolean; onChange: (checked: boolean) => void }
+      expect(toggle().checked).toBe(true)
+      await TestRenderer.act(async () => {
+        toggle().onChange(false)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      })
+      expect(toggle().checked).toBe(false)
+      expect(rejectWrite).toBeTypeOf('function')
+      const updated = client.getQueryData<HabitDetail>(key)!
+      expect(embedded ? updated.children[0] : updated).toMatchObject({ title: 'Changed', reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+      if (!embedded) expect(updated.linkedGoals).toEqual([])
+      await TestRenderer.act(async () => {
+        rejectWrite(new Error('Update failed'))
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      })
+      expect(toggle().checked).toBe(true)
+      expect(client.getQueryData(key)).toEqual(detail)
+    } finally {
+      await TestRenderer.act(() => { renderer?.unmount() })
+      mocks.useRealQueryHooks = false
+      vi.unstubAllGlobals()
+      client.clear()
+    }
   })
 
   it('keeps queued inline schedule and text updates in the detail cache', async () => {

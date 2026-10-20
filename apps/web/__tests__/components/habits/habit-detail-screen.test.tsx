@@ -50,6 +50,7 @@ const mocks = vi.hoisted(() => ({
   detailLoading: false,
   detailError: false,
   refetch: vi.fn(),
+  allHabitsFallback: null as Map<string, NormalizedHabit> | null,
   allHabitsError: false,
   allHabitsLoading: false,
   allHabitsEnabled: undefined as boolean | undefined,
@@ -117,7 +118,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
       mocks.scopedCompleteDay = options?.completeDay ?? false
       mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
     }
-    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: filters.dateFrom ? mocks.scopedLoading : mocks.allHabitsLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : (options?.enabled && mocks.allHabitsFallback ? mocks.allHabitsFallback : mocks.allHabits), topLevelHabits: [] }, isLoading: filters.dateFrom ? mocks.scopedLoading : mocks.allHabitsLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
   },
 }))
 
@@ -493,6 +494,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = makeDetail()
     mocks.detailLoading = false
     mocks.detailError = false
+    mocks.allHabitsFallback = null
     mocks.allHabitsError = false
     mocks.allHabitsLoading = false
     mocks.allHabitsEnabled = undefined
@@ -938,7 +940,8 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByText('habits.detail.dayHabitsLoadError')).not.toBeInTheDocument()
   })
 
-  it('renders detail while the unrelated list is pending and then rejected', () => {
+  it.each([false, true])('renders detail while the unrelated list is pending and then rejected, legacy=%s', (legacy) => {
+    mocks.detail = legacy ? makeDetail() : makeEnrichedHabitDetail()
     mocks.allHabits.clear()
     mocks.allHabitsLoading = true
     const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
@@ -949,7 +952,7 @@ describe('HabitDetailScreen', () => {
     view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
     expect(screen.queryByText('habits.detail.loadError')).not.toBeInTheDocument()
-    expect(mocks.allHabitsEnabled).toBe(false)
+    expect(mocks.allHabitsEnabled).toBe(legacy)
     expect(mocks.allHabitsRefetch).not.toHaveBeenCalled()
   })
 
@@ -968,14 +971,18 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-reminder-enabled', 'true')
   })
 
-  it('renders an older detail without a warm list using existing empty states', () => {
+  it('restores older detail controls from the on-demand list fallback', () => {
     mocks.allHabits.clear()
     mocks.scopedHabits.clear()
+    mocks.allHabitsFallback = new Map([['habit-1', { ...makeScopedParent(), isBadHabit: true, slipAlertEnabled: true }]])
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
     render(<HabitDetailScreen habitId="habit-1" />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
-    expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: 'habits.detail.slipAlert' })).not.toBeInTheDocument()
+    expect(mocks.allHabitsEnabled).toBe(true)
+    expect(screen.getByText('Focus')).toBeInTheDocument()
+    expect(screen.getByTestId('list-row-habits.detail.linkedGoals')).toHaveAttribute('data-value', '1')
+    expect(screen.getByRole('switch', { name: 'habits.detail.slipAlert' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it.each(['UnbrokenToken'.repeat(24), 'A tag name with many words describing the people and activities I enjoy'])('discloses the full habit detail tag %s', (name) => {

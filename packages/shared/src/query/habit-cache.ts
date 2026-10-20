@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/query-core'
-import type { HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
+import type { HabitDetail, HabitDetailChild, HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import { buildOptimisticSkipPatch, optimisticSetDatedCompletion, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
 import type { HabitListSnapshots } from './keys'
@@ -288,4 +288,24 @@ export function rollbackDatedHabitLists(
       return restoredItems
     })
   }
+}
+
+export type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
+
+export function restoreCachedHabitDetails(queryClient: QueryClient, snapshots: HabitDetailSnapshots): void {
+  for (const [key, detail] of snapshots) {
+    if (detail) queryClient.setQueryData(key, detail)
+  }
+}
+
+export function updateCachedHabitDetails(
+  queryClient: QueryClient,
+  updater: (habit: HabitDetailChild) => Partial<HabitDetail>,
+): void {
+  function updateBranch<T extends HabitDetailChild>(habit: T): T {
+    return { ...habit, ...updater(habit), children: habit.children.map(updateBranch) }
+  }
+  queryClient.setQueriesData<HabitDetail>({ queryKey: habitKeys.details() }, (detail) =>
+    detail ? updateBranch(detail) : detail,
+  )
 }

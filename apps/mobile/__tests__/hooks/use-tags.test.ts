@@ -1,8 +1,9 @@
+import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
-import type { HabitScheduleItem, SuggestTagsResponse } from '@orbit/shared/types/habit'
+import type { HabitDetail, HabitScheduleItem, SuggestTagsResponse } from '@orbit/shared/types/habit'
 import { tagListSchema } from '@orbit/shared/types/tag'
 import { validateApiResponse } from '@orbit/shared/utils'
 
@@ -40,7 +41,7 @@ const mocks = vi.hoisted(() => {
         return state.tags.map((entry) => [entry.key, entry.value] as const)
       }
 
-      return state.habits.map((entry) => [entry.key, entry.value] as const)
+      return state.habits.filter((entry) => filters.queryKey.every((value, index) => JSON.stringify(entry.key[index]) === JSON.stringify(value))).map((entry) => [entry.key, entry.value] as const)
     }),
     setQueriesData: vi.fn((
       filters: { queryKey: readonly unknown[] },
@@ -60,6 +61,7 @@ const mocks = vi.hoisted(() => {
         return
       }
 
+      if (filters.queryKey[1] === habitKeys.details()[1]) return
       state.habits = apply(state.habits)
     }),
     getQueryData: vi.fn((queryKey: readonly unknown[]) =>
@@ -525,5 +527,28 @@ describe('mobile tag hooks', () => {
   expect(client.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.tags).toEqual([])
   expect(client.getQueryData(key)).toBeUndefined()
   expect(client.isFetching()).toBe(0)
+  client.clear()
+})
+
+
+it.each(['rename', 'delete', 'assign'] as const)('updates detail tags and embedded children on %s and rolls back failure', async (operation) => {
+  const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+  const client = new QueryClient()
+  mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+  const detail = makeEnrichedHabitDetail()
+  detail.children[0]!.tags = detail.tags
+  const key = habitKeys.detail(detail.id)
+  client.setQueryData(key, detail)
+  client.setQueryData(tagKeys.lists(), [{ id: 'tag-2', name: 'Health', color: '#123456' }])
+  const mutation = (operation === 'rename' ? useUpdateTag() : operation === 'delete' ? useDeleteTag() : useAssignTags()) as unknown as MutationConfig<unknown, unknown, unknown>
+  const variables = operation === 'rename' ? { tagId: 'tag-1', name: 'Renamed', color: '#123456' }
+    : operation === 'delete' ? 'tag-1' : { habitId: 'child-1', tagIds: ['tag-2'] }
+  const context = await mutation.onMutate?.(variables)
+  const expected = operation === 'rename' ? [{ ...detail.tags![0], name: 'Renamed' }]
+    : operation === 'delete' ? [] : [{ id: 'tag-2', name: 'Health', color: '#123456' }]
+  expect(client.getQueryData<HabitDetail>(key)?.children[0]?.tags).toEqual(expected)
+  expect(client.getQueryData<HabitDetail>(key)?.tags).toEqual(operation === 'assign' ? detail.tags : expected)
+  mutation.onError?.(new Error('Tag update failed'), variables, context)
+  expect(client.getQueryData(key)).toEqual(detail)
   client.clear()
 })

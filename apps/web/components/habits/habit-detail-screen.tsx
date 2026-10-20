@@ -41,6 +41,7 @@ import {
   getHabitLogDateDecision,
   getHabitLogDateConfirmationKeys,
   getTodayBoundary,
+  needsHabitDetailListFallback,
   hasAuthoritativeHabitRelationshipState,
   hasHabitScheduleOnDate,
   isHabitHistoryMonthLoaded,
@@ -530,7 +531,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     includeOverdue: true,
     includeGeneral: true,
   }, undefined, { completeDay: true })
-  const cachedHabitsQuery = useHabits({}, undefined, { enabled: false })
+  const cachedHabitsQuery = useHabits({}, undefined, { enabled: needsHabitDetailListFallback(detailQuery.data) })
   const logHabit = useLogHabit()
   const updateHabit = useUpdateHabit()
   const detailAccountGeneration = useAccountGeneration()
