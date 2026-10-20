@@ -2,9 +2,8 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-
 import { useId, type KeyboardEvent, type ReactNode } from 'react'
-import { isHabitDoneForRange } from '@orbit/shared/utils'
+import { getHabitTypeLabelKey, isHabitDoneForRange } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
@@ -218,7 +217,7 @@ export function HabitRow({
   const controls = (
     <>
       {structuralColumn && selectMode ? (
-        <button type="button" data-habit-row-control="selection" aria-label={habit.title}
+        <button type="button" data-habit-row-control="selection" aria-label={`${habit.title}, ${t(getHabitTypeLabelKey(habit))}`}
           aria-pressed={selected} onClick={() => onToggleSelection?.()}
           className="flex min-h-[48px] w-[48px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96]">
           <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
@@ -259,7 +258,7 @@ export function HabitRow({
   const rowContents = (
     <>
       <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
-        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={habit.title}
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={`${habit.title}, ${t(getHabitTypeLabelKey(habit))}`}
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
@@ -299,7 +298,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
         onClick={onClick}
         {...habitRowReorderProps(onReorder, reorderInstructionsId, t('dragAndDrop.roleDescription'))}
         data-habit-row-body=""
-        aria-label={independentText ? accessibleLabel : undefined}
+        aria-label={accessibleLabel}
         className={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left ${independentText ? 'transition-[background-color]' : 'transition-[background-color,transform] active:scale-[0.96]'} duration-[var(--dur-hover)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
         style={paddingStyle}
       >

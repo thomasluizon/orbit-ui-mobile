@@ -1,3 +1,5 @@
+import { useTranslations } from 'next-intl'
+import { getHabitTypeLabelKey } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -26,11 +28,13 @@ export function HabitRowContent({
   expanded = false,
   meta,
 }: Readonly<HabitRowContentProps>) {
+  const t = useTranslations()
   const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
   const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
   return (
     <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
       <TitleText expanded={expanded} title={habit.title} size={titleSize} color={titleColor} />
+      <span data-habit-row-type="" className="habit-row-meta font-mono text-xs leading-[1.4]">{t(getHabitTypeLabelKey(habit))}</span>
       {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
       {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>

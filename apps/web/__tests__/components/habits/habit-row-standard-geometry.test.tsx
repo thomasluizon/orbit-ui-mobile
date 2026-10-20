@@ -1,3 +1,5 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { render } from '@testing-library/react'
@@ -9,7 +11,11 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+const geometryLocale = vi.hoisted(() => ({ value: 'en' as 'en' | 'pt-BR' }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => {
+  const messages = geometryLocale.value === 'en' ? en : ptBR
+  return key === 'habits.form.typeTask' ? messages.habits.form.typeTask : key === 'habits.form.typeHabit' ? messages.habits.form.typeHabit : key
+} }))
 
 describe('habit row standard in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -22,13 +28,14 @@ describe('habit row standard in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 1352].flatMap((width) =>
-    [1, 2].map((scale) => ({ mode, width, scale })),
-  )))('keeps the check and row geometry in $mode at $width with $scale text', async ({ mode, width, scale }) => {
+  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 360, 384, 412, 1352].flatMap((width) =>
+    [1, 2].flatMap((scale) => (['en', 'pt-BR'] as const).map((locale) => ({ mode, width, scale, locale }))),
+  )))('keeps the check and row geometry in $mode at $width with $scale text', async ({ mode, width, scale, locale }) => {
+    geometryLocale.value = locale
     document.documentElement.style.fontSize = `${16 * scale}px`
     const mounted = render(<div className="habit-panel">
       {(['empty', 'done', 'overdue', 'bad'] as const).map((state) => <HabitRow key={state}
-        habit={createMockHabit({ title: `Habit ${state}`, isBadHabit: state === 'bad' })} state={state} />)}
+        habit={createMockHabit({ title: `Habit ${state}`, isBadHabit: state === 'bad', frequencyUnit: state === 'empty' ? null : 'Day' })} state={state} />)}
       <HabitRow habit={createMockHabit({ title: 'Child' })} depth={1} />
       <HabitRow habit={createMockHabit({ title: 'Empty parent' })} hasChildren childProgress={{ done: 0, total: 2 }} />
       <HabitRow habit={createMockHabit({ title: 'Partial parent' })} hasChildren childProgress={{ done: 1, total: 3 }} />
@@ -62,6 +69,21 @@ describe('habit row standard in Chromium', () => {
         const bounds = row.getBoundingClientRect()
         return { check: check && { width: check.getBoundingClientRect().width, height: check.getBoundingClientRect().height, radius: paint!.borderTopLeftRadius, border: paint!.boxShadow, background: paint!.backgroundColor }, radius: body.borderTopLeftRadius, layoutBorders: [body.borderTopWidth, body.borderRightWidth, body.borderBottomWidth, body.borderLeftWidth], border: body.boxShadow, background: body.backgroundColor, left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }
       }))
+      const types = await page.locator('[data-habit-row-type]').evaluateAll((elements) => elements.map((element) => {
+        const bounds = element.getBoundingClientRect()
+        const paint = getComputedStyle(element)
+        const title = element.previousElementSibling!.getBoundingClientRect()
+        return { text: element.textContent, overflow: paint.textOverflow, whiteSpace: paint.whiteSpace, top: bounds.top, bottom: title.bottom, height: bounds.height }
+      }))
+      expect(types).toHaveLength(10)
+      const messages = locale === 'en' ? en : ptBR
+      for (const [index, type] of types.entries()) {
+        expect(type.text).toBe(index === 0 ? messages.habits.form.typeTask : messages.habits.form.typeHabit)
+        expect(type.overflow).not.toBe('ellipsis')
+        expect(type.whiteSpace).toBe('normal')
+        expect(type.top).toBeGreaterThanOrEqual(type.bottom)
+        expect(type.height).toBeGreaterThan(0)
+      }
       expect(rows).toHaveLength(10)
       for (const row of rows) {
         expect(row.check).toMatchObject({ width: 28, height: 28, radius: '12px' })

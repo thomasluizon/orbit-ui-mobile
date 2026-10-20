@@ -70,11 +70,20 @@ vi.mock('@/hooks/use-habits', () => ({
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
+    resetModeDrafts: vi.fn(),
+    chooseItemType: vi.fn(),
+    validationFocusRequest: 0,
+    registerDateValidation: () => () => {},
     form: {
       reset: mockFormReset,
       resetField: mockFormResetField,
       setValue: mockFormSetValue,
-      getValues: mockFormGetValues,
+      getValues: (field?: string) => {
+        if (field === 'itemType') return 'habit'
+        const values = mockFormGetValues(field)
+        if (field && values && typeof values === 'object' && !Array.isArray(values)) return (values as Record<string, unknown>)[field]
+        return values
+      },
       trigger: vi.fn().mockResolvedValue(true),
       watch: mockFormWatch,
       register: mockFormRegister,
@@ -302,7 +311,7 @@ describe('EditHabitModal', () => {
     mockFormGetValues.mockReturnValue({ ...values, reminderEnabled: true, dueTime: '09:00' })
     renderWithProviders(<EditHabitModal open onOpenChange={vi.fn()} habit={defaultHabit} />)
     fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-    expect(pushPermission.subscribe).toHaveBeenCalledOnce()
+    await waitFor(() => expect(pushPermission.subscribe).toHaveBeenCalledOnce())
     await waitFor(() => expect(mockUpdateMutateAsync).toHaveBeenCalledOnce())
   })
 

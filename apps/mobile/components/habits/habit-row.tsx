@@ -10,6 +10,7 @@ import {
   getTodayBoundary,
   isHabitDoneForRange,
   resolveHabitAccessibleStatus,
+  getHabitTypeLabelKey,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
@@ -324,7 +325,7 @@ export const HabitRow = memo(function HabitRow({
   })
 
   const knownRowAccessibilityLabel = buildHabitRowAccessibilityLabel({
-    title: habit.title,
+    title: `${habit.title}, ${t(getHabitTypeLabelKey(habit))}`,
     dotState: resolveHabitAccessibleStatus(dotState, isDoneForRange),
     metaParts,
     linkedGoal: false,
@@ -332,7 +333,7 @@ export const HabitRow = memo(function HabitRow({
     streak: 0,
     t,
   })
-  const rowAccessibilityLabel = completionStatusUnavailable ? habit.title : knownRowAccessibilityLabel
+  const rowAccessibilityLabel = completionStatusUnavailable ? `${habit.title}, ${t(getHabitTypeLabelKey(habit))}` : knownRowAccessibilityLabel
 
   const primaryContent = (
     <>
@@ -375,7 +376,7 @@ export const HabitRow = memo(function HabitRow({
     <>
         {structuralColumn && isSelectMode ? (
           <Pressable onPress={actions.onToggleSelection} accessibilityRole="checkbox"
-            accessibilityLabel={habit.title} accessibilityState={{ checked: isSelected }}
+            accessibilityLabel={`${habit.title}, ${t(getHabitTypeLabelKey(habit))}`} accessibilityState={{ checked: isSelected }}
             style={({ pressed }) => [styles.structuralColumn,
               pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
             <Checkbox checked={isSelected} onChange={() => actions.onToggleSelection?.()} as="span" />

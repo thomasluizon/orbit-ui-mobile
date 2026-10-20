@@ -254,3 +254,11 @@ export function segmentHabitPhrase(text: string, consumed: readonly HabitPhraseT
   if (cursor < text.length) segments.push({ text: text.slice(cursor), consumed: false })
   return segments
 }
+
+export function readTypedHabitPhrase(title: string, locale: SupportedLocale, type: 'task' | 'habit' | null | undefined, general: boolean): HabitPhraseRead {
+  const read = readHabitPhrase(title, locale)
+  if (!general && type !== 'task') return read
+  return { ...read, cadence: null, days: [], frequencyQuantity: null, intervalWeeks: null,
+    dueTime: general ? null : read.dueTime,
+    consumed: general ? [] : read.consumed.filter((token) => token.kind === 'time') }
+}

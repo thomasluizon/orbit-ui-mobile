@@ -6,6 +6,7 @@ import { SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   AccessibilityInfo,
+  useWindowDimensions,
   View,
   Text,
   Pressable,
@@ -222,6 +223,7 @@ export function DateField({
   label,
   focusRequest,
 }: Readonly<DateFieldProps>) {
+  const { fontScale } = useWindowDimensions()
   const triggerRef = useRef<View>(null)
   useEffect(() => {
     if (!focusRequest || !triggerRef.current) return
@@ -340,7 +342,7 @@ export function DateField({
             styles.triggerText,
             !displayValue && { color: pressed ? tokens.fg2 : tokens.fg3 },
           ]}
-          numberOfLines={1}
+          numberOfLines={fontScale > 1.3 ? undefined : 1}
         >
           {displayValue || placeholder || t('common.selectDate')}
         </Text>

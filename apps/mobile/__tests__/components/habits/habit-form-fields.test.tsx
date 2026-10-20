@@ -26,6 +26,7 @@ const useWatchMock = vi.fn()
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
 const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en' }))
+const dateRequests = vi.hoisted(() => ({ request: vi.fn() }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
@@ -43,8 +44,7 @@ const testTranslations: Record<string, string> = {
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
   const messages = formLocale.language === 'en' ? en : ptBR
-  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue
-    : key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key]
+  const template = key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key]
   if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
   return Object.entries(values ?? {}).reduce(
     (message, [name, value]) => message.replace(`{${name}}`, String(value)),
@@ -58,12 +58,14 @@ vi.mock('react-hook-form', async (importOriginal) => ({
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args),
 }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translateTestValue, i18n: { language: formLocale.language } }) }))
+vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: dateRequests.request }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-config', () => ({
   useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => mockProfileState.hasProAccess,
-  useProfile: () => ({ profile: { hasProAccess: mockProfileState.hasProAccess, aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
+  useProfile: () => ({ profile: { timeZone: 'UTC', hasProAccess: mockProfileState.hasProAccess, aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -98,9 +100,10 @@ vi.mock('@/components/ui/date-field', () => ({ DateField: (props: Record<string,
 function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHelpers {
   const values: Record<string, unknown> = { title: 'Run', emoji: '', frequencyUnit: null, frequencyQuantity: 3, days: [], isFlexible: false, dueDate: '2026-09-02', dueTime: '', dueEndTime: '', endDate: '', description: '', reminderEnabled: false, scheduledReminders: [], checklistItems: [], isBadHabit: false, slipAlertEnabled: false, ...overrides }
   return {
-    form: { control: { values }, getValues: vi.fn((field?: string) => field ? values[field] : values), setValue: vi.fn((field: string, value: unknown) => { values[field] = value }), formState: { errors: {} } } as unknown as HabitFormHelpers['form'],
+    form: { watch: (field: string) => values[field], register: vi.fn(), clearErrors: vi.fn(), resetField: vi.fn(), control: { values }, getValues: vi.fn((field?: string) => field ? values[field] : values), setValue: vi.fn((field: string, value: unknown) => { values[field] = value }), formState: { errors: {} } } as unknown as HabitFormHelpers['form'],
     isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false, showDayPicker: false, showEndDate: true,
     daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value })),
+    chooseItemType: vi.fn(), validationFocusRequest: 0, registerDateValidation: () => () => {}, resetModeDrafts: vi.fn(),
     backendFieldErrors: {}, backendFocusRequest: 0, backendFocusField: undefined, reportBackendErrors: vi.fn(() => false), clearBackendErrors: vi.fn(),
     frequencyUnits: [], setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(), setGeneral: vi.fn(), toggleDay: vi.fn(), formatTimeInput: vi.fn(), formatEndTimeInput: vi.fn(), validateAll: vi.fn(() => null),
   }
@@ -253,17 +256,12 @@ describe('HabitFormFields mobile', () => {
     expect(askIndex).toBeGreaterThan(correctionIndex)
   })
 
-  it.each([
-    ['en', 'Starts on September 2'],
-    ['pt-BR', 'Começa em 2 de setembro'],
-  ])('renders a word start date in %s', (locale, expected) => {
+  it.each(['en', 'pt-BR'])('renders an editable date in %s', (locale) => {
     formLocale.language = locale
-    let tree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />)
-    })
-    expect(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1)
-    TestRenderer.act(() => tree!.unmount())
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ itemType: 'task' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.taskDate')[0]!.props.value).toBe('2026-09-02')
+    TestRenderer.act(() => tree.unmount())
   })
 
   it.each([
@@ -343,7 +341,7 @@ describe('HabitFormFields mobile', () => {
     await TestRenderer.act(() => { tree = TestRenderer.create(<CreateFormHarness />) })
     const buttons = (label: string) => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)
     expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(0)
-    await TestRenderer.act(() => tree!.root.findByType('TextInput').props.onChangeText('Run every day'))
+    await TestRenderer.act(() => tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!.props.onChangeText('Run every day'))
     expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
     await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
     await TestRenderer.act(() => buttons('habits.form.emoji: 🌱')[0]!.props.onPress())
@@ -354,9 +352,9 @@ describe('HabitFormFields mobile', () => {
       expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.understood')).toHaveLength(0)
       expect(formHelpers.form.getValues('emoji')).toBe('🌱')
     }
-    await TestRenderer.act(() => tree!.root.findByType('TextInput').props.onChangeText(''))
+    await TestRenderer.act(() => tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!.props.onChangeText(''))
     expectHidden()
-    await TestRenderer.act(() => tree!.root.findByType('TextInput').props.onChangeText('Run every day'))
+    await TestRenderer.act(() => tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!.props.onChangeText('Run every day'))
     await TestRenderer.act(() => tree!.update(<CreateFormHarness isSuggesting />))
     expectHidden()
     await TestRenderer.act(() => tree!.update(<CreateFormHarness />))
@@ -616,7 +614,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'date-field')).toHaveLength(0)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'date-field' && node.props.label === 'habits.form.endDate')).toHaveLength(0)
   })
 
   it('preserves a prefilled end time when the exact time changes', async () => {
@@ -1184,7 +1182,7 @@ describe('manual schedule creation', () => {
     const ask = vi.fn()
     let helpers!: HabitFormHelpers
     function OwningForm() {
-      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2026-09-02' } })
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Read', dueDate: '2026-09-02' } })
       return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={ask} readPhraseLocally />
     }
     let tree: ReturnType<typeof TestRenderer.create>
@@ -1220,7 +1218,7 @@ describe('manual schedule creation', () => {
     const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
     let helpers!: HabitFormHelpers
     function OwningForm() {
-      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2099-01-01' } })
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Read', dueDate: '2099-01-01' } })
       return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => ({ ...SETUP_PROPOSAL, setup: applySuggestionSchedule(patch, helpers) })} readPhraseLocally />
     }
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -1268,8 +1266,8 @@ describe('manual schedule creation', () => {
     await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ isGeneral: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded lockedGeneral />) })
     const quantity = tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.frequency')[0]!
     expect(quantity.props.editable).toBe(false)
-    const options = tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
-    expect(options).toHaveLength(6)
+    const options = tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && !String(node.props.accessibilityLabel).startsWith('habits.form.type'))
+    expect(options).toHaveLength(7)
     for (const option of options) expect(option.props.accessibilityState).toMatchObject({ disabled: true })
     await TestRenderer.act(() => tree!.unmount())
   })
@@ -1316,7 +1314,7 @@ describe('restored end-date control', () => {
     useWatchMock.mockImplementation(useWatch)
     let helpers!: HabitFormHelpers
     function OwningForm() {
-      helpers = useHabitForm({ initialData: { title: 'Run', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible, endDate: '2026-11-01' } })
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Run', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible, endDate: '2026-11-01' } })
       return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
     }
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -1333,4 +1331,86 @@ describe('restored end-date control', () => {
     expect(date.props.focusRequest).toBe(1)
     await TestRenderer.act(() => { tree.unmount() })
   })
+})
+
+
+describe('restored type and editable date', () => {
+  it('offers task and habit choices before title entry with details closed', async () => {
+    useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields onUpgrade={vi.fn()} formHelpers={createFormHelpers({ itemType: 'task' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
+    const radios = tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+    expect(radios.map((node: UnderstandingTestNode) => node.props.accessibilityLabel)).toContain('habits.form.typeTask')
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.taskDate')).toHaveLength(1)
+    await TestRenderer.act(() => tree.unmount())
+  })
+})
+
+
+it('restores Task and General through the native owning form and real request builder', async () => {
+  const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+  useWatchMock.mockImplementation(useWatch)
+  let helpers!: HabitFormHelpers
+  function OwningForm() {
+    helpers = useHabitForm({ initialData: { title: 'migrar chats do ChatGPT para o Claude', dueDate: '2026-10-20' } })
+    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />
+  }
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
+  const host = (label: string, role: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === label && node.props.accessibilityRole === role)[0]!
+  const input = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === label)[0]!
+  await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.typeRequired') })
+  await TestRenderer.act(() => host('habits.form.typeTask', 'radio').props.onPress())
+  vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  try {
+    await TestRenderer.act(() => input('habits.form.datePhrase').props.onChangeText('03/04'))
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.datePhraseUnresolved') })
+    await TestRenderer.act(() => input('habits.form.datePhrase').props.onChangeText('dia 26'))
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ dueDate: '2026-10-26', title: 'migrar chats do ChatGPT para o Claude' })
+    await TestRenderer.act(() => input('habits.form.describe').props.onChangeText('Read every Monday'))
+    expect(helpers.form.getValues('frequencyUnit')).toBeNull()
+    await TestRenderer.act(() => host('habits.form.typeHabit', 'radio').props.onPress())
+    await TestRenderer.act(() => input('habits.form.datePhrase').props.onChangeText('dia 28'))
+    await TestRenderer.act(() => tree.root.findByType(ListRow).props.onClick())
+    const general = tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && String(node.props.accessibilityLabel).startsWith('habits.form.noSchedule,'))[0]!
+    await TestRenderer.act(() => general.props.onPress())
+    expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: true, isBadHabit: false, reminderEnabled: false })
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ isGeneral: true })
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.taskDate')).toHaveLength(0)
+    await TestRenderer.act(() => host('habits.form.every', 'radio').props.onPress())
+    expect(helpers.form.getValues('isGeneral')).toBe(false)
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-28')
+    await TestRenderer.act(() => host('habits.form.typeTask', 'radio').props.onPress())
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
+    expect(helpers.form.getValues('datePhrase')).toBe('dia 26')
+  } finally { vi.useRealTimers(); await TestRenderer.act(() => tree.unmount()) }
+})
+
+
+it('keeps a native Astra date proposed until acceptance and moves focus to its calendar', async () => {
+  const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+  useWatchMock.mockImplementation(useWatch)
+  mockProfileState.aiMessagesUsed = 0
+  dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+  vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  let helpers!: HabitFormHelpers
+  function OwningForm() {
+    helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate: '2026-10-20' } })
+    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+  }
+  let tree!: ReturnType<typeof TestRenderer.create>
+  try {
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
+    const input = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.datePhrase')[0]!
+    const button = (label: string) => tree.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => node.findAll((text) => String(text.type) === 'Text' && text.props.children === label).length > 0)!
+    await TestRenderer.act(() => input.props.onChangeText('after vacation'))
+    await TestRenderer.act(() => button('habits.form.askDate').props.onPress())
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.datePhraseUnresolved') })
+    await TestRenderer.act(() => button('habits.form.acceptDate').props.onPress())
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
+    expect(helpers.form.getValues('datePhrase')).toBe('')
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.taskDate')[0]!.props.focusRequest).toBe(1)
+    expect(helpers.validateAll()).toBeNull()
+  } finally { vi.useRealTimers(); await TestRenderer.act(() => tree.unmount()) }
 })

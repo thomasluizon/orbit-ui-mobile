@@ -294,6 +294,7 @@ export const normalizedHabitSchema = baseHabitFieldsSchema.extend({
 export type NormalizedHabit = z.infer<typeof normalizedHabitSchema>
 
 export const createHabitRequestSchema = z.object({
+  startDate: z.iso.date().optional(),
   title: z.string().max(MAX_HABIT_TITLE_LENGTH),
   description: z.string().max(MAX_HABIT_DESCRIPTION_LENGTH).optional(),
   emoji: z.string().nullable().optional(),
@@ -343,6 +344,7 @@ export const habitSetupSuggestionSchema = z.object({
 export type HabitSetupSuggestion = z.infer<typeof habitSetupSuggestionSchema>
 
 export const updateHabitRequestSchema = z.object({
+  startDate: z.iso.date().optional(),
   title: z.string().max(MAX_HABIT_TITLE_LENGTH),
   description: z.string().max(MAX_HABIT_DESCRIPTION_LENGTH).optional(),
   emoji: z.string().nullable().optional(),
@@ -636,3 +638,8 @@ export const bulkSkipResultSchema = z.object({
 })
 
 export type BulkSkipResult = z.infer<typeof bulkSkipResultSchema>
+
+export const dateInterpretationRequestSchema = z.object({ phrase: z.string(), language: z.string() })
+export const dateInterpretationSchema = z.object({ date: z.iso.date().nullable(), referenceDate: z.iso.date() })
+export type DateInterpretationRequest = z.infer<typeof dateInterpretationRequestSchema>
+export type DateInterpretation = z.infer<typeof dateInterpretationSchema>

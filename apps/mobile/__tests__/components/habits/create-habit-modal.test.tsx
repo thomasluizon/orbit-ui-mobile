@@ -114,12 +114,21 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
+    resetModeDrafts: vi.fn(),
+    chooseItemType: vi.fn(),
+    validationFocusRequest: 0,
+    registerDateValidation: () => () => {},
     reportBackendErrors: vi.fn(() => false),
     form: {
       control: { values: {} },
       reset: vi.fn(),
       setValue: mockSetValue,
-      getValues: mockGetValues,
+      getValues: (field?: string) => {
+        if (field === 'itemType') return 'habit'
+        const values = mockGetValues(field)
+        if (field && values && typeof values === 'object' && !Array.isArray(values)) return (values as Record<string, unknown>)[field]
+        return values
+      },
       trigger: vi.fn().mockResolvedValue(true),
       formState: { get isDirty() { return mockFormStatus.dirty }, errors: {} },
     },
@@ -669,7 +678,7 @@ describe('CreateHabitModal (mobile)', () => {
     const latestEditor = tree.root.findAll((node: any) => node.type === SubHabitEditor)[0]
     expect(latestEditor.props.subHabits.map((subHabit: { value: string }) => subHabit.value))
       .toEqual(['Edited while pending', 'Suggested stretch'])
-    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
+    expect(proposal).toEqual({ setup: false, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
   })
 
   it('ignores a pending emoji suggestion after the title changes', async () => {

@@ -83,11 +83,20 @@ vi.mock('@/hooks/use-dismiss-guard', () => ({
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
+    resetModeDrafts: vi.fn(),
+    chooseItemType: vi.fn(),
+    validationFocusRequest: 0,
+    registerDateValidation: () => () => {},
     form: {
       control: {},
       reset: mockFormReset,
       resetField: mockFormResetField,
-      getValues: mockGetValues,
+      getValues: (field?: string) => {
+        if (field === 'itemType') return 'habit'
+        const values = mockGetValues(field)
+        if (field && values && typeof values === 'object' && !Array.isArray(values)) return (values as Record<string, unknown>)[field]
+        return values
+      },
       trigger: vi.fn().mockResolvedValue(true),
       setValue: mockSetValue,
       formState: { isDirty: false, dirtyFields: {} },

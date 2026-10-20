@@ -39,8 +39,7 @@ const testTranslations: Record<string, string> = {
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
   const messages = formLocale.language === 'en' ? en : ptBR
-  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue
-    : key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key]
+  const template = key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key]
   if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
   return Object.entries(values ?? {}).reduce(
     (message, [name, value]) => message.replace(`{${name}}`, String(value)),
@@ -58,6 +57,9 @@ vi.mock('next-intl', () => ({
   useLocale: () => formLocale.language,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
+const dateRequests = vi.hoisted(() => ({ request: vi.fn() }))
+vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: dateRequests.request }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-config', () => ({
   useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
@@ -106,14 +108,16 @@ function createFormHelpers(overrides: Record<string, unknown> = {}): TestHabitFo
   }
   return {
     form: {
+      control: {}, register: vi.fn(), clearErrors: vi.fn(), resetField: vi.fn(),
       watch: vi.fn((field: string) => values[field]),
-      getValues: vi.fn((field: string) => values[field]),
+      getValues: vi.fn((field?: string) => field ? values[field] : values),
       setValue: vi.fn((field: string, value: unknown) => { values[field] = value }),
       formState: { errors: {} },
     } as unknown as HabitFormHelpers['form'],
     isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false,
     showDayPicker: false, showEndDate: true,
     daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value })),
+    chooseItemType: vi.fn(), validationFocusRequest: 0, registerDateValidation: () => () => {}, resetModeDrafts: vi.fn(),
     backendFieldErrors: {}, backendFocusRequest: 0, backendFocusField: undefined, reportBackendErrors: vi.fn(() => false), clearBackendErrors: vi.fn(),
     frequencyUnits: [], setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(),
     setGeneral: vi.fn(), toggleDay: vi.fn(), formatTimeInput: vi.fn(),
@@ -170,9 +174,7 @@ describe('HabitFormFields', () => {
     expect(button.hasAttribute('disabled')).toBe(!title.trim())
     if (title.trim()) {
       const user = userEvent.setup()
-      await user.tab()
-      await user.tab()
-      await user.tab()
+      button.focus()
       expect(button).toHaveFocus()
       await user.keyboard('{Enter}')
     } else fireEvent.click(button)
@@ -331,7 +333,7 @@ describe('HabitFormFields', () => {
     const buildForm = (isSuggesting = false) => <QueryClientProvider client={queryClient}><CreateFormHarness isSuggesting={isSuggesting} /></QueryClientProvider>
     const view = render(buildForm())
     expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Run every day' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Run every day' } })
     await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
     fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🌱' }))
@@ -342,9 +344,9 @@ describe('HabitFormFields', () => {
       expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
       expect(formHelpers.form.getValues('emoji')).toBe('🌱')
     }
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: '' } })
     expectHidden()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Run every day' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Run every day' } })
     view.rerender(buildForm(true))
     expectHidden()
     view.rerender(buildForm())
@@ -361,13 +363,13 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', position: 'relative', paddingBlock: '12px' })
   })
 
-  it.each([
-    ['en', 'Starts on September 2'],
-    ['pt-BR', 'Começa em 2 de setembro'],
-  ])('renders a word start date in %s', (locale, expected) => {
+  it.each(['en', 'pt-BR'])('renders an editable date in %s', (locale) => {
     formLocale.language = locale
-    renderForm()
-    expect(screen.getByText(expected)).toBeDefined()
+    formLocale.realDates = true
+    renderForm(createFormHelpers({ itemType: 'task' }))
+    expect(screen.getByRole('button', { name: /habits.form.taskDate/ })).toBeVisible()
+    expect(screen.queryByText('habits.form.startDateReason')).toBeNull()
+    formLocale.realDates = false
   })
 
   it.each([
@@ -387,7 +389,7 @@ describe('HabitFormFields', () => {
     mockProfileState.hasProAccess = false
   })
 
-  it('starts with one phrase field, closed details, and an immutable start date', () => {
+  it('starts with type, title and editable date fields and closed details', () => {
     renderForm()
     expect(screen.getByLabelText('habits.form.describe')).toBeDefined()
     expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toBeDefined()
@@ -395,7 +397,7 @@ describe('HabitFormFields', () => {
     expect(screen.queryByText('habits.form.recurring')).toBeNull()
     expect(screen.queryByText('habits.form.flexible')).toBeNull()
     expect(screen.queryByText('habits.form.general')).toBeNull()
-    expect(screen.getByText('habits.form.startDate')).toBeDefined()
+    expect(screen.getByText('habits.form.taskDate')).toBeDefined()
     expect(screen.queryByText('checklist-editor')).toBeNull()
   })
 
@@ -563,7 +565,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('checklist-editor')).toBeDefined()
     expect(screen.getByText('sub-habit-editor')).toBeDefined()
     expect(screen.getByText('goal-linking')).toBeDefined()
-    expect(screen.getByText('date-field')).toBeDefined()
+    expect(screen.getAllByText('date-field').length).toBeGreaterThan(0)
     expect(screen.getByText('slip-alert')).toBeDefined()
   })
 
@@ -601,7 +603,7 @@ describe('HabitFormFields', () => {
 
     renderForm(formHelpers, undefined, true)
 
-    expect(screen.queryByText('date-field')).toBeNull()
+    expect(screen.queryByText('habits.form.endDate')).toBeNull()
   })
 
   it('routes the free sub-habit row to upgrade while keeping goals available', () => {
@@ -773,7 +775,7 @@ describe('HabitFormFields', () => {
 describe('cadence corrections without a type picker', () => {
   it('shows only days for a parsed fixed schedule', () => {
     renderForm(createFormHelpers({ title: 'Read every Monday', days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 }))
-    expect(screen.queryByRole('radiogroup')).toBeNull()
+    expect(screen.queryByRole('radiogroup', { name: 'habits.form.frequency' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Monday' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: 'habits.form.moreOften' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
@@ -785,7 +787,7 @@ describe('cadence corrections without a type picker', () => {
   ])('offers day and count corrections for $title', (values) => {
     const formHelpers = createFormHelpers(values)
     renderForm(formHelpers)
-    expect(screen.queryByRole('radiogroup')).toBeNull()
+    expect(screen.queryByRole('radiogroup', { name: 'habits.form.frequency' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
     expect(formHelpers.setRecurring).toHaveBeenCalled()
     expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
@@ -1122,7 +1124,7 @@ describe('manual schedule creation', () => {
     const ask = vi.fn()
     let helpers!: HabitFormHelpers
     function OwningForm() {
-      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2026-09-02' } })
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Read', dueDate: '2026-09-02' } })
       return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={ask} readPhraseLocally />
     }
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -1153,7 +1155,7 @@ describe('manual schedule creation', () => {
     const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
     let helpers!: HabitFormHelpers
     function OwningForm() {
-      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2099-01-01' } })
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Read', dueDate: '2099-01-01' } })
       return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => ({ ...SETUP_PROPOSAL, setup: applySuggestionSchedule(patch, helpers) })} readPhraseLocally />
     }
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -1195,7 +1197,7 @@ describe('manual schedule creation', () => {
 
 describe('habit end time', () => {
   function EditingForm({ onSave }: { onSave: (requests: unknown[]) => void }) {
-    const helpers = useHabitForm({ initialData: { title: 'Run', dueDate: '2099-01-01' } })
+    const helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Run', dueDate: '2099-01-01' } })
     const save = () => {
       if (helpers.validateAll()) return
       const values = habitFormSchema.parse(helpers.form.getValues())
@@ -1252,7 +1254,7 @@ describe('restored end-date control', () => {
     formLocale.realDates = true
     let helpers!: HabitFormHelpers
     function OwningForm() {
-      helpers = useHabitForm({ initialData: { title: 'Run', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible, endDate: '2026-11-01' } })
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Run', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible, endDate: '2026-11-01' } })
       return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
     }
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -1271,4 +1273,97 @@ describe('restored end-date control', () => {
     renderForm(createFormHelpers(), undefined, true)
     expect(screen.queryByRole('button', { name: 'habits.form.removeEndDate' })).toBeNull()
   })
+})
+
+
+describe('restored type and editable date', () => {
+  it('offers an explicit task choice before the title', () => {
+    renderForm(createFormHelpers(), undefined, false)
+    const task = screen.getByRole('radio', { name: 'habits.form.typeTask' })
+    expect(task.compareDocumentPosition(screen.getByRole('textbox', { name: 'habits.form.describe' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+  it('offers the editable task date with details closed', () => {
+    formLocale.realDates = true
+    renderForm(createFormHelpers({ itemType: 'task' }), undefined, false)
+    expect(screen.getByRole('button', { name: /habits.form.taskDate/ })).toBeVisible()
+    formLocale.realDates = false
+  })
+})
+
+
+describe('type and date owning form workflow', () => {
+  it('requires a type, preserves drafts, creates the requested date locally and restores General', () => {
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { dueDate: '2026-10-20' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />
+    }
+    render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'migrar chats do ChatGPT para o Claude' } })
+    act(() => { expect(helpers.validateAll()).toBe('habits.form.typeRequired') })
+    expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+    try {
+      fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'dia 26' } })
+      expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
+      expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ title: 'migrar chats do ChatGPT para o Claude', dueDate: '2026-10-26' })
+      fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Read every Monday' } })
+      expect(helpers.form.getValues('itemType')).toBe('task')
+      expect(helpers.form.getValues('frequencyUnit')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Monday' })).toBeNull()
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' }))
+      fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'dia 28' } })
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+      fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
+      expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ isGeneral: true })
+      expect(screen.queryByRole('textbox', { name: 'habits.form.datePhrase' })).toBeNull()
+      expect(screen.queryByRole('switch', { name: 'habits.form.habitTypeAvoid' })).toBeNull()
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
+      expect(helpers.form.getValues('isGeneral')).toBe(false)
+      expect(helpers.form.getValues('dueDate')).toBe('2026-10-28')
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+      expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
+      expect(helpers.form.getValues('datePhrase')).toBe('dia 26')
+    } finally { vi.useRealTimers() }
+  })
+})
+
+it('defaults an unregistered create date to account today once the profile is known', () => {
+  vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  let helpers!: HabitFormHelpers
+  function OwningForm() {
+    helpers = useHabitForm()
+    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+  }
+  try {
+    render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
+  } finally { vi.useRealTimers() }
+})
+
+it('blocks an unaccepted Astra date, preserves the saved date and focuses its calendar on acceptance', async () => {
+  mockProfileState.aiMessagesUsed = 0
+  dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+  formLocale.realDates = true
+  vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  let helpers!: HabitFormHelpers
+  function OwningForm() {
+    helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate: '2026-10-20' } })
+    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+  }
+  try {
+    render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'after vacation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'habits.form.acceptDate' })).toBeVisible())
+    act(() => { expect(helpers.validateAll()).toBe('habits.form.datePhraseUnresolved') })
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.acceptDate' }))
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
+    expect(helpers.form.getValues('datePhrase')).toBe('')
+    expect(screen.getByRole('button', { name: /habits.form.taskDate/ })).toHaveFocus()
+    expect(helpers.validateAll()).toBeNull()
+  } finally { vi.useRealTimers(); formLocale.realDates = false }
 })

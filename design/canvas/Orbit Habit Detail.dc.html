@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="orbit-item-type" content="Full quiet One-time task / Habit or Tarefa única / Hábito below the full-width title, without a badge or type ellipsis. Existing status, count, check and menu remain. Rows grow at large text.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 </head>
@@ -57,7 +58,7 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>One surface, two documents: this one is the authority for the habit detail, and Hoje's detail state is the same surface reached from Hoje. The order is the shipping drawer's (habit-detail-drawer.tsx): the header, the interactive checklist, the three numbers, the reminders it holds, the end date, the linked goals, the month calendar and the ask Astra row, with the redesign's strip and slipping line up top, then the editable half behind ONE disclosure, the immutable start date, and delete last.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>One surface, two documents: this one is the authority for the habit detail, and Hoje's detail state is the same surface reached from Hoje. The order is the shipping drawer's (habit-detail-drawer.tsx): the header, the interactive checklist, the three numbers, the reminders it holds, the end date, the linked goals, the month calendar and the ask Astra row, with the redesign's strip and slipping line up top, then the editable half behind ONE disclosure, the read-only start-date fact, and delete last.</p>
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>holding, slipping, sub habits, checklist, no data, metrics loading, delete, loading, error, at the daily limit. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly three gates: the reschedule, add a sub habit, and the slip alert inside the disclosure. Renaming, the emoji picker, the disclosure, a sub habit as the subject and the delete question are reached by using the screen rather than the axis.</p>
       <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>a controls row with the 76px emoji well and trailing rename button and 44px header ring, then the full-width name with rename in place and its summary below. The name wraps to show the full title. Tags and description follow the header copy with 12px gaps, and the strip follows the last content with 24px. Every tag is a plain word pill. The well IS the emoji control (habit-form-fields.tsx:242 renders HabitEmojiSelector): tapping it opens a picker with a search that clears, the eleven category chips from habit-emoji-options.ts, and a grid; with no emoji the well shows a plus, because here it is an empty control and not a label. The tags lose the shipping colour dot deliberately: colour as data is dead (DESIGN.md:737) and a habit is told apart by its emoji, its name and its ring. The header ring is a real 44px button on HabitRow's pairing, its accessible name the action and its direction, the ring inside it decorative. Logging from here resets the checklist ONLY under Habit.cs:186-190: a frequency, not flexible, the due date advances; a flexible habit's list does not reset.</p>
       <p><span style="color:var(--fg-3)">strip&nbsp;&nbsp;</span>DayStrip in its habit scope, 30 days, the same period as the third number, so the picture and the number describe one window. A freeze marks a user and a date (StreakFreeze.Create), never a habit, so frozen is absent from the habit union and no snowflake can appear here; the freeze lives on Progresso where the day is the subject.</p>
@@ -212,7 +213,6 @@ const T = {
     emoTitle: 'Escolher emoji', emoSearch: 'Buscar emoji', emoClear: 'Limpar a busca',
     emoNone: 'Nenhum emoji com esse nome', emoWellLabel: (n) => 'Escolher emoji para ' + n,
     startLabel: 'Início',
-    startWhy: 'A data de início é o dia em que o hábito foi criado e não muda.',
     del: 'Apagar hábito', delTitle: 'Apagar este hábito?',
     delBody: 'O hábito e tudo dentro dele saem da sua lista. Não há como restaurar por aqui.',
     cancel: 'Cancelar', delConfirm: 'Apagar',
@@ -295,7 +295,6 @@ const T = {
     emoTitle: 'Choose an emoji', emoSearch: 'Search emoji', emoClear: 'Clear the search',
     emoNone: 'No emoji with that name', emoWellLabel: (n) => 'Choose an emoji for ' + n,
     startLabel: 'Start',
-    startWhy: 'The start date is the day the habit was created and does not change.',
     del: 'Delete habit', delTitle: 'Delete this habit?',
     delBody: 'The habit and everything inside it leave your list. There is no way to restore this here.',
     cancel: 'Cancel', delConfirm: 'Delete',
@@ -978,7 +977,7 @@ class Component extends DCLogic {
         onClick: () => this.setState({ disc: !s.disc }) }),
       s.disc ? this.discNode(t, id, h) : null));
     rest.push(H('div', { key: 'start', style: { marginInline: -16 } },
-      H(D.DateRow, { label: x.startLabel, value: BASE.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' }), note: x.startWhy })));
+      H(D.DateRow, { label: x.startLabel, value: BASE.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' }) })));
     rest.push(H('div', { key: 'del', style: { marginInline: -16 } },
       H(window.OrbitNativeMobile.ListRow, { icon: 'trash', title: x.del, danger: true, chevron: false,
         onClick: () => this.setState({ confirm: true }) })));

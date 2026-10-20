@@ -17,3 +17,15 @@ Both platforms retain row minimum heights, typography, emoji wells, disclosure, 
 `StatusRing`, `ParentRing` and `ProgressRing` remain circular outside the habit row. Calendar event and time-grid status glyphs, the habit detail header, goals, Progresso, Astra blocks and onboarding previews retain their separate components.
 
 Web Vitest measures the production row with compiled CSS at 320 and 1352, in both themes, at normal and 200% text. It checks the visible check, inset outline token, zero layout borders, row fill, zero and partial parent progress and focus. Android Vitest mounts the row across the same width, theme and text-scale axes and checks the noninteractive absolute outline, zero body border width, accessible parent counts, state colours and focus. Habit detail composition tests cover the wrapper and native fill override. Device rendering and whole-screen visual inspection remain outside these component tests.
+
+## Item type metadata
+
+The shared row content owners render `Tarefa única` / `One-time task` or `Hábito` / `Habit` on
+its own quiet line beneath the full-width title. Type never ellipsizes or becomes a badge. The
+existing time, status and parent counts remain beneath it. The same content reaches Hoje, Todos,
+Geral, search, inline children, drill lists, detail children and Astra-owned shared rows. Detail
+headers use the same selector beneath their full-width rename heading. Large text grows the row.
+
+Stored description rendering is owned by its separate row amendment. When carried together, its
+order is title, description, type and existing metadata. This amendment adds no description copy,
+hover redesign or row inset change.

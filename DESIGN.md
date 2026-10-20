@@ -455,20 +455,39 @@ real. Two things change instead:
 
 ### Expressing repetition without the model leaking
 
-**The four internal type names never render, in either locale.** Not "recorrente", not "flexível", not
-"tarefa única", not "geral". The domain stores flags; the interface asks a person about their life.
+Creation and editing begin with two vertical RadioRow choices: `Tarefa única` / `One-time task`
+and `Hábito` / `Habit`. An unseeded create requires a deliberate choice. An edit or an explicit
+inherited type shows its actual selection. The focal title remains editable before that choice;
+validation focuses the type group and preserves every field. Title parsing and Astra replies cannot
+overwrite a deliberate type. Raw schedule enum names never render.
 
-Creation is **one input plus a live preview sentence**. The person types or speaks. The recognised
-words are highlighted **inside** the input, so it is visible which words the parser consumed. A plain
-sentence beneath states what Orbit understood, for example "3 times a week, any days" or "every Monday
-and Thursday at 08:00". Correction is tappable, day pills or a count stepper, never a re-typed syntax.
-Exact time, reminders, end date and description sit behind ONE disclosure.
+A task has no cadence corrections. Habit exposes fixed repetition, count-based repetition and
+`Sem data` / `No schedule`, with `Registre quando acontecer.` / `Log it whenever it happens.`.
+The schedule group stays reachable in the undated branch. Tree constraints remain enforced, and
+General cannot gain reminders or avoidance settings. Switching modes preserves their drafts.
 
-**A parser that cannot resolve a phrase says so and offers the two controls.** It never guesses
-silently.
+The editable date group precedes the single details disclosure. It has a persistent `Quando` /
+`When` label, the type-specific question, natural-language input and the existing calendar picker.
+The picker is labelled `Fazer em` / `Do on` for tasks and `Começar em` / `Starts on` for dated
+habits. New dates use account today after its timezone is known; a caller-selected day is an
+explicit prefill. Edit uses the task due date or persisted recurring start anchor, never the
+recurring next-due cursor. A selected end date has an explicit clear action.
 
-**The form shows an immutable start date, never the mutating next-due date.** Today's "Começar em" is
-a moving cursor wearing a fixed label, and it is a structural defect rather than a copy one.
+Deterministic calendar parsing spends no message. Unsupported wording can request Astra explicitly;
+invalid and ambiguous dates keep the manual picker. The candidate stays Proposed until accepted
+or manually selected. Unresolved text and unaccepted candidates validate visibly on Submit and
+focus the date input. Manual selection, including the same date, clears that issue. Account,
+locale, timezone, day, phrase, picker, type, schedule, end-date and form changes invalidate old
+interpretations. Only the paid action depends on AI capacity. Offline editing and manual picking
+remain available; web saving retains its connection requirement and Android retains offline saving.
+
+Exact time, reminders, end date, description, checklist, sub-habits, tags, goals and avoidance
+controls retain their existing homes behind one disclosure. Read-only DateRow remains a valid
+primitive elsewhere; editable form dates use DateField.
+
+Rows and detail place the complete, quiet type vocabulary beneath the full-width title, with no
+badge or ellipsis on type. Existing status words and parent counts remain. Rows grow with text.
+The paired owners and capability audit are in `design/habit-form-surfaces.md`.
 
 ### Surfaces that no longer exist
 

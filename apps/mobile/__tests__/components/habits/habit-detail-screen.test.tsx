@@ -525,6 +525,16 @@ describe('HabitDetailScreen', () => {
     vi.useRealTimers()
   })
 
+  it.each([false, true])('keeps the whole type below the full detail title, task: %s', (task) => {
+    mocks.detail = { ...makeDetail(), title: 'A complete title with enough words to occupy the available width', frequencyUnit: task ? null : 'Day', frequencyQuantity: task ? null : 1 }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const type = tree.root.findAll((node: TestNode) => node.type === 'Text' && node.props.testID === 'habit-detail-type')[0]!
+    expect(type.props.children).toBe(task ? 'habits.form.typeTask' : 'habits.form.typeHabit')
+    expect(type.props.numberOfLines).toBeUndefined()
+    expect(renderedText(tree.toJSON())).toContain(mocks.detail.title)
+  })
+
   it('keeps child progress in an unlogged bad habit parent header', () => {
     mocks.realHeaderRing = true
     mocks.logs = []

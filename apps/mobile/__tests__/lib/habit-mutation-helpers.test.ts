@@ -566,3 +566,17 @@ it('clears a mounted search observer before replay without starting a request', 
   unsubscribe()
   client.clear()
 })
+
+
+it('keeps an edited recurring anchor through optimistic readback without replacing its due cursor', () => {
+  const patch = buildOptimisticHabitPatch(new QueryClient(), { title: 'Read', isBadHabit: false, startDate: '2026-10-26' })
+  expect(patch.startDate).toBe('2026-10-26')
+  expect(patch).not.toHaveProperty('dueDate')
+})
+
+it('keeps a newly created recurring anchor and its first date while offline', () => {
+  const habit = buildOptimisticHabit(new QueryClient(), 'temporary', { title: 'Read', startDate: '2026-10-26', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  expect(habit.startDate).toBe('2026-10-26')
+  expect(habit.dueDate).toBe('2026-10-26')
+  expect(habit.scheduledDates).toEqual(['2026-10-26'])
+})

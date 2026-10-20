@@ -173,3 +173,7 @@ export function computeHabitMatchBadges(
   if (!searchQuery || !habit.searchMatches) return []
   return habit.searchMatches.map(({ field, value }) => ({ field, value }))
 }
+
+export function getHabitTypeLabelKey(habit: Pick<NormalizedHabit, 'isGeneral' | 'isFlexible' | 'frequencyUnit'>): 'habits.form.typeTask' | 'habits.form.typeHabit' {
+  return !habit.isGeneral && !habit.isFlexible && !habit.frequencyUnit ? 'habits.form.typeTask' : 'habits.form.typeHabit'
+}

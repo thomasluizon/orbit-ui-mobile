@@ -23,7 +23,7 @@ function assertParentProgressLabel(root: import('react-test-renderer').ReactTest
 }
 
 describe('habit row standard on Android', () => {
-  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 1352].flatMap((width) =>
+  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 360, 384, 412, 1352].flatMap((width) =>
     [1, 2].flatMap((fontScale) => [0, 1].map((depth) => ({ mode, width, fontScale, depth: depth as 0 | 1 }))),
   )))('keeps bordered rows and checks in $mode at $width with $fontScale text and depth $depth', ({ mode, width, fontScale, depth }) => {
     theme.mode = mode
@@ -31,6 +31,10 @@ describe('habit row standard on Android', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })}
       depth={depth} panelEnd={false} />) })
+    const type = tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-type')[0]!
+    expect(type.props.children).toBe('habits.form.typeHabit')
+    expect(type.props.numberOfLines).toBeUndefined()
+    expect(StyleSheet.flatten(type.props.style)).toMatchObject({ fontSize: 12 })
     const tokens = createTokensV2('orange', mode)
     const row = tree!.root.findByProps({ testID: 'habit-row' })
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgCard })

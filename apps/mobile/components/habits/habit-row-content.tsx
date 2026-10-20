@@ -1,3 +1,4 @@
+import { getHabitTypeLabelKey } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
@@ -33,6 +34,7 @@ export function HabitRowContent({
   tokens,
   metaOnSupportingLine = false,
 }: Readonly<HabitRowContentProps>) {
+  const { t } = useTranslation()
   return (
     <View style={styles.titleBlock}>
       <PersonalText expanded={expanded}
@@ -47,6 +49,7 @@ export function HabitRowContent({
         {habit.title}
       </PersonalText>
 
+      <Text testID="habit-row-type" style={[styles.meta, { color: metaColor }]}>{t(getHabitTypeLabelKey(habit))}</Text>
       {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} />}
     </View>
   )

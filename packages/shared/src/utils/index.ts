@@ -254,7 +254,6 @@ export {
   releaseHabitPhraseOwnership,
   requestHabitFormProposal,
   getHabitDisplayStartDate,
-  resolveHabitStartDate,
   shouldShowHabitAstraFallback,
   isValidHabitTimeInput,
   validateHabitFormInput,
@@ -818,3 +817,7 @@ export { getSetupChecklist } from './setup-checklist'
 
 export { getSummaryFirstSentence } from './summary-sentence'
 export { deriveBulkLogStreakTransition } from './bulk-log-streak'
+export { HabitModeDrafts } from './habit-form-state'
+export { HabitDateEditor } from './habit-date-editor'
+export { getHabitTypeLabelKey } from './habit-card-helpers'
+export { readTypedHabitPhrase } from './habit-phrase-parser'

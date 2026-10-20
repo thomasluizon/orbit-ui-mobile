@@ -57,6 +57,9 @@ export const HABIT_REMINDER_PRESETS = [
 
 export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFormData {
   return {
+    itemType: values.itemType,
+    datePhrase: values.datePhrase,
+    dateIssue: values.dateIssue,
     title: values.title ?? '',
     description: values.description ?? '',
     emoji: values.emoji ?? '',
@@ -244,6 +247,10 @@ export interface HabitUnderstandingLabels {
 }
 
 export interface HabitScheduleFieldsProps {
+  hidden?: boolean
+  general?: boolean
+  generalLocked?: boolean
+  onGeneral?: () => void
   proposed?: boolean
   unit: FrequencyUnit | null
   quantity: number | null
@@ -275,6 +282,7 @@ export interface HabitUnderstandingProps {
   dayOptions: HabitDayOption[]
   quantity: number
   mode: 'fixed' | 'flexible'
+  showSchedule?: boolean
   showCountCorrection?: boolean
   sentence: string | null
   consumed: readonly HabitPhraseToken[]
@@ -735,13 +743,6 @@ export function isHabitAstraLimitReached(used: number, allowance: number): boole
 export function getHabitDisplayStartDate(habit: Pick<NormalizedHabit, 'startDate' | 'createdAtUtc'>): string {
   // Preserve older API responses until #227 step 3 removes this fallback: https://github.com/thomasluizon/orbit-tickets/issues/227
   return habit.startDate ?? habit.createdAtUtc
-}
-
-export function resolveHabitStartDate(
-  startDate: string | null | undefined,
-  dueDate: string,
-): string | null {
-  return startDate === undefined ? dueDate : startDate
 }
 
 export function formatHabitReminderLabel(

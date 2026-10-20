@@ -178,7 +178,7 @@ describe('HabitRow canonical content (mobile)', () => {
     )
     const supplementaryWords = state === 'bad' && flags.isOverdue ? ['habits.overdue'] : []
     expect(body.props.accessibilityLabel).toBe(
-      [label, `habits.statusDot.${state}`, 'habits.rowProgress', ...supplementaryWords].join(', '),
+      [label, 'habits.form.typeHabit', `habits.statusDot.${state}`, 'habits.rowProgress', ...supplementaryWords].join(', '),
     )
     expect(body.props.accessibilityHint).toBeUndefined()
     expect(tree!.root.findAllByType('Pressable').some(
@@ -334,13 +334,13 @@ describe('HabitRow status control names (mobile)', () => {
     const body = () => renderer!.root.findAllByType('Pressable').find(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )
-    expect(body().props.accessibilityLabel).toBe('Evening routine, habits.statusDot.bad')
+    expect(body().props.accessibilityLabel).toBe('Evening routine, habits.form.typeHabit, habits.statusDot.bad')
     TestRenderer.act(() => {
       renderer.update(<HabitRow habit={{ ...habit, isOverdue: true }} hasChildren
         childrenDone={1} childrenTotal={2} actions={{ onDetail }} />)
     })
     expect(body().props.accessibilityLabel).toBe(
-      'Evening routine, habits.statusDot.bad, habits.rowProgress, habits.overdue',
+      'Evening routine, habits.form.typeHabit, habits.statusDot.bad, habits.rowProgress, habits.overdue',
     )
     TestRenderer.act(() => body().props.onPress())
     expect(onDetail).toHaveBeenCalledOnce()
@@ -356,7 +356,7 @@ describe('HabitRow status control names (mobile)', () => {
     const body = renderer!.root.findAllByType('Pressable').find(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )
-    expect(body.props.accessibilityLabel).toBe('Read, habits.statusDot.empty, 08:00 - 09:00')
+    expect(body.props.accessibilityLabel).toBe('Read, habits.form.typeHabit, habits.statusDot.empty, 08:00 - 09:00')
     expect(body.props.accessibilityHint).toBe('habits.schedule.dueInDays')
     TestRenderer.act(() => renderer.unmount())
   })
@@ -403,7 +403,7 @@ describe('HabitRow status control names (mobile)', () => {
     const body = renderer!.root.findAll(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )[0]
-    expect(body.props.accessibilityLabel).toBe('Read')
+    expect(body.props.accessibilityLabel).toBe('Read, habits.form.typeHabit')
     TestRenderer.act(() => body.props.onPress())
     expect(onDetail).toHaveBeenCalledOnce()
     TestRenderer.act(() => {
@@ -502,7 +502,7 @@ describe('HabitRow status control names (mobile)', () => {
 
     const selection = renderer!.root.findAll(
       (node: { props: Record<string, unknown> }) =>
-        node.props.accessibilityLabel === 'Meditate' && typeof node.props.style === 'function',
+        node.props.accessibilityLabel === 'Meditate, habits.form.typeHabit' && typeof node.props.style === 'function',
     )[0]
     const pressedSelection = StyleSheet.flatten(
       selection.props.style({ pressed: true }),

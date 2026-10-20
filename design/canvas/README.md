@@ -3,6 +3,19 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Habit form type and date amendment
+
+Create and edit place the two vertical type radios before the focal title. The editable account-date
+group precedes More details. Task uses its due date; a dated habit uses its persisted start anchor.
+General remains a distinct undated habit with a reachable schedule group. Local date parsing is
+free; explicit Astra dates remain Proposed until accepted or manually selected. Validation preserves
+the draft and focuses the required choice or unresolved date. Offline draft editing and manual
+picking remain available; each platform retains its existing save connectivity boundary.
+
+Hoje rows and Habit Detail show the full quiet type below the full-width title. The existing row
+status, counts, check and menu remain. `habit-form-surfaces.md` and `habit-row-surfaces.md` name the
+paired owners, retained controls and verification boundaries.
+
 ## The authority
 
 **Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records

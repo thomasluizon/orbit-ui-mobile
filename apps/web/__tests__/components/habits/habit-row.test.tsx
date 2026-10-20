@@ -373,7 +373,7 @@ describe('HabitRow check circle accessible name', () => {
     expect(screen.queryByRole('menuitem', { name: 'habits.actions.reschedule' })).toBeNull()
     fireEvent.click(screen.getByRole('menuitem', { name: 'common.edit' }))
     expect(actions.onEdit).toHaveBeenCalledOnce()
-    fireEvent.click(screen.getByRole('button', { name: 'Read' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Read, habits.form.typeHabit' }))
     fireEvent.click(screen.getByRole('button', { name: 'common.expand' }))
     expect(actions.onDetail).toHaveBeenCalledOnce()
     expect(actions.onToggleExpand).toHaveBeenCalledOnce()
@@ -425,7 +425,7 @@ describe('HabitRow check circle accessible name', () => {
       />,
     )
 
-    const body = screen.getByRole('button', { name: 'Meditate' })
+    const body = screen.getByRole('button', { name: 'Meditate, habits.form.typeHabit' })
     const ring = screen.getByTestId('habit-status-toggle')
     expect(body).toHaveAttribute('data-habit-row-body')
     expect(body).not.toHaveAttribute('data-habit-row-control')
@@ -498,7 +498,7 @@ describe('HabitRow check circle accessible name', () => {
 
     const row = screen.getByTestId('habit-row')
     expect(row).not.toHaveAttribute('aria-disabled')
-    fireEvent.click(screen.getByRole('button', { name: 'Meditate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Meditate, habits.form.typeHabit' }))
     expect(onDetail).toHaveBeenCalledOnce()
     expect(screen.getByTestId('habit-status-toggle')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'habits.actions.more' })).toBeEnabled()
@@ -600,7 +600,7 @@ describe('HabitRow large text placement', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren
       childProgress={{ done: 0, total: 2 }} selectMode={selectMode}
       meta={['0 of 2', { kind: 'overdue', label: 'Overdue' }, { kind: 'bad', label: 'Bad' }]} />)
-    expect(document.querySelector('[data-habit-row-body]')).toHaveAccessibleName(/Parent\s*0 of 2·Overdue·Bad/)
+    expect(document.querySelector('[data-habit-row-body]')).toHaveAccessibleName(/Parent, habits\.form\.typeHabit\s*0 of 2·Overdue·Bad/)
   })
 
   it('keeps producer-derived future hints hidden when parent progress moves', () => {

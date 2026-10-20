@@ -39,7 +39,7 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 - **pt-BR**: "voce", plain and warm, never corporate, never slang. Sample copy: "Água da manhã", "Nenhum hábito ainda", "Você pode restaurar a qualquer momento."
 - Errors state the fix, adjacent to the field: "Use um email completo, como nome@exemplo.com". Disabled controls carry the reason beside them: "Gerido pela sua assinatura."
 - At capacity is a boundary, not an error. **It is no longer a habit count**: the ceiling is an abuse guard at 1000, identical on every plan, so the live at-capacity case is the daily Astra allowance, which the composer's `atLimit` state carries.
-- **The four internal schedule type names never render**, in either locale: not "recorrente", not "flexivel", not "tarefa unica", not "geral". Creation is one input plus a live preview sentence.
+- **The form begins with plain Task/Habit type radios**, then the focal title and live understanding. Raw schedule enum names never render. Dated forms use editable DateField before details; read-only DateRow remains valid elsewhere. General is the reachable No schedule habit branch. Rows and detail show whole neutral type metadata beneath the full-width title.
 - Emoji: only as user-chosen habit icons inside a row well (💧🏃📖), never in UI copy or as UI iconography.
 
 ## Visual foundations

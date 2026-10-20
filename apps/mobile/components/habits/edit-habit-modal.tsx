@@ -281,6 +281,7 @@ export function EditHabitModal({
         }
       : prefill.formValues
     if (habitChanged) { setEmojiFailure(null); formHelpers.clearBackendErrors() }
+    formHelpers.resetModeDrafts()
     formHelpers.form.reset(formValues)
     setOriginalEndDate(prefill.originalEndDate)
     setReminderTimes(prefill.reminderTimes)
@@ -302,6 +303,7 @@ export function EditHabitModal({
   const handleSubmit = useCallback(async () => {
     if (!habit) return
     flushBufferedInputsRef.current()
+    if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return }
     if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
 
     const error = formHelpers.validateAll({

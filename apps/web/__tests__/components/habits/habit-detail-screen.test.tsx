@@ -1671,17 +1671,26 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByLabelText('habits.form.exactTime')).toHaveValue('19:30')
   })
 
+  it.each([false, true])('keeps the whole type below the full detail title, task: %s', (task) => {
+    mocks.detail = { ...makeDetail(), title: 'A complete title with enough words to occupy the available width', frequencyUnit: task ? null : 'Day', frequencyQuantity: task ? null : 1 }
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const type = view.container.querySelector('[data-habit-detail-type]')!
+    expect(type.textContent).toBe(task ? 'habits.form.typeTask' : 'habits.form.typeHabit')
+    expect(type.previousElementSibling?.textContent).toBe(mocks.detail.title)
+    expect(type).not.toHaveClass('text-ellipsis', 'whitespace-nowrap')
+  })
+
   it('shows only the due time for a habit without a frequency', () => {
     mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null, dueTime: '08:00' }
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    const summary = view.container.querySelector('[data-habit-detail-content] header p')
+    const summary = view.container.querySelector('[data-habit-detail-content] header p:not([data-habit-detail-type])')
     expect(summary?.textContent).toBe('8:00 AM')
   })
 
   it('omits the summary element when there is no frequency or due time', () => {
     mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null, dueTime: null }
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    expect(view.container.querySelector('[data-habit-detail-content] header p')).toBeNull()
+    expect(view.container.querySelector('[data-habit-detail-content] header p:not([data-habit-detail-type])')).toBeNull()
   })
 
   it('omits the empty read-only schedule row for a habit without a frequency', () => {
@@ -2290,6 +2299,7 @@ describe('HabitDetailScreen', () => {
         const geometry = await heading.evaluate((heading, hit) => {
           const button = heading.querySelector('button')!
           const summary = heading.nextElementSibling!
+          const summaries = Array.from(heading.parentElement!.querySelectorAll(':scope > p'))
           const row = heading.closest('[data-habit-detail-header-row]')!
           const controls = row.firstElementChild!
           const range = document.createRange()
@@ -2304,7 +2314,7 @@ describe('HabitDetailScreen', () => {
             controlsX: controls.getBoundingClientRect().left,
             hitHeight: hit.height,
             rowHeight: row.getBoundingClientRect().height,
-            baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 4 + summary.getBoundingClientRect().height,
+            baseHeight: controls.getBoundingClientRect().height + 8 + Math.max(32, lines * lineHeight) + summaries.reduce((height, item) => height + 8 + item.getBoundingClientRect().height, 0),
           }
         }, hit)
         expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)

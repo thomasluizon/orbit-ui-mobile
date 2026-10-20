@@ -23,7 +23,7 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onC
   return <View style={{ gap: screen ? 8 : 16 }}>
     {!screen ? reason : null}
       {screen ? (
-        <PillButton size="md" loading={pending} disabled={empty}
+        <PillButton size="md" loading={pending}
         hint={empty ? t('habits.form.createWhy') : undefined} onClick={onSubmit}>
         {label}
       </PillButton>

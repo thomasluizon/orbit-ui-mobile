@@ -28,7 +28,6 @@ import {
   normalizeHabitFormData,
   releaseHabitPhraseOwnership,
   requestHabitFormProposal,
-  resolveHabitStartDate,
   shouldShowHabitAstraFallback,
   validateHabitFormInput,
 } from '../utils/habit-form-helpers'
@@ -437,7 +436,7 @@ describe('habit form helpers', () => {
     expect(buildHabitUnderstandingSentence([], [], true, 'Year', 2, '', locale, translate)).toBe(pluralYear)
   })
 
-  it('tracks proposal visibility, Astra limits, start dates, and reminder labels', () => {
+  it('tracks proposal visibility, Astra limits and reminder labels', () => {
     const proposal = { ...EMPTY_HABIT_FORM_PROPOSAL, checklist: true }
     const translate = (key: string) => key
 
@@ -447,8 +446,6 @@ describe('habit form helpers', () => {
     expect(shouldShowHabitAstraFallback('Read', null, () => true, proposal)).toBe(false)
     expect(isHabitAstraLimitReached(4, 5)).toBe(false)
     expect(isHabitAstraLimitReached(5, 5)).toBe(true)
-    expect(resolveHabitStartDate(undefined, '2026-09-02')).toBe('2026-09-02')
-    expect(resolveHabitStartDate(null, '2026-09-02')).toBeNull()
     expect(formatHabitReminderLabel(0, translate)).toBe('habits.form.reminderAtTime')
     expect(formatHabitReminderLabel(31, translate)).toBe('31 habits.form.reminderMinutes')
     expect(formatHabitReminderLabel(61, translate)).toBe('1 habits.form.reminderHour')
