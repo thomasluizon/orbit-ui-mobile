@@ -1550,14 +1550,39 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
       ? <CreateHabitModal open onOpenChange={closed} initialTitle="Read" />
       : <EditHabitModal open onOpenChange={closed} habit={habit} />}</QueryClientProvider>)
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read'))
+    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : 'habits.editHabit' })
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'common.close' })).toHaveFocus())
     if (type) fireEvent.click(screen.getByRole('radio', { name: type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit' }))
   }
   async function submit(method = 'click') {
     const user = userEvent.setup()
-    if (method === 'form') fireEvent.submit(phraseInput().closest('form')!)
+    if (method === 'form') await act(async () => { fireEvent.submit(phraseInput().closest('form')!) })
     else if (method === 'Enter') { phraseInput().focus(); await user.keyboard('{Enter}') }
     else await user.click(submitButton())
   }
+
+  it('waits for modal opening focus before starting date interactions', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date', 'requestAnimationFrame', 'cancelAnimationFrame'] })
+    let ready = false
+    const opening = mount('habit').then(() => { ready = true })
+    await screen.findByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : 'habits.editHabit' })
+    expect(ready).toBe(false)
+    expect(screen.getByRole('button', { name: 'common.close' })).not.toHaveFocus()
+    await act(async () => { vi.advanceTimersToNextFrame() })
+    await opening
+    expect(screen.getByRole('button', { name: 'common.close' })).toHaveFocus()
+    fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await screen.findByRole('button', { name: 'habits.form.acceptDate' })
+    await submit('form')
+    await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
+    expect(phraseInput()).toHaveFocus()
+    await act(async () => { vi.advanceTimersToNextFrame() })
+    expect(phraseInput()).toHaveFocus()
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(closed).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
 
   it.each([
     ['en', 'task', 'accept', 'click'],
