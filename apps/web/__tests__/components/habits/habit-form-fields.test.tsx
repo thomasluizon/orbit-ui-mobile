@@ -13,7 +13,7 @@ import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { habitFormSchema } from '@orbit/shared/validation'
-import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
+import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion, formatAPIDate, formatLocaleDate } from '@orbit/shared/utils'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
@@ -22,7 +22,7 @@ import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selecti
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
 const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false, realDates: false, realDateCopy: false }))
-const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' }))
+const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' as string | null | undefined }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
 const modalFeedback = vi.hoisted(() => ({ showError: vi.fn(), create: vi.fn(), update: vi.fn() }))
 const setupPatch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Week', frequencyQuantity: 3, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
@@ -174,6 +174,14 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    formLocale.language = 'en'
+    formLocale.realReminders = false
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.hasProAccess = false
+  })
+
   it('omits an empty sub-habit section when the edit form supplies no editor', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={queryClient}><HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></QueryClientProvider>)
@@ -399,14 +407,6 @@ describe('HabitFormFields', () => {
     formLocale.language = locale
     renderForm(createFormHelpers({ isBadHabit: true }), undefined, true)
     expect(screen.getByText(expected)).toBeInTheDocument()
-  })
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    formLocale.language = 'en'
-    formLocale.realReminders = false
-    mockProfileState.aiMessagesUsed = 0
-    mockProfileState.hasProAccess = false
   })
 
   it('starts with type, title and editable date fields and closed details', () => {
@@ -1528,7 +1528,9 @@ describe('date candidate confirmation', () => {
 
 describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (owner) => {
   const closed = vi.fn()
+  const originalTimeZone = process.env.TZ
   beforeEach(() => {
+    process.env.TZ = 'UTC'
     modalFeedback.showError.mockReset()
     modalFeedback.create.mockReset().mockResolvedValue({})
     modalFeedback.update.mockReset().mockResolvedValue({})
@@ -1543,6 +1545,9 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
   })
   afterEach(() => {
     vi.useRealTimers()
+    mockProfileState.timeZone = 'UTC'
+    if (originalTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalTimeZone
     formLocale.realDates = false
     formLocale.realDateCopy = false
     formLocale.language = 'en'
@@ -1550,21 +1555,75 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
   const phraseInput = () => screen.getByRole('textbox', { name: 'habits.form.datePhrase' })
   const submitButton = () => screen.getByRole('button', { name: owner === 'create' ? 'habits.createHabit' : 'common.save' })
   const mutation = () => owner === 'create' ? modalFeedback.create : modalFeedback.update
-  async function mount(type: 'task' | 'habit' | null) {
+  async function mount(type: 'task' | 'habit' | null, initialDate?: string) {
     const habit = createMockHabit({ title: 'Read', frequencyUnit: type === 'habit' ? 'Day' : null, dueDate: '2026-10-20', startDate: '2026-10-20' })
-    render(<QueryClientProvider client={new QueryClient()}>{owner === 'create'
-      ? <CreateHabitModal open onOpenChange={closed} initialTitle="Read" />
-      : <EditHabitModal open onOpenChange={closed} habit={habit} />}</QueryClientProvider>)
+    const client = new QueryClient()
+    const modal = () => <QueryClientProvider client={client}>{owner === 'create'
+      ? <CreateHabitModal open onOpenChange={closed} initialTitle="Read" initialDate={initialDate} />
+      : <EditHabitModal open onOpenChange={closed} habit={habit} />}</QueryClientProvider>
+    const view = render(modal())
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read'))
     const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : 'habits.editHabit' })
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'common.close' })).toHaveFocus())
     if (type) fireEvent.click(screen.getByRole('radio', { name: type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit' }))
+    return { refresh: () => view.rerender(modal()) }
   }
   async function submit(method = 'click') {
     const user = userEvent.setup()
     if (method === 'form') await act(async () => { fireEvent.submit(phraseInput().closest('form')!) })
     else if (method === 'Enter') { phraseInput().focus(); await user.keyboard('{Enter}') }
     else await user.click(submitButton())
+  }
+
+  if (owner === 'create') {
+    it.each((['task', 'habit'] as const).flatMap((type) => ['en', 'pt-BR'].flatMap((locale) => [
+      { type, locale, instant: '2026-10-21T02:40:00Z', timeZone: 'America/Sao_Paulo', date: '2026-10-20', browserDay: '2026-10-21' },
+      { type, locale, instant: '2026-10-20T12:40:00Z', timeZone: 'Pacific/Kiritimati', date: '2026-10-21', browserDay: '2026-10-20' },
+    ])))('saves an unseeded $locale $type on the $timeZone account day', async ({ type, locale, instant, timeZone, date, browserDay }) => {
+      vi.setSystemTime(new Date(instant))
+      expect(formatAPIDate(new Date())).toBe(browserDay)
+      mockProfileState.timeZone = timeZone
+      formLocale.language = locale
+      await mount(type)
+      const label = type === 'task' ? 'habits.form.taskDate' : 'habits.form.habitStartDate'
+      expect(screen.getByRole('button', { name: new RegExp(label) })).toHaveTextContent(formatLocaleDate(date, locale))
+      await submit()
+      await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+      expect(mutation()).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', [type === 'task' ? 'dueDate' : 'startDate']: date }))
+      expect(dateRequests.request).not.toHaveBeenCalled()
+    })
+
+    it.each(['task', 'habit'] as const)('waits for the account timezone before saving an unseeded %s', async (type) => {
+      vi.setSystemTime(new Date('2026-10-21T02:40:00Z'))
+      mockProfileState.timeZone = undefined
+      const view = await mount(type)
+      const label = type === 'task' ? 'habits.form.taskDate' : 'habits.form.habitStartDate'
+      expect(screen.getByRole('button', { name: `${label}, common.selectDate` })).toBeEnabled()
+      expect(submitButton()).toBeEnabled()
+      await submit()
+      expect(mutation()).not.toHaveBeenCalled()
+      expect(phraseInput()).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')
+      mockProfileState.timeZone = 'America/Sao_Paulo'
+      view.refresh()
+      expect(screen.getByRole('button', { name: new RegExp(label) })).toHaveTextContent(formatLocaleDate('2026-10-20', 'en'))
+      await submit()
+      await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+      expect(mutation()).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', [type === 'task' ? 'dueDate' : 'startDate']: '2026-10-20' }))
+      expect(dateRequests.request).not.toHaveBeenCalled()
+    })
+
+    it.each(['2026-10-19', '2026-10-26'])('saves deliberate date %s unchanged when the account timezone loads', async (date) => {
+      vi.setSystemTime(new Date('2026-10-21T02:40:00Z'))
+      mockProfileState.timeZone = undefined
+      const view = await mount('task', date)
+      mockProfileState.timeZone = 'America/Sao_Paulo'
+      view.refresh()
+      await submit()
+      await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+      expect(mutation()).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', dueDate: date }))
+      expect(dateRequests.request).not.toHaveBeenCalled()
+    })
   }
 
   it('waits for modal opening focus before starting date interactions', async () => {
