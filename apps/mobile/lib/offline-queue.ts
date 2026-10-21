@@ -59,7 +59,8 @@ function getDb(): SQLite.SQLiteDatabase {
         retries INTEGER NOT NULL DEFAULT 0,
         max_retries INTEGER NOT NULL DEFAULT 3,
         meta TEXT,
-        account_id TEXT
+        account_id TEXT,
+        owner_state TEXT NOT NULL DEFAULT 'legacy'
       );
     `)
 
@@ -69,6 +70,13 @@ function getDb(): SQLite.SQLiteDatabase {
     }
     if (!columns.some((column) => column.name === 'account_id')) {
       db.execSync('ALTER TABLE mutation_queue ADD COLUMN account_id TEXT;')
+    }
+    if (!columns.some((column) => column.name === 'owner_state')) {
+      const database = db
+      database.withTransactionSync(() => {
+        database.execSync("ALTER TABLE mutation_queue ADD COLUMN owner_state TEXT NOT NULL DEFAULT 'legacy';")
+        database.runSync("UPDATE mutation_queue SET owner_state = 'account' WHERE account_id IS NOT NULL")
+      })
     }
   }
   return db
@@ -147,8 +155,8 @@ function currentAccountId(): string | null {
 
 function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutation, accountId: string | null): void {
   database.runSync(
-    `INSERT OR REPLACE INTO mutation_queue (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO mutation_queue (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id, owner_state)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       mutation.id,
       mutation.timestamp,
@@ -160,6 +168,7 @@ function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutati
       mutation.maxRetries,
       JSON.stringify(buildMeta(mutation)),
       accountId,
+      accountId === null ? 'anonymous' : 'account',
     ],
   )
 }
@@ -168,7 +177,7 @@ function replaceAll(mutations: PersistedQueuedMutation[]): void {
   const database = getDb()
   const accountId = currentAccountId()
   database.withTransactionSync(() => {
-    database.runSync('DELETE FROM mutation_queue WHERE account_id IS ? OR account_id IS NULL', [accountId])
+    database.runSync("DELETE FROM mutation_queue WHERE owner_state != 'legacy' AND (account_id IS ? OR owner_state = 'anonymous')", [accountId])
     for (const mutation of mutations) {
       upsert(database, mutation, accountId)
     }
@@ -405,7 +414,7 @@ export function getAll(): PersistedQueuedMutation[] {
 
 function getForAccount(accountId: string | null): PersistedQueuedMutation[] {
   const database = getDb()
-  const rows = database.getAllSync<QueueRow>('SELECT * FROM mutation_queue WHERE account_id IS ? OR account_id IS NULL ORDER BY timestamp ASC', [accountId])
+  const rows = database.getAllSync<QueueRow>("SELECT * FROM mutation_queue WHERE owner_state != 'legacy' AND (account_id IS ? OR owner_state = 'anonymous') ORDER BY timestamp ASC", [accountId])
   return rows.map(mapRow)
 }
 
@@ -467,15 +476,25 @@ export function count(): number {
   const accountId = currentAccountId()
   if (accountId === null) return 0
   const database = getDb()
-  const row = database.getFirstSync<{ cnt: number }>('SELECT COUNT(*) as cnt FROM mutation_queue WHERE account_id = ? OR account_id IS NULL', [accountId])
+  const row = database.getFirstSync<{ cnt: number }>("SELECT COUNT(*) as cnt FROM mutation_queue WHERE owner_state != 'legacy' AND (account_id = ? OR owner_state = 'anonymous')", [accountId])
   return row?.cnt ?? 0
 }
 
 export function retainAccount(accountId: string): void {
   const database = getDb()
   database.withTransactionSync(() => {
-    database.runSync('DELETE FROM mutation_queue WHERE account_id IS NOT NULL AND account_id != ?', [accountId])
-    database.runSync('UPDATE mutation_queue SET account_id = ? WHERE account_id IS NULL', [accountId])
+    database.runSync("DELETE FROM mutation_queue WHERE owner_state = 'legacy' OR (account_id IS NOT NULL AND account_id != ?)", [accountId])
+    database.runSync("UPDATE mutation_queue SET account_id = ?, owner_state = 'account' WHERE owner_state = 'anonymous'", [accountId])
   })
+  emitQueueCount()
+}
+
+export function claimLegacyAccount(accountId: string): void {
+  getDb().runSync("UPDATE mutation_queue SET account_id = ?, owner_state = 'account' WHERE owner_state = 'legacy'", [accountId])
+  emitQueueCount()
+}
+
+export function discardLegacy(): void {
+  getDb().runSync("DELETE FROM mutation_queue WHERE owner_state = 'legacy'")
   emitQueueCount()
 }

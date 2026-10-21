@@ -91,7 +91,7 @@ export function HabitListEmptyState({
         <div
           className="flex w-full max-w-[300px] flex-col items-stretch"
           style={{ marginTop: SPACING.s8, gap: 12 }}
-        ><ActionRow>
+        ><ActionRow align="center">
           {actionLabel && (
             <PillButton
               variant="ghost"

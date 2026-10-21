@@ -10,5 +10,5 @@ export function useContentFrameStyle(cap: 560 | 620 | 652 = 560): ViewStyle {
 }
 
 const styles = StyleSheet.create({
-  frame: { width: '100%', minWidth: 0, alignSelf: 'flex-start', paddingHorizontal: PADDING.screenGutter },
+  frame: { width: '100%', minWidth: 0, alignSelf: 'center', paddingHorizontal: PADDING.screenGutter },
 })

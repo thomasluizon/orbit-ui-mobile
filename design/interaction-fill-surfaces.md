@@ -7,6 +7,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 
 | Surface | Web owner | Android owner | Reserved clearance |
 |---|---|---|---|
+| Habit row body and sibling actions | `components/habits/habit-row.tsx`, `app/globals.css` | `components/habits/habit-row.tsx`, `habit-row-styles.ts` | Body feedback replaces the complete radius-20 row surface; at least 8px inline and 4px block content clearance, existing family neighbour gaps, independent check/disclosure/menu/selection feedback, strong body-feedback hairline, reversible web surface transition and immediate press/reduced-motion paint and a centred 28px check inside its 48px target |
 | Habit rename heading | `components/habits/habit-detail-screen.tsx`, `app/globals.css` | `components/habits/habit-detail-screen.tsx` | The 8px row gaps reserve the 4px block fill extension without growing the header; the 12px inline extension leaves 4px inside the page inset |
 | Grouped list rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Paint and the single focus indicator sit 4px inside each row, retaining the full target and existing content padding |
 | Column list rows and column check rows | `components/ui/list-row.tsx`, `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx`, `components/ui/check-row.tsx` | 12px inline extension leaves 4px inside the page inset; a trailing row action gets a 4px gap and no fill extension toward it |
@@ -20,7 +21,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Month and range day grids | `components/calendar/calendar-grid.tsx`, `components/calendar/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx` | `app/(tabs)/calendar/_components/calendar-grid.tsx`, `app/(tabs)/calendar/_components/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx` | Full-column targets stay transparent; circular position rings and 34px status discs retain their size, and every state paints inside its column |
 | Calendar day detail | `components/calendar/calendar-day-detail.tsx` | `app/(tabs)/calendar/_components/calendar-day-detail.tsx` | Touching rows retain their drawn layout and 16px inline label insets; paint sits 4px inside the block edges and checkbox target; the card retains 24px padding |
 | Calendar month navigation | `app/(app)/calendar/_components/calendar-shell.tsx` | `app/(tabs)/calendar/_components/calendar-shell.tsx` | Month targets keep their gapless layout; chevron and picker paint sits 4px inside each target, which remains at least 48px |
-| Composer trailing actions | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Add or Stop and Send share a 4px gap inside the field; each target remains 48px, with one inset primary focus indicator and an opaque canvas separator on accent fills |
+| Composer trailing actions | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Paste or Clear, Add or Stop and Send share a 4px gap inside the field; the first slot shows Paste with empty text when clipboard reading is available and Clear with typed text while idle; each target remains 48px, with one inset primary focus indicator and an opaque canvas separator on accent fills |
 | Destination tab focus | `components/navigation/bottom-tab-bar.tsx`, `app/globals.css` | `components/navigation/bottom-tab-bar.tsx` | The single focus perimeter sits 4px inside the full-column target, including at the page edge and in forced colors |
 | Wide sidebar brand controls | `components/shell/shell-wide.tsx` | Web-only navigation chrome | The 48px bell and collapse targets retain their 12px gap; a 4px trailing row inset reserves clearance from the lockup, and focus stays inset |
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Both platforms reserve 8px above the explanation, covering the menu control's outward focus indicator plus the shared clearance |
@@ -29,6 +30,16 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent 12px content gap retains 4px and focus stays inset |
 | Toast text action | `components/ui/toast.tsx` | `components/ui/app-toast.tsx` | The 4px negative margin on the text action is inside the toast padding and retains clearance from adjacent content; the close control is a PillButton |
 | Login legal sentence, including the callback email step | `app/(auth)/login/email-step.tsx` | `components/auth/email-step.tsx`, `app/login-styles.ts` | Terms and privacy links share 24px line spacing; web labels stay whole so their native focus outlines cannot span neighbouring links |
+
+The composer slot reaches three surfaces on both platforms: the Hoje dock and habit detail dock
+owned by `app/(app)/layout.tsx` on web and `app/_layout.tsx` on Android, and the full-screen Astra
+conversation owned by `components/chat/conversation.tsx`. They all use `components/shell/composer.tsx`.
+The slot swaps Paste and Clear without changing the attachment tray, Send target or pill radius.
+When the whole placeholder cannot fit beside the text-action slot, both text actions move into the
+existing Add menu: Paste is its first item with empty text, and Clear is its first item with typed
+text. Empty and typed fields keep the same width. Placement
+follows the measured placeholder at the current column width and text size. Recording, transcribing,
+sending, offline and limit states omit both text actions.
 
 Owners are relative to each app. Negative offsets on calendar time markers and decorative habit
 progress SVGs do not paint interaction fills. ActionRow's negative vertical margin compensates its

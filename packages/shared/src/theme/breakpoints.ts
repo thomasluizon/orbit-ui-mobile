@@ -2,6 +2,8 @@ export const WIDE_DESKTOP_BREAKPOINT = 1024
 
 export const SHELL_CONTENT_MAX_WIDTH = 740
 
+export const TAB_BAR_MIN_HEIGHT = 80
+
 export const TOUCH_TARGET_MIN = 48
 
 export const MONTH_GRID_TARGET_MIN = 44

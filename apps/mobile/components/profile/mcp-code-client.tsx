@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { useTranslation } from 'react-i18next'
 import { buildMcpConfigJson, MCP_CONFIG_TABS, type McpConfigTab } from '@orbit/shared/utils/advanced-settings'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -27,8 +27,8 @@ function McpCodeConfig({ endpoint }: Readonly<{ endpoint: string }>) {
     if (copyStatus === 'copying') return
     setCopyStatus('copying')
     try {
-      Clipboard.setString(configuration)
-      const copiedText = await Clipboard.getString()
+      await Clipboard.setStringAsync(configuration)
+      const copiedText = await Clipboard.getStringAsync()
       if (copiedText !== configuration) throw new Error('Clipboard content mismatch')
       setCopyStatus('copied')
     } catch {

@@ -1,3 +1,4 @@
+import proactiveApiResponses from './fixtures/proactive-api-responses.json'
 import type { ProactiveItem } from '../types/proactive'
 import type {
   HabitScheduleChild,
@@ -14,6 +15,8 @@ import { DEFAULT_CONFIG } from '../types/config'
 import type { SyncChangesV2Response } from '../types/sync'
 import type { RetrospectiveMetrics } from '../utils/retrospective'
 import type { CalendarSyncEvent } from '../types/calendar'
+
+export { proactiveApiResponses }
 
 export function createMockCalendarSyncEvent(
   overrides: Partial<CalendarSyncEvent> = {},
@@ -502,7 +505,7 @@ export function createMockProactiveItem(overrides: Partial<ProactiveItem> = {}):
     createdAtUtc: '2026-08-29T10:00:00Z',
     shownAtUtc: null,
     pushedAtUtc: null,
-    facts: null,
+    facts: { ...proactiveApiResponses[1]!.facts },
     ...overrides,
   }
 }

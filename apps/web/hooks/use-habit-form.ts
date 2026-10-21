@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useCallback, useState, useEffect } from 'react'
+import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import type { UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,6 +11,8 @@ import {
   type HabitFormData,
 } from '@orbit/shared/validation'
 import {
+  HabitModeDrafts,
+  applyHabitFormMode,
   buildHabitDaysList,
   buildHabitFrequencyUnits,
   formatHabitTimeInput,
@@ -40,6 +42,10 @@ export interface HabitFormHelpers {
   daysList: HabitDayOption[]
   toggleDay: (day: string, daily?: boolean) => void
   frequencyUnits: { value: FrequencyUnit; label: string }[]
+  registerDateValidation: (validate: () => void) => () => void
+  resetModeDrafts: () => void
+  chooseItemType: (type: 'task' | 'habit') => void
+  validationFocusRequest: number
   setOneTime: () => void
   setRecurring: () => void
   setFlexible: () => void
@@ -65,6 +71,13 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     [t],
   )
 
+  const dateValidation = useRef<(() => void) | null>(null)
+  const registerDateValidation = useCallback((validate: () => void) => {
+    dateValidation.current = validate
+    return () => { if (dateValidation.current === validate) dateValidation.current = null }
+  }, [])
+  const [modeDrafts] = useState(() => new HabitModeDrafts())
+  const [validationFocusRequest, setValidationFocusRequest] = useState(0)
   const form = useForm<HabitFormInput, unknown, HabitFormData>({
     resolver: zodResolver(habitFormSchema),
     defaultValues: {
@@ -163,15 +176,18 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   )
 
   const setOneTime = useCallback(() => {
+    const draft = modeDrafts.switch(normalizeHabitFormData(form.getValues()), 'oneTime')
     form.setValue('isGeneral', false)
     form.setValue('isFlexible', false)
     form.setValue('frequencyUnit', null)
     form.setValue('frequencyQuantity', null)
     form.setValue('days', [])
     form.setValue('endDate', '')
-  }, [form])
+    if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
+  }, [form, modeDrafts])
 
   const setRecurring = useCallback(() => {
+    const draft = modeDrafts.switch(normalizeHabitFormData(form.getValues()), 'recurring')
     form.setValue('isGeneral', false)
     form.setValue('isFlexible', false)
     if (!form.getValues('frequencyUnit')) {
@@ -181,9 +197,11 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (!quantity || quantity < 1) {
       form.setValue('frequencyQuantity', 1)
     }
-  }, [form])
+    if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
+  }, [form, modeDrafts])
 
   const setFlexible = useCallback(() => {
+    const draft = modeDrafts.switch(normalizeHabitFormData(form.getValues()), 'flexible')
     form.setValue('isGeneral', false)
     form.setValue('isFlexible', true)
     form.setValue('days', [])
@@ -194,9 +212,11 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (!quantity || quantity < 1) {
       form.setValue('frequencyQuantity', 3)
     }
-  }, [form])
+    if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
+  }, [form, modeDrafts])
 
   const setGeneral = useCallback(() => {
+    const draft = modeDrafts.switch(normalizeHabitFormData(form.getValues()), 'general')
     form.setValue('isGeneral', true)
     form.setValue('isFlexible', false)
     form.setValue('isBadHabit', false)
@@ -208,18 +228,39 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     form.setValue('endDate', '')
     form.setValue('reminderEnabled', false)
     form.setValue('scheduledReminders', [])
-  }, [form])
+    if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
+  }, [form, modeDrafts])
+
+  const chooseItemType = useCallback((type: 'task' | 'habit') => {
+    if (type === 'task') setOneTime()
+    else applyHabitFormMode(modeDrafts.habitMode, { setOneTime, setRecurring, setFlexible, setGeneral })
+    form.setValue('itemType', type, { shouldDirty: true })
+    form.clearErrors('itemType')
+  }, [form, modeDrafts, setOneTime, setRecurring, setFlexible, setGeneral])
 
   const formatTimeInput = useCallback((value: string) => formatHabitTimeInput(value), [])
   const formatEndTimeInput = useCallback((value: string) => formatHabitTimeInput(value), [])
 
   const validateAll = useCallback(
-    (context?: HabitFormValidationContext) =>
-      translateErrorKey(translate, validateHabitFormInput(form.getValues(), context)),
+    (context?: HabitFormValidationContext) => {
+      dateValidation.current?.()
+      const values = form.getValues()
+      const key = !values.itemType ? 'habits.form.typeRequired' : !values.isGeneral && values.dateIssue ? values.dateIssue : !values.isGeneral && !values.dueDate ? 'habits.form.dateStale' : null
+      if (key) {
+        form.setError(!values.itemType ? 'itemType' : 'datePhrase', { message: key })
+        setValidationFocusRequest((request) => request + 1)
+        return translate(key)
+      }
+      return translateErrorKey(translate, validateHabitFormInput(values, context))
+    },
     [form, translate],
   )
 
   return {
+    chooseItemType,
+    registerDateValidation,
+    resetModeDrafts: () => modeDrafts.clear(),
+    validationFocusRequest,
     backendFieldErrors: backendErrors.fieldErrors,
     backendFocusField,
     backendFocusRequest,

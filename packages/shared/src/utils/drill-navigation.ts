@@ -183,11 +183,12 @@ export function normalizeDrillDetailChild(
     parentId,
     scheduledDates: [],
     isOverdue: child.isOverdue ?? fallbackChildOverdue(child, today),
-    reminderEnabled: false,
-    reminderTimes: [],
-    scheduledReminders: [],
-    slipAlertEnabled: false,
-    tags: [],
+    reminderEnabled: child.reminderEnabled ?? false,
+    reminderTimes: child.reminderTimes ?? [],
+    scheduledReminders: child.scheduledReminders ?? [],
+    relativeReminders: child.relativeReminders,
+    slipAlertEnabled: child.slipAlertEnabled ?? false,
+    tags: child.tags ?? [],
     hasSubHabits: child.children.length > 0,
     flexibleTarget: null,
     flexibleCompleted: 0,
@@ -215,6 +216,7 @@ export function normalizeHabitDetailForDrill(
   parent.scheduledReminders = detail.scheduledReminders
   parent.relativeReminders = detail.relativeReminders
   parent.scheduledStartDate = detail.scheduledStartDate
+  parent.linkedGoals = detail.linkedGoals ?? []
 
   const childrenByParent = new Map<string, NormalizedHabit[]>()
   const children = safeChildren.map((child) =>

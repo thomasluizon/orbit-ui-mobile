@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-q
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
-import { formatLocaleDayMonth } from '@orbit/shared/utils'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -21,6 +20,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => useMutation({ mutationFn: mutation }),
   useHabitDetail: () => ({ data: null, isPending: false, error: null }),
 }))
+vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
@@ -52,8 +52,9 @@ vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
 vi.mock('@/components/ui/date-field', () => ({ DateField: () => null }))
 const { act, create } = require('react-test-renderer') as typeof import('react-test-renderer')
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { date?: string }) => key === 'habits.form.startDateValue' ? `Starts on ${values?.date}` : key, i18n: { language: 'en' } }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ push: vi.fn() }) }))
 
 async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
@@ -66,6 +67,11 @@ async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
       : <EditHabitModal open={open} onClose={onClose} habit={selectedHabit} />}
   </QueryClientProvider>
   await act(() => { tree = create(element(true)); return Promise.resolve() })
+  if (mode === 'create') await act(() => {
+    const choice = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeHabit')[0]!
+    ;(choice.props.onPress as () => void)()
+    return Promise.resolve()
+  })
   const label = mode === 'create' ? 'habits.createHabit' : 'common.save'
   return { onClose, tree, setOpen: async (open: boolean) => { await act(() => { tree.update(element(open)); return Promise.resolve() }) }, title: tree.root.findAll((node) => (node.type as unknown) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
 }
@@ -170,14 +176,15 @@ describe('habit edit start date', () => {
   beforeEach(() => { vi.resetAllMocks() })
 
   it.each([
-    ['2026-01-01', 'Starts on January 1'],
-    ['2026-08-20', 'Starts on August 20'],
-    ['2026-08-28', 'Starts on August 28'],
-    [undefined, `Starts on ${formatLocaleDayMonth('2026-08-29T00:30:00Z', 'en')}`],
+    ['2026-01-01', '2026-01-01'],
+    ['2026-08-20', '2026-08-20'],
+    ['2026-08-28', '2026-08-28'],
+    [undefined, '2026-08-29'],
   ])('shows the API start date %s with legacy timestamp compatibility', async (startDate, expected) => {
     const selectedHabit = { ...habit, startDate, createdAtUtc: '2026-08-29T00:30:00Z' }
     const { tree } = await renderSheet('edit', selectedHabit)
-    expect(tree.root.findAll((node) => (node.type as unknown) === 'Text' && node.props.children === expected)).toHaveLength(1)
+    const form = tree.root.findAll((node) => node.type === HabitFormFields)[0]!.props.formHelpers as import('@/hooks/use-habit-form').HabitFormHelpers
+    expect(form.form.getValues('dueDate')).toBe(expected)
     await act(() => { tree.update(<></>); return Promise.resolve() })
   })
 })

@@ -1,5 +1,5 @@
 import { appConfigSchema } from '@orbit/shared/types/config'
-import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
+import { createMockConfigResponse, createMockHabit } from '@orbit/shared/__tests__/factories'
 import React from 'react'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import type { HabitTag } from '@orbit/shared/types/habit'
@@ -8,10 +8,12 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { habitFormSchema } from '@orbit/shared/validation'
-import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
+import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion, formatAPIDate, formatLocaleDate } from '@orbit/shared/utils'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
@@ -19,9 +21,10 @@ import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selecti
 
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
 const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
-const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false }))
-const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
+const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false, realDates: false, realDateCopy: false }))
+const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' as string | null | undefined }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
+const modalFeedback = vi.hoisted(() => ({ showError: vi.fn(), create: vi.fn(), update: vi.fn() }))
 const setupPatch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Week', frequencyQuantity: 3, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
@@ -39,8 +42,10 @@ const testTranslations: Record<string, string> = {
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
   const messages = formLocale.language === 'en' ? en : ptBR
-  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue
-    : key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key]
+  const dateTemplate = formLocale.realDateCopy && ['habits.form.datePhraseUnresolved', 'habits.form.dateProposed', 'habits.form.dateConfirmationRequired'].includes(key)
+    ? Object.entries(messages.habits.form).find(([name]) => key === `habits.form.${name}`)?.[1]
+    : undefined
+  const template = dateTemplate ?? (key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key])
   if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
   return Object.entries(values ?? {}).reduce(
     (message, [name, value]) => message.replace(`{${name}}`, String(value)),
@@ -58,17 +63,28 @@ vi.mock('next-intl', () => ({
   useLocale: () => formLocale.language,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
+const dateRequests = vi.hoisted(() => ({ request: vi.fn() }))
+vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: dateRequests.request }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-config', () => ({
   useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => mockProfileState.hasProAccess,
-  useProfile: () => ({ profile: { uses24HourClock: true, timeZone: 'UTC', hasProAccess: mockProfileState.hasProAccess, aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
+  useProfile: () => ({ profile: { uses24HourClock: true, timeZone: mockProfileState.timeZone, hasProAccess: mockProfileState.hasProAccess, aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
 }))
 
-vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: modalFeedback.showError }) }))
+vi.mock('@/hooks/use-habits', () => ({
+  useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }),
+  useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
+  useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+}))
+vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
+  useAssignTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
   useTags: () => ({ tags: tagCollection.tags }),
   useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
@@ -90,7 +106,10 @@ vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importO
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false }) }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: (props: { onSetScheduledReminders: (items: { when: string; time: string }[]) => void; nested?: boolean; offsetReminderCount?: number }) => <button type="button" data-nested={String(props.nested)} data-offset-count={props.offsetReminderCount} onClick={() => props.onSetScheduledReminders([{ when: 'day_before', time: '18:00' }])}>scheduled-reminders</button> }))
 vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => <div>slip-alert</div> }))
-vi.mock('@/components/ui/date-field', () => ({ DateField: () => <div>date-field</div> }))
+vi.mock('@/components/ui/date-field', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/date-field')>()
+  return { DateField: (props: React.ComponentProps<typeof actual.DateField>) => formLocale.realDates ? <actual.DateField {...props} /> : <div>date-field</div> }
+})
 
 type TestHabitFormHelpers = HabitFormHelpers & { testValues: Record<string, unknown> }
 
@@ -103,14 +122,16 @@ function createFormHelpers(overrides: Record<string, unknown> = {}): TestHabitFo
   }
   return {
     form: {
+      control: {}, register: vi.fn(), clearErrors: vi.fn(), resetField: vi.fn(),
       watch: vi.fn((field: string) => values[field]),
-      getValues: vi.fn((field: string) => values[field]),
+      getValues: vi.fn((field?: string) => field ? values[field] : values),
       setValue: vi.fn((field: string, value: unknown) => { values[field] = value }),
       formState: { errors: {} },
     } as unknown as HabitFormHelpers['form'],
     isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false,
     showDayPicker: false, showEndDate: true,
     daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value })),
+    chooseItemType: vi.fn(), validationFocusRequest: 0, registerDateValidation: () => () => {}, resetModeDrafts: vi.fn(),
     backendFieldErrors: {}, backendFocusRequest: 0, backendFocusField: undefined, reportBackendErrors: vi.fn(() => false), clearBackendErrors: vi.fn(),
     frequencyUnits: [], setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(),
     setGeneral: vi.fn(), toggleDay: vi.fn(), formatTimeInput: vi.fn(),
@@ -153,6 +174,14 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    formLocale.language = 'en'
+    formLocale.realReminders = false
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.hasProAccess = false
+  })
+
   it.each([false, true])('uses the API sub-habit flag for Pro access %s', (hasProAccess) => {
     mockProfileState.hasProAccess = hasProAccess
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
@@ -167,9 +196,7 @@ describe('HabitFormFields', () => {
     expect(button.hasAttribute('disabled')).toBe(!title.trim())
     if (title.trim()) {
       const user = userEvent.setup()
-      await user.tab()
-      await user.tab()
-      await user.tab()
+      button.focus()
       expect(button).toHaveFocus()
       await user.keyboard('{Enter}')
     } else fireEvent.click(button)
@@ -328,7 +355,7 @@ describe('HabitFormFields', () => {
     const buildForm = (isSuggesting = false) => <QueryClientProvider client={queryClient}><CreateFormHarness isSuggesting={isSuggesting} /></QueryClientProvider>
     const view = render(buildForm())
     expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Run every day' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Run every day' } })
     await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
     fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🌱' }))
@@ -339,9 +366,9 @@ describe('HabitFormFields', () => {
       expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
       expect(formHelpers.form.getValues('emoji')).toBe('🌱')
     }
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: '' } })
     expectHidden()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Run every day' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Run every day' } })
     view.rerender(buildForm(true))
     expectHidden()
     view.rerender(buildForm())
@@ -358,13 +385,13 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', position: 'relative', paddingBlock: '12px' })
   })
 
-  it.each([
-    ['en', 'Starts on September 2'],
-    ['pt-BR', 'Começa em 2 de setembro'],
-  ])('renders a word start date in %s', (locale, expected) => {
+  it.each(['en', 'pt-BR'])('renders an editable date in %s', (locale) => {
     formLocale.language = locale
-    renderForm()
-    expect(screen.getByText(expected)).toBeDefined()
+    formLocale.realDates = true
+    renderForm(createFormHelpers({ itemType: 'task' }))
+    expect(screen.getByRole('button', { name: /habits.form.taskDate/ })).toBeVisible()
+    expect(screen.queryByText('habits.form.startDateReason')).toBeNull()
+    formLocale.realDates = false
   })
 
   it.each([
@@ -376,15 +403,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    formLocale.language = 'en'
-    formLocale.realReminders = false
-    mockProfileState.aiMessagesUsed = 0
-    mockProfileState.hasProAccess = false
-  })
-
-  it('starts with one phrase field, closed details, and an immutable start date', () => {
+  it('starts with type, title and editable date fields and closed details', () => {
     renderForm()
     expect(screen.getByLabelText('habits.form.describe')).toBeDefined()
     expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toBeDefined()
@@ -392,7 +411,7 @@ describe('HabitFormFields', () => {
     expect(screen.queryByText('habits.form.recurring')).toBeNull()
     expect(screen.queryByText('habits.form.flexible')).toBeNull()
     expect(screen.queryByText('habits.form.general')).toBeNull()
-    expect(screen.getByText('habits.form.startDate')).toBeDefined()
+    expect(screen.getByText('habits.form.taskDate')).toBeDefined()
     expect(screen.queryByText('checklist-editor')).toBeNull()
   })
 
@@ -560,7 +579,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('checklist-editor')).toBeDefined()
     expect(screen.getByText('sub-habit-editor')).toBeDefined()
     expect(screen.getByText('goal-linking')).toBeDefined()
-    expect(screen.getByText('date-field')).toBeDefined()
+    expect(screen.getAllByText('date-field').length).toBeGreaterThan(0)
     expect(screen.getByText('slip-alert')).toBeDefined()
   })
 
@@ -598,7 +617,7 @@ describe('HabitFormFields', () => {
 
     renderForm(formHelpers, undefined, true)
 
-    expect(screen.queryByText('date-field')).toBeNull()
+    expect(screen.queryByText('habits.form.endDate')).toBeNull()
   })
 
   it('routes the free sub-habit row to upgrade while keeping goals available', () => {
@@ -770,7 +789,7 @@ describe('HabitFormFields', () => {
 describe('cadence corrections without a type picker', () => {
   it('shows only days for a parsed fixed schedule', () => {
     renderForm(createFormHelpers({ title: 'Read every Monday', days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 }))
-    expect(screen.queryByRole('radiogroup')).toBeNull()
+    expect(screen.queryByRole('radiogroup', { name: 'habits.form.frequency' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Monday' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: 'habits.form.moreOften' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
@@ -782,7 +801,7 @@ describe('cadence corrections without a type picker', () => {
   ])('offers day and count corrections for $title', (values) => {
     const formHelpers = createFormHelpers(values)
     renderForm(formHelpers)
-    expect(screen.queryByRole('radiogroup')).toBeNull()
+    expect(screen.queryByRole('radiogroup', { name: 'habits.form.frequency' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
     expect(formHelpers.setRecurring).toHaveBeenCalled()
     expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
@@ -923,10 +942,16 @@ describe('habit tag suggestions', () => {
     if (staleProposal) await act(async () => { fireEvent.click(staleProposal) })
     expect(screen.getByLabelText('Selected tags')).toBeEmptyDOMElement()
     expect(screen.queryByRole('button', { name: 'Health', pressed: false })).toBeNull()
-    fireEvent.click(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Outdoors', pressed: false }))
-    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors'))
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Outdoors', pressed: false }))
+    })
+    await waitFor(() => {
+      expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors')
+      expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeEnabled()
+      expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestedTagsLabel')
+    })
     tagMutations.create.mockResolvedValue({ id: 'created' })
-    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false })) })
     await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors,created'))
     expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
     expect(tagMutations.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
@@ -1119,7 +1144,7 @@ describe('manual schedule creation', () => {
     const ask = vi.fn()
     let helpers!: HabitFormHelpers
     function OwningForm() {
-      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2026-09-02' } })
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Read', dueDate: '2026-09-02' } })
       return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={ask} readPhraseLocally />
     }
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -1150,7 +1175,7 @@ describe('manual schedule creation', () => {
     const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
     let helpers!: HabitFormHelpers
     function OwningForm() {
-      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2099-01-01' } })
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Read', dueDate: '2099-01-01' } })
       return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => ({ ...SETUP_PROPOSAL, setup: applySuggestionSchedule(patch, helpers) })} readPhraseLocally />
     }
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -1192,7 +1217,7 @@ describe('manual schedule creation', () => {
 
 describe('habit end time', () => {
   function EditingForm({ onSave }: { onSave: (requests: unknown[]) => void }) {
-    const helpers = useHabitForm({ initialData: { title: 'Run', dueDate: '2099-01-01' } })
+    const helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Run', dueDate: '2099-01-01' } })
     const save = () => {
       if (helpers.validateAll()) return
       const values = habitFormSchema.parse(helpers.form.getValues())
@@ -1241,5 +1266,655 @@ describe('habit end time', () => {
     fireEvent.click(screen.getByRole('button', { name: 'remove start elsewhere' }))
     await waitFor(() => expect(end).toHaveValue(''))
     expect(end).toBeDisabled()
+  })
+})
+
+describe('restored end-date control', () => {
+  it.each([false, true])('clears the selected end date through the existing update request, flexible: %s', (isFlexible) => {
+    formLocale.realDates = true
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Run', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible, endDate: '2026-11-01' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const view = render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.removeEndDate' }))
+    const request = buildUpdateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), false, '2026-11-01', [], [])
+    expect(request.clearEndDate).toBe(true)
+    expect(request.endDate).toBeUndefined()
+    expect(screen.queryByRole('button', { name: 'habits.form.removeEndDate' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.endDate, common.selectDate' })).toHaveFocus()
+    view.unmount()
+    formLocale.realDates = false
+  })
+
+  it('keeps the remove action absent until an end date is selected', () => {
+    renderForm(createFormHelpers(), undefined, true)
+    expect(screen.queryByRole('button', { name: 'habits.form.removeEndDate' })).toBeNull()
+  })
+})
+
+
+describe('restored type and editable date', () => {
+  it('offers an explicit task choice before the title', () => {
+    renderForm(createFormHelpers(), undefined, false)
+    const task = screen.getByRole('radio', { name: 'habits.form.typeTask' })
+    expect(task.compareDocumentPosition(screen.getByRole('textbox', { name: 'habits.form.describe' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+  it('offers the editable task date with details closed', () => {
+    formLocale.realDates = true
+    renderForm(createFormHelpers({ itemType: 'task' }), undefined, false)
+    expect(screen.getByRole('button', { name: /habits.form.taskDate/ })).toBeVisible()
+    formLocale.realDates = false
+  })
+})
+
+
+describe('type and date owning form workflow', () => {
+  it('requires a type, preserves drafts, creates the requested date locally and restores General', () => {
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { dueDate: '2026-10-20' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />
+    }
+    render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'migrar chats do ChatGPT para o Claude' } })
+    act(() => { expect(helpers.validateAll()).toBe('habits.form.typeRequired') })
+    expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+    try {
+      fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'dia 26' } })
+      expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
+      expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ title: 'migrar chats do ChatGPT para o Claude', dueDate: '2026-10-26' })
+      fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Read every Monday' } })
+      expect(helpers.form.getValues('itemType')).toBe('task')
+      expect(helpers.form.getValues('frequencyUnit')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Monday' })).toBeNull()
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' }))
+      fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'dia 28' } })
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+      fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
+      expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ isGeneral: true })
+      expect(screen.queryByRole('textbox', { name: 'habits.form.datePhrase' })).toBeNull()
+      expect(screen.queryByRole('switch', { name: 'habits.form.habitTypeAvoid' })).toBeNull()
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
+      expect(helpers.form.getValues('isGeneral')).toBe(false)
+      expect(helpers.form.getValues('dueDate')).toBe('2026-10-28')
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+      expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
+      expect(helpers.form.getValues('datePhrase')).toBe('dia 26')
+    } finally { vi.useRealTimers() }
+  })
+})
+
+it('defaults an unregistered create date to account today once the profile is known', () => {
+  vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  let helpers!: HabitFormHelpers
+  function OwningForm() {
+    helpers = useHabitForm()
+    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+  }
+  try {
+    render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
+  } finally { vi.useRealTimers() }
+})
+
+it('blocks an unaccepted Astra date, preserves the saved date and focuses its calendar on acceptance', async () => {
+  mockProfileState.aiMessagesUsed = 0
+  dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+  formLocale.realDates = true
+  vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  let helpers!: HabitFormHelpers
+  function OwningForm() {
+    helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate: '2026-10-20' } })
+    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+  }
+  try {
+    render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'after vacation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'habits.form.acceptDate' })).toBeVisible())
+    act(() => { expect(helpers.validateAll()).toBe('habits.form.dateConfirmationRequired') })
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.acceptDate' }))
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
+    expect(helpers.form.getValues('datePhrase')).toBe('')
+    expect(screen.getByRole('button', { name: /habits.form.taskDate/ })).toHaveFocus()
+    expect(helpers.validateAll()).toBeNull()
+  } finally { vi.useRealTimers(); formLocale.realDates = false }
+})
+
+describe('date candidate confirmation', () => {
+  let helpers: HabitFormHelpers
+  const saved = vi.fn()
+  beforeEach(() => {
+    dateRequests.request.mockReset()
+    dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+    saved.mockReset()
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.timeZone = 'UTC'
+    formLocale.realDates = true
+    formLocale.realDateCopy = true
+    vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    formLocale.realDates = false
+    formLocale.realDateCopy = false
+    formLocale.language = 'en'
+  })
+  function OwningForm() {
+    helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate: '2026-10-20' } })
+    const save = async (event: React.SubmitEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (!await helpers.form.trigger(undefined, { shouldFocus: true }) || helpers.validateAll()) return
+      const values = habitFormSchema.parse(helpers.form.getValues())
+      saved([buildCreateHabitRequest(values, [], [], [], []), buildUpdateHabitRequest(values, helpers.isOneTime, '', [], [])])
+    }
+    return <form onSubmit={(event) => void save(event)}>
+      <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+      <button type="submit">Save</button>
+    </form>
+  }
+  function mount() {
+    render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
+  }
+  const phraseInput = () => screen.getByRole('textbox', { name: 'habits.form.datePhrase' })
+  async function propose() {
+    fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await screen.findByRole('button', { name: 'habits.form.acceptDate' })
+  }
+
+  it.each(['en', 'pt-BR'])('retires unresolved feedback and the paid action when a date is proposed in %s', async (locale) => {
+    formLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    mount()
+    fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
+    expect(screen.getByText(messages.habits.form.datePhraseUnresolved)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await screen.findByRole('button', { name: 'habits.form.acceptDate' })
+    expect(screen.queryByText(messages.habits.form.datePhraseUnresolved)).toBeNull()
+    expect(phraseInput()).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByRole('status')).toHaveTextContent(messages.habits.form.dateProposed)
+    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByText(/^habits.form.askAstraCost/)).toBeNull()
+    expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-10-20', datePhrase: 'after vacation', dateIssue: '' })
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it.each([['en', 'Save'], ['en', 'Enter'], ['pt-BR', 'Save'], ['pt-BR', 'Enter']])('blocks an unaccepted candidate in %s through %s and focuses accurate confirmation guidance', async (locale, submission) => {
+    formLocale.language = locale
+    const confirmation = locale === 'en' ? 'Use the suggested date or choose another in the calendar.' : 'Use a data sugerida ou escolha outra no calendário.'
+    mount()
+    await propose()
+    const user = userEvent.setup()
+    if (submission === 'Save') await user.click(screen.getByRole('button', { name: 'Save' }))
+    else { phraseInput().focus(); await user.keyboard('{Enter}') }
+    expect(saved).not.toHaveBeenCalled()
+    await waitFor(() => expect(phraseInput()).toHaveFocus())
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
+    expect(phraseInput()).toHaveAttribute('aria-invalid', 'true')
+    expect(phraseInput()).toHaveAccessibleDescription(expect.stringContaining(confirmation))
+    expect(screen.queryByText(en.habits.form.datePhraseUnresolved)).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.acceptDate' })).toBeEnabled()
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it('offers another paid consultation only after the proposed phrase changes', async () => {
+    mount()
+    await propose()
+    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByText(/^habits.form.askAstraCost/)).toBeNull()
+    fireEvent.change(phraseInput(), { target: { value: 'after my next vacation' } })
+    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.askDate' })).toBeEnabled()
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it('retains failed consultation recovery and clears manual validation after a local date edit', async () => {
+    dateRequests.request.mockRejectedValueOnce(new Error('provider timeout'))
+    mount()
+    fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'habits.form.askDate' })).toBeEnabled())
+    expect(screen.getByText(en.habits.form.datePhraseUnresolved)).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
+    fireEvent.submit(screen.getByRole('button', { name: 'Save' }).closest('form')!)
+    await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
+    expect(saved).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await screen.findByRole('button', { name: 'habits.form.acceptDate' })
+    expect(phraseInput()).not.toHaveAttribute('aria-invalid')
+    expect(screen.queryByText(en.habits.form.datePhraseUnresolved)).toBeNull()
+    fireEvent.change(phraseInput(), { target: { value: 'dia 26' } })
+    fireEvent.submit(screen.getByRole('button', { name: 'Save' }).closest('form')!)
+    await waitFor(() => expect(saved).toHaveBeenCalledOnce())
+    expect(dateRequests.request).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['accept', 'same', 'different'])('saves only the owned date after %s resolves a blocked proposal', async (resolution) => {
+    mount()
+    await propose()
+    fireEvent.submit(screen.getByRole('button', { name: 'Save' }).closest('form')!)
+    await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
+    expect(saved).not.toHaveBeenCalled()
+    const date = resolution === 'different' ? '2026-10-27' : '2026-10-26'
+    if (resolution === 'accept') fireEvent.click(screen.getByRole('button', { name: 'habits.form.acceptDate' }))
+    else {
+      fireEvent.click(screen.getByRole('button', { name: /habits.form.taskDate/ }))
+      fireEvent.click(document.querySelector<HTMLButtonElement>(`button[data-day="${date}"]`)!)
+    }
+    if (resolution === 'accept') expect(screen.getByRole('button', { name: /habits.form.taskDate/ })).toHaveFocus()
+    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
+    expect(phraseInput()).not.toHaveAttribute('aria-invalid')
+    expect(helpers.form.getValues()).toMatchObject({ dueDate: date, datePhrase: '', dateIssue: '' })
+    fireEvent.submit(screen.getByRole('button', { name: 'Save' }).closest('form')!)
+    await waitFor(() => expect(saved).toHaveBeenCalledOnce())
+    expect(saved).toHaveBeenLastCalledWith([expect.objectContaining({ dueDate: date, title: 'Read' }), expect.objectContaining({ dueDate: date, title: 'Read' })])
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+})
+
+describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (owner) => {
+  const closed = vi.fn()
+  const originalTimeZone = process.env.TZ
+  beforeEach(() => {
+    process.env.TZ = 'UTC'
+    modalFeedback.showError.mockReset()
+    modalFeedback.create.mockReset().mockResolvedValue({})
+    modalFeedback.update.mockReset().mockResolvedValue({})
+    closed.mockReset()
+    dateRequests.request.mockReset().mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.timeZone = 'UTC'
+    formLocale.language = 'en'
+    formLocale.realDates = true
+    formLocale.realDateCopy = true
+    vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    mockProfileState.timeZone = 'UTC'
+    if (originalTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalTimeZone
+    formLocale.realDates = false
+    formLocale.realDateCopy = false
+    formLocale.language = 'en'
+  })
+  const phraseInput = () => screen.getByRole('textbox', { name: 'habits.form.datePhrase' })
+  const submitButton = () => screen.getByRole('button', { name: owner === 'create' ? 'habits.createHabit' : 'common.save' })
+  const mutation = () => owner === 'create' ? modalFeedback.create : modalFeedback.update
+  async function mount(type: 'task' | 'habit' | null, initialDate?: string) {
+    const habit = createMockHabit({ title: 'Read', frequencyUnit: type === 'habit' ? 'Day' : null, dueDate: '2026-10-20', startDate: '2026-10-20' })
+    const client = new QueryClient()
+    const modal = () => <QueryClientProvider client={client}>{owner === 'create'
+      ? <CreateHabitModal open onOpenChange={closed} initialTitle="Read" initialDate={initialDate} />
+      : <EditHabitModal open onOpenChange={closed} habit={habit} />}</QueryClientProvider>
+    const view = render(modal())
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read'))
+    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : 'habits.editHabit' })
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'common.close' })).toHaveFocus())
+    if (type) fireEvent.click(screen.getByRole('radio', { name: type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit' }))
+    return { refresh: () => view.rerender(modal()) }
+  }
+  async function submit(method = 'click') {
+    const user = userEvent.setup()
+    if (method === 'form') await act(async () => { fireEvent.submit(phraseInput().closest('form')!) })
+    else if (method === 'Enter') { phraseInput().focus(); await user.keyboard('{Enter}') }
+    else await user.click(submitButton())
+  }
+
+  if (owner === 'create') {
+    it.each((['task', 'habit'] as const).flatMap((type) => ['en', 'pt-BR'].flatMap((locale) => [
+      { type, locale, instant: '2026-10-21T02:40:00Z', timeZone: 'America/Sao_Paulo', date: '2026-10-20', browserDay: '2026-10-21' },
+      { type, locale, instant: '2026-10-20T12:40:00Z', timeZone: 'Pacific/Kiritimati', date: '2026-10-21', browserDay: '2026-10-20' },
+    ])))('saves an unseeded $locale $type on the $timeZone account day', async ({ type, locale, instant, timeZone, date, browserDay }) => {
+      vi.setSystemTime(new Date(instant))
+      expect(formatAPIDate(new Date())).toBe(browserDay)
+      mockProfileState.timeZone = timeZone
+      formLocale.language = locale
+      await mount(type)
+      const label = type === 'task' ? 'habits.form.taskDate' : 'habits.form.habitStartDate'
+      expect(screen.getByRole('button', { name: new RegExp(label) })).toHaveTextContent(formatLocaleDate(date, locale))
+      await submit()
+      await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+      expect(mutation()).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', [type === 'task' ? 'dueDate' : 'startDate']: date }))
+      expect(dateRequests.request).not.toHaveBeenCalled()
+    })
+
+    it.each(['task', 'habit'] as const)('waits for the account timezone before saving an unseeded %s', async (type) => {
+      vi.setSystemTime(new Date('2026-10-21T02:40:00Z'))
+      mockProfileState.timeZone = undefined
+      const view = await mount(type)
+      const label = type === 'task' ? 'habits.form.taskDate' : 'habits.form.habitStartDate'
+      expect(screen.getByRole('button', { name: `${label}, common.selectDate` })).toBeEnabled()
+      expect(submitButton()).toBeEnabled()
+      await submit()
+      expect(mutation()).not.toHaveBeenCalled()
+      expect(phraseInput()).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')
+      mockProfileState.timeZone = 'America/Sao_Paulo'
+      view.refresh()
+      expect(screen.getByRole('button', { name: new RegExp(label) })).toHaveTextContent(formatLocaleDate('2026-10-20', 'en'))
+      await submit()
+      await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+      expect(mutation()).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', [type === 'task' ? 'dueDate' : 'startDate']: '2026-10-20' }))
+      expect(dateRequests.request).not.toHaveBeenCalled()
+    })
+
+    it.each(['2026-10-19', '2026-10-26'])('saves deliberate date %s unchanged when the account timezone loads', async (date) => {
+      vi.setSystemTime(new Date('2026-10-21T02:40:00Z'))
+      mockProfileState.timeZone = undefined
+      const view = await mount('task', date)
+      mockProfileState.timeZone = 'America/Sao_Paulo'
+      view.refresh()
+      await submit()
+      await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+      expect(mutation()).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', dueDate: date }))
+      expect(dateRequests.request).not.toHaveBeenCalled()
+    })
+  }
+
+  it('waits for modal opening focus before starting date interactions', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date', 'requestAnimationFrame', 'cancelAnimationFrame'] })
+    let ready = false
+    const opening = mount('habit').then(() => { ready = true })
+    await screen.findByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : 'habits.editHabit' })
+    expect(ready).toBe(false)
+    expect(screen.getByRole('button', { name: 'common.close' })).not.toHaveFocus()
+    await act(async () => { vi.advanceTimersToNextFrame() })
+    await opening
+    expect(screen.getByRole('button', { name: 'common.close' })).toHaveFocus()
+    fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await screen.findByRole('button', { name: 'habits.form.acceptDate' })
+    await submit('form')
+    await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
+    expect(phraseInput()).toHaveFocus()
+    await act(async () => { vi.advanceTimersToNextFrame() })
+    expect(phraseInput()).toHaveFocus()
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(closed).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['en', 'task', 'accept', 'click'],
+    ['en', 'habit', 'manual', owner === 'create' ? 'Enter' : 'form'],
+    ['pt-BR', 'task', 'manual', 'click'],
+    ['pt-BR', 'habit', 'accept', owner === 'create' ? 'Enter' : 'form'],
+  ] as const)('keeps %s %s candidate refusal inline through %s recovery after %s', async (locale, type, recovery, method) => {
+    formLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    await mount(type)
+    fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await screen.findByRole('button', { name: 'habits.form.acceptDate' })
+    await submit(method)
+    await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
+    expect(phraseInput()).toHaveFocus()
+    expect(phraseInput()).toHaveValue('after vacation')
+    expect(phraseInput()).toHaveAccessibleDescription(expect.stringContaining(messages.habits.form.dateConfirmationRequired))
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(closed).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    const picker = () => screen.getByRole('button', { name: new RegExp(type === 'task' ? 'habits.form.taskDate' : 'habits.form.habitStartDate') })
+    const date = recovery === 'accept' ? '2026-10-26' : '2026-10-27'
+    if (recovery === 'accept') {
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.acceptDate' }))
+      expect(picker()).toHaveFocus()
+    } else {
+      fireEvent.click(picker())
+      fireEvent.click(document.querySelector<HTMLButtonElement>(`button[data-day="${date}"]`)!)
+    }
+    expect(phraseInput()).not.toHaveAttribute('aria-invalid')
+    expect(phraseInput()).toHaveValue('')
+    expect(screen.queryByText(messages.habits.form.dateConfirmationRequired)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const request = expect.objectContaining({ title: 'Read', [type === 'task' ? 'dueDate' : 'startDate']: date })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(closed).toHaveBeenCalledWith(false)
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true].flatMap((flexible) => [false, true].map((editAfterReturn) => ({ flexible, editAfterReturn }))))('saves the restored monthly draft after General, flexible=$flexible, edited=$editAfterReturn', async ({ flexible, editAfterReturn }) => {
+    await mount('habit')
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Read every Monday' } })
+    if (owner === 'create') fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    if (flexible) fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitMonth' }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
+    fireEvent.change(phraseInput(), { target: { value: 'tomorrow' } })
+    fireEvent.click(screen.getByRole('button', { name: /habits.form.endDate/ }))
+    fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-22"]')!)
+    await waitFor(() => expect(screen.queryByRole('grid')).toBeNull())
+    fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
+    fireEvent.click(screen.getByRole('radio', { name: flexible ? 'habits.form.timesPerUnit' : 'habits.form.every' }))
+    if (editAfterReturn) {
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitYear' }))
+      fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '4' } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: /habits.form.habitStartDate/ }))
+    fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-21"]')!)
+    await waitFor(() => expect(screen.queryByRole('grid')).toBeNull())
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const request = expect.objectContaining({ title: 'Read every Monday', frequencyUnit: editAfterReturn ? 'Year' : 'Month', frequencyQuantity: editAfterReturn ? 4 : 2, intervalWeeks: 2, startDate: '2026-10-21', endDate: '2026-10-22' })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    const submitted = owner === 'create' ? mutation().mock.calls[0]![0] : mutation().mock.calls[0]![0].data
+    expect(submitted.isFlexible ?? false).toBe(flexible)
+    expect(submitted.days ?? []).toEqual([])
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  if (owner === 'create') it.each((['en', 'pt-BR'] as const).flatMap((locale) =>
+    (['title-before-type', 'task-before-title', 'habit-to-task', 'general', 'recurring'] as const).map((transition) => ({ locale, transition })),
+  ))('saves the owned title for $locale after $transition', async ({ locale, transition }) => {
+    formLocale.language = locale
+    await mount(transition === 'title-before-type' ? null : transition === 'task-before-title' ? 'task' : 'habit')
+    if (transition === 'task-before-title') expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toBeChecked()
+    const title = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: title } })
+    if (transition === 'general') {
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+      fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
+    } else if (transition !== 'recurring' && transition !== 'task-before-title') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const request = modalFeedback.create.mock.calls[0]![0]
+    expect(request.title).toBe(transition === 'recurring' ? locale === 'en' ? 'Read' : 'Ler' : title)
+    if (transition === 'recurring') expect(request).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-20' })
+    else {
+      expect(request.isGeneral ?? false).toBe(transition === 'general')
+      expect(request.frequencyUnit).toBeUndefined()
+      expect(request.frequencyQuantity).toBeUndefined()
+      expect(request.days ?? []).toEqual([])
+      if (transition !== 'general') expect(request.dueDate).toBe('2026-10-20')
+    }
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  if (owner === 'create') it('keeps a missing type inline and saves the retained draft after selection', async () => {
+    await mount(null)
+    await submit()
+    expect(screen.getByText('habits.form.typeRequired')).toBeVisible()
+    expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    expect(screen.queryByText('habits.form.typeRequired')).toBeNull()
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  it('keeps genuine save failures on the existing global error path', async () => {
+    mutation().mockRejectedValueOnce(new Error('save failed'))
+    await mount('task')
+    await submit()
+    await waitFor(() => expect(modalFeedback.showError).toHaveBeenCalledOnce())
+    expect(modalFeedback.showError).toHaveBeenCalledWith(owner === 'create' ? 'errors.createHabit' : 'errors.updateHabit')
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(closed).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')
+  })
+})
+
+describe('date ownership across form transitions', () => {
+  beforeEach(() => {
+    dateRequests.request.mockReset()
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.timeZone = 'UTC'
+    formLocale.language = 'en'
+    formLocale.realDates = true
+    vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    mockProfileState.timeZone = 'UTC'
+    formLocale.language = 'en'
+    formLocale.realDates = false
+    document.documentElement.removeAttribute('style')
+  })
+
+  function mountDateForm(isFlexible = false) {
+    let helpers!: HabitFormHelpers
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Read', dueDate: '2026-10-20', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible, endDate: '2026-12-01' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+    }
+    const form = () => <QueryClientProvider client={client}><OwningForm /></QueryClientProvider>
+    const view = render(form())
+    const phrase = (value: string) => fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value } })
+    const general = () => fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
+    const recurring = () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
+    return { values: () => helpers.form.getValues(), helpers: () => helpers, phrase, general, recurring, refresh: () => view.rerender(form()) }
+  }
+
+  it.each([false, true])('clears the persisted end date in a real task conversion, flexible: %s', (flexible) => {
+    const owner = mountDateForm(flexible)
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    expect(owner.values()).toMatchObject({ endDate: '', frequencyUnit: null, isFlexible: false, itemType: 'task' })
+    act(() => { expect(owner.helpers().validateAll()).toBeNull() })
+    const request = buildUpdateHabitRequest(habitFormSchema.parse(owner.values()), owner.helpers().isOneTime, '2026-12-01', [], [])
+    expect(request).toMatchObject({ clearEndDate: true, dueDate: '2026-10-20' })
+    expect(request).not.toHaveProperty('endDate')
+    expect(request).not.toHaveProperty('startDate')
+    expect(request.frequencyUnit).toBeUndefined()
+  })
+
+  it.each(['after my vacation', '31 February', '03/04'])('restores parse recovery after General for %s without consulting', (phrase) => {
+    const owner = mountDateForm()
+    owner.phrase(phrase)
+    owner.general()
+    expect(screen.queryByRole('textbox', { name: 'habits.form.datePhrase' })).toBeNull()
+    owner.recurring()
+    expect(owner.values().datePhrase).toBe(phrase)
+    expect(Boolean(screen.queryByRole('button', { name: 'habits.form.askDate' }))).toBe(phrase === 'after my vacation')
+    expect(screen.getByRole('button', { name: /habits.form.habitStartDate/ })).toBeEnabled()
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it.each(['day', 'timezone', 'locale', 'account'] as const)('requires manual confirmation after General and changed %s', (change) => {
+    const owner = mountDateForm()
+    owner.phrase('tomorrow')
+    expect(owner.values().dueDate).toBe('2026-10-21')
+    owner.general()
+    if (change === 'day') vi.setSystemTime(new Date('2026-10-21T12:00:00Z'))
+    if (change === 'timezone') mockProfileState.timeZone = 'America/Sao_Paulo'
+    if (change === 'locale') formLocale.language = 'pt-BR'
+    if (change === 'account') advanceAccountGeneration()
+    owner.refresh()
+    owner.recurring()
+    expect(owner.values()).toMatchObject({ datePhrase: 'tomorrow', dueDate: '2026-10-21', dateIssue: 'habits.form.dateStale' })
+    act(() => { expect(owner.helpers().validateAll()).toBe('habits.form.dateStale') })
+    fireEvent.click(screen.getByRole('button', { name: /habits.form.habitStartDate/ }))
+    fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-21"]')!)
+    act(() => { expect(owner.helpers().validateAll()).toBeNull() })
+    expect(owner.values()).toMatchObject({ datePhrase: '', dateIssue: '', dueDate: '2026-10-21' })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  function changeCadence(change: string, owner: ReturnType<typeof mountDateForm>) {
+    if (change === 'unit') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitWeek' }))
+    if (change === 'quantity') fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '2' } })
+    if (change === 'days') fireEvent.click(screen.getByRole('button', { name: owner.helpers().daysList[0]!.accessibleLabel }))
+    if (change === 'interval') fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
+    if (change === 'flexible') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    if (change === 'general') { owner.general(); owner.recurring() }
+  }
+
+  it.each(['unit', 'quantity', 'days', 'interval', 'flexible', 'general'])('retires the delayed response after %s changes', async (change) => {
+    let finish!: (value: { date: string; referenceDate: string }) => void
+    dateRequests.request.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    const owner = mountDateForm()
+    owner.phrase('after my vacation')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    changeCadence(change, owner)
+    await act(async () => { finish({ date: '2026-10-26', referenceDate: '2026-10-20' }) })
+    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
+    expect(owner.values()).toMatchObject({ dueDate: '2026-10-20', datePhrase: 'after my vacation' })
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it.each(['unit', 'quantity', 'days', 'interval', 'flexible', 'general'])('retires a visible candidate before acceptance after %s changes', async (change) => {
+    dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+    const owner = mountDateForm()
+    owner.phrase('after my vacation')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'habits.form.acceptDate' })).toBeVisible())
+    changeCadence(change, owner)
+    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
+    expect(owner.values().dueDate).toBe('2026-10-20')
+  })
+
+  it('keeps the candidate acceptance action intrinsic before acceptance', async () => {
+    dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+    const owner = mountDateForm()
+    owner.phrase('after my vacation')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    const accept = await screen.findByRole('button', { name: 'habits.form.acceptDate' })
+    expect(accept.closest('[data-slot="action-row"]')).toHaveStyle({ flexDirection: 'row', justifyContent: 'flex-end' })
+    expect(accept.style.width).toBe('auto')
+  })
+
+  it.each(['dark', 'light'] as const)('renders candidate ink and an intrinsic action, then restores normal ink in %s', async (theme) => {
+    document.documentElement.style.setProperty('--fg-1', theme === 'dark' ? '#f4f4f6' : '#1a1a1d')
+    document.documentElement.style.setProperty('--fg-3', theme === 'dark' ? '#8f8f93' : '#68686d')
+    dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+    const owner = mountDateForm()
+    const picker = () => screen.getByRole('button', { name: /habits.form.habitStartDate/ })
+    owner.phrase('after my vacation')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    const accept = await screen.findByRole('button', { name: 'habits.form.acceptDate' })
+    expect(picker().closest('[data-proposed]')).not.toBeNull()
+    expect(getComputedStyle(picker().querySelector('span')!).color).toBe('var(--fg-3)')
+    expect(accept.closest('[data-slot="action-row"]')).toHaveStyle({ flexDirection: 'row', justifyContent: 'flex-end' })
+    expect(accept.style.width).toBe('auto')
+    fireEvent.click(accept)
+    expect(picker().closest('[data-proposed]')).toBeNull()
+    expect(getComputedStyle(picker().querySelector('span')!).color).toBe('var(--fg-1)')
+    expect(picker()).toHaveFocus()
+    owner.phrase('after my vacation')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    await screen.findByRole('button', { name: 'habits.form.acceptDate' })
+    fireEvent.click(picker())
+    fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-26"]')!)
+    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
+    expect(getComputedStyle(picker().querySelector('span')!).color).toBe('var(--fg-1)')
   })
 })

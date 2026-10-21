@@ -46,14 +46,16 @@ export function applySuggestionSchedule(
   target: SuggestionScheduleTarget,
 ): boolean {
   let changed = applySuggestionField(target, 'emoji', patch.emoji)
-  changed = applySuggestionMode(patch, target) || changed
+  const itemType = target.form.getValues('itemType')
+  const preservesType = itemType !== 'task' && !(itemType === 'habit' && patch.mode === 'oneTime') && !target.form.getValues('isGeneral')
+  if (preservesType) changed = applySuggestionMode(patch, target) || changed
 
-  if (patch.mode === 'flexible' || patch.mode === 'recurring') {
+  if (preservesType && (patch.mode === 'flexible' || patch.mode === 'recurring')) {
     changed = applySuggestionField(target, 'frequencyUnit', patch.frequencyUnit) || changed
     changed = applySuggestionField(target, 'frequencyQuantity', patch.frequencyQuantity) || changed
   }
 
-  if (patch.mode === 'recurring' && !hasSameDays(target.form.getValues('days'), patch.days)) {
+  if (preservesType && patch.mode === 'recurring' && !hasSameDays(target.form.getValues('days'), patch.days)) {
     target.form.setValue('days', patch.days, { shouldDirty: true })
     changed = true
   }

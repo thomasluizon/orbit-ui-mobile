@@ -44,6 +44,25 @@ const completeCharter = () => ({
 })
 
 export const cases = () => {
+  const testJobs = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8")).jobs
+  T("test.yml: SonarCloud Analysis consumes Unit Tests", testJobs.sonarcloud.needs === "unit-tests" &&
+    testJobs.sonarcloud.name === "SonarCloud Analysis")
+  const ancestors = new Set(["sonarcloud"])
+  for (const id of ancestors) {
+    const job = testJobs[id]
+    T(`test.yml: ${id} cannot be skipped by a branch condition`,
+      job !== undefined && (job.if === undefined || job.if === "${{ always() }}"),
+      `job condition: ${job?.if}`)
+    for (const step of job?.steps ?? []) {
+      T(`test.yml: ${id}/${step.name ?? step.uses ?? "run"} has no base_ref condition`,
+        !String(step.if ?? "").includes("base_ref"), `step condition: ${step.if}`)
+    }
+    for (const dependency of [job?.needs ?? []].flat()) ancestors.add(dependency)
+  }
+  for (const id of ["build", "web-tests", "workspace-tests", "unit-tests"]) {
+    T(`test.yml: SonarCloud depends on ${id}`, ancestors.has(id))
+  }
+
   const consolidated = structuredClone(currentGuards)
   consolidated.jobs.guards.steps = consolidated.jobs.guards.steps.filter((step) =>
     !step.id || step.id === "timeless__1")
@@ -70,6 +89,25 @@ export const cases = () => {
     ["--root", stageRepository("success-dependent", completeCharter(), { guardWorkflow: yaml.dump(successDependent) })],
     { status: 2, stderr: /independent !cancelled/ },
   )
+  const syntaxCharter = completeCharter()
+  syntaxCharter[".github/workflows/guards.yml#workflow-syntax"] = entry({ scope: "whole-tree-blocking" })
+  const syntaxWorkflow = yaml.load(scopedGuardWorkflow)
+  syntaxWorkflow.jobs["workflow-syntax"] = guardGroups(currentGuards)["workflow-syntax"]
+  check(
+    "check-gate-charter.mjs",
+    "accepts the blocking workflow syntax gate over every workflow",
+    ["--root", stageRepository("workflow-syntax", syntaxCharter, { guardWorkflow: yaml.dump(syntaxWorkflow) })],
+    { status: 0 },
+  )
+  const syntaxStep = syntaxWorkflow.jobs["workflow-syntax"].steps.find((step) => step.id === "workflow-syntax__1")
+  syntaxStep.run = "echo skipped"
+  check(
+    "check-gate-charter.mjs",
+    "rejects a blocking workflow syntax gate without its all-workflow invocation",
+    ["--root", stageRepository("missing-workflow-syntax-run", syntaxCharter, { guardWorkflow: yaml.dump(syntaxWorkflow) })],
+    { status: 1, stderr: /whole-tree-blocking job must run its path inventory as a blocking step/ },
+  )
+
   const missingGate = stageRepository("missing-gate", completeCharter())
   writeFileSync(join(missingGate, "tools", "check-new-gate.mjs"), "process.exit(0)\n")
   check(

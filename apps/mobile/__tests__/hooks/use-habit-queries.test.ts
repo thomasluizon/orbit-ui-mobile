@@ -1,3 +1,4 @@
+import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
 import { createHabitViewItems, createHabitViewScheduleItems } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { buildHabitDateBuckets, canLogHabitOnDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
@@ -374,5 +375,22 @@ describe('habit detail response validation', () => {
     mocks.apiClient.mockRejectedValue(failure)
     renderHookCapture(() => hook('h-1'))
     await expect(lastQuery().queryFn()).rejects.toBe(failure)
+  })
+})
+
+
+describe('serialized reminder reads through the mobile queries', () => {
+  it('loads list, detail and full detail with canonical reminders', async () => {
+    mocks.apiClient.mockImplementation((url: string) => Promise.resolve(
+      url.endsWith('/detail') ? reminderWire.HabitFullDetailResponse
+        : url.includes('?') ? reminderWire['PaginatedResponse`1'] : reminderWire.HabitDetailResponse))
+    const reminders = { scheduledReminders: [{ when: 'same_day' }, { when: 'day_before' }], relativeReminders: [{ when: 'same_day' }, { when: 'day_before' }] }
+    renderHookCapture(() => useHabits({}))
+    await expect(lastQuery().queryFn()).resolves.toMatchObject([reminders])
+    renderHookCapture(() => useHabitDetail('reminder'))
+    await expect(lastQuery().queryFn()).resolves.toMatchObject(reminders)
+    renderHookCapture(() => useHabitFullDetail('reminder'))
+    await expect(lastQuery().queryFn()).resolves.toMatchObject({ habit: reminders })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(3)
   })
 })

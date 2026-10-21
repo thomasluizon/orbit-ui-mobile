@@ -1,7 +1,8 @@
+import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
 import { createHabitViewItems, createHabitViewScheduleItems } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { buildHabitDateBuckets, canLogHabitOnDate } from '@orbit/shared/utils'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
@@ -45,11 +46,11 @@ const invalidMetricsBodies = [
 ]
 
 const mockFetch = vi.fn()
+const mockConfirmSessionRefreshFailure = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+const mockRecoverSessionRefreshFailure = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
 vi.stubGlobal('fetch', mockFetch)
 
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: { getState: () => ({ confirmSessionRefreshFailure: vi.fn(), recoverSessionRefreshFailure: vi.fn() }) },
-}))
+vi.mock('@/stores/auth-store', { spy: true })
 
 function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
@@ -111,9 +112,40 @@ function createWrapper() {
   }
 }
 
+beforeEach(async () => {
+  mockConfirmSessionRefreshFailure.mockClear()
+  mockRecoverSessionRefreshFailure.mockClear()
+  const { useAuthStore } = await import('@/stores/auth-store')
+  const initialState = useAuthStore.getInitialState()
+  vi.spyOn(useAuthStore, 'getState').mockReturnValue({
+    ...initialState,
+    confirmSessionRefreshFailure: mockConfirmSessionRefreshFailure,
+    recoverSessionRefreshFailure: mockRecoverSessionRefreshFailure,
+  })
+})
+
+afterEach(async () => {
+  cleanup()
+  queryClient.clear()
+  const { useAuthStore } = await import('@/stores/auth-store')
+  vi.mocked(useAuthStore.getState).mockRestore()
+})
+
 describe('useHabits (query hook)', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  it.each([false, true])('observes cached habits without fetching with a warm list=%s', async (warm) => {
+    const wrapper = createWrapper()
+    const habit = makeScheduleItem()
+    if (warm) queryClient.setQueryData(habitKeys.list({}), [habit])
+    const { result, unmount } = renderHook(() => useHabits({}, undefined, { enabled: false }), { wrapper })
+    expect(result.current.data?.habitsById.get(habit.id)?.title).toBe(warm ? habit.title : undefined)
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: habitKeys.lists() }) })
+    expect(mockFetch).not.toHaveBeenCalled()
+    unmount()
+    queryClient.clear()
   })
 
   it('enriches undated Todos membership with dated overdue and schedule facts', async () => {
@@ -630,5 +662,42 @@ describe('habit detail response validation', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.data).toBeUndefined()
     expect(result.current.error).toBe(failure)
+  })
+})
+
+
+describe('serialized reminder reads through the web queries', () => {
+  beforeEach(() => { mockFetch.mockReset() })
+  it('loads list, detail and full detail with canonical reminders', async () => {
+    const { useAuthStore } = await import('@/stores/auth-store')
+    mockFetch.mockImplementation(async (url: string) => Response.json(
+      url.endsWith('/detail') ? reminderWire.HabitFullDetailResponse
+        : url.includes('?') ? reminderWire['PaginatedResponse`1'] : reminderWire.HabitDetailResponse,
+    ))
+    const wrapper = createWrapper()
+    const { result, unmount } = renderHook(() => {
+      const list = useHabits({})
+      const detail = useHabitDetail('reminder')
+      const full = useHabitFullDetail('reminder')
+      return {
+        list: { data: list.data, isSuccess: list.isSuccess },
+        detail: { data: detail.data, isSuccess: detail.isSuccess },
+        full: { data: full.data, isSuccess: full.isSuccess },
+      }
+    }, { wrapper })
+    await waitFor(() => {
+      expect(result.current.list.isSuccess).toBe(true)
+      expect(result.current.detail.isSuccess).toBe(true)
+      expect(result.current.full.isSuccess).toBe(true)
+    })
+    const reminders = { scheduledReminders: [{ when: 'same_day' }, { when: 'day_before' }], relativeReminders: [{ when: 'same_day' }, { when: 'day_before' }] }
+    expect(result.current.list.data?.topLevelHabits[0]).toMatchObject(reminders)
+    expect(result.current.detail.data).toMatchObject(reminders)
+    expect(result.current.full.data?.habit).toMatchObject(reminders)
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(useAuthStore.getState).toHaveBeenCalledTimes(3)
+    expect(mockRecoverSessionRefreshFailure).toHaveBeenCalledTimes(3)
+    expect(mockConfirmSessionRefreshFailure).not.toHaveBeenCalled()
+    unmount()
   })
 })

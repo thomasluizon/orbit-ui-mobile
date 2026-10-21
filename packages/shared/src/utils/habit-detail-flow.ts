@@ -196,7 +196,10 @@ function scheduledDayOutcome(
   logged: boolean,
   scheduled: boolean,
 ): HabitDayValue {
-  if (!scheduled) return habit.isBadHabit ? 'not-scheduled' : logged ? 'done' : 'not-scheduled'
+  if (!scheduled) {
+    if (habit.isBadHabit) return 'not-scheduled'
+    return logged ? 'done' : 'not-scheduled'
+  }
   if (habit.isBadHabit) return logged ? 'missed' : 'done'
   return logged ? 'done' : 'missed'
 }
@@ -217,17 +220,25 @@ export function buildHabitDetailChildDateModel(
   scopedChild: NormalizedHabit | undefined,
   dateStr: string,
   todayStr: string,
+  source?: HabitDetailChild,
 ): HabitDetailChildDateModel {
-  const completed = scopedChild
-    ? scopedChild.isGeneral
+  let completed = false
+  if (scopedChild) {
+    completed = scopedChild.isGeneral
       ? scopedChild.isCompleted
       : scopedChild.instances.some(
           (instance) => instance.date === dateStr && instance.status === 'Completed',
         ) || scopedChild.isLoggedInRange
-    : false
+  }
   const habit = {
     ...detailChild,
     ...scopedChild,
+    tags: source?.tags ?? scopedChild?.tags ?? detailChild.tags,
+    reminderEnabled: source?.reminderEnabled ?? scopedChild?.reminderEnabled ?? detailChild.reminderEnabled,
+    reminderTimes: source?.reminderTimes ?? scopedChild?.reminderTimes ?? detailChild.reminderTimes,
+    scheduledReminders: source?.scheduledReminders ?? scopedChild?.scheduledReminders ?? detailChild.scheduledReminders,
+    relativeReminders: source?.relativeReminders ?? scopedChild?.relativeReminders ?? detailChild.relativeReminders,
+    slipAlertEnabled: source?.slipAlertEnabled ?? scopedChild?.slipAlertEnabled ?? detailChild.slipAlertEnabled,
     isCompleted: completed,
     isLoggedInRange: completed,
   }
@@ -276,7 +287,7 @@ export function isHabitSlipping(
   today: Date,
   accountTimeZone: string | null | undefined,
 ): boolean {
-  if (!metrics || metrics.currentStreak !== 0 || metrics.monthlyCompletionRate >= HABIT_SLIPPING_RATE_LIMIT) return false
+  if (metrics?.currentStreak !== 0 || metrics.monthlyCompletionRate >= HABIT_SLIPPING_RATE_LIMIT) return false
   const cutoff = formatAPIDate(addDays(today, -2))
   if (formatAPIDateInTimeZone(new Date(habit.createdAtUtc), accountTimeZone) > cutoff) return false
   const recentlyLogged = logs.some((log) => log.value > 0 && log.date >= cutoff)
@@ -344,15 +355,12 @@ export function buildHabitHistoryMonth(
     const future = dateStr > todayStr
     const scheduled = isScheduled(habit, date, logs, weekStartsOn)
     const stripOutcome = scheduledDayOutcome(habit, loggedAt !== null, scheduled)
-    const outcome = dateStr < cutoffStr
-      ? 'unavailable' as const
-      : future
-        ? 'future' as const
-        : stripOutcome === 'done'
-          ? 'full' as const
-          : stripOutcome === 'missed'
-            ? 'none' as const
-            : 'not-scheduled' as const
+    let outcome: HabitHistoryDay['outcome']
+    if (dateStr < cutoffStr) outcome = 'unavailable'
+    else if (future) outcome = 'future'
+    else if (stripOutcome === 'done') outcome = 'full'
+    else if (stripOutcome === 'missed') outcome = 'none'
+    else outcome = 'not-scheduled'
 
     return {
       date,
@@ -459,8 +467,8 @@ export function buildHabitDetailUpdateRequest(
     isGeneral: habit.isGeneral,
     isFlexible: habit.isFlexible,
     dueDate: habit.dueDate,
-    dueTime: patch.dueTime === undefined ? habit.dueTime : patch.dueTime,
-    dueEndTime: patch.dueEndTime === undefined ? habit.dueEndTime : patch.dueEndTime,
+    dueTime: (patch.dueTime === undefined ? habit.dueTime : patch.dueTime) || null,
+    dueEndTime: (patch.dueEndTime === undefined ? habit.dueEndTime : patch.dueEndTime) || null,
     reminderEnabled: patch.reminderEnabled ?? habit.reminderEnabled,
     reminderTimes: patch.reminderTimes ?? habit.reminderTimes,
     scheduledReminders: patch.scheduledReminders ?? habit.scheduledReminders,
@@ -620,12 +628,17 @@ function getHabitListEnrichmentSource(
   return listHabit ?? scopedHabit
 }
 
+export function needsHabitDetailListFallback(detail: HabitDetail | null | undefined): boolean {
+  return detail != null && (detail.tags == null || detail.linkedGoals == null || detail.slipAlertEnabled == null)
+}
+
 export function hasAuthoritativeHabitRelationshipState(
-  detail: Pick<HabitDetail, 'isGeneral'>,
+  detail: Pick<HabitDetail, 'isGeneral' | 'linkedGoals' | 'slipAlertEnabled'>,
   listHabit: NormalizedHabit | undefined,
   scopedHabit: NormalizedHabit | undefined,
 ): boolean {
-  return getHabitRelationshipAuthority(detail, listHabit, scopedHabit) !== undefined
+  return (detail.linkedGoals != null && detail.slipAlertEnabled != null)
+    || getHabitRelationshipAuthority(detail, listHabit, scopedHabit) !== undefined
 }
 
 export function mergeHabitDetailWithScopedHabit(
@@ -642,9 +655,9 @@ export function mergeHabitDetailWithScopedHabit(
     ...listEnrichmentSource,
     ...normalized,
     parentId: listEnrichmentSource.parentId,
-    tags: listEnrichmentSource.tags,
-    linkedGoals: relationshipAuthority?.linkedGoals ?? normalized.linkedGoals,
-    slipAlertEnabled: relationshipAuthority?.slipAlertEnabled ?? normalized.slipAlertEnabled,
+    tags: detail.tags ?? listEnrichmentSource.tags,
+    linkedGoals: detail.linkedGoals ?? relationshipAuthority?.linkedGoals ?? normalized.linkedGoals,
+    slipAlertEnabled: detail.slipAlertEnabled ?? relationshipAuthority?.slipAlertEnabled ?? normalized.slipAlertEnabled,
     flexibleTarget: scopedHabit?.flexibleTarget ?? listEnrichmentSource.flexibleTarget,
     flexibleCompleted: scopedHabit?.flexibleCompleted ?? listEnrichmentSource.flexibleCompleted,
     instances: scopedHabit?.instances ?? listEnrichmentSource.instances,

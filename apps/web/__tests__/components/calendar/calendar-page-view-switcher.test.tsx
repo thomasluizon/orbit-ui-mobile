@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
+import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createHermeticFixtureRequest } from '@/test-support/hermetic/fixture-request'
 import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -17,8 +19,8 @@ vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
-const heldQueries = vi.hoisted((): { enabled: boolean; profileRequest: Promise<Profile> | null; calendarResponse: unknown } => ({ enabled: false, profileRequest: null, calendarResponse: undefined }))
-vi.mock('@/lib/throttle-fetch', () => ({ fetchWithThrottle: async () => new Response(JSON.stringify(heldQueries.calendarResponse)) }))
+const heldQueries = vi.hoisted((): { enabled: boolean; realDayDetail: boolean; profileRequest: Promise<Profile> | null; calendarRequest: Promise<CalendarMonthResponse> | null; calendarResponse: unknown } => ({ enabled: false, realDayDetail: false, profileRequest: null, calendarRequest: null, calendarResponse: undefined }))
+vi.mock('@/lib/throttle-fetch', () => ({ fetchWithThrottle: async () => new Response(JSON.stringify(await (heldQueries.calendarRequest ?? heldQueries.calendarResponse))) }))
 vi.mock('@/lib/api-fetch', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/api-fetch')>(), fetchJson: () => heldQueries.profileRequest }))
 vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ syncThemeFromProfile: () => {}, detectAndSaveThemeIfNeeded: () => {} }) }))
 const toastError = vi.hoisted(() => vi.fn())
@@ -296,9 +298,11 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
   },
 }))
 
-vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: (props: typeof calendarDayDetailProps) => {
+vi.mock('@/components/calendar/calendar-day-detail', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/calendar/calendar-day-detail')>()
+  return { CalendarDayDetail: (props: React.ComponentProps<typeof actual.CalendarDayDetail> & typeof calendarDayDetailProps) => {
     Object.assign(calendarDayDetailProps, props)
+    if (heldQueries.realDayDetail) return <actual.CalendarDayDetail {...props} />
     if (props.loadingLabel) return <div data-testid="calendar-day-skeleton" role="progressbar" aria-label={props.loadingLabel} data-variant="settings" />
     const displayedAutoSyncState = props.autoSyncState
     return (
@@ -317,7 +321,8 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
       </div>
     )
   },
-}))
+  }
+})
 
 vi.mock('@/components/calendar/calendar-week-view', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/calendar/calendar-week-view')>()
@@ -406,6 +411,41 @@ function CalendarNavigationHarness() {
 describe('CalendarPage view switcher', () => {
   let requestFixture: Awaited<ReturnType<typeof createHermeticFixtureRequest>>
   beforeAll(async () => { requestFixture = await createHermeticFixtureRequest() })
+
+  it('keeps a cached completed week habit noninteractive until the range logs arrive', async () => {
+    const day = '2026-09-12'
+    const habit = makeHabitScheduleItem({ id: 'completed-habit', title: 'Already logged habit', children: [], hasSubHabits: false, dueDate: day, scheduledDates: [day], isCompleted: true, instances: [{ date: day, status: 'Completed', logId: 'completed-log' }] })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    client.setQueryData(habitKeys.list({ dateFrom: day, dateTo: day, completeDay: true, includeOverdue: true }), [habit])
+    client.setQueryData(profileKeys.detail(), { ...profileFixture, timeZone: 'UTC', hasProAccess: true })
+    heldQueries.enabled = true
+    heldQueries.realDayDetail = true
+    heldQueries.profileRequest = Promise.resolve(profileFixture)
+    let release!: (response: CalendarMonthResponse) => void
+    heldQueries.calendarRequest = new Promise((resolve) => { release = resolve })
+    const page = render(<QueryClientProvider client={client}><CalendarPage /></QueryClientProvider>)
+    try {
+      fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+      fireEvent.click(screen.getByTestId('week-day'))
+      const sheet = screen.getByRole('dialog')
+      const pendingRows = within(sheet).queryAllByRole('checkbox', { hidden: true })
+      for (const row of pendingRows) fireEvent.click(row)
+      expect.soft(logHabitMutateAsync).not.toHaveBeenCalled()
+      expect.soft(pendingRows.filter((row) => !row.hasAttribute('disabled'))).toHaveLength(0)
+      expect(within(sheet).getByRole('progressbar', { name: 'calendar.loading' })).toBeInTheDocument()
+      await act(async () => { release({ habits: [habit], logs: { [habit.id]: [{ id: 'completed-log', date: day, value: 1, createdAtUtc: `${day}T09:00:00Z` }] } }) })
+      await waitFor(() => expect(within(sheet).getByRole('checkbox', { name: habit.title })).toHaveAttribute('aria-checked', 'true'))
+      expect(within(sheet).getByRole('checkbox', { name: habit.title })).toBeEnabled()
+      expect(within(sheet).queryByRole('progressbar')).toBeNull()
+      expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    } finally {
+      page.unmount()
+      client.clear()
+      heldQueries.enabled = false
+      heldQueries.realDayDetail = false
+      heldQueries.calendarRequest = null
+    }
+  })
 
   it.each([false, true])('keeps the header controls mounted and focused through keyboard view changes at wide=%s', (wide) => {
     isWideDesktopValue = wide
