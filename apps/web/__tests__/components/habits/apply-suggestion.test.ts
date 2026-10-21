@@ -6,9 +6,8 @@ describe('applySuggestionChecklist', () => {
   it('proposes only sub-habit titles that fit after existing user values', () => {
     const existingValues = Array.from({ length: 19 }, (_, index) => `Existing ${index}`)
 
-    expect(selectSuggestedSubHabitTitles(existingValues, ['First', 'Second'], true)).toEqual(['First'])
-    expect(selectSuggestedSubHabitTitles([...existingValues, 'Existing 19'], ['First'], true)).toEqual([])
-    expect(selectSuggestedSubHabitTitles(existingValues, ['First'], false)).toEqual([])
+    expect(selectSuggestedSubHabitTitles(existingValues, ['First', 'Second'])).toEqual(['First'])
+    expect(selectSuggestedSubHabitTitles([...existingValues, 'Existing 19'], ['First'])).toEqual([])
   })
 
   it('caps an Astra checklist proposal at the shared limit', () => {

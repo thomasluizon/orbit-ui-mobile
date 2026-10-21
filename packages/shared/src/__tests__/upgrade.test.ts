@@ -135,7 +135,7 @@ describe('upgrade utils', () => {
           locale as Record<string, unknown>,
           'upgrade.features.subHabits.tooltip',
         ),
-      ).toEqual(expect.any(String))
+      ).toBeUndefined()
     }
     expect(en.upgrade.plans.renewalNote).toBe(
       'The subscription renews itself at the end of the period, and you can turn that off in the portal.',
@@ -162,13 +162,13 @@ describe('upgrade utils', () => {
     expect(
       canAccessEntitlement(
         { hasProAccess: true, subscriptionInterval: 'monthly', isLifetimePro: false },
-        'yearlyPro',
+        'pro',
       ),
-    ).toBe(false)
+    ).toBe(true)
     expect(
       canAccessEntitlement(
         { hasProAccess: true, subscriptionInterval: 'yearly', isLifetimePro: false },
-        'yearlyPro',
+        'pro',
       ),
     ).toBe(true)
   })
@@ -193,7 +193,7 @@ describe('upgrade utils', () => {
       }),
     ).toEqual({
       shouldUpgrade: true,
-      requirement: 'yearlyPro',
+      requirement: 'pro',
       reason: 'feature_plan_required:ai_retrospective:YearlyPro',
     })
   })

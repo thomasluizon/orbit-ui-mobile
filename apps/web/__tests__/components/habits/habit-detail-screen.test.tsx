@@ -812,14 +812,15 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByLabelText('Atividade do hábito em setembro de 2026')).toBeInTheDocument()
   })
 
-  it('uses the drawn action row endings and a Pro badge on free', () => {
+  it('keeps the drawn action row endings and opens sub-habit creation on free', () => {
     mocks.hasProAccess = false
     render(<HabitDetailScreen habitId="habit-1" />)
     const add = screen.getByTestId('list-row-habits.detail.addSubHabit')
     expect(add).toHaveAttribute('data-chevron', 'false')
-    expect(add.querySelector('[data-testid="badge"]')).toHaveTextContent('habits.detail.proGate')
+    expect(add.querySelector('[data-testid="badge"]')).toBeNull()
     fireEvent.click(add)
-    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Create habit' })).toBeVisible()
     expect(screen.getByTestId('list-row-habits.detail.delete')).toHaveAttribute('data-chevron', 'false')
   })
 

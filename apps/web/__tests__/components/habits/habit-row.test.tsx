@@ -61,14 +61,14 @@ describe('HabitRow overflow menus', () => {
 
   it('matches the drawn menu for an overdue parent on a free plan', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
-    render(<HabitRow habit={createMockHabit({ title: 'Walk' })} state="overdue" hasSubHabits hasProAccess={false}
+    render(<HabitRow habit={createMockHabit({ title: 'Walk' })} state="overdue" hasSubHabits
       actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(), onReschedule: vi.fn(),
         onEdit: vi.fn(), onDuplicate: vi.fn(), onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
     const items = await screen.findAllByRole('menuitem')
     expect(document.querySelector('.orbit-menu-panel')).toHaveAttribute('aria-label', 'Walk')
     expect(items.map((item) => item.textContent)).toEqual([
-      'habits.actions.addSubHabitPro', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
       'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
       'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete',
     ])
@@ -82,7 +82,7 @@ describe('HabitRow overflow menus', () => {
 
   it('omits overdue and child actions when their row conditions do not apply', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
-    render(<HabitRow habit={createMockHabit({ title: 'Read' })} state="empty" hasProAccess
+    render(<HabitRow habit={createMockHabit({ title: 'Read' })} state="empty"
       actions={{ onAddSubHabit: vi.fn(), onReschedule: vi.fn(), onDrillInto: vi.fn(), onEnterSelectMode: vi.fn() }} />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
     expect(await screen.findByRole('menuitem', { name: 'habits.actions.addSubHabit' })).toBeInTheDocument()

@@ -37,7 +37,7 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const dragLocale = vi.hoisted(() => ({ portuguese: false, english: false }))
-const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
+const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined, hasProAccess: true }))
 const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 const setFrequencyFilters = vi.hoisted(() => vi.fn())
 
@@ -78,7 +78,7 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { timeZone: accountDate.timeZone } }),
+  useProfile: () => ({ profile: { timeZone: accountDate.timeZone, hasProAccess: accountDate.hasProAccess } }),
 }))
 vi.mock('@/app/(app)/today-provider', () => ({
   useToday: (timeZone?: string) => timeZone === undefined
@@ -1394,6 +1394,21 @@ describe('HabitList', () => {
       name: `habits.statusDot.${status}, habits.${action}: ${label}, 1/2`,
     })).toBeEnabled()
     expect(within(row).getByRole('button', { name: 'habits.actions.more' })).toBeEnabled()
+  })
+
+  it('opens sub-habit creation for a free account from the habit list', async () => {
+    accountDate.hasProAccess = false
+    try {
+      const habit = createMockHabit({ id: 'free-parent', title: 'Parent', scheduledDates: [TODAY] })
+      mockHabitsData.habitsById.set(habit.id, habit)
+      mockHabitsData.topLevelHabits = [habit]
+      mockHabitsData.totalCount = 1
+      renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+      routerPush.mockClear()
+      fireEvent.click(screen.getByTestId('add-sub-free-parent'))
+      expect(await screen.findByRole('dialog', { name: 'Create habit' })).toBeVisible()
+      expect(routerPush).not.toHaveBeenCalled()
+    } finally { accountDate.hasProAccess = true }
   })
 
   it('explains an offline sub-habit request beside the parent row', () => {

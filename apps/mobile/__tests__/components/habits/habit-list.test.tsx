@@ -6,7 +6,10 @@ import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
-import { FlatList, StyleSheet, View, type ViewStyle } from 'react-native'
+import { FlatList, StyleSheet, View, type ViewStyle, type HostInstance } from 'react-native'
+import { __setMeasureInWindowImpl, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { Shell412 } from '@/components/shell/shell-412'
+import { Fab } from '@/components/ui/fab'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, createApiClientError, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -36,7 +39,7 @@ vi.mock('react-native', async (importOriginal) => {
   return {
     ...actual,
     FlatList: React.forwardRef((props: React.ComponentProps<typeof actual.FlatList>, ref) => {
-      React.useImperativeHandle(ref, () => ({ scrollToOffset: rootListScroll.scrollToOffset }))
+      React.useImperativeHandle(ref, () => ({ scrollToOffset: rootListScroll.scrollToOffset }), [])
       const renderSlot = (slot: unknown) => typeof slot === 'function' ? React.createElement(slot as React.ComponentType) : slot as React.ReactNode
       const children = props.testID === 'habit-list-all' ? <>
         {renderSlot(props.ListHeaderComponent)}
@@ -63,7 +66,7 @@ afterEach(() => {
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
-const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
+const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined, hasProAccess: true, push: vi.fn() }))
 const accountHabitCount = vi.hoisted(() => ({ count: 1, isLoaded: true }))
 const setFrequencyFilters = vi.hoisted(() => vi.fn())
 
@@ -339,7 +342,7 @@ vi.mock('react-i18next', async (importOriginal) => {
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: accountDate.push,
     replace: vi.fn(),
     back: vi.fn(),
   }),
@@ -381,7 +384,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
-    profile: { hasProAccess: true, timeZone: accountDate.timeZone },
+    profile: { hasProAccess: accountDate.hasProAccess, timeZone: accountDate.timeZone },
   }),
 }))
 
@@ -468,7 +471,7 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
 }))
 
 vi.mock('@/components/habits/create-habit-modal', () => ({
-  CreateHabitModal: () => null,
+  CreateHabitModal: ({ open }: { open: boolean }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit' }) : null,
 }))
 
 vi.mock('@/components/habits/reschedule-sheet', () => ({
@@ -919,6 +922,20 @@ describe('HabitList', () => {
     expect(picker().props.visible).toBe(false)
   })
 
+  it('opens sub-habit creation for a free account from the habit list', () => {
+    accountDate.hasProAccess = false
+    try {
+      seedHabits([createMockHabit({ id: 'free-parent', title: 'Parent', scheduledDates: [TODAY] })])
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" showCompleted={false} onCreatePress={vi.fn()} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />) })
+      accountDate.push.mockClear()
+      const row = tree.root.findAllByType(HabitRow)[0]!
+      TestRenderer.act(() => { row.props.actions.onAddSubHabit() })
+      expect(tree.root.findAllByProps({ testID: 'create-sub-habit' }).length).toBeGreaterThan(0)
+      expect(accountDate.push).not.toHaveBeenCalled()
+    } finally { accountDate.hasProAccess = true }
+  })
+
   it.each([false, true])('scopes Hoje search with appended general habits, matching descendant=%s', (matchesDescendant) => {
     useActualHabitVisibility = true
     Object.assign(mockHabitsData, normalizeHabitQueryData(createAppendedGeneralSearchItems(matchesDescendant)))
@@ -1107,6 +1124,136 @@ describe('HabitList', () => {
     expect(onScroll).toHaveBeenCalledWith(700)
     expect(mockDrillState.drillReset).not.toHaveBeenCalled()
     expect(mockDrillState.currentParentId).toBe(surface === 'drill' ? parent.id : null)
+  })
+
+  it.each([{ width: 412, height: 915, withNotice: false }, { width: 320, height: 915, withNotice: true }, { width: 840, height: 240, withNotice: true }])('reveals intermediate list focus above the actual floating action at $width/$height with notice=$withNotice', async ({ width, height, withNotice }) => {
+    __setWindowDimensions({ width, height, scale: 1, fontScale: height < 320 ? 2 : 1 })
+    replaySelection.isSelectMode = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Shell412 header={<View style={{ height: 48 }} />}
+        notice={withNotice ? <Toast kind="neutral" message="Saved" persistent /> : undefined}
+        composer={<View style={{ height: 64 }} />} tabBar={<View style={{ height: 80 }} />}
+        fab={<Fab label="Create" onClick={vi.fn()}><View /></Fab>}>
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+      </Shell412>, {
+        createNodeMock: (element: { type: unknown }) => element.type === 'DraggableFlatList' ? { scrollToOffset: rootListScroll.scrollToOffset } : null,
+      }) as GeometryTree
+      mountedTrees.add(tree)
+    })
+    await TestRenderer.act(() => tree.root.findByProps({ testID: 'shell-412' }).props.onLayout({ nativeEvent: { layout: { width, height } } }))
+    const boxes = measureSafeArea(tree.toJSON(), host => host.props.testID, { width, height })
+    const viewport = boxes.get('shell-scroller')!
+    const fab = boxes.get('fab')!
+    __setMeasureInWindowImpl(callback => callback(viewport.left, viewport.top, viewport.width, viewport.bottom - viewport.top))
+    const list = tree.root.findByType('DraggableFlatList')
+    list.props.onScrollOffsetChange(700)
+    rootListScroll.scrollToOffset.mockClear()
+    const target = { measureInWindow: (callback: (x: number, y: number, width: number, height: number) => void) => callback(fab.left, fab.top + 6, 48, 48) } as HostInstance
+    await TestRenderer.act(() => {
+      tree.root.findByProps({ testID: 'shell-412' }).props.onFocusCapture({ target, nativeEvent: { target: 123 } })
+      list.props.onFocus?.({ target, nativeEvent: { target: 123 } })
+    })
+    expect(rootListScroll.scrollToOffset).toHaveBeenCalledOnce()
+    const options = rootListScroll.scrollToOffset.mock.calls[0]![0] as { offset: number; animated: boolean }
+    expect(options.animated).toBe(false)
+    expect(fab.top + 6 + 48 - (options.offset - 700)).toBeLessThanOrEqual(fab.top - 16)
+    expect(fab.top + 6 - (options.offset - 700)).toBeGreaterThanOrEqual(viewport.top)
+    rootListScroll.scrollToOffset.mockClear()
+    const visibleTarget = { measureInWindow: (callback: (x: number, y: number, width: number, height: number) => void) => callback(fab.left, viewport.top + 8, 48, 48) } as HostInstance
+    await TestRenderer.act(() => {
+      tree.root.findByProps({ testID: 'shell-412' }).props.onFocusCapture({ target: visibleTarget, nativeEvent: { target: 124 } })
+      list.props.onFocus?.({ target: visibleTarget, nativeEvent: { target: 124 } })
+    })
+    expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
+  })
+
+  describe('mounted list focus offsets', () => {
+    type ListSurface = 'normal' | 'drill' | 'all' | 'loading' | 'error'
+
+    function renderFocusList(surface: ListSurface, showCompleted = true) {
+      if (surface === 'drill') {
+        const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+        mockDrillState.currentParentId = parent.id
+        mockDrillState.currentParent = parent
+        mockDrillState.drillStack = [parent.id]
+      }
+      listQueryState.isLoading = surface === 'loading'
+      listQueryState.isError = surface === 'error'
+      return <Shell412 header={<View style={{ height: 48 }} />}
+        composer={<View style={{ height: 64 }} />} tabBar={<View style={{ height: 80 }} />}
+        fab={<Fab label="Create" onClick={vi.fn()}><View /></Fab>}>
+        <HabitList view={surface === 'all' ? 'all' : 'today'} filters={{}} showCompleted={showCompleted} onCreatePress={vi.fn()} />
+      </Shell412>
+    }
+
+    async function mountFocusList(surface: ListSurface) {
+      const width = 412
+      const height = 915
+      __setWindowDimensions({ width, height, scale: 1, fontScale: 1 })
+      replaySelection.isSelectMode = false
+      const todayHandle = { scrollToOffset: vi.fn() }
+      let tree!: ReturnType<typeof TestRenderer.create>
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(renderFocusList(surface), {
+          createNodeMock: (element: { type: unknown }) => element.type === 'DraggableFlatList' ? todayHandle : null,
+        }) as GeometryTree
+        mountedTrees.add(tree)
+      })
+      await TestRenderer.act(() => tree.root.findByProps({ testID: 'shell-412' }).props.onLayout({ nativeEvent: { layout: { width, height } } }))
+      const boxes = measureSafeArea(tree.toJSON(), host => host.props.testID, { width, height })
+      const viewport = boxes.get('shell-scroller')!
+      const fab = boxes.get('fab')!
+      __setMeasureInWindowImpl(callback => callback(viewport.left, viewport.top, viewport.width, viewport.bottom - viewport.top))
+      return { tree, todayHandle, viewport, fab }
+    }
+
+    async function focusListControl(tree: ReturnType<typeof TestRenderer.create>, top: number) {
+      const target = { measureInWindow: (callback: (x: number, y: number, width: number, height: number) => void) => callback(16, top, 48, 48) } as HostInstance
+      const list = tree.root.findByType(tree.root.findAllByType('DraggableFlatList').length ? 'DraggableFlatList' : 'FlatList')
+      await TestRenderer.act(() => {
+        tree.root.findByProps({ testID: 'shell-412' }).props.onFocusCapture({ target, nativeEvent: { target: 123 } })
+        list.props.onFocus({ target, nativeEvent: { target: 123 } })
+      })
+    }
+
+    it.each(['drill', 'all', 'loading', 'error'] as const)('reveals a replacement %s list from its initial offset without a new scroll event', async (surface) => {
+      const { tree, todayHandle, viewport, fab } = await mountFocusList('normal')
+      TestRenderer.act(() => tree.root.findByType('DraggableFlatList').props.onScrollOffsetChange(700))
+      await TestRenderer.act(() => tree.update(renderFocusList(surface)))
+      expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
+      rootListScroll.scrollToOffset.mockClear()
+      await focusListControl(tree, fab.top + 6)
+
+      expect(todayHandle.scrollToOffset).not.toHaveBeenCalled()
+      const delta = fab.top + 6 + 48 - (viewport.bottom - 96)
+      expect(rootListScroll.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: delta, animated: false })
+      const { offset } = rootListScroll.scrollToOffset.mock.calls[0]![0] as { offset: number }
+      expect(fab.top + 6 + 48 - offset).toBeLessThanOrEqual(fab.top - 16)
+      expect(fab.top + 6 - offset).toBeGreaterThanOrEqual(viewport.top)
+      rootListScroll.scrollToOffset.mockClear()
+      await focusListControl(tree, viewport.top + 8)
+      expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
+      expect(todayHandle.scrollToOffset).not.toHaveBeenCalled()
+    })
+
+    it.each(['normal', 'drill', 'all'] as const)('preserves the mounted %s list offset through an ordinary rerender', async (surface) => {
+      const { tree, todayHandle, viewport, fab } = await mountFocusList(surface)
+      const list = tree.root.findByType(surface === 'normal' ? 'DraggableFlatList' : 'FlatList')
+      TestRenderer.act(() => {
+        if (surface === 'normal') list.props.onScrollOffsetChange(700)
+        else list.props.onScroll({ nativeEvent: { contentOffset: { y: 700 } } })
+      })
+      await TestRenderer.act(() => tree.update(renderFocusList(surface, false)))
+      await focusListControl(tree, fab.top + 6)
+      const activeScroll = surface === 'normal' ? todayHandle.scrollToOffset : rootListScroll.scrollToOffset
+      const delta = fab.top + 6 + 48 - (viewport.bottom - 96)
+      expect(activeScroll).toHaveBeenCalledExactlyOnceWith({ offset: 700 + delta, animated: false })
+      await TestRenderer.act(() => tree.update(renderFocusList(surface)))
+      activeScroll.mockClear()
+      await focusListControl(tree, viewport.bottom - 96 - 48)
+      expect(activeScroll).not.toHaveBeenCalled()
+    })
   })
 
   it('keeps a mounted mock HabitList isolated when skip flow becomes active', () => {

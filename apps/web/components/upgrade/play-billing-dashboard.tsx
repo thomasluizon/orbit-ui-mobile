@@ -15,7 +15,6 @@ export function PlayBillingDashboard({
   status,
   locale,
   usagePercent,
-  usageUrgent,
   onManagePlay,
   t,
 }: Readonly<{
@@ -23,7 +22,6 @@ export function PlayBillingDashboard({
   status: SubscriptionStatus | null
   locale: string
   usagePercent: number
-  usageUrgent: boolean
   onManagePlay: () => void
   t: UpgradeTranslations
 }>) {
@@ -42,7 +40,7 @@ export function PlayBillingDashboard({
       </section>
       <ProviderHandoff provider="play" state={state} onManage={onManagePlay} t={t} />
       <ProBenefits heading t={t} />
-      <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
+      <UsageStats usagePercent={usagePercent} profile={status} t={t} />
       <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p>
     </div>
   )

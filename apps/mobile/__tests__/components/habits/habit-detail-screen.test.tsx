@@ -1106,15 +1106,16 @@ describe('HabitDetailScreen', () => {
     expect(tree.root.findByType('MonthGrid').props.label).toBe('Atividade do hábito em setembro de 2026')
   })
 
-  it('uses the drawn action row endings and a Pro badge on free', () => {
+  it('keeps the drawn action row endings and opens sub-habit creation on free', () => {
     mocks.hasProAccess = false
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const add = tree.root.findByProps({ title: 'habits.detail.addSubHabit' })
     expect(add.props.chevron).toBe(false)
-    expect(add.findByProps({ testID: 'badge-solid' }).findAllByProps({ children: 'habits.detail.proGate' }).length).toBeGreaterThan(0)
+    expect(add.props.trailing).toBeUndefined()
     TestRenderer.act(() => { add.props.onClick() })
-    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+    expect(tree.root.findAllByProps({ testID: 'create-sub-habit' }).length).toBeGreaterThan(0)
     expect(tree.root.findByProps({ title: 'habits.detail.delete' }).props.chevron).toBe(false)
   })
 
