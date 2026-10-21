@@ -90,6 +90,9 @@ organization/host with the immutable expected `thomasluizon/orbit-mobile` at `ht
 in memory, respecting native precedence. A mismatch stops before authentication; its value and
 decoded payload are never printed. Malformed or unrecognized credential syntax stops locally and
 does not establish that the server rejected the credential. No credential is passed to subprocesses.
+As in the locked CLI, every trailing slash is removed from a nonempty embedded URL for comparison;
+null or empty URL uses the configured host. An omitted URL remains unrecognized. Request destinations
+stay fixed, and different hosts, schemes, paths, queries, fragments or userinfo are refused.
 
 The diagnostic makes at most two GETs: the native uploader's organization `chunk-upload/` lookup
 and supplementary `/api/0/` auth-info. Each request has a ten-second deadline and 64 KiB body cap;
@@ -111,19 +114,30 @@ Apply only the demonstrated configuration/access repair through its existing aut
 then retain before/after read evidence. Source changes after a diagnostic merge require a fresh
 branch and normal review. Keep the ticket open through repair, upload and Open availability.
 
-For an authorized pre-upload retry, recheck **all** concurrent/recent release runs, deployment
-receipts and Google Play Console's App bundle explorer for the production package immediately
-before dispatch. The exact code must remain never-uploaded, and no concurrent release may claim
-it. If its state is unknown or Play has received it, stop and resolve the approved next version/code.
-Pin the approved carrying main SHA, select **open** explicitly and verify the actual run's SHA before
-accepting its result. Main must still equal the approved source at dispatch; a mismatch stops recovery.
-Do not retry an old failed run's source merely because its versionCode is available.
+For an authorized pre-upload retry, use confirmed GitHub and Play CLI or API interfaces first to
+recheck **all** concurrent/recent release runs, deployment receipts and authoritative uploaded-code
+history for package `org.useorbit.app` immediately before dispatch. Confirm the supported command
+and actual response shape before relying on it; do not guess an endpoint or field. Current tracks
+alone cannot prove a code was never uploaded, including removed or historical uploads. Use Google
+Play Console **Orbit > Test and release > App bundle explorer** only when the supported interfaces
+cannot establish the required history. The exact code must remain never-uploaded, and no concurrent
+release may claim it. Unknown history is a stop; if Play has received the code, resolve the approved
+next version/code. Do not add an account, grant or credential to make a read possible.
+
+Pin the approved carrying main SHA, freshly fetch remote main and require the local source and
+remote main to equal that approved SHA immediately before dispatch. Select **open** explicitly and
+verify the actual run's SHA before accepting its result. A source mismatch stops recovery. Do not
+retry an old failed run's source merely because its versionCode is available. Existing release
+authorization applies; recovery adds no separate owner approval step.
 
 Keep separate evidence for root cause, exact repaired input, diagnostic red/green outcomes, the
 ordinary fatal source-map upload's actual organization/release/dist, signed AAB, Play submission
-and Play Console Open testing availability. A green diagnostic or accepted Play submission cannot
-establish tester availability. Preserve signing, manifest, native cache and Open-to-beta mapping
-guards. This recovery does not authorize production-track publication.
+and actual Open testing availability. Check availability through confirmed Play CLI or API interfaces
+first; use Google Play Console **Orbit > Test and release > Testing > Open testing** only when those
+interfaces cannot establish it. A green diagnostic or accepted Play submission cannot establish
+tester availability; retain that observation as pending until proven. Preserve signing, manifest,
+native cache and Open-to-beta mapping guards. This recovery does not authorize production-track
+publication.
 
 ## Step 2 - Apply the user's arguments
 

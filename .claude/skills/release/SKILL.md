@@ -39,7 +39,10 @@ Follow `.claude/skills/android-release/SKILL.md` to derive the next version and 
 
 For a native Sentry upload blocker, follow that procedure's **Sentry organization lookup recovery**:
 use the trusted-main same-secret diagnostic, retain its evidence limits, repair only a demonstrated
-cause and recheck Play plus concurrent releases before any never-uploaded-code retry. Pin the
-approved carrying main source and keep Open submission separate from verified tester availability.
+cause and recheck Play plus concurrent releases before any never-uploaded-code retry. Use confirmed
+GitHub/Play CLI or API interfaces first, with Console fallback only for history or availability those
+interfaces cannot establish. Unknown history stops recovery; current tracks do not prove a code was
+never uploaded. Pin and freshly verify the approved carrying main source, and keep Open submission
+separate from verified tester availability.
 
 Before staging Android dispatch, require the staging API Render service and `https://api-staging.useorbit.org/health` to be healthy at the planned API commit. Dispatch `android-release.yml` with `--ref <selected branch>` and the confirmed inputs. Resolve the unique new run on that branch and SHA, then use `wait-release.mjs --repo ui`. Verify the Play upload step and API health again. A successful upload does not establish when Play makes the build available to testers.

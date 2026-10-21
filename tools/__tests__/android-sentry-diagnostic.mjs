@@ -88,7 +88,7 @@ guard("embedded org overrides defaults", ["payload.org !== ORGANIZATION", "false
   const result = await execute(subject, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken("other-org") } })
   return result.report.outcome === "embedded_organization_mismatch" && result.calls.length === 0 && !result.output.includes("other-org")
 })
-guard("embedded host cannot receive auth", ['payload.url && payload.url !== HOST && payload.url !== `${HOST}/`', "false"], async (subject) => {
+guard("embedded host cannot receive auth", ['payload.url && payload.url.replace(/\\/+$/, "") !== HOST', "false"], async (subject) => {
   const result = await execute(subject, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken("thomasluizon", "https://untrusted.invalid") } })
   return result.report.outcome === "embedded_host_mismatch" && result.calls.length === 0 && !result.output.includes("untrusted.invalid")
 })
@@ -204,6 +204,33 @@ export const cases = async () => {
   for (const credential of [organizationToken(), organizationToken("thomasluizon", "https://sentry.io/"), organizationToken("thomasluizon", null), `sntryu_${token}`]) {
     const result = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: credential } })
     T("android-sentry: source-confirmed credential target is accepted without payload output", result.status === 0 && !result.output.includes(credential))
+  }
+  // CLI 3.6.0 config.rs:218-227 trims every trailing slash before validating the root URL.
+  // https://github.com/getsentry/sentry-cli/blob/3.6.0/src/config.rs#L218
+  for (const url of ["https://sentry.io//", "https://sentry.io/////"]) {
+    const credential = organizationToken("thomasluizon", url)
+    const result = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: credential } })
+    T("android-sentry: repeated trailing slashes retain the private match and fixed GETs", result.status === 0
+      && result.report.target_selection === "embedded_target_matches"
+      && result.calls.map(([destination]) => destination).join(" ") === "https://sentry.io/api/0/organizations/thomasluizon/chunk-upload/ https://sentry.io/api/0/"
+      && result.calls.every(([, options]) => options.method === "GET" && options.redirect === "manual" && options.headers.Authorization === `Bearer ${credential}`)
+      && !result.output.includes(credential) && !result.output.includes(url) && Buffer.byteLength(result.output) <= 8192
+      && !JSON.stringify(result.children).includes(credential))
+  }
+  const emptyUrl = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken("thomasluizon", "") } })
+  T("android-sentry: explicit empty token URL retains configured-host fallback", emptyUrl.status === 0 && emptyUrl.report.target_selection === "embedded_target_matches")
+  const omittedUrlPayload = Buffer.from(JSON.stringify({ org: "thomasluizon" })).toString("base64")
+  const omittedUrlToken = `sntrys_${omittedUrlPayload}_${Buffer.alloc(32, 1).toString("base64").replace(/=+$/, "")}`
+  const omittedUrl = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: omittedUrlToken } })
+  T("android-sentry: omitted token URL remains unrecognized before processes or requests", omittedUrl.status === 1
+    && omittedUrl.report.outcome === "credential_format_unrecognized" && omittedUrl.calls.length === 0
+    && omittedUrl.children.length === 0 && !omittedUrl.output.includes(omittedUrlToken))
+  for (const url of ["http://sentry.io//", "https://untrusted.invalid//", "https://sentry.io/path//", "https://sentry.io/?query=private//", "https://sentry.io/#private//", "https://private@sentry.io//", "https://sentry.io.untrusted.invalid//", "/", "//"]) {
+    const credential = organizationToken("thomasluizon", url)
+    const result = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: credential } })
+    T("android-sentry: slash normalization cannot admit a changed destination or expose its payload", result.status === 1
+      && result.report.outcome === "embedded_host_mismatch" && result.calls.length === 0 && result.children.length === 0
+      && !result.output.includes(credential) && !result.output.includes('"url"'))
   }
   for (const status of [200, 401, 403, 404, 429, 500, 503]) {
     const outcomes = { 200: "http_read_ok", 401: "authentication_rejected", 403: "access_or_scope_unavailable", 404: "resource_or_access_unavailable", 429: "rate_limited", 500: "service_failure", 503: "service_failure" }

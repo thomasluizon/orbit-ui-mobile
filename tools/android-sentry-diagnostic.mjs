@@ -61,7 +61,7 @@ function targetSelection(token) {
     throw new Error("credential_format_unrecognized")
   }
   if (payload.org !== ORGANIZATION) throw new Error("embedded_organization_mismatch")
-  if (payload.url && payload.url !== HOST && payload.url !== `${HOST}/`) throw new Error("embedded_host_mismatch")
+  if (payload.url && payload.url.replace(/\/+$/, "") !== HOST) throw new Error("embedded_host_mismatch")
   return "embedded_target_matches"
 }
 
