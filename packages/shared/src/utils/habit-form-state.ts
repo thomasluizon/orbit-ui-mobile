@@ -1,6 +1,7 @@
 import type { HabitDetail, NormalizedHabit, ScheduledReminderTime } from '../types/habit'
 import type { HabitFormData } from '../validation'
 import { formatAPIDate } from './dates'
+import { getHabitDisplayStartDate } from './habit-form-helpers'
 import { toTime24 } from './time-field'
 
 export const DEFAULT_REMINDER_TIMES = [0, 15] as const
@@ -141,6 +142,7 @@ export function buildParentHabitFormState(
 ): HabitFormStateSnapshot {
   return {
     formValues: {
+      itemType: resolveHabitFormMode(parent) === 'oneTime' ? 'task' : 'habit',
       title: '',
       description: '',
       emoji: parent.emoji ?? '',
@@ -173,6 +175,7 @@ export function buildEditHabitFormState(
 ): EditHabitFormStateSnapshot {
   return {
     formValues: {
+      itemType: resolveHabitFormMode(habit) === 'oneTime' ? 'task' : 'habit',
       title: habit.title,
       description: habit.description ?? '',
       emoji: detail?.emoji ?? habit.emoji ?? '',
@@ -183,7 +186,9 @@ export function buildEditHabitFormState(
       isBadHabit: habit.isBadHabit,
       isGeneral: habit.isGeneral,
       isFlexible: habit.isFlexible,
-      dueDate: detail?.dueDate ?? habit.dueDate,
+      dueDate: resolveHabitFormMode(habit) === 'oneTime'
+        ? detail?.dueDate ?? habit.dueDate
+        : detail?.startDate ?? getHabitDisplayStartDate(habit).slice(0, 10),
       dueTime: toTime24(detail?.dueTime ?? habit.dueTime),
       dueEndTime: toTime24(detail?.dueEndTime ?? habit.dueEndTime),
       endDate: detail?.endDate ?? '',
@@ -198,4 +203,22 @@ export function buildEditHabitFormState(
     selectedGoalIds: habit.linkedGoals?.map((goal) => goal.id) ?? [],
     selectedTagIds: habit.tags.map((tag) => tag.id),
   }
+}
+
+const MODE_FIELDS = ['frequencyUnit', 'frequencyQuantity', 'intervalWeeks', 'days', 'isGeneral', 'isFlexible', 'dueDate', 'datePhrase', 'dateIssue', 'dueTime', 'dueEndTime', 'endDate', 'reminderEnabled', 'scheduledReminders', 'isBadHabit', 'slipAlertEnabled'] as const
+
+export class HabitModeDrafts {
+  habitMode: Exclude<HabitFormMode, 'oneTime'> = 'recurring'
+  private drafts = new Map<HabitFormMode, Partial<HabitFormData>>()
+
+  switch(values: HabitFormData, nextMode: HabitFormMode): Partial<HabitFormData> | undefined {
+    const previousMode = resolveHabitFormMode({ ...values, frequencyUnit: values.frequencyUnit ?? null })
+    if (previousMode !== 'oneTime') this.habitMode = previousMode
+    if (nextMode !== 'oneTime') this.habitMode = nextMode
+    if (previousMode === nextMode) return undefined
+    this.drafts.set(previousMode, Object.fromEntries(MODE_FIELDS.map((field) => [field, values[field]])))
+    return this.drafts.get(nextMode)
+  }
+
+  clear(): void { this.drafts.clear(); this.habitMode = 'recurring' }
 }

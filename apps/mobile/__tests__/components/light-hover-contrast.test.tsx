@@ -126,22 +126,25 @@ describe('habit monogram contrast on Android', () => {
     const measure = () => {
       const monogram = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'W')[0]!
       const canvas = tree.root.findAll((node) => String(node.type) === 'View')[0]!
-      const card = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-row')[0]!
+      const row = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-row')[0]!
       const well = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityElementsHidden === true)[0]!
       return {
         color: StyleSheet.flatten(monogram.props.style as StyleProp<TextStyle>).color as string,
         well: StyleSheet.flatten(well.props.style as StyleProp<ViewStyle>).backgroundColor as string,
         canvas: StyleSheet.flatten(canvas.props.style as StyleProp<ViewStyle>).backgroundColor as string,
-        card: StyleSheet.flatten(card.props.style as StyleProp<ViewStyle>).backgroundColor as string,
+        row: StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>).backgroundColor as string,
       }
     }
     try {
       const resting = measure()
-      expect(contrastOnSurface(resting.color, [resting.canvas, resting.card, resting.well])).toBeGreaterThanOrEqual(4.5)
+      expect(resting.color).toBe(colors.fg3)
+      expect(resting.row).toBe(colors.bgCard)
+      expect(contrastOnSurface(resting.color, [resting.canvas, resting.row, resting.well])).toBeGreaterThanOrEqual(4.5)
       await act(() => { (body().props.onPressIn as () => void)() })
       const pressed = measure()
-      const fill = pressedFill(body())
-      expect(contrastOnSurface(pressed.color, [pressed.canvas, pressed.card, fill, pressed.well])).toBeGreaterThanOrEqual(4.5)
+      expect(pressed.row).toBe(colors.bgHover)
+      expect(pressed.row).not.toBe(resting.row)
+      expect(contrastOnSurface(pressed.color, [pressed.canvas, pressed.row, pressed.well])).toBeGreaterThanOrEqual(4.5)
       expect(pressed.color).toBe(colors.fg2)
       await act(() => { (body().props.onPressOut as () => void)() })
       expect(measure()).toEqual(resting)

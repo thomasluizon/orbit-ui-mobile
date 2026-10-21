@@ -71,7 +71,7 @@ describe('ChatEmptyState', () => {
       onSelect: () => sendMessage(chip.prompt ?? chip.promptKey ?? chip.key),
     })))
     const composerProps = {
-      words: { placeholder: 'placeholder', send: 'send', actions: 'actions', suggestionsLabel: 'live suggestions' },
+      words: { placeholder: 'placeholder', send: 'send', clear: 'clear', paste: 'paste', nothingToPaste: 'nothing to paste', actions: 'actions', suggestionsLabel: 'live suggestions' },
       value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions,
       ...(state === 'atLimit' ? { state, limitReason: 'No messages today' } : { state }),
     } satisfies ComposerProps

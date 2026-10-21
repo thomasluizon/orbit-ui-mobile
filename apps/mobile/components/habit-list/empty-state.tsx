@@ -44,7 +44,7 @@ export function HabitListEmptyState({
   let emptyActions: ReactNode = null
   if (showActions) {
     emptyActions = (
-      <View style={styles.actions}><ActionRow>
+      <View style={styles.actions}><ActionRow align="center">
         {actionLabel ? (
           <PillButton
             variant="ghost"

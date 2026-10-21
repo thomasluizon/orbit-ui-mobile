@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { Pressable, Share, Text, View } from 'react-native'
 import Animated, { Keyframe, ReduceMotion } from 'react-native-reanimated'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import type { AccountRowsCard as AccountRowsCardData } from '@orbit/shared/types/chat'
 import { accountRowLabelKey, formatAccountRowValue } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -30,10 +30,10 @@ export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: Account
     return labelKey ? [<ListRow key={row.key} title={t(labelKey)} value={formatAccountRowValue(row, i18n.language, t)} wrapValue valueTextMode={row.key === 'name' || row.key === 'email' ? 'personal' : undefined} readOnly={row.key !== 'name' && row.key !== 'email'} chevron={false} />] : []
   })
 
-  function copyCode() {
+  async function copyCode() {
     if (!accountRows.referralCode) return
     try {
-      Clipboard.setString(accountRows.referralCode)
+      await Clipboard.setStringAsync(accountRows.referralCode)
       setCopied(true)
       setFailure(null)
     } catch {
@@ -56,7 +56,7 @@ export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: Account
     <BlockFrame state={failure ? 'partiallyFailed' : 'resting'} title={t(`chat.account.title.${accountRows.kind}`)} count={null} items={[]}
       body={<View style={{ gap: 12 }}>
         <SettingsGroup>{rows}</SettingsGroup>
-        {referral && accountRows.referralCode ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16 }}><Text style={{ flexGrow: 1, flexShrink: 1, color: tokens.fg1, fontFamily: 'GeistMono_500Medium', fontSize: 14 }}>{accountRows.referralCode}</Text><Pressable accessibilityRole="button" accessibilityLabel={t(copied ? 'chat.account.copied' : 'chat.account.copy')} onPress={copyCode} style={{ minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ width: 20, height: 20 }}>{copied ? <Animated.View key="check" entering={iconEnter}><Check size={20} color={tokens.fg2} strokeWidth={1.8} /></Animated.View> : <Animated.View key="copy" exiting={iconExit}><Copy size={20} color={tokens.fg2} strokeWidth={1.8} /></Animated.View>}</View><Text style={{ color: tokens.fg2, fontSize: 14 }}>{t(copied ? 'chat.account.copied' : 'chat.account.copy')}</Text></Pressable></View> : null}
+        {referral && accountRows.referralCode ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16 }}><Text style={{ flexGrow: 1, flexShrink: 1, color: tokens.fg1, fontFamily: 'GeistMono_500Medium', fontSize: 14 }}>{accountRows.referralCode}</Text><Pressable accessibilityRole="button" accessibilityLabel={t(copied ? 'chat.account.copied' : 'chat.account.copy')} onPress={() => { void copyCode() }} style={{ minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ width: 20, height: 20 }}>{copied ? <Animated.View key="check" entering={iconEnter}><Check size={20} color={tokens.fg2} strokeWidth={1.8} /></Animated.View> : <Animated.View key="copy" exiting={iconExit}><Copy size={20} color={tokens.fg2} strokeWidth={1.8} /></Animated.View>}</View><Text style={{ color: tokens.fg2, fontSize: 14 }}>{t(copied ? 'chat.account.copied' : 'chat.account.copy')}</Text></Pressable></View> : null}
         <Text accessibilityRole="summary" accessibilityLiveRegion="polite" style={{ color: failure ? tokens.statusBadText : tokens.fg2, fontSize: 14 }}>{failure ?? (copied ? t('chat.account.copied') : '')}</Text>
       </View>}
       actions={referral ? (accountRows.referralLink ? <Button variant="ghost" size="sm" onClick={() => void shareLink()}>{t('chat.account.share')}</Button> : undefined) : <Button variant="ghost" size="sm" onClick={() => router.push('/profile')}>{t('chat.account.open')}</Button>} />

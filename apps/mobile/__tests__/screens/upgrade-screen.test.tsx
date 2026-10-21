@@ -295,7 +295,8 @@ describe('UpgradeScreen', () => {
         expect(cards.length).toBeGreaterThan(0)
         const cap = plan === 'free' ? 620 : 560
         for (const card of [cards[0]!, cards.at(-1)!]) {
-          expect(card.left).toBe((width - Math.min(width, 740)) / 2 + 16)
+          // WHY: #1570 centres each retained subscription cap in its shell. https://github.com/thomasluizon/orbit-tickets/issues/1570
+          expect(card.left).toBe((width - (width < 1024 ? Math.min(width, 740) : cap + 32)) / 2 + 16)
           expect(card.width).toBe(width < 1024 ? Math.min(width, 740) - 32 : cap)
         }
       } finally { TestRenderer.act(() => tree.unmount()) }
@@ -367,7 +368,8 @@ describe('UpgradeScreen', () => {
         const frame = measureProfileRow(host, width, 1).boxes.find((box) => box.testID === 'subscription-content-frame')!
         expect(frame).toBeDefined()
         const cap = plan === 'free' ? 620 : 560
-        expect(frame.left).toBe((width - Math.min(width, 740)) / 2)
+        // WHY: #1570 centres the capped frame, preserving its width and inset. https://github.com/thomasluizon/orbit-tickets/issues/1570
+        expect(frame.left).toBe((width - frame.width) / 2)
         expect(frame.width).toBe(width < 1024 ? Math.min(width, 740) : cap + 32)
       } finally { TestRenderer.act(() => tree.unmount()) }
     },

@@ -135,7 +135,7 @@ function Harness({ send, blocked, recording = false }: Readonly<{ send: ReturnTy
   const messages = useChatStore(store => store.messages)
   const composerProps: ComposerProps = {
     ...(recording ? { state: 'recording' as const, onVoice: vi.fn(), voiceWords: { start: 'Iniciar', stop: 'Parar', recording: 'Gravando', transcribing: 'Transcrevendo' } } : { state: 'idle' as const }), value, onChangeValue: useChatStore.getState().setDraft, onSend: vi.fn(), suggestions: [],
-    words: { placeholder: 'Pergunte', inputLabel: 'Mensagem', send: 'Enviar', actions: 'Anexar', suggestionsLabel: 'Sugestões' },
+    words: { placeholder: 'Pergunte', inputLabel: 'Mensagem', send: 'Enviar', paste: 'Colar', nothingToPaste: 'Nada para colar', clear: 'Limpar mensagem', actions: 'Anexar', suggestionsLabel: 'Sugestões' },
   }
   const chat = {
     threadScroll: createChatThreadScroll(), flatListRef: { current: null }, scrollToBottom: vi.fn(), messages, isOnline: blocked !== 'offline', atMessageLimit: blocked === 'atLimit', aiMessagesLimit: 5, activeSteps: [],

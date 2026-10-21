@@ -8,6 +8,7 @@ import { appConfigSchema } from '@orbit/shared/types/config'
 import { billingDetailsSchema, subscriptionPlansSchema } from '@orbit/shared/types/subscription'
 import { gamificationProfileSchema, streakInfoSchema } from '@orbit/shared/types/gamification'
 import {
+  dateInterpretationSchema,
   bulkCreateRequestSchema,
   bulkCreateResponseSchema,
   calendarMonthResponseSchema,
@@ -54,6 +55,7 @@ interface MockRoute {
 }
 
 const routes: MockRoute[] = [
+  { method: 'POST', path: '/api/habits/interpret-date', schema: dateInterpretationSchema, body: { date: '2026-09-26', referenceDate: '2026-09-04' } },
   { method: 'GET', path: '/api/ai/proactive/current', schema: proactiveItemSchema.nullable(), body: null },
   { method: 'GET', path: '/api/gamification/streak', schema: streakInfoSchema, body: streakFixture },
   {

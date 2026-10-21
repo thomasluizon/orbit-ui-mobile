@@ -19,7 +19,7 @@ const stats: ReferralStats = {
 const mocks = vi.hoisted(() => ({
   referral: {} as { stats: ReferralStats | null; isLoading: boolean; isError: boolean; error: Error | null },
   share: vi.fn(),
-  setString: vi.fn(),
+  setStringAsync: vi.fn().mockResolvedValue(true),
 }))
 
 vi.mock('react-native', async (importOriginal) => ({
@@ -34,7 +34,7 @@ vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: mocks.setString } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: mocks.setStringAsync }))
 vi.mock('@/hooks/use-referral', () => ({
   useReferral: () => ({ ...mocks.referral, referralUrl: 'https://useorbit.org/r/ORBIT1' }),
 }))
@@ -71,7 +71,7 @@ describe('ReferralDrawer (mobile)', () => {
   beforeEach(() => {
     mocks.referral = { stats, isLoading: false, isError: false, error: null }
     mocks.share.mockReset().mockResolvedValue({ action: 'sharedAction' })
-    mocks.setString.mockReset()
+    mocks.setStringAsync.mockReset()
   })
 
   it('shows a failed share in the pinned footer, beside Share', async () => {
@@ -85,7 +85,7 @@ describe('ReferralDrawer (mobile)', () => {
   })
 
   it('shows a failed copy in the body, beside the link', async () => {
-    mocks.setString.mockImplementationOnce(() => {
+    mocks.setStringAsync.mockImplementationOnce(() => {
       throw new Error('denied')
     })
     const tree = renderDrawer()

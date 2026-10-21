@@ -47,6 +47,20 @@ describe('mobile PostHog adapter', () => {
     expect(client.optIn).toHaveBeenCalledOnce()
   })
 
+  it('defaults to opted out when reading the stored preference fails', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    storage.getItem.mockRejectedValueOnce(new Error('storage unavailable'))
+    const analytics = await import('@/lib/posthog')
+
+    await expect(analytics.getAnalyticsOptOut()).resolves.toBe(true)
+    await analytics.applyPostHogGate(true)
+    expect(analytics.posthog!.optOut).toHaveBeenCalledOnce()
+    expect(analytics.posthog!.optIn).not.toHaveBeenCalled()
+    await analytics.setAnalyticsOptOut(false)
+    expect(await analytics.getAnalyticsOptOut()).toBe(false)
+    expect(analytics.posthog!.optIn).toHaveBeenCalledOnce()
+  })
+
   it('defaults to capture, persists opt out across restart, and resumes without restart', async () => {
     vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')
