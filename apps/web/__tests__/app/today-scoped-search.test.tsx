@@ -150,7 +150,7 @@ it.each([
     fireEvent.click(screen.getByRole('button', { name: en.habits.listOptions }))
     fireEvent.click(screen.getByRole('menuitem', { name: en.common.select }))
     const row = rows().find((row) => row.textContent.includes(query))!
-    fireEvent.click(within(row).getByRole('button', { name: query, pressed: false }))
+    fireEvent.click(within(row).getByRole('button', { name: `${query}, ${en.habits.form.typeHabit}`, pressed: false }))
     expect(useUIStore.getState().selectedHabitIds).toEqual(new Set([target]))
     fireEvent.click(screen.getByRole('button', { name: en.habits.bulkBar.log }))
     await act(async () => {})

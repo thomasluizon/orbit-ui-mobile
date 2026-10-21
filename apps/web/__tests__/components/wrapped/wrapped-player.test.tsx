@@ -37,6 +37,7 @@ const shareCardMock = vi.hoisted(() => ({
   canShareFiles: true,
   share: vi.fn(),
   download: vi.fn(),
+  resetFeedback: vi.fn(),
 }))
 
 vi.mock('@/hooks/use-share-card', () => ({

@@ -21,7 +21,7 @@ vi.mock('@/components/command/command-palette', () => ({
 }))
 
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
-const words = { placeholder: 'Message', send: 'Send', actions: 'Attachments', suggestionsLabel: 'Suggestions' }
+const words = { placeholder: 'Message', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attachments', suggestionsLabel: 'Suggestions' }
 const attachWords = { image: 'Photo', file: 'Document', trayLabel: 'Attachments', remove: (name: string) => name }
 const voiceWords = { start: 'Voice', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }
 
@@ -99,7 +99,7 @@ it.each([false, true])('hands attachment-menu focus back to the composer on Tab 
   act(() => within(menu).getByRole('menuitem', { name: attachWords.image }).focus())
   fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey })
   await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-  expect(shiftKey ? screen.getByRole('textbox', { name: words.placeholder }) : screen.getByRole('button', { name: words.send })).toHaveFocus()
+  expect(screen.getByRole('button', { name: shiftKey ? words.clear : words.send })).toHaveFocus()
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveValue('Keep this draft')
 })

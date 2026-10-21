@@ -1,6 +1,6 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { PADDING, SPACING, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
@@ -75,7 +75,10 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   </View>
   return <View style={styles.eventSection}>
     <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>{t('calendar.dayDetail.eventsTitle')}</Text>
-    {state === 'loading' ? <View><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></View> : null}
+    {state === 'loading' ? <View>
+      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.emptyEventText, { opacity: 0 }]}>{t('calendar.dayDetail.noEventsToImport')}</Text>
+      <View style={StyleSheet.absoluteFill}><Skeleton variant="fill" label={t('calendar.fetchingEvents')} /></View>
+    </View> : null}
     {state === 'failed' ? <View style={styles.eventSection}><Text accessibilityLabel={t('calendar.fetchError')} accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.eventErrorText, { color: tokens.fg1 }]}>{t('calendar.fetchError')}</Text><ListRow textMode="label" title={t('common.retry')} onClick={onRetry} /></View> : null}
     {state === 'ready' && calendarEvents.length === 0 ? <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noEventsToImport')}</Text> : null}
     {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents t={t} displayTime={displayTime} calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
@@ -197,22 +200,20 @@ export function CalendarDayDetail({
         <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>{t('calendar.noHabitsScheduled')}</Text>
       ) : null}
 
-      {loadingLabel ? <View testID="calendar-day-skeleton">
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={{ opacity: 0 }}>
-          <CalendarDayCheckRow disabled entry={{ habitId: 'loading', title: loadingLabel, status: 'upcoming', isBadHabit: false, dueTime: '00:00', isOneTime: false }} value={displayTime('00:00')} isPending pendingChecked={undefined} onEntryChange={() => null} onOpenTitle={() => {}} />
-        </View>
-        <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, justifyContent: 'center' }}><Skeleton variant="settings" rows={1} label={loadingLabel} /></View>
-      </View> : filteredEntries.length > 0 ? (
-        <View style={styles.rowList}>
+      {loadingLabel || filteredEntries.length > 0 ? (
+        <View testID={loadingLabel ? 'calendar-day-skeleton' : undefined} style={styles.rowList}>
+          {loadingLabel && filteredEntries.length === 0 ? <View>
+            <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.emptyDayText, { opacity: 0 }]}>{t('calendar.noHabitsScheduled')}</Text>
+            <View style={StyleSheet.absoluteFill}><Skeleton variant="fill" label={loadingLabel} /></View>
+          </View> : null}
           {filteredEntries.map((entry) => {
             const entryKey = getCalendarEntryMutationKey(selectedDate, entry.habitId)
             const outcome = getEntryOutcome(entry, t)
             const value = entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime')
 
-            if (loggable) {
-              return (
+            const row = loggable ? (
                 <CalendarDayCheckRow
-                  key={`${selectedDate}:${entry.habitId}`}
+                  disabled={Boolean(loadingLabel)}
                   entry={entry}
                   value={value}
                   isPending={pendingEntryStates.has(entryKey)}
@@ -220,11 +221,8 @@ export function CalendarDayDetail({
                   onEntryChange={onEntryChange}
                   onOpenTitle={onOpenHabitTitle ?? setExpandedTitle}
                 />
-              )
-            }
-
-            return (
-              <Pressable key={`${selectedDate}:${entry.habitId}`} focusOffset={-6} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabitTitle ?? setExpandedTitle)(entry.title)} style={styles.habitDisclosure}>
+              ) : (
+              <Pressable disabled={Boolean(loadingLabel)} focusable={!loadingLabel} focusOffset={-6} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabitTitle ?? setExpandedTitle)(entry.title)} style={styles.habitDisclosure}>
                 {({ pressed, focused }) => <>
                 <View pointerEvents="none" accessible={false} style={[styles.habitFill, { backgroundColor: pressed || focused ? tokens.bgHover : 'transparent' }]} />
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 }}>
@@ -237,6 +235,10 @@ export function CalendarDayDetail({
                 </>}
               </Pressable>
             )
+            return loadingLabel ? <View key={`${selectedDate}:${entry.habitId}`}>
+              <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={{ opacity: 0 }}>{row}</View>
+              <View style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}><Skeleton variant="settings" rows={1} label={loadingLabel} /></View>
+            </View> : <Fragment key={`${selectedDate}:${entry.habitId}`}>{row}</Fragment>
           })}
         </View>
       ) : null}

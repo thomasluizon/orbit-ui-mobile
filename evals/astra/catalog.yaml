@@ -1,0 +1,106 @@
+# Structural projections of the API schemas; additional arguments remain permitted.
+# Source and revision are recorded in TESTING.md. These schemas are never sent as Astra tools.
+- type: function
+  writes: false
+  function:
+    name: query_habits
+    parameters:
+      type: object
+      properties:
+        search: { type: string }
+        date: { type: string }
+        include_overdue: { type: boolean }
+        is_completed: { type: boolean }
+        include_metrics: { type: boolean }
+        frequency: { type: string, enum: [Day, Week, Month, Year, OneTime] }
+- type: function
+  writes: true
+  function:
+    name: create_habit
+    parameters:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        frequency_unit: { type: [string, 'null'], enum: [Day, Week, Month, Year, null] }
+        frequency_quantity: { type: integer }
+- type: function
+  writes: true
+  function:
+    name: update_habit
+    parameters:
+      type: object
+      required: [habit_id]
+      properties:
+        habit_id: { type: string }
+        title: { type: string }
+        frequency_unit: { type: [string, 'null'], enum: [Day, Week, Month, Year, null] }
+        frequency_quantity: { type: integer }
+- type: function
+  writes: true
+  function:
+    name: log_habit
+    parameters: &singleHabitDate
+      type: object
+      required: [habit_id]
+      properties:
+        habit_id: { type: string }
+        date: { type: string }
+- type: function
+  writes: true
+  function:
+    name: skip_habit
+    parameters: *singleHabitDate
+- type: function
+  writes: true
+  function:
+    name: bulk_log_habits
+    parameters: &bulkHabitDate
+      type: object
+      oneOf:
+        - required: [habit_ids]
+          not: { required: [filter] }
+          properties:
+            habit_ids: { type: array }
+        - required: [filter]
+          properties:
+            filter: { type: object }
+            habit_ids: { type: 'null' }
+      properties:
+        habit_ids: { type: [array, 'null'], items: { type: string } }
+        filter: { type: [object, 'null'] }
+        date: { type: [string, 'null'] }
+- type: function
+  writes: true
+  function:
+    name: bulk_skip_habits
+    parameters: *bulkHabitDate
+- type: function
+  writes: false
+  function:
+    name: get_daily_summary
+    parameters:
+      type: object
+      properties:
+        date_from: { type: string }
+        date_to: { type: string }
+        language: { type: string }
+- type: function
+  writes: false
+  function:
+    name: get_habit_metrics
+    parameters:
+      type: object
+      required: [habit_id]
+      properties:
+        habit_id: { type: string }
+- type: function
+  writes: false
+  function:
+    name: ask
+    parameters:
+      type: object
+      required: [form]
+      properties:
+        form: { type: string, enum: [choice, pickList] }
+        question: { type: string, maxLength: 120 }

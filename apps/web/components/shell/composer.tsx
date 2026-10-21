@@ -3,7 +3,7 @@
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { PersonalText } from '@/components/ui/personal-text'
 
-import { useContext, useEffect, useId, useRef, useState, type ClipboardEventHandler } from 'react'
+import { useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ClipboardEventHandler } from 'react'
 import {
   hasComposerContent,
   type ComposerAttachWords,
@@ -13,10 +13,13 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { ArrowUp, FileText, Image as ImageIcon, Loader2, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
+import { ArrowUp, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 import { CompactComposerMenuContext } from './shell-pinned-content'
 
@@ -167,7 +170,7 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
   return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} />
 }
 
-function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
+function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComposerProps; onPaste?: () => void; onClear?: () => void }>) {
   const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
   useEffect(() => {
@@ -175,7 +178,10 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
   }, [compactMenu, open])
   const menuId = useId()
   const anchorRef = useRef<HTMLButtonElement>(null)
-  const { voiceActive, disabled, label, items } = buildComposerControls(props)
+  const { voiceActive, disabled, label, items: defaultItems } = buildComposerControls(props)
+  const textAction = onClear ? { id: 'clear', label: props.words.clear, icon: 'x' }
+    : onPaste ? { id: 'paste', label: props.words.paste, icon: 'clipboard' } : null
+  const items = textAction ? [textAction, ...defaultItems] : defaultItems
   if (voiceActive) return <div data-composer-controls className="flex shrink-0 items-center">
     <button type="button" aria-label={label} data-focus-on-primary={props.state === 'recording' ? '' : undefined} disabled={props.state === 'transcribing'} onClick={props.onVoice}
       className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${props.state === 'recording' ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)]'}`}>
@@ -191,12 +197,103 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
       className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
       <Plus size={20} strokeWidth={2} aria-hidden="true" />
     </button>
-    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => selectComposerAction(props, id)} />
+    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </div>
+}
+
+function subscribeClipboardAvailability() { return () => {} }
+
+function ComposerTextAction({ words, canClear, canPaste, inMenu, onClear, onPaste }: Readonly<{
+  words: ComposerProps['words']; canClear: boolean; canPaste: boolean; inMenu: boolean; onClear: () => void; onPaste: () => void
+}>) {
+  if (inMenu || (!canClear && !canPaste)) return null
+  return <button type="button" aria-label={canClear ? words.clear : words.paste}
+    data-composer-clear={canClear ? '' : undefined} data-composer-paste={canPaste ? '' : undefined}
+    onMouseDown={event => event.preventDefault()}
+    onClick={canClear ? onClear : onPaste}
+    className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
+    {canClear ? <X size={20} strokeWidth={2} aria-hidden="true" /> : <Clipboard size={20} strokeWidth={2} aria-hidden="true" />}
+  </button>
+}
+
+function ComposerTextControls({ props, inMenu, onPasteText, onClear }: Readonly<{ props: ComposerProps; inMenu: boolean; onPasteText: (text: string) => void; onClear: () => void }>) {
+  const available = useSyncExternalStore(subscribeClipboardAvailability,
+    () => typeof navigator !== 'undefined' && 'clipboard' in navigator && typeof navigator.clipboard.readText === 'function', () => false)
+  const canClear = props.state === 'idle' && props.value.length > 0
+  const canPaste = props.state === 'idle' && props.value.length === 0 && available
+  const accountGeneration = useSyncExternalStore(subscribeToAccountGeneration, getAccountGeneration, getAccountGeneration)
+  const clipboardScope = useRef({ active: false, pending: false })
+  useEffect(() => {
+    const scope = { active: true, pending: false }
+    clipboardScope.current = scope
+    return () => { scope.active = false }
+  }, [props.state, props.value, accountGeneration])
+  async function pasteMessage() {
+    const scope = clipboardScope.current
+    const { isAuthenticated, user } = useAuthStore.getState()
+    const accountId = user?.userId
+    if (scope.pending) return
+    scope.pending = true
+    try {
+      const text = await navigator.clipboard.readText()
+      const session = useAuthStore.getState()
+      if (!scope.active || accountGeneration !== getAccountGeneration()
+        || session.isAuthenticated !== isAuthenticated || session.user?.userId !== accountId) return
+      if (text.length === 0) useAppToastStore.getState().showInfo(props.words.nothingToPaste)
+      else onPasteText(text)
+    } catch {
+      return
+    } finally { scope.pending = false }
+  }
+  return <>
+  <ComposerTextAction words={props.words} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
+  <ComposerControls props={props} onPaste={canPaste && inMenu ? () => void pasteMessage() : undefined}
+    onClear={canClear && inMenu ? onClear : undefined} />
+  </>
+}
+
+function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>, placeholder: string, state: ComposerProps['state']) {
+  const [inMenu, setInMenu] = useState(false)
+  useEffect(() => {
+    if (state !== 'idle') return
+    const input = inputRef.current
+    if (!input) return
+    const row = input.parentElement!
+    function measure() {
+      if (input!.clientWidth <= 0) return
+      const style = getComputedStyle(input!)
+      const trailing = row.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
+      const control = trailing.querySelector('button')!
+      const slotWidth = control.getBoundingClientRect().width + parseFloat(getComputedStyle(trailing).columnGap)
+      const hasSlot = row.querySelector('[data-composer-paste], [data-composer-clear]') !== null
+      const available = input!.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd) - (hasSlot ? 0 : slotWidth)
+      if (available <= 0) return
+      const context = document.createElement('canvas').getContext('2d')!
+      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+      context.letterSpacing = style.letterSpacing
+      setInMenu(context.measureText(placeholder).width > available)
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(row)
+    observer.observe(input)
+    document.fonts.addEventListener('loadingdone', measure)
+    measure()
+    return () => { observer.disconnect(); document.fonts.removeEventListener('loadingdone', measure) }
+  }, [inputRef, placeholder, state])
+  return inMenu
 }
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const textActionInMenu = useTextActionMenu(inputRef, props.words.placeholder, props.state)
+  const pasteFocus = useRef<string | null>(null)
+  useEffect(() => {
+    if (pasteFocus.current === null || props.value !== pasteFocus.current || props.state !== 'idle') return
+    const end = pasteFocus.current.length
+    pasteFocus.current = null
+    inputRef.current?.focus()
+    inputRef.current?.setSelectionRange(end, end)
+  }, [props.value, props.state])
   useEffect(() => {
     if (!props.inputSelection) return
     inputRef.current?.focus()
@@ -230,6 +327,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = canSend || props.state === 'sending'
+  function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
     <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
@@ -262,7 +360,10 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         />}
 
       <div data-composer-trailing-controls className="flex shrink-0 items-end gap-[4px]">
-        <ComposerControls props={props} />
+        <ComposerTextControls props={props} inMenu={textActionInMenu} onClear={clearMessage} onPasteText={text => {
+          pasteFocus.current = text
+          props.onChangeValue(text)
+        }} />
 
       <button
         type="button"

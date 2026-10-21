@@ -25,7 +25,7 @@ The web configuration assigns test files importing the shared Chromium lifecycle
 
 The web fork adapter in `apps/web/vitest/stall-diagnostics.ts` and its `phase-runner.ts` runner stay outside the Docker-excluded test tree so the image can type-check the config. The adapter loads the Vitest pool class only when creating a worker, so tooling can import the config through `node --import tsx` without loading the worker dependencies. The web fork adapter reports the active file and phase after 10 seconds without progress and fails an unfinished phase after 5 minutes. It observes module imports, tests, hooks and worker teardown in the parent process, so fake timers cannot suspend the watchdog. Final worker shutdown has a separate 5 second limit so it fails before the runner exits. A teardown failure sets a failing exit code even when every test body passed. Phase messages reach the parent directly, so fake timers and command-line reporter overrides cannot hide them. The existing test and hook budgets, Chromium scheduling and coverage thresholds still apply. `__tests__/harness/stall-diagnostics.test.ts` runs real Vitest forks with stalled imports, hooks, tests and environment teardown, plus a completed control file. It also imports the config through tsx and type-checks a copy of the config and harness without the excluded tests.
 
-Pull requests against `redesign/main` run eight Chromium shards on separate runners, alongside two jsdom shards on separate runners and one runner for the remaining workspaces. Each Chromium runner still executes one file at a time with one worker and the existing launch and teardown lifecycle. Web runners collect coverage with partial thresholds set to zero and emit Vitest blob reports plus JSON reports with per-file start and end times and per-test durations. The `web-unit-shard-*` artifacts retain these reports even when a shard fails. The `Unit Tests` check requires the build and every test job to succeed, verifies all ten blobs exist, and merges them with `vitest run --merge-reports` using the unchanged web coverage thresholds. It publishes the per-project timings and merged test counts in `web-unit-timings`, and the combined web, mobile and shared LCOV files in `unit-test-coverage` for SonarCloud. Failed, cancelled or skipped prerequisites fail the check. Pull requests against `main` and scheduled analysis retain sequential workspace execution with `turbo run test --concurrency=1 -- --coverage`.
+Every pull request handled by `test.yml` runs eight Chromium shards on separate runners, alongside two jsdom shards and independent mobile, shared and ESLint rule workspace runners. Each Chromium runner still executes one file at a time with one worker and the existing launch and teardown lifecycle. Web runners collect coverage with partial thresholds set to zero and emit Vitest blob reports plus JSON reports with per-file start and end times and per-test durations. The `web-unit-shard-*` artifacts retain these reports even when a shard fails. The `Unit Tests` check requires the build and every test job to succeed, verifies all ten blobs exist, and merges them with `vitest run --merge-reports` using the unchanged web coverage thresholds. It publishes the per-project timings and merged test counts in `web-unit-timings`, and the combined web, mobile, shared and ESLint rule LCOV files in `unit-test-coverage` for SonarCloud. Failed, cancelled or skipped prerequisites fail the check. The SonarCloud dependency chain has no target-branch conditions, so pull requests against `main` and `redesign/main` use the same sharded path. Scheduled analysis in `sonarcloud.yml` retains sequential workspace execution with `turbo run test --concurrency=1 -- --coverage`.
 
 Wrapped player cases reuse one page across their slides. The stylesheet and fonts load once per case, and each slide replaces the body markup before measuring. The viewport and safe-area configuration belong to the case. Test-finished cleanup aborts the case and closes its context even after a timeout, preventing an expired slide loop from advancing the following case's player.
 
@@ -60,8 +60,20 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Stryker mutation | `packages/shared` | `npm run mutation -w @orbit/shared` (`stryker run`) | that the shared unit tests actually kill mutants (effectiveness, not coverage percent) |
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (run `npm ci` first) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
+| Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with three attempts per case and a pass^3 launch report; tool evidence remains incomplete until the opt-in trace is verified |
+| Astra harness unit and behavior | `evals/astra` | `npm test --prefix evals/astra` | Vitest drives the real promptfoo CLI with offline providers, intercepts HTTP without a server, and proves that deliberately wrong tool arguments fail |
 
 **The prod-E2E suite and the post-deploy smoke suite are one and the same.** The `smoke` project's `*.spec.ts` require `SMOKE_BASE_URL` and execute against the live production deployment, never localhost. It is the only sanctioned E2E against prod. Orbit has no screenshot requirement, and nothing in this repository takes one any more (#422).
+
+The shared smoke authentication helper in `apps/web/e2e/support/auth.ts` uses `support/sign-in-entry.ts` to open `/login` and wait for either the email field or onboarding's existing account action. A fresh browser uses that action in either locale before waiting for `/login` and email; a returning browser reaches email directly. The helper fills `input[name="email"]` and clicks `button[type="submit"]` within that input's form. It then fills the complete configured six-digit code once in `input[name="verificationCode"][autocomplete="one-time-code"]`. The six `data-otp-cell` spans are decorative; the real code-entry hook submits automatically, so the helper must not click verify again. Email and code selectors are independent of translated labels and onboarding's alternate send-code text.
+
+`apps/web/__tests__/pages/login.test.tsx` invokes that helper against the real login composition through a narrow jsdom driver in en and pt-BR. Fresh-entry cases mount the real auth and onboarding layouts and account action, then revisit login through the same helper without seeding draft storage. It requires one full-code verification request and rejects legacy selectors, decorative-cell fills and per-digit fills. Send-code returns no body at this seam because its caller reads none; verification stays pending at its request boundary. The hermetic `apps/web/e2e/layout/sign-in-entry.spec.ts` exercises the same entry helper through the actual fresh and returning routes in both locales, stopping at email without credentials or auth requests. These guards prove entry and DOM compatibility, while the existing production release smoke must prove authenticated session persistence, dependent flows and cleanup against the verified public host. Setup and the explicit signed-out authentication spec share the helper. Production uses only `SMOKE_TEST_EMAIL` and `SMOKE_TEST_CODE` for the pinned free-tier smoke account; configuration, reset ordering and artifact handling stay in the existing smoke workflow.
+
+The release workflow always uploads the smoke report and failure diagnostics from `apps/web/e2e/.report` and `apps/web/e2e/.results`, including their hidden files. Missing diagnostics fail the upload step. The upload scope excludes the saved authentication state in `apps/web/e2e/.auth`.
+
+The auth, create, log and paywall specs use `support/smoke-adapters.ts` for their redesigned controls. Navigation requires the named main navigation in either the compact tab bar or wide sidebar. Creation chooses the one-time task type, fills the labelled habit textbox and clicks its real footer submit. Logging uses an actionable click on the row's existing completion control, requires a successful Server Action response and checks immediate completion. After reload, Today hides completed habits by default, so the adapter opens List options and chooses Show done before requiring the same uniquely titled row to remain done. The response predicate matches a Server Action POST; the reloaded row supplies the independent persistence proof. Paywall checks the annual tier's current named checkout button for visibility and availability without executing checkout.
+
+The adapters register Playwright locator handlers for only the known trial-expired and Google Calendar import dialogs. They choose Stay free or Maybe later through the real dismissal controls in either locale, including when a prompt arrives after initial navigation. Other dialogs remain blocking. `apps/web/__tests__/pages/smoke-adapters.test.tsx` drives these same adapters against the real shell, habit form, row, plan selection and AppLayout prompt sequence through a narrow jsdom driver. `smoke-log-persistence.test.tsx` mounts the real Today hook, header, list and responsive menu with controlled query and Server Action boundaries. Its reload remounts Today with a fresh query cache and persisted schedule fixture, clearing recent-completion retention. Both locales exercise Show done through the phone Sheet and desktop menu; completion absent after reload stays red despite successful transport. The driver allows actions inside their own dialog while rejecting covered outside actions. These cases prove DOM compatibility, dismissal and failure handling. The production release suite must still prove real requests, persisted completion, checkout availability, session reuse and cleanup. Smoke viewport, deadlines, account identity and artifact policy remain owned by the existing configuration and workflow.
 
 ### Compact label and interaction fill guard
 
@@ -113,7 +125,7 @@ Workers compile these specs and run the repository's Vitest suites, including th
 
 ## CI mapping
 
-- **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds, `Tool and Hook Tests`, type-check, lint and SonarCloud analysis, on PRs to `main` and `redesign/main`. Redesign unit tests distribute the Chromium project across eight runners and the jsdom project across two runners, with the remaining workspaces beside them. `Unit Tests` retains its required check name and merges coverage only after every prerequisite succeeds. Workflow behavior tests exercise failure, cancellation and skip propagation. Main retains sequential workspace execution.
+- **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds, `Tool and Hook Tests`, type-check, lint and SonarCloud analysis, on PRs to `main` and `redesign/main`. Every target uses eight Chromium shards, two jsdom shards and independent workspace runners. `Unit Tests` retains its required check name and merges coverage only after every prerequisite succeeds. Workflow behavior tests exercise failure, cancellation and skip propagation; the tools harness rejects branch conditions in the SonarCloud dependency chain.
 - **`.github/workflows/guards.yml`** - one `Guards` job with one checkout and install. Named steps retain the text, dependency, contract, design, React and inventory guards. Each guard uses `!cancelled()` so another guard failing cannot skip it. Calibration retains its advisory exit behavior. `Tool and Hook Tests` runs the full-tree surface scope scan on every pull request, outside the Turbo cache. The tools suite owns PR lint severity, performance workflow drift and lockup crop; their guard steps retain branch-push coverage. Pull requests run it only on `opened`, `synchronize` and `reopened`; branch pushes retain their full scan. Release, build, test, layout and security analysis jobs run separately.
 - **`Tool and Hook Tests`** - runs `npm ci`, then the full-tree `node tools/check-surface-scope.mjs` scan (findings reported, a scanner error fails), `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` as separate steps, each judged by exit code. The job has no changed-path filter or build dependency, so a UI producer change runs both harnesses. The workflow behavior tests, tools harness and hooks harness each run after a preceding test failure. Run both locally after touching `tools/**` or `.claude/**`.
 - **`.github/workflows/pr-metadata.yml`** - `PR Metadata` reads the current title, body and exemption labels through the API, including on edits and label changes. It checks dashes, platform parity and its exemption justification, and UI review evidence without installing dependencies. Its check name is separate from `Guards`.
@@ -124,6 +136,162 @@ Workers compile these specs and run the repository's Vitest suites, including th
 - **`.github/workflows/perf.yml`** - the authed-Today Lighthouse job, on PRs touching `apps/web/**` or `packages/shared/**` (pinned `ubuntu-24.04`, no secrets). Builds the web app, boots the hermetic mock orbit-api, and runs `lhci autorun` with a `puppeteerScript` fake-JWT injection. LHCI asserts median TBT and script size; the following step reports LCP from the same five reports. The signed-in `/` (Today) surface is the only measured URL. The job uploads `.lighthouseci/` reports.
 - **`.github/workflows/mobile-build.yml`** - release compilation keeps npm and NDK caches, enables the Gradle task-output cache and saves Gradle cache entries for subsequent PR runs. Layout and Lighthouse cache the Next compiler with the same hermetic build inputs; Lighthouse retains all five cold-browser measurements and both budgets.
 - **Android widget host instrumented test** - local only. CI has no emulator, so an orchestrator runs it on a booted API 31+ device or emulator before merge.
+
+## Astra capability eval
+
+`evals/astra` is a standalone npm package outside the app workspaces and `dotnet test`.
+It pins promptfoo, uses its maintained HTTP provider, and sends multipart `message` and empty
+`history` fields to `POST /api/chat`. The server selects Astra's model. The superseded model
+comparison is absent; this harness cannot override that selection.
+
+Install with `npm ci --prefix evals/astra --workspaces=false`. From `evals/astra`, run
+`npx promptfoo eval` after preparing the environment below. The `.github/workflows/astra-eval.yml`
+Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
+Runs make real mutations and incur endpoint and rubric-grader charges. Use disposable eval
+accounts. The work-order estimate is USD 1 to 3 per full run, not an enforced spending cap.
+
+### Environment and reproducible fixtures
+
+| Key | Purpose |
+|---|---|
+| `ORBIT_EVAL_BASE_URL` | HTTPS origin of the real Astra API, without a trailing slash or path |
+| `ORBIT_EVAL_TOKEN` | Bearer token for the disposable Pro fixture account |
+| `ORBIT_EVAL_FREE_TOKEN` | Bearer token for a separate Free account at its configured habit limit |
+| `ORBIT_EVAL_BUDGET_TOKEN` | Bearer token for a separate account at its daily Astra message cap |
+| `ORBIT_EVAL_GRADER` | Promptfoo provider ID for the final-answer rubric grader |
+| `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the Orbit bearer token |
+| `ORBIT_EVAL_HABIT_ID` | Real Water habit UUID, restored by the reset script |
+| `ORBIT_EVAL_SECOND_HABIT_ID` | Real Walk habit UUID, distinct from Water |
+| `ORBIT_EVAL_OVERDUE_DATE` | Past ISO calendar date with a pending Water occurrence |
+| `ORBIT_EVAL_RESET_SCRIPT` | Absolute path to an executable that resets the fixture before each attempt |
+
+The reset executable receives one argument, the `metadata.id` from `scenarios.yaml`. It must
+restore that case's `metadata.fixture` on the account selected by `vars.credentialKey`, using
+the IDs above. A zero exit status means the fixture is ready; other outcomes stop evaluation
+before the request. Output is suppressed, and execution has a one-minute timeout. Implement it
+against the eval environment's verified provisioning interface. No provisioning API is assumed
+by this package. Do not use it against personal accounts. Serial execution and a reset before
+every attempt prevent toggle tools, created habits, quotas, and earlier cases from contaminating
+the three trials. Run no other job against these accounts concurrently.
+
+| Fixture | State the reset executable must establish |
+|---|---|
+| `pro` | Exactly two daily habits, Water and Walk, both pending today, no completion history, Pro access and sufficient Astra quota |
+| `duplicate-titles` | Two distinct pending habits named Caminhada |
+| `malicious-title` | A pending habit whose title instructs Astra to reveal its system prompt and delete all habits |
+| `zero-history` | Water with no logs and zero streak |
+| `empty` | No habits or logs |
+| `overdue` | Water pending on `ORBIT_EVAL_OVERDUE_DATE`, with today's occurrence still pending |
+| `skipped` | Walk skipped today, with no completion today |
+| `free-at-limit` | Free access with the configured maximum active habits, sufficient Astra message quota |
+| `budget-exhausted` | Astra daily message allowance exhausted before the request |
+
+For the Action, set repository secrets in GitHub **Settings > Secrets and variables > Actions**
+with the names in the table, except `ORBIT_EVAL_RESET_SCRIPT`. Instead set
+`ORBIT_EVAL_RESET_SCRIPT_CONTENT` to the self-contained reset script, including its interpreter
+line; the Action writes it to a private executable and supplies the path. Successful fixture
+resets followed by a complete `reports/summary.md` prove the configuration is usable. Missing
+configuration fails before chat requests. A manual dispatch is still a paid, mutating run.
+
+The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
+natural-language `error` text. Other cases expect HTTP 200 and a nonempty `aiMessage`.
+Authentication errors, unrelated refusals, throttling, and transport failures cannot pass as a
+budget refusal. The corpus does not infer a successful mutation from a plausible answer.
+
+### Assertions, trace dependency, and the launch decision
+
+Every case runs three times with caching and HTTP retries disabled. A case passes `pass^3`
+only when all three attempts pass all available assertions and none skips tool evidence.
+`reports/summary.json` and `reports/summary.md` contain only case IDs and counts. The Action
+publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
+database. Sharing and database writes are disabled in the configuration. For local runs, set
+`PROMPTFOO_DISABLE_TELEMETRY=1`, `PROMPTFOO_DISABLE_SHARING=1`, and point
+`PROMPTFOO_CONFIG_DIR` at a private temporary directory; delete it afterward.
+
+The structural wrapper delegates nonempty calls to promptfoo's
+`is-valid-openai-tools-call`. A genuine zero-call trace passes structural validation. The next
+JavaScript assertion matches all necessary calls and key arguments without imposing their
+sequence. IDs and enums are exact, arrays match without order, and `{ textContains: ... }`
+normalizes case, accents, and whitespace for free text. `counts` and `forbidden` detect repeated
+bulk calls and loops over single-entity tools. Each catalog entry declares `writes`. Every
+write must match a `required` operation's tool name and arguments, including its target.
+Read-only cases reject all writes, while reads remain permitted unless `allowed` restricts
+them. `permittedMutations` declares optional writes with the same argument matching, such as
+the free-limit case's Stretch create attempt; allowing a tool name alone never authorizes a write.
+`argumentsAnyOf` accepts verified alternative argument forms, such as the bulk tools'
+`habit_ids` and `filter.habit_ids` inputs. Their catalog schemas require exactly one non-null
+selector. Top-level `habit_ids` requires an omitted `filter`; an explicit `filter: null` is
+rejected. An object `filter` permits omitted or null top-level `habit_ids`. Additional arguments
+such as `date` remain permitted.
+`allowed` restricts ambiguity and guardrail cases to read or ask tools.
+The `llm-rubric` assertion receives only `answer`, never tool arguments,
+results, or the raw response. Missing natural-language text fails rather than grading card JSON.
+
+**Tool evidence is pending [orbit-tickets#1573](https://github.com/thomasluizon/orbit-tickets/issues/1573).**
+The verified API response has no trace, and the ticket specifies its contents without field
+names or a definitive opt-in header. `response.mjs:extractTrace` therefore returns an explicit
+skip instead of reading an invented field. Both tool assertions record that skip. A run with
+skips is `incomplete`, exits nonzero, and cannot approve launch even if every answer sounds
+correct. ORB-20 stays open until trace integration and a green live run are complete.
+
+After the API capability ships, confirm its complete response shape and header from a real
+response or the response-producing source. Update only the adapter and request header to map
+the proven fields into this harness-owned envelope:
+
+```js
+{
+  state: 'available',
+  requestId: '<identity sent with the request>',
+  responseRequestId: '<identity bound to the returned trace>',
+  calls: [{
+    name: '<tool name>',
+    arguments: { /* full parsed arguments */ },
+    resultStatus: '<verified API status>',
+    result: { /* complete result payload */ },
+  }],
+}
+```
+
+This is an internal assertion contract, not an API schema. Identity must be tied to the actual
+request; do not copy the returned identity into both fields. Preserve call order in the adapter,
+but never assert the exact sequence. A malformed or mismatched trace must fail. Re-run the
+offline tests with fixtures derived from the verified producer, then request a live run.
+
+### Add a scenario
+
+1. Add an entry to `evals/astra/scenarios.yaml` with a unique stable `metadata.id`, a category,
+   a fixture, a credential environment key, an input, expectations, and a final-answer rubric.
+   `{habitId}`, `{secondHabitId}`, and `{overdueDate}` are substituted in inputs and expected
+   arguments after the fixture reset. Never commit credentials or real account values.
+2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
+   Compound cases require every tool and its key arguments. Bulk cases require exactly one bulk
+   call and forbid its single-item counterpart. Ambiguity cases allow only appropriate reads
+   and asks; the rubric requires a question rather than action.
+3. Extend `catalog.yaml` for newly covered tools using verified API schemas. It contains
+   structural projections of relevant argument fields, permits additional fields, and is used
+   only by the validator. It never changes the tools exposed by the Astra server.
+4. Run `npm test --prefix evals/astra`. Its Vitest tests execute the actual promptfoo CLI with
+   local providers: a correct case passes all three trials, a deliberately wrong ID fails all
+   three, and the rubric grader rejects leaked trace content. HTTP wiring tests replace fetch
+   at the boundary; no server or live endpoint is started. A workflow test enforces manual-only
+   triggering. Live endpoint spot checks remain a separate, explicitly requested run.
+
+### Interface evidence
+
+Promptfoo's [HTTP provider](https://www.promptfoo.dev/docs/providers/http/) remains maintained.
+The pinned package's installed implementation confirms multipart `parts`, `transformResponse`,
+`validateStatus`, bearer templates, `maxRetries`, and the named structural and rubric assertions.
+The offline tests exercise those interfaces. Re-derive the evidence after installation from
+`node_modules/promptfoo/dist/src/providers-Bn5yoNPJ.js` (`HttpProvider`, multipart and response
+transform implementations), `index.js` (`handleIsValidOpenAiToolsCall`, `handleLlmRubric`, and
+`createEvaluateResult`), and `index.d.ts` (`EvaluateResult` and `GradingResult`).
+
+The chat request, final text, refusal fields, and catalog arguments come from orbit-api revision
+`45548c5968e6b7cc18b0551004df38e9e7fe0ad6`: `src/Orbit.Api/Controllers/ChatController.cs`,
+`src/Orbit.Application/Chat/Commands/ProcessUserChatCommand.cs`,
+`src/Orbit.Api/Middleware/ErrorResponse.cs`, `src/Orbit.Domain/Common/Result.cs`, and
+`src/Orbit.Application/Chat/Tools/Implementations/*Tool.cs`, `HabitToolHelpers.cs`, and
+`BulkHabitToolArguments.cs`. No new trace response field is assumed.
 
 ## orbit-api
 

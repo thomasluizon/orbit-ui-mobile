@@ -10,10 +10,10 @@ import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, buildChildrenIndex, formatAPIDate, getAllDoneOnDate, getReturningInterval, hasHabitScheduleOnDate, normalizeHabits } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
-import { DailyStreakMoment } from '@/components/gamification/daily-streak-moment'
+import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
 
-import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { makeEnrichedHabitDetail, makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
@@ -73,6 +73,7 @@ vi.mock('@/lib/posthog', () => ({
 }))
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
     params ? `${key}:${JSON.stringify(params)}` : key,
 }))
@@ -111,7 +112,7 @@ vi.mock('@/lib/actions/habits', () => ({
 vi.mock('@/stores/ui-store', async () => {
   const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
   return { useUIStore: Object.assign(
-    () => ({
+    (selector?: (state: ReturnType<typeof actual.useUIStore.getState>) => unknown) => selector ? actual.useUIStore(selector) : ({
       activeFilters: {},
       showStreakMoment: actual.useUIStore.getState().showStreakMoment,
       completeActiveCelebration: actual.useUIStore.getState().completeActiveCelebration,
@@ -121,6 +122,7 @@ vi.mock('@/stores/ui-store', async () => {
     }),
     {
       getState: () => ({
+        ...actual.useUIStore.getState(),
         activeFilters: {},
         showStreakMoment: actual.useUIStore.getState().showStreakMoment,
         completeActiveCelebration: actual.useUIStore.getState().completeActiveCelebration,
@@ -1693,6 +1695,74 @@ describe('useLogHabit onSuccess', () => {
 
 
 describe('useUpdateHabit', () => {
+  it.each([false, true])('keeps B saved and refetched when A fails, embedded child=%s', async (embedded) => {
+    const { updateHabit } = await import('@/lib/actions/habits')
+    const queryClient = createQueryClient()
+    const original = makeEnrichedHabitDetail()
+    const target = embedded ? original.children[0]! : original
+    const key = habitKeys.detail(original.id)
+    const otherKey = habitKeys.detail('habit-b')
+    const other = { ...makeEnrichedHabitDetail(), id: 'habit-b', title: 'Original B', children: [] }
+    const saved = { ...other, title: 'Saved B from server' }
+    queryClient.setQueryData(key, original)
+    queryClient.setQueryData(otherKey, other)
+    const refetch = vi.fn(async () => saved)
+    const observer = new QueryObserver(queryClient, { queryKey: otherKey, queryFn: refetch, staleTime: Infinity })
+    const unsubscribe = observer.subscribe(() => {})
+    let rejectFirst!: (error: Error) => void
+    vi.mocked(updateHabit).mockImplementation((habitId) => habitId === target.id
+      ? new Promise<void>((_resolve, reject) => { rejectFirst = reject }) : Promise.resolve())
+    const { result, unmount } = renderHook(() => ({ first: useUpdateHabit(), second: useUpdateHabit() }), { wrapper: createWrapper(queryClient) })
+    try {
+      act(() => result.current.first.mutate({ habitId: target.id, data: { title: 'Pending A', isBadHabit: false } }))
+      await waitFor(() => expect(rejectFirst).toBeTypeOf('function'))
+      const optimistic = queryClient.getQueryData<HabitDetail>(key)!
+      expect(embedded ? optimistic.children[0]!.title : optimistic.title).toBe('Pending A')
+      await act(() => result.current.second.mutateAsync({ habitId: other.id, data: { title: 'Saving B', isBadHabit: false } }))
+      await waitFor(() => expect(queryClient.getQueryData(otherKey)).toEqual(saved))
+      expect(refetch).toHaveBeenCalledOnce()
+      await act(async () => { rejectFirst(new Error('A failed')) })
+      await waitFor(() => expect(result.current.first.isError).toBe(true))
+      expect(queryClient.getQueryData(otherKey)).toEqual(saved)
+      expect(queryClient.getQueryData(key)).toEqual(original)
+    } finally {
+      unmount()
+      unsubscribe()
+      queryClient.clear()
+    }
+  })
+
+  it.each([false, true])('updates checked and enriched detail fields before rejection, embedded child=%s', async (embedded) => {
+    const { updateHabit } = await import('@/lib/actions/habits')
+    const queryClient = createQueryClient()
+    const detail = makeEnrichedHabitDetail()
+    const target = embedded ? detail.children[0]! : detail
+    const key = habitKeys.detail(detail.id)
+    queryClient.setQueryData(key, detail)
+    let rejectWrite!: (error: Error) => void
+    vi.mocked(updateHabit).mockImplementation(() => new Promise<void>((_resolve, reject) => { rejectWrite = reject }))
+    function Probe() {
+      const { data: current } = useQuery<HabitDetail>({ queryKey: key, queryFn: () => Promise.resolve(detail), enabled: false })
+      const mutation = useUpdateHabit()
+      const habit = embedded ? current!.children[0]! : current!
+      return React.createElement('input', { type: 'checkbox', role: 'switch', 'aria-label': 'Slip alert', checked: habit.slipAlertEnabled ?? false, onChange: () => mutation.mutate({ habitId: target.id, data: {
+        title: 'Changed', isBadHabit: true, slipAlertEnabled: false, goalIds: [], reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [],
+      } }) })
+    }
+    const { getByRole } = render(React.createElement(QueryClientProvider, { client: queryClient }, React.createElement(Probe)))
+    expect(getByRole('switch')).toBeChecked()
+    act(() => getByRole('switch').click())
+    await waitFor(() => expect(getByRole('switch')).not.toBeChecked())
+    expect(rejectWrite).toBeTypeOf('function')
+    const updated = queryClient.getQueryData<HabitDetail>(key)!
+    expect(embedded ? updated.children[0] : updated).toMatchObject({ title: 'Changed', reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+    if (!embedded) expect(updated.linkedGoals).toEqual([])
+    await act(async () => { rejectWrite(new Error('Update failed')) })
+    await waitFor(() => expect(getByRole('switch')).toBeChecked())
+    expect(queryClient.getQueryData(key)).toEqual(detail)
+    queryClient.clear()
+  })
+
   beforeEach(() => {
     mockFetch.mockReset()
   })
@@ -2709,7 +2779,7 @@ describe('bulk streak and all-done ordering regressions', () => {
       expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['all-done'])
       if (active.kind === 'daily-streak') {
         vi.useFakeTimers()
-        moment = render(React.createElement(DailyStreakMoment, { id: active.id, streak, reducedMotion: true, closeRef: null, onDismiss: () => store.getState().completeActiveCelebration(active.id) }))
+        moment = render(React.createElement(CelebrationPanel))
         await act(() => vi.advanceTimersByTime(DAILY_STREAK_MOMENT_DURATION - 1))
         expect(store.getState().activeCelebration?.kind).toBe('daily-streak')
         await act(() => vi.advanceTimersByTime(1))

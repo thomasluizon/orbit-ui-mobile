@@ -77,3 +77,10 @@ describe('buildOptimisticHabitPatch', () => {
     expect(patch.endDate).toBeNull()
   })
 })
+
+
+it('keeps an edited recurring anchor through optimistic readback without replacing its due cursor', () => {
+  const patch = buildOptimisticHabitPatch(new QueryClient(), { title: 'Read', isBadHabit: false, startDate: '2026-10-26' })
+  expect(patch.startDate).toBe('2026-10-26')
+  expect(patch).not.toHaveProperty('dueDate')
+})

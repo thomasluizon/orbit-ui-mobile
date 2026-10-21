@@ -13,7 +13,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await page.goto('/habits/new')
         const footer = page.locator('[data-habit-create-action]')
         const submit = footer.getByRole('button', { name: messages.habits.createHabit, exact: true })
-        await expect(submit).toBeDisabled()
+        await expect(submit).toBeEnabled()
         const reasonId = await submit.getAttribute('aria-describedby')
         expect(reasonId).toBeTruthy()
         const reason = page.locator(`[id="${reasonId}"]`)

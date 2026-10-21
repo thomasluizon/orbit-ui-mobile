@@ -94,7 +94,16 @@ for (const width of [412, 840, 1352]) {
       const groups = page.getByTestId('profile-settings-groups')
       const firstGroup = page.getByTestId('profile-settings-group-you')
       await expect(firstGroup).toContainText(profile.name)
-      expect(await gutter(firstGroup)).toBeCloseTo(16, 1)
+      // WHY: #1570 retains the 16px child inset inside the centred capped Perfil frame. https://github.com/thomasluizon/orbit-tickets/issues/1570
+      const frame = await firstGroup.evaluate((element) => {
+        const child = element.getBoundingClientRect()
+        const bounds = element.closest('.orbit-content-frame')!.getBoundingClientRect()
+        const scroller = element.closest<HTMLElement>('[data-shell-scroller]')!
+        const left = scroller.getBoundingClientRect().left
+        return { inset: child.left - bounds.left, before: bounds.left - left, after: left + scroller.clientWidth - bounds.right }
+      })
+      expect(frame.inset).toBeCloseTo(16, 1)
+      expect(frame.before).toBeCloseTo(frame.after, 1)
       await expect(groups).toHaveCSS('row-gap', '32px')
       await expect(page.getByTestId('profile-settings-group-more')).toHaveCSS('row-gap', '12px')
       const accountBody = firstGroup.locator('[data-slot="list-row-body"]').first()

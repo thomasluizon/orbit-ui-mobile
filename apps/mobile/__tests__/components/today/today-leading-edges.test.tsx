@@ -7,6 +7,7 @@ import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { TodayAstra } from '@/components/today/today-astra'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { HabitRow } from '@/components/habits/habit-row'
+import { createTokensV2 } from '@/lib/theme'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -137,7 +138,7 @@ function topPosition(node: YogaNode): number {
   return top
 }
 
-function assertPrimaryFill(nodes: Map<Host, YogaNode>, row: [Host, YogaNode]) {
+function assertPrimaryFill(renderer: ReturnType<typeof create>, nodes: Map<Host, YogaNode>, row: [Host, YogaNode]) {
   const primaryLayer = [...nodes].find(([element]) => element.type === 'Pressable' &&
     element.props.accessibilityLabel?.startsWith('Parent habit'))!
   const [, primaryNode] = primaryLayer
@@ -149,8 +150,23 @@ function assertPrimaryFill(nodes: Map<Host, YogaNode>, row: [Host, YogaNode]) {
   expect(typeof pressedStyle).toBe('function')
   if (typeof pressedStyle !== 'function') throw new Error('Primary target has no press feedback')
   expect(StyleSheet.flatten(pressedStyle({ pressed: true }))).toMatchObject({
-    borderRadius: 20, overflow: 'hidden', backgroundColor: expect.any(String),
+    borderRadius: 20, overflow: 'hidden',
   })
+  expect(StyleSheet.flatten(pressedStyle({ pressed: true })).backgroundColor).toBeUndefined()
+  const primary = renderer.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'button' &&
+    typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('Parent habit'))[0]!
+  const parentRow = renderer.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-row')
+    .find((row) => row.findAll((node) => node === primary).length > 0)!
+  const paint = () => StyleSheet.flatten(parentRow.props.style as StyleProp<ViewStyle>)
+  const restingFill = paint().backgroundColor
+  for (const pressed of [true, false]) {
+    const event = primary.props[pressed ? 'onPressIn' : 'onPressOut']
+    if (typeof event !== 'function') throw new Error('Primary target has no press feedback')
+    void act(() => event())
+    expect(paint()).toMatchObject({
+      borderRadius: 20, backgroundColor: pressed ? createTokensV2('orange', 'dark').bgHover : restingFill,
+    })
+  }
 }
 
 function containsHost(host: Host, element: Host): boolean {
@@ -211,7 +227,7 @@ afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontS
 
 describe('Hoje leading edges on Android', () => {
   it.each([320, 384, 600].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].map((selectMode) => ({ width, fontScale, selectMode })))))(
-    'shares two edges at $width dp and $fontScale text scale, selecting=$selectMode', ({ width, fontScale, selectMode }) => {
+    'shares edges per depth at $width dp and $fontScale text scale, selecting=$selectMode', ({ width, fontScale, selectMode }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
       const onDetail = vi.fn()
       const onToggleSelection = vi.fn()
@@ -220,9 +236,9 @@ describe('Hoje leading edges on Android', () => {
         renderer = create(<View style={{ paddingHorizontal: 16 }}>
           <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
           <TodayDateControl {...dateProps} />
-          {(['Leaf', 'Parent', 'Child'] as const).map((title) => <HabitRow key={title} habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })}
-            structuralColumn isSelectMode={selectMode} depth={title === 'Child' ? 1 : 0} hasChildren={title === 'Parent'}
-            childrenTotal={title === 'Parent' ? 2 : 0} actions={{ onToggleExpand: noop, onToggleSelection, onDetail, onEdit: noop }} />)}
+          {(['Leaf', 'Parent', 'Child', 'Child parent'] as const).map((title) => <HabitRow key={title} habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })}
+            structuralColumn isSelectMode={selectMode} depth={title.startsWith('Child') ? 1 : 0} hasChildren={title === 'Parent' || title === 'Child parent'}
+            childrenTotal={title === 'Parent' || title === 'Child parent' ? 2 : 0} actions={{ onToggleExpand: noop, onToggleSelection, onDetail, onEdit: noop }} />)}
         </View>) as typeof renderer
       })
       const hosts = renderer!.toJSON()
@@ -232,18 +248,23 @@ describe('Hoje leading edges on Android', () => {
         layout.setWidth(width)
         layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
         const textEdges = [...nodes].filter(([element]) => element.type === 'Text' && StyleSheet.flatten(element.props.style as StyleProp<TextStyle>).opacity !== 0 &&
-          ['Sua rotina mudou. Vamos conversar?', 'Leaf', 'Parent', 'Child'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
-        expect(textEdges).toHaveLength(4)
+          ['Sua rotina mudou. Vamos conversar?', 'Leaf', 'Parent', 'Child', 'Child parent'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
+        expect(textEdges).toHaveLength(5)
         assertDatePager(nodes, width, fontScale)
         const rows = [...nodes].filter(([element]) => element.props.testID === 'habit-row')
-        expect(rows).toHaveLength(3)
+        expect(rows).toHaveLength(4)
         for (const [rowHost] of rows) assertPaddedBody(nodes, rowHost)
-        for (const [, node] of textEdges) expect(Math.abs(leadingPosition(node) - 84)).toBeLessThanOrEqual(1)
+        for (const [element, node] of textEdges) {
+          const expectedEdge = textContent(element).startsWith('Child') ? 100 : 84
+          expect(Math.abs(leadingPosition(node) - expectedEdge)).toBeLessThanOrEqual(1)
+        }
         for (const [, node] of rows) {
           expect(leadingPosition(node)).toBe(16)
           expect(node.getComputedHeight()).toBeGreaterThanOrEqual(48)
         }
         const progress = [...nodes].find(([element]) => element.type === 'Text' && textContent(element) === '0 de 2')!
+        const progressEdges = [...nodes].filter(([element]) => element.type === 'Text' && textContent(element) === '0 de 2')
+        expect(progressEdges.map(([, node]) => leadingPosition(node))).toEqual([84, 100])
         expect(progress, JSON.stringify([...nodes].filter(([element]) => element.type === 'Text').map(([element]) => textContent(element)))).toBeDefined()
         const [progressHost, progressNode] = progress
         const measuredProgress = measureText(progressHost, StyleSheet.flatten(progressHost.props.style as StyleProp<TextStyle>), fontScale)
@@ -257,7 +278,7 @@ describe('Hoje leading edges on Android', () => {
         expect(selectMode ? onToggleSelection : onDetail).toHaveBeenCalledExactlyOnceWith()
         expect(selectMode ? onDetail : onToggleSelection).not.toHaveBeenCalled()
         if (fontScale === 2) {
-          assertPrimaryFill(nodes, rows[1]!)
+          assertPrimaryFill(renderer!, nodes, rows[1]!)
           const parentHosts = new Set<Host>()
           const collectParentHosts = (host: Host) => {
             parentHosts.add(host)

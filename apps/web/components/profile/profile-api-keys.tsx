@@ -10,10 +10,9 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
-import { openApiKeyScopeOrStartStepUp, submitApiKeyCreation } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage, openApiKeyScopeOrStartStepUp, submitApiKeyCreation } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API_KEY_EXPIRY_DEFAULT, apiKeyFormSchema, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { McpCodeClient } from '@/components/profile/mcp-code-client'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
@@ -62,7 +61,9 @@ function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
             : t('orbitMcp.never')}</dd>
         </div>
       </dl>
-      {apiKey.expiresAtUtc ? <p>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</p> : null}
+      <p>{apiKey.expiresAtUtc
+        ? t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })
+        : t('common.never')}</p>
     </div>
   )
 }
@@ -78,7 +79,7 @@ interface ApiKeyListProps {
 function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readonly<ApiKeyListProps>) {
   const t = useTranslations()
   if (isLoading) {
-    return <p role="status" className="text-sm text-[var(--fg-3)]">{t('common.loading')}</p>
+    return <output className="block text-sm text-[var(--fg-3)]">{t('common.loading')}</output>
   }
   if (loadError) {
     return (
@@ -292,6 +293,13 @@ function ApiKeyGate({ busy, accountReady, error, activeApiKeyCount, onStartStepU
   const [showStepUp, setShowStepUp] = useAccountScopedState(false)
 
   if (!showStepUp) {
+    let keyCountLabel: string | undefined
+    if (activeApiKeyCount === 0) {
+      keyCountLabel = t('profile.apiKeys.noKeys')
+    } else if (activeApiKeyCount != null) {
+      keyCountLabel = t('profile.apiKeys.activeCount', { count: activeApiKeyCount })
+    }
+
     return (
       <RowList>
         {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
@@ -300,9 +308,7 @@ function ApiKeyGate({ busy, accountReady, error, activeApiKeyCount, onStartStepU
           icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
           title={t('profile.apiKeys.open')}
           wrapTitle
-          value={activeApiKeyCount == null ? undefined : activeApiKeyCount === 0
-            ? t('profile.apiKeys.noKeys')
-            : t('profile.apiKeys.activeCount', { count: activeApiKeyCount })}
+          value={keyCountLabel}
           wrapValue
           onClick={() => setShowStepUp(true)}
         />

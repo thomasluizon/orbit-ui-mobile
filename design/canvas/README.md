@@ -3,6 +3,32 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Habit form type and date amendment
+
+Create and edit place the two vertical type radios before the focal title. The editable account-date
+group precedes More details. Task uses its due date; a dated habit uses its persisted start anchor.
+General remains a distinct undated habit with a reachable schedule group. Local date parsing is
+free; explicit Astra dates remain Proposed until accepted or manually selected. Validation preserves
+the draft and focuses the required choice or unresolved date. Offline draft editing and manual
+picking remain available; each platform retains its existing save connectivity boundary.
+The executable Create and Hoje forms put manual cadence inside that disclosure and retain a manual
+emoji control for Task and General. Their date candidates use fg-3 inside the neutral dashed
+perimeter, with a trailing label-hugging Use date action; acceptance or manual selection restores
+normal ink. Detail's read-only DateRow states a date without claiming form dates are immutable.
+
+Habit Detail retains the full quiet type below the full-width title, matching the form choices.
+`habit-form-surfaces.md` and `habit-row-surfaces.md` name the paired owners, retained controls and
+verification boundaries.
+
+### Habit row type vocabulary amendment
+
+Shared rows use the complete nouns `Tarefa` / `Task` or `Hábito` / `Habit` as quiet type metadata
+beneath the full-width title. This supersedes the longer task caption in exported rows, including
+detail children. Form choices and detail headers retain `Tarefa única` / `One-time task` and
+`Hábito` / `Habit`. Row primary and selection accessible names match the short visible caption
+exactly once. Typography, insets, widths, status, counts, checks and menus retain their geometry;
+default controls stay row-centred and every row keeps its supporting footer above 130% text.
+
 ## The authority
 
 **Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records
@@ -15,6 +41,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1588 | Hoje canonical rows restore stored plain text description previews below the title and before metadata, at Geist Sans 14/400 and line height 1.55 with a 4px stack gap. Normal text uses one naturally ellipsized line; above 130% text, up to two lines grow the row. Empty normalized text adds no line. Body feedback replaces the complete radius-20 row fill; sibling actions including selection paint independently and the check centres on the resulting normal row. The painted web row owns reversible 380ms background/outline hover feedback, with a strong hairline and immediate press/reduced-motion feedback | The explicitly requested preview restores stored content through the existing detail path without a new action or request. The active drawing amendment preserves 17/14 titles, the single depth inset and large-text supporting metadata. |
 | Astra blocks in place | `Orbit Astra Conversation` combines the day ring with up to 20 live habit rows and in-place logging; calendar EventRow actions open Calendários with one event selected for import review; streak keeps DayStrip and a read-only FreezeBank linking to Sequência; goals use ProgressBar, tracking badges and named derived sources; metrics keeps BarChart with at most three StatTile figures. The pt-BR stale line reads `A manhã mudou desde que a Astra montou este bloco.` | Blocks reuse their app actions and live state. This supersedes the drawing's goal rings, metrics note excluding a chart, and masculine reference to Astra in the stale line. |
 | #1471 | `Orbit Progresso` and `Orbit Astra Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Astra metrics. |
 | #1483 | Astra choice blocks use one column of radio or checkbox options and explicit Send; labels up to 20 characters and descriptions up to 24 each fit one line at default text size. Above font scale 1.3 or web text zoom 130%, rows grow and text may wrap; never ellipsize at 200% text. Pick list habit names use the full available row width, at most two lines then an ellipsis with the complete accessible name and one-tap label expansion independent of its checkbox; detail fits one line at default text size. Review prepares the existing approval preview. | Selected labels use `--fg-1`, resting labels `--fg-2`; one status line follows the trailing action. Selections use `Intl.ListFormat`, and no answer action writes. Identical answer recovery stays available at the limit and refreshes server usage. |
@@ -50,6 +77,23 @@ that disagrees with production is a trap rather than an authority.
 | 2026-09-10 | Light `--p-l-overdue` from `#946A00` to `#886100` | The old value missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint the session-expiry warning paints text on. The new value measures 4.91, 4.73 and 4.70 on those, and 4.95 on the widget well, preserving the OKLCH hue and its 36.3 degree separation from the accent. |
 | 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
 | 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
+
+### Streak notice amendment surface inventory
+
+| Paired web and Android surface | Contract |
+|---|---|
+| Daily earned streak | Existing shell notice, 16px inset, 12px gap, 28px tabular previous/final figure and plural day unit. One still monochrome 16px OrbitMark inside the 44px neutral measured ring. |
+| Milestone streak | Same lifecycle and mark/ring, with the complete final milestone sentence, 24px inset and 16px gap; no invented previous value. |
+| Other earned facts | Existing copy, queue priority and manual lifetime, with coherent exit handoff and the neutral measured ring replacing the native rotating accent adapter. |
+| Entry, hold and manual exit | Fully opaque +12px entrance, daily figure and ring together in 280ms ease-out; static hold; live-value +12px/fade exit in 220ms ease-in. Retain the actual queue item through completion. |
+| Daily automatic exit and pause | Exit at 2280ms, layout retained until 2500ms; late hover or keyboard focus cancels exit and fallback. Resume a fresh 2500ms schedule after every pause ends. Manual exit stays committed. |
+| Reduced motion and background | Final static mark, ring and value; immediate reduced-motion dismissal. Live changes preserve a held deadline or complete a pending exit. Background settles movement; resume uses the valid clock deadline without replay. |
+| Privacy, announcements and keyboard | Exact ID and account generation guard every callback. Account replacement and invalidation clear immediately. One empty-then-updated polite atomic final announcement; no arrival focus movement, and guarded manual focus recovery. |
+
+The active celebration drawing and DESIGN.md carry this amendment together. Unit guards cover the
+actual paired component/store lifecycle and shared deadlines. The layout workflow and orchestrator
+own rendered transforms, opacity, bounds, both locales/themes, normal/reduced motion and 200% text.
+Real Android rendering, movement feel and TalkBack remain device-verification boundaries.
 
 ### BarChart amendment surface inventory
 

@@ -1,5 +1,9 @@
+import { buildCalendarDayMap } from '../utils/habits'
+import { formatAPIDate, parseAPIDate } from '../utils/dates'
+import type { CalendarDayEntry } from '../types/calendar'
 import type { QueryClient } from '@tanstack/query-core'
-import type { HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
+import { replaceEqualDeep } from '@tanstack/query-core'
+import type { HabitDetail, HabitDetailChild, HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import { buildOptimisticSkipPatch, optimisticSetDatedCompletion, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
 import type { HabitListSnapshots } from './keys'
@@ -210,6 +214,18 @@ export function getTodayHabitList(queryClient: QueryClient, date: string): Habit
   return findTodayHabitList(queryClient, date, false)
 }
 
+export function getCachedCalendarDayMap(queryClient: QueryClient, from: string, to: string): Map<string, CalendarDayEntry[]> {
+  const dayMap = new Map<string, CalendarDayEntry[]>()
+  const date = parseAPIDate(from)
+  while (formatAPIDate(date) <= to) {
+    const day = formatAPIDate(date)
+    const habits = getTodayHabitList(queryClient, day)
+    if (habits) dayMap.set(day, buildCalendarDayMap({ habits, logs: {} }, { from: day, to: day }).get(day) ?? [])
+    date.setDate(date.getDate() + 1)
+  }
+  return dayMap
+}
+
 export function checkTodayAllDoneOrDefer(
   queryClient: QueryClient,
   today: string,
@@ -288,4 +304,44 @@ export function rollbackDatedHabitLists(
       return restoredItems
     })
   }
+}
+
+export type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
+
+export type HabitDetailUpdates = readonly {
+  queryKey: readonly unknown[]
+  previous: HabitDetail
+  optimistic: HabitDetail
+}[]
+
+export function restoreCachedHabitDetails(queryClient: QueryClient, updates: HabitDetailUpdates): void {
+  for (const { queryKey, previous, optimistic } of updates) {
+    try {
+      if (queryClient.getQueryData(queryKey) === optimistic) {
+        queryClient.setQueryData(queryKey, previous)
+      } else {
+        void queryClient.invalidateQueries({ queryKey, exact: true })
+      }
+    } catch {
+      void queryClient.invalidateQueries({ queryKey, exact: true })
+    }
+  }
+}
+
+export function updateCachedHabitDetails(
+  queryClient: QueryClient,
+  updater: (habit: HabitDetailChild) => Partial<HabitDetail>,
+): HabitDetailUpdates {
+  function updateBranch<T extends HabitDetailChild>(habit: T): T {
+    return { ...habit, ...updater(habit), children: habit.children.map(updateBranch) }
+  }
+  const updates: { queryKey: readonly unknown[]; previous: HabitDetail; optimistic: HabitDetail }[] = []
+  for (const [queryKey, detail] of queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() })) {
+    if (!detail) continue
+    const next = replaceEqualDeep(detail, updateBranch(detail))
+    if (next === detail) continue
+    const optimistic = queryClient.setQueryData<HabitDetail>(queryKey, next)
+    if (optimistic) updates.push({ queryKey, previous: detail, optimistic })
+  }
+  return updates
 }

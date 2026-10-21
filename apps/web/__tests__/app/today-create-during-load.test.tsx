@@ -7,6 +7,7 @@ import { buildHabitCreateHref } from '@orbit/shared/utils'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { useVersionGateStore } from '@/stores/version-gate-store'
+import { useToday } from '@/app/(app)/today-provider'
 
 const state = vi.hoisted(() => ({
   profile: undefined as {
@@ -15,11 +16,14 @@ const state = vi.hoisted(() => ({
     hasCompletedTour?: boolean
     hasImportedCalendar?: boolean
     hasSeenImportPrompt?: boolean
+    timeZone?: string | null
+    language?: string
   } | undefined,
   count: 0,
   countLoaded: false,
   isOnline: true,
   pathname: '/',
+  searchParams: new URLSearchParams(),
   wide: false,
   authenticated: true,
   push: vi.fn(),
@@ -34,7 +38,7 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: state.push, prefetch: vi.fn() }),
   usePathname: () => state.pathname,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => state.searchParams,
 }))
 vi.mock('next/dynamic', () => ({
   default: () => ({ open, notice }: { open?: boolean; notice?: React.ReactNode }) =>
@@ -43,7 +47,6 @@ vi.mock('next/dynamic', () => ({
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => state.wide }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
-vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
   useShellComposerSlot: () => {},
   DestinationShell: ({ children, onCreate, notice, createRefusal, conversation, conversationOpen }: { children: React.ReactNode; onCreate: () => void; notice?: React.ReactNode; createRefusal?: React.ReactNode; conversation?: React.ReactNode; conversationOpen?: boolean }) => (
@@ -126,8 +129,14 @@ vi.mock('@/components/tour/tour-overlay', () => ({ TourOverlay: () => null }))
 import AppLayout from '@/app/(app)/layout'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
+function AccountDay() {
+  return <output aria-label="Account day">{useToday(state.profile?.timeZone)}</output>
+}
+
 describe('Today create during first load', () => {
+  const originalTimeZone = process.env.TZ
   beforeEach(() => {
+    process.env.TZ = 'UTC'
     vi.setSystemTime(new Date('2026-09-12T12:00:00.000Z'))
     localStorage.clear()
     useUIStore.setState(useUIStore.getInitialState())
@@ -137,13 +146,19 @@ describe('Today create during first load', () => {
     state.countLoaded = false
     state.isOnline = true
     state.pathname = '/'
+    state.searchParams = new URLSearchParams()
     state.wide = false
     state.authenticated = true
     state.push.mockClear()
     useAppToastStore.setState({ currentToast: null, queue: [] })
   })
 
-  afterEach(() => { localStorage.clear(); vi.useRealTimers() })
+  afterEach(() => {
+    localStorage.clear()
+    vi.useRealTimers()
+    if (originalTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalTimeZone
+  })
 
   it('keeps reload guidance in the main app layout', async () => {
     render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
@@ -255,7 +270,7 @@ describe('Today create during first load', () => {
   it('keeps the requested creation route when session, profile and habit count resolve', async () => {
     const view = render(<QueryAppLayout><div>Today loading</div></QueryAppLayout>)
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
-    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/', date: '2026-09-12' }))
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/' }))
 
     await act(async () => {
       setUIAccountScope('account-a')
@@ -265,7 +280,7 @@ describe('Today create during first load', () => {
       view.rerender(<QueryAppLayout><div>Today loaded</div></QueryAppLayout>)
     })
 
-    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/', date: '2026-09-12' }))
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/' }))
     expect(state.push).not.toHaveBeenCalledWith('/upgrade')
 
     await act(async () => setUIAccountScope('account-b'))
@@ -278,8 +293,61 @@ describe('Today create during first load', () => {
     render(<QueryAppLayout><div>Today loading</div></QueryAppLayout>)
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
-    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/', date: '2026-09-12' }))
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/' }))
     expect(state.push).not.toHaveBeenCalledWith('/upgrade')
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((language) => [
+    { language, instant: '2026-10-21T02:40:00Z', timeZone: 'America/Sao_Paulo', accountDay: '2026-10-20', browserDay: '2026-10-21' },
+    { language, instant: '2026-10-20T12:40:00Z', timeZone: 'Pacific/Kiritimati', accountDay: '2026-10-21', browserDay: '2026-10-20' },
+  ]))('leaves the default to the $language account in $timeZone through profile loading', async ({ language, instant, timeZone, accountDay, browserDay }) => {
+    vi.setSystemTime(new Date(instant))
+    const view = render(<QueryAppLayout><AccountDay /></QueryAppLayout>)
+    expect(screen.getByLabelText('Account day')).toHaveTextContent(browserDay)
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(state.push).toHaveBeenCalledExactlyOnceWith('/habits/new?from=%2F')
+
+    state.profile = { hasProAccess: true, timeZone, language }
+    await act(async () => view.rerender(<QueryAppLayout><AccountDay /></QueryAppLayout>))
+    expect(screen.getByLabelText('Account day')).toHaveTextContent(accountDay)
+    expect(state.push).toHaveBeenCalledExactlyOnceWith('/habits/new?from=%2F')
+
+    state.push.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(state.push).toHaveBeenCalledExactlyOnceWith('/habits/new?from=%2F')
+  })
+
+  it.each(['2026-10-19', '2026-10-26'])('preserves the deliberately selected date %s during profile loading', async (date) => {
+    vi.setSystemTime(new Date('2026-10-21T02:40:00Z'))
+    state.searchParams = new URLSearchParams({ date })
+    const from = `/?date=${date}`
+    const view = render(<QueryAppLayout><div>Today loading</div></QueryAppLayout>)
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from, date }))
+    state.profile = { hasProAccess: true, timeZone: 'America/Sao_Paulo' }
+    await act(async () => view.rerender(<QueryAppLayout><div>Today loaded</div></QueryAppLayout>))
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from, date }))
+  })
+
+  it.each(['not-a-date', '2026-02-30'])('leaves invalid selection %s unseeded', (date) => {
+    state.searchParams = new URLSearchParams({ date })
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: `/?date=${date}` }))
+  })
+
+  it.each([
+    { pathname: '/', activeView: 'all' },
+    { pathname: '/', activeView: 'general' },
+    { pathname: '/calendar', activeView: 'today' },
+    { pathname: '/search', activeView: 'today' },
+  ] as const)('keeps $pathname $activeView return navigation without inheriting a Today date', ({ pathname, activeView }) => {
+    state.pathname = pathname
+    state.searchParams = new URLSearchParams({ date: '2026-10-26' })
+    useUIStore.setState({ activeView })
+    render(<QueryAppLayout><div>Destination</div></QueryAppLayout>)
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: `${pathname}?date=2026-10-26` }))
   })
 
   it('refuses creation beside the action while offline without a shell toast', () => {

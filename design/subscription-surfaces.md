@@ -2,7 +2,7 @@
 
 # Subscription surfaces
 
-Assinatura lives at `/upgrade` on web and Android. It explains the current plan and hands billing changes to the provider. Both routes use the shared content frame, with the purchase column capped at 620 and the management column at 560 on wide windows. The frame starts at the shared start edge inside the centred shell column. Ticket #1384 owns centring on wide windows.
+Assinatura lives at `/upgrade` on web and Android. It explains the current plan and hands billing changes to the provider. Both routes use the shared content frame, with the purchase column capped at 620 and the management column at 560 on wide windows. The frame centres inside the shell scroller's usable width, excluding any reserved scrollbar gutter, while its children retain their 16px inset from the frame (#1570).
 
 | Presentation | Hero and facts | Action and resources |
 | --- | --- | --- |

@@ -46,6 +46,7 @@ export function HabitUnderstanding({
   consumed,
   proposed = false,
   scheduleLocked = false,
+  showSchedule = true,
   showCountCorrection = true,
   onValueChange,
   onEmojiSelect,
@@ -125,11 +126,11 @@ export function HabitUnderstanding({
               <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
             </div>
             <p className={`text-[17px] font-medium leading-[1.4] ${proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{sentence}</p>
-            <ScheduleCorrections proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
+            <ScheduleCorrections hidden={!showSchedule} proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
           </section>
         </Proposed>
       ) : null}
-      {hasValue && sentence === null ? (
+      {showSchedule && hasValue && sentence === null ? (
         <div className="flex flex-col" style={{ gap: 16 }}>
           <p className="rounded-[12px] bg-[var(--bg-well)] p-3 text-sm leading-[1.55] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)]">{labels.unresolved}</p>
           <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
@@ -139,9 +140,10 @@ export function HabitUnderstanding({
   )
 }
 
-type ScheduleCorrectionProps = Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'labels' | 'proposed'> & { showCount: boolean }
+type ScheduleCorrectionProps = Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'labels' | 'proposed'> & { showCount: boolean; hidden?: boolean }
 
-function ScheduleCorrections({ proposed = false, days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels }: Readonly<ScheduleCorrectionProps>) {
+function ScheduleCorrections({ hidden = false, proposed = false, days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels }: Readonly<ScheduleCorrectionProps>) {
+  if (hidden) return null
   return (
     <>
       <fieldset aria-label={labels.days} className="flex flex-wrap" style={{ gap: 4 }}>

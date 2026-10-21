@@ -1,5 +1,5 @@
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -30,6 +30,7 @@ export function CheckCircle({
   accessibilityHint,
   tokens,
 }: Readonly<CheckCircleProps>) {
+  const [hovered, setHovered] = useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
   const popScale = useSharedValue(1)
   const previousState = useRef(state)
@@ -51,6 +52,8 @@ export function CheckCircle({
   return (
     <Pressable
       onPress={onToggle}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       disabled={disabled}
       hitSlop={0}
       focusOffset={-10}
@@ -66,7 +69,7 @@ export function CheckCircle({
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent',
+          backgroundColor: (pressed || hovered) && !disabled ? tokens.bgHover : 'transparent',
           opacity: disabled ? 0.4 : 1,
           transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
         }
