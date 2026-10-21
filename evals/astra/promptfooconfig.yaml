@@ -11,6 +11,8 @@ providers:
       validateStatus: status => status === 200 || status === 403
       headers:
         Authorization: 'Bearer {{env[credentialKey]}}'
+        X-Orbit-Eval-Trace: '1'
+        X-Orbit-Request-Id: '{{evalRequestId}}'
       multipart:
         parts:
           - kind: field

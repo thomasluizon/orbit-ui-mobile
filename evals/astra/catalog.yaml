@@ -22,7 +22,7 @@
       required: [title]
       properties:
         title: { type: string }
-        frequency_unit: { type: [string, 'null'], enum: [Day, Week, Month, Year, null] }
+        frequency_unit: { type: [string, 'null'], enum: [Day, Week, Month, Year, OneTime, null] }
         frequency_quantity: { type: integer }
 - type: function
   writes: true
