@@ -23,7 +23,9 @@ import { TodayDateControl } from '@/app/(app)/today-shell'
 import { HabitRow } from '@/components/habits/habit-row'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { normalizeHabits } from '@orbit/shared/utils'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { bundleGeometry } from '@/__tests__/support/profile-settings-browser'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('@/hooks/use-habit-create-navigation-guard', () => ({ useHabitCreateNavigationGuard: () => {} }))
@@ -38,6 +40,12 @@ const stats = [
   { key: 'missed', value: 2, label: ptBR.calendar.missedCount },
 ] as const
 
+function floatingNotice(state: string) {
+  if (state === 'absent') return undefined
+  if (state === 'empty') return <></>
+  return <div style={{ minHeight: state === 'tall' ? 160 : undefined }}><Toast kind="neutral" message="Saved" /></div>
+}
+
 function expectCentred(bounds: { left: number; right: number }, container: { left: number; right: number }) {
   expect.soft(Math.abs(bounds.left + bounds.right - container.left - container.right)).toBeLessThanOrEqual(2)
 }
@@ -46,10 +54,43 @@ describe('page content centring and add control clearance', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let shortShellScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    shortShellScript = bundleGeometry(`import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { NextIntlClientProvider } from 'next-intl';
+      import { ShellWide } from './components/shell/shell-wide';
+      import { DestinationHeaderRow } from './components/navigation/root-notification-header';
+      import { Composer } from './components/shell/composer';
+      import { BottomTabBar } from './components/navigation/bottom-tab-bar';
+      import { Fab } from './components/ui/fab';
+      import { Toast } from './components/ui/toast';
+      import words from '../../packages/shared/src/i18n/pt-BR.json';
+      const configuration = JSON.parse(document.getElementById('root').dataset.configuration);
+      const items = ['hoje', 'calendario', 'progresso', 'perfil'].map(id => ({ id, href: '/', label: id, icon: () => <span style={{ width: 24, height: 24 }} /> }));
+      const noop = () => {};
+      createRoot(document.getElementById('root')).render(<NextIntlClientProvider locale="pt-BR" messages={words}>
+        <ShellWide items={items.map(({ id, href, label }) => ({ id, href, label, icon: id }))} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: noop }}
+          header={<DestinationHeaderRow><button type="button" style={{ height: 48 }}>Hoje</button></DestinationHeaderRow>}
+          notice={configuration.pressure ? <div style={{ minHeight: 160 }}><Toast kind="neutral" message="Saved" /></div> : undefined}
+          composer={<Composer state="idle" value="Ler" suggestions={[]} words={words.shell.composer}
+            onChangeValue={noop} onSend={noop} onAttachFile={noop}
+            attachWords={{ ...words.shell.composer.attach, remove: name => name }} onOpenConversation={noop} conversationLabel="Astra" />}
+          fab={<Fab label="Criar" onClick={noop}>+</Fab>}
+          tabBar={<BottomTabBar items={items} activeId="hoje" onSelect={noop} label="Navegação" />}>
+          {Array.from({ length: 40 }, (_, index) => <button key={index} type="button" style={{ display: 'block', height: 48 }}>{index}</button>)}
+        </ShellWide>
+      </NextIntlClientProvider>);`, {
+      'next/link': "import React from 'react'; export default ({ children, ...props }) => React.createElement('a', props, children);",
+      '@sentry/nextjs': 'export const captureException = () => {};',
+      '@/stores/auth-store': 'export const useAuthStore = { getState: () => ({ isAuthenticated: true, user: { userId: "shell-account" } }) };',
+      './notification-bell': 'export const NotificationBell = () => null;',
+      '@/components/ui/menu': 'export const Menu = () => null;',
+      '@/components/ui/sheet': 'export const Sheet = () => null;',
+    })
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
@@ -168,27 +209,38 @@ describe('page content centring and add control clearance', () => {
     } finally { await page.close() }
   })
 
-  it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewport =>
-    [{ top: 0, bottom: 0 }, { top: 24, bottom: 16 }].map(insets => ({ ...viewport, ...insets })),
-  ))(
-    'keeps the real composer and bottom controls reachable at $width by $height with insets $top/$bottom', async (viewport) => {
-      const items = ['hoje', 'calendario', 'progresso', 'perfil'].map(id => ({ id, href: '/', label: id, icon: () => <span style={{ width: 24, height: 24 }} /> }))
-      const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
-        <ShellWide items={items.map(({ id, href, label }) => ({ id, href, label, icon: id }))} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
-          header={<button type="button" style={{ height: 48 }}>Hoje</button>}
-          composer={<Composer state="idle" value="Ler" suggestions={[]} words={ptBR.shell.composer}
-            onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
-            attachWords={{ ...ptBR.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Astra" />}
-          fab={<Fab label="Criar" onClick={vi.fn()}>+</Fab>}
-          tabBar={<BottomTabBar items={items} activeId="hoje" onSelect={vi.fn()} label="Navegação" />}>
-          {Array.from({ length: 40 }, (_, index) => <button key={index} type="button" style={{ display: 'block', height: 48 }}>{index}</button>)}
-        </ShellWide>
-      </NextIntlClientProvider>)
+  it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }, { width: 740, height: 360 }, { width: 844, height: 390 }].flatMap(viewport =>
+    [{ top: 0, bottom: 0, left: 0, right: 0 }, { top: 24, bottom: 16, left: 0, right: 0 }].map(insets => ({ ...viewport, ...insets })),
+  ).concat([{ width: 844, height: 390, top: 0, bottom: 21, left: 44, right: 44 }]).flatMap(viewport => [false, true].map(pressure => ({ ...viewport, pressure }))))(
+    'keeps the real composer and bottom controls reachable at $width by $height with insets $top/$bottom, pressure=$pressure', async (viewport) => {
       const page = await browser.newPage({ viewport })
       try {
         const session = await page.context().newCDPSession(page)
-        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: viewport.top, bottom: viewport.bottom, left: 0, right: 0 } })
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: viewport.top, bottom: viewport.bottom, left: viewport.left, right: viewport.right } })
+        await page.setContent(`<style>${stylesheet}:root{font-size:${viewport.pressure ? 32 : 16}px}</style><div id="root"></div>`)
+        await page.locator('#root').evaluate((element, pressure) => { element.dataset.configuration = JSON.stringify({ pressure }) }, viewport.pressure)
+        await page.addScriptTag({ content: shortShellScript })
+        await page.locator('[data-shell-tab-bar]').waitFor({ state: 'visible' })
+        await page.evaluate(() => new Promise<void>(resolve => {
+          const observer = new ResizeObserver(() => { observer.disconnect(); resolve() })
+          observer.observe(document.querySelector('[data-shell-header]')!)
+        }))
+        const settled = await page.evaluate(() => ({
+          bottom: document.querySelector('[data-shell-bottom]')!.getBoundingClientRect().bottom,
+          tabsBottom: document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect().bottom,
+          bottomHeight: document.querySelector('[data-shell-bottom-viewport]')!.getBoundingClientRect().height,
+          pageHeight: document.querySelector('[data-shell-scroller]')!.getBoundingClientRect().height,
+        }))
+        expect.soft(settled.bottom, 'settled trailing chrome stays inside the safe viewport').toBeLessThanOrEqual(viewport.height - viewport.bottom)
+        expect.soft(settled.tabsBottom, 'settled actual tabs stay inside the safe viewport').toBeLessThanOrEqual(viewport.height - viewport.bottom)
+        expect(settled.bottomHeight, 'bottom controls yield before the protected page').toBe(viewport.pressure ? 80 : 64)
+        expect(settled.pageHeight).toBeGreaterThanOrEqual(192)
+        const headerControl = page.locator('[data-shell-header] button')
+        await headerControl.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
+        const headerBounds = (await headerControl.boundingBox())!
+        expect.soft(headerBounds.y, 'outer recovery reveals the complete header').toBeGreaterThanOrEqual(viewport.top)
+        expect(headerBounds.height).toBeGreaterThanOrEqual(48)
+        expect(headerBounds.y + headerBounds.height).toBeLessThanOrEqual(viewport.height - viewport.bottom)
         const geometry = await page.evaluate(() => {
           const box = (element: Element) => { const bounds = element.getBoundingClientRect(); return { top: bounds.top, bottom: bounds.bottom, height: bounds.height } }
           const pinned = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')!
@@ -197,7 +249,7 @@ describe('page content centring and add control clearance', () => {
             control.scrollIntoView({ block: 'nearest', behavior: 'instant' })
             const bounds = control.getBoundingClientRect()
             const target = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
-            return { control: box(control), hit: target === control || control.contains(target) }
+            return { control: box(control), viewport: box(viewport), label: control.getAttribute('aria-label'), hit: target === control || control.contains(target) }
           })
           return { pinned: box(pinned), viewport: box(viewport), controls, header: box(document.querySelector('[data-shell-header]')!),
             scroller: box(document.querySelector('[data-shell-scroller]')!), fab: box(document.querySelector('[data-fab]')!),
@@ -206,14 +258,14 @@ describe('page content centring and add control clearance', () => {
         expect(geometry.pinned.height).toBeGreaterThanOrEqual(56)
         expect(geometry.viewport.height).toBeGreaterThanOrEqual(64)
         expect(geometry.controls.length).toBeGreaterThanOrEqual(4)
-        for (const { control, hit } of geometry.controls) {
-          expect(control.top).toBeGreaterThanOrEqual(geometry.viewport.top)
-          expect(control.bottom).toBeLessThanOrEqual(geometry.viewport.bottom)
+        for (const { control, viewport, label, hit } of geometry.controls) {
+          expect(control.top, label ?? '').toBeGreaterThanOrEqual(viewport.top)
+          expect(control.bottom, label ?? '').toBeLessThanOrEqual(viewport.bottom)
           expect(hit).toBe(true)
         }
         expect(geometry.viewport.top).toBeGreaterThanOrEqual(geometry.header.bottom)
         expect(geometry.viewport.top).toBeGreaterThanOrEqual(geometry.scroller.bottom)
-        expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.pinned.top)
+        expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.viewport.top - 16)
         const tabs = page.locator('[data-shell-tab-bar]')
         await tabs.evaluate(element => element.scrollIntoView({ block: 'end', behavior: 'instant' }))
         expect(await tabs.evaluate(element => element.getBoundingClientRect().bottom)).toBeLessThanOrEqual(viewport.height - viewport.bottom)
@@ -286,28 +338,122 @@ describe('page content centring and add control clearance', () => {
     } finally { await page.close() }
   })
 
-  it.each(windows)('keeps the floating add target outside the scrolling controls at $width by $height', async (viewport) => {
-    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><ShellWide items={[]} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+  it.each([320, 412])('reveals intermediate habit actions through forward and backward Tab at %ipx', async (width) => {
+    const habits = normalizeHabits(Array.from({ length: 40 }, (_, index) => makeHabitScheduleItem({ id: `focus-${index}`, title: `Read chapter ${index}` })))
+    for (const withNotice of [false, true]) {
+      const { container, unmount } = render(<NextIntlClientProvider locale="en" messages={en}><ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+        notice={withNotice ? <Toast kind="neutral" message="Saved" /> : undefined}
+        composer={<Composer state="idle" value="Draft" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
+        fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
+        <div className="flex flex-col gap-3 px-4">{[...habits.values()].map(habit => <HabitRow key={habit.id} habit={habit} actions={{ onDetail: vi.fn(), onLog: vi.fn(), onEdit: vi.fn() }} />)}</div>
+      </ShellWide></NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        for (const backward of [false, true]) {
+          const before = await page.evaluate((backward) => {
+            const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+            const row = scroller.querySelectorAll('[data-testid="habit-row"]')[15]!
+            const check = row.querySelector<HTMLElement>('[data-habit-row-control="check"]')!
+            const menu = row.querySelector<HTMLElement>('[data-habit-row-control="menu"]')!
+            const target = backward ? check : menu
+            const fab = document.querySelector('[data-fab]')!.getBoundingClientRect()
+            scroller.scrollTop += target.getBoundingClientRect().top - (fab.top + 6)
+            ;(backward ? menu : check).focus({ preventScroll: true })
+            const bounds = target.getBoundingClientRect()
+            return { top: bounds.top, bottom: bounds.bottom, fabTop: fab.top, fabBottom: fab.bottom, offset: scroller.scrollTop }
+          }, backward)
+          expect(before.top).toBeGreaterThanOrEqual(before.fabTop)
+          expect(before.bottom).toBeLessThanOrEqual(before.fabBottom)
+          await page.keyboard.press(backward ? 'Shift+Tab' : 'Tab')
+          const after = await page.evaluate((backward) => {
+            const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+            const row = scroller.querySelectorAll('[data-testid="habit-row"]')[15]!
+            const target = row.querySelector<HTMLElement>(`[data-habit-row-control="${backward ? 'check' : 'menu'}"]`)!
+            const bounds = target.getBoundingClientRect()
+            const fab = document.querySelector('[data-fab]')!.getBoundingClientRect()
+            return { focused: document.activeElement === target, indicator: target.matches(':focus-visible'), top: bounds.top, bottom: bounds.bottom,
+              width: bounds.width, height: bounds.height, viewportTop: scroller.getBoundingClientRect().top, fabTop: fab.top, offset: scroller.scrollTop,
+              hit: target.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)) }
+          }, backward)
+          expect(after.focused).toBe(true)
+          expect(after.indicator).toBe(true)
+          expect(after.width).toBeGreaterThanOrEqual(48)
+          expect(after.height).toBeGreaterThanOrEqual(48)
+          expect(after.top).toBeGreaterThanOrEqual(after.viewportTop)
+          expect(after.bottom).toBeLessThanOrEqual(after.fabTop - 16)
+          expect(after.hit).toBe(true)
+          expect(after.offset).toBeGreaterThan(before.offset)
+          await page.keyboard.press(backward ? 'Tab' : 'Shift+Tab')
+          expect(await page.locator('[data-shell-scroller]').evaluate(element => element.scrollTop)).toBe(after.offset)
+        }
+      } finally { await page.close(); unmount() }
+    }
+  })
+
+  it.each([
+    ...windows.map(viewport => ({ ...viewport, mode: 'dark' as const, words: ptBR, textScale: 1, noticeState: 'absent' })),
+    ...[320, 412].flatMap(width => (['dark', 'light'] as const).flatMap(mode => [en, ptBR].flatMap(words =>
+      [1, 2].flatMap(textScale => ['absent', 'empty', 'notice', 'tall'].map(noticeState => ({ width, height: 915, mode, words, textScale, noticeState }))),
+    ))),
+  ])('lets real rows pass beneath the floating target and clear it at scroll end at $width/$height/$mode/$textScale/$noticeState', async ({ mode, words, textScale, noticeState, ...viewport }) => {
+    const habits = normalizeHabits(Array.from({ length: 40 }, (_, index) => makeHabitScheduleItem({ id: `floating-${index}`, title: `Read chapter ${index}` })))
+    const notice = floatingNotice(noticeState)
+    const { container } = render(<NextIntlClientProvider locale={words === en ? 'en' : 'pt-BR'} messages={words}><ShellWide items={[]} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      notice={notice} composer={<Composer state="idle" value="" suggestions={[]} words={words.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       fab={<Fab label="Criar" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
-      {Array.from({ length: 40 }, (_, index) => <button key={index} type="button" style={{ display: 'block', width: '100%', height: 48 }}>{index}</button>)}
+      <div className="flex flex-col gap-3 px-4">{[...habits.values()].map(habit => <HabitRow key={habit.id} habit={habit} actions={{ onDetail: vi.fn(), onLog: vi.fn(), onEdit: vi.fn() }} />)}</div>
     </ShellWide></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      for (const scrollTop of [0, 480, 1920]) {
-        const geometry = await page.evaluate((offset) => {
+      const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet}:root{${theme};font-size:${16 * textScale}px}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      for (const position of ['start', 'middle', 'end'] as const) {
+        const geometry = await page.evaluate((position) => {
           const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
-          scroller.scrollTop = offset
+          scroller.scrollTop = position === 'end' ? scroller.scrollHeight : position === 'middle' ? scroller.scrollHeight / 2 : 0
           const fab = document.querySelector('[data-fab]')!.getBoundingClientRect()
           const viewport = scroller.getBoundingClientRect()
-          const overlaps = [...scroller.querySelectorAll('button')].filter((button) => {
-            const target = button.getBoundingClientRect()
-            return fab.width > 0 && Math.max(target.top, viewport.top) < Math.min(fab.bottom, viewport.bottom) && Math.min(target.bottom, viewport.bottom) > fab.top && target.left < fab.right && target.right > fab.left
-          }).length
-          return { overlaps, fabTop: fab.top, fabWidth: fab.width, scrollerBottom: scroller.getBoundingClientRect().bottom }
-        }, scrollTop)
-        expect(geometry.overlaps).toBe(0)
-        if (geometry.fabWidth > 0) expect(geometry.fabTop).toBeGreaterThanOrEqual(geometry.scrollerBottom)
+          const rows = [...scroller.querySelectorAll('[data-testid="habit-row"]')]
+          const last = rows.at(-1)!
+          const lastControls = [...last.querySelectorAll('[data-habit-row-control="check"], [data-habit-row-control="menu"]')].map(control => {
+            const bounds = control.getBoundingClientRect()
+            return { bottom: bounds.bottom, hit: control.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)) }
+          })
+          const row = rows.find(row => { const bounds = row.getBoundingClientRect(); return Math.min(bounds.bottom - 8, fab.bottom) > Math.max(bounds.top + 8, fab.top) })
+          const freePoints = row ? (() => {
+            const bounds = row.getBoundingClientRect()
+            const y = (Math.max(bounds.top + 8, fab.top) + Math.min(bounds.bottom - 8, fab.bottom)) / 2
+            return [bounds.left + 24, bounds.left + bounds.width / 3, fab.left - 16].map(x => ({ x, y, hit: row.contains(document.elementFromPoint(x, y)) }))
+          })() : []
+          const overlay = document.querySelector('[data-shell-fab-clip]')!
+          const paintOwners = [overlay, ...overlay.querySelectorAll('*')]
+          for (let ancestor = overlay.parentElement; ancestor && !ancestor.hasAttribute('data-shell-page'); ancestor = ancestor.parentElement) paintOwners.push(ancestor)
+          const opaqueFreeSpace = paintOwners.some(owner => {
+            const bounds = owner.getBoundingClientRect()
+            const color = getComputedStyle(owner).backgroundColor
+            return color !== 'rgba(0, 0, 0, 0)' && color !== 'transparent' && freePoints.some(({ x, y }) => x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom)
+          })
+          return { fab: { width: fab.width, top: fab.top, bottom: fab.bottom }, viewport: { top: viewport.top, bottom: viewport.bottom },
+            pinnedTop: document.querySelector('[data-shell-bottom]')!.getBoundingClientRect().top,
+            lastBottom: last.getBoundingClientRect().bottom, lastControls, freePoints, opaqueFreeSpace }
+        }, position)
+        if (viewport.width >= 1024) { expect(geometry.fab.width).toBe(0); continue }
+        expect(geometry.fab.width).toBe(60)
+        expect(geometry.viewport.bottom).toBe(geometry.pinnedTop)
+        expect(geometry.fab.top).toBeGreaterThanOrEqual(geometry.viewport.top)
+        expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.viewport.bottom - 16)
+        if (position === 'end') {
+          expect(geometry.lastBottom).toBeLessThanOrEqual(geometry.fab.top - 16)
+          expect(geometry.lastControls).toHaveLength(2)
+          for (const control of geometry.lastControls) { expect(control.bottom).toBeLessThanOrEqual(geometry.fab.top - 16); expect(control.hit).toBe(true) }
+        } else {
+          expect(geometry.freePoints).toHaveLength(3)
+          for (const point of geometry.freePoints) expect(point.hit).toBe(true)
+          expect(geometry.opaqueFreeSpace).toBe(false)
+        }
       }
     } finally { await page.close() }
   })

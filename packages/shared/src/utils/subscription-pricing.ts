@@ -2,6 +2,7 @@ import { getNumberFormat } from './intl-format-cache'
 
 export function formatPrice(unitAmount: number, currency: string): string {
   const amount = unitAmount / 100
+  // WHY: Keep plan and charge notation tied to currency across UI locales. https://github.com/thomasluizon/orbit-tickets/issues/386
   const locale = currency === 'brl' ? 'pt-BR' : 'en-US'
   const currencyCode = currency.toUpperCase()
 
