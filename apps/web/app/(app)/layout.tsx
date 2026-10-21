@@ -70,7 +70,7 @@ import {
 } from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitDetailRouteDate, isShareableAchievement } from '@orbit/shared/utils'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { isPublicPath } from '@/lib/public-paths'
 import { useHasSessionCookie } from '@/lib/session-cookie-provider'
@@ -100,11 +100,6 @@ export default function AppLayout({
       </TodayProvider>
     </Providers>
   )
-}
-
-function getSelectedDateFromParam(dateParam: string | null): string {
-  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam
-  return formatAPIDate(new Date())
 }
 
 function OpenAstraFromQuery({ pathname, onOpen }: Readonly<{
@@ -141,7 +136,7 @@ function PushHabitCreateFromQuery({ pathname, activeView, onNavigated }: Readonl
     onNavigated()
     useUIStore.getState().setAstraConversationOpen(false)
     setRouteTransitionIntent('forward')
-    router.push(buildHabitCreateHref({ from, conversation, date: activeView === 'today' && pathname === '/' ? getSelectedDateFromParam(searchParams.get('date')) : null }))
+    router.push(buildHabitCreateHref({ from, conversation, date: activeView === 'today' && pathname === '/' ? resolveHabitDetailRouteDate(searchParams.get('date')) : null }))
   }, [activeView, onNavigated, pathname, router, searchParams])
   return null
 }
