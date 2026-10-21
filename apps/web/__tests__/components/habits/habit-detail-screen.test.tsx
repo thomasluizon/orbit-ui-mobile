@@ -1786,7 +1786,13 @@ describe('HabitDetailScreen', () => {
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
-        await page.setContent('<style>' + stylesheet + '</style>' + container.innerHTML)
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => name + ': ' + value + ';').join(' ')
+        await page.setContent('<style>' + stylesheet + ':root { ' + variables + ' } body { background: var(--bg); }</style>' + container.innerHTML)
+        const themeTokens = await page.evaluate(() => {
+          const style = getComputedStyle(document.documentElement)
+          return ['--bg-hover', '--hairline-strong', '--fg-1', '--primary'].map((name) => [name, style.getPropertyValue(name).trim()])
+        })
+        for (const [name, value] of themeTokens) expect(value, name).not.toBe('')
         const heading = page.getByRole('heading', { level: 1, name: mocks.detail!.title })
         const geometry = await heading.evaluate((heading) => {
           const summary = heading.nextElementSibling!
