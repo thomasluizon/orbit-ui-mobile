@@ -80,7 +80,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         })
       }
 
-      test('measures the habit detail composer and inline title', async ({ page, context }) => {
+      test('measures the habit detail composer and full editor fields', async ({ page, context }) => {
         const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title: 'Routine', children: [] })
         const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100,
           monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
@@ -98,8 +98,19 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(60, 1)
         await expectVisibleFieldInsets(page, messages)
         await page.getByRole('button', { name: messages.habits.editHabit, exact: true }).click()
-        await expect(page.getByRole('textbox', { name: messages.habits.form.describe })).toBeVisible()
-        await expectVisibleFieldInsets(page, messages)
+        const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
+        await expect(editor.getByRole('textbox', { name: messages.habits.form.describe, exact: true })).toBeVisible()
+        const startTime = editor.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true })
+        const endTime = editor.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })
+        await expect(startTime).toHaveValue('')
+        await expect(endTime).toBeDisabled()
+        const disabledEndInset = await endTime.evaluate(measureFieldInset)
+        expect(disabledEndInset.paddingStart).toBe(16)
+        expect(disabledEndInset.inset - disabledEndInset.borderStart).toBeCloseTo(16, 1)
+        await startTime.fill('08:00')
+        await expect(endTime).toBeEnabled()
+        await endTime.fill('09:00')
+        await expectVisibleFieldInsets(page, messages, editor)
       })
 
       test('measures sentence, start and end time, checklist, description, tag and goal search fields', async ({ page, context }) => {
