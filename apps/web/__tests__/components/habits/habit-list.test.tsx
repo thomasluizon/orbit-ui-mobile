@@ -1489,6 +1489,88 @@ describe('HabitList', () => {
     }
   })
 
+  it.each((['today', 'all', 'general'] as const).flatMap((view) => [320, 412, 1352].map((width) => ({ view, width }))))(
+    'hydrates an expanded recursive $view tree at $width before content measurement', async ({ view, width }) => {
+    rowImplementation.actual = true
+    useActualHabitVisibility = true
+    const shared = { dueDate: TODAY, scheduledDates: [TODAY], isGeneral: view === 'general' }
+    const greatGrandchild = createMockHabitScheduleChild({ ...shared, id: 'hydration-great-grandchild', title: 'Great grandchild' })
+    const grandchild = createMockHabitScheduleChild({ ...shared, id: 'hydration-grandchild', title: 'Grandchild', hasSubHabits: true, children: [greatGrandchild] })
+    const child = createMockHabitScheduleChild({ ...shared, id: 'hydration-child', title: 'Child', hasSubHabits: true, children: [grandchild] })
+    const parent = createMockHabitScheduleItem({ ...shared, id: 'hydration-parent', title: 'Parent', hasSubHabits: true, children: [child] })
+    Object.assign(mockHabitsData, normalizeHabitQueryData([habitScheduleItemSchema.parse(parent)]))
+    const observations = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>()
+    vi.stubGlobal('ResizeObserver', class implements ResizeObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe(target: Element) { observations.set(target, { callback: this.callback, observer: this }) }
+      unobserve(target: Element) { observations.delete(target) }
+      disconnect() {
+        for (const [target, observation] of observations) if (observation.observer === this) observations.delete(target)
+      }
+    })
+    document.documentElement.style.fontSize = '16px'
+    const createTree = () => <QueryClientProvider client={new QueryClient()}>
+      <HabitList view={view} filters={view === 'general' ? { isGeneral: true } : { dateFrom: TODAY, dateTo: TODAY }} />
+    </QueryClientProvider>
+    const browserWindow = window
+    let serverHtml: string
+    vi.stubGlobal('window', undefined)
+    try { serverHtml = renderToString(createTree()) } finally { vi.stubGlobal('window', browserWindow) }
+    vi.stubGlobal('innerWidth', width)
+    const container = document.createElement('div')
+    container.innerHTML = serverHtml
+    document.body.append(container)
+    const rows = Array.from(container.querySelectorAll<HTMLDivElement>('[data-testid="habit-row"]'))
+    expect(rows.map((row) => row.getAttribute('data-depth'))).toEqual(['0', '1', '2'])
+    expect(rows[2]!.querySelector('[data-habit-row-heading]')).toHaveTextContent('Grandchild')
+    const disclosures = rows.map((row) => row.querySelector('[data-habit-row-control="disclosure"]')!)
+    const panelIds = disclosures.map((disclosure) => disclosure.getAttribute('aria-controls'))
+    for (const [index, disclosure] of disclosures.entries()) {
+      expect(disclosure).toHaveAttribute('aria-label', index === 2 ? 'habits.actions.openSubHabits' : 'common.collapse')
+      expect(disclosure.getAttribute('aria-expanded')).toBe(index === 2 ? null : 'true')
+      if (index < 2) expect(container.querySelector(`[id="${panelIds[index]}"]`)).toContainElement(rows[index + 1]!)
+      else expect(panelIds[index]).toBeNull()
+    }
+    const serverDescriptions = getSortableDescriptions(container)
+    const recoverable = vi.fn()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let unmount: (() => void) | undefined
+    try {
+      const rendered = render(createTree(), { container, hydrate: true, onRecoverableError: recoverable })
+      unmount = rendered.unmount
+      expect(recoverable).not.toHaveBeenCalled()
+      expect(consoleError).not.toHaveBeenCalled()
+      container.querySelectorAll('[data-testid="habit-row"]').forEach((row, index) => expect(row).toBe(rows[index]))
+      expect(disclosures.map((disclosure) => disclosure.getAttribute('aria-controls'))).toEqual(panelIds)
+      expect(disclosures.map((disclosure) => disclosure.getAttribute('aria-expanded'))).toEqual(['true', 'true', null])
+      expect(getSortableDescriptions(container)).toEqual(serverDescriptions)
+      for (const descriptionId of serverDescriptions) expect(container.querySelector(`[id="${descriptionId}"]`)).toBeInTheDocument()
+      const contentWidth = width === 320 ? 284 : Math.min(width, 740) - 32
+      function resize(target: Element) {
+        const observation = observations.get(target)!
+        const size = { inlineSize: contentWidth, blockSize: 52 }
+        observation.callback([{
+          target, contentRect: new DOMRectReadOnly(0, 0, contentWidth, 52),
+          borderBoxSize: [size], contentBoxSize: [size], devicePixelContentBoxSize: [size],
+        }], observation.observer)
+      }
+      await act(async () => resize(container.querySelector('[data-habit-list]')!))
+      await act(async () => { for (const row of container.querySelectorAll('[data-testid="habit-row"]')) resize(row) })
+      expect(Array.from(container.querySelectorAll('[data-testid="habit-row"]')).map((row) => row.getAttribute('data-depth'))).toEqual(width === 320 ? ['0', '1', '2'] : ['0', '1', '2', '3'])
+      expect(disclosures[2]!.getAttribute('aria-expanded')).toBe(width === 320 ? null : 'true')
+      if (width > 320) expect(container.querySelector(`[id="${disclosures[2]!.getAttribute('aria-controls')}"]`)).toHaveTextContent('Great grandchild')
+      expect(Array.from(container.querySelectorAll('[data-testid="habit-row"]')).slice(0, 3)).toEqual(rows)
+      expect(recoverable).not.toHaveBeenCalled()
+      expect(consoleError).not.toHaveBeenCalled()
+    } finally {
+      unmount?.()
+      container.remove()
+      document.documentElement.style.removeProperty('font-size')
+      vi.unstubAllGlobals()
+      consoleError.mockRestore()
+    }
+  })
+
   it.each([false, true])('does not announce whole-day completion from a monthly subset, showCompleted=%s', (showCompleted) => {
     useActualHabitVisibility = true
     accountHabitCount.count = 2

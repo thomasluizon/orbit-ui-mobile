@@ -4,7 +4,7 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import type { Locator, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -229,6 +229,15 @@ describe('habit row standard in Chromium', () => {
     [1, 2].flatMap((scale) => (['en', 'pt-BR'] as const).map((locale) => ({ mode, width, scale, locale }))),
   )))('measures preview, full-row feedback and centres in $mode at $width with $scale text in $locale', async ({ mode, width, scale, locale }) => {
     geometryLocale.value = locale
+    const observations = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>()
+    vi.stubGlobal('ResizeObserver', class implements ResizeObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe(target: Element) { observations.set(target, { callback: this.callback, observer: this }) }
+      unobserve(target: Element) { observations.delete(target) }
+      disconnect() {
+        for (const [target, observation] of observations) if (observation.observer === this) observations.delete(target)
+      }
+    })
     vi.stubGlobal('innerWidth', width)
     document.documentElement.style.fontSize = `${16 * scale}px`
     const description = 'Read two pages before breakfast. '.repeat(12)
@@ -242,13 +251,27 @@ describe('habit row standard in Chromium', () => {
           actions={{ onDetail: vi.fn(), onEdit: vi.fn(), onToggleExpand: vi.fn(), onToggleSelection: vi.fn() }} />,
       ))))}
     </div>)
-    const markup = mounted.container.innerHTML
-    mounted.unmount()
-    document.documentElement.style.removeProperty('font-size')
     const page = await browser.newPage({ viewport: { width, height: 6000 } })
     try {
       const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-      await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;padding:16px;background:var(--bg)}*{transition:none!important;animation:none!important}</style>${markup}`)
+      const styles = `<!doctype html><style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;padding:16px;background:var(--bg)}*{transition:none!important;animation:none!important}</style>`
+      await page.setContent(`${styles}${mounted.container.innerHTML}`)
+      const observed = await page.getByTestId('habit-row').evaluateAll((elements) => Promise.all(elements.map((target) => new Promise<{
+        contentRect: DOMRectInit; borderBoxSize: ResizeObserverSize[]; contentBoxSize: ResizeObserverSize[]; devicePixelContentBoxSize: ResizeObserverSize[]
+      }>((resolve) => {
+        const observer = new ResizeObserver(([entry]) => {
+          const sizes = (boxes: readonly ResizeObserverSize[]) => boxes.map(({ inlineSize, blockSize }) => ({ inlineSize, blockSize }))
+          resolve({ contentRect: entry!.contentRect.toJSON(), borderBoxSize: sizes(entry!.borderBoxSize), contentBoxSize: sizes(entry!.contentBoxSize), devicePixelContentBoxSize: sizes(entry!.devicePixelContentBoxSize) })
+          observer.disconnect()
+        })
+        observer.observe(target)
+      }))))
+      act(() => mounted.container.querySelectorAll('[data-testid="habit-row"]').forEach((target, index) => {
+        const observation = observations.get(target)!
+        const entry = observed[index]!
+        observation.callback([{ ...entry, contentRect: DOMRectReadOnly.fromRect(entry.contentRect), target }], observation.observer)
+      }))
+      await page.setContent(`${styles}${mounted.container.innerHTML}`)
       await loadAppFonts(page)
       page.setDefaultTimeout(3000)
       const rows = page.locator('[data-testid="habit-row"]')
@@ -261,7 +284,12 @@ describe('habit row standard in Chromium', () => {
         await assertPreviewRow(row, page, scale, described, index % 3 === 1 ? messages.habits.rowTypeTask : messages.habits.form.typeHabit)
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-    } finally { await page.close() }
+    } finally {
+      mounted.unmount()
+      document.documentElement.style.removeProperty('font-size')
+      vi.unstubAllGlobals()
+      await page.close()
+    }
   }, 30_000)
 
 })

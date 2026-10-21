@@ -27,8 +27,7 @@ export function useHabitInlineDepthLimit() {
     return () => observer.disconnect()
   }, [])
   const fontScale = useSyncExternalStore(subscribe, textScale, () => 1)
-  const windowWidth = typeof window === 'undefined' ? 320 : window.innerWidth
-  const maxInlineDepth = getHabitInlineDepthLimit(windowWidth, fontScale, contentWidth)
+  const maxInlineDepth = getHabitInlineDepthLimit(320, fontScale, contentWidth)
   return { maxInlineDepth, measureRef, largeText: fontScale > 1.3 }
 }
 
