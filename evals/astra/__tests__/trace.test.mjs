@@ -87,7 +87,7 @@ describe('source-derived trace through the installed HTTP provider', () => {
   })
 
   it('rejects a withheld required result field', async () => {
-    const response = chatResponse(requestId, [toolCall('query_habits', { date: 'today' })])
+    const response = chatResponse(requestId, [toolCall('query_habits', {})])
     const requiredResult = { ...assertionContext, vars: { evalRequestId: requestId,
       expectations: { required: [{ name: 'query_habits', result: {
         entityName: 'No habits found matching the given filters.', payload: null,
