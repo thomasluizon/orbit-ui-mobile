@@ -15,6 +15,7 @@ overdue, current, future, recurring, completed, general and nested habits.
 | Nested habit panels | `components/habits/habit-list.tsx`, `habit-list/tree-helpers.ts` | `components/habit-list.tsx` | Child position order, collapse, drill navigation, child progress and parent settlement including future children in list views |
 | Row actions | `components/habits/habit-list.tsx` | `components/habit-list.tsx` | Existing log, unlog, skip, reschedule, edit, duplicate, delete, move-parent, add-child, detail and selection handlers; eligibility and offline refusals retained |
 | Selection and bulk actions | `app/(app)/use-today-selection.ts`, `components/habits/selection-tray.tsx` | `app/(tabs)/use-today-selection.ts`, `components/habits/selection-tray.tsx` | Pinned tray with exit, select-all, log, skip, move and delete controls; visible-tree select all, cascade, confirmation, current account day in Todos and Geral, clear when changing view; move remains available when completion is read only |
+| Move destinations | `components/habits/habit-list.tsx`, `hooks/use-habit-queries.ts` | `components/habit-list.tsx`, `hooks/use-habit-queries.ts` | On-demand complete scheduled and General inventories; shared topology and destination validity independent of visible filters and dates; loading, retry and retained stale target draft |
 | Creation | `components/habits/create-habit-modal.tsx` | `components/habits/create-habit-modal.tsx` | Existing creation surface; no-set-day default only in Geral; no stale Hoje date in list views |
 | Loading, error and empty lists | `components/habits/habit-list.tsx` | `components/habit-list.tsx` | Existing skeleton and retry; view-specific empty title, create and Astra actions; day completion state only in Hoje |
 | Design contract and regression evidence | `DESIGN.md`, `canvas/Orbit Hoje.dc.html`, web behaviour and geometry tests, layout guard | Android behaviour and geometry tests | Shared normalized fixtures for all three views, persisted selection, default creation and widths from compact phones through foldables |
@@ -26,3 +27,16 @@ At 21 roots, web Todos and Geral virtualize offscreen family rendering with `con
 and an intrinsic size reservation, retaining natural family height and keyboard access. Geral
 temporarily renders every panel while dragging so reorder measurements use the whole list.
 Android retains its virtualized FlatList owners.
+
+Move opens the scheduled inventory without date or view filters and the separate General inventory,
+loading every page through the existing habit queries. Both complete forests supply destination
+rows, current-parent context and cycle/depth checks. Completed one-time containers remain when an
+active descendant needs them. Single and bulk moves refuse incompatible General destinations.
+The visible list keeps its existing query and mutation date.
+
+The picker retains its title and Cancel while loading or recovering a failed inventory. It mounts
+its destination scroller only when both inventories are ready, so the first layout can position
+the actual current parent instantly. Refreshing or losing a source or target disables confirmation;
+a stale destination remains a draft until the person chooses another destination or retries.
+Account resets cancel query results and fence late pages and confirmations. Native bulk Move
+continues to require a live result.

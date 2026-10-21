@@ -1,3 +1,6 @@
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { resetAccountQueries } from '@orbit/shared/query'
+import { createMoveInventoryFixture } from '@orbit/shared/__tests__/move-inventory-fixtures'
 import { createAppendedGeneralSearchItems, createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
@@ -5,7 +8,7 @@ import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
 import { FlatList, StyleSheet, View, type ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, createApiClientError, normalizeHabitQueryData } from '@orbit/shared/utils'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toast } from '@/components/ui/app-toast'
@@ -283,6 +286,21 @@ const mockHabitsData = {
   totalCount: 0,
 }
 
+let moveInventoryStreams: { scheduled: ReturnType<typeof normalizeHabitQueryData>; general: ReturnType<typeof normalizeHabitQueryData> } | null = null
+
+let moveInventoryStatus = { scheduled: 'ready', general: 'ready' }
+
+function moveQueryResult(filters: import('@orbit/shared/types/habit').HabitsFilter) {
+  const inventory = moveInventoryStreams && (Object.keys(filters).length === 0 || (Object.keys(filters).length === 1 && filters.isGeneral === true))
+    ? (filters.isGeneral ? moveInventoryStreams.general : moveInventoryStreams.scheduled) : mockHabitsData
+  const state = moveInventoryStreams && inventory !== mockHabitsData ? moveInventoryStatus[filters.isGeneral ? 'general' : 'scheduled'] : 'ready'
+  return {
+    data: inventory, isSuccess: state === 'ready', isFetching: state === 'loading', isError: state === 'error',
+    getChildren: (parentId: string) => (inventory.childrenByParent.get(parentId) ?? [])
+      .map((id) => inventory.habitsById.get(id)!),
+  }
+}
+
 const mockDrillState = {
   currentParentId: null as string | null,
   currentParent: null as NormalizedHabit | null,
@@ -336,18 +354,13 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
     useHabits: (...args: Parameters<typeof actual.useHabits>) => {
       const [useRealHook] = useState(() => skipFlow.active)
       return useRealHook ? actual.useHabits(...args) : ({
-        data: listQueryState.isError ? undefined : mockHabitsData,
+        ...moveQueryResult(args[0]),
+        data: listQueryState.isError ? undefined : moveQueryResult(args[0]).data,
         isLoading: listQueryState.isLoading,
-        isError: listQueryState.isError,
-        isFetching: false,
+        isError: listQueryState.isError || moveQueryResult(args[0]).isError,
         dataUpdatedAt: mockHabitsDataUpdatedAt,
         refetch: habitListRefetch,
-        getChildren: (parentId: string) => {
-          const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
-          return childIds
-            .map((id) => mockHabitsData.habitsById.get(id))
-            .filter(Boolean) as NormalizedHabit[]
-        },
+
       })
     },
     useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
@@ -612,6 +625,8 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 
 describe('HabitList', () => {
   beforeEach(() => {
+    moveInventoryStatus = { scheduled: 'ready', general: 'ready' }
+    moveInventoryStreams = null
     listQueryState.isLoading = false
     listQueryState.isError = false
     replaySelection.selectedHabitIds = new Set()
@@ -659,6 +674,168 @@ describe('HabitList', () => {
     accountHabitCount.count = 1
     accountHabitCount.isLoaded = true
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it.each(['close', 'account', 'unmount'] as const)('discards late Move work after %s', async (boundary) => {
+    skipFlow.active = true
+    const fixture = createMoveInventoryFixture(TODAY)
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => { release = resolve })
+    offlineMocks.apiClient.mockImplementation(async (url: string) => {
+      if (url.includes('page=2')) await held
+      return fixture.response(url)
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { tree = createTestTree(<QueryClientProvider client={client}>
+      <HabitList filters={{ dateFrom: TODAY }} showCompleted onCreatePress={vi.fn()} />
+    </QueryClientProvider>); await Promise.resolve() })
+    const rows = () => tree!.root.findAllByType(HabitRow)
+    await vi.waitFor(() => expect(rows().some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')).toBe(true))
+    TestRenderer.act(() => rows().find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')!.props.actions.onMoveParent())
+    const picker = () => tree!.root.findByType(MoveParentDialog)
+    expect(picker().props.inventoryState).toBe('loading')
+    if (boundary === 'close') TestRenderer.act(() => picker().props.onClose())
+    else if (boundary === 'account') await TestRenderer.act(async () => { advanceAccountGeneration(); await resetAccountQueries(client, 'signed-out') })
+    else TestRenderer.act(() => tree!.unmount())
+    await TestRenderer.act(async () => { release(); await held })
+    if (boundary !== 'unmount') expect(picker().props.visible).toBe(false)
+    expect(moveHabitParentMutateAsync).not.toHaveBeenCalled()
+    if (boundary !== 'unmount') TestRenderer.act(() => tree!.unmount())
+    client.clear()
+  })
+
+  it('keeps General sources captured across filters and recovers missing or stale inventory', async () => {
+    const source = createMockHabitScheduleItem({ id: 'source', title: 'source', isGeneral: true })
+    Object.assign(mockHabitsData, normalizeHabitQueryData([source]))
+    moveInventoryStreams = { scheduled: normalizeHabitQueryData([createMockHabitScheduleItem({ id: 'scheduled', title: 'Scheduled target' })]),
+      general: normalizeHabitQueryData([source, createMockHabitScheduleItem({ id: 'general-target', title: 'General target', isGeneral: true })]) }
+    const onBulkMove = vi.fn().mockResolvedValue({ results: [{ index: 0, habitId: 'source', status: 'Success' }] })
+    const ref = React.createRef<HabitListHandle>()
+    const list = () => <HabitList ref={ref} filters={{ dateFrom: TODAY, search: 'source' }} showCompleted onCreatePress={vi.fn()}
+      isSelectMode selectedHabitIds={new Set(['source'])} onBulkMove={onBulkMove} />
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(list()) })
+    moveInventoryStatus.general = 'error'
+    TestRenderer.act(() => ref.current!.openBulkMove())
+    const picker = () => tree!.root.findByType(MoveParentDialog)
+    expect(picker().props.inventoryState).toBe('error')
+    expect(picker().props.canSubmit).toBe(false)
+    expect(flattenRenderedText(tree!.toJSON())).not.toContain('habits.moveParent.noDestinations')
+    TestRenderer.act(() => picker().props.onRetryInventory())
+    expect(habitListRefetch).toHaveBeenCalledTimes(2)
+    moveInventoryStatus.general = 'ready'
+    TestRenderer.act(() => tree!.update(list()))
+    expect(picker().props.options.find((option: { id: string }) => option.id === 'general-target').disabled).toBe(false)
+    expect(picker().props.options.find((option: { id: string }) => option.id === 'scheduled').disabled).toBe(true)
+    TestRenderer.act(() => picker().props.onSelectOption('general-target'))
+    moveInventoryStreams.general = normalizeHabitQueryData([source])
+    TestRenderer.act(() => tree!.update(list()))
+    expect(picker().props.inventoryState).toBe('stale')
+    expect(picker().props.selectedMoveParentId).toBe('general-target')
+    expect(picker().props.canSubmit).toBe(false)
+    moveInventoryStreams.general = normalizeHabitQueryData([])
+    TestRenderer.act(() => tree!.update(list()))
+    expect(picker().props.inventoryState).toBe('error')
+    moveInventoryStreams.general = normalizeHabitQueryData([source, createMockHabitScheduleItem({ id: 'general-target', title: 'General target', isGeneral: true })])
+    Object.assign(mockHabitsData, normalizeHabitQueryData([createMockHabitScheduleItem({ id: 'other-visible' })]))
+    TestRenderer.act(() => tree!.update(<HabitList ref={ref} view="general" filters={{ isGeneral: true, isCompleted: true, page: 4 }}
+      showCompleted onCreatePress={vi.fn()} isSelectMode selectedHabitIds={new Set(['other-visible'])} onBulkMove={onBulkMove} />))
+    expect(picker().props.selectedMoveParentId).toBe('general-target')
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.moveParent.confirm'); await Promise.resolve() })
+    expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source'], 'general-target')
+  })
+
+  it.each(['source', 'nested-source'])('waits for both complete streams and searches the actual paginated picker for %s', async (sourceId) => {
+    skipFlow.active = true
+    const fixture = createMoveInventoryFixture(TODAY)
+    const requests: string[] = []
+    let releaseScheduled: () => void = () => {}
+    let releaseGeneral: () => void = () => {}
+    const heldScheduled = new Promise<void>((resolve) => { releaseScheduled = resolve })
+    const heldGeneral = new Promise<void>((resolve) => { releaseGeneral = resolve })
+    offlineMocks.apiClient.mockImplementation(async (url: string) => {
+      requests.push(url)
+      if (url.includes('page=2')) await (url.includes('isGeneral=true') ? heldGeneral : heldScheduled)
+      const response = fixture.response(url)
+      return url.includes('dateFrom=') && sourceId === 'nested-source'
+        ? { ...response, items: [createMockHabitScheduleItem({ id: sourceId, title: sourceId })] } : response
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { tree = createTestTree(<QueryClientProvider client={client}>
+      <HabitList filters={{ dateFrom: TODAY, dateTo: TODAY, search: 'source', isCompleted: false, frequencyUnit: 'Day', tagIds: ['tag'] }} showCompleted onCreatePress={vi.fn()} />
+    </QueryClientProvider>); await Promise.resolve() })
+    const rows = () => tree!.root.findAllByType(HabitRow)
+    await vi.waitFor(() => expect(rows().some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === sourceId)).toBe(true))
+    TestRenderer.act(() => rows().find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === sourceId)!.props.actions.onMoveParent())
+    const picker = () => tree!.root.findByType(MoveParentDialog)
+    await vi.waitFor(() => expect(requests).toHaveLength(5))
+    expect(picker().props.inventoryState).toBe('loading')
+    expect(picker().props.canSubmit).toBe(false)
+    expect(flattenRenderedText(tree!.toJSON())).not.toContain('habits.moveParent.noDestinations')
+    await TestRenderer.act(async () => { releaseScheduled(); await heldScheduled })
+    expect(picker().props.inventoryState).toBe('loading')
+    await TestRenderer.act(async () => { releaseGeneral(); await heldGeneral })
+    await vi.waitFor(() => expect(picker().props.inventoryState).toBeUndefined())
+    const options = picker().props.options as import('@orbit/shared/utils').MoveParentOption[]
+    expect(new Set(options.map((option) => option.id))).toEqual(new Set(fixture.optionIds))
+    for (const id of ['past', 'future', 'finished-container', 'completed-recurring'])
+      expect(options.find((option) => option.id === id)?.disabled).toBe(false)
+    for (const id of sourceId === 'source' ? ['hidden-descendant', 'deep-3', 'general-two'] : ['general-two'])
+      expect(options.find((option) => option.id === id)?.disabled).toBe(true)
+    expect(picker().props.movingHabitParentId).toBe(sourceId === 'source' ? null : 'current-parent')
+    if (sourceId === 'nested-source') expect(options.find((option) => option.id === 'current-parent')?.disabled).toBe(true)
+    const input = tree!.root.findAll((node: { props: { label?: string; onChange?: unknown } }) => node.props.label === 'habits.moveParent.searchPlaceholder' && typeof node.props.onChange === 'function')[0]!
+    TestRenderer.act(() => input.props.onChange('ACAO FUTURA'))
+    const text = flattenRenderedText(tree!.toJSON())
+    expect(text).toContain('General two')
+    expect(text).toContain('Ação futura')
+    expect(text).not.toContain('Past destination')
+    TestRenderer.act(() => input.props.onChange(''))
+    expect(flattenRenderedText(tree!.toJSON())).toContain('Past destination')
+    expect(requests.filter((url) => !url.includes('dateFrom='))).toEqual(expect.arrayContaining([
+      '/api/habits?pageSize=200', '/api/habits?page=2&pageSize=200',
+      '/api/habits?isGeneral=true&pageSize=200', '/api/habits?isGeneral=true&page=2&pageSize=200',
+    ]))
+    expect(requests.filter((url) => !url.includes('dateFrom='))).toHaveLength(4)
+    expect(rows().map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toEqual([sourceId])
+    TestRenderer.act(() => tree!.unmount())
+    client.clear()
+  })
+
+  it.each(['single', 'bulk'] as const)('offers complete account destinations through the actual %s picker', async (entry) => {
+    const source = createMockHabitScheduleItem({ id: 'source', title: 'source' })
+    Object.assign(mockHabitsData, normalizeHabitQueryData([source]))
+    moveInventoryStreams = { scheduled: normalizeHabitQueryData([
+      { ...source, children: [createMockHabitScheduleChild({ id: 'hidden-descendant', title: 'Hidden descendant' })] },
+      createMockHabitScheduleItem({ id: 'past', title: 'Past destination', dueDate: YESTERDAY, scheduledDates: [] }),
+      createMockHabitScheduleItem({ id: 'future', title: 'Future page two', dueDate: TOMORROW, scheduledDates: [] }),
+    ].map((item) => habitScheduleItemSchema.parse(item))), general: normalizeHabitQueryData([
+      habitScheduleItemSchema.parse(createMockHabitScheduleItem({ id: 'general', title: 'General destination', isGeneral: true })),
+    ]) }
+    const onBulkMove = vi.fn().mockResolvedValue({ results: [{ index: 0, habitId: 'source', status: 'Success' }] })
+    const ref = React.createRef<HabitListHandle>()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList ref={ref} showCompleted onCreatePress={vi.fn()}
+      filters={{ dateFrom: TODAY, dateTo: TODAY, search: 'source', tagIds: ['tag'], frequencyUnit: 'Day', isCompleted: false }}
+      isSelectMode={entry === 'bulk'} selectedHabitIds={new Set(['source'])} onBulkMove={onBulkMove} />) })
+    TestRenderer.act(() => {
+      if (entry === 'bulk') ref.current!.openBulkMove()
+      else tree!.root.findAllByType(HabitRow).find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')!.props.actions.onMoveParent()
+    })
+    const picker = () => tree!.root.findByType(MoveParentDialog)
+    const options = picker().props.options as import('@orbit/shared/utils').MoveParentOption[]
+    expect(options.find((option) => option.id === 'past')).toMatchObject({ disabled: false })
+    expect(options.find((option) => option.id === 'future')).toMatchObject({ disabled: false })
+    expect(options.find((option) => option.id === 'hidden-descendant')).toMatchObject({ disabled: true })
+    expect(options.find((option) => option.id === 'general')).toMatchObject({ disabled: true })
+    TestRenderer.act(() => picker().props.onSelectOption('past'))
+    expect(picker().props.canSubmit).toBe(true)
+    TestRenderer.act(() => picker().props.onSelectOption('future'))
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.moveParent.confirm'); await Promise.resolve() })
+    if (entry === 'bulk') expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source'], 'future')
+    else expect(moveHabitParentMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: 'source', data: { parentId: 'future' } })
   })
 
   it.each([100, 101])('enforces the bulk move boundary for %s selected ids', async (count) => {

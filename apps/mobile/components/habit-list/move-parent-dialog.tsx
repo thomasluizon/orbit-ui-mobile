@@ -1,10 +1,12 @@
 import { SPACING } from '@orbit/shared/theme'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentOption, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { ErrorState } from '@/components/ui/error-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
@@ -48,7 +50,7 @@ function MoveTargetRow({
     <RadioRow
       label={option.label}
       textMode={option.id === null ? undefined : 'personal'}
-      selected={selected}
+      selected={!option.disabled && selected}
       {...availability}
       depth={option.depth}
       meta={option.childCount > 0 ? String(option.childCount) : undefined}
@@ -59,6 +61,17 @@ function MoveTargetRow({
       onSelect={() => onSelect(option.id)}
     />
   )
+}
+
+function MoveInventoryBody({ state, onRetry, t, children }: Readonly<{
+  state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentDialogProps['t']; children: ReactNode
+}>) {
+  if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
+  return <>
+    {state ? <ErrorState message={t('errors.fetchHabits')}
+      action={<PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>} /> : null}
+    {state === 'error' ? null : children}
+  </>
 }
 
 /** Move-parent picker sheet (mobile). Presentational: the parent HabitList
@@ -72,6 +85,8 @@ export function MoveParentDialog({
   movingHabitCount,
   error,
   options,
+  inventoryState,
+  onRetryInventory,
   selectedMoveParentId,
   canSubmit,
   onClose,
@@ -98,13 +113,13 @@ export function MoveParentDialog({
   const [searchQuery, setSearchQuery] = useState('')
   const hasPositionedRef = useRef(false)
   useEffect(() => {
-    if (!visible) {
+    if (!visible || inventoryState) {
       hasPositionedRef.current = false
       rowLayouts.current.clear()
       viewportLaidOutRef.current = false
       contentLaidOutRef.current = false
     }
-  }, [visible])
+  }, [visible, inventoryState])
   const title = movingHabitCount === undefined ? t('habits.moveParent.title')
     : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
   async function confirmMove() {
@@ -142,6 +157,8 @@ export function MoveParentDialog({
       }
     >
       <View style={{ flexShrink: 1, gap: 8 }}>
+        <MoveInventoryBody state={inventoryState} onRetry={onRetryInventory} t={t}>
+
         <MoveDialogDescription
           t={t}
           name={movingHabitTitle}
@@ -173,7 +190,7 @@ export function MoveParentDialog({
           {rootOption ? (
             <MoveTargetRow
               option={rootOption}
-              selected={!rootOption.disabled && rootOption.id === selectedMoveParentId}
+              selected={rootOption.id === selectedMoveParentId}
               isCurrentParent={rootOption.id === movingHabitParentId}
               currentLabel={t('habits.moveParent.currentParent')}
               tokens={tokens}
@@ -195,7 +212,7 @@ export function MoveParentDialog({
               }}>
                 <MoveTargetRow
                   option={option}
-                  selected={!option.disabled && option.id === selectedMoveParentId}
+                  selected={option.id === selectedMoveParentId}
                   isCurrentParent={option.id === movingHabitParentId}
                   currentLabel={t('habits.moveParent.currentParent')}
                   tokens={tokens}
@@ -209,6 +226,7 @@ export function MoveParentDialog({
 
         <Text accessibilityLiveRegion="polite" style={[styles.moveDialogError, !error && styles.emptyError]}>{error}</Text>
         <MoveEmptyState t={t} options={options} isSearchEmpty={isSearchEmpty} styles={styles} />
+        </MoveInventoryBody>
       </View>
     </Sheet>) : null
   )

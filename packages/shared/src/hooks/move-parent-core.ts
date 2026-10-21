@@ -8,11 +8,13 @@ export interface MoveParentState {
   habitId: string | null
   selectedParentId: string | null | undefined
   pending: boolean
+  targetChosen: boolean
+  operation: object
   error: string | null
 }
 
 export function createMoveParentState(): MoveParentState {
-  return { open: false, bulkIds: null, habitId: null, selectedParentId: null, pending: false, error: null }
+  return { open: false, bulkIds: null, habitId: null, selectedParentId: null, pending: false, targetChosen: false, operation: {}, error: null }
 }
 
 interface MoveParentActionsOptions {
@@ -25,6 +27,7 @@ interface MoveParentActionsOptions {
   moveBulk?: (habitIds: string[], parentId: string | null) => Promise<BulkMoveHabitParentResult | undefined>
   partialError: string
   formatError: (error: unknown) => string
+  getAccountGeneration?: () => number
 }
 
 interface MoveParentActions {
@@ -32,11 +35,12 @@ interface MoveParentActions {
   openSingle: (habitId: string) => void
   close: () => void
   select: (selectedParentId: string | null) => void
-  confirm: () => Promise<boolean>
+  confirm: (isCurrent?: () => boolean) => Promise<boolean>
 }
 
 export function createMoveParentActions(options: MoveParentActionsOptions): MoveParentActions {
   const { applyState, habitsById, selectedHabitIds, moveBulk } = options
+  let confirming = false
   return {
     openBulk: () => {
       const ids = Array.from(selectedHabitIds ?? [])
@@ -48,33 +52,42 @@ export function createMoveParentActions(options: MoveParentActionsOptions): Move
       if (!habit) return
       applyState(() => ({ ...createMoveParentState(), open: true, habitId, selectedParentId: habit.parentId }))
     },
-    close: () => { applyState(createMoveParentState) },
-    select: (selectedParentId: string | null) => { applyState((previous) => ({ ...previous, selectedParentId })) },
-    confirm: () => confirmMoveParent(options),
+    close: () => { applyState((previous) => previous.operation === options.state.operation ? createMoveParentState() : previous) },
+    select: (selectedParentId: string | null) => { applyState((previous) => previous.operation === options.state.operation ? { ...previous, selectedParentId, targetChosen: true } : previous) },
+    confirm: async (isCurrent) => {
+      if (confirming) return false
+      confirming = true
+      try { return await confirmMoveParent(options, isCurrent) }
+      finally { confirming = false }
+    },
   }
 }
 
-async function confirmMoveParent({ state, applyState, canSubmit, moveSingle, moveBulk, partialError, formatError }: MoveParentActionsOptions) {
-  if (!canSubmit || state.selectedParentId === undefined) return false
-  applyState((previous) => ({ ...previous, pending: true, error: null }))
+async function confirmMoveParent({ state, applyState, canSubmit, moveSingle, moveBulk, partialError, formatError, getAccountGeneration }: MoveParentActionsOptions, isCurrentOperation: () => boolean = () => true) {
+  if (!canSubmit || state.selectedParentId === undefined || state.pending || !isCurrentOperation()) return false
+  const accountGeneration = getAccountGeneration?.()
+  const isCurrent = () => isCurrentOperation() && getAccountGeneration?.() === accountGeneration
+  const updateCurrent: typeof applyState = (update) => applyState((previous) =>
+    isCurrent() && previous.operation === state.operation ? update(previous) : previous)
+  updateCurrent((previous) => ({ ...previous, pending: true, error: null }))
   try {
     if (state.bulkIds && moveBulk) {
       const result = await moveBulk(state.bulkIds, state.selectedParentId)
-      if (!result) return false
+      if (!isCurrent() || !result) return false
       const failedIds = getFailedBulkHabitIds(result.results)
       if (failedIds.length > 0) {
-        applyState((previous) => ({ ...previous, bulkIds: failedIds, error: partialError }))
+        updateCurrent((previous) => ({ ...previous, bulkIds: failedIds, error: partialError }))
         return false
       }
     } else if (state.habitId) {
       await moveSingle(state.habitId, state.selectedParentId)
     }
-    return true
+    return isCurrent()
   } catch (error) {
-    applyState((previous) => ({ ...previous, error: formatError(error) }))
+    updateCurrent((previous) => ({ ...previous, error: formatError(error) }))
     return false
   } finally {
-    applyState((previous) => ({ ...previous, pending: false }))
+    updateCurrent((previous) => ({ ...previous, pending: false }))
   }
 }
 

@@ -420,12 +420,16 @@ describe('MoveParentDialog', () => {
 describe('move picker initial positioning', () => {
   beforeEach(() => __resetTestHostConfig())
 
-  it('scrolls once without animation and resets to zero after a search keystroke', async () => {
+  it.each([false, true])('scrolls once without animation after loading=%s and resets after search', async (loading) => {
     const scrollTo = vi.fn()
     __setScrollToImpl(scrollTo)
     const options = [makeOption({ id: null, label: 'Top level' }),
       ...Array.from({ length: 12 }, (_, index) => makeOption({ id: `p${index}`, label: `Parent ${index}` }))]
-    const { tree } = renderDialog({ options, movingHabitParentId: 'p9' })
+    const { tree, props } = renderDialog({ options: loading ? [] : options, movingHabitParentId: loading ? undefined : 'p9', inventoryState: loading ? 'loading' : undefined })
+    if (loading) {
+      expect(tree.root.findAll((node) => node.type === 'ScrollView')).toHaveLength(0)
+      await TestRenderer.act(() => tree.update(<MoveParentDialog {...props} options={options} inventoryState={undefined} movingHabitParentId="p9" />))
+    }
     const layouts = tree.root.findAll((node) => node.type === View && String(node.props.testID).startsWith('move-target-'))
     await TestRenderer.act(() => {
       layouts.forEach((row, index) => (row.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { y: index * 64 + 4, height: 60 } } }))

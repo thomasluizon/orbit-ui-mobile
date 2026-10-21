@@ -2,10 +2,12 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Home, Search } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils'
+import { ErrorState } from '@/components/ui/error-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -45,7 +47,7 @@ function MoveTargetRow({
       label={option.label}
       textMode={option.id === null ? undefined : 'personal'}
       description={undefined}
-      selected={selected}
+      selected={!option.disabled && selected}
       {...availability}
       depth={option.depth}
       meta={option.childCount > 0 ? String(option.childCount) : undefined}
@@ -56,6 +58,17 @@ function MoveTargetRow({
       onSelect={() => onSelect(option.id)}
     />
   )
+}
+
+function MoveInventoryBody({ state, onRetry, t, children }: Readonly<{
+  state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentOverlayProps['t']; children: ReactNode
+}>) {
+  if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
+  return <>
+    {state ? <ErrorState message={t('errors.fetchHabits')}
+      action={<PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>} /> : null}
+    {state === 'error' ? null : children}
+  </>
 }
 
 /** Move-parent picker overlay (web). Presentational — the parent HabitList owns
@@ -69,6 +82,8 @@ export function MoveParentOverlay({
   movingHabitCount,
   error,
   options,
+  inventoryState,
+  onRetryInventory,
   selectedMoveParentId,
   canSubmit,
   onClose,
@@ -77,7 +92,7 @@ export function MoveParentOverlay({
 }: Readonly<MoveParentOverlayProps>) {
   const [searchQuery, setSearchQuery] = useState('')
   const hasPositionedRef = useRef(false)
-  useEffect(() => { if (!open) hasPositionedRef.current = false }, [open])
+  useEffect(() => { if (!open || inventoryState) hasPositionedRef.current = false }, [open, inventoryState])
   const title = movingHabitCount === undefined ? t('habits.moveParent.title')
     : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
   async function confirmMove() {
@@ -127,6 +142,8 @@ export function MoveParentOverlay({
       }
     >
       <div ref={focusRef} tabIndex={-1} className="flex flex-col min-h-0" style={{ gap: 8 }}>
+        <MoveInventoryBody state={inventoryState} onRetry={onRetryInventory} t={t}>
+
         {movingHabitCount === undefined && movingHabitTitle ? (
           <p className="text-sm text-[var(--fg-3)]">
             {t('habits.moveParent.description', { name: movingHabitTitle })}
@@ -157,7 +174,7 @@ export function MoveParentOverlay({
           {rootOption && (
             <MoveTargetRow
               option={rootOption}
-              selected={!rootOption.disabled && rootOption.id === selectedMoveParentId}
+              selected={rootOption.id === selectedMoveParentId}
               isCurrentParent={rootOption.id === movingHabitParentId}
               currentLabel={t('habits.moveParent.currentParent')}
               onSelect={onSelectOption}
@@ -166,10 +183,10 @@ export function MoveParentOverlay({
 
           <div ref={positionOptions} data-slot="move-destinations-scroll" className="flex flex-col overflow-y-auto overscroll-contain min-h-0 relative" style={{ gap: 4 }}>
           {treeRows.map((option) => (
-            <div key={option.id} data-current-parent={option.id === movingHabitParentId}>
+            <div key={option.id} data-move-parent-id={option.id} data-current-parent={option.id === movingHabitParentId}>
               <MoveTargetRow
                 option={option}
-                selected={!option.disabled && option.id === selectedMoveParentId}
+                selected={option.id === selectedMoveParentId}
                 isCurrentParent={option.id === movingHabitParentId}
                 currentLabel={t('habits.moveParent.currentParent')}
                 onSelect={onSelectOption}
@@ -197,6 +214,7 @@ export function MoveParentOverlay({
             {t('habits.moveParent.noSearchResults')}
           </p>
         )}
+        </MoveInventoryBody>
       </div>
     </Sheet>) : null
   )

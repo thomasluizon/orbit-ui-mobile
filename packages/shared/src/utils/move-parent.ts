@@ -1,4 +1,5 @@
 import type { NormalizedHabit } from '../types/habit'
+import { buildChildrenIndex, sortNormalizedHabits } from './habit-normalization'
 import { isHabitSelectableAsMoveTarget, filterMoveTargetsBySearch } from './habit-visibility'
 
 export interface MoveParentOption {
@@ -27,9 +28,40 @@ export interface MoveParentPickerProps {
   options: MoveParentOption[]
   selectedMoveParentId: string | null | undefined
   canSubmit: boolean
+  inventoryState?: 'loading' | 'error' | 'stale'
+  onRetryInventory?: () => void
   onClose: () => void
   onConfirm: () => void | Promise<boolean>
   onSelectOption: (optionId: string | null) => void
+}
+
+interface MoveInventoryQuery {
+  data: { habitsById: ReadonlyMap<string, NormalizedHabit> } | undefined
+  isSuccess: boolean
+  isFetching: boolean
+  isError: boolean
+}
+
+interface MoveParentInventory {
+  habitsById: Map<string, NormalizedHabit>
+  getChildren: (parentId: string) => NormalizedHabit[]
+  topLevelHabits: NormalizedHabit[]
+  state: 'loading' | 'error' | undefined
+}
+
+export function getMoveParentInventory(scheduled: MoveInventoryQuery, general: MoveInventoryQuery): MoveParentInventory {
+  const state = scheduled.isError || general.isError ? 'error' as const
+    : !scheduled.isSuccess || !general.isSuccess || scheduled.isFetching || general.isFetching
+      || !scheduled.data || !general.data ? 'loading' as const : undefined
+  const habitsById = new Map<string, NormalizedHabit>(state ? [] : [
+    ...scheduled.data!.habitsById, ...general.data!.habitsById,
+  ])
+  const childrenByParent = buildChildrenIndex(habitsById)
+  const getChildren = (parentId: string) => (childrenByParent.get(parentId) ?? [])
+    .map((id) => habitsById.get(id)!).sort(sortNormalizedHabits)
+  const topLevelHabits = Array.from(habitsById.values())
+    .filter((habit) => habit.parentId === null).sort(sortNormalizedHabits)
+  return { habitsById, getChildren, topLevelHabits, state }
 }
 
 export function getMoveParentRowAvailability(option: MoveParentOption, currentLabel: string):
@@ -67,6 +99,7 @@ interface MoveValidationDeps {
 }
 
 interface MoveParentOptionsDeps {
+  state?: MoveParentInventory['state']
   habitsById: ReadonlyMap<string, NormalizedHabit>
   maxHabitDepth: number
   topLevelHabits: NormalizedHabit[]
@@ -136,6 +169,10 @@ export function validateMoveTarget(
 
   if (targetParentId && isHabitDescendant(habitsById, targetParentId, draggedId)) {
     return { valid: false, reason: t('habits.moveParent.invalidDescendant') }
+  }
+
+  if (targetParentId && habitsById.get(targetParentId)?.isGeneral !== habitsById.get(draggedId)?.isGeneral) {
+    return { valid: false, reason: t('errors.api.generalMismatchWithParent') }
   }
 
   const newParentDepth = targetParentId
@@ -247,18 +284,24 @@ export function getMoveParentSelection(
   deps: MoveParentOptionsDeps,
   movingHabitId: string | readonly string[] | null,
   selectedMoveParentId: string | null | undefined,
+  targetChosen = false,
 ): {
   moveIds: readonly string[]
   sharedMoveParentId: string | null | undefined
   moveParentOptions: MoveParentOption[]
   selectedMoveOption: MoveParentOption | null
+  inventoryState: MoveParentPickerProps['inventoryState']
 } {
   const moveIds = movingHabitId === null ? [] : typeof movingHabitId === 'string' ? [movingHabitId] : movingHabitId
   const moveParentOptions = buildMoveParentOptions(deps, movingHabitId)
+  const selectedMoveOption = moveParentOptions.find((option) => option.id === selectedMoveParentId) ?? null
+  const inventoryState = deps.state ?? (moveIds.some((id) => !deps.habitsById.has(id)) ? 'error'
+    : targetChosen && (!selectedMoveOption || selectedMoveOption.disabled) ? 'stale' : undefined)
   return {
     moveIds,
     sharedMoveParentId: getSharedMoveParentId(deps.habitsById, moveIds),
     moveParentOptions,
-    selectedMoveOption: moveParentOptions.find((option) => option.id === selectedMoveParentId) ?? null,
+    selectedMoveOption,
+    inventoryState,
   }
 }

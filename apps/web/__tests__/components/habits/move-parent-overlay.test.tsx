@@ -39,23 +39,11 @@ function renderOverlay(
   selectedMoveParentId: string | null = null,
   overrides: Partial<Parameters<typeof MoveParentOverlay>[0]> = {},
 ) {
-  render(
-    <MoveParentOverlay
-      t={(key) => key}
-      open
-      isMoving={false}
-      movingHabitTitle="Exercise"
-      movingHabitParentId={null}
-      options={options}
-      selectedMoveParentId={selectedMoveParentId}
-      canSubmit={false}
-      onClose={vi.fn()}
-      onConfirm={vi.fn()}
-      onSelectOption={onSelectOption}
-      {...overrides}
-    />,
-  )
-  return { onSelectOption }
+  const props: Parameters<typeof MoveParentOverlay>[0] = {
+    t: (key) => key, open: true, isMoving: false, movingHabitTitle: 'Exercise', movingHabitParentId: null,
+    options, selectedMoveParentId, canSubmit: false, onClose: vi.fn(), onConfirm: vi.fn(), onSelectOption, ...overrides,
+  }
+  return { ...render(<MoveParentOverlay {...props} />), onSelectOption, props }
 }
 
 describe('MoveParentOverlay', () => {
@@ -218,16 +206,21 @@ describe('MoveParentOverlay', () => {
 describe('move picker initial positioning', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('positions once at the disabled current parent with a row of context', () => {
+  it.each([false, true])('positions once at the disabled current parent after loading=%s', (loading) => {
     vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (this: HTMLElement) {
       return this.dataset.currentParent === 'true' ? 640 : 0
     })
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(64)
-    renderOverlay([
+    const options = [
       makeOption({ id: null, label: 'Top level', disabled: false }),
       ...Array.from({ length: 12 }, (_, index) => makeOption({ id: `p${index}`, label: `Parent ${index}`,
         disabled: index === 9, reason: index === 9 ? 'This habit is already here' : null })),
-    ], vi.fn(), 'p9', { movingHabitParentId: 'p9' })
+    ]
+    const rendered = renderOverlay(loading ? [] : options, vi.fn(), 'p9', { movingHabitParentId: loading ? undefined : 'p9', inventoryState: loading ? 'loading' : undefined })
+    if (loading) {
+      expect(document.querySelector('[data-slot="move-destinations-scroll"]')).toBeNull()
+      rendered.rerender(<MoveParentOverlay {...rendered.props} options={options} inventoryState={undefined} movingHabitParentId="p9" />)
+    }
     const scroll = document.querySelector<HTMLElement>('[data-slot="move-destinations-scroll"]')!
     expect(scroll.scrollTop).toBe(576)
     const current = screen.getByRole('radio', { name: /Parent 9/ })

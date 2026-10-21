@@ -4,6 +4,7 @@ import type { NormalizedHabit } from '../types/habit'
 import {
   buildMoveParentOptions,
   getMoveParentPickerRows,
+  getMoveParentInventory,
   getMoveParentSelection,
   getMoveParentRowAvailability,
   getMoveParentScrollOffset,
@@ -92,6 +93,18 @@ describe('buildMoveParentOptions', () => {
     const options = buildOptions([container, doneChild], 'mover')
 
     expect(options.map((option) => option.id)).toEqual([null])
+  })
+
+  it.each([false, true])('refuses a single source with a differing General destination, source General=%s', (isGeneral) => {
+    const options = buildOptions([
+      createMockHabit({ id: 'source', isGeneral }),
+      createMockHabit({ id: 'compatible', isGeneral }),
+      createMockHabit({ id: 'mismatch', isGeneral: !isGeneral }),
+    ], 'source')
+    expect(options.find((option) => option.id === 'compatible')?.disabled).toBe(false)
+    expect(options.find((option) => option.id === 'mismatch')).toMatchObject({
+      disabled: true, reason: 'errors.api.generalMismatchWithParent',
+    })
   })
 
   it('still disables self, descendant, and depth-exceeding targets', () => {
@@ -205,5 +218,35 @@ describe('move parent selection projection', () => {
     expect(closed.moveIds).toEqual([])
     expect(closed.moveParentOptions).toEqual([])
     expect(closed.selectedMoveOption).toBeNull()
+  })
+})
+
+describe('complete move inventory', () => {
+  it('combines both forests with their full parent links and stable position ordering', () => {
+    const scheduled = { isSuccess: true, isFetching: false, isError: false, data: buildTree([
+      createMockHabit({ id: 'scheduled', position: 2 }), createMockHabit({ id: 'child', parentId: 'scheduled', position: 1 }),
+      createMockHabit({ id: 'early-child', parentId: 'scheduled', position: 0 }),
+    ]) }
+    const general = { isSuccess: true, isFetching: false, isError: false, data: buildTree([createMockHabit({ id: 'general', isGeneral: true, position: 0 })]) }
+    const inventory = getMoveParentInventory(scheduled, general)
+    expect(inventory.state).toBeUndefined()
+    expect(inventory.topLevelHabits.map((habit) => habit.id)).toEqual(['general', 'scheduled'])
+    expect(inventory.getChildren('scheduled').map((habit) => habit.id)).toEqual(['early-child', 'child'])
+    expect(inventory.habitsById.get('child')?.parentId).toBe('scheduled')
+    expect(inventory.getChildren('absent')).toEqual([])
+  })
+
+  it.each(['scheduled', 'general'] as const)('refuses incomplete, refetching or failed %s topology', (domain) => {
+    const ready = { isSuccess: true, isFetching: false, isError: false, data: buildTree([createMockHabit()]) }
+    for (const unsettled of [
+      { ...ready, data: undefined, isSuccess: false },
+      { ...ready, isFetching: true },
+      { ...ready, isError: true },
+    ]) {
+      const inventory = getMoveParentInventory(domain === 'scheduled' ? unsettled : ready, domain === 'general' ? unsettled : ready)
+      expect(inventory.state).toBe(unsettled.isError ? 'error' : 'loading')
+      expect(inventory.habitsById.size).toBe(0)
+      expect(inventory.topLevelHabits).toEqual([])
+    }
   })
 })

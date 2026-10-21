@@ -14,12 +14,16 @@ function setup(selectedIds = ['source', 'child', 'other']) {
   let state = createMoveParentState()
   const moveSingle = vi.fn().mockResolvedValue(undefined)
   const moveBulk = vi.fn().mockResolvedValue(outcome())
-  const actions = () => createMoveParentActions({
-    state, applyState: (update) => { state = update(state) },
+  const actions = () => {
+    const snapshot = state
+    const actions = createMoveParentActions({
+    state: snapshot, applyState: (update) => { state = update(state) },
     habitsById: new Map(habits.map((habit) => [habit.id, habit])),
     selectedHabitIds: new Set(selectedIds), canSubmit: true,
     moveSingle, moveBulk, partialError: 'partial', formatError: () => 'network',
   })
+    return { ...actions, confirm: () => actions.confirm(() => snapshot.operation === state.operation) }
+  }
   return { actions, getState: () => state, moveSingle, moveBulk }
 }
 
@@ -72,6 +76,36 @@ describe('shared move parent state', () => {
     expect(await flow.actions().confirm()).toBe(true)
     expect(flow.moveSingle).toHaveBeenCalledExactlyOnceWith('source', 'destination')
     expect(flow.moveBulk).not.toHaveBeenCalled()
+  })
+
+  it('does not duplicate a pending confirmation or apply it after close and reopen', async () => {
+    const flow = setup()
+    let finish: (result: BulkMoveHabitParentResult) => void = () => {}
+    flow.moveBulk.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    flow.actions().openBulk()
+    flow.actions().select('destination')
+    const action = flow.actions()
+    const pending = action.confirm()
+    expect(await action.confirm()).toBe(false)
+    expect(flow.moveBulk).toHaveBeenCalledOnce()
+    flow.actions().close()
+    flow.actions().openSingle('source')
+    finish(outcome(['child']))
+    expect(await pending).toBe(false)
+    expect(flow.getState()).toMatchObject({ open: true, habitId: 'source', bulkIds: null, pending: false, error: null })
+  })
+
+  it('refuses completion and state writes after its account changes', async () => {
+    let generation = 0
+    let state: ReturnType<typeof createMoveParentState> = { ...createMoveParentState(), open: true, habitId: 'source', selectedParentId: 'target', targetChosen: true }
+    const original = state
+    const actions = createMoveParentActions({
+      state, applyState: (update) => { state = update(state) }, habitsById: new Map(), selectedHabitIds: new Set(),
+      canSubmit: true, moveSingle: async () => { generation++ }, partialError: 'partial', formatError: () => 'network', getAccountGeneration: () => generation,
+    })
+    expect(await actions.confirm()).toBe(false)
+    expect(state.error).toBeNull()
+    expect(state.operation).toBe(original.operation)
   })
 
   it('waits for the mutation and clears pending state after completion', async () => {

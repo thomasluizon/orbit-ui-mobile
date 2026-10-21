@@ -5,7 +5,7 @@ import { createMoveParentActions, createMoveParentState } from '@orbit/shared/ho
 
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 
-import { Fragment, useMemo, useCallback, useEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { Fragment, useMemo, useCallback, useEffect, useLayoutEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -30,6 +30,7 @@ import {
   hasAncestorInSet,
   isHabitDoneForRange,
   sortNormalizedHabits,
+  getMoveParentInventory,
   type HabitResolution,
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
@@ -89,6 +90,7 @@ import {
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter, BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
@@ -749,6 +751,16 @@ export function HabitList({
   const [moveState, setMoveState] = useAccountScopedState(createMoveParentState)
   const { bulkIds: bulkMovingIds, habitId: movingHabitId, selectedParentId: selectedMoveParentId,
     error: moveError, pending: isMovingParent, open: showMoveParentOverlay } = moveState
+  const scheduledMoveQuery = useHabits({}, undefined, { enabled: showMoveParentOverlay })
+  const generalMoveQuery = useHabits({ isGeneral: true }, undefined, { enabled: showMoveParentOverlay })
+  const moveInventory = getMoveParentInventory(scheduledMoveQuery, generalMoveQuery)
+  const retryMoveInventory = () => { void scheduledMoveQuery.refetch(); void generalMoveQuery.refetch() }
+  const moveOperation = useRef<object | null>(null)
+  useLayoutEffect(() => {
+    moveOperation.current = moveState.operation
+    return () => { moveOperation.current = null }
+  }, [moveState.operation])
+
 
   /**
    * The state above drops itself, but a ref carries the previous account's habit ids past an
@@ -969,17 +981,10 @@ export function HabitList({
     }
   }
 
-  function validateMoveTarget(targetParentId: string | null, draggedId: string) {
-    return computeMoveTargetValidation(
-      { habitsById, getChildren, maxHabitDepth, t },
-      targetParentId,
-      draggedId,
-    )
-  }
-
-  const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption } = getMoveParentSelection(
-    { topLevelHabits, getChildren, habitsById, maxHabitDepth, validateMoveTarget, t },
-    bulkMovingIds ?? movingHabitId, selectedMoveParentId,
+  const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption, inventoryState } = getMoveParentSelection(
+    { ...moveInventory, maxHabitDepth, t, validateMoveTarget: (target, source) =>
+      computeMoveTargetValidation({ ...moveInventory, maxHabitDepth, t }, target, source) },
+    bulkMovingIds ?? movingHabitId, selectedMoveParentId, moveState.targetChosen,
   )
 
   const editHabitLockedGeneral = ((): boolean | null => {
@@ -993,17 +998,18 @@ export function HabitList({
     return null
   })()
 
-  const canSubmitMoveParent = moveIds.length > 0 && !isMovingParent &&
+  const canSubmitMoveParent = !inventoryState && moveState.targetChosen && moveIds.length > 0 && !isMovingParent &&
     selectedMoveOption !== null && !selectedMoveOption.disabled
 
   const { openBulk: openBulkMove, openSingle: openMoveParentPicker, close: closeMoveParentPicker,
-    confirm: confirmMoveParent, select: selectMoveParent } = createMoveParentActions({
-    state: moveState, applyState: setMoveState, habitsById, selectedHabitIds, canSubmit: canSubmitMoveParent,
+    confirm: executeMoveParent, select: selectMoveParent } = createMoveParentActions({
+    state: moveState, applyState: setMoveState, habitsById, selectedHabitIds, canSubmit: canSubmitMoveParent, getAccountGeneration,
     moveBulk: onBulkMove,
     moveSingle: (habitId, parentId) => moveHabitParentMut.mutateAsync({ habitId, data: { parentId } }),
     partialError: t('habits.moveParent.errorPartial'),
     formatError: (error) => getFriendlyErrorMessage(error, t, 'habits.moveParent.errorPartial'),
   })
+  const confirmMoveParent = () => executeMoveParent(() => moveOperation.current === moveState.operation)
 
   function openDetail(habit: NormalizedHabit) {
     router.push(`/habits/${habit.id}?date=${selectedDateStr}&from=today`)
@@ -1509,10 +1515,12 @@ export function HabitList({
         t={t}
         open={showMoveParentOverlay}
         isMoving={isMovingParent}
-        movingHabitTitle={movingHabit?.title ?? null}
+        movingHabitTitle={moveInventory.habitsById.get(movingHabitId ?? '')?.title ?? movingHabit?.title ?? null}
         movingHabitParentId={sharedMoveParentId}
         movingHabitCount={bulkMovingIds?.length}
         error={moveError}
+        inventoryState={inventoryState}
+        onRetryInventory={retryMoveInventory}
         options={moveParentOptions}
         selectedMoveParentId={selectedMoveParentId}
         canSubmit={canSubmitMoveParent}

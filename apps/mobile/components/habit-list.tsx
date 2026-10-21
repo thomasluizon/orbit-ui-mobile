@@ -1,5 +1,7 @@
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage, getMoveParentInventory } from '@orbit/shared/utils'
 import { createMoveParentActions, createMoveParentState } from '@orbit/shared/hooks'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
@@ -550,9 +552,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [showRescheduleSheet, setShowRescheduleSheet] = useState(false)
     const [habitToReschedule, setHabitToReschedule] =
       useState<NormalizedHabit | null>(null)
-    const [moveState, setMoveState] = useState(createMoveParentState)
+    const [moveState, setMoveState] = useAccountScopedState(createMoveParentState)
     const { bulkIds: bulkMovingIds, habitId: movingHabitId, selectedParentId: selectedMoveParentId,
       error: moveError, pending: isMovingParent, open: showMoveParentDialog } = moveState
+    const scheduledMoveQuery = useHabits({}, { enabled: showMoveParentDialog })
+    const generalMoveQuery = useHabits({ isGeneral: true }, { enabled: showMoveParentDialog })
+    const moveInventory = getMoveParentInventory(scheduledMoveQuery, generalMoveQuery)
+    const retryMoveInventory = () => { void scheduledMoveQuery.refetch(); void generalMoveQuery.refetch() }
+    const moveOperation = useRef<object | null>(null)
+    useLayoutEffect(() => {
+      moveOperation.current = moveState.operation
+      return () => { moveOperation.current = null }
+    }, [moveState.operation])
+
     const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
     const selectedIds = useMemo(
       () => selectedHabitIds ?? new Set<string>(),
@@ -1226,23 +1238,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       skipMutation,
     ])
 
-    const validateMoveTarget = useCallback(
-      (targetParentId: string | null, draggedId: string) =>
-        computeMoveTargetValidation(
-          { habitsById, getChildren, maxHabitDepth, t },
-          targetParentId,
-          draggedId,
-        ),
-      // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById/maxHabitDepth are extracted habitsQuery/appConfig members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      [getChildren, habitsById, maxHabitDepth, t],
+    const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption, inventoryState } = getMoveParentSelection(
+      { ...moveInventory, maxHabitDepth, t, validateMoveTarget: (target, source) =>
+        computeMoveTargetValidation({ ...moveInventory, maxHabitDepth, t }, target, source) },
+      bulkMovingIds ?? movingHabitId, selectedMoveParentId, moveState.targetChosen,
     )
 
-    const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption } = getMoveParentSelection(
-      { topLevelHabits, getChildren, habitsById, maxHabitDepth, validateMoveTarget, t },
-      bulkMovingIds ?? movingHabitId, selectedMoveParentId,
-    )
 
-    const canSubmitMoveParent = moveIds.length > 0 && !isMovingParent &&
+    const canSubmitMoveParent = !inventoryState && moveState.targetChosen && moveIds.length > 0 && !isMovingParent &&
       !moveParentMutation.isPending && selectedMoveOption !== null && !selectedMoveOption.disabled
 
     const promptDelete = useCallback((habitId: string) => {
@@ -1261,13 +1264,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [duplicateMutation, habitToDuplicate])
 
     const { openBulk: openBulkMove, openSingle: openMoveParentDialog, close: closeMoveParentDialog,
-      confirm: confirmMoveParent, select: selectMoveParent } = createMoveParentActions({
-      state: moveState, applyState: setMoveState, habitsById, selectedHabitIds, canSubmit: canSubmitMoveParent,
+      confirm: executeMoveParent, select: selectMoveParent } = createMoveParentActions({
+      state: moveState, applyState: setMoveState, habitsById, selectedHabitIds, canSubmit: canSubmitMoveParent, getAccountGeneration,
       moveBulk: onBulkMove,
       moveSingle: (habitId, parentId) => moveParentMutation.mutateAsync({ habitId, data: { parentId } }),
       partialError: t('habits.moveParent.errorPartial'),
       formatError: (error) => getFriendlyErrorMessage(error, t, 'habits.moveParent.errorPartial'),
     })
+    const confirmMoveParent = () => executeMoveParent(() => moveOperation.current === moveState.operation)
 
     const startAddSubHabit = useCallback(
       (parentId: string) => {
@@ -1618,10 +1622,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           t={t}
           visible={showMoveParentDialog}
           isPending={isMovingParent}
-          movingHabitTitle={movingHabit?.title ?? null}
+          movingHabitTitle={moveInventory.habitsById.get(movingHabitId ?? '')?.title ?? movingHabit?.title ?? null}
           movingHabitParentId={sharedMoveParentId}
             movingHabitCount={bulkMovingIds?.length}
             error={moveError}
+          inventoryState={inventoryState}
+          onRetryInventory={retryMoveInventory}
           options={moveParentOptions}
           selectedMoveParentId={selectedMoveParentId}
           canSubmit={canSubmitMoveParent}
