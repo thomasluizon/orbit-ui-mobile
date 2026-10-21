@@ -17,6 +17,7 @@ import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
+import { usePrefersReducedMotion } from "@/lib/motion";
 
 import { X } from '@/components/ui/icons';
 import { PersonalText } from '@/components/ui/personal-text';
@@ -228,19 +229,24 @@ function ColumnHeader({
   styles: ReturnType<typeof createStyles>;
 }>) {
   const locale = language === "pt-BR" ? ptBR : enUS;
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
   return (
     <InsetFocusPressable
       testID="time-grid-col-header"
       focusOffset={-6}
       accessibilityRole="button"
       onPress={() => onSelectDay(column.dateStr)}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={({ pressed }) => [
         styles.colHeader,
         { width: colWidth },
-        pressed && {
-          backgroundColor: tokens.bgHover,
-          transform: [{ scale: 0.96 }],
-        },
+        (hovered || pressed || focused) && { backgroundColor: tokens.bgHover },
+        pressed && !prefersReducedMotion && { transform: [{ scale: 0.96 }] },
       ]}
     >
       <Text
