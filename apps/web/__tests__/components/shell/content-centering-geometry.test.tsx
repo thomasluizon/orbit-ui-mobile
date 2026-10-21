@@ -23,6 +23,7 @@ import { TodayDateControl } from '@/app/(app)/today-shell'
 import { HabitRow } from '@/components/habits/habit-row'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { normalizeHabits } from '@orbit/shared/utils'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -37,6 +38,12 @@ const stats = [
   { key: 'logs', value: 8, label: ptBR.calendar.totalLogs },
   { key: 'missed', value: 2, label: ptBR.calendar.missedCount },
 ] as const
+
+function floatingNotice(state: string) {
+  if (state === 'absent') return undefined
+  if (state === 'empty') return <></>
+  return <div style={{ minHeight: state === 'tall' ? 160 : undefined }}><Toast kind="neutral" message="Saved" /></div>
+}
 
 function expectCentred(bounds: { left: number; right: number }, container: { left: number; right: number }) {
   expect.soft(Math.abs(bounds.left + bounds.right - container.left - container.right)).toBeLessThanOrEqual(2)
@@ -286,28 +293,68 @@ describe('page content centring and add control clearance', () => {
     } finally { await page.close() }
   })
 
-  it.each(windows)('keeps the floating add target outside the scrolling controls at $width by $height', async (viewport) => {
-    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><ShellWide items={[]} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+  it.each([
+    ...windows.map(viewport => ({ ...viewport, mode: 'dark' as const, words: ptBR, textScale: 1, noticeState: 'absent' })),
+    ...[320, 412].flatMap(width => (['dark', 'light'] as const).flatMap(mode => [en, ptBR].flatMap(words =>
+      [1, 2].flatMap(textScale => ['absent', 'empty', 'notice', 'tall'].map(noticeState => ({ width, height: 915, mode, words, textScale, noticeState }))),
+    ))),
+  ])('lets real rows pass beneath the floating target and clear it at scroll end at $width/$height/$mode/$textScale/$noticeState', async ({ mode, words, textScale, noticeState, ...viewport }) => {
+    const habits = normalizeHabits(Array.from({ length: 40 }, (_, index) => makeHabitScheduleItem({ id: `floating-${index}`, title: `Read chapter ${index}` })))
+    const notice = floatingNotice(noticeState)
+    const { container } = render(<NextIntlClientProvider locale={words === en ? 'en' : 'pt-BR'} messages={words}><ShellWide items={[]} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      notice={notice} composer={<Composer state="idle" value="" suggestions={[]} words={words.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       fab={<Fab label="Criar" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
-      {Array.from({ length: 40 }, (_, index) => <button key={index} type="button" style={{ display: 'block', width: '100%', height: 48 }}>{index}</button>)}
+      <div className="flex flex-col gap-3 px-4">{[...habits.values()].map(habit => <HabitRow key={habit.id} habit={habit} actions={{ onDetail: vi.fn(), onLog: vi.fn(), onEdit: vi.fn() }} />)}</div>
     </ShellWide></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      for (const scrollTop of [0, 480, 1920]) {
-        const geometry = await page.evaluate((offset) => {
+      const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet}:root{${theme};font-size:${16 * textScale}px}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      for (const position of ['start', 'middle', 'end'] as const) {
+        const geometry = await page.evaluate((position) => {
           const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
-          scroller.scrollTop = offset
+          scroller.scrollTop = position === 'end' ? scroller.scrollHeight : position === 'middle' ? scroller.scrollHeight / 2 : 0
           const fab = document.querySelector('[data-fab]')!.getBoundingClientRect()
           const viewport = scroller.getBoundingClientRect()
-          const overlaps = [...scroller.querySelectorAll('button')].filter((button) => {
-            const target = button.getBoundingClientRect()
-            return fab.width > 0 && Math.max(target.top, viewport.top) < Math.min(fab.bottom, viewport.bottom) && Math.min(target.bottom, viewport.bottom) > fab.top && target.left < fab.right && target.right > fab.left
-          }).length
-          return { overlaps, fabTop: fab.top, fabWidth: fab.width, scrollerBottom: scroller.getBoundingClientRect().bottom }
-        }, scrollTop)
-        expect(geometry.overlaps).toBe(0)
-        if (geometry.fabWidth > 0) expect(geometry.fabTop).toBeGreaterThanOrEqual(geometry.scrollerBottom)
+          const rows = [...scroller.querySelectorAll('[data-testid="habit-row"]')]
+          const last = rows.at(-1)!
+          const lastControls = [...last.querySelectorAll('[data-habit-row-control="check"], [data-habit-row-control="menu"]')].map(control => {
+            const bounds = control.getBoundingClientRect()
+            return { bottom: bounds.bottom, hit: control.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)) }
+          })
+          const row = rows.find(row => { const bounds = row.getBoundingClientRect(); return Math.min(bounds.bottom - 8, fab.bottom) > Math.max(bounds.top + 8, fab.top) })
+          const freePoints = row ? (() => {
+            const bounds = row.getBoundingClientRect()
+            const y = (Math.max(bounds.top + 8, fab.top) + Math.min(bounds.bottom - 8, fab.bottom)) / 2
+            return [bounds.left + 24, bounds.left + bounds.width / 3, fab.left - 16].map(x => ({ x, y, hit: row.contains(document.elementFromPoint(x, y)) }))
+          })() : []
+          const overlay = document.querySelector('[data-shell-fab-clip]')!
+          const paintOwners = [overlay, ...overlay.querySelectorAll('*')]
+          for (let ancestor = overlay.parentElement; ancestor && !ancestor.hasAttribute('data-shell-page'); ancestor = ancestor.parentElement) paintOwners.push(ancestor)
+          const opaqueFreeSpace = paintOwners.some(owner => {
+            const bounds = owner.getBoundingClientRect()
+            const color = getComputedStyle(owner).backgroundColor
+            return color !== 'rgba(0, 0, 0, 0)' && color !== 'transparent' && freePoints.some(({ x, y }) => x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom)
+          })
+          return { fab: { width: fab.width, top: fab.top, bottom: fab.bottom }, viewport: { top: viewport.top, bottom: viewport.bottom },
+            pinnedTop: document.querySelector('[data-shell-bottom]')!.getBoundingClientRect().top,
+            lastBottom: last.getBoundingClientRect().bottom, lastControls, freePoints, opaqueFreeSpace }
+        }, position)
+        if (viewport.width >= 1024) { expect(geometry.fab.width).toBe(0); continue }
+        expect(geometry.fab.width).toBe(60)
+        expect(geometry.viewport.bottom).toBe(geometry.pinnedTop)
+        expect(geometry.fab.top).toBeGreaterThanOrEqual(geometry.viewport.top)
+        expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.viewport.bottom - 16)
+        if (position === 'end') {
+          expect(geometry.lastBottom).toBeLessThanOrEqual(geometry.fab.top - 16)
+          expect(geometry.lastControls).toHaveLength(2)
+          for (const control of geometry.lastControls) { expect(control.bottom).toBeLessThanOrEqual(geometry.fab.top - 16); expect(control.hit).toBe(true) }
+        } else {
+          expect(geometry.freePoints).toHaveLength(3)
+          for (const point of geometry.freePoints) expect(point.hit).toBe(true)
+          expect(geometry.opaqueFreeSpace).toBe(false)
+        }
       }
     } finally { await page.close() }
   })

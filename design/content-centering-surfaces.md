@@ -5,8 +5,10 @@
 The page column stays centred in its available container. A web scrollbar's reserved gutter is
 outside that container's usable width. Text inside a centred column retains its own reading
 alignment. The shell's create control floats above notices and the composer without a bottom-chrome
-band or hairline. The bottom viewport reserves 96px of clearance inside its scrollable content
-while the control is present, so page content cannot pass behind its target. Wide web uses sidebar
+band or hairline. The page viewport extends beneath the floating target to the real pinned
+controls. Its scrollable content retains 96px of end clearance, so the last row can scroll fully
+above the target. Free space around the target is transparent and passes list interaction through.
+Notices, composer and navigation retain their opaque surfaces. Wide web uses sidebar
 creation and reserves no floating-control clearance.
 
 The source sweep follows every route's rendered owner and its width constraints. The columns
@@ -60,20 +62,23 @@ Both platforms' `content-centering-geometry.test.tsx` cover Todos empty, habit c
 calendar month navigation and figures, and floating-add clearance at 320, 360, 412, 480, 840,
 1100, 1352 and 1440, plus 1200 x 1600 and 1600 x 1200. Web mounts the production components
 with production CSS in isolated Vitest Chromium pages. The overlap guard intersects each
-control with the scroller's visible bounds at the start, middle and end of a long list.
+final row and its controls with the floating target at the end of a long list. Intermediate
+rows may pass behind the target; free space beside it remains visible and interactive.
 Wide web uses sidebar creation and has no floating add target.
 
 Android mounts the production components and checks their resolved styles and Yoga geometry.
-Its guard proves that the real Fab target lies outside the entire scrolling content region.
+Its guard proves that the actual list viewport contains the real Fab target's vertical band,
+with no full-width opaque floating region, and retains declared end clearance for the last row.
 These tests do not measure Android font rendering.
 
 ## Short windows
 
-The floating-add reservation, notices and composer share one bottom viewport. Its 64px minimum
-keeps a full one-line composer pill revealable while the reservation scrolls away first. The
-tab bar stays outside that scroller. Content-size and viewport-size changes reveal the trailing
+Notices and composer share one bottom viewport. Its 64px minimum keeps a full one-line composer
+pill revealable. The floating target belongs to the page viewport, above the actual controls;
+its overlay owns neither normal-flow height nor opaque free-space paint. The tab bar stays
+outside the bottom scroller. Content-size and viewport-size changes reveal the trailing
 composer controls without animation. With enough height, the floating target retains its normal
-position above the composer and outside the page scroller.
+position above the composer while the list extends behind it.
 
 When the header, minimum page region, composer and tabs cannot fit after safe-area insets,
 the destination itself scrolls inside those insets. Android reuses FlowViewport; compact web
@@ -101,7 +106,8 @@ The root-header geometry suite checks the shared bell edge with both content len
 
 Both centring suites mount the production composer, Fab and BottomTabBar at 840 x 240 and
 360 x 320, with a 48px header and both zero and 24px top/16px bottom insets. They check the minimum viewport, revealability of the input,
-send, attachment and create controls, page separation and the tab bar's window bounds. Android
+send and attachment controls, the floating target's containment within the page viewport,
+separation from actual pinned controls and the tab bar's window bounds. Android
 also drives the native layout and content-size callbacks to check the initial composer reveal.
 The Yoga adapter includes ScrollView's installed flex and overflow defaults.
 

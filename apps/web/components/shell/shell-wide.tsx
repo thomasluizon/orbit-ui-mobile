@@ -12,7 +12,7 @@ import {
   type RefCallback,
   type CSSProperties,
 } from 'react'
-import { BUTTON_SIZES, PADDING, SHELL_CONTENT_MAX_WIDTH, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { BUTTON_SIZES, SHELL_CONTENT_MAX_WIDTH, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -275,7 +275,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
     const viewport = viewportRef.current
     const content = viewport?.firstElementChild
     if (!floating || !viewport || !content) return
-    const revealBottomControls = () => { viewport.scrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight - PADDING.screenGutter) }
+    const revealBottomControls = () => { viewport.scrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight) }
     const observer = new ResizeObserver(revealBottomControls)
     observer.observe(viewport)
     observer.observe(content)
@@ -285,7 +285,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
   return <div ref={viewportRef} data-shell-bottom-viewport=""
     className={floating ? 'min-h-16 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
     style={{ minHeight: minimumHeight }}>
-    <div className={floating ? 'pt-24 lg:contents' : 'contents'}><div className="relative flex min-h-0 flex-col">{children}</div></div>
+    <div className={floating ? 'lg:contents' : 'contents'}><div className="relative flex min-h-0 flex-col">{children}</div></div>
   </div>
 }
 
@@ -330,11 +330,6 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
               <CompactComposerMenuContext.Provider value={menuContext}>
                 <div className="pointer-events-auto">{pinnedSlot}</div>
               </CompactComposerMenuContext.Provider>
-            </div>
-          ) : null}
-          {props.fab !== undefined ? (
-            <div data-shell-fab-clip="" className={`pointer-events-none absolute inset-x-0 flex justify-end ${scrollOwner} px-4 py-2 lg:hidden`} style={{ bottom: 'calc(100% + 8px)' }}>
-              <div data-shell-fab="" className="pointer-events-auto">{props.fab}</div>
             </div>
           ) : null}
         </ShellBottomViewport>
@@ -439,8 +434,13 @@ function ShellWideBackground({
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
             className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
           {registerHeaderHost !== undefined || props.header !== undefined ? <div ref={registerHeaderHost} data-shell-header="" data-focus-inset="" className={`empty:hidden overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}>{props.header}</div> : null}
-          <div className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
+          <div data-shell-page="" className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
+            {props.fab !== undefined ? (
+              <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
+                <div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div>
+              </div>
+            ) : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
                 <div className="pointer-events-auto">{props.scrollToTop}</div>

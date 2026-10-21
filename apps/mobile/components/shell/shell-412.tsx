@@ -23,13 +23,13 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{
   const viewportSize = useRef({ height: 0, contentHeight: 0 })
   function revealBottomControls() {
     const { height, contentHeight } = viewportSize.current
-    viewportRef.current?.scrollTo({ y: floating ? Math.max(0, contentHeight - height - PADDING.screenGutter) : 0, animated: false })
+    viewportRef.current?.scrollTo({ y: floating ? Math.max(0, contentHeight - height) : 0, animated: false })
   }
   return <ScrollView
     ref={viewportRef}
     testID="shell-bottom-viewport"
     style={[floating ? styles.bottomViewport : styles.pinnedSlot, { minHeight: minimumHeight }]}
-    contentContainerStyle={floating ? styles.fabClearance : styles.plainBottomContent}
+    contentContainerStyle={floating ? undefined : styles.plainBottomContent}
     scrollEnabled={floating}
     keyboardShouldPersistTaps="handled"
     nestedScrollEnabled={floating}
@@ -81,11 +81,6 @@ function ShellBottomChrome({
                 <ScrollView testID="shell-pinned-slot" scrollEnabled={fab === undefined} nestedScrollEnabled={fab === undefined}
                   style={[styles.pinnedSlot, fab !== undefined && styles.floatingPinnedSlot, { minHeight: actionMinimum }]}
                   keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
-              </View>
-            ) : null}
-            {fab !== undefined ? (
-              <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
-                <View testID="shell-fab" style={styles.fab}>{fab}</View>
               </View>
             ) : null}
         </ShellBottomViewport>
@@ -217,6 +212,11 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, props.fab !== undefined && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
             {props.children}
             <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
+            {props.fab !== undefined ? (
+              <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
+                <View testID="shell-fab" pointerEvents="box-none" style={styles.fab}>{props.fab}</View>
+              </View>
+            ) : null}
           </View>
 
           <ShellBottomChrome
@@ -321,8 +321,7 @@ const styles = StyleSheet.create({
   bottomContent: { position: 'relative' },
   plainBottomContent: { flexShrink: 1 },
   bottomViewport: { flexGrow: 1, flexShrink: 1, minHeight: 0 },
-  fabClearance: { paddingTop: SHELL_SCROLLER_CLEARANCE },
-  fabBand: { position: 'absolute', top: 0, height: 0, left: 0, right: 0 },
+  fabBand: { position: 'absolute', bottom: 0, height: SHELL_SCROLLER_CLEARANCE, left: 0, right: 0, zIndex: zLayers.sticky },
   fab: { bottom: 16, position: 'absolute', right: 16 },
   conversation: {
     alignSelf: 'center',

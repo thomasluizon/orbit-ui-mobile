@@ -98,7 +98,7 @@ it.each(windows)('centres the capped create form with its submit at $width by $h
   } finally { await act(() => tree.unmount()) }
 })
 
-it.each(windows)('keeps the floating add target outside every scrolling control at $width by $height', async (viewport) => {
+it.each(windows)('floats the add target within the page viewport at $width by $height', async (viewport) => {
   __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
   let tree!: GeometryTree
   await act(() => { tree = create(<Shell412 tabBar={<View style={{ height: 80 }} />}
@@ -110,7 +110,8 @@ it.each(windows)('keeps the floating add target outside every scrolling control 
     const control = boxes.get('control-region')!
     const fab = boxes.get('fab')!
     expect(fab.width).toBe(60)
-    expect(fab.top).toBeGreaterThanOrEqual(control.bottom)
+    expect(fab.top).toBeGreaterThanOrEqual(control.top)
+    expect(fab.bottom).toBeLessThanOrEqual(control.bottom - 16)
     const band = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab-band')[0]!
     expect(StyleSheet.flatten(band.props.style as StyleProp<ViewStyle>).position).toBe('absolute')
   } finally { await act(() => tree.unmount()) }
@@ -143,7 +144,8 @@ it.each([240, 360])('reserves room for complete Hoje controls at 740 by %ipx', a
     const background = boxes.get('shell-background')!
     expect(Number.isInteger(background.left)).toBe(true)
     const fab = boxes.get('Criar')!
-    expect(fab.top).toBeGreaterThanOrEqual(scroller.bottom)
+    expect(fab.top).toBeGreaterThanOrEqual(scroller.top)
+    expect(fab.bottom).toBeLessThanOrEqual(scroller.bottom - 16)
   } finally { await act(() => tree.unmount()) }
 })
 
@@ -191,14 +193,15 @@ it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewp
       const offset = scrollTo.mock.lastCall![0].y as number
       expect(boxes.get('composer-field')!.top - offset).toBeGreaterThanOrEqual(bottomViewport.top)
       expect(boxes.get('composer-field')!.bottom - offset).toBeLessThanOrEqual(bottomViewport.bottom)
-      for (const key of ['fab', 'composer-field', 'composer-send-accent', 'composer-controls']) {
+      for (const key of ['composer-field', 'composer-send-accent', 'composer-controls']) {
         const control = boxes.get(key)!
         const offset = Math.min(maximumScroll, Math.max(0, control.bottom - bottomViewport.bottom))
         expect(control.top - offset, key).toBeGreaterThanOrEqual(bottomViewport.top)
         expect(control.bottom - offset, key).toBeLessThanOrEqual(bottomViewport.bottom)
       }
       const fab = boxes.get('fab')!
-      expect(fab.top).toBeGreaterThanOrEqual(boxes.get('control-region')!.bottom)
+      expect(fab.top).toBeGreaterThanOrEqual(boxes.get('control-region')!.top)
+      expect(fab.bottom).toBeLessThanOrEqual(boxes.get('control-region')!.bottom - 16)
       expect(fab.top).toBeGreaterThanOrEqual(boxes.get('header-control')!.bottom)
       expect(fab.bottom).toBeLessThanOrEqual(pinned.top)
       expect(bottomViewport.top).toBeGreaterThanOrEqual(boxes.get('control-region')!.bottom)
