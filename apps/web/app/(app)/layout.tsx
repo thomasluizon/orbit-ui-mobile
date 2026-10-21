@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { openCurrentProactiveItem } from '@/lib/proactive-item'
 
-import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
+import { resolveComposerDockSuggestions, CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 
 import { useEffect, useCallback, useId, useState, useSyncExternalStore, useLayoutEffect, Suspense } from 'react'
 import dynamic from 'next/dynamic'
@@ -55,7 +55,6 @@ import {
   useOnboardingDraftStore,
 } from '@/stores/onboarding-draft-store'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
-import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 import { Composer } from '@/components/shell/composer'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useChatComposer } from '@/hooks/use-chat-composer'
@@ -130,7 +129,8 @@ function PushHabitCreateFromQuery({ pathname, activeView, onNavigated }: Readonl
   const router = useRouter()
   useEffect(() => {
     if (!useUIStore.getState().showCreateModal) return
-    const from = `${pathname}${searchParams.size ? `?${searchParams}` : ''}`
+    const queryString = searchParams.size ? `?${searchParams}` : ''
+    const from = `${pathname}${queryString}`
     const conversation = useUIStore.getState().astraConversationOpen
     useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
     onNavigated()

@@ -174,6 +174,14 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    formLocale.language = 'en'
+    formLocale.realReminders = false
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.hasProAccess = false
+  })
+
   it.each([false, true])('uses the API sub-habit flag for Pro access %s', (hasProAccess) => {
     mockProfileState.hasProAccess = hasProAccess
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
@@ -393,14 +401,6 @@ describe('HabitFormFields', () => {
     formLocale.language = locale
     renderForm(createFormHelpers({ isBadHabit: true }), undefined, true)
     expect(screen.getByText(expected)).toBeInTheDocument()
-  })
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    formLocale.language = 'en'
-    formLocale.realReminders = false
-    mockProfileState.aiMessagesUsed = 0
-    mockProfileState.hasProAccess = false
   })
 
   it('starts with type, title and editable date fields and closed details', () => {
