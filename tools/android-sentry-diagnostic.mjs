@@ -19,6 +19,8 @@ const TOTAL_TIMEOUT = 45000
 const PROCESS_TIMEOUT = 5000
 const REQUEST_LIMIT = 2
 const SHA = /^[0-9a-f]{40}$/
+// https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/bases/organization.py#L182-L187
+const NATIVE_GET_SCOPES = ["project:read", "project:write", "project:admin", "project:releases", "org:ci"]
 
 const USAGE = `usage: android-sentry-diagnostic.mjs
 
@@ -27,9 +29,12 @@ Requires GITHUB_ACTIONS=true, GITHUB_REPOSITORY=thomasluizon/orbit-ui-mobile,
 GITHUB_REF=refs/heads/main, GITHUB_SHA=EXPECTED_SOURCE_SHA=<approved main SHA>,
 and the existing production SENTRY_AUTH_TOKEN in the environment. No stdin.
 At most two fixed GETs, 10 seconds each, 45 seconds total, 64 KiB per body,
-8 KiB output. Captured CLI output and HTTP bodies are never printed or saved.
+8 KiB output. Supplementary auth/scopes are classified in memory using fixed labels
+and exact complete type-only receipts. Lookup fields remain unused.
+Captured CLI output and HTTP bodies are never printed or saved.
 --help, -h  show this usage
-exit codes: 0 lookup and supplementary auth HTTP reads healthy (no upload proof),
+exit codes: 0 healthy reads, reported token auth, a listed native GET scope and
+recognized complete auth envelope (no project access or upload proof),
 1 bounded diagnostic failure or unavailable evidence, 2 invalid CLI usage`
 
 function assertConfiguration(root) {
@@ -76,8 +81,28 @@ function httpOutcome(status) {
   return "http_failure"
 }
 
-async function readBody(response, signal) {
-  if (!response.body) return "malformed_json"
+// https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/endpoints/index.py#L17-L30
+function authEvidence(parsed) {
+  const evidence = { token_auth: "unavailable", native_get_scope: "unavailable", complete_shape: "shape_unavailable" }
+  if (parsed?.auth === null) evidence.token_auth = "not_reported"
+  else if (parsed?.auth && typeof parsed.auth === "object" && !Array.isArray(parsed.auth)
+    && Object.keys(parsed.auth).length === 1 && Object.hasOwn(parsed.auth, "scopes")
+    && Array.isArray(parsed.auth.scopes) && parsed.auth.scopes.every((scope) => typeof scope === "string")) {
+    evidence.token_auth = "reported"
+    evidence.native_get_scope = parsed.auth.scopes.some((scope) => NATIVE_GET_SCOPES.includes(scope))
+      ? "listed_alternative_observed" : "no_listed_alternative_observed"
+  }
+  if (parsed && Object.keys(parsed).length === 3 && ["version", "auth", "user"].every((key) => Object.hasOwn(parsed, key))
+    && typeof parsed.version === "string" && parsed.user === null && evidence.token_auth !== "unavailable") {
+    evidence.complete_shape = evidence.token_auth === "reported"
+      ? { version: "string", auth: { scopes: "array<string>" }, user: "null" }
+      : { version: "string", auth: "null", user: "null" }
+  }
+  return evidence
+}
+
+async function readBody(response, signal, classifyAuth) {
+  if (!response.body) return { body: "malformed_json" }
   const reader = response.body.getReader()
   const chunks = []
   let bytes = 0
@@ -87,15 +112,16 @@ async function readBody(response, signal) {
       const { done, value } = await reader.read()
       if (done) break
       bytes += value.byteLength
-      if (bytes > BODY_LIMIT) return "response_too_large"
+      if (bytes > BODY_LIMIT) return { body: "response_too_large" }
       chunks.push(Buffer.from(value))
     }
     try {
       const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks))
       const parsed = JSON.parse(text)
-      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? "json_object_fields_unused" : "malformed_json"
+      if (!(parsed && typeof parsed === "object" && !Array.isArray(parsed))) return { body: "malformed_json" }
+      return classifyAuth ? { body: "json_object_auth_classified", auth_evidence: authEvidence(parsed) } : { body: "json_object_fields_unused" }
     } catch {
-      return "malformed_json"
+      return { body: "malformed_json" }
     }
   } finally {
     await reader.cancel().catch(() => {})
@@ -106,6 +132,7 @@ async function readBody(response, signal) {
 async function probe(url, token, totalSignal, fetchImpl) {
   const timeout = AbortSignal.timeout(REQUEST_TIMEOUT)
   const signal = AbortSignal.any([timeout, totalSignal])
+  const supplementary = url === AUTH ? { auth_evidence: authEvidence(null) } : {}
   try {
     signal.throwIfAborted()
     const response = await fetchImpl(url, {
@@ -116,12 +143,12 @@ async function probe(url, token, totalSignal, fetchImpl) {
     const outcome = httpOutcome(status)
     if (outcome === "redirect_refused") {
       await response.body?.cancel()
-      return { status, outcome, body: "not_read" }
+      return { status, outcome, ...supplementary, body: "not_read" }
     }
-    const body = await readBody(response, signal)
-    return { status, outcome, body }
+    const result = await readBody(response, signal, url === AUTH && outcome === "http_read_ok")
+    return { status, outcome, ...supplementary, ...result }
   } catch {
-    return { status: null, outcome: totalSignal.aborted ? "total_deadline" : timeout.aborted ? "request_timeout" : "network_or_tls_failure", body: "unavailable" }
+    return { status: null, outcome: totalSignal.aborted ? "total_deadline" : timeout.aborted ? "request_timeout" : "network_or_tls_failure", ...supplementary, body: "unavailable" }
   }
 }
 
@@ -140,7 +167,7 @@ export async function runDiagnostic({ env = process.env, root = ROOT, fetchImpl 
     expected: { host: HOST, organization: ORGANIZATION, project: PROJECT },
     target_selection: "unknown", requests: [],
     limits: { requests: REQUEST_LIMIT, request_ms: REQUEST_TIMEOUT, total_ms: TOTAL_TIMEOUT, body_bytes: BODY_LIMIT, output_bytes: OUTPUT_LIMIT },
-    evidence_limits: "HTTP reads only; response fields unused. No project access, upload, root cause, Play submission or availability proof. A 404 cannot distinguish target absence from denied access. Auth-info 403 may reflect unsupported scope; do not broaden grants.",
+    evidence_limits: "HTTP reads only; lookup fields unused. Supplementary auth/scopes classified in memory; complete type-only receipts require the exact known envelope. Token auth not reported does not establish invalidity or revocation. Listed scopes do not prove target access; unknown/future shapes remain unavailable under the pinned source contract. No project access, upload, root cause, signed AAB, Play submission or availability proof. A 404 cannot distinguish target absence from denied access. Auth-info 403 may reflect unsupported scope; do not broaden grants.",
   }
   let token
   try {
@@ -168,7 +195,10 @@ export async function runDiagnostic({ env = process.env, root = ROOT, fetchImpl 
       if (["redirect_refused", "total_deadline", "request_timeout", "network_or_tls_failure"].includes(result.outcome)
         || result.body === "response_too_large") break
     }
-    report.outcome = report.requests.length === REQUEST_LIMIT && report.requests.every((result) => result.outcome === "http_read_ok" && result.body === "json_object_fields_unused")
+    report.outcome = report.requests.length === REQUEST_LIMIT && report.requests.every((result) => result.outcome === "http_read_ok" && (
+      result.name === "native_upload_options" ? result.body === "json_object_fields_unused"
+        : result.body === "json_object_auth_classified" && result.auth_evidence.token_auth === "reported"
+          && result.auth_evidence.native_get_scope === "listed_alternative_observed" && result.auth_evidence.complete_shape !== "shape_unavailable"))
       ? "lookup_reads_healthy" : "diagnostic_incomplete"
   } catch (error) {
     const known = ["trusted_source_required", "credential_missing", "credential_format_unrecognized", "configuration_mismatch", "embedded_organization_mismatch", "embedded_host_mismatch", "checkout_source_mismatch", "native_cli_unverified", "request_limit"]
