@@ -1301,6 +1301,36 @@ describe('HabitDetailScreen', () => {
     expect(writeText).toHaveBeenCalledWith(description)
   })
 
+  it('keeps the complete plain description visible with independent safe absolute links', () => {
+    const description = '  **Read** <b>this</b>\n\nhttps://example.com/notes?q=one&next=two\nhttp://example.org/' + 'long'.repeat(100) + '\nDone.'
+    mocks.detail = { ...makeDetail(), description }
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const prose = document.getElementById('habit-description')!
+    expect(prose.textContent).toBe(description)
+    expect(prose).toBeVisible()
+    expect(prose.closest('button')).toBeNull()
+    expect(prose.querySelector('b, img, [aria-expanded]')).toBeNull()
+    const links = within(prose).getAllByRole('link')
+    expect(links.map((link) => link.textContent)).toEqual(description.match(/https?:\/\/\S+/g))
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', link.textContent)
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+      expect(link).toHaveAccessibleName(link.textContent!)
+      link.focus()
+      expect(link).toHaveFocus()
+    }
+  })
+
+  it('keeps unsafe and malformed description destinations inert', () => {
+    const description = 'javascript:alert(1) data:text/html,hello mailto:person@example.com orbit://habit //example.com https:///example.com https://bad%20host https://example.com:wrong javascript:https://example.com https://example.com\\path https://example.com/%zz' + " javascript:alert('https://example.com') data:text/plain,(https://example.com) orbit:open(https://example.com)"
+    mocks.detail = { ...makeDetail(), description }
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const prose = document.getElementById('habit-description')!
+    expect(prose.textContent).toBe(description)
+    expect(within(prose).queryAllByRole('link')).toHaveLength(0)
+  })
+
   it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {
     mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: hasTags ? makeScopedParent().tags : [] })
     mocks.detail = { ...makeDetail(), description: hasDescription ? 'A note about this routine' : null }

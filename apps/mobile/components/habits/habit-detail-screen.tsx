@@ -2,13 +2,14 @@ import { DescriptionCopyButton } from './description-copy-button'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Linking, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, resolveResponsiveTypeRole } from '@orbit/shared/theme'
 import {
   buildHabitDetailHeaderSummary,
+  splitDescriptionLinks,
   isHabitDetailCompletionDisabled,
   buildHabitDetailReminderRows,
   buildHabitDetailChildDateModel,
@@ -188,9 +189,21 @@ function HabitDueDate({ habit, language }: Readonly<{ habit: NormalizedHabit; la
 
 function HabitDescription({ description, tokens }: Readonly<{ description: string; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
+  const [failedLink, setFailedLink] = useAccountScopedState<string | null>(null)
+  const parts = splitDescriptionLinks(description)
+  async function openLink(href: string) {
+    setFailedLink(null)
+    try {
+      await Linking.openURL(href)
+    } catch {
+      setFailedLink(href)
+    }
+  }
   return <View testID="habit-detail-description" style={[styles.headerMetadata, { gap: 8 }]}>
     <Text style={[styles.sectionTitle, { color: tokens.fg2 }]}>{t('habits.form.description')}</Text>
-    <Text selectable style={[styles.muted, { fontSize: 16, lineHeight: 24.8, color: tokens.fg2 }]}>{description}</Text>
+    <Text testID="habit-description" selectable style={[styles.muted, { fontSize: 16, lineHeight: 24.8, color: tokens.fg2 }]}>{parts.some(({ href }) => href) ? parts.map(({ text, href, offset }) => href ? <Text key={offset} selectable accessibilityRole="link" accessibilityLabel={text} onPress={() => { void openLink(href) }} style={{ color: tokens.fg1, textDecorationLine: 'underline' }}>{text}</Text> : text) : description}</Text>
+    <Text accessibilityLiveRegion="polite" style={failedLink ? [styles.muted, { color: tokens.statusBadText }] : { position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{failedLink ? t('common.error') : ''}</Text>
+    {failedLink ? <View style={{ alignItems: 'flex-start' }}><PillButton variant="ghost" onClick={() => { void openLink(failedLink) }}>{t('common.retry')}</PillButton></View> : null}
     <DescriptionCopyButton key={description} description={description} />
   </View>
 }
@@ -216,7 +229,7 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
         </View>
       </View>
       {habit.tags.length > 0 ? <View testID="habit-detail-tags" style={styles.headerMetadata}><View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><PersonalTextDetails lines={1} textStyle={{ ...styles.tagText, color: tokens.fg2 }}>{tag.name}</PersonalTextDetails></View>)}</View></View> : null}
-      {habit.description ? <HabitDescription description={habit.description} tokens={tokens} /> : null}
+      {habit.description ? <HabitDescription key={`${habit.id}:${habit.description}`} description={habit.description} tokens={tokens} /> : null}
     </>
   )
 }

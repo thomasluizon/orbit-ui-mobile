@@ -1,6 +1,6 @@
 'use client'
 
-import { getHabitTypeLabelKey, getHabitRowTypeLabelKey } from '@orbit/shared/utils'
+import { getHabitTypeLabelKey, getHabitRowTypeLabelKey, splitDescriptionLinks } from '@orbit/shared/utils'
 
 import { DescriptionCopyButton } from './description-copy-button'
 
@@ -165,7 +165,7 @@ function HabitDescription({ description }: Readonly<{ description: string }>) {
   const t = useTranslations('habits.form')
   return <section data-habit-detail-description="" className="flex flex-col gap-2 pt-3">
     <h2 className="text-sm font-medium text-[var(--fg-2)]">{t('description')}</h2>
-    <p id="habit-description" className="max-w-prose select-text whitespace-pre-wrap break-words text-base leading-[1.55] text-[var(--fg-2)]">{description}</p>
+    <p id="habit-description" className="max-w-prose select-text whitespace-pre-wrap [overflow-wrap:anywhere] text-base leading-[1.55] text-[var(--fg-2)]">{splitDescriptionLinks(description).map(({ text, href, offset }) => href ? <a key={offset} href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--fg-1)] underline decoration-from-font underline-offset-2 transition-colors [transition-duration:var(--dur-hover-surface)] hover:text-[var(--fg-2)]">{text}</a> : text)}</p>
     <DescriptionCopyButton key={description} description={description} />
   </section>
 }
@@ -209,7 +209,7 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onE
         </div>
       </div>
       {habit.tags.length > 0 ? <div data-habit-detail-tags="" className="pt-3"><div className="flex flex-wrap gap-2">{habit.tags.map((tag) => <div key={tag.id} className="min-w-0 max-w-full rounded-[8px] border border-[var(--hairline-strong)]"><PersonalTextDetails lines={1} textStyle={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500 }}>{tag.name}</PersonalTextDetails></div>)}</div></div> : null}
-      {habit.description ? <HabitDescription description={habit.description} /> : null}
+      {habit.description ? <HabitDescription key={`${habit.id}:${habit.description}`} description={habit.description} /> : null}
     </header>
   )
 }

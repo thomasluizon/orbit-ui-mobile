@@ -1,6 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import { marked, type Tokens } from 'marked'
 import { getMarkdownImageLabel, stripInlineMarkdown } from '../utils/markdown'
+import { splitDescriptionLinks } from '../utils/description-links'
+
+describe('plain description links', () => {
+  it.each([
+    '  **Original**\n\nhttps://example.com/a?b=c&d=e\n',
+    '(https://example.com/a_(b)). [http://example.org/path], HTTPS://example.net/',
+    'https://例え.jp/道 and https://example.com/' + 'long'.repeat(100),
+  ])('preserves every source character in %s', (source) => {
+    const parts = splitDescriptionLinks(source)
+    expect(parts.map(({ text }) => text).join('')).toBe(source)
+    expect(parts.filter(({ href }) => href).length).toBeGreaterThan(0)
+    for (const part of parts) expect(source.slice(part.offset, part.offset + part.text.length)).toBe(part.text)
+  })
+
+  it.each(['javascript:alert(1)', 'data:text/html,hello', 'orbit://habit', 'mailto:person@example.com', '//example.com', 'https:///example.com', 'https://', 'https://bad%20host', 'https://example.com:wrong', 'javascript:https://example.com', 'https://example.com\\path', 'https://example.com/%zz'])('leaves %s inert', (source) => {
+    expect(splitDescriptionLinks(source)).toEqual([{ text: source, offset: 0 }])
+  })
+
+  it('keeps balanced URL parentheses while excluding sentence punctuation', () => {
+    expect(splitDescriptionLinks('(https://example.com/a_(b)).').filter(({ href }) => href)).toEqual([{ text: 'https://example.com/a_(b)', href: 'https://example.com/a_(b)', offset: 1 }])
+  })
+
+  it.each(["javascript:alert('https://example.com')", 'data:text/plain,(https://example.com)', 'orbit:open(https://example.com)'])('does not activate an HTTP substring inside %s', (source) => {
+    expect(splitDescriptionLinks(source)).toEqual([{ text: source, offset: 0 }])
+  })
+})
 
 describe('semantic image labels', () => {
   it.each([

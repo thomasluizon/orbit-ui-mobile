@@ -40,6 +40,8 @@ import { measureInteractionFills } from '@/__tests__/support/interaction-fill-ge
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+const externalLinks = vi.hoisted(() => ({ openURL: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('react-native', async (importOriginal) => ({ ...await importOriginal<typeof import('react-native')>(), Linking: externalLinks }))
 vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
 
 const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn() }))
@@ -1604,6 +1606,50 @@ describe('HabitDetailScreen', () => {
     expect(clipboard.setStringAsync).toHaveBeenCalledWith(description)
     expect(clipboard.getStringAsync).toHaveBeenCalled()
     expect(tree.root.findAllByType('Text').find((node: TestNode) => node.props.children === description && node.props.selectable)).toBeDefined()
+  })
+
+  it('keeps the complete plain description visible with independent safe absolute links', () => {
+    const description = '  **Read** <b>this</b>\n\nhttps://example.com/notes?q=one&next=two\nhttp://example.org/' + 'long'.repeat(100) + '\nDone.'
+    mocks.detail = { ...makeDetail(), description }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const section = tree.root.findByProps({ testID: 'habit-detail-description' })
+    const prose = section.findByProps({ testID: 'habit-description' })
+    const textContent = (node: { children: (string | { children: unknown[] })[] }): string => node.children.map((child) => typeof child === 'string' ? child : textContent(child as typeof node)).join('')
+    expect(textContent(prose)).toBe(description)
+    expect(prose.props.selectable).toBe(true)
+    expect(prose.props.numberOfLines).toBeUndefined()
+    expect(section.findAllByType('Text').filter((node: TestNode) => typeof node.props.accessibilityState === 'object' && node.props.accessibilityState !== null && 'expanded' in node.props.accessibilityState)).toHaveLength(0)
+    const links = section.findAllByType('Text').filter((node: TestNode) => node.props.accessibilityRole === 'link')
+    expect(links.map((link: TestNode) => link.props.children)).toEqual(description.match(/https?:\/\/\S+/g))
+    expect(links.every((link: TestNode) => link.props.selectable && typeof link.props.onPress === 'function')).toBe(true)
+  })
+
+  it('keeps unsafe and malformed description destinations inert', () => {
+    const description = 'javascript:alert(1) data:text/html,hello mailto:person@example.com orbit://habit //example.com https:///example.com https://bad%20host https://example.com:wrong javascript:https://example.com https://example.com\\path https://example.com/%zz' + " javascript:alert('https://example.com') data:text/plain,(https://example.com) orbit:open(https://example.com)"
+    mocks.detail = { ...makeDetail(), description }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const prose = tree.root.findByProps({ testID: 'habit-description' })
+    expect(prose.props.children).toBe(description)
+    expect(prose.findAllByType('Text').filter((node: TestNode) => node.props.accessibilityRole === 'link')).toHaveLength(0)
+  })
+
+  it('opens only the selected description destination and recovers from native rejection', async () => {
+    externalLinks.openURL.mockReset().mockRejectedValueOnce(new Error('No activity')).mockResolvedValue(undefined)
+    mocks.detail = { ...makeDetail(), description: 'https://example.com/first\nhttp://example.org/second' }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const section = tree.root.findByProps({ testID: 'habit-detail-description' })
+    const link = section.findAllByType('Text').find((node: TestNode) => node.props.accessibilityLabel === 'http://example.org/second')!
+    await TestRenderer.act(async () => { await link.props.onPress() })
+    expect(externalLinks.openURL).toHaveBeenCalledExactlyOnceWith('http://example.org/second')
+    expect(textsOf(section)).toContain('common.error')
+    await TestRenderer.act(async () => { pressPillButton(section, 'common.retry'); await Promise.resolve() })
+    expect(externalLinks.openURL).toHaveBeenLastCalledWith('http://example.org/second')
+    expect(externalLinks.openURL).toHaveBeenCalledTimes(2)
+    expect(textsOf(section)).not.toContain('common.error')
+    expect(textsOf(section)).toContain('http://example.org/second')
   })
 
   it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {

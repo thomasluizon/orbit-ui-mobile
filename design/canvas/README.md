@@ -15,6 +15,14 @@ queued outcomes follow `DESIGN.md` and the paired habit-form surface inventory. 
 transition reuses its existing field composition; production uses `EditHabitModal` and `HabitFormFields`.
 Frozen rendering and native device acceptance remain separate from source and unit evidence.
 
+The detail description stays fully visible and selectable with exact source line breaks. Only
+validated absolute HTTP/HTTPS spans become independently reachable underlined links; long URLs
+remain readable at enlarged text. Web opens a new tab with `noopener noreferrer`; native opening
+failure retains the source and offers Retry. Copy description copies the original source, shows
+one Check on success and announces it once through visually hidden localized feedback. Copy errors
+and manual-selection guidance remain visible. Account or description replacement clears feedback.
+This amendment does not make row previews interactive or add a Markdown renderer.
+
 ### Habit form type and date amendment
 
 Create and edit place the two vertical type radios before the focal title. The editable account-date
