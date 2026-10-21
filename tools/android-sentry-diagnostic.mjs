@@ -7,12 +7,12 @@ import { runBounded } from "./lib/bounded-process.mjs"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const HOST = "https://sentry.io"
-const ORGANIZATION = "thomasluizon"
-const CURRENT_ORGANIZATION = "orbit-ai-habit-tracker"
+const ORGANIZATION = "orbit-ai-habit-tracker"
+const PREVIOUS_ORGANIZATION = "thomasluizon"
 const PROJECT = "orbit-mobile"
 const CLI = "node_modules/@sentry/react-native/node_modules/@sentry/cli"
-const LOOKUP = `${HOST}/api/0/organizations/${CURRENT_ORGANIZATION}/chunk-upload/`
-const PROJECT_RELEASES = `${HOST}/api/0/projects/${CURRENT_ORGANIZATION}/${PROJECT}/releases/?per_page=1`
+const LOOKUP = `${HOST}/api/0/organizations/${ORGANIZATION}/chunk-upload/`
+const PROJECT_RELEASES = `${HOST}/api/0/projects/${ORGANIZATION}/${PROJECT}/releases/?per_page=1`
 const AUTH = `${HOST}/api/0/`
 const BODY_LIMIT = 65536
 const OUTPUT_LIMIT = 8192
@@ -35,8 +35,8 @@ native GET scope. Native embedded selection is classified separately; it is neve
 10 seconds each, 45 seconds total, 64 KiB per body, 8 KiB sanitized output.
 Captured CLI output and HTTP bodies are never printed or saved. No native upload is executed.
 --help, -h  show this usage
-exit codes: 0 current-target route reads observed with current embedded selection
-(still no configuration agreement, upload or release proof),
+exit codes: 0 current-target route reads observed with matching native selection
+(current embedded organization or configured defaults; no upload or release proof),
 1 incomplete evidence or native selection differs from candidate, 2 invalid CLI usage`
 
 function assertConfiguration(root) {
@@ -57,8 +57,13 @@ function matchesShape(value, shape) {
 }
 
 // Mirrors CLI 3.6.0's org_auth_token.rs and config.rs; decoded material never leaves this function.
-function targetSelection(token) {
-  if (/^(sntryu_)?[0-9a-fA-F]{64}$/.test(token)) return { selection: "configured_defaults", organization: ORGANIZATION }
+function targetSelection(token, env) {
+  if (env.SENTRY_PROJECT !== undefined && env.SENTRY_PROJECT !== PROJECT) throw new Error("native_override_mismatch")
+  if (/^(sntryu_)?[0-9a-fA-F]{64}$/.test(token)) {
+    if ((env.SENTRY_ORG !== undefined && env.SENTRY_ORG !== ORGANIZATION)
+      || (env.SENTRY_URL !== undefined && env.SENTRY_URL.replace(/\/+$/, "") !== HOST)) throw new Error("native_override_mismatch")
+    return { selection: "configured_defaults", organization: ORGANIZATION }
+  }
   const segments = token.split("_")
   if (segments.length !== 3 || segments[0] !== "sntrys") throw new Error("credential_format_unrecognized")
   const payloadBytes = Buffer.from(segments[1], "base64")
@@ -74,10 +79,11 @@ function targetSelection(token) {
   if (typeof payload?.org !== "string" || !(typeof payload.url === "string" || payload.url === null)) {
     throw new Error("credential_format_unrecognized")
   }
-  if (payload.org !== ORGANIZATION && payload.org !== CURRENT_ORGANIZATION) throw new Error("embedded_organization_mismatch")
+  if (payload.org !== ORGANIZATION && payload.org !== PREVIOUS_ORGANIZATION) throw new Error("embedded_organization_mismatch")
   if (payload.url && payload.url.replace(/\/+$/, "") !== HOST) throw new Error("embedded_host_mismatch")
+  if (!payload.url && env.SENTRY_URL !== undefined && env.SENTRY_URL.replace(/\/+$/, "") !== HOST) throw new Error("native_override_mismatch")
   return {
-    selection: payload.org === ORGANIZATION ? "embedded_configured_organization" : "embedded_current_organization",
+    selection: payload.org === PREVIOUS_ORGANIZATION ? "embedded_previous_organization" : "embedded_current_organization",
     organization: payload.org,
   }
 }
@@ -229,7 +235,7 @@ export async function runDiagnostic({ env = process.env, root = ROOT, fetchImpl 
   const report = {
     outcome: "unavailable", source: null, native_cli: "unverified",
     expected: { host: HOST, organization: ORGANIZATION, project: PROJECT },
-    comparison_target: { host: HOST, organization: CURRENT_ORGANIZATION, project: PROJECT },
+    comparison_target: { host: HOST, organization: ORGANIZATION, project: PROJECT },
     target_selection: "unknown", native_configuration_agreement: "unknown", candidate_target_agreement: "unknown",
     current_target_reads: "uncollected", native_upload: "native_upload_unverified", requests: [],
     limits: { requests: REQUEST_LIMIT, request_ms: REQUEST_TIMEOUT, total_ms: TOTAL_TIMEOUT, body_bytes: BODY_LIMIT, output_bytes: OUTPUT_LIMIT },
@@ -243,10 +249,10 @@ export async function runDiagnostic({ env = process.env, root = ROOT, fetchImpl 
     if (!token?.trim()) throw new Error("credential_missing")
     if (token.length > BODY_LIMIT) throw new Error("credential_format_unrecognized")
     assertConfiguration(root)
-    const target = targetSelection(token)
+    const target = targetSelection(token, env)
     report.target_selection = target.selection
     report.native_configuration_agreement = target.organization === ORGANIZATION ? "matches_configured" : "differs_from_configured"
-    report.candidate_target_agreement = target.organization === CURRENT_ORGANIZATION ? "matches_candidate" : "differs_from_candidate"
+    report.candidate_target_agreement = target.organization === ORGANIZATION ? "matches_candidate" : "differs_from_candidate"
     const childEnvironment = { PATH: env.PATH }
     const source = await runProcess("git", ["rev-parse", "HEAD"], { cwd: root, env: childEnvironment, timeoutMs: PROCESS_TIMEOUT, maxBuffer: OUTPUT_LIMIT })
     if (source.error || source.timedOut || source.overflowed || source.status !== 0 || source.stdout.trim() !== env.GITHUB_SHA) throw new Error("checkout_source_mismatch")
@@ -263,7 +269,7 @@ export async function runDiagnostic({ env = process.env, root = ROOT, fetchImpl 
       ? report.candidate_target_agreement === "matches_candidate" ? "current_target_reads_observed" : "native_target_differs_from_candidate"
       : "diagnostic_incomplete"
   } catch (error) {
-    const known = ["trusted_source_required", "credential_missing", "credential_format_unrecognized", "configuration_mismatch", "embedded_organization_mismatch", "embedded_host_mismatch", "checkout_source_mismatch", "native_cli_unverified", "request_limit"]
+    const known = ["trusted_source_required", "credential_missing", "credential_format_unrecognized", "configuration_mismatch", "embedded_organization_mismatch", "embedded_host_mismatch", "native_override_mismatch", "checkout_source_mismatch", "native_cli_unverified", "request_limit"]
     report.outcome = known.includes(error?.message) ? error.message : totalSignal.aborted ? "total_deadline" : "diagnostic_failure"
   }
   const output = safeOutput(report, token)

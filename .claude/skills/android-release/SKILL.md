@@ -86,15 +86,20 @@ probe step. It uses the existing `production` environment and repository `SENTRY
 serialized with production Android builds. It does not sign, build or publish anything.
 
 The helper verifies native CLI 3.6.0 and SDK 8.17.2 against the lock and the checked-out
-source SHA. Its immutable configured target remains `thomasluizon/orbit-mobile` on
-`https://sentry.io`. The owner-confirmed comparison organization is `orbit-ai-habit-tracker`;
-`orbit-mobile` within that organization remains unverified until its fixed project GET succeeds.
-The tenant frontend URL is identity input only and never receives a credentialed request.
+source SHA. Its immutable configured and comparison targets both select
+`orbit-ai-habit-tracker/orbit-mobile` on `https://sentry.io`. Each run must establish current
+organization and project route access through its fixed GETs. The tenant frontend URL never
+receives a credentialed request.
 
 Token-embedded organization and URL take priority in native CLI 3.6.0. The diagnostic privately
-recognizes the configured organization, the current comparison organization, and legacy configured
-defaults as separate selections. An old binding can reach the deliberate current-target comparison;
-this does not override native selection. Unknown organizations, unknown hosts and malformed syntax
+recognizes `embedded_current_organization`, `embedded_previous_organization`, `configured_defaults`
+and `unknown` as distinct selections. The previous organization is recognized solely to diagnose a
+mismatch; it cannot become a healthy native selection. A previous binding can reach the fixed current
+target reads without overriding native selection. Genuine non-embedded token syntax uses current
+configured defaults unless a native environment override conflicts. Conflicting `SENTRY_ORG` for
+non-embedded tokens, `SENTRY_URL` without a nonempty embedded URL, or `SENTRY_PROJECT` for any token
+is refused locally as `native_override_mismatch`, without using or printing the override value.
+Unknown organizations, unknown hosts and malformed syntax
 stop locally before authentication without claiming server rejection. Every trailing slash is
 removed from a nonempty URL; null or empty URL uses the configured host. Omitted URL remains
 unrecognized. Extra token metadata stays unused. No credential or decoded payload reaches a child.
@@ -154,12 +159,14 @@ and [DRF scalar wrapper](https://github.com/encode/django-rest-framework/blob/3.
 
 Record source SHA, CLI, configured and comparison targets, private-selection relation, configuration
 agreement and each bounded request outcome. `current_target_reads:route_access_observed` means only
-that the fixed organization and project GETs passed their supported read boundaries. An old embedded
-or legacy configured selection stays exit 1 with `native_target_differs_from_candidate` even when
-all three reads pass. A current embedded selection with those reads can exit 0 with
-`current_target_reads_observed`, while explicitly reporting `differs_from_configured` and
-`native_upload_unverified`. Exit 0 never means native configuration agreement, repaired upload or
-release readiness. Other incomplete evidence stays exit 1; invalid arguments exit 2.
+that the fixed organization and project GETs passed their supported read boundaries. A previous
+embedded selection stays exit 1 with `native_target_differs_from_candidate` and both
+`differs_from_configured` and `differs_from_candidate`, even when all three reads pass. A current
+embedded selection or genuine configured-default selection with no conflicting native override can
+exit 0 with `current_target_reads_observed`, `matches_configured`, `matches_candidate` and
+`native_upload_unverified`. Exit 0 establishes only bounded reads and native target agreement;
+upload and release readiness remain unverified. Other incomplete evidence stays exit 1;
+invalid arguments exit 2.
 
 Original native old-target failures remain historical evidence. This flow does not execute or
 replace that native lookup and does not execute an upload. Current-target access, native-effective
@@ -168,7 +175,14 @@ availability need separate evidence. A current organization GET is auxiliary whe
 differs. Do not infer rename, removal, revocation or a credential repair from this comparison.
 
 Apply only the demonstrated configuration/access repair through its existing authorized owner,
-then retain before/after read evidence. Source changes after a diagnostic merge require a fresh
+then retain before/after read evidence. Configuration alignment cannot replace a credential whose
+embedded organization still selects the previous target. A human administrator must replace the
+existing repository `SENTRY_AUTH_TOKEN` in GitHub **Settings > Secrets and variables > Actions**
+with an officially issued credential for the configured organization through that secret field.
+Never send the credential through chat, tickets, dispatch inputs or generated files, and never
+rewrite its payload or broaden grants to satisfy diagnosis. Re-run the trusted-main diagnostic
+with the replacement; require current target agreement and supported reads before the ordinary
+fatal-upload release path. Source changes after a diagnostic merge require a fresh
 branch and normal review. Keep the ticket open through repair, upload and Open availability.
 
 For an authorized pre-upload retry, use confirmed GitHub and Play CLI or API interfaces first to
