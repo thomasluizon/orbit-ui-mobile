@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import {
   isLiteralElement,
+  isNumberElement,
   isPluralElement,
   isPoundElement,
   isSelectElement,
@@ -69,6 +70,18 @@ describe('Portuguese ICU zero plurals', () => {
     ['wrapped.slides.streak.caption', 'Seu próximo registro começa uma nova sequência.'],
     ['progressScreen.streak.covered', 'Um congelamento cobriu date. Não resta nenhum.'],
     ['progressScreen.streak.automaticCovered', 'O Orbit cobriu date automaticamente com um congelamento. Não resta nenhum.'],
+    ['chat.toolResult.deletedHabits', 'Apaguei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.deletedHabitsPartial', 'Apaguei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.loggedHabits', 'Registrei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.loggedHabitsPartial', 'Registrei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.rescheduledHabits', 'Reagendei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.rescheduledHabitsPartial', 'Reagendei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.skippedHabits', 'Pulei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.skippedHabitsPartial', 'Pulei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedEmojis', 'Atualizei os emojis de 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedEmojisPartial', 'Atualizei os emojis de 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedHabits', 'Atualizei 0 de 0 hábitos. Nenhum ficou de fora.'],
+    ['chat.toolResult.updatedHabitsPartial', 'Atualizei 0 de 0 hábitos. Nenhum ficou de fora.'],
   ])
 
   it('requires an explicit zero arm in every Portuguese plural, including nested arguments', () => {
@@ -84,7 +97,7 @@ describe('Portuguese ICU zero plurals', () => {
   it.each(messages)('renders $key with zero using plural copy or its custom zero message', ({ key, message, elements }) => {
     const values = Object.fromEntries(allMessageElements(elements)
       .filter((element) => !isLiteralElement(element) && !isPoundElement(element))
-      .map((element) => [element.value, isPluralElement(element) ? 0 : element.value]))
+      .map((element) => [element.value, isPluralElement(element) || isNumberElement(element) ? 0 : element.value]))
     const expected = customZeroMessages.get(key)
       ?? new IntlMessageFormat(pluralAtZero(elements), 'pt-BR').format(values)
 
@@ -178,6 +191,25 @@ describe('i18n locale parity', () => {
     expect(catalog.shell.composer.inputLabel).toBe(catalog.shell.composer.placeholder)
   })
 
+  it.each([
+    { locale: 'en', catalog: en, task: 'One-time task', habit: 'Habit' },
+    { locale: 'pt-BR', catalog: ptBR, task: 'Tarefa única', habit: 'Hábito' },
+  ])('keeps the explicit type choices exact and distinct in $locale', ({ catalog, task, habit }) => {
+    expect(catalog.habits.form.typeTask).toBe(task)
+    expect(catalog.habits.form.typeHabit).toBe(habit)
+    expect(new Set([catalog.habits.form.typeTask, catalog.habits.form.typeHabit]).size).toBe(2)
+  })
+
+  it.each([
+    { locale: 'en', catalog: en, task: 'Task', habit: 'Habit' },
+    { locale: 'pt-BR', catalog: ptBR, task: 'Tarefa', habit: 'Hábito' },
+  ])('keeps the short row type nouns exact and distinct in $locale', ({ catalog, task, habit }) => {
+    expect(catalog.habits.rowTypeTask).toBe(task)
+    expect(catalog.habits.form.typeHabit).toBe(habit)
+    expect(catalog.habits.rowTypeTask).not.toBe(catalog.habits.form.typeTask)
+    expect(new Set([catalog.habits.rowTypeTask, catalog.habits.form.typeHabit]).size).toBe(2)
+  })
+
   it('keeps internal habit type names out of copy while retaining the named General view', () => {
     const otherMeanings = new Set([
       'preferences.general',
@@ -186,18 +218,17 @@ describe('i18n locale parity', () => {
       'onboarding.featureGuide.astraSection.cannotDoDesc',
       'referral.drawer.disclaimer',
     ])
-    for (const [key, value] of ptFlat) {
-      if (otherMeanings.has(key)) continue
-      expect(value, `pt-BR: ${key}`).not.toMatch(/recorrente|flexíve(l|is)|tarefas? únicas?/i)
-      if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
-        expect(value, `pt-BR: ${key}`).not.toMatch(/\bgera(l|is)\b/i)
-      }
-    }
-    for (const [key, value] of enFlat) {
-      if (otherMeanings.has(key)) continue
-      expect(value, `en: ${key}`).not.toMatch(/\brecurring\b|\bflexible\b|\bone-time\b/i)
-      if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
-        expect(value, `en: ${key}`).not.toMatch(/\bgeneral\b/i)
+    for (const { catalog, locale, task, internal, general } of [
+      { catalog: ptFlat, locale: 'pt-BR', task: 'Tarefa única', internal: /recorrente|flexíve(l|is)|tarefas? únicas?/i, general: /\bgera(l|is)\b/i },
+      { catalog: enFlat, locale: 'en', task: 'One-time task', internal: /\brecurring\b|\bflexible\b|\bone-time\b/i, general: /\bgeneral\b/i },
+    ]) {
+      for (const [key, value] of catalog) {
+        if (otherMeanings.has(key)) continue
+        if (key === 'habits.form.typeTask' && value === task) continue
+        expect(value, `${locale}: ${key}`).not.toMatch(internal)
+        if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
+          expect(value, `${locale}: ${key}`).not.toMatch(general)
+        }
       }
     }
   })

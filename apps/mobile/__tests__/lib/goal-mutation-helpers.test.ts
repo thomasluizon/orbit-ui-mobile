@@ -182,5 +182,6 @@ describe('goal mutation helpers', () => {
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['goals', 'detail', 'goal-1'] })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['goals', 'metrics', 'goal-1'] })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['habits', 'list'] })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['habits', 'detail'] })
   })
 })

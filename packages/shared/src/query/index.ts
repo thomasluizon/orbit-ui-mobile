@@ -26,6 +26,8 @@ export {
 export type { HabitListKey, HabitListSnapshots } from './keys'
 export { attachNotificationPolling } from './notification-polling'
 export {
+  restoreCachedHabitDetails,
+  updateCachedHabitDetails,
   applyCachedHabitSkip,
   updateHabitListsForDate,
   updateCachedHabitLists,
@@ -34,6 +36,7 @@ export {
   rollbackDatedHabitLists,
   restoreCachedHabitSkip,
   getTodayHabitList,
+  getCachedCalendarDayMap,
   getTodayHabitListAfterRefetch,
   checkTodayAllDoneOrDefer,
   deduplicateHabitList,
@@ -54,3 +57,5 @@ export { createConfigCache } from './config-cache'
 export type { ConfigCache, ConfigSnapshot } from './config-cache'
 
 export * from './goal-cache'
+
+export type { HabitDetailSnapshots, HabitDetailUpdates } from './habit-cache'

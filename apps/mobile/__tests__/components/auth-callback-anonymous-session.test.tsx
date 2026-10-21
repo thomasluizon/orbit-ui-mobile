@@ -70,7 +70,7 @@ vi.mock('@/lib/auth-flow', async (importOriginal) => ({
 }))
 vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
 vi.mock('@/lib/orbit-widget', () => ({ clearWidgetToken: vi.fn(async () => {}), saveWidgetToken: vi.fn(async () => {}) }))
-vi.mock('@/lib/offline-queue', () => ({ clear: vi.fn(), retainAccount: vi.fn() }))
+vi.mock('@/lib/offline-queue', () => ({ clear: vi.fn(), retainAccount: vi.fn(), claimLegacyAccount: vi.fn(), discardLegacy: vi.fn() }))
 vi.mock('@/lib/offline-mutations', () => ({ cancelScheduledFlush: vi.fn(), resumeOfflineReplay: vi.fn() }))
 vi.mock('@/lib/offline-state', () => ({ clearOfflineState: mocks.clearOffline }))
 vi.mock('@/lib/account-scoped-state', () => ({ startAccountScopedSession: mocks.resetAccount }))

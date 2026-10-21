@@ -212,6 +212,8 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/lib/offline-queue', () => ({
   clear: offlineQueueClearMock,
   retainAccount: retainAccountMock,
+  claimLegacyAccount: vi.fn(),
+  discardLegacy: vi.fn(),
 }))
 
 vi.mock('@/lib/offline-mutations', () => ({

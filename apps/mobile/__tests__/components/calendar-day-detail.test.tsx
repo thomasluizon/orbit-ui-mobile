@@ -301,7 +301,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const loading = tree.root.findAll(
       (node) =>
         node.props.accessibilityRole === 'progressbar'
-        && node.props.testID === 'skeleton-unit-settings',
+        && node.props.testID === 'skeleton-unit-fill',
     )
     const errors = nodes(tree, 'Text').filter(
       (node) => node.props.accessibilityLabel === 'calendar.fetchError',

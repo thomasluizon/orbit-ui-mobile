@@ -1,0 +1,524 @@
+{
+  "HabitDetailResponse": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "title": "<string>",
+    "description": "<string>",
+    "frequencyUnit": "Day",
+    "frequencyQuantity": 1,
+    "isBadHabit": false,
+    "isCompleted": false,
+    "isGeneral": false,
+    "isFlexible": false,
+    "dueDate": "2026-10-20",
+    "dueTime": "08:00:00",
+    "dueEndTime": "08:00:00",
+    "endDate": "2026-10-20",
+    "days": [],
+    "position": 1,
+    "reminderEnabled": false,
+    "reminderTimes": [],
+    "scheduledReminders": [
+      {
+        "when": "SameDay",
+        "time": "08:00:00"
+      },
+      {
+        "when": "DayBefore",
+        "time": "08:00:00"
+      }
+    ],
+    "checklistItems": [],
+    "createdAtUtc": "2026-10-20T12:00:00Z",
+    "children": [],
+    "emoji": "<string>",
+    "intervalWeeks": 1,
+    "linkedGoals": [],
+    "slipAlertEnabled": false,
+    "relativeReminders": [
+      {
+        "minutesBefore": null,
+        "when": "SameDay",
+        "time": "08:00:00"
+      },
+      {
+        "minutesBefore": null,
+        "when": "DayBefore",
+        "time": "08:00:00"
+      }
+    ],
+    "schedule": "OneTime",
+    "startDate": "2026-10-20",
+    "tags": [],
+    "scheduledStartDate": "2026-10-20",
+    "originalDayOfMonth": 1
+  },
+  "HabitChildResponse": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "title": "<string>",
+    "description": "<string>",
+    "frequencyUnit": "Day",
+    "frequencyQuantity": 1,
+    "isBadHabit": false,
+    "isCompleted": false,
+    "isGeneral": false,
+    "isFlexible": false,
+    "days": [],
+    "dueDate": "2026-10-20",
+    "dueTime": "08:00:00",
+    "dueEndTime": "08:00:00",
+    "endDate": "2026-10-20",
+    "position": 1,
+    "checklistItems": [],
+    "isOverdue": false,
+    "children": [],
+    "emoji": "<string>",
+    "intervalWeeks": 1,
+    "createdAtUtc": "2026-10-20T12:00:00Z",
+    "schedule": "OneTime",
+    "startDate": "2026-10-20",
+    "tags": [],
+    "reminderEnabled": false,
+    "reminderTimes": [],
+    "scheduledReminders": [
+      {
+        "when": "SameDay",
+        "time": "08:00:00"
+      },
+      {
+        "when": "DayBefore",
+        "time": "08:00:00"
+      }
+    ],
+    "relativeReminders": [
+      {
+        "minutesBefore": null,
+        "when": "SameDay",
+        "time": "08:00:00"
+      },
+      {
+        "minutesBefore": null,
+        "when": "DayBefore",
+        "time": "08:00:00"
+      }
+    ],
+    "slipAlertEnabled": false
+  },
+  "HabitTagItem": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "name": "<string>",
+    "color": "<string>"
+  },
+  "LinkedGoalDto": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "title": "<string>"
+  },
+  "ChecklistItem": {
+    "text": "<string>",
+    "isChecked": false
+  },
+  "RelativeReminderTime": {
+    "minutesBefore": 1,
+    "when": "SameDay",
+    "time": "08:00:00"
+  },
+  "ScheduledReminderTime": {
+    "when": "SameDay",
+    "time": "08:00:00"
+  },
+  "HabitScheduleItem": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "title": "<string>",
+    "description": "<string>",
+    "frequencyUnit": "Day",
+    "frequencyQuantity": 1,
+    "isBadHabit": false,
+    "isCompleted": false,
+    "isGeneral": false,
+    "isFlexible": false,
+    "days": [],
+    "position": 1,
+    "createdAtUtc": "2026-10-20T12:00:00Z",
+    "dueDate": "2026-10-20",
+    "dueTime": "08:00:00",
+    "dueEndTime": "08:00:00",
+    "endDate": "2026-10-20",
+    "scheduledDates": [],
+    "isOverdue": false,
+    "reminderEnabled": false,
+    "reminderTimes": [],
+    "scheduledReminders": [
+      {
+        "when": "SameDay",
+        "time": "08:00:00"
+      },
+      {
+        "when": "DayBefore",
+        "time": "08:00:00"
+      }
+    ],
+    "slipAlertEnabled": false,
+    "checklistItems": [],
+    "tags": [],
+    "linkedGoals": [],
+    "children": [],
+    "hasSubHabits": false,
+    "flexibleTarget": 1,
+    "flexibleCompleted": 1,
+    "isLoggedInRange": false,
+    "instances": [],
+    "searchMatches": [],
+    "emoji": "<string>",
+    "intervalWeeks": 1,
+    "relativeReminders": [
+      {
+        "minutesBefore": null,
+        "when": "SameDay",
+        "time": "08:00:00"
+      },
+      {
+        "minutesBefore": null,
+        "when": "DayBefore",
+        "time": "08:00:00"
+      }
+    ],
+    "schedule": "OneTime",
+    "startDate": "2026-10-20"
+  },
+  "HabitScheduleChildItem": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "title": "<string>",
+    "description": "<string>",
+    "frequencyUnit": "Day",
+    "frequencyQuantity": 1,
+    "isBadHabit": false,
+    "isCompleted": false,
+    "isGeneral": false,
+    "isFlexible": false,
+    "days": [],
+    "dueDate": "2026-10-20",
+    "dueTime": "08:00:00",
+    "dueEndTime": "08:00:00",
+    "endDate": "2026-10-20",
+    "scheduledDates": [],
+    "isOverdue": false,
+    "position": 1,
+    "checklistItems": [],
+    "tags": [],
+    "children": [],
+    "hasSubHabits": false,
+    "flexibleTarget": 1,
+    "flexibleCompleted": 1,
+    "isLoggedInRange": false,
+    "instances": [],
+    "searchMatches": [],
+    "emoji": "<string>",
+    "intervalWeeks": 1,
+    "createdAtUtc": "2026-10-20T12:00:00Z",
+    "schedule": "OneTime",
+    "startDate": "2026-10-20",
+    "reminderEnabled": false,
+    "reminderTimes": [],
+    "scheduledReminders": [
+      {
+        "when": "SameDay",
+        "time": "08:00:00"
+      },
+      {
+        "when": "DayBefore",
+        "time": "08:00:00"
+      }
+    ],
+    "relativeReminders": [
+      {
+        "minutesBefore": null,
+        "when": "SameDay",
+        "time": "08:00:00"
+      },
+      {
+        "minutesBefore": null,
+        "when": "DayBefore",
+        "time": "08:00:00"
+      }
+    ],
+    "slipAlertEnabled": false
+  },
+  "PaginatedResponse`1": {
+    "items": [
+      {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "title": "<string>",
+        "description": "<string>",
+        "frequencyUnit": "Day",
+        "frequencyQuantity": 1,
+        "isBadHabit": false,
+        "isCompleted": false,
+        "isGeneral": false,
+        "isFlexible": false,
+        "days": [],
+        "position": 1,
+        "createdAtUtc": "2026-10-20T12:00:00Z",
+        "dueDate": "2026-10-20",
+        "dueTime": "08:00:00",
+        "dueEndTime": "08:00:00",
+        "endDate": "2026-10-20",
+        "scheduledDates": [],
+        "isOverdue": false,
+        "reminderEnabled": false,
+        "reminderTimes": [],
+        "scheduledReminders": [
+          {
+            "when": "SameDay",
+            "time": "08:00:00"
+          },
+          {
+            "when": "DayBefore",
+            "time": "08:00:00"
+          }
+        ],
+        "slipAlertEnabled": false,
+        "checklistItems": [],
+        "tags": [],
+        "linkedGoals": [],
+        "children": [],
+        "hasSubHabits": false,
+        "flexibleTarget": 1,
+        "flexibleCompleted": 1,
+        "isLoggedInRange": false,
+        "instances": [],
+        "searchMatches": [],
+        "emoji": "<string>",
+        "intervalWeeks": 1,
+        "relativeReminders": [
+          {
+            "minutesBefore": null,
+            "when": "SameDay",
+            "time": "08:00:00"
+          },
+          {
+            "minutesBefore": null,
+            "when": "DayBefore",
+            "time": "08:00:00"
+          }
+        ],
+        "schedule": "OneTime",
+        "startDate": "2026-10-20"
+      }
+    ],
+    "page": 1,
+    "pageSize": 1,
+    "totalCount": 1,
+    "totalPages": 1
+  },
+  "HabitFullDetailResponse": {
+    "habit": {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "title": "<string>",
+      "description": "<string>",
+      "frequencyUnit": "Day",
+      "frequencyQuantity": 1,
+      "isBadHabit": false,
+      "isCompleted": false,
+      "isGeneral": false,
+      "isFlexible": false,
+      "dueDate": "2026-10-20",
+      "dueTime": "08:00:00",
+      "dueEndTime": "08:00:00",
+      "endDate": "2026-10-20",
+      "days": [],
+      "position": 1,
+      "reminderEnabled": false,
+      "reminderTimes": [],
+      "scheduledReminders": [
+        {
+          "when": "SameDay",
+          "time": "08:00:00"
+        },
+        {
+          "when": "DayBefore",
+          "time": "08:00:00"
+        }
+      ],
+      "checklistItems": [],
+      "createdAtUtc": "2026-10-20T12:00:00Z",
+      "children": [],
+      "emoji": "<string>",
+      "intervalWeeks": 1,
+      "linkedGoals": [],
+      "slipAlertEnabled": false,
+      "relativeReminders": [
+        {
+          "minutesBefore": null,
+          "when": "SameDay",
+          "time": "08:00:00"
+        },
+        {
+          "minutesBefore": null,
+          "when": "DayBefore",
+          "time": "08:00:00"
+        }
+      ],
+      "schedule": "OneTime",
+      "startDate": "2026-10-20",
+      "tags": [],
+      "scheduledStartDate": "2026-10-20",
+      "originalDayOfMonth": 1
+    },
+    "metrics": {
+      "currentStreak": 1,
+      "longestStreak": 1,
+      "weeklyCompletionRate": 1,
+      "monthlyCompletionRate": 1,
+      "totalCompletions": 1,
+      "lastCompletedDate": "2026-10-20",
+      "habitId": "00000000-0000-0000-0000-000000000000",
+      "habitTitle": "<string>"
+    },
+    "logs": []
+  },
+  "CalendarMonthResponse": {
+    "habits": [
+      {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "title": "<string>",
+        "description": "<string>",
+        "frequencyUnit": "Day",
+        "frequencyQuantity": 1,
+        "isBadHabit": false,
+        "isCompleted": false,
+        "isGeneral": false,
+        "isFlexible": false,
+        "days": [],
+        "position": 1,
+        "createdAtUtc": "2026-10-20T12:00:00Z",
+        "dueDate": "2026-10-20",
+        "dueTime": "08:00:00",
+        "dueEndTime": "08:00:00",
+        "endDate": "2026-10-20",
+        "scheduledDates": [],
+        "isOverdue": false,
+        "reminderEnabled": false,
+        "reminderTimes": [],
+        "scheduledReminders": [
+          {
+            "when": "SameDay",
+            "time": "08:00:00"
+          },
+          {
+            "when": "DayBefore",
+            "time": "08:00:00"
+          }
+        ],
+        "slipAlertEnabled": false,
+        "checklistItems": [],
+        "tags": [],
+        "linkedGoals": [],
+        "children": [],
+        "hasSubHabits": false,
+        "flexibleTarget": 1,
+        "flexibleCompleted": 1,
+        "isLoggedInRange": false,
+        "instances": [],
+        "searchMatches": [],
+        "emoji": "<string>",
+        "intervalWeeks": 1,
+        "relativeReminders": [
+          {
+            "minutesBefore": null,
+            "when": "SameDay",
+            "time": "08:00:00"
+          },
+          {
+            "minutesBefore": null,
+            "when": "DayBefore",
+            "time": "08:00:00"
+          }
+        ],
+        "schedule": "OneTime",
+        "startDate": "2026-10-20"
+      }
+    ],
+    "logs": {}
+  },
+  "SyncChangesV2Response": {
+    "habits": {
+      "updated": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "title": "<string>",
+          "description": "<string>",
+          "frequencyUnit": "Day",
+          "frequencyQuantity": 1,
+          "isBadHabit": false,
+          "isCompleted": false,
+          "dueDate": "2026-10-20",
+          "dueTime": "08:00:00",
+          "dueEndTime": "08:00:00",
+          "reminderEnabled": false,
+          "reminderTimes": [],
+          "isGeneral": false,
+          "isFlexible": false,
+          "slipAlertEnabled": false,
+          "checklistItems": [],
+          "scheduledReminders": [
+            {
+              "when": "SameDay",
+              "time": "08:00:00"
+            },
+            {
+              "when": "DayBefore",
+              "time": "08:00:00"
+            }
+          ],
+          "endDate": "2026-10-20",
+          "position": 1,
+          "parentHabitId": "00000000-0000-0000-0000-000000000000",
+          "createdAtUtc": "2026-10-20T12:00:00Z",
+          "updatedAtUtc": "2026-10-20T12:00:00Z",
+          "emoji": "<string>",
+          "intervalWeeks": 1,
+          "relativeReminders": [
+            {
+              "minutesBefore": null,
+              "when": "SameDay",
+              "time": "08:00:00"
+            },
+            {
+              "minutesBefore": null,
+              "when": "DayBefore",
+              "time": "08:00:00"
+            }
+          ],
+          "schedule": "OneTime",
+          "startDate": "2026-10-20"
+        }
+      ],
+      "deleted": []
+    },
+    "habitLogs": {
+      "updated": [],
+      "deleted": []
+    },
+    "goals": {
+      "updated": [],
+      "deleted": []
+    },
+    "goalProgressLogs": {
+      "updated": [],
+      "deleted": []
+    },
+    "tags": {
+      "updated": [],
+      "deleted": []
+    },
+    "notifications": {
+      "updated": [],
+      "deleted": []
+    },
+    "checklistTemplates": {
+      "updated": [],
+      "deleted": []
+    },
+    "serverTimestamp": "2026-10-20T12:00:00Z",
+    "version": 2
+  }
+}

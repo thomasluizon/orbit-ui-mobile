@@ -1,11 +1,14 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AppState, type AppStateStatus } from 'react-native'
+import { AppState, StyleSheet, type AppStateStatus, type PressableProps } from 'react-native'
 import { I18nextProvider } from 'react-i18next'
 
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
+import { PillButton } from '@/components/ui/pill-button'
 import { i18n } from '@/lib/i18n'
 import { useAuthStore } from '@/stores/auth-store'
+import { createTokensV2, radius } from '@/lib/theme'
+import { BUTTON_SIZES, SMALL_PILL_VISIBLE_MIN, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 vi.unmock('react-i18next')
 
@@ -47,7 +50,12 @@ const mocks = vi.hoisted(() => {
     credentialVersion: 1,
   }
   const authListeners = new Set<() => void>()
+  const theme: { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } = {
+    currentScheme: 'orange',
+    currentTheme: 'dark',
+  }
   return {
+    theme,
     authState,
     authListeners,
     currentRoute: null as string | null,
@@ -60,6 +68,8 @@ const mocks = vi.hoisted(() => {
     },
   }
 })
+
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => mocks.theme }))
 
 vi.mock('@/stores/auth-store', async () => {
   const { useSyncExternalStore } = await import('react')
@@ -132,10 +142,26 @@ function action(instance: TestInstance, label: string): TestNode {
   return match!
 }
 
-beforeEach(() => {
+function textContent(children: React.ReactNode): string {
+  return React.Children.toArray(children).map((child): string => {
+    if (typeof child === 'string' || typeof child === 'number') return String(child)
+    return React.isValidElement<{ children?: React.ReactNode }>(child)
+      ? textContent(child.props.children)
+      : ''
+  }).join('')
+}
+
+function actionStyle(instance: TestInstance, pressed = false) {
+  const style = action(instance, i18n.t('auth.refresh')).props.style as PressableProps['style']
+  return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+}
+
+beforeEach(async () => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-09-16T12:00:00Z'))
   mocks.currentRoute = null
+  mocks.theme.currentTheme = 'dark'
+  await i18n.changeLanguage('en')
   mocks.setAuthState({
     isAuthenticated: true,
     expiresAt: null,
@@ -175,6 +201,57 @@ afterEach(async () => {
 })
 
 describe('ExpiryWarning', () => {
+  it.each([
+    ['en', 'Your session expires in 5 minutes. Save your work.', 'Your session expires in 4 minutes. Save your work.'],
+    ['pt-BR', 'Sua sessão expira em 5 minutos. Salve o que estiver fazendo.', 'Sua sessão expira em 4 minutos. Salve o que estiver fazendo.'],
+  ])('keeps the complete countdown sentence in %s', async (locale, initial, next) => {
+    await i18n.changeLanguage(locale)
+    mocks.refreshSession.mockResolvedValue({ status: 'network-error' })
+    const instance = await renderSession(Date.now() + 15 * 60_000)
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(10 * 60_000) })
+    expect(textContent(hostNodes(instance, 'Text')[0]!.props.children as React.ReactNode)).toBe(initial)
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(textContent(hostNodes(instance, 'Text')[0]!.props.children as React.ReactNode)).toBe(next)
+    expect(StyleSheet.flatten(hostNodes(instance, 'Text')[0]!.props.style)).toMatchObject({ fontVariant: ['tabular-nums'] })
+    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+  })
+
+  it('uses the shared card radius for the notice', async () => {
+    const instance = await renderExpiredWarning()
+    expect(StyleSheet.flatten(hostNodes(instance, 'View')[1]!.props.style)).toMatchObject({ borderRadius: radius.xl })
+  })
+
+  it.each(['dark', 'light'] as const)('uses token interaction fills in %s', async (mode) => {
+    mocks.theme.currentTheme = mode
+    const instance = await renderExpiredWarning()
+    const tokens = createTokensV2('orange', mode)
+    const pills = instance.root.findAll((node) => node.type === PillButton)
+    expect(pills).toHaveLength(1)
+    expect(pills[0]!.props).toMatchObject({ size: 'sm', variant: 'ghost' })
+    const recoveryAction = action(instance, i18n.t('auth.refresh'))
+    expect(recoveryAction.props.testID).toBe('button-ghost-sm')
+    expect(actionStyle(instance)).toMatchObject({
+      borderRadius: radius.full,
+      overflow: 'hidden',
+      height: SMALL_PILL_VISIBLE_MIN,
+      minHeight: SMALL_PILL_VISIBLE_MIN,
+      minWidth: SMALL_PILL_VISIBLE_MIN,
+      paddingVertical: SPACING.s4,
+      paddingHorizontal: BUTTON_SIZES.sm.paddingX,
+      backgroundColor: 'transparent',
+    })
+    expect(Number(actionStyle(instance).height) + 2 * (recoveryAction.props.hitSlop as number)).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
+    expect(actionStyle(instance, true)).toMatchObject({ backgroundColor: tokens.bgHover })
+    await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onHoverIn as () => void)() })
+    expect(actionStyle(instance)).toMatchObject({ backgroundColor: tokens.bgHover })
+    await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onHoverOut as () => void)() })
+    expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent' })
+    await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onFocus as () => void)() })
+    expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent', outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: 2 })
+    await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onBlur as () => void)() })
+    expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent' })
+  })
+
   it('silently renews a 15-minute token throughout normal foreground use', async () => {
     mocks.refreshSession.mockImplementation(() => {
       mocks.setAuthState({ expiresAt: Date.now() + 15 * 60_000 })
@@ -421,15 +498,24 @@ describe('ExpiryWarning', () => {
     )
     const instance = await renderExpiredWarning()
     let refreshPromise!: Promise<void>
+    const press = action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>
 
     await TestRenderer.act(async () => {
-      refreshPromise = (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+      refreshPromise = press()
       await Promise.resolve()
     })
 
     expect(action(instance, i18n.t('auth.refresh')).props.disabled).toBe(true)
     expect(hostNodes(instance, 'ActivityIndicator')).toHaveLength(1)
     expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+
+    await TestRenderer.act(async () => {
+      await press()
+    })
+    expect(action(instance, i18n.t('auth.refresh')).props.onPress).toBeUndefined()
+    expect(mocks.refreshSession).toHaveBeenCalledOnce()
+    expect(action(instance, i18n.t('auth.refresh')).props.accessibilityState).toEqual({ busy: true, disabled: true })
+    expect(actionStyle(instance, true)).toMatchObject({ backgroundColor: 'transparent' })
 
     await TestRenderer.act(async () => {
       resolveRefresh({ status: 'refreshed', token: 'fresh-access-token' })

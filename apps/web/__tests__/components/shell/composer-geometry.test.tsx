@@ -1,8 +1,8 @@
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { createRef } from 'react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { createRef, useState } from 'react'
 import postcss from 'postcss'
 import { execFileSync } from 'node:child_process'
 import tailwind from '@tailwindcss/postcss'
@@ -27,15 +27,15 @@ const cases = [320, 360, 384, 412].flatMap((width) =>
   [en, ptBR].flatMap((messages) => [1, 2].map((fontScale) => ({ width, messages, fontScale }))),
 )
 
-type GeometryScenario = 'idle' | 'typing' | 'longText' | 'sending' | 'recording' | 'transcribing' | 'tray1' | 'tray2' | 'tray3' | 'atLimit' | 'offline' | 'retry'
+type GeometryScenario = 'idle' | 'oneLine' | 'typing' | 'longText' | 'sending' | 'recording' | 'transcribing' | 'tray1' | 'tray2' | 'tray3' | 'atLimit' | 'offline' | 'retry'
 
 function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpener: boolean): ComposerProps {
-  const state = ['typing', 'longText', 'tray1', 'tray2', 'tray3', 'retry'].includes(scenario) ? 'idle' : scenario
+  const state = ['oneLine', 'typing', 'longText', 'tray1', 'tray2', 'tray3', 'retry'].includes(scenario) ? 'idle' : scenario
   return {
     state,
     ...(state === 'offline' ? { limitReason: messages.shell.composer.offline.reason } : {}),
     ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason } : {}),
-    value: scenario === 'typing' ? 'First\nSecond\nThird' : scenario === 'longText' ? 'Long message\n'.repeat(12) : '',
+    value: scenario === 'oneLine' ? 'Oi' : scenario === 'typing' ? 'First\nSecond\nThird' : scenario === 'longText' ? 'Long message\n'.repeat(12) : '',
     suggestions: [], words: { ...messages.shell.composer, ...(state === 'offline' ? { placeholder: messages.shell.composer.offline.placeholder } : state === 'atLimit' ? { placeholder: messages.shell.composer.limit.placeholder } : {}) },
     onChangeValue: vi.fn(), onSend: vi.fn(),
     onVoice: vi.fn(), voiceWords: messages.shell.composer.voice,
@@ -56,11 +56,70 @@ interface PillGeometry {
   controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[]
 }
 
+async function expectNarrowMenuPaste(page: import('@playwright/test').Page, messages: typeof en) {
+  const measured = await page.locator('[data-composer-input]').evaluate(element => {
+    const style = getComputedStyle(element)
+    const trailing = element.parentElement!.querySelector('[data-composer-trailing-controls]')!
+    const control = trailing.querySelector('button')!.getBoundingClientRect()
+    const context = document.createElement('canvas').getContext('2d')!
+    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+    context.letterSpacing = style.letterSpacing
+    const metrics = context.measureText(element.getAttribute('placeholder')!)
+    return { clientWidth: element.clientWidth, controlWidth: control.width, gap: getComputedStyle(trailing).columnGap,
+      font: style.font, fontSize: style.fontSize, fontStyle: style.fontStyle, fontWeight: style.fontWeight, fontFamily: style.fontFamily,
+      letterSpacing: style.letterSpacing, paddingInlineStart: style.paddingInlineStart, paddingInlineEnd: style.paddingInlineEnd,
+      metrics: Object.fromEntries(Object.keys(Object.getPrototypeOf(metrics)).filter(key => typeof Reflect.get(metrics, key) === 'number').map(key => [key, Reflect.get(metrics, key)])) }
+  })
+  vi.stubGlobal('navigator', { clipboard: { readText: vi.fn().mockResolvedValue('Pasted message') } })
+  function ControlledComposer() {
+    const [value, setValue] = useState('')
+    return <Composer {...geometryProps('tray1', messages, true)} value={value} onChangeValue={setValue} />
+  }
+  const view = render(<ControlledComposer />)
+  const field = screen.getByRole('textbox') as HTMLTextAreaElement
+  Object.assign(field.style, { font: measured.font, fontSize: measured.fontSize, fontStyle: measured.fontStyle,
+    fontWeight: measured.fontWeight, fontFamily: measured.fontFamily, letterSpacing: measured.letterSpacing,
+    paddingInlineStart: measured.paddingInlineStart, paddingInlineEnd: measured.paddingInlineEnd })
+  const trailing = field.parentElement!.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
+  trailing.style.columnGap = measured.gap
+  const widthSpy = vi.spyOn(field, 'clientWidth', 'get').mockImplementation(() => measured.clientWidth -
+    (trailing.querySelector('[data-composer-paste], [data-composer-clear]') ? measured.controlWidth + parseFloat(measured.gap) : 0))
+  const contextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    font: '', letterSpacing: '', measureText: () => measured.metrics,
+  } as unknown as CanvasRenderingContext2D)
+  try {
+    await act(() => document.fonts.dispatchEvent(new Event('loadingdone')))
+    expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+    const menu = await screen.findByRole('menu')
+    const paste = within(menu).getAllByRole('menuitem')[0]!
+    expect(paste).toHaveAccessibleName(messages.shell.composer.paste)
+    expect(paste.querySelector('[data-icon="clipboard"] svg')).not.toBeNull()
+    fireEvent.click(paste)
+    await waitFor(() => expect(field).toHaveValue('Pasted message'))
+    await waitFor(() => expect(field).toHaveFocus())
+    expect([field.selectionStart, field.selectionEnd]).toEqual([14, 14])
+    expect(screen.queryByRole('button', { name: messages.shell.composer.clear })).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('button', { name: messages.shell.composer.actions }), { key: 'ArrowDown' })
+    const clearMenu = await screen.findByRole('menu')
+    const clear = within(clearMenu).getAllByRole('menuitem')[0]!
+    expect(clear).toHaveAccessibleName(messages.shell.composer.clear)
+    expect(clear.querySelector('[data-icon="x"] svg')).not.toBeNull()
+    await waitFor(() => expect(clear).toHaveFocus())
+    fireEvent.click(clear)
+    await waitFor(() => expect(field).toHaveValue(''))
+    await waitFor(() => expect(field).toHaveFocus())
+    expect(screen.getByText('attachment-0.txt')).toBeInTheDocument()
+  } finally { widthSpy.mockRestore(); contextSpy.mockRestore(); view.unmount(); vi.unstubAllGlobals() }
+}
+
 function assertPillGeometry(measured: PillGeometry, context: { width: number; fontScale: number; withOpener: boolean; scenario: GeometryScenario }) {
   const { width, fontScale, withOpener, scenario } = context
   const evidence = JSON.stringify({ width, fontScale, withOpener, scenario, measured })
   expect(measured.documentWidth, evidence).toBe(width)
-  expect(measured.controls).toHaveLength(withOpener ? 3 : 2)
+  const slotContentWidth = width - 32 - 8 - 16 - 96 - INTERACTION_FILL_CLEARANCE - 48 - INTERACTION_FILL_CLEARANCE - (withOpener ? 48 : 0)
+  const hasClear = ['oneLine', 'typing', 'longText'].includes(scenario) && measured.input!.placeholderWidth <= slotContentWidth
+  expect(measured.controls).toHaveLength((withOpener ? 3 : 2) + (hasClear ? 1 : 0))
   for (const [index, control] of measured.controls.entries()) {
     expect(control.width, evidence).toBe(48)
     expect(control.height, evidence).toBe(48)
@@ -69,20 +128,28 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
     if (index > 0) expect(control.left, evidence).toBeGreaterThanOrEqual(measured.controls[index - 1]!.right)
   }
   expect(new Set(measured.controls.map((control) => control.top)).size, evidence).toBe(1)
-  if (measured.input) {
-    expect(measured.input.width, evidence).toBeGreaterThanOrEqual(136 - INTERACTION_FILL_CLEARANCE)
-    if (fontScale === 1) {
-      expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.contentWidth)
-    }
-    if (scenario === 'longText') {
-      expect(measured.input.height, evidence).toBe(measured.input.maximumHeight)
-      expect(measured.input.scrollHeight, evidence).toBeGreaterThan(measured.input.height)
-    } else if (scenario !== 'typing') {
-      if (measured.input.placeholderWidth > measured.input.contentWidth) expect(measured.pill.height, evidence).toBeGreaterThan(24 * fontScale + 32)
-      else expect(measured.pill.height, evidence).toBe(24 * fontScale + 32)
-      expect(measured.input.scrollHeight, evidence).toBeLessThanOrEqual(measured.input.height)
-    }
-  } else expect(measured.pill.height, evidence).toBe(56)
+  if (measured.input) assertInputGeometry(measured.input, measured.pill.height, { fontScale, scenario, hasClear }, evidence)
+  else expect(measured.pill.height, evidence).toBe(56)
+}
+
+function assertInputGeometry(input: NonNullable<PillGeometry['input']>, pillHeight: number,
+  { fontScale, scenario, hasClear }: { fontScale: number; scenario: GeometryScenario; hasClear: boolean }, evidence: string) {
+  const clearWidth = hasClear ? 48 + INTERACTION_FILL_CLEARANCE : 0
+  expect(input.width, evidence).toBeGreaterThanOrEqual(136 - INTERACTION_FILL_CLEARANCE - clearWidth)
+  if (fontScale === 1) expect(input.placeholderWidth, evidence).toBeLessThanOrEqual(input.contentWidth)
+  if (scenario === 'longText') {
+    expect(input.height, evidence).toBe(input.maximumHeight)
+    expect(input.scrollHeight, evidence).toBeGreaterThan(input.height)
+    return
+  }
+  if (scenario === 'oneLine') {
+    expect(pillHeight, evidence).toBe(24 * fontScale + 32)
+    return
+  }
+  if (scenario === 'typing') return
+  if (input.placeholderWidth > input.contentWidth) expect(pillHeight, evidence).toBeGreaterThan(24 * fontScale + 32)
+  else expect(pillHeight, evidence).toBe(24 * fontScale + 32)
+  expect(input.scrollHeight, evidence).toBeLessThanOrEqual(input.height)
 }
 
 const chipScenarios = ['empty', 'pending', 'returning', 'completed', 'habitDetail', 'longTitle', 'unbrokenTitle', 'namedActions'] as const
@@ -142,6 +209,7 @@ describe('Composer compact geometry in Chromium', () => {
         import { AstraConversation } from './components/chat/conversation';
         import { createChatThreadScroll } from '@orbit/shared/hooks';
         const props = JSON.parse(document.getElementById('configuration').textContent);
+        if (props.clipboardText) Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => props.clipboardText } });
         function MountedComposer() {
           const [value, setValue] = useState(props.value);
           const composerProps = {
@@ -176,14 +244,54 @@ describe('Composer compact geometry in Chromium', () => {
         builder.onResolve({ filter: /^(next-intl|next\\/navigation)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onResolve({ filter: /^@\\/components\\/(goals\\/goal-detail-drawer|chat\\/message-bubble|chat\\/prompt-library)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onResolve({ filter: /^\\.\\/proactive-action$/ }, args => ({ path: args.path, namespace: 'boundary' }));
+        builder.onResolve({ filter: /^@\\/stores\\/auth-store$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents:
-          'export const Menu = () => null; export const Sheet = () => null; export const GoalDetailDrawer = () => null; export const MessageBubble = ({message}) => message.content; export const PromptLibrary = () => null; export const ProactiveAction = () => null; export const useRouter = () => ({}); export const useTranslations = () => key => key;', loader: 'js' }));
+          'export const useAuthStore = { getState: () => ({ isAuthenticated: true, user: { userId: "composer-account" } }) }; export const Menu = () => null; export const Sheet = () => null; export const GoalDetailDrawer = () => null; export const MessageBubble = ({message}) => message.content; export const PromptLibrary = () => null; export const ProactiveAction = () => null; export const useRouter = () => ({}); export const useTranslations = () => key => key;', loader: 'js' }));
       } }];
       const result = await build(options);
       process.stdout.write(result.outputFiles[0].text);
     `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
+    'moves text actions only when the whole placeholder needs their slot at $width', async ({ width, messages }) => {
+      const configuration = { ...geometryProps('idle', messages, true), clipboardText: 'Pasted message' }
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+        await page.addScriptTag({ content: composerScript })
+        await loadAppFonts(page)
+        const input = page.locator('[data-composer-input]')
+        const paste = page.locator('[data-composer-paste]')
+        await expect.poll(() => paste.count()).toBe(width === 320 ? 0 : 1)
+        const empty = await input.evaluate(measureFieldInset)
+        expect(await input.getAttribute('placeholder')).toBe(messages.shell.composer.placeholder)
+        expect(empty.height).toBe(empty.lineHeight + 24)
+        expect((await page.locator('[data-composer-input-row]').boundingBox())!.height).toBe(56)
+        const placeholderWidth = await input.evaluate(element => {
+          const context = document.createElement('canvas').getContext('2d')!
+          const style = getComputedStyle(element)
+          context.font = style.font
+          context.letterSpacing = style.letterSpacing
+          return context.measureText(element.getAttribute('placeholder')!).width
+        })
+        expect(placeholderWidth).toBeLessThanOrEqual(empty.contentWidth)
+        await input.fill('Draft')
+        const typed = await input.evaluate(measureFieldInset)
+        expect(typed.contentWidth).toBe(empty.contentWidth)
+        expect(new Set(await page.locator('[data-composer-trailing-controls] button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top))).size).toBe(1)
+        expect(await page.locator('[data-composer-clear]').count()).toBe(width === 320 ? 0 : 1)
+        if (width === 320) await input.fill('')
+        else await page.locator('[data-composer-clear]').click()
+        await expect.poll(() => paste.count()).toBe(width === 320 ? 0 : 1)
+        expect(await input.evaluate(element => element === document.activeElement)).toBe(true)
+        if (width === 320) await expectNarrowMenuPaste(page, messages)
+        await page.setViewportSize({ width: width === 320 ? 412 : 320, height: 915 })
+        await expect.poll(() => paste.count()).toBe(width === 320 ? 1 : 0)
+      } finally { await page.close() }
+    },
+  )
 
   it.each([360, 412, 1200, 1600].flatMap(width => [false, true].map(withMessages => ({ width, withMessages }))))(
     'contains the prefilled conversation input at $width with messages $withMessages', async ({ width, withMessages }) => {
@@ -247,10 +355,12 @@ describe('Composer compact geometry in Chromium', () => {
       await field.fill((direction === 'rtl' ? 'אבג ' : 'Astra ').repeat(10).trim())
       const typed = await field.evaluate(measureFieldInset)
       expect(typed.inset).toBe(placeholder.inset)
-      expect(typed.contentWidth).toBe(box.width - 16)
+      const clearCount = await page.locator('[data-composer-clear]').count()
+      expect(typed.contentWidth).toBe(box.width - 16 - clearCount * (48 + INTERACTION_FILL_CLEARANCE))
       if (width === 320) expect(typed.height).toBeGreaterThan(placeholder.height)
       expect(typed.height).toBeLessThanOrEqual(typed.maximumHeight)
-      expect(typed.scrollHeight).toBe(typed.height)
+      if (typed.height === typed.maximumHeight) expect(typed.scrollHeight).toBeGreaterThanOrEqual(typed.height)
+      else expect(typed.scrollHeight).toBe(typed.height)
       for (const control of await page.locator('[data-composer-input-row] button').all()) {
         const bounds = (await control.boundingBox())!
         expect(bounds.width).toBe(48)
@@ -582,7 +692,7 @@ describe('Composer compact geometry in Chromium', () => {
         const field = page.getByRole('textbox')
         expect(await field.evaluate((element) => element === document.activeElement)).toBe(true)
         expect(await readFieldIndicators(field, '[data-composer-input-row]', { forcedColors })).toHaveLength(1)
-        for (const name of [en.shell.composer.actions, en.shell.composer.send]) {
+        for (const name of [en.shell.composer.clear, en.shell.composer.actions, en.shell.composer.send]) {
           await page.keyboard.press('Tab')
           const control = page.getByRole('button', { name, exact: true })
           expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
@@ -738,7 +848,7 @@ describe('Composer compact geometry in Chromium', () => {
   it.each(cases)('keeps controls inside one pill at $width and $fontScale text size in both locales', async ({ width, messages, fontScale }) => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
-      for (const withOpener of [true, false]) for (const scenario of ['idle', 'typing', 'longText', 'sending', 'recording', 'transcribing', 'tray1', 'tray2', 'tray3', 'atLimit', 'offline', 'retry'] as const) {
+      for (const withOpener of [true, false]) for (const scenario of ['idle', 'oneLine', 'typing', 'longText', 'sending', 'recording', 'transcribing', 'tray1', 'tray2', 'tray3', 'atLimit', 'offline', 'retry'] as const) {
         const props = geometryProps(scenario, messages, withOpener)
         await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ ...props, attachmentRemoveTemplate: messages.shell.composer.attach.remove })}</script>`)
         await page.addScriptTag({ content: composerScript })

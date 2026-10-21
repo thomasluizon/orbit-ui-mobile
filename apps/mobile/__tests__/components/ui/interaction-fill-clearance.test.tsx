@@ -24,11 +24,12 @@ import type { GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
 vi.unmock('@/components/ui/icons')
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn(), getString: vi.fn().mockResolvedValue('') } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn().mockResolvedValue('') }))
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
+const detailFixture = vi.hoisted(() => ({ summary: true }))
 vi.mock('@/hooks/use-habit-queries', () => ({
-  useHabitDetail: () => ({ data: makeHabitDetail(), isLoading: false, isError: false }),
+  useHabitDetail: () => ({ data: detailFixture.summary ? makeHabitDetail() : { ...makeHabitDetail(), frequencyUnit: null, frequencyQuantity: null, children: [] }, isLoading: false, isError: false }),
   useHabitLogs: () => ({ data: [] }),
   useHabitMetrics: () => ({ data: undefined, isLoading: false, isError: false }),
   useHabits: () => ({ data: { habitsById: new Map([['habit-1', makeHabitDetailScopedParent()]]) }, isLoading: false, isError: false }),
@@ -73,6 +74,30 @@ async function setInteraction(tree: GeometryTree, label: string, state: 'pressed
 }
 
 describe('Android interaction fill clearance', () => {
+  it.each([320, 412, 600, 1024, 1352].flatMap(width => [en, ptBR].flatMap(messages =>
+    (['pressed', 'focused'] as const).flatMap(state => ['', 'Oi'].map(value => ({ width, messages, state, value }))))))(
+    'clears the composer text control fill at $width while $state with text $value', async ({ width, messages, state, value }) => {
+      let tree!: GeometryTree
+      await act(() => { tree = create(<Composer state="idle" value={value} suggestions={[]} words={messages.shell.composer}
+        onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
+        attachWords={{ ...messages.shell.composer.attach, remove: name => name }} />) as GeometryTree })
+      try {
+        const label = value ? messages.shell.composer.clear : messages.shell.composer.paste
+        await setInteraction(tree, label, state)
+        const parts = measureInteractionFills(tree.toJSON(), Math.min(width, 740), state === 'pressed')
+        const clear = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)!
+        const actions = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.actions)!
+        const send = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.send)!
+        const fill = fillBox(parts, clear)
+        expect(clear.width).toBe(48)
+        expect(clear.bottom - clear.top).toBe(48)
+        expect(actions.left - fill.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        expect(new Set([clear.top, actions.top, send.top]).size).toBe(1)
+        const field = parts.find(part => part.host.props.testID === 'composer-field')!
+        expect(field.bottom - field.top).toBe(56)
+      } finally { await act(() => tree.unmount()) }
+    })
+
   it.each([320, 412, 600, 1024, 1352].flatMap(width => [en, ptBR].flatMap(messages =>
     (['pressed', 'focused'] as const).map(state => ({ width, messages, state })))))(
     'insets the habit detail composer at $width while $state', async ({ width, messages, state }) => {
@@ -165,7 +190,9 @@ describe('Android interaction fill clearance', () => {
     } finally { await act(() => tree.unmount()) }
   })
 
-  it.each([320, 412, 600, 1024, 1352].flatMap((width) => (['pressed', 'focused'] as const).map((state) => ({ width, state }))))('clears the title neighbours at $width while $state', async ({ width, state }) => {
+  it.each([320, 412, 600, 1024, 1352].flatMap((width) => (['pressed', 'focused'] as const).flatMap((state) => [false, true].map((summary) => ({ width, state, summary })))))(
+    'clears the title neighbours at $width while $state, summary=$summary', async ({ width, state, summary: hasSummary }) => {
+    detailFixture.summary = hasSummary
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree!: GeometryTree
     await act(() => { tree = create(<HabitDetailScreen habitId="habit-1" />) as GeometryTree })
@@ -176,15 +203,23 @@ describe('Android interaction fill clearance', () => {
       const title = parts.find((part) => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === makeHabitDetail().title)!
       const fill = fillBox(parts, title)
       const actions = parts.find((part) => part.ancestors.length === 2)!
-      const summary = parts.find((part) => part.host.type === 'Text' && part.top >= title.bottom && !part.ancestors.includes(title.slot))!
+      const type = parts.find((part) => part.host.props.testID === 'habit-detail-type')!
+      const summary = parts.find((part) => part.host.type === 'Text' && part.top >= type.bottom && !part.ancestors.includes(title.slot))
+      const metadata = [type, ...(summary ? [summary] : [])]
+      expect(type.host.children).toContain(hasSummary ? 'habits.form.typeHabit' : 'habits.form.typeTask')
+      expect(type.host.props.numberOfLines).toBeUndefined()
+      expect(type.width).toBeGreaterThan(0)
+      expect(type.bottom - type.top).toBeGreaterThan(0)
+      expect(Boolean(summary)).toBe(hasSummary)
       expect(title.top - actions.bottom, 'amended controls to title gap').toBe(8)
-      expect(summary.top - title.bottom, 'amended title to summary gap').toBe(8)
-      expect(parts[1]!.bottom - parts[1]!.top, 'drawn header height').toBeCloseTo(actions.bottom - actions.top + 12 + title.bottom - title.top + 4 + summary.bottom - summary.top)
+      expect(type.top - title.bottom, 'title to type gap').toBe(8)
+      if (summary) expect(summary.top - type.bottom, 'type to frequency summary gap').toBeCloseTo(8, 5)
+      expect(parts[1]!.bottom - parts[1]!.top, 'drawn header height').toBeCloseTo(actions.bottom - actions.top + 8 + title.bottom - title.top + metadata.reduce((height, line) => height + line.bottom - line.top + 8, 0))
       expect(fill.top - actions.bottom, 'emoji row to title fill').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-      expect(summary.top - fill.bottom, 'title fill to frequency summary').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+      for (const line of metadata) expect(line.top - fill.bottom, 'title fill to metadata').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       expect(fill.left, 'leading page clearance').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       expect(Math.min(width, 740) - fill.right, 'trailing page clearance').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-    } finally { await act(() => tree.unmount()) }
+    } finally { detailFixture.summary = true; await act(() => tree.unmount()) }
   })
 
   it.each([320, 412, 600, 1024, 1352].flatMap(width => [false, true].flatMap(checked =>

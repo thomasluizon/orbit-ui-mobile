@@ -1,4 +1,5 @@
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
@@ -6,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
 const { checkDesignBundles } = require('../../scripts/check-design-bundles.js') as {
-  checkDesignBundles: (legacyRoot: string, redesignRoot: string) => void
+  checkDesignBundles: (legacyRoot: string, redesignRoot?: string) => void
 }
 const root = resolve(import.meta.dirname, '../../../..')
 let fixture: string
@@ -39,6 +40,17 @@ beforeEach(() => {
 afterEach(() => { rmSync(fixture, { recursive: true }) })
 
 describe('Android design publication guard', () => {
+  it('accepts the promoted source without a legacy checkout or installed dependency tree', () => {
+    cpSync(resolve(root, 'apps/mobile/lib/design-bundle-identity.ts'), resolve(legacy, 'apps/mobile/lib/design-bundle-identity.ts'))
+    rmSync(resolve(legacy, 'node_modules'))
+    expect(() => checkDesignBundles(legacy)).not.toThrow()
+  })
+
+  it('checks a single embedded source through the publication CLI', () => {
+    expect(execFileSync(process.execPath, [resolve(root, 'apps/mobile/scripts/check-design-bundles.js'), root], { encoding: 'utf8' }))
+      .toContain('embedded redesign bundle')
+  })
+
   it.each(['legacy', 'redesign'])('rejects a missing native dependency on %s', side => {
     const path = resolve(side === 'legacy' ? legacy : redesign, 'package-lock.json')
     const lock = JSON.parse(readFileSync(path, 'utf8')) as { packages: Record<string, { version: string }> }

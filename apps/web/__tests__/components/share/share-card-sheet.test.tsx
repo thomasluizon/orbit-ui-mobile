@@ -13,7 +13,7 @@ vi.mock('@/hooks/use-wrapped', () => ({ useWrapped: (period: string, options: un
   return { recap: createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: mocks.isEmpty ? 0 : 5, totalCompletions: mocks.isEmpty ? 0 : 40, completionRate: mocks.isEmpty ? 0 : 73.5 }) }), ...mocks }
 } }))
 vi.mock('@/hooks/use-share-card', () => ({ useShareCard: () => ({ captureRef: { current: null }, ...mocks }) }))
-vi.mock('@/components/ui/sheet', () => ({ Sheet: ({ title, accessibleTitle, children, actions, onClose }: { title: string; accessibleTitle?: string; children: React.ReactNode; actions: React.ReactNode; onClose: () => void }) => <section role="dialog" aria-label={accessibleTitle ?? title}>{children}<footer>{actions}</footer><button onClick={onClose}>common.close</button></section> }))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 
@@ -38,7 +38,7 @@ describe('Share progress sheet', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'shareCard.periods.month' }))
     expect(mocks.wrapped).toHaveBeenLastCalledWith('month', { enabled: true })
     expect(mocks.resetFeedback).toHaveBeenCalledOnce()
-    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 

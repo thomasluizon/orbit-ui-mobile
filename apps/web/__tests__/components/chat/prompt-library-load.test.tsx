@@ -38,7 +38,7 @@ function conversation(locale: 'en' | 'pt-BR' = 'en') {
     canShowFollowUps: false, isOnline: true, hasProAccess: true, hasGoogleConnection: true, sendMessage: vi.fn(),
     composerProps: {
       state: 'idle', value: 'My unfinished draft', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
-      words: { placeholder: 'Ask Astra', send: 'Send', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
+      words: { placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
     },
   } as unknown as Parameters<typeof AstraConversation>[0]['chat']
   return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><AstraConversation chat={chat} /></NextIntlClientProvider>)
@@ -54,7 +54,7 @@ it('contains a rejected import inside the library and keeps the thread, Back and
   const failure = await screen.findByRole('alert')
   const library = failure.closest('[data-prompt-library]')!
   expect(library).not.toBeNull()
-  expect(within(library as HTMLElement).getByRole('heading', { name: 'Ideas' })).toHaveFocus()
+  await waitFor(() => expect(within(library as HTMLElement).getByRole('heading', { name: 'Ideas' })).toHaveFocus())
   expect(failure).toHaveTextContent(en.common.error)
   expect(within(failure).getByRole('button', { name: en.common.retry })).toBeEnabled()
   expect(thread).toBeInTheDocument()
@@ -75,6 +75,8 @@ it('imports again after reconnecting and renders the library on the second open'
   const trigger = screen.getByRole('button', { name: 'Browse ideas' })
   fireEvent.click(trigger)
   await waitFor(() => expect(importAttempt).toHaveBeenCalledOnce())
+  await screen.findByRole('alert')
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus())
   fireEvent.keyDown(document, { key: 'Escape' })
   await waitFor(() => expect(trigger).toHaveFocus())
   let finishImport!: () => void
@@ -87,10 +89,10 @@ it('imports again after reconnecting and renders the library on the second open'
   fireEvent.click(trigger)
   await waitFor(() => expect(importAttempt).toHaveBeenCalledTimes(2))
   expect(screen.getByRole('button', { name: 'Back to conversation' })).toBeEnabled()
-  expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus()
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus())
   await act(async () => { finishImport() })
   expect(await screen.findByRole('button', { name: 'Plan my morning' })).toBeEnabled()
-  expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus()
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus())
   expect(importAttempt).toHaveBeenCalledTimes(2)
   expect(screen.queryByRole('alert')).toBeNull()
   expect(thread).toBeInTheDocument()
@@ -121,5 +123,5 @@ it.each(['en', 'pt-BR'] as const)('keeps Back available through a retry and load
   await act(async () => { finishImport() })
   expect(await screen.findByRole('searchbox', { name: messages.chat.templates.search })).toBeEnabled()
   expect(screen.queryByRole('alert')).toBeNull()
-  expect(screen.getByRole('heading', { name: messages.chat.templates.title })).toHaveFocus()
+  await waitFor(() => expect(screen.getByRole('heading', { name: messages.chat.templates.title })).toHaveFocus())
 })

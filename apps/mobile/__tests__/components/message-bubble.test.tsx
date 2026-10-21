@@ -772,7 +772,8 @@ describe('MessageBubble interactive blocks (mobile)', () => {
           message={makeMessage({
             imageUrl: 'file:///morning.jpg',
             actions: [
-              { type: 'LogHabit', status: 'Success', entityId: 'habit-1' },
+              { type: 'LogHabit', status: 'Success', entityId: 'habit-1', entityName: 'Morning walk' },
+              { type: 'LogHabit', status: 'Success', entityId: 'empty-result' },
               {
                 type: 'BreakDownHabit',
                 status: 'Suggestion',
@@ -821,7 +822,9 @@ describe('MessageBubble interactive blocks (mobile)', () => {
     expect(
       tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.attachmentPreview').length,
     ).toBeGreaterThan(0)
-    const openAction = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && renderedText(node.props.children).includes('chat.action.open'))[0]
+    const openActions = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && renderedText(node.props.children).includes('chat.action.open'))
+    expect(openActions).toHaveLength(1)
+    const openAction = openActions[0]
     expect(openAction).toBeDefined()
     await TestRenderer.act(() => { openAction?.props.onPress?.() })
     expect(onActionChipClick).toHaveBeenCalledWith('habit-1', 'LogHabit')

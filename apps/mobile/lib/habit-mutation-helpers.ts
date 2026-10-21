@@ -89,6 +89,11 @@ function cloneChildHabit(node: HabitTreeNode): HabitScheduleChild {
   return {
     id: node.id,
     createdAtUtc: node.createdAtUtc,
+    reminderEnabled: node.reminderEnabled,
+    reminderTimes: node.reminderTimes,
+    scheduledReminders: node.scheduledReminders,
+    relativeReminders: node.relativeReminders,
+    slipAlertEnabled: node.slipAlertEnabled,
     title: node.title,
     description: node.description,
     frequencyUnit: node.frequencyUnit,
@@ -138,11 +143,11 @@ function cloneTopLevelHabit(node: HabitTreeNode): HabitScheduleItem {
     createdAtUtc: node.createdAtUtc ?? new Date().toISOString(),
     scheduledDates: ('scheduledDates' in node ? node.scheduledDates : []) ?? [],
     isOverdue: ('isOverdue' in node ? node.isOverdue : false) ?? false,
-    reminderEnabled: 'reminderEnabled' in node ? node.reminderEnabled : false,
-    reminderTimes: 'reminderTimes' in node ? node.reminderTimes : [],
-    scheduledReminders: 'scheduledReminders' in node ? node.scheduledReminders : [],
-    relativeReminders: 'relativeReminders' in node ? node.relativeReminders : [],
-    slipAlertEnabled: 'slipAlertEnabled' in node ? node.slipAlertEnabled : false,
+    reminderEnabled: node.reminderEnabled ?? false,
+    reminderTimes: node.reminderTimes ?? [],
+    scheduledReminders: node.scheduledReminders ?? [],
+    relativeReminders: node.relativeReminders ?? [],
+    slipAlertEnabled: node.slipAlertEnabled ?? false,
     tags: node.tags,
     children,
     hasSubHabits: children.length > 0 || node.hasSubHabits,
@@ -453,7 +458,7 @@ export function buildOptimisticHabit(
   data: CreateHabitRequest,
 ): HabitScheduleItem {
   const now = new Date()
-  const dueDate = data.dueDate || formatAPIDate(now)
+  const dueDate = data.startDate || data.dueDate || formatAPIDate(now)
   const hasScheduleInstance = !data.isGeneral && dueDate.length > 0
 
   return {
@@ -472,6 +477,7 @@ export function buildOptimisticHabit(
     dueTime: data.dueTime ?? null,
     dueEndTime: data.dueEndTime ?? null,
     endDate: data.endDate ?? null,
+    startDate: data.startDate,
     position: getNextTopLevelPosition(queryClient),
     checklistItems: data.checklistItems ?? [],
     createdAtUtc: now.toISOString(),
@@ -564,11 +570,11 @@ export function buildOptimisticDuplicateHabit(
       dueDate: source.dueDate,
       dueTime: source.dueTime ?? undefined,
       dueEndTime: source.dueEndTime ?? undefined,
-      reminderEnabled: 'reminderEnabled' in source ? source.reminderEnabled : undefined,
-      reminderTimes: 'reminderTimes' in source ? source.reminderTimes : undefined,
-      scheduledReminders: 'scheduledReminders' in source ? source.scheduledReminders : undefined,
+      reminderEnabled: source.reminderEnabled ?? undefined,
+      reminderTimes: source.reminderTimes ?? undefined,
+      scheduledReminders: source.scheduledReminders ?? undefined,
       relativeReminders: 'relativeReminders' in source ? source.relativeReminders ?? undefined : undefined,
-      slipAlertEnabled: 'slipAlertEnabled' in source ? source.slipAlertEnabled : undefined,
+      slipAlertEnabled: source.slipAlertEnabled ?? undefined,
       checklistItems: source.checklistItems,
       tagIds: source.tags.map((tag) => tag.id),
       endDate: source.endDate ?? undefined,
@@ -600,6 +606,7 @@ export function buildOptimisticHabitPatch(
     data.frequencyQuantity ?? null,
   )
   setHabitPatchField(patch, data, 'days', 'days', data.days ?? [])
+  setHabitPatchField(patch, data, 'startDate', 'startDate', data.startDate)
   setHabitPatchField(patch, data, 'dueDate', 'dueDate', data.dueDate ?? '')
   setHabitPatchField(patch, data, 'dueTime', 'dueTime', data.dueTime ?? null)
   setHabitPatchField(patch, data, 'dueEndTime', 'dueEndTime', data.dueEndTime ?? null)

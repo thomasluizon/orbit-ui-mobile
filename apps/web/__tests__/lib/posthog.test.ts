@@ -42,6 +42,73 @@ describe('web PostHog adapter', () => {
     expect(sdk.init).toHaveBeenCalledOnce()
   })
 
+  it('imports opted out and rejects preference changes when storage access is denied', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')!
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() { throw new DOMException('denied', 'SecurityError') },
+    })
+
+    try {
+      const importing = import('@/lib/posthog')
+      await expect(importing).resolves.toBeDefined()
+      const analytics = await importing
+      expect(analytics.getAnalyticsOptOut()).toBe(true)
+      await analytics.applyPostHogGate(true)
+      expect(sdkImports.count).toBe(0)
+      const listener = vi.fn()
+      const unsubscribe = analytics.subscribeAnalyticsOptOut(listener)
+
+      await expect(analytics.setAnalyticsOptOut(false)).rejects.toThrow('denied')
+      expect(analytics.getAnalyticsOptOut()).toBe(true)
+      expect(listener).not.toHaveBeenCalled()
+      expect(sdkImports.count).toBe(0)
+      unsubscribe()
+    } finally {
+      Object.defineProperty(window, 'localStorage', descriptor)
+    }
+  })
+
+  it.each([
+    [false, 'QuotaExceededError'],
+    [true, 'QuotaExceededError'],
+    [false, 'SecurityError'],
+    [true, 'SecurityError'],
+  ] as const)('preserves opt out %s across reload when a write throws %s', async (optedOut, errorName) => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    localStorage.setItem('analytics-opt-out', String(optedOut))
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(true)
+    sdk.opt_in_capturing.mockClear()
+    sdk.opt_out_capturing.mockClear()
+    const listener = vi.fn()
+    const unsubscribe = analytics.subscribeAnalyticsOptOut(listener)
+    const failure = new DOMException('storage write failed', errorName)
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw failure
+    })
+
+    try {
+      await expect(analytics.setAnalyticsOptOut(!optedOut)).rejects.toBe(failure)
+      expect(analytics.getAnalyticsOptOut()).toBe(optedOut)
+      expect(localStorage.getItem('analytics-opt-out')).toBe(String(optedOut))
+      expect(listener).not.toHaveBeenCalled()
+      expect(sdk.opt_in_capturing).not.toHaveBeenCalled()
+      expect(sdk.opt_out_capturing).not.toHaveBeenCalled()
+
+      analytics.captureHabitLogged()
+      expect(sdk.capture).toHaveBeenCalledTimes(optedOut ? 0 : 1)
+
+      vi.resetModules()
+      const restarted = await import('@/lib/posthog')
+      expect(restarted.getAnalyticsOptOut()).toBe(optedOut)
+    } finally {
+      write.mockRestore()
+      unsubscribe()
+    }
+  })
+
   it('defaults to capture, persists opt out across reload, and resumes without reload', async () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')

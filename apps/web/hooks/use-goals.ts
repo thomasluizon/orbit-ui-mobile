@@ -4,7 +4,7 @@ import { getGoalProgressCelebration, getGoalStatusCelebration, type GoalMutation
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { goalKeys, habitKeys, goalListRollback, goalDetailRollback, goalDetailSettled, removeGoalFromCache, reorderGoalCache, updateGoalCache, invalidateGoalQueries } from '@orbit/shared/query'
+import { goalKeys, goalListRollback, goalDetailRollback, goalDetailSettled, removeGoalFromCache, reorderGoalCache, updateGoalCache, invalidateGoalQueries } from '@orbit/shared/query'
 import type {
   CreateGoalRequest,
   UpdateGoalRequest,
@@ -42,7 +42,6 @@ export function useCreateGoal() {
 
     onSettled: async () => {
       await invalidateGoalQueries(queryClient, { includeHabits: true })
-      await queryClient.invalidateQueries({ queryKey: habitKeys.details() })
     },
   })
 }

@@ -66,7 +66,7 @@ describe('habit create footer', () => {
             reasonTop: reasonBox.top, buttonBottom: buttonBox.bottom, disabled: button.disabled,
           }
         })
-        expect(geometry.disabled).toBe(true)
+        expect(geometry.disabled).toBe(false)
         expect(geometry.reasonTop).toBeGreaterThanOrEqual(geometry.buttonBottom)
         if (width < 640) {
           expect(geometry.buttonWidth).toBeCloseTo(geometry.reasonWidth, 1)

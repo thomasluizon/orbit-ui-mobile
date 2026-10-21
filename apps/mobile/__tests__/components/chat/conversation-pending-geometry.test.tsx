@@ -10,7 +10,7 @@ import { MessageBubble } from '@/components/message-bubble'
 import * as motion from '@/lib/motion'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
 
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: {} }))
+vi.mock('expo-clipboard', () => ({ }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: string }) => <Text>{children}</Text> }))
 vi.mock('@/hooks/use-habits', () => ({}))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))

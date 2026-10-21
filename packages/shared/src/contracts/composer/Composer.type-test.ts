@@ -55,6 +55,9 @@ type ExpectedComposerWords = {
   inputLabel?: string
   offlineReason?: string
   send: string
+  paste: string
+  nothingToPaste: string
+  clear: string
   actions: string
   suggestionsLabel: string
   retry?: string
@@ -266,6 +269,7 @@ export type ComposerContractWidthAssertions = [
 const words = {
   placeholder: 'Placeholder',
   send: 'Send',
+  paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message',
   actions: 'Add to message',
   suggestionsLabel: 'Suggestions',
 }

@@ -3,7 +3,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { goalKeys, habitKeys, goalListRollback, goalDetailRollback, goalDetailSettled, removeGoalFromCache, reorderGoalCache, updateGoalCache } from '@orbit/shared/query'
+import { goalKeys, goalListRollback, goalDetailRollback, goalDetailSettled, removeGoalFromCache, reorderGoalCache, updateGoalCache } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type {
   Goal,
@@ -127,7 +127,6 @@ export function useCreateGoal() {
     onSettled: async (data) => {
       if (isQueuedResult(data)) return
       await invalidateGoalQueries(queryClient, { includeHabits: true })
-      await queryClient.invalidateQueries({ queryKey: habitKeys.details() })
     },
   })
 }

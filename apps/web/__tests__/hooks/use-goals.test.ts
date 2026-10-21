@@ -15,7 +15,8 @@ import {
   useUpdateGoalStatus,
   useReorderGoals,
 } from '@/hooks/use-goals'
-import { goalKeys } from '@orbit/shared/query'
+import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { habitKeys, goalKeys } from '@orbit/shared/query'
 import type { Goal, GoalDetailWithMetrics, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
@@ -76,13 +77,12 @@ function makePaginatedGoalResponse(items: Goal[]): PaginatedGoalResponse {
   }
 }
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  })
+function createWrapper(queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+})) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(
       QueryClientProvider,
@@ -209,6 +209,8 @@ describe('useCreateGoal', () => {
     const created = createMockGoal({ id: 'created-goal', title: 'Read every day' })
     vi.mocked(createGoal).mockResolvedValue({ id: created.id })
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const detail = { ...makeEnrichedHabitDetail(), id: 'habit-reading' }
+    client.setQueryData(habitKeys.detail(detail.id), detail)
     client.setQueryData(goalKeys.list({}), [])
     const wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(QueryClientProvider, { client }, children)
     let finishRefresh!: (response: Response) => void
@@ -229,6 +231,7 @@ describe('useCreateGoal', () => {
     })
     await waitFor(() => expect(result.current.goals.data?.allGoals.map((goal) => goal.id)).toContain(created.id))
     expect(finished).toBe(true)
+    expect(client.getQueryState(habitKeys.detail(detail.id))?.isInvalidated).toBe(true)
     client.clear()
   })
 

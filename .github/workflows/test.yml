@@ -134,19 +134,13 @@ jobs:
     steps:
       - name: Require every test job
         env:
-          BASE_REF: ${{ github.base_ref }}
           BUILD_RESULT: ${{ needs.build.result }}
           WEB_RESULT: ${{ needs.web-tests.result }}
           WORKSPACE_RESULT: ${{ needs.workspace-tests.result }}
         run: |
           test "$BUILD_RESULT" = success
-          if [ "$BASE_REF" = redesign/main ]; then
-            test "$WEB_RESULT" = success
-            test "$WORKSPACE_RESULT" = success
-          else
-            test "$WEB_RESULT" = skipped
-            test "$WORKSPACE_RESULT" = skipped
-          fi
+          test "$WEB_RESULT" = success
+          test "$WORKSPACE_RESULT" = success
 
       - uses: actions/checkout@v7
 
@@ -157,21 +151,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Cache turbo
-        if: github.base_ref != 'redesign/main'
-        uses: actions/cache@v6
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.job }}-
-
-      - name: Run tests with coverage thresholds
-        if: github.base_ref != 'redesign/main'
-        run: npx turbo run test --concurrency=1 -- --coverage
-
       - name: Download web shard reports
-        if: github.base_ref == 'redesign/main'
         uses: actions/download-artifact@v8
         with:
           pattern: web-unit-shard-*
@@ -179,14 +159,12 @@ jobs:
           merge-multiple: true
 
       - name: Download workspace coverage
-        if: github.base_ref == 'redesign/main'
         uses: actions/download-artifact@v8
         with:
           pattern: workspace-unit-coverage-*
           merge-multiple: true
 
       - name: Verify every web report arrived
-        if: github.base_ref == 'redesign/main'
         run: |
           for shard in $(seq 1 2); do
             test -s "apps/web/.artifacts/unit-tests/blobs/jsdom-${shard}.json"
@@ -196,12 +174,11 @@ jobs:
           done
 
       - name: Merge web reports and enforce coverage thresholds
-        if: github.base_ref == 'redesign/main'
         working-directory: apps/web
         run: npx vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default --reporter=json --outputFile.json=.artifacts/unit-tests/merged.json
 
       - name: Upload web test timings
-        if: ${{ always() && github.base_ref == 'redesign/main' }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
           name: web-unit-timings
@@ -231,7 +208,6 @@ jobs:
 
   web-tests:
     name: Web unit (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.total }})
-    if: github.base_ref == 'redesign/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -275,7 +251,6 @@ jobs:
 
   workspace-tests:
     name: Workspace unit (${{ matrix.workspace }})
-    if: github.base_ref == 'redesign/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:

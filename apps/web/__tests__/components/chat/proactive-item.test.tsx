@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
-import { proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
+import { chatMessageSchema, proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { proactiveKeys } from '@orbit/shared/query'
 import { ProactiveAction } from '@/components/chat/proactive-action'
 import { TodayAstra } from '@/components/today/today-astra'
@@ -56,12 +56,15 @@ describe('proactive conversation', () => {
     fireEvent.click(await screen.findByRole('button', { name: item.text }))
     fireEvent.click(screen.getByRole('button', { name: item.text }))
     expect(useChatStore.getState().messages).toEqual([expect.objectContaining({ role: 'ai', content: item.text })])
+    const restoredMessage = chatMessageSchema.parse(useChatStore.getState().messages[0])
+    expect(restoredMessage.proactiveItem?.facts).toEqual(item.facts)
+    expect(restoredMessage.proactiveItem?.facts).not.toBeNull()
     expect(mocks.opened).toHaveBeenCalledExactlyOnceWith(item.id, 'account')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     expect(mocks.acted).not.toHaveBeenCalled()
     line.unmount()
     const send = vi.fn(async () => undefined)
-    render(<ProactiveAction isOnline={mocks.online} item={item} acted={false} onSend={send} />, { wrapper })
+    render(<ProactiveAction isOnline={mocks.online} item={restoredMessage.proactiveItem!} acted={false} onSend={send} />, { wrapper })
     const button = await screen.findByRole('button', { name: item.actionLabel })
     await waitFor(() => expect(button).toBeEnabled())
     fireEvent.click(button)
