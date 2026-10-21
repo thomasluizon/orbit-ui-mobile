@@ -20,6 +20,7 @@ jobs:
       contents: read
     outputs:
       moved: ${{ steps.regenerate.outputs.moved }}
+      base: ${{ steps.regenerate.outputs.base }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -34,46 +35,27 @@ jobs:
 
       - run: npm ci
 
-      - name: Read the pin from the single rebaseline branch
+      - name: Regenerate the selected stream from orbit-api redesign/main
+        id: regenerate
         run: |
           set -euo pipefail
+          echo "base=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          api_commit=$(git ls-remote https://github.com/thomasluizon/orbit-api.git refs/heads/redesign/main | cut -f1)
+          node packages/shared/scripts/generate-contract.mjs --candidate "$api_commit"
           branch=chore/contract-snapshot-redesign
+          comparison=HEAD
           if git ls-remote --exit-code --heads origin "$branch"; then
             git fetch origin "$branch:refs/remotes/origin/$branch"
-            git checkout "origin/$branch" -- packages/shared/src/types/__generated__/api.spec.commit
+            comparison="origin/$branch"
           else
             status=$?
-            if [ "$status" -ne 2 ]; then
-              echo "::error::Could not determine whether the rebaseline branch exists."
-              exit "$status"
-            fi
+            if [ "$status" -ne 2 ]; then exit "$status"; fi
           fi
-
-      - name: Regenerate from orbit-api redesign/main
-        id: regenerate
-        working-directory: packages/shared
-        run: |
-          set -euo pipefail
-          pin=$(cat src/types/__generated__/api.spec.commit)
-          if ! [[ "$pin" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::The orbit-api commit pin must be a full 40-character SHA."
-            exit 1
-          fi
-          api_commit=$(git ls-remote https://github.com/thomasluizon/orbit-api.git refs/heads/redesign/main | cut -f1)
-          if ! [[ "$api_commit" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::Could not resolve the orbit-api redesign/main commit."
-            exit 1
-          fi
-          curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$api_commit/src/Orbit.Api/openapi.json" -o "$RUNNER_TEMP/orbit-openapi.json"
-          curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o "$RUNNER_TEMP/pinned-openapi.json"
-          if cmp -s "$RUNNER_TEMP/orbit-openapi.json" "$RUNNER_TEMP/pinned-openapi.json"; then
-            echo 'The OpenAPI spec has not moved.'
+          if git diff --quiet "$comparison" -- packages/shared/src/types/__generated__/api.generated.ts packages/shared/src/types/__generated__/api.spec.commit packages/shared/src/types/__generated__/api.spec.selection.json; then
             echo 'moved=false' >> "$GITHUB_OUTPUT"
-            exit 0
+          else
+            echo 'moved=true' >> "$GITHUB_OUTPUT"
           fi
-          ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npx --yes orval@8.37.0 --config ./orval.config.ts
-          printf '%s\n' "$api_commit" > src/types/__generated__/api.spec.commit
-          echo 'moved=true' >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v7
         if: steps.regenerate.outputs.moved == 'true'
@@ -82,6 +64,7 @@ jobs:
           path: |
             packages/shared/src/types/__generated__/api.generated.ts
             packages/shared/src/types/__generated__/api.spec.commit
+            packages/shared/src/types/__generated__/api.spec.selection.json
           if-no-files-found: error
           retention-days: 1
 
@@ -101,13 +84,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check out the single rebaseline branch
+      - name: Carry the target branch into the single rebaseline branch
+        env:
+          GENERATED_BASE: ${{ needs.generate.outputs.base }}
         run: |
           set -euo pipefail
+          if [ "$(git rev-parse HEAD)" != "$GENERATED_BASE" ]; then
+            echo '::error::The target branch moved during generation. Retry against its current selection.'
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           branch=chore/contract-snapshot-redesign
           if git ls-remote --exit-code --heads origin "$branch"; then
             git fetch origin "$branch:refs/remotes/origin/$branch"
+            git diff --name-only "$(git merge-base HEAD "origin/$branch")" "origin/$branch" > "$RUNNER_TEMP/routine-paths.txt"
+            if grep -Ev '^packages/shared/src/types/__generated__/(api\.generated\.ts|api\.spec\.commit|api\.spec\.selection\.json)$' "$RUNNER_TEMP/routine-paths.txt"; then
+              echo '::error::The routine branch contains handwritten changes. Reconcile it before rebaseline.'
+              exit 1
+            fi
             git switch --create "$branch" --track "origin/$branch"
+            git merge --no-commit --no-ff -X theirs "origin/redesign/main"
           else
             status=$?
             if [ "$status" -ne 2 ]; then
@@ -116,6 +113,7 @@ jobs:
             fi
             git switch --create "$branch"
           fi
+          rm -f packages/shared/src/types/__generated__/api.spec.selection.json
 
       - uses: actions/download-artifact@v8
         with:
@@ -139,19 +137,23 @@ jobs:
           gh auth setup-git --hostname github.com
           snapshot=packages/shared/src/types/__generated__/api.generated.ts
           pin=packages/shared/src/types/__generated__/api.spec.commit
+          selection=packages/shared/src/types/__generated__/api.spec.selection.json
           git add -- "$snapshot" "$pin"
-          if ! git diff --cached --quiet; then
+          if [ -f "$selection" ] || git ls-files --error-unmatch "$selection" > /dev/null 2>&1; then
+            git add -- "$selection"
+          fi
+          if ! git diff --cached --quiet || [ -f "$(git rev-parse --git-path MERGE_HEAD)" ]; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git -c core.hooksPath=/dev/null commit -m 'Update pinned API contract snapshot'
           fi
-          if git diff --quiet origin/redesign/main -- "$snapshot" "$pin"; then
+          git -c core.hooksPath=/dev/null push origin HEAD:refs/heads/chore/contract-snapshot-redesign
+          if git diff --quiet origin/redesign/main -- "$snapshot" "$pin" "$selection"; then
             echo 'The pinned snapshot already matches redesign/main.'
             exit 0
           fi
-          git -c core.hooksPath=/dev/null push origin HEAD:refs/heads/chore/contract-snapshot-redesign
           cat > "$RUNNER_TEMP/contract-pr-body.md" <<'BODY'
-          The orbit-api OpenAPI spec moved. Review the generated snapshot diff and update hand-written Zod types only when the consumed contract changed.
+          The orbit-api producer or selected artifact moved. Review the complete source metadata and generated snapshot, then update hand-written Zod types only when the consumed contract changed. API deployment acceptance is separate from generation.
 
           The snapshot is a diff target. It is not imported at runtime.
           BODY

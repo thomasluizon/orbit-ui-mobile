@@ -26,7 +26,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Wide sidebar brand controls | `components/shell/shell-wide.tsx` | Web-only navigation chrome | The 48px bell and collapse targets retain their 12px gap; a 4px trailing row inset reserves clearance from the lockup, and focus stays inset |
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Both platforms reserve 8px above the explanation, covering the menu control's outward focus indicator plus the shared clearance |
 | Progresso bar chart | `components/ui/bar-chart.tsx` | `components/ui/bar-chart.tsx` | Shared bar geometry reserves 4px at both block edges inside the unchanged full-height targets; inline insets retain 4px before neighbouring bars where space permits, capped to keep feedback wider than its own bar and clear of both neighbours |
-| Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date targets keep rounded hover, press and focus paint inset by the shared 4px clearance from their own cell edges and the pinned time gutter |
+| Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date headers compose rounded hover, held press and focus paint inset by the shared 4px clearance from their cell edges and the pinned time gutter, with one inset focus indicator and press-only scale suppressed by reduced motion |
 | Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and a 4px checkbox gap; event fills retain 4px before their separate trailing action |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent 12px content gap retains 4px and focus stays inset |
 | Toast text action | `components/ui/toast.tsx` | `components/ui/app-toast.tsx` | The 4px negative margin on the text action is inside the toast padding and retains clearance from adjacent content; the close control is a PillButton |
@@ -100,6 +100,18 @@ its columns cannot scroll beneath the gutter. Chromium shell cases mount the liv
 compact and wide widths, including 320px and doubled text, after small, mid-column and terminal
 offsets while retaining arbitrary vertical offsets. Wheel, keyboard and scroll-into-view cases
 retain their settled position through a refetch and a viewport-height change.
+
+The mounted native `calendar-time-grid.test.tsx` exercises the actual header and InsetFocusPressable
+in both themes and locales. Its real installed Hover gesture uses the registry and event receiver
+boundary, with guards for attachment to the complete header, non-canceling JS routing and lifecycle
+cleanup. Cases retain overlapping hover, press and focus, cancellation, failure, independent columns,
+remount, reduced motion and exact date activation. The detector attaches directly to the full control
+inside the static grid-line wrapper; its states paint the separate radius-8 child with four-edge
+clearance while the target stays transparent. The paired web owner test retains the
+contained-cell and inset-focus markers and verifies that pointer and focus transitions leave date
+selection unchanged until activation. Computed web hover and cell geometry remain owned by the
+existing Chromium and layout checks; the native receiver and host styles do not execute Android
+MotionEvents or prove device rendering.
 
 Android's style regression renders the actual habit header with its emoji selector and summary,
 and the shared row, pill, icon pill and chip with adjacent controls. Yoga measures the resolved

@@ -44,6 +44,31 @@ const completeCharter = () => ({
 })
 
 export const cases = () => {
+  const contractCharter = completeCharter()
+  contractCharter[".github/workflows/guards.yml#contract-drift"] = entry({ scope: "whole-tree-blocking" })
+  const contractWorkflow = yaml.load(scopedGuardWorkflow)
+  contractWorkflow.jobs["contract-drift"] = guardGroups(currentGuards)["contract-drift"]
+  check(
+    "check-gate-charter.mjs",
+    "accepts blocking immutable contract generation and the actual snapshot diff",
+    ["--root", stageRepository("contract-drift", contractCharter, { guardWorkflow: yaml.dump(contractWorkflow) })],
+    { status: 0 },
+  )
+  for (const [label, mutate] of [
+    ["missing-generation", (steps) => { steps[0].run = "echo skipped" }],
+    ["advisory-generation", (steps) => { steps[0]["continue-on-error"] = true }],
+    ["missing-diff", (steps) => { steps[1].run = "exit 1" }],
+    ["missing-failure", (steps) => { steps[1].run = steps[1].run.replace("exit 1", "echo stale") }],
+  ]) {
+    const mutated = structuredClone(contractWorkflow)
+    mutate(mutated.jobs["contract-drift"].steps.filter((step) => step.id?.startsWith("contract-drift__")))
+    check(
+      "check-gate-charter.mjs",
+      `rejects contract drift ${label}`,
+      ["--root", stageRepository(`contract-${label}`, contractCharter, { guardWorkflow: yaml.dump(mutated) })],
+      { status: 1, stderr: /whole-tree-blocking job must run its path inventory as a blocking step/ },
+    )
+  }
   const testJobs = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8")).jobs
   T("test.yml: SonarCloud Analysis consumes Unit Tests", testJobs.sonarcloud.needs === "unit-tests" &&
     testJobs.sonarcloud.name === "SonarCloud Analysis")
