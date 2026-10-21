@@ -249,6 +249,18 @@
       ],
       "reason": "thomasluizon/orbit-tickets#1541 relocates reading the whole daily summary and asking Astra about it to Hoje's single slot press, which opens the full summary in the conversation."
     },
+    "mobile:control:common.selectDate": {
+      "targets": [
+        "mobile:content:common.selectDate"
+      ],
+      "reason": "DateField binds this label to its rendered date-selection trigger and picker after the habit form relocation."
+    },
+    "mobile:control:common.selectedDate": {
+      "targets": [
+        "mobile:content:common.selectedDate"
+      ],
+      "reason": "DateField binds the formatted selected date to its rendered trigger accessibility label after the habit form relocation."
+    },
     "mobile:control:common.selectedTime": {
       "targets": [
         "mobile:control:common.selectTime"
@@ -1115,6 +1127,12 @@
         "mobile:content:shell.composer.limit.reason"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:common.never": {
+      "targets": [
+        "mobile:display:common.never"
+      ],
+      "reason": "ApiKeyDetails in apps/mobile/components/profile/profile-api-keys.tsx renders common.never when an existing key has no expiry, independently of the creation input placeholder."
     },
     "mobile:display:common.no": {
       "targets": [

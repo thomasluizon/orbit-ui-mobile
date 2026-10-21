@@ -28,9 +28,6 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
   },
-  bodyButtonPressed: {
-    transform: [{ scale: 0.96 }],
-  },
   emojiWell: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -50,6 +47,11 @@ export const styles = StyleSheet.create({
     fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
+  },
+  description: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 21.7,
   },
   trailing: {
     flexDirection: 'row',

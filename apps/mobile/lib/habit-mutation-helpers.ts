@@ -458,7 +458,7 @@ export function buildOptimisticHabit(
   data: CreateHabitRequest,
 ): HabitScheduleItem {
   const now = new Date()
-  const dueDate = data.dueDate || formatAPIDate(now)
+  const dueDate = data.startDate || data.dueDate || formatAPIDate(now)
   const hasScheduleInstance = !data.isGeneral && dueDate.length > 0
 
   return {
@@ -477,6 +477,7 @@ export function buildOptimisticHabit(
     dueTime: data.dueTime ?? null,
     dueEndTime: data.dueEndTime ?? null,
     endDate: data.endDate ?? null,
+    startDate: data.startDate,
     position: getNextTopLevelPosition(queryClient),
     checklistItems: data.checklistItems ?? [],
     createdAtUtc: now.toISOString(),
@@ -605,6 +606,7 @@ export function buildOptimisticHabitPatch(
     data.frequencyQuantity ?? null,
   )
   setHabitPatchField(patch, data, 'days', 'days', data.days ?? [])
+  setHabitPatchField(patch, data, 'startDate', 'startDate', data.startDate)
   setHabitPatchField(patch, data, 'dueDate', 'dueDate', data.dueDate ?? '')
   setHabitPatchField(patch, data, 'dueTime', 'dueTime', data.dueTime ?? null)
   setHabitPatchField(patch, data, 'dueEndTime', 'dueEndTime', data.dueEndTime ?? null)

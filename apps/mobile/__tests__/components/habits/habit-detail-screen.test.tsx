@@ -25,6 +25,7 @@ import {
 } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import { updateHabitRequestSchema } from '@orbit/shared/types/habit'
 import { StatusRing } from '@/components/ui/status-ring'
 import { DateRow } from '@/components/ui/date-row'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
@@ -35,9 +36,11 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
 
 const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn() }))
 vi.mock('expo-clipboard', () => ({ ...clipboard }))
@@ -111,6 +114,7 @@ const mocks = vi.hoisted(() => ({
   log: vi.fn(),
   update: vi.fn(),
   updatePending: false,
+  realUpdateHook: false,
   checklist: vi.fn(),
   deleteHabit: vi.fn(),
   showError: vi.fn(),
@@ -179,12 +183,15 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
     },
   }
 })
-vi.mock('@/hooks/use-habits', () => ({
-  useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
-  useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: mocks.updatePending }),
-  useUpdateChecklist: () => ({ mutate: mocks.checklist, mutateAsync: mocks.checklist }),
-  useDeleteHabit: () => ({ mutate: mocks.deleteHabit, mutateAsync: mocks.deleteHabit }),
-}))
+vi.mock('@/hooks/use-habits', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-habits')>()
+  return {
+    useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
+    useUpdateHabit: () => mocks.realUpdateHook ? original.useUpdateHabit() : ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: mocks.updatePending }),
+    useUpdateChecklist: () => ({ mutate: mocks.checklist, mutateAsync: mocks.checklist }),
+    useDeleteHabit: () => ({ mutate: mocks.deleteHabit, mutateAsync: mocks.deleteHabit }),
+  }
+})
 
 interface OfflineQueueRow {
   id: string
@@ -203,7 +210,7 @@ const offlineMocks = vi.hoisted(() => {
   const serverLoggedHabits = new Set<string>()
   let online = false
 
-  const apiClient = vi.fn((endpoint: string) => {
+  const apiClient = vi.fn((endpoint: string, _options?: Parameters<typeof import('@/lib/api-client').apiClient>[1]) => {
     const habitId = endpoint.match(/^\/api\/habits\/([^/]+)\/log$/)?.[1]
     if (habitId) {
       if (serverLoggedHabits.has(habitId)) serverLoggedHabits.delete(habitId)
@@ -271,7 +278,7 @@ vi.mock('expo-sqlite', () => ({
   }),
 }))
 
-vi.mock('@/lib/api-client', () => ({ apiClient: (endpoint: string) => mocks.realMetrics && endpoint.endsWith('/metrics') ? Promise.reject(new Error('metrics request failed')) : offlineMocks.apiClient(endpoint) }))
+vi.mock('@/lib/api-client', () => ({ apiClient: (endpoint: string, options?: Parameters<typeof import('@/lib/api-client').apiClient>[1]) => mocks.realMetrics && endpoint.endsWith('/metrics') ? Promise.reject(new Error('metrics request failed')) : offlineMocks.apiClient(endpoint, options) }))
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: { setItem: mocks.setStorage, getItem: mocks.getStorage, removeItem: mocks.removeStorage },
 }))
@@ -440,6 +447,95 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
 })
 
 describe('HabitDetailScreen', () => {
+  beforeEach(() => {
+    mocks.realHeaderRing = false
+    mocks.reducedMotion = false
+    mocks.realPressTokens = false
+    mocks.realListRows = false
+    mocks.realHabitRows = false
+    mocks.theme = 'dark'
+    mocks.metricsError = false
+    mocks.realMetrics = false
+    mocks.getStorage.mockReset().mockResolvedValue(null)
+    mocks.removeStorage.mockReset().mockResolvedValue(undefined)
+    queryClient.clear()
+    mocks.realTimeField = false;
+    mocks.realReminderSections = false;
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 29, 12))
+    clearOfflineQueue()
+    offlineMocks.serverLoggedHabits.clear()
+    offlineMocks.setOnline(false)
+    mocks.detail = makeDetail()
+    mocks.detailLoading = false
+    mocks.detailError = false
+    mocks.allHabitsFallback = null
+    mocks.allHabitsError = false
+    mocks.allHabitsLoading = false
+    mocks.allHabitsEnabled = undefined
+    mocks.logs = [
+      { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
+      { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
+    ]
+    mocks.metrics = {
+      currentStreak: 2,
+      longestStreak: 4,
+      weeklyCompletionRate: 80,
+      monthlyCompletionRate: 75,
+      totalCompletions: 2,
+      lastCompletedDate: '2026-08-27',
+    }
+    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
+    mocks.scopedHabits = new Map()
+    mocks.scopedHabitsByDate = new Map()
+    mocks.scopedRequests = []
+    mocks.log.mockReset()
+    mocks.update.mockReset()
+    mocks.updatePending = false
+    mocks.realUpdateHook = false
+    mocks.screenFocused = true
+    mocks.checklist.mockReset()
+    mocks.deleteHabit.mockReset()
+    mocks.showError.mockReset()
+    mocks.refetch.mockReset()
+    mocks.allHabitsRefetch.mockReset()
+    mocks.scopedLoading = false
+    mocks.scopedError = false
+    mocks.scopedRefetch.mockReset()
+    mocks.routerBack.mockReset()
+    mocks.routerPush.mockReset()
+    mocks.routerReplace.mockReset()
+    mocks.setStorage.mockReset()
+    mocks.setStorage.mockResolvedValue(undefined)
+    mocks.history = []
+    mocks.hasProAccess = true
+    mocks.timeZone = 'UTC'
+    mocks.profileReady = true
+    mocks.scopedCompleteDay = false
+    mocks.suggestion = null
+    mocks.rescheduleOptions = []
+    mocks.rescheduleError = null
+    mocks.rescheduleRefetch.mockReset()
+    mocks.language = 'en'
+    mocks.uses24HourClock = undefined
+    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
+  })
+
+  afterEach(() => {
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
+    vi.useRealTimers()
+  })
+
+  it.each([false, true])('keeps the whole type below the full detail title, task: %s', (task) => {
+    mocks.detail = { ...makeDetail(), title: 'A complete title with enough words to occupy the available width', frequencyUnit: task ? null : 'Day', frequencyQuantity: task ? null : 1 }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const type = tree.root.findAll((node: TestNode) => node.type === 'Text' && node.props.testID === 'habit-detail-type')[0]!
+    expect(type.props.children).toBe(task ? 'habits.form.typeTask' : 'habits.form.typeHabit')
+    expect(type.props.numberOfLines).toBeUndefined()
+    expect(renderedText(tree.toJSON())).toContain(mocks.detail.title)
+  })
+
   it('keeps child progress in an unlogged bad habit parent header', () => {
     mocks.realHeaderRing = true
     mocks.logs = []
@@ -588,12 +684,19 @@ describe('HabitDetailScreen', () => {
   it.each(['light', 'dark'] as const)('keeps detail child monograms readable through the complete %s paint stack', (mode) => {
     mocks.realPressTokens = true
     mocks.realHabitRows = true
+    mocks.detail = { ...makeDetail(), children: makeDetail().children.map((child) => ({ ...child, description: '**Read** two pages before breakfast.' })) }
+    mocks.scopedHabits.set('child-1', { ...makeScopedChild('2026-08-28'), description: '**Read** two pages before breakfast.' })
     mocks.theme = mode
     const tokens = createTokensV2('purple', mode)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ backgroundColor: tokens.bg }}><HabitDetailScreen habitId="habit-1" /></View>) })
     const group = tree.root.findByProps({ testID: 'detail-children' })
     const row = group.findByProps({ testID: 'habit-row' })
+    expect(row.findByProps({ testID: 'habit-row-description' }).props.children).toBe('Read two pages before breakfast.')
+    const geometry = measureInteractionFills(tree.toJSON(), 320, false)
+    const rowBounds = geometry.find((part) => part.host.props.testID === 'habit-row')!
+    const wellBounds = geometry.find((part) => part.style.width === 32 && part.style.borderRadius === 12 && part.ancestors.includes(rowBounds.slot))!
+    expect(wellBounds.left - rowBounds.left).toBe(24)
     expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgCard, borderRadius: 20 })
     expect(StyleSheet.flatten(row.props.style as ViewStyle).borderWidth ?? 0).toBe(0)
     const outline = row.findByProps({ testID: 'habit-row-outline' })
@@ -652,79 +755,6 @@ describe('HabitDetailScreen', () => {
       typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === mocks.detail!.title)
     expect(editingHeaders).toHaveLength(1)
   })
-  beforeEach(() => {
-    mocks.realHeaderRing = false
-    mocks.reducedMotion = false
-    mocks.realPressTokens = false
-    mocks.realListRows = false
-    mocks.realHabitRows = false
-    mocks.theme = 'dark'
-    mocks.metricsError = false
-    mocks.realMetrics = false
-    mocks.getStorage.mockReset().mockResolvedValue(null)
-    mocks.removeStorage.mockReset().mockResolvedValue(undefined)
-    queryClient.clear()
-    mocks.realTimeField = false;
-    mocks.realReminderSections = false;
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 7, 29, 12))
-    clearOfflineQueue()
-    offlineMocks.serverLoggedHabits.clear()
-    offlineMocks.setOnline(false)
-    mocks.detail = makeDetail()
-    mocks.detailLoading = false
-    mocks.detailError = false
-    mocks.allHabitsFallback = null
-    mocks.allHabitsError = false
-    mocks.allHabitsLoading = false
-    mocks.allHabitsEnabled = undefined
-    mocks.logs = [
-      { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
-      { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
-    ]
-    mocks.metrics = {
-      currentStreak: 2,
-      longestStreak: 4,
-      weeklyCompletionRate: 80,
-      monthlyCompletionRate: 75,
-      totalCompletions: 2,
-      lastCompletedDate: '2026-08-27',
-    }
-    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
-    mocks.scopedHabits = new Map()
-    mocks.scopedHabitsByDate = new Map()
-    mocks.scopedRequests = []
-    mocks.log.mockReset()
-    mocks.update.mockReset()
-    mocks.updatePending = false
-    mocks.screenFocused = true
-    mocks.checklist.mockReset()
-    mocks.deleteHabit.mockReset()
-    mocks.showError.mockReset()
-    mocks.refetch.mockReset()
-    mocks.allHabitsRefetch.mockReset()
-    mocks.scopedLoading = false
-    mocks.scopedError = false
-    mocks.scopedRefetch.mockReset()
-    mocks.routerBack.mockReset()
-    mocks.routerPush.mockReset()
-    mocks.routerReplace.mockReset()
-    mocks.setStorage.mockReset()
-    mocks.setStorage.mockResolvedValue(undefined)
-    mocks.history = []
-    mocks.hasProAccess = true
-    mocks.timeZone = 'UTC'
-    mocks.profileReady = true
-    mocks.scopedCompleteDay = false
-    mocks.suggestion = null
-    mocks.rescheduleOptions = []
-    mocks.rescheduleError = null
-    mocks.rescheduleRefetch.mockReset()
-    mocks.language = 'en'
-    mocks.uses24HourClock = undefined
-    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
-  })
-
   it.each(['valid', 'malformed'])('shows no data on a metrics error with %s cached values', (cached) => {
     if (cached === 'malformed') mocks.metrics = {} as HabitMetrics
     mocks.metricsError = true
@@ -1095,11 +1125,6 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: 'common.backToToday' }).props.onPress() })
     expect(mocks.routerReplace).toHaveBeenCalledWith({ pathname: '/(tabs)', params: { date: '2026-08-28' } })
     expect(mocks.routerBack).not.toHaveBeenCalled()
-  })
-
-  afterEach(() => {
-    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
-    vi.useRealTimers()
   })
 
   it('announces the habit name once on the rename control', () => {
@@ -1544,6 +1569,74 @@ describe('HabitDetailScreen', () => {
       expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
     },
   )
+
+  describe.each(['absent', 'pending', 'failed'])('nullable rename with %s unrelated lists', (listState) => {
+    it.each([
+      { dueTime: null, dueEndTime: null, oneTime: false },
+      { dueTime: '08:00:00', dueEndTime: null, oneTime: false },
+      { dueTime: '08:00', dueEndTime: '09:00:00', oneTime: false },
+      { dueTime: null, dueEndTime: null, oneTime: true },
+    ])('saves and reloads normalized detail %j', async ({ dueTime, dueEndTime, oneTime }) => {
+      mocks.allHabits.clear()
+      mocks.allHabitsLoading = mocks.scopedLoading = listState === 'pending'
+      mocks.allHabitsError = mocks.scopedError = listState === 'failed'
+      mocks.detail = { ...makeDetail(), dueTime, dueEndTime, ...(oneTime ? { id: 'child-1', frequencyUnit: null, frequencyQuantity: null, days: [], children: [] } : {}) }
+      mocks.update.mockResolvedValue(undefined)
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId={mocks.detail!.id} date="2026-08-28" />) })
+      TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Read')[0]!.props.onPress() })
+      TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onChangeText('  Read daily  ') })
+      await TestRenderer.act(async () => {
+        const input = tree.root.findByProps({ accessibilityLabel: 'habits.detail.rename' })
+        if (oneTime) input.props.onBlur()
+        else input.props.onSubmitEditing()
+        await Promise.resolve()
+      })
+
+      expect(mocks.update).toHaveBeenCalledOnce()
+      const outgoing = updateHabitRequestSchema.parse(mocks.update.mock.calls[0]![0].data)
+      expect(outgoing).toMatchObject({ title: 'Read daily', dueTime, dueEndTime, endDate: null, scheduledReminders: [] })
+      expect(outgoing).not.toHaveProperty('clearEndDate')
+      expect(tree.root.findAllByProps({ accessibilityLabel: 'habits.detail.rename' })).toHaveLength(0)
+      expect(mocks.showError).not.toHaveBeenCalled()
+      mocks.detail = { ...mocks.detail, title: outgoing.title }
+      TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId={mocks.detail!.id} date="2026-08-28" />) })
+      expect(textsOf(tree.root)).toContain('Read daily')
+      TestRenderer.act(() => { tree.unmount() })
+    })
+  })
+
+  it.each([true, false])('sends nullable title edits through the real mutation and transport, online=%s', async (online) => {
+    mocks.realUpdateHook = true
+    mocks.allHabits.clear()
+    offlineMocks.apiClient.mockClear()
+    offlineMocks.setOnline(online)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><HabitDetailScreen habitId="habit-1" date="2026-08-28" /></QueryClientProvider>) })
+    TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Read')[0]!.props.onPress() })
+    TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onChangeText('Read daily') })
+    await TestRenderer.act(async () => {
+      tree.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onSubmitEditing()
+      await vi.advanceTimersByTimeAsync(10)
+    })
+    const expected = { title: 'Read daily', dueTime: null, dueEndTime: null, endDate: null }
+    if (!online) {
+      expect(offlineMocks.apiClient).not.toHaveBeenCalled()
+      expect(getQueuedMutations()).toHaveLength(1)
+      expect(getQueuedMutations()[0]!.payload).toMatchObject(expected)
+      offlineMocks.setOnline(true)
+      await TestRenderer.act(async () => { await flushQueuedMutations() })
+      expect(getQueuedMutations()).toHaveLength(0)
+    }
+    expect(offlineMocks.apiClient).toHaveBeenCalledOnce()
+    const [endpoint, options] = offlineMocks.apiClient.mock.calls[0]!
+    expect(endpoint).toBe('/api/habits/habit-1')
+    expect(options?.method).toBe('PUT')
+    expect(JSON.parse(options!.body as string)).toMatchObject(expected)
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'habits.detail.rename' })).toHaveLength(0)
+    expect(mocks.showError).not.toHaveBeenCalled()
+    TestRenderer.act(() => { tree.unmount() })
+  })
 
   it('renames an unscoped habit without sending Pro or goal state', () => {
     mocks.hasProAccess = false
@@ -2197,7 +2290,10 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls[0]![0].data).not.toHaveProperty('goalIds')
   })
 
-  it('keeps the title editor open and reports an update failure', async () => {
+  it.each(['en', 'pt-BR'])('keeps the title editor open and reports an update failure in %s', async (language) => {
+    mocks.language = language
+    mocks.allHabits.clear()
+    mocks.allHabitsError = true
     mocks.update.mockRejectedValueOnce(new Error('update failed'))
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
@@ -2216,6 +2312,8 @@ describe('HabitDetailScreen', () => {
     })
 
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.updateError')
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ dueTime: null, dueEndTime: null })
     expect(tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.value).toBe('Read daily')
   })
 

@@ -395,5 +395,6 @@ jobs:
           path: |
             apps/web/e2e/.report
             apps/web/e2e/.results
-          if-no-files-found: ignore
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 14

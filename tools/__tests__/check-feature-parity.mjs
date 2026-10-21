@@ -29,7 +29,7 @@ function generatedInventory(catalog, rules) {
   for (const platform of ['web', 'mobile']) {
     const ids = Object.entries(rules.tickets).filter(([id, ticket]) => id.startsWith(`${platform}:`) && ticket === '#1447').map(([id]) => id)
     ids.push(...restoredRuleIds.filter((id) => id.startsWith(`${platform}:`)))
-    ids.push(...['common.nextWeek', 'common.previousWeek', 'chat.attachFile', 'gamification.levelUp.title', 'goals.completedCelebrationTitle'].map((key) => `${platform}:control:${key}`))
+    ids.push(...['common.nextWeek', 'common.previousWeek', 'common.selectDate', 'common.selectedDate', 'chat.attachFile', 'gamification.levelUp.title', 'goals.completedCelebrationTitle'].map((key) => `${platform}:control:${key}`))
     if (platform === 'web') ids.push('web:control:calendar.agenda.nextDay', 'web:control:calendar.agenda.previousDay')
     for (const id of ids) fixtureCatalog[id.split(':')[2]] = id.split(':')[2]
     const labels = ids.map((id) => id.includes(':display:')
@@ -420,6 +420,31 @@ export const cases = () => {
     T(`${platform} removing the actual API-key entry also blocks its legacy relocation`, newLosses(compare(legacyEntry, withoutEntry, rules), compare(legacyEntry, currentObservations, rules)).length === 1)
     files[apiKeys] = originalApiKeys
     restoredRuleRegressions(platform, current, files, inventory, rules, currentObservations)
+    const keyOwner = `apps/${platform}/components/profile/profile-api-keys.tsx`
+    const noExpiryId = `${platform}:display:common.never`
+    const keyObservations = scan(current, platform, rules)
+    const keyCapabilities = keyObservations.filter((entry) => entry.id === noExpiryId)
+    const beforeKey = compare(keyCapabilities, keyObservations, rules)
+    T(`${platform} no-expiry metadata resolves to the existing key details output`, beforeKey.length === 1 && beforeKey[0].disposition === 'retained' && beforeKey[0].redesign.every((item) => item.file === keyOwner))
+    const originalKeyOwner = files[keyOwner]
+    files[keyOwner] = originalKeyOwner.replace(": t('common.never')}</", ': null}</')
+    T(`${platform} mutation removes no-expiry output while retaining the input placeholder`, files[keyOwner] !== originalKeyOwner && files[keyOwner].includes("placeholder={t('common.never')}"))
+    const afterKey = compare(keyCapabilities, scan(current, platform, rules), rules)
+    T(`${platform} the creation placeholder cannot retain deleted no-expiry metadata`, afterKey.length === 1 && afterKey[0].disposition === 'missing')
+    T(`${platform} removing restored no-expiry metadata blocks parity`, newLosses(afterKey, beforeKey).some((entry) => entry.id === noExpiryId))
+    files[keyOwner] = originalKeyOwner
+    const dateField = `apps/${platform}/components/ui/date-field.tsx`
+    const dateCapabilities = inventory.entries.filter((entry) => ['common.selectDate', 'common.selectedDate'].some((key) => entry.id === `${platform}:control:${key}`))
+    const beforeDate = compare(dateCapabilities, scan(current, platform, rules), rules)
+    T(`${platform} legacy date selection resolves to its rendered field`, beforeDate.length === 2 && beforeDate.every((entry) => entry.disposition === 'retained' && entry.redesign.some((item) => item.file === dateField)))
+    const originalDateField = files[dateField]
+    files[dateField] = 'export function DateField() { return null }'
+    const withoutDateField = scan(current, platform, rules)
+    T(`${platform} removing the date field preserves the separate selected-date readout`, withoutDateField.some((entry) => entry.id === `${platform}:display:common.selectedDate`))
+    const afterDate = compare(dateCapabilities, withoutDateField, rules)
+    T(`${platform} a separate date readout cannot retain deleted date selection`, afterDate.every((entry) => entry.disposition === 'missing'))
+    T(`${platform} removing the date field blocks both legacy date capabilities`, newLosses(afterDate, beforeDate).length === 2)
+    files[dateField] = originalDateField
     const guide = `apps/${platform}/components/profile/profile-mcp-guide.tsx`
     const guideCapabilities = inventory.entries.filter((entry) => entry.platform === platform && rules.tickets[entry.id] === '#1447')
     const beforeGuide = compare(guideCapabilities, scan(current, platform), rules)
@@ -474,6 +499,13 @@ export const cases = () => {
     const originalCelebration = files[celebration]
     files[celebration] = originalCelebration.split('\n').filter((line) => !line.includes('{line}</p>') && !line.includes('{line}</Text>')).join('\n')
     T(`${platform} mutation deletes only the actual celebration output`, files[celebration] !== originalCelebration && files[celebration].includes('plural(translatedLine, pluralCount)'))
+    const accessibleCelebration = compare(titles, scan(current, platform), rules)
+    T(`${platform} the remaining accessible final fact retains both celebration titles`, accessibleCelebration.every((entry) => entry.disposition === 'retained'))
+    files[celebration] = files[celebration]
+      .replace(/ (?:aria-label|accessibilityLabel)=\{label\}/g, '')
+      .replace(/<span role="status"[^>]*>\{announcement\}<\/span>/, '')
+      .replace(/<Text testID=\{daily \? 'daily-streak-announcement' : 'celebration-announcement'\} accessibilityLiveRegion="polite"\s+style=\{styles\.announcement\}>\{announcement\}<\/Text>/, '')
+    T(`${platform} mutation removes the accessible final fact and announcement consumers`, !files[celebration].includes('{announcement}</') && !/(?:aria-label|accessibilityLabel)=\{label\}/.test(files[celebration]) && files[celebration].includes('setAnnouncement(label)'))
     const afterCelebration = compare(titles, scan(current, platform), rules)
     T(`${platform} unrelated plural consumers cannot retain either deleted celebration title`, afterCelebration.every((entry) => entry.disposition === 'missing'))
     T(`${platform} deleting the celebration output blocks both mapped titles`, newLosses(afterCelebration, beforeCelebration).length === 2)

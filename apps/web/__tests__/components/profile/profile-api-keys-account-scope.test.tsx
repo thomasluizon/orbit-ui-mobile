@@ -545,11 +545,30 @@ it('preserves no scopes, unused, read/write and no expiry states', () => {
   management.apiKeys = [{ ...detailKey, scopes: [], isReadOnly: false, lastUsedAtUtc: null, expiresAtUtc: null }]
   renderKeyDetails()
   expect(screen.getByText('No scopes')).toBeInTheDocument()
-  expect(screen.getByText('Never')).toBeInTheDocument()
+  expect(screen.getAllByText(en.common.never)).toHaveLength(2)
   expect(screen.getByText('Read/write')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create }))
   expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('')
   expect(screen.queryByText(/^Expires /, { selector: 'p' })).not.toBeInTheDocument()
+})
+
+it.each(['en', 'pt-BR'] as const)('reads existing key expiry without opening creation or reveal in %s', (locale) => {
+  management.locale = locale
+  const messages = locale === 'en' ? en : ptBR
+  const t = createTranslator({ locale, messages })
+  management.apiKeys = [{ ...detailKey, expiresAtUtc: null }]
+  const view = renderKeyDetails()
+  expect(screen.getByText(messages.common.never)).toBeVisible()
+  expect(screen.getByRole('button', { name: t('profile.apiKeys.revokeNamed', { name: detailKey.name }) })).toBeInTheDocument()
+  expect(screen.getByText(messages.orbitMcp.permReadOnly)).toBeInTheDocument()
+  expect(screen.queryByRole('textbox', { name: messages.orbitMcp.expiresAtLabel })).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(management.handleCreateKey).not.toHaveBeenCalled()
+
+  management.apiKeys = [detailKey]
+  view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  expect(screen.queryByText(messages.common.never)).not.toBeInTheDocument()
+  expect(screen.getByText(locale === 'en' ? 'Expires Apr 5, 2027' : 'Expira em 5 de abr. de 2027')).toBeVisible()
 })
 
 it('withholds key details while access is locked or the list is loading', () => {
@@ -559,6 +578,7 @@ it('withholds key details while access is locked or the list is loading', () => 
   management.loading = true
   view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
   expect(screen.getByRole('status')).toHaveTextContent(en.common.loading)
+  expect(screen.getByRole('status')).toBeInstanceOf(HTMLOutputElement)
   expect(screen.queryByText('habits:read, goals:read')).not.toBeInTheDocument()
 })
 

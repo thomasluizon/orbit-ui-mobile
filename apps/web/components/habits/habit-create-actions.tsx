@@ -24,7 +24,7 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onl
     <div className={screen ? 'flex flex-col gap-2' : 'flex flex-col gap-4'}>
       {!screen ? reason : null}
       {screen ? (
-        <PillButton size="md" formId={formId} disabled={empty}
+        <PillButton size="md" formId={formId}
           descriptionId={descriptionId} loading={pending}>
           {label}
         </PillButton>

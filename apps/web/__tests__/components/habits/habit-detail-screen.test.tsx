@@ -24,6 +24,7 @@ import {
 } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import { updateHabitRequestSchema } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { Sheet } from '@/components/ui/sheet'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -299,6 +300,72 @@ function openRescueGate() {
 }
 
 describe('HabitDetailScreen', () => {
+  beforeEach(() => {
+    mocks.realHeaderRing = false
+    mocks.realChildRows = false
+    mocks.pathname = '/habits/habit-1'
+    mocks.realTimeField = false;
+    mocks.realReminderSections = false;
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 29, 12))
+    mocks.detail = makeDetail()
+    mocks.detailLoading = false
+    mocks.detailError = false
+    mocks.allHabitsFallback = null
+    mocks.allHabitsError = false
+    mocks.allHabitsLoading = false
+    mocks.allHabitsEnabled = undefined
+    mocks.logs = [
+      { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
+      { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
+    ]
+    mocks.metricsError = false
+    mocks.metrics = {
+      currentStreak: 2,
+      longestStreak: 4,
+      weeklyCompletionRate: 80,
+      monthlyCompletionRate: 75,
+      totalCompletions: 2,
+      lastCompletedDate: '2026-08-27',
+    }
+    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
+    mocks.scopedHabits = new Map()
+    mocks.scopedHabitsByDate = new Map()
+    mocks.scopedRequests = []
+    mocks.log.mockReset()
+    mocks.update.mockReset()
+    mocks.updatePending = false
+    mocks.checklist.mockReset()
+    mocks.deleteHabit.mockReset()
+    mocks.showError.mockReset()
+    mocks.refetch.mockReset()
+    mocks.allHabitsRefetch.mockReset()
+    mocks.scopedLoading = false
+    mocks.scopedError = false
+    mocks.scopedRefetch.mockReset()
+    mocks.routerBack.mockReset()
+    mocks.routerPush.mockReset()
+    mocks.routerReplace.mockReset()
+    mocks.history = []
+    mocks.hasProAccess = true
+    mocks.timeZone = 'UTC'
+    mocks.profileReady = true
+    mocks.scopedCompleteDay = false
+    mocks.rescheduleOptions = []
+    mocks.rescheduleError = null
+    mocks.rescheduleRefetch.mockReset()
+    mocks.language = 'en'
+    mocks.uses24HourClock = undefined
+    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
+    mocks.suggestion = null
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
   it('keeps child progress in an unlogged bad habit parent header', () => {
     mocks.realHeaderRing = true
     mocks.logs = []
@@ -483,67 +550,6 @@ describe('HabitDetailScreen', () => {
     await act(async () => { vi.advanceTimersByTime(40) })
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
-  beforeEach(() => {
-    mocks.realHeaderRing = false
-    mocks.realChildRows = false
-    mocks.pathname = '/habits/habit-1'
-    mocks.realTimeField = false;
-    mocks.realReminderSections = false;
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 7, 29, 12))
-    mocks.detail = makeDetail()
-    mocks.detailLoading = false
-    mocks.detailError = false
-    mocks.allHabitsFallback = null
-    mocks.allHabitsError = false
-    mocks.allHabitsLoading = false
-    mocks.allHabitsEnabled = undefined
-    mocks.logs = [
-      { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
-      { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
-    ]
-    mocks.metricsError = false
-    mocks.metrics = {
-      currentStreak: 2,
-      longestStreak: 4,
-      weeklyCompletionRate: 80,
-      monthlyCompletionRate: 75,
-      totalCompletions: 2,
-      lastCompletedDate: '2026-08-27',
-    }
-    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
-    mocks.scopedHabits = new Map()
-    mocks.scopedHabitsByDate = new Map()
-    mocks.scopedRequests = []
-    mocks.log.mockReset()
-    mocks.update.mockReset()
-    mocks.updatePending = false
-    mocks.checklist.mockReset()
-    mocks.deleteHabit.mockReset()
-    mocks.showError.mockReset()
-    mocks.refetch.mockReset()
-    mocks.allHabitsRefetch.mockReset()
-    mocks.scopedLoading = false
-    mocks.scopedError = false
-    mocks.scopedRefetch.mockReset()
-    mocks.routerBack.mockReset()
-    mocks.routerPush.mockReset()
-    mocks.routerReplace.mockReset()
-    mocks.history = []
-    mocks.hasProAccess = true
-    mocks.timeZone = 'UTC'
-    mocks.profileReady = true
-    mocks.scopedCompleteDay = false
-    mocks.rescheduleOptions = []
-    mocks.rescheduleError = null
-    mocks.rescheduleRefetch.mockReset()
-    mocks.language = 'en'
-    mocks.uses24HourClock = undefined
-    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
-    mocks.suggestion = null
-    localStorage.clear()
-  })
-
   it.each([
     ['2026-08-20', 'Aug 20, 2026'],
     ['2026-08-28', 'Aug 28, 2026'],
@@ -834,11 +840,6 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.backToToday' }))
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
     expect(mocks.routerBack).not.toHaveBeenCalled()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.unstubAllGlobals()
   })
 
   it('shows loading feedback and a retry action after a load failure', () => {
@@ -1304,6 +1305,38 @@ describe('HabitDetailScreen', () => {
     },
   )
 
+  describe.each(['absent', 'pending', 'failed'])('nullable rename with %s unrelated lists', (listState) => {
+    it.each([
+      { dueTime: null, dueEndTime: null, oneTime: false },
+      { dueTime: '08:00:00', dueEndTime: null, oneTime: false },
+      { dueTime: '08:00', dueEndTime: '09:00:00', oneTime: false },
+      { dueTime: null, dueEndTime: null, oneTime: true },
+    ])('saves and reloads normalized detail %j', async ({ dueTime, dueEndTime, oneTime }) => {
+      mocks.allHabits.clear()
+      mocks.allHabitsLoading = mocks.scopedLoading = listState === 'pending'
+      mocks.allHabitsError = mocks.scopedError = listState === 'failed'
+      mocks.detail = { ...makeDetail(), dueTime, dueEndTime, ...(oneTime ? { id: 'child-1', frequencyUnit: null, frequencyQuantity: null, days: [], children: [] } : {}) }
+      mocks.update.mockResolvedValue(undefined)
+      const view = render(<HabitDetailScreen habitId={mocks.detail.id} date="2026-08-28" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Read' }))
+      const input = screen.getByRole('textbox', { name: 'rename' })
+      fireEvent.change(input, { target: { value: '  Read daily  ' } })
+      if (oneTime) fireEvent.blur(input)
+      else fireEvent.keyDown(input, { key: 'Enter' })
+      await act(async () => { await Promise.resolve() })
+
+      expect(mocks.update).toHaveBeenCalledOnce()
+      const outgoing = updateHabitRequestSchema.parse(mocks.update.mock.calls[0]![0].data)
+      expect(outgoing).toMatchObject({ title: 'Read daily', dueTime, dueEndTime, endDate: null, scheduledReminders: [] })
+      expect(outgoing).not.toHaveProperty('clearEndDate')
+      expect(screen.queryByRole('textbox', { name: 'rename' })).not.toBeInTheDocument()
+      expect(mocks.showError).not.toHaveBeenCalled()
+      mocks.detail = { ...mocks.detail, title: outgoing.title }
+      view.rerender(<HabitDetailScreen habitId={mocks.detail.id} date="2026-08-28" />)
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Read daily')
+    })
+  })
+
   it('renames an unscoped habit without sending Pro or goal state', () => {
     mocks.hasProAccess = false
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -1638,17 +1671,26 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByLabelText('habits.form.exactTime')).toHaveValue('19:30')
   })
 
+  it.each([false, true])('keeps the whole type below the full detail title, task: %s', (task) => {
+    mocks.detail = { ...makeDetail(), title: 'A complete title with enough words to occupy the available width', frequencyUnit: task ? null : 'Day', frequencyQuantity: task ? null : 1 }
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const type = view.container.querySelector('[data-habit-detail-type]')!
+    expect(type.textContent).toBe(task ? 'habits.form.typeTask' : 'habits.form.typeHabit')
+    expect(type.previousElementSibling?.textContent).toBe(mocks.detail.title)
+    expect(type).not.toHaveClass('text-ellipsis', 'whitespace-nowrap')
+  })
+
   it('shows only the due time for a habit without a frequency', () => {
     mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null, dueTime: '08:00' }
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    const summary = view.container.querySelector('[data-habit-detail-content] header p')
+    const summary = view.container.querySelector('[data-habit-detail-content] header p:not([data-habit-detail-type])')
     expect(summary?.textContent).toBe('8:00 AM')
   })
 
   it('omits the summary element when there is no frequency or due time', () => {
     mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null, dueTime: null }
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    expect(view.container.querySelector('[data-habit-detail-content] header p')).toBeNull()
+    expect(view.container.querySelector('[data-habit-detail-content] header p:not([data-habit-detail-type])')).toBeNull()
   })
 
   it('omits the empty read-only schedule row for a habit without a frequency', () => {
@@ -1819,7 +1861,10 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls[0]![0].data).not.toHaveProperty('goalIds')
   })
 
-  it('keeps the title editor open and reports an update failure', async () => {
+  it.each(['en', 'pt-BR'])('keeps the title editor open and reports an update failure in %s', async (language) => {
+    mocks.language = language
+    mocks.allHabits.clear()
+    mocks.allHabitsError = true
     mocks.update.mockRejectedValueOnce(new Error('update failed'))
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
@@ -1829,6 +1874,8 @@ describe('HabitDetailScreen', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
 
     await act(async () => { await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ dueTime: null, dueEndTime: null })
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.updateError')
     expect(screen.getByRole('textbox', { name: 'rename' })).toHaveValue('Read daily')
   })
@@ -2178,6 +2225,9 @@ describe('HabitDetailScreen', () => {
 
     it.each(['light', 'dark'] as const)('leaves the child row group without a second surface in %s', async (mode) => {
       vi.useRealTimers()
+      mocks.realChildRows = true
+      mocks.detail = { ...makeDetail(), children: makeDetail().children.map((child) => ({ ...child, description: '**Read** two pages before breakfast.' })) }
+      mocks.scopedHabits.set('child-1', { ...makeScopedChild('2026-08-28'), description: '**Read** two pages before breakfast.' })
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
       const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
       try {
@@ -2188,6 +2238,12 @@ describe('HabitDetailScreen', () => {
           return { background: paint.backgroundColor, shadow: paint.boxShadow, border: paint.borderWidth, gap: paint.rowGap }
         })
         expect(group).toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', border: '0px', gap: '12px' })
+        const inset = await page.getByTestId('detail-children').getByTestId('habit-row').evaluate((row) => {
+          const well = Array.from(row.querySelectorAll('span')).find((element) => getComputedStyle(element).width === '32px')!
+          return well.getBoundingClientRect().left - row.getBoundingClientRect().left
+        })
+        expect(inset).toBe(24)
+        expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(['Read two pages before breakfast.'])
       } finally { await page.close() }
     })
 
@@ -2252,6 +2308,7 @@ describe('HabitDetailScreen', () => {
         const geometry = await heading.evaluate((heading, hit) => {
           const button = heading.querySelector('button')!
           const summary = heading.nextElementSibling!
+          const summaries = Array.from(heading.parentElement!.querySelectorAll(':scope > p'))
           const row = heading.closest('[data-habit-detail-header-row]')!
           const controls = row.firstElementChild!
           const range = document.createRange()
@@ -2266,7 +2323,7 @@ describe('HabitDetailScreen', () => {
             controlsX: controls.getBoundingClientRect().left,
             hitHeight: hit.height,
             rowHeight: row.getBoundingClientRect().height,
-            baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 4 + summary.getBoundingClientRect().height,
+            baseHeight: controls.getBoundingClientRect().height + 8 + Math.max(32, lines * lineHeight) + summaries.reduce((height, item) => height + 8 + item.getBoundingClientRect().height, 0),
           }
         }, hit)
         expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)

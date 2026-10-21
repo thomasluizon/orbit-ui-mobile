@@ -1,7 +1,6 @@
 /** A date shown, not edited: label plus value, NO control, no chevron, no hover, not focusable.
- *  This is the presentation for a date the person cannot change - the start date, which is fixed when the
- *  habit is created and is NEVER the next due date (that one moves, and belongs to a row that can show it
- *  changing). If a date can be edited, this is the wrong component.
+ *  This presentation is for read-only facts. Editable form dates use DateField, including recurring
+ *  start anchors and task due dates. A moving next-due cursor never stands in for a start anchor.
  *  States: it has one. A read-only value has no hover, focus, active, disabled, loading or error state; if
  *  the value is not loaded yet the surrounding block shows its skeleton, and `value` is never a bare "0"
  *  or an empty string - pass the mono note instead. */

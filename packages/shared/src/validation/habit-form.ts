@@ -13,6 +13,9 @@ import {
 } from './constants'
 
 export const habitFormSchema = z.object({
+  itemType: z.enum(['task', 'habit']).nullable().optional(),
+  datePhrase: z.string().optional(),
+  dateIssue: z.string().optional(),
   title: z
     .string()
     .trim()

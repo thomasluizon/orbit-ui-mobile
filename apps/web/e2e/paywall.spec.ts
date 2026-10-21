@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { expectCheckout } from './support/smoke-adapters'
 
 test('the upgrade paywall renders its checkout CTA', async ({ page }) => {
   const plansLoaded = page.waitForResponse(
@@ -12,9 +13,5 @@ test('the upgrade paywall renders its checkout CTA', async ({ page }) => {
   const plansResponse = await plansLoaded
   expect(plansResponse.ok()).toBeTruthy()
 
-  const checkout = page.getByRole('button', {
-    name: /^(?:Subscribe Annual, recommended|Assinar Anual, recomendado)$/,
-  })
-  await expect(checkout).toBeVisible()
-  await expect(checkout).toBeEnabled()
+  await expectCheckout(page)
 })
