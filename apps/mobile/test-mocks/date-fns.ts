@@ -1,4 +1,6 @@
 export { isValid } from 'date-fns/isValid'
+export { getDaysInMonth } from 'date-fns/getDaysInMonth'
+export { isLeapYear } from 'date-fns/isLeapYear'
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 

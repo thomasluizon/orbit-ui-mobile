@@ -2,7 +2,7 @@ import type { ReactElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
-import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { neutralColors } from '@orbit/shared/theme'
 import { HabitRow } from '@/components/habits/habit-row'
@@ -10,6 +10,7 @@ import { HabitLogButton } from '@/components/habits/habit-log-button'
 import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
+import { ChevronRight } from '@/components/ui/icons'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { Menu } from '@/components/ui/menu'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
@@ -49,6 +50,29 @@ function pressedFill(control: ReactTestInstance): string {
 }
 
 describe('light hover text on Android', () => {
+  it.each((['light', 'dark'] as const).flatMap((mode) => ([undefined, 'column'] as const).map((placement) => ({ mode, placement }))))('keeps disabled ListRow chevrons visible in $mode with $placement placement', async ({ mode, placement }) => {
+    themeMock.currentTheme = mode
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<ListRow title="Preferences" placement={placement} disabled onClick={vi.fn()} />) })
+    try {
+      const control = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'button')[0]!
+      expect(control.props.disabled).toBe(true)
+      const slot = control.findAll((node) => String(node.type) === 'View' && node.props['data-slot'] === 'list-row-chevron')[0]!
+      expect(slot.props.importantForAccessibility).toBe('no-hide-descendants')
+      const icon = slot.findAll((node) => node.type === ChevronRight)[0]!
+      let opacity = 1
+      const ancestors = tree.root.findAll((node) => typeof node.type === 'string' && node.findAll((child) => child === icon).length > 0)
+      for (const node of ancestors) opacity *= Number(StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).opacity ?? 1)
+      const tokens = createTokensV2('orange', mode)
+      for (const surface of [tokens.bg, tokens.bgElev, tokens.bgCard, tokens.bgWell]) {
+        expect(controlContrast(icon.props.color as string, 'rgba(0,0,0,0)', [tokens.bg, surface], opacity).graphic, surface).toBeGreaterThanOrEqual(3)
+      }
+    } finally {
+      await act(() => tree.update(<></>))
+      themeMock.currentTheme = 'light'
+    }
+  })
+
   it.each([
     { name: 'empty habit', element: <HabitLogButton label="Log habit" logged={false} onPress={() => {}} /> },
     { name: 'habit progress', element: <HabitLogButton label="Log habit" logged={false} progress={0} onPress={() => {}} /> },

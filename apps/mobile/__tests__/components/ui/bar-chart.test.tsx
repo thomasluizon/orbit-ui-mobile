@@ -1,6 +1,11 @@
+import React from 'react'
+import { createRequire, Module } from 'node:module'
 import { act, create } from 'react-test-renderer'
 import type { ReactTestInstance } from 'react-test-renderer'
-import { StyleSheet } from 'react-native'
+import { Pressable, StyleSheet } from 'react-native'
+import type { ViewStyle } from 'react-native'
+import * as ReactNative from 'react-native'
+import type { HoverGesture, GestureStateChangeEvent } from 'react-native-gesture-handler'
 import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTranslator } from 'next-intl'
@@ -9,14 +14,80 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { mapCompletionSeries } from '@orbit/shared/utils'
 import { INTERACTION_FILL_CLEARANCE, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { BarChart } from '@/components/ui/bar-chart'
+import { createTokensV2 } from '@/lib/theme'
+import { __focusHost, __getFocusedNativeTag, __setTouchMode } from '../../../test-mocks/react-native'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const language = vi.hoisted(() => ({ locale: 'en' }))
+const theme = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({ currentScheme: 'orange', currentTheme: 'dark' }))
+
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => theme }))
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: createTranslator({ locale: language.locale, messages: language.locale === 'en' ? en : ptBR }) }),
 }))
+
+const loadGestureModule = createRequire(import.meta.url)
+const { HoverGesture: InstalledHoverGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/hoverGesture') as { HoverGesture: new () => HoverGesture }
+const { findHandler } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/handlersRegistry') as { findHandler: (tag: number) => HoverGesture | undefined }
+const { State } = loadGestureModule('react-native-gesture-handler/lib/commonjs/State') as typeof import('react-native-gesture-handler/lib/typescript/State')
+const { PointerType } = loadGestureModule('react-native-gesture-handler/lib/commonjs/PointerType') as typeof import('react-native-gesture-handler/lib/typescript/PointerType')
+
+function loadInstalledReceiver() {
+  const nativePath = loadGestureModule.resolve('react-native')
+  const previous = loadGestureModule.cache[nativePath]
+  const nativeModule = new Module(nativePath)
+  nativeModule.exports = ReactNative
+  loadGestureModule.cache[nativePath] = nativeModule
+  try {
+    return loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/eventReceiver') as {
+      onGestureHandlerEvent: (event: GestureStateChangeEvent) => void
+    }
+  } finally {
+    if (previous) loadGestureModule.cache[nativePath] = previous
+    else delete loadGestureModule.cache[nativePath]
+  }
+}
+const { onGestureHandlerEvent } = loadInstalledReceiver()
+
+type HoverOwner = ReactTestInstance & { readonly parent: HoverOwner | null }
+
+function attachedColumnHover(target: ReactTestInstance): HoverGesture {
+  let detector = (target as HoverOwner).parent
+  while (detector && typeof detector.type !== 'string') detector = detector.parent
+  expect(detector?.type, 'native chart hover must wrap the complete radio target').toBe('GestureDetector')
+  const child = React.Children.only(detector!.props.children) as React.ReactElement<{ accessibilityRole: string }>
+  expect(child.type, 'hover must retain the existing native radio pressable').toBe(Pressable)
+  expect(child.props.accessibilityRole).toBe('radio')
+  expect(target.props.collapsable).toBe(false)
+  const gesture = detector!.props.gesture as HoverGesture
+  expect(gesture).toBeInstanceOf(InstalledHoverGesture)
+  expect(gesture.handlerName).toBe('HoverGestureHandler')
+  expect(gesture.handlerTag).toBeGreaterThan(0)
+  expect(gesture.config).toMatchObject({ manualActivation: true, cancelsTouchesInView: false, runOnJS: true })
+  expect(findHandler(gesture.handlerTag)).toBe(gesture)
+  return gesture
+}
+
+function deliverHover(gesture: HoverGesture, state: typeof State[keyof typeof State], oldState: typeof State[keyof typeof State]) {
+  void act(() => onGestureHandlerEvent({
+    handlerTag: gesture.handlerTag, numberOfPointers: 1, pointerType: PointerType.MOUSE,
+    x: 1, y: 16, absoluteX: 72, absoluteY: 32, state, oldState,
+  }))
+}
+
+function fillStyle(target: ReactTestInstance) {
+  return StyleSheet.flatten(host(target, 'bar-chart-fill').props.style) as ViewStyle
+}
+
+function selectedSnapshot() {
+  return {
+    checked: radios().map((radio) => radio.props.accessibilityState),
+    readout: host(tree.root, 'bar-chart-readout').props.children,
+    focus: __getFocusedNativeTag(),
+  }
+}
 
 const points = mapCompletionSeries({ granularity: 'day', points: Array.from({ length: 30 }, (_, index) => ({
   startDate: `2026-09-${String(index + 1).padStart(2, '0')}`, endDate: `2026-09-${String(index + 1).padStart(2, '0')}`,
@@ -66,11 +137,12 @@ function feedbackBounds(target: ReactTestInstance, feedback: ReactTestInstance) 
 
 beforeEach(() => {
   language.locale = 'en'
+  theme.currentTheme = 'dark'
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 8, 4, 12))
   void act(() => { tree = create(<BarChart points={points} label="Last 30 days" />) })
 })
-afterEach(() => { void act(() => tree.update(<></>)); vi.useRealTimers() })
+afterEach(() => { void act(() => tree.update(<></>)); vi.useRealTimers(); vi.restoreAllMocks(); __setTouchMode(true) })
 
 describe('BarChart on Android', () => {
   it('uses individually named radios, selects today and changes readout on press or accessibility action', () => {
@@ -158,6 +230,10 @@ describe('BarChart on Android', () => {
     void act(() => tree.update(<BarChart points={points.map((point) => ({ ...point, rate }))} label="Completion" />))
     layout(host(tree.root, 'bar-chart-control'), width)
     const target = radios()[1]!
+    const hover = attachedColumnHover(target)
+    deliverHover(hover, State.BEGAN, State.UNDETERMINED)
+    expect(fillStyle(target).backgroundColor).toBe(createTokensV2('orange', 'dark').bgHover)
+    deliverHover(hover, State.FAILED, State.BEGAN)
     trigger(target, 'onPressIn')
     const feedback = target.findAll((node) => typeof node.type === 'string' && node.props.pointerEvents === 'none')[0]!
     const fill = StyleSheet.flatten(feedback.props.style) as { backgroundColor: string; top: number; bottom: number; left: number; right: number }
@@ -239,5 +315,212 @@ describe('BarChart on Android', () => {
     expect(radios()[1]!.props.accessibilityState).toEqual({ checked: true })
     void act(() => tree.update(<BarChart points={[]} label="Last 30 days" />))
     expect(radios()).toHaveLength(0)
+  })
+})
+
+function chartInteractions(mode: 'dark' | 'light', locale: 'en' | 'pt-BR') {
+  theme.currentTheme = mode
+  language.locale = locale
+  const localizedPoints = mapCompletionSeries({ granularity: 'day', points: points.map((point) => ({
+    startDate: point.startDate, endDate: point.endDate, scheduled: point.scheduled,
+    completed: point.completed, completionRate: point.rate,
+  })) }, locale)
+  void act(() => tree.update(<BarChart points={localizedPoints} label="Completion" />))
+  layout(host(tree.root, 'bar-chart-control'), 320)
+  const target = radios()[1]!
+  const other = radios()[2]!
+  const hover = attachedColumnHover(target)
+  const otherHover = attachedColumnHover(other)
+  expect(otherHover).not.toBe(hover)
+  const palette = createTokensV2('orange', mode)
+  return { target, other, hover, otherHover, palette, localizedPoints }
+}
+
+describe.each(['dark', 'light'] as const)('Native chart hover in %s', (mode) => {
+  it.each(['en', 'pt-BR'] as const)('paints only the hovered column without selection, focus or announcements in %s', (locale) => {
+    const view = chartInteractions(mode, locale)
+    const before = selectedSnapshot()
+    const bounds = geometryStyle(view.target)
+    const paths = () => tree.root.findAll((node) => String(node.type) === 'Path').map((node) => node.props)
+    const initialPaths = paths()
+    for (let cycle = 0; cycle < 3; cycle++) {
+      deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+      expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+      expect(fillStyle(view.other).backgroundColor).toBe('transparent')
+      expect(geometryStyle(view.target)).toEqual(bounds)
+      expect(fillStyle(view.target)).toMatchObject({ top: 0, bottom: 0, borderRadius: 8 })
+      expect(fillStyle(view.target).transform).toBeUndefined()
+      expect(selectedSnapshot()).toEqual(before)
+      expect(paths()).toEqual(initialPaths)
+      expect(attachedColumnHover(view.target)).toBe(view.hover)
+      deliverHover(view.hover, State.FAILED, State.BEGAN)
+      expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    }
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1)
+  })
+
+  it.each(['en', 'pt-BR'] as const)('retains hover through release and held press through terminal cleanup in %s', (locale) => {
+    const view = chartInteractions(mode, locale)
+    const before = selectedSnapshot()
+    deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+    trigger(view.target, 'onPressIn')
+    trigger(view.target, 'onPressOut')
+    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    trigger(view.target, 'onPressIn')
+    deliverHover(view.hover, State.FAILED, State.BEGAN)
+    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect((StyleSheet.flatten(view.target.props.style) as ViewStyle).transform).toBeUndefined()
+    trigger(view.target, 'onPressOut')
+    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(selectedSnapshot()).toEqual(before)
+  })
+
+  it.each([State.END, State.CANCELLED, State.FAILED])('clears only its hover reason for terminal state %s', (terminal) => {
+    const view = chartInteractions(mode, 'en')
+    const before = selectedSnapshot()
+    deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+    deliverHover(view.otherHover, State.BEGAN, State.UNDETERMINED)
+    deliverHover(view.hover, terminal, State.BEGAN)
+    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(fillStyle(view.other).backgroundColor).toBe(view.palette.bgHover)
+    trigger(view.target, 'onPressIn')
+    deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+    deliverHover(view.hover, terminal, State.BEGAN)
+    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    trigger(view.target, 'onPressOut')
+    deliverHover(view.otherHover, terminal, State.BEGAN)
+    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(fillStyle(view.other).backgroundColor).toBe('transparent')
+    expect(selectedSnapshot()).toEqual(before)
+  })
+
+  it.each(['en', 'pt-BR'] as const)('keeps keyboard selection and one contained focus perimeter independent of hover in %s', (locale) => {
+    const view = chartInteractions(mode, locale)
+    const rings = (target: ReactTestInstance) => target.findAll((node) => typeof node.type === 'string' && ((StyleSheet.flatten(node.props.style) as ViewStyle | undefined)?.borderWidth ?? 0) > 0)
+    __setTouchMode(false)
+    void act(() => { __focusHost(view.target.props.__nativeTag as number) })
+    const focused = selectedSnapshot()
+    expect(focused.readout).toBe(view.target.props.accessibilityLabel)
+    expect(radios()[1]!.props.accessibilityState).toEqual({ checked: true })
+    expect(rings(view.target)).toHaveLength(1)
+    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+    deliverHover(view.hover, State.CANCELLED, State.BEGAN)
+    expect(selectedSnapshot()).toEqual(focused)
+    expect(rings(view.target)).toHaveLength(1)
+    const measured = feedbackBounds(view.target, rings(view.target)[0]!)
+    expect(measured.left).toBeGreaterThanOrEqual(0)
+    expect(measured.left + measured.width).toBeLessThanOrEqual(geometryStyle(view.target).width + 0.0001)
+    deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+    trigger(view.target, 'onPressIn')
+    void act(() => { __focusHost(view.other.props.__nativeTag as number) })
+    expect(rings(view.target)).toHaveLength(0)
+    expect(rings(view.other)).toHaveLength(1)
+    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect(host(tree.root, 'bar-chart-readout').props.children).toBe(view.other.props.accessibilityLabel)
+    deliverHover(view.hover, State.FAILED, State.BEGAN)
+    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    trigger(view.target, 'onPressOut')
+    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(attachedColumnHover(view.target)).toBe(view.hover)
+  })
+
+  it.each(['en', 'pt-BR'] as const)('keeps touch cancellation inert and activation on its original radio in %s', (locale) => {
+    const view = chartInteractions(mode, locale)
+    const before = selectedSnapshot()
+    trigger(view.target, 'onPressIn')
+    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    trigger(view.target, 'onPressOut')
+    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(selectedSnapshot()).toEqual(before)
+    trigger(view.target, 'onPressIn')
+    trigger(view.target, 'onPressOut')
+    trigger(view.target, 'onPress')
+    expect(radios().map((radio) => radio.props.accessibilityState)).toEqual(points.map((_, index) => ({ checked: index === 1 })))
+    expect(host(tree.root, 'bar-chart-readout').props.children).toBe(view.target.props.accessibilityLabel)
+    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(attachedColumnHover(view.target)).toBe(view.hover)
+  })
+})
+
+describe('Native chart hover lifecycle and geometry', () => {
+  it.each([{ count: 30, width: 288 }, { count: 53, width: 240 }, { count: 240, width: 240 }, { count: 53, width: 1 }])('preserves hover and handler identity across layout and point updates at $count/$width', ({ count, width }) => {
+    const series = mapCompletionSeries({ granularity: 'week', points: Array.from({ length: count }, (_, index) => ({
+      startDate: new Date(Date.UTC(2025, 0, 1 + index * 7)).toISOString().slice(0, 10),
+      endDate: new Date(Date.UTC(2025, 0, 7 + index * 7)).toISOString().slice(0, 10),
+      scheduled: 4, completed: 2, completionRate: 50,
+    })) }, 'en')
+    void act(() => tree.update(<BarChart points={series} label="Completion" />))
+    layout(host(tree.root, 'bar-chart-control'), width)
+    const index = Math.floor(count / 2)
+    const target = radios()[index]!
+    const hover = attachedColumnHover(target)
+    const tag = hover.handlerTag
+    const before = selectedSnapshot()
+    deliverHover(hover, State.BEGAN, State.UNDETERMINED)
+    expect(fillStyle(target).backgroundColor).toBe(createTokensV2('orange', 'dark').bgHover)
+    const bounds = feedbackBounds(target, host(target, 'bar-chart-fill'))
+    expect(bounds.width).toBeGreaterThan(0)
+    expect(bounds.left).toBeGreaterThanOrEqual(0)
+    expect(bounds.left + bounds.width).toBeLessThanOrEqual(geometryStyle(target).width + 0.0001)
+    expect(selectedSnapshot()).toEqual(before)
+    layout(host(tree.root, 'bar-chart-control'), width / 2)
+    layout(host(tree.root, 'bar-chart-readout'), width / 2)
+    void act(() => tree.update(<BarChart points={series.map((point) => ({ ...point, rate: 100 }))} label="Updated completion" />))
+    expect(radios()[index]).toBe(target)
+    expect(attachedColumnHover(target)).toBe(hover)
+    expect(hover.handlerTag).toBe(tag)
+    expect(fillStyle(target).backgroundColor).toBe(createTokensV2('orange', 'dark').bgHover)
+    deliverHover(hover, State.END, State.BEGAN)
+    expect(fillStyle(target).backgroundColor).toBe('transparent')
+  })
+
+  it('unregisters removed dates, keeps surviving dates stable and ignores stale tags after remount', () => {
+    const view = chartInteractions('dark', 'en')
+    const oldTag = view.hover.handlerTag
+    deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+    const remaining = view.localizedPoints.filter((_, index) => index !== 1)
+    void act(() => tree.update(<BarChart points={remaining} label="Completion" />))
+    expect(findHandler(oldTag)).toBeUndefined()
+    expect(attachedColumnHover(radios()[1]!)).toBe(view.otherHover)
+    const before = selectedSnapshot()
+    deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+    deliverHover(view.hover, State.FAILED, State.BEGAN)
+    expect(selectedSnapshot()).toEqual(before)
+    expect(fillStyle(radios()[1]!).backgroundColor).toBe('transparent')
+    void act(() => tree.update(<BarChart points={view.localizedPoints} label="Completion" />))
+    const replacement = radios()[1]!
+    const fresh = attachedColumnHover(replacement)
+    expect(fresh).not.toBe(view.hover)
+    expect(fresh.handlerTag).not.toBe(oldTag)
+    const restored = selectedSnapshot()
+    deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+    expect(fillStyle(replacement).backgroundColor).toBe('transparent')
+    expect(selectedSnapshot()).toEqual(restored)
+    const gestures = radios().map(attachedColumnHover)
+    void act(() => tree.update(<BarChart points={[]} label="Completion" />))
+    expect(radios()).toHaveLength(0)
+    for (const gesture of gestures) expect(findHandler(gesture.handlerTag)).toBeUndefined()
+    deliverHover(fresh, State.BEGAN, State.UNDETERMINED)
+    void act(() => tree.update(<BarChart points={view.localizedPoints} label="Completion" />))
+    expect(fillStyle(radios()[1]!).backgroundColor).toBe('transparent')
+    expect(attachedColumnHover(radios()[1]!).handlerTag).not.toBe(fresh.handlerTag)
+  })
+
+  it.each([false, true])('keeps hover and held press static with reduced motion %s', (reduced) => {
+    vi.spyOn(ReactNative.AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(reduced)
+    const view = chartInteractions('dark', 'en')
+    deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
+    trigger(view.target, 'onPressIn')
+    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    for (const node of [view.target, host(view.target, 'bar-chart-fill')]) {
+      const style = StyleSheet.flatten(node.props.style) as ViewStyle
+      expect(style.transform).toBeUndefined()
+      expect(style.opacity).toBeUndefined()
+    }
+    trigger(view.target, 'onPressOut')
+    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    deliverHover(view.hover, State.FAILED, State.BEGAN)
+    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
   })
 })

@@ -20,6 +20,7 @@ export interface FreezeBankWords extends AccountDayWords {
 }
 
 export interface FreezeBankProps {
+  inSheet?: boolean
   loadingLabel?: string
   banked: number
   ceiling: number

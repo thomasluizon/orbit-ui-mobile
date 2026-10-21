@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { HabitLog } from '../types/calendar'
-import { habitDetailSchema, updateHabitRequestSchema, type HabitMetrics, type UpdateHabitRequest } from '../types/habit'
+import { habitDetailSchema, habitFullDetailSchema, normalizedHabitSchema, updateHabitRequestSchema, type HabitMetrics, type UpdateHabitRequest } from '../types/habit'
 import { normalizeHabitDetailForDrill } from '../utils/drill-navigation'
 import {
   appendHabitDetailChild,
@@ -582,7 +582,7 @@ describe('habit detail flow model', () => {
     expect(withSlip.days.filter((outcome) => outcome === 'done')).toHaveLength(29)
     expect(withSlipCompletionRate).toBeCloseTo(96.67, 2)
     expect(slipHistory.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('none')
-    expect(isHabitCompletedOnDate(badHabit, [slip], '2026-08-28')).toBe(false)
+    expect(isHabitCompletedOnDate(badHabit, [slip], '2026-08-28', 1)).toBe(false)
 
     const clean = buildHabitStripModel(badHabit, [], today, 'en')
     const cleanHistory = buildHabitHistoryMonth(badHabit, [], today, today, 1)
@@ -592,7 +592,24 @@ describe('habit detail flow model', () => {
     expect(clean.days.filter((outcome) => outcome === 'done')).toHaveLength(30)
     expect(cleanCompletionRate).toBeCloseTo(100)
     expect(cleanHistory.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('full')
-    expect(isHabitCompletedOnDate(badHabit, [], '2026-08-28')).toBe(true)
+    expect(isHabitCompletedOnDate(badHabit, [], '2026-08-28', 1)).toBe(true)
+  })
+
+  it.each([0, 1] as const)('uses week start %i for Sunday bad-habit completion', (weekStartsOn) => {
+    const habit = { ...makeHabitDetail(), children: [], days: [],
+      createdAtUtc: '2026-01-01T12:00:00Z', isBadHabit: true,
+      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2,
+      scheduledStartDate: '2026-01-31', dueDate: '2026-03-09' }
+    const dateStr = '2026-03-01'
+    const date = parseAPIDate(dateStr)
+    const scheduled = weekStartsOn === 1
+
+    expect(buildHabitHistoryMonth(habit, [], date, date, weekStartsOn)
+      .find((day) => day.dateStr === dateStr)?.outcome).toBe(scheduled ? 'full' : 'not-scheduled')
+    expect(buildHabitStripModel(habit, [], date, 'en', weekStartsOn).days.at(-1))
+      .toBe(scheduled ? 'done' : 'not-scheduled')
+    expect(isHabitCompletedOnDate(habit, [], dateStr, weekStartsOn)).toBe(scheduled)
+    expect(isHabitCompletedOnDate(habit, [log(dateStr)], dateStr, weekStartsOn)).toBe(false)
   })
 
   it('uses recent bad-habit logs as the slipping signal', () => {
@@ -874,6 +891,125 @@ describe('habit detail flow model', () => {
     )
 
     expect(history.find((day) => day.dateStr === '2026-08-20')?.outcome).toBe('none')
+  })
+
+  it.each([
+    { unit: 'Month', origin: '2026-01-31', dueDate: '2026-02-28', month: '2026-01-01', scheduled: '2026-01-31', rejected: '2026-01-28', today: '2026-02-01' },
+    { unit: 'Year', origin: '2024-02-29', dueDate: '2025-02-28', month: '2024-02-01', scheduled: '2024-02-29', rejected: '2024-02-28', today: '2024-03-01' },
+  ])('preserves $unit history and strip after the due date advances', (example) => {
+    const detail = habitDetailSchema.parse({
+      ...makeHabitDetail(),
+      createdAtUtc: `${example.month}T12:00:00Z`,
+      days: [],
+      frequencyUnit: example.unit,
+      frequencyQuantity: 1,
+      dueDate: example.dueDate,
+      scheduledStartDate: example.origin,
+    })
+    const habit = mergeHabitDetailWithScopedHabit(detail, makeHabitDetailScopedParent(), example.today)
+    expect(normalizedHabitSchema.parse(habit)).toMatchObject({
+      scheduledStartDate: example.origin,
+    })
+    const before = { ...habit, dueDate: example.origin }
+    const history = (source: typeof habit, logs: HabitLog[] = []) => buildHabitHistoryMonth(
+      source, logs, parseAPIDate(example.month), parseAPIDate(example.today), 1,
+    )
+    expect(history(habit)).toEqual(history(before))
+    expect(history(habit).find((day) => day.dateStr === example.scheduled)?.outcome).toBe('none')
+    expect(history(habit).find((day) => day.dateStr === example.rejected)?.outcome).toBe('not-scheduled')
+    expect(history(habit, [log(example.scheduled)]).find((day) => day.dateStr === example.scheduled)?.outcome).toBe('full')
+    const strip = buildHabitStripModel(habit, [], parseAPIDate(example.today), 'en')
+    expect(strip).toEqual(buildHabitStripModel(before, [], parseAPIDate(example.today), 'en'))
+    expect(strip.days[28]).toBe('missed')
+    const badHabit = { ...habit, isBadHabit: true }
+    expect(history(badHabit).find((day) => day.dateStr === example.scheduled)?.outcome).toBe('full')
+    expect(history(badHabit, [log(example.scheduled)]).find((day) => day.dateStr === example.scheduled)?.outcome).toBe('none')
+  })
+
+  it.each([
+    { unit: 'Month', origin: '2026-01-31', dueDate: '2026-05-31', quantity: 2, month: '2026-03-01', scheduled: '2026-03-31', rejected: '2026-03-28', today: '2026-04-01' },
+    { unit: 'Month', origin: '2026-01-31', dueDate: '2026-03-31', quantity: 1, month: '2026-02-01', scheduled: '2026-02-28', rejected: '2026-02-27', today: '2026-03-01' },
+    { unit: 'Year', origin: '2024-02-29', dueDate: '2026-02-28', quantity: 1, month: '2025-02-01', scheduled: '2025-02-28', rejected: '2025-02-27', today: '2025-03-01' },
+    { unit: 'Year', origin: '2024-02-29', dueDate: '2027-02-28', quantity: 3, month: '2027-02-01', scheduled: '2027-02-28', rejected: '2027-02-27', today: '2027-03-01' },
+    { unit: 'Year', origin: '2024-02-29', dueDate: '2029-02-28', quantity: 1, month: '2028-02-01', scheduled: '2028-02-29', rejected: '2028-02-28', today: '2028-03-01' },
+  ])('uses the $unit origin phase and calendar clamp', (example) => {
+    const habit = { ...recurring, days: [], createdAtUtc: '2024-01-01T12:00:00Z', frequencyUnit: example.unit,
+      frequencyQuantity: example.quantity, dueDate: example.dueDate, scheduledStartDate: example.origin }
+    const history = buildHabitHistoryMonth(habit, [], parseAPIDate(example.month), parseAPIDate(example.today), 1)
+    expect(history.find((day) => day.dateStr === example.scheduled)?.outcome).toBe('none')
+    expect(history.find((day) => day.dateStr === example.rejected)?.outcome).toBe('not-scheduled')
+  })
+
+  it('bounds stable monthly history to its start, cadence and end', () => {
+    const habit = { ...recurring, days: [], createdAtUtc: '2026-01-01T12:00:00Z', frequencyUnit: 'Month',
+      frequencyQuantity: 2, dueDate: '2026-07-31', scheduledStartDate: '2026-03-31', endDate: '2026-05-31' }
+    for (const [month, scheduled] of [['2026-01-01', false], ['2026-03-01', true], ['2026-04-01', false], ['2026-05-01', true], ['2026-07-01', false]] as const) {
+      const history = buildHabitHistoryMonth(habit, [], parseAPIDate(month), parseAPIDate('2026-08-01'), 1)
+      expect(history.some((day) => !day.outsideMonth && day.outcome === 'none')).toBe(scheduled)
+    }
+  })
+
+  describe.each([0, 1] as const)('interval weeks with week start %i', (weekStartsOn) => {
+    it.each([
+      { unit: 'Month', origin: '2026-01-31', dueDate: '2026-06-30', active: '2026-02-28', inactive: '2026-03-31' },
+      { unit: 'Week', origin: '2026-01-31', dueDate: '2026-03-14', active: '2026-02-14', inactive: '2026-02-21' },
+    ])('filters inactive $unit weeks in history and strip for good and bad habits', (example) => {
+      const detail = habitDetailSchema.parse({ ...makeHabitDetail(), days: [],
+        createdAtUtc: '2026-01-01T12:00:00Z', frequencyUnit: example.unit,
+        frequencyQuantity: 1, intervalWeeks: 2, scheduledStartDate: example.origin,
+        dueDate: example.dueDate })
+      const habit = mergeHabitDetailWithScopedHabit(detail, makeHabitDetailScopedParent(), example.inactive)
+      for (const isBadHabit of [false, true]) {
+        const source = { ...habit, isBadHabit }
+        const scheduledHistory = isBadHabit ? 'full' : 'none'
+        const scheduledStrip = isBadHabit ? 'done' : 'missed'
+        for (const [dateStr, scheduled] of [[example.active, true], [example.inactive, false]] as const) {
+          const date = parseAPIDate(dateStr)
+          const history = buildHabitHistoryMonth(source, [], date, date, weekStartsOn)
+          const strip = buildHabitStripModel(source, [], date, 'en', weekStartsOn)
+          expect(history.find((day) => day.dateStr === dateStr)?.outcome)
+            .toBe(scheduled ? scheduledHistory : 'not-scheduled')
+          expect(strip.days.at(-1)).toBe(scheduled ? scheduledStrip : 'not-scheduled')
+        }
+      }
+    })
+
+    it('uses calendar week boundaries for a Sunday month-end', () => {
+      const habit = { ...makeHabitDetail(), days: [], createdAtUtc: '2026-01-01T12:00:00Z',
+        frequencyUnit: 'Month', frequencyQuantity: 1, intervalWeeks: 2,
+        scheduledStartDate: '2026-01-31', dueDate: '2026-06-30' }
+      const date = parseAPIDate('2026-05-31')
+      const history = buildHabitHistoryMonth(habit, [], date, date, weekStartsOn)
+      expect(history.find((day) => day.dateStr === '2026-05-31')?.outcome)
+        .toBe(weekStartsOn === 0 ? 'none' : 'not-scheduled')
+      expect(buildHabitStripModel(habit, [], date, 'en', weekStartsOn).days.at(-1))
+        .toBe(weekStartsOn === 0 ? 'missed' : 'not-scheduled')
+    })
+  })
+
+  it('does not count an inactive interval week as bad-habit completion', () => {
+    const habit = { ...makeHabitDetail(), days: [], createdAtUtc: '2026-01-01T12:00:00Z',
+      isBadHabit: true, frequencyUnit: 'Month', frequencyQuantity: 1, intervalWeeks: 2,
+      scheduledStartDate: '2026-01-31', dueDate: '2026-06-30' }
+    expect(isHabitCompletedOnDate(habit, [], '2026-02-28', 1)).toBe(true)
+    expect(isHabitCompletedOnDate(habit, [], '2026-03-31', 1)).toBe(false)
+  })
+
+  it.each([{}, { scheduledStartDate: null }])('keeps the legacy fallback without a stable date: %j', (origin) => {
+    const habit = habitDetailSchema.parse({ ...makeHabitDetail(), ...origin, createdAtUtc: '2026-01-01T12:00:00Z', days: [], frequencyUnit: 'Month', dueDate: '2026-02-28' })
+    const history = buildHabitHistoryMonth(habit, [], parseAPIDate('2026-01-01'), parseAPIDate('2026-02-01'), 1)
+    expect(history.filter((day) => day.outcome === 'none')).toHaveLength(0)
+    expect(buildHabitStripModel(habit, [], parseAPIDate('2026-02-01'), 'en').days).not.toContain('missed')
+  })
+
+  it('accepts nullable origins in both detail contracts and rejects malformed origins', () => {
+    const detail = { ...makeHabitDetail(), scheduledStartDate: '2026-01-31' }
+    expect(habitDetailSchema.parse(detail)).toMatchObject(detail)
+    expect(habitFullDetailSchema.parse({ habit: detail, metrics: { currentStreak: 0, longestStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 0, totalCompletions: 0, lastCompletedDate: null }, logs: [] }).habit).toMatchObject(detail)
+    expect(habitDetailSchema.parse({ ...detail, scheduledStartDate: null })).toMatchObject({ scheduledStartDate: null })
+    for (const origin of [{ scheduledStartDate: '2026-02-30' }, { scheduledStartDate: '2026-01-31T00:00:00Z' }]) {
+      expect(habitDetailSchema.safeParse({ ...detail, ...origin }).success).toBe(false)
+    }
   })
 
   it('clamps monthly anchors and respects creation and end boundaries', () => {

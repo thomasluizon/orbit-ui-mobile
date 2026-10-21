@@ -31,10 +31,12 @@ interface HabitScheduleSource {
   endDate: string | null
   frequencyQuantity: number | null
   frequencyUnit: string | null
+  intervalWeeks?: number | null
   flexibleTarget?: number | null
   isBadHabit: boolean
   isGeneral: boolean
   isFlexible: boolean
+  scheduledStartDate?: string | null
 }
 
 export interface HabitStripModel {
@@ -93,10 +95,21 @@ function monthDifference(date: Date, anchor: Date): number {
   return (date.getFullYear() - anchor.getFullYear()) * 12 + date.getMonth() - anchor.getMonth()
 }
 
-function matchesFrequency(source: HabitScheduleSource, date: Date, anchor: Date): boolean {
+function isActiveIntervalWeek(source: HabitScheduleSource, date: Date, weekStartsOn: 0 | 1): boolean {
+  const intervalWeeks = source.intervalWeeks ?? 1
+  if (intervalWeeks === 1) return true
+  const anchor = parseAPIDate(source.scheduledStartDate ?? source.dueDate)
+  const targetWeek = startOfWeek(date, { weekStartsOn })
+  const anchorWeek = startOfWeek(anchor, { weekStartsOn })
+  const weekDifference = Math.trunc(differenceInCalendarDays(targetWeek, anchorWeek) / 7)
+  return trueModulo(weekDifference, intervalWeeks) === 0
+}
+
+function matchesFrequency(source: HabitScheduleSource, date: Date, anchor: Date, weekStartsOn: 0 | 1): boolean {
   if (source.days.length > 0 && !source.days.includes(HABIT_DETAIL_WEEKDAYS[date.getDay()] ?? '')) {
     return false
   }
+  if (!isActiveIntervalWeek(source, date, weekStartsOn)) return false
 
   const quantity = source.frequencyQuantity ?? 1
   if (source.frequencyUnit === 'Day') {
@@ -164,14 +177,14 @@ function isScheduled(
   if (dateStr < formatAPIDate(createdDate)) return false
   if (source.isFlexible) {
     if (dateStr < source.dueDate) return false
-    return !isFlexibleTargetMet(source, logs, date, weekStartsOn)
+    return isActiveIntervalWeek(source, date, weekStartsOn) && !isFlexibleTargetMet(source, logs, date, weekStartsOn)
   }
-  if (
-    dateStr < source.dueDate &&
-    (source.frequencyUnit === 'Month' || source.frequencyUnit === 'Year')
-  ) return false
+  // WHY: Only Month/Year lose their original day to calendar clamps; Day/Week retain cadence and flexible schedules use the current window. https://github.com/thomasluizon/orbit-tickets/issues/395
+  const isCalendarFrequency = source.frequencyUnit === 'Month' || source.frequencyUnit === 'Year'
+  const anchor = isCalendarFrequency ? source.scheduledStartDate ?? source.dueDate : source.dueDate
+  if (isCalendarFrequency && dateStr < anchor) return false
 
-  return matchesFrequency(source, date, parseAPIDate(source.dueDate))
+  return matchesFrequency(source, date, parseAPIDate(anchor), weekStartsOn)
 }
 
 function activeLogDates(logs: readonly HabitLog[]): Set<string> {
@@ -195,10 +208,11 @@ export function isHabitCompletedOnDate(
   habit: HabitScheduleSource,
   logs: readonly HabitLog[],
   dateStr: string,
+  weekStartsOn: 0 | 1,
 ): boolean {
   const logged = activeLogDates(logs).has(dateStr)
   if (!habit.isBadHabit) return logged
-  return isScheduled(habit, parseAPIDate(dateStr)) && !logged
+  return isScheduled(habit, parseAPIDate(dateStr), logs, weekStartsOn) && !logged
 }
 
 export function buildHabitDetailChildDateModel(

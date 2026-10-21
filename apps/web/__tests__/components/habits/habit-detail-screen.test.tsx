@@ -24,7 +24,7 @@ import {
 } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
-import { updateHabitRequestSchema } from '@orbit/shared/types/habit'
+import { habitDetailSchema, updateHabitRequestSchema } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { Sheet } from '@/components/ui/sheet'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -77,6 +77,7 @@ const mocks = vi.hoisted(() => ({
   hasProAccess: true,
   timeZone: 'UTC',
   profileReady: true,
+  weekStartDay: 1,
   suggestion: null as RescheduleSuggestion | null,
   rescheduleOptions: [] as { enabled: boolean }[],
   rescheduleError: null as Error | null,
@@ -157,7 +158,7 @@ vi.mock('@/hooks/use-profile', () => ({
       hasProAccess: mocks.hasProAccess,
       language: mocks.language,
       uses24HourClock: mocks.uses24HourClock,
-      weekStartDay: 1,
+      weekStartDay: mocks.weekStartDay,
       timeZone: mocks.timeZone,
     } : undefined,
   }),
@@ -210,7 +211,7 @@ vi.mock('@/components/dates/day-cell', () => ({
     return <span aria-label={label} data-testid={`history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`}>{outcome}</span>
   },
 }))
-vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => <div data-testid="detail-strip" data-size={size} data-days={days.length} /> }))
+vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => <div data-testid="detail-strip" data-size={size} data-days={days.length} data-values={days.join(",")} /> }))
 vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children, label, loadingLabel }: { children: React.ReactNode; label: string; loadingLabel?: string }) => <div aria-label={label}><div role={loadingLabel ? 'progressbar' : undefined} aria-label={loadingLabel} aria-busy={loadingLabel ? true : undefined}>{children}</div></div>,
 }))
@@ -350,6 +351,7 @@ describe('HabitDetailScreen', () => {
     mocks.hasProAccess = true
     mocks.timeZone = 'UTC'
     mocks.profileReady = true
+    mocks.weekStartDay = 1
     mocks.scopedCompleteDay = false
     mocks.rescheduleOptions = []
     mocks.rescheduleError = null
@@ -1147,6 +1149,71 @@ describe('HabitDetailScreen', () => {
       { path: '/?date=2026-08-28', selectedDate: '2026-08-28' },
     ])
     expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { unit: 'Month', origin: '2026-01-31', advanced: '2026-02-28', originalDay: 31, rejectedDay: 28 },
+    { unit: 'Year', origin: '2024-02-29', advanced: '2025-02-28', originalDay: 29, rejectedDay: 28 },
+  ])('keeps $unit strip and month history anchored after due date advancement', (example) => {
+    vi.setSystemTime(new Date(`${example.origin}T12:00:00Z`))
+    mocks.logs = []
+    mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
+      createdAtUtc: `${example.origin.slice(0, 7)}-01T12:00:00Z`,
+      frequencyUnit: example.unit, frequencyQuantity: 1, dueDate: example.origin,
+      scheduledStartDate: example.origin })
+    const view = render(<HabitDetailScreen habitId="habit-1" date={example.origin} />)
+    expect(screen.getByTestId(`history-day-${example.originalDay}-inside`)).toHaveTextContent('none')
+    expect(screen.getByTestId(`history-day-${example.rejectedDay}-inside`)).toHaveTextContent('not-scheduled')
+    expect(screen.getByTestId('detail-strip').getAttribute('data-values')?.split(',').at(-1)).toBe('missed')
+    mocks.detail = { ...mocks.detail, dueDate: example.advanced }
+    view.rerender(<HabitDetailScreen habitId="habit-1" date={example.origin} />)
+    expect(screen.getByTestId(`history-day-${example.originalDay}-inside`)).toHaveTextContent('none')
+    expect(screen.getByTestId(`history-day-${example.rejectedDay}-inside`)).toHaveTextContent('not-scheduled')
+    expect(screen.getByTestId('detail-strip').getAttribute('data-values')?.split(',').at(-1)).toBe('missed')
+  })
+
+  it.each([0, 1] as const)('maps interval weeks into history and strip with week start %i', (weekStartDay) => {
+    mocks.weekStartDay = weekStartDay
+    mocks.logs = []
+    for (const example of [
+      { unit: 'Month', date: '2026-02-28', dueDate: '2026-06-30', scheduled: true },
+      { unit: 'Month', date: '2026-03-31', dueDate: '2026-06-30', scheduled: false },
+      { unit: 'Month', date: '2026-05-31', dueDate: '2026-06-30', scheduled: weekStartDay === 0 },
+      { unit: 'Week', date: '2026-02-14', dueDate: '2026-03-14', scheduled: true },
+      { unit: 'Week', date: '2026-02-21', dueDate: '2026-03-14', scheduled: false },
+    ]) {
+      vi.setSystemTime(new Date(`${example.date}T12:00:00Z`))
+      mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
+        createdAtUtc: '2026-01-01T12:00:00Z', frequencyUnit: example.unit, frequencyQuantity: 1,
+        intervalWeeks: 2, scheduledStartDate: '2026-01-31', dueDate: example.dueDate })
+      const view = render(<HabitDetailScreen habitId="habit-1" date={example.date} />)
+      const day = Number(example.date.slice(-2))
+      expect(screen.getByTestId(`history-day-${day}-inside`))
+        .toHaveTextContent(example.scheduled ? 'none' : 'not-scheduled')
+      expect(screen.getByTestId('detail-strip').getAttribute('data-values')?.split(',').at(-1))
+        .toBe(example.scheduled ? 'missed' : 'not-scheduled')
+      view.unmount()
+    }
+  })
+
+  it.each([0, 1] as const)('agrees on Sunday bad-habit completion with week start %i', (weekStartDay) => {
+    vi.setSystemTime(new Date('2026-03-01T12:00:00Z'))
+    mocks.weekStartDay = weekStartDay
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedHabits = new Map()
+    mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
+      createdAtUtc: '2026-01-01T12:00:00Z', isBadHabit: true,
+      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2,
+      scheduledStartDate: '2026-01-31', dueDate: '2026-03-09' })
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-03-01" />)
+    const scheduled = weekStartDay === 1
+
+    expect(screen.getByTestId('history-day-1-inside')).toHaveTextContent(scheduled ? 'full' : 'not-scheduled')
+    expect(screen.getByTestId('detail-strip').getAttribute('data-values')?.split(',').at(-1))
+      .toBe(scheduled ? 'done' : 'not-scheduled')
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[data-status]')).toHaveAttribute('data-status', scheduled ? 'done' : 'empty')
   })
 
   it('reconciles an explicit-date log and unlog across the mounted detail', async () => {

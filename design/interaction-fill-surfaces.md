@@ -134,3 +134,11 @@ and checks both neighbours at compact and subpixel slot widths.
 The calendar inventory also opens Semana and measures all seven
 header controls. Android presses the mounted chart and measures its resolved fill against the
 rendered bar paths and both neighbours at compact and wide plot widths.
+Each native chart column keeps its existing radio Pressable inside a memoized installed Hover
+gesture, attached to the complete target without a layout wrapper. Manual activation,
+non-canceling JS callbacks and terminal cleanup keep hover separate from touch and keyboard
+selection. The mounted chart owner routes complete events through the real registry and receiver,
+covering independent columns, overlapping press and focus, stable date keys and removed-handler
+cleanup. Feedback stays static, including under reduced motion. This JS boundary does not execute
+native attachment or Android MotionEvents; physical pointer and accessibility acceptance remain
+device checks.
