@@ -26,6 +26,8 @@ export {
 export type { HabitListKey, HabitListSnapshots } from './keys'
 export { attachNotificationPolling } from './notification-polling'
 export {
+  restoreCachedHabitDetails,
+  updateCachedHabitDetails,
   applyCachedHabitSkip,
   updateHabitListsForDate,
   updateCachedHabitLists,
@@ -34,6 +36,7 @@ export {
   rollbackDatedHabitLists,
   restoreCachedHabitSkip,
   getTodayHabitList,
+  getCachedCalendarDayMap,
   getTodayHabitListAfterRefetch,
   checkTodayAllDoneOrDefer,
   deduplicateHabitList,
@@ -53,3 +56,5 @@ export { dailySummaryQueryOptions } from './daily-summary'
 export type { DailySummaryOptions } from './daily-summary'
 export { createConfigCache } from './config-cache'
 export type { ConfigCache, ConfigSnapshot } from './config-cache'
+
+export type { HabitDetailSnapshots, HabitDetailUpdates } from './habit-cache'

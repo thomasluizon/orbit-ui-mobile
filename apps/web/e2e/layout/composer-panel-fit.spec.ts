@@ -149,6 +149,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           context.letterSpacing = style.letterSpacing
           return {
             placeholderWidth: context.measureText(input.placeholder).width,
+            pasteInSlot: input.parentElement!.querySelector('[data-composer-paste]') !== null,
             pillHeight: input.parentElement!.getBoundingClientRect().height,
             controls: [...input.parentElement!.querySelectorAll('button')].map((button) => ({ top: button.getBoundingClientRect().top, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })),
             contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
@@ -158,7 +159,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           }
         })
         expect(empty.pillHeight).toBe(56)
-        expect(empty.controls).toHaveLength(3)
+        expect(empty.controls).toHaveLength(empty.pasteInSlot ? 4 : 3)
         expect(new Set(empty.controls.map((control) => control.top)).size).toBe(1)
         for (const control of empty.controls) { expect(control.width).toBe(48); expect(control.height).toBe(48) }
         expect(empty.contentWidth).toBeGreaterThanOrEqual(empty.placeholderWidth)

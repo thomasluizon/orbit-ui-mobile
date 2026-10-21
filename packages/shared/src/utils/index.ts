@@ -49,6 +49,7 @@ export {
   isHabitCompletedOnDate,
   isHabitSlipping,
   buildHabitDetailReminderRows,
+  needsHabitDetailListFallback,
   hasAuthoritativeHabitRelationshipState,
   HABIT_DETAIL_FREQUENCY_UNITS,
   HABIT_DETAIL_WEEKDAYS,
@@ -227,6 +228,7 @@ export {
   buildHabitDaysList,
   buildHabitAstraFallbackCopy,
   applyHabitEmojiSuggestion,
+  reportHabitFormValidationError,
   buildHabitEmojiSuggestionAvailability,
   buildHabitFormPatchFromSuggestion,
   buildHabitUnderstandingLabels,
@@ -253,7 +255,6 @@ export {
   releaseHabitPhraseOwnership,
   requestHabitFormProposal,
   getHabitDisplayStartDate,
-  resolveHabitStartDate,
   shouldShowHabitAstraFallback,
   isValidHabitTimeInput,
   validateHabitFormInput,
@@ -817,5 +818,9 @@ export { getSetupChecklist } from './setup-checklist'
 
 export { getSummaryFirstSentence } from './summary-sentence'
 export { deriveBulkLogStreakTransition } from './bulk-log-streak'
+export { HabitModeDrafts } from './habit-form-state'
+export { HabitDateEditor } from './habit-date-editor'
+export { getHabitRowTypeLabelKey, getHabitTypeLabelKey } from './habit-card-helpers'
+export { readTypedHabitPhrase } from './habit-phrase-parser'
 
 export * from './move-parent'

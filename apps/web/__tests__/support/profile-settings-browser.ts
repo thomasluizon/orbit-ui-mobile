@@ -40,7 +40,7 @@ function bundleProfile(kind: 'settings' | 'preferences') {
     '@/hooks/use-gamification': 'export const useReportEvent = () => ({ mutate: () => {} });',
     '@/stores/auth-store': 'export const useAuthStore = selector => selector({ logout: () => {} });',
     'next/navigation': 'export const useRouter = () => ({ push: () => {} });',
-    '@/components/ui/sheet': 'export const Sheet = () => null;',
+    '@/components/ui/sheet': "export { Sheet, useSheetHost } from './__tests__/support/sheet-double';",
     '@/app/(app)/preferences/_components/use-preference-controls': `import { useLocale } from 'next-intl'; export const usePreferenceControls = () => ({ selectedLanguage: useLocale(), currentTheme: globalThis.geometryProfile.themePreference, activePicker: null, setActivePicker: () => {}, handleThemeModeChange: () => {}, showGeneralOnToday: false, toggleShowGeneral: () => {}, timeZoneMutation: { mutate: () => {} }, weekStartMutation: { mutate: () => {} }, clockFormatMutation: { mutate: () => {} } });`,
     '@/app/(app)/preferences/_components/preference-picker-sheet': 'export const PreferencePickerSheet = () => null;',
   }

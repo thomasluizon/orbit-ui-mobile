@@ -50,6 +50,7 @@ vi.mock('@/hooks/use-share-card', () => ({
     canShareFiles: true,
     share: vi.fn(),
     download: vi.fn(),
+    resetFeedback: vi.fn(),
   }),
 }))
 

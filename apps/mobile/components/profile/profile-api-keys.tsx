@@ -3,7 +3,7 @@ import { PADDING, SPACING } from '@orbit/shared/theme'
 import { ActionRow } from '@/components/ui/action-row'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -33,6 +33,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { apiClient } from '@/lib/api-client'
 import { API_BASE } from '@/lib/api-base'
+import { captureError } from '@/lib/sentry'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
@@ -64,7 +65,9 @@ function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
           <Text selectable style={textStyle}>{apiKey.lastUsedAtUtc ? displayDateMedium(apiKey.lastUsedAtUtc) : t('orbitMcp.never')}</Text>
         </View>
       </View>
-      {apiKey.expiresAtUtc ? <Text selectable style={textStyle}>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</Text> : null}
+      <Text selectable style={textStyle}>{apiKey.expiresAtUtc
+        ? t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })
+        : t('common.never')}</Text>
     </View>
   )
 }
@@ -252,6 +255,16 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
   const [copied, setCopied] = useState(false)
 
+  async function copyKey() {
+    try {
+      await Clipboard.setStringAsync(createdKey.key)
+      setCopied(true)
+    } catch (error) {
+      captureError(error)
+      setCopied(false)
+    }
+  }
+
   return (
     <Sheet
       ref={sheetRef}
@@ -266,10 +279,7 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
           <PillButton
             size="sm"
             variant="ghost"
-            onClick={() => {
-              Clipboard.setString(createdKey.key)
-              setCopied(true)
-            }}
+            onClick={() => { void copyKey() }}
           >
             {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
           </PillButton>
@@ -300,6 +310,13 @@ function ApiKeyGate({ busy, error, activeApiKeyCount, onStartStepUp }: Readonly<
   const [showStepUp, setShowStepUp] = useState(false)
 
   if (!showStepUp) {
+    let keyCountLabel: string | undefined
+    if (activeApiKeyCount === 0) {
+      keyCountLabel = t('profile.apiKeys.noKeys')
+    } else if (activeApiKeyCount != null) {
+      keyCountLabel = t('profile.apiKeys.activeCount', { count: activeApiKeyCount })
+    }
+
     return (
       <RowList>
         {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
@@ -308,9 +325,7 @@ function ApiKeyGate({ busy, error, activeApiKeyCount, onStartStepUp }: Readonly<
           icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
           title={t('profile.apiKeys.open')}
           wrapTitle
-          value={activeApiKeyCount == null ? undefined : activeApiKeyCount === 0
-            ? t('profile.apiKeys.noKeys')
-            : t('profile.apiKeys.activeCount', { count: activeApiKeyCount })}
+          value={keyCountLabel}
           wrapValue
           onClick={() => setShowStepUp(true)}
         />

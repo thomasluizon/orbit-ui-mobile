@@ -36,6 +36,7 @@ import {
   validateApiRequest,
   skipHabitRequestSchema,
 } from '@orbit/shared'
+import { dateInterpretationSchema, dateInterpretationRequestSchema, type DateInterpretationRequest, type DateInterpretation } from '@orbit/shared/types/habit'
 import { API } from '@orbit/shared/api'
 import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
@@ -258,6 +259,13 @@ export async function linkGoalsToHabit(
     method: 'PUT',
     body: JSON.stringify({ goalIds }),
   }, intendedAccountId))
+}
+
+export async function interpretHabitDate(input: DateInterpretationRequest, intendedAccountId: string | null): Promise<ServerActionResult<DateInterpretation>> {
+  return wrapServerAction(() => serverAuthMutate(API.habits.interpretDate, {
+    method: 'POST',
+    body: JSON.stringify(dateInterpretationRequestSchema.parse(input)),
+  }, intendedAccountId, dateInterpretationSchema))
 }
 
 export async function bulkMoveHabitParent(

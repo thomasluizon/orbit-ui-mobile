@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { HabitLog } from '../types/calendar'
-import type { HabitMetrics } from '../types/habit'
+import { habitDetailSchema, updateHabitRequestSchema, type HabitMetrics, type UpdateHabitRequest } from '../types/habit'
+import { normalizeHabitDetailForDrill } from '../utils/drill-navigation'
 import {
   appendHabitDetailChild,
   buildHabitDetailSchedulePatch,
@@ -33,12 +34,13 @@ import {
 import { createMockHabit } from './factories'
 import {
   makeHabitDetail,
+  makeEnrichedHabitDetail,
   makeHabitScheduleItem,
   makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedParent,
   makeLoggedGeneralHabitDetailChild,
 } from '../test-support/habit-detail-fixtures'
-import { normalizeHabitQueryData } from '../utils/habit-normalization'
+import { habitDetailToNormalized, normalizeHabitQueryData } from '../utils/habit-normalization'
 import { formatAPIDate, parseAPIDate } from '../utils/dates'
 
 const recurring = {
@@ -53,6 +55,93 @@ const recurring = {
   isFlexible: false,
 }
 const today = new Date(2026, 7, 28)
+
+describe('nullable detail temporal writes', () => {
+  it.each([
+    { title: 'Read daily' },
+    { emoji: '📖' },
+    { description: 'A short chapter' },
+    { frequencyUnit: 'Week', frequencyQuantity: 2, days: [] },
+    { reminderEnabled: true, scheduledReminders: [{ when: 'same_day', time: '07:00' }] },
+    { isBadHabit: true, slipAlertEnabled: true },
+    { goalIds: [] },
+    { checklistItems: [{ text: 'Open book', isChecked: false }] },
+  ] satisfies Parameters<typeof buildHabitDetailUpdateRequest>[1][])(
+    'serializes unset times after authoritative normalization for %j',
+    async (patch) => {
+      for (const dueTime of [null, '08:00:00']) {
+        const detail = { ...makeHabitDetail(), dueTime }
+        const habit = mergeHabitDetailWithScopedHabit(detail, makeHabitDetailScopedParent(), detail.dueDate)
+        expect(habit.dueEndTime).toBe('')
+        const queue = createAccountScopedHabitDetailWriteQueue(1, () => 1)
+        const write = vi.fn(async (request: UpdateHabitRequest) => {
+          const outgoing = updateHabitRequestSchema.parse(request)
+          expect(JSON.parse(JSON.stringify(outgoing))).toMatchObject({
+            ...patch, dueTime, dueEndTime: null, endDate: null,
+          })
+          expect(outgoing).not.toHaveProperty('clearEndDate')
+          return true
+        })
+        expect(await queue.save(habit, patch, write)).toBe(true)
+        expect(write).toHaveBeenCalledOnce()
+      }
+    },
+  )
+
+  it('saves an untimed one-time child through normalization and the account queue', async () => {
+    const detail = { ...makeHabitDetail(), id: 'child-1', frequencyUnit: null, frequencyQuantity: null, days: [], children: [] }
+    const habit = mergeHabitDetailWithScopedHabit(detail, undefined, detail.dueDate)
+    const queue = createAccountScopedHabitDetailWriteQueue(1, () => 1)
+    const write = vi.fn(async (request: UpdateHabitRequest) => {
+      const outgoing = JSON.parse(JSON.stringify(updateHabitRequestSchema.parse(request)))
+      expect(outgoing).toMatchObject({ title: 'Read daily', dueTime: null, dueEndTime: null, endDate: null, scheduledReminders: [], reminderTimes: [] })
+      expect(outgoing).not.toHaveProperty('frequencyUnit')
+      expect(outgoing).not.toHaveProperty('frequencyQuantity')
+      return true
+    })
+    expect(await queue.save(habit, { title: 'Read daily' }, write)).toBe(true)
+    expect(write).toHaveBeenCalledOnce()
+  })
+
+  it.each(['dueTime', 'dueEndTime'] as const)('resolves current and explicit %s values before serialization', (field) => {
+    const detail = { ...makeHabitDetail(), dueTime: '08:00', dueEndTime: '09:00:00' }
+    const habit = mergeHabitDetailWithScopedHabit(detail, undefined, detail.dueDate)
+    for (const value of [undefined, null, '', '00:00', '00:00:00', '12:34', '12:34:56', 'invalid']) {
+      const request = buildHabitDetailUpdateRequest(habit, { [field]: value })
+      expect(request[field]).toBe(value === undefined ? habit[field] : value === '' ? null : value)
+      const other = field === 'dueTime' ? 'dueEndTime' : 'dueTime'
+      expect(request[other]).toBe(habit[other])
+    }
+    expect(buildHabitDetailUpdateRequest(habit, {})[field]).toBe(habit[field])
+    expect(buildHabitDetailUpdateRequest(habit, { [field]: habit[field] })[field]).toBe(habit[field])
+  })
+
+  it.each([null, '2026-12-31'])('preserves nullable end date %s and its explicit removal intent', (endDate) => {
+    const detail = { ...makeHabitDetail(), endDate }
+    const habit = mergeHabitDetailWithScopedHabit(detail, undefined, detail.dueDate)
+    const rename = buildHabitDetailUpdateRequest(habit, { title: 'Read daily' })
+    expect(rename.endDate).toBe(endDate)
+    expect(rename).not.toHaveProperty('clearEndDate')
+    const clear = buildHabitDetailUpdateRequest(habit, { endDate: null })
+    expect(clear.endDate).toBeNull()
+    if (endDate) expect(clear.clearEndDate).toBe(true)
+    else expect(clear).not.toHaveProperty('clearEndDate')
+  })
+
+  it('keeps an explicit time clear and its reminder intent across queued edits', async () => {
+    const detail = { ...makeHabitDetail(), dueTime: '08:00', dueEndTime: '09:00', reminderEnabled: true, reminderTimes: [15] }
+    const habit = mergeHabitDetailWithScopedHabit(detail, undefined, detail.dueDate)
+    const queue = createAccountScopedHabitDetailWriteQueue(1, () => 1)
+    let finish!: (saved: boolean) => void
+    const write = vi.fn().mockImplementationOnce(() => new Promise<boolean>((resolve) => { finish = resolve })).mockResolvedValue(true)
+    const clear = queue.save(habit, buildHabitDetailTimePatch('', habit)!, write)
+    const rename = queue.save(habit, { title: 'Read daily' }, write)
+    finish(true)
+    expect(await clear).toBe(true)
+    expect(await rename).toBe(true)
+    expect(write.mock.lastCall![0]).toMatchObject({ title: 'Read daily', dueTime: null, dueEndTime: null, reminderEnabled: false, reminderTimes: [], scheduledReminders: [] })
+  })
+})
 
 it('selects only active history logs and parses the saved dates', () => {
   const logs: HabitLog[] = [
@@ -75,6 +164,22 @@ const log = (date: string, createdAtUtc = `${date}T12:00:00Z`): HabitLog => ({
 })
 
 describe('habit detail flow model', () => {
+  it('accepts a one-time detail with nullable frequency and no weekdays', () => {
+    const schedule = {
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      schedule: 'OneTime',
+      dueDate: '2026-10-26',
+      startDate: '2026-10-20',
+      days: [],
+    }
+    const detail = habitDetailSchema.parse({ ...makeEnrichedHabitDetail(), ...schedule })
+
+    expect(detail).toMatchObject(schedule)
+    expect(mergeHabitDetailWithScopedHabit(detail, undefined, schedule.startDate))
+      .toMatchObject({ ...schedule, title: detail.title })
+  })
+
   it('appends and removes children in a mounted detail tree', () => {
     const parent = { ...createMockHabit({ id: 'parent-1', isGeneral: true }), children: [] }
     const withChild = appendHabitDetailChild(parent, 'offline-child-1', {
@@ -1102,5 +1207,44 @@ describe('habit detail flow model', () => {
     expect(model.habit.isCompleted).toBe(false)
     expect(model.canLog).toBe(true)
     expect(model.completionReadOnly).toBe(false)
+  })
+})
+
+describe('detail response enrichment', () => {
+  it('keeps parent relationships and tags from detail ahead of cached list values', () => {
+    const detail = makeEnrichedHabitDetail()
+    const cached = makeHabitDetailScopedParent()
+    const merged = mergeHabitDetailWithScopedHabit(detail, cached, '2026-08-28')
+    expect(merged).toMatchObject({ linkedGoals: detail.linkedGoals, tags: detail.tags, slipAlertEnabled: true })
+    expect(habitDetailToNormalized(detail)).toMatchObject({ linkedGoals: detail.linkedGoals, tags: detail.tags, slipAlertEnabled: true })
+    expect(hasAuthoritativeHabitRelationshipState(detail, undefined, undefined)).toBe(true)
+    const cleared = { ...detail, linkedGoals: [], tags: [], slipAlertEnabled: false }
+    expect(mergeHabitDetailWithScopedHabit(cleared, merged, '2026-08-28')).toMatchObject({ linkedGoals: [], tags: [], slipAlertEnabled: false })
+  })
+
+  it('keeps child reminder settings and tags from detail ahead of dated list values', () => {
+    const detail = makeEnrichedHabitDetail()
+    const source = detail.children[0]!
+    const child = normalizeHabitDetailForDrill(detail, '2026-08-28').childrenByParent.get(detail.id)![0]!
+    const cached = { ...child, tags: [], reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [], slipAlertEnabled: false }
+    expect(buildHabitDetailChildDateModel(child, cached, '2026-08-28', '2026-08-28', source).habit).toMatchObject({
+      tags: source.tags, reminderEnabled: true, reminderTimes: [15],
+      scheduledReminders: source.scheduledReminders, relativeReminders: source.relativeReminders, slipAlertEnabled: true,
+    })
+    const cleared = { ...source, tags: [], reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [], slipAlertEnabled: false }
+    expect(buildHabitDetailChildDateModel(child, child, '2026-08-28', '2026-08-28', cleared).habit).toMatchObject({
+      tags: [], reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [], slipAlertEnabled: false,
+    })
+  })
+
+  it.each([undefined, null])('accepts an older response with enrichment=%s and retains cached controls', (absent) => {
+    const detail = habitDetailSchema.parse({ ...makeHabitDetail(), tags: absent, linkedGoals: absent, slipAlertEnabled: absent })
+    const cached = { ...makeHabitDetailScopedParent(), linkedGoals: [{ id: 'goal-1', title: 'Read' }], tags: [{ id: 'tag-1', name: 'Focus', color: '#123456' }], slipAlertEnabled: true }
+    expect(mergeHabitDetailWithScopedHabit(detail, cached, '2026-08-28')).toMatchObject({ linkedGoals: cached.linkedGoals, tags: cached.tags, slipAlertEnabled: true })
+    expect(hasAuthoritativeHabitRelationshipState(detail, cached, undefined)).toBe(true)
+    expect(hasAuthoritativeHabitRelationshipState(detail, undefined, undefined)).toBe(false)
+    expect(mergeHabitDetailWithScopedHabit(detail, undefined, '2026-08-28')).toMatchObject({ linkedGoals: [], tags: [], slipAlertEnabled: false })
+    const child = normalizeHabitDetailForDrill(detail, '2026-08-28').childrenByParent.get(detail.id)![0]!
+    expect(buildHabitDetailChildDateModel(child, cached, '2026-08-28', '2026-08-28', detail.children[0]).habit.tags).toEqual(cached.tags)
   })
 })

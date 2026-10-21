@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { useTranslation } from 'react-i18next'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { Check, Copy } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { captureError } from '@/lib/sentry'
 import { createTokensV2 } from '@/lib/theme'
 
 export function DescriptionCopyButton({ description }: Readonly<{ description: string }>) {
@@ -20,10 +21,11 @@ export function DescriptionCopyButton({ description }: Readonly<{ description: s
     if (disabled) return
     setStatus('pending')
     try {
-      Clipboard.setString(description)
-      const copiedDescription = await Clipboard.getString()
+      await Clipboard.setStringAsync(description)
+      const copiedDescription = await Clipboard.getStringAsync()
       setStatus(copiedDescription === description ? 'copied' : 'error')
-    } catch {
+    } catch (error) {
+      captureError(error)
       setStatus('error')
     }
   }

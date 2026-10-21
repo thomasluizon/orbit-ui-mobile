@@ -1,0 +1,73 @@
+name: Astra eval
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: astra-eval
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: evals/astra
+    env:
+      ORBIT_EVAL_BASE_URL: ${{ secrets.ORBIT_EVAL_BASE_URL }}
+      ORBIT_EVAL_TOKEN: ${{ secrets.ORBIT_EVAL_TOKEN }}
+      ORBIT_EVAL_FREE_TOKEN: ${{ secrets.ORBIT_EVAL_FREE_TOKEN }}
+      ORBIT_EVAL_BUDGET_TOKEN: ${{ secrets.ORBIT_EVAL_BUDGET_TOKEN }}
+      ORBIT_EVAL_GRADER: ${{ secrets.ORBIT_EVAL_GRADER }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ORBIT_EVAL_HABIT_ID: ${{ secrets.ORBIT_EVAL_HABIT_ID }}
+      ORBIT_EVAL_SECOND_HABIT_ID: ${{ secrets.ORBIT_EVAL_SECOND_HABIT_ID }}
+      ORBIT_EVAL_OVERDUE_DATE: ${{ secrets.ORBIT_EVAL_OVERDUE_DATE }}
+      ORBIT_EVAL_RESET_SCRIPT_CONTENT: ${{ secrets.ORBIT_EVAL_RESET_SCRIPT_CONTENT }}
+      PROMPTFOO_DISABLE_TELEMETRY: '1'
+      PROMPTFOO_DISABLE_SHARING: '1'
+    steps:
+      - name: Set eval temporary paths
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          printf 'ORBIT_EVAL_RESET_SCRIPT=%s/astra-reset.sh\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'PROMPTFOO_CONFIG_DIR=%s/astra-promptfoo\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: evals/astra/package-lock.json
+      - name: Install the isolated eval package
+        run: npm ci --workspaces=false
+      - name: Prepare the fixture reset executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ORBIT_EVAL_RESET_SCRIPT_CONTENT"
+          umask 077
+          printf '%s\n' "$ORBIT_EVAL_RESET_SCRIPT_CONTENT" > "$ORBIT_EVAL_RESET_SCRIPT"
+          chmod 700 "$ORBIT_EVAL_RESET_SCRIPT"
+      - name: Evaluate all cases with three attempts
+        run: npx promptfoo eval
+      - name: Upload the sanitized gate report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: astra-eval-summary
+          path: |
+            evals/astra/reports/summary.json
+            evals/astra/reports/summary.md
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Remove local eval state
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "$PROMPTFOO_CONFIG_DIR"
+          rm -f "$ORBIT_EVAL_RESET_SCRIPT"

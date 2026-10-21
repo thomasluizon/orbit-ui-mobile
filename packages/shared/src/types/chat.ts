@@ -59,6 +59,7 @@ export const aiActionTypeSchema = z.enum([
   'DeleteTag',
   'ReorderGoals',
   'ReorderHabits',
+  'UnlogHabit',
 ])
 
 export type AiActionType = z.infer<typeof aiActionTypeSchema>

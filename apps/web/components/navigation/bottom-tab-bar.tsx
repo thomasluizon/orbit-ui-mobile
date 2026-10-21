@@ -1,11 +1,12 @@
 'use client'
 
 import type { TabBarItem, TabBarProps } from '@orbit/shared/contracts/navigation'
+import { TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
 
 export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<Omit<TabBarProps, 'items'> & { items: readonly (TabBarItem & { href: string })[] }>) {
   const activeIndex = items.findIndex((item) => item.id === activeId)
   return (
-    <nav aria-label={label} className="mx-auto flex min-h-[80px] flex-wrap w-full max-w-[740px] border-t border-[var(--hairline)] bg-[var(--bg)]">
+    <nav aria-label={label} style={{ minHeight: TAB_BAR_MIN_HEIGHT }} className="mx-auto flex flex-wrap w-full max-w-[740px] border-t border-[var(--hairline)] bg-[var(--bg)]">
       {items.map((item, index) => {
         const active = index === activeIndex
         return (

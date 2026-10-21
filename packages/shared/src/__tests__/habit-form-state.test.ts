@@ -26,6 +26,7 @@ function makeHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
     isGeneral: overrides.isGeneral ?? false,
     isFlexible: overrides.isFlexible ?? false,
     days: overrides.days ?? [],
+    startDate: overrides.startDate,
     dueDate: overrides.dueDate ?? '2025-01-01',
     dueTime: overrides.dueTime ?? null,
     dueEndTime: overrides.dueEndTime ?? null,
@@ -68,6 +69,7 @@ function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
     isGeneral: overrides.isGeneral ?? false,
     isFlexible: overrides.isFlexible ?? false,
     days: overrides.days ?? [],
+    startDate: overrides.startDate,
     dueDate: overrides.dueDate ?? '2025-01-01',
     dueTime: overrides.dueTime ?? null,
     dueEndTime: overrides.dueEndTime ?? null,
@@ -186,10 +188,10 @@ describe('habit-form-state', () => {
   it('builds edit state from habit and detail', () => {
     const state = buildEditHabitFormState(
       makeHabit({ dueTime: '08:30:00', dueEndTime: '09:00:00', emoji: '🏋️' }),
-      makeDetail({ dueDate: '2025-02-01', endDate: '2025-02-10', emoji: '📚' }),
+      makeDetail({ startDate: '2025-01-26', dueDate: '2025-02-01', endDate: '2025-02-10', emoji: '📚' }),
     )
 
-    expect(state.formValues.dueDate).toBe('2025-02-01')
+    expect(state.formValues.dueDate).toBe('2025-01-26')
     expect(state.formValues.dueTime).toBe('08:30')
     expect(state.formValues.dueEndTime).toBe('09:00')
     expect(state.formValues.emoji).toBe('📚')

@@ -1,4 +1,5 @@
 import { settleAnimations } from './settle-animations'
+import { setHabitTextScale } from './subhabit-indent-geometry'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -36,8 +37,14 @@ for (const mode of ['dark', 'light'] as const) {
           await expect(line).toBeVisible()
           await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.text)
           await expect(page.getByTestId('habit-row')).toHaveCount(habits.length)
+          const firstHabitRow = page.getByTestId('habit-row').first()
+          await expect(firstHabitRow).toHaveAttribute('data-habit-title', habits[0]!.title)
+          const firstHabitTitle = firstHabitRow.locator('[data-personal-text]')
+          await expect(firstHabitTitle).toHaveCount(1)
+          await expect(firstHabitTitle).toHaveText(habits[0]!.title)
+          await expect(firstHabitTitle).toBeVisible()
+          await setHabitTextScale(page, textScale, habits.map((habit) => habit.title))
           await page.evaluate(async (scale) => {
-            document.documentElement.style.fontSize = `${16 * scale}px`
             const sentence = document.querySelector<HTMLElement>('.today-astra-sentence')!
             sentence.style.fontSize = `${Number.parseFloat(getComputedStyle(sentence).fontSize) * scale}px`
             await document.fonts.ready
@@ -66,7 +73,8 @@ for (const mode of ['dark', 'light'] as const) {
             const dateRow = document.querySelector('[data-today-date-row]')!
             const date = dateRow.querySelector('[title]')!.getBoundingClientRect()
             const column = dateRow.getBoundingClientRect()
-            const title = document.querySelector('[data-habit-row-heading] > div > span, [data-habit-row-body] > div > span')!
+            const firstHabitRow = document.querySelector('[data-testid="habit-row"]')!
+            const title = firstHabitRow.querySelector('[data-personal-text]')!
             return {
               client: { left, right: left + scroller.clientWidth, top, bottom: top + scroller.clientHeight },
               line: { left: bounds.left, right: bounds.right, height: bounds.height },

@@ -11,7 +11,7 @@ function DestinationFrame({ cap }: Readonly<{ cap: 560 | 620 | 652 }>) {
   return <View style={{ flex: 1 }}><View testID="frame" style={style}><View testID="section" style={{ height: 100 }} /></View></View>
 }
 
-it.each([412, 840, 1200, 1600].flatMap((width) => ([560, 620, 652] as const).map((cap) => ({ width, cap }))))('keeps the $cap frame at its column start at $width', async ({ width, cap }) => {
+it.each([320, 412, 480, 840, 1100, 1200, 1352, 1600].flatMap((width) => ([560, 620, 652] as const).map((cap) => ({ width, cap }))))('centres the $cap frame in its column at $width', async ({ width, cap }) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   let tree!: GeometryTree
   await act(() => { tree = create(<DestinationFrame cap={cap} />) as GeometryTree })
@@ -20,7 +20,7 @@ it.each([412, 840, 1200, 1600].flatMap((width) => ([560, 620, 652] as const).map
     const frame = boxes.get('frame')!
     const section = boxes.get('section')!
     expect(frame.width).toBe(width < 1024 ? width : cap + 32)
-    expect(frame.left).toBe(0)
+    expect(frame.left + frame.width / 2).toBe(width / 2)
     expect(section.width).toBe(frame.width - 32)
   } finally {
     await act(() => tree.unmount())

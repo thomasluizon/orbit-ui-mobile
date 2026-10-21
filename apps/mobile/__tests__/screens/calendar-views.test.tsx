@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
+import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { useAuthStore } from '@/stores/auth-store'
 import { createHermeticFixtureRequest } from '../../../web/test-support/hermetic/fixture-request'
 import { profileFixture } from '../../../web/test-support/hermetic/mock-api/fixtures/profile'
@@ -65,9 +67,9 @@ function getMockAccountDateKey(): string {
   return formatAPIDateInTimeZone(new Date(), MOCK_ACCOUNT_TIME_ZONE);
 }
 
-const heldQueries = vi.hoisted((): { enabled: boolean; profileRequest: Promise<Profile> | null; calendarResponse: unknown } => ({ enabled: false, profileRequest: null, calendarResponse: undefined }))
+const heldQueries = vi.hoisted((): { enabled: boolean; realDayDetail: boolean; profileRequest: Promise<Profile> | null; calendarRequest: Promise<CalendarMonthResponse> | null; calendarResponse: unknown } => ({ enabled: false, realDayDetail: false, profileRequest: null, calendarRequest: null, calendarResponse: undefined }))
 vi.mock('@/lib/i18n', () => ({ i18n: { language: 'en', changeLanguage: vi.fn() } }))
-vi.mock('@/lib/api-client', () => ({ apiClient: (path: string) => path === API.profile.get ? heldQueries.profileRequest : Promise.resolve(heldQueries.calendarResponse) }))
+vi.mock('@/lib/api-client', () => ({ apiClient: (path: string) => path === API.profile.get ? heldQueries.profileRequest : heldQueries.calendarRequest ?? Promise.resolve(heldQueries.calendarResponse) }))
 
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
@@ -105,6 +107,7 @@ const state = vi.hoisted(() => ({
   calendarEventsError: null as Error | null,
   calendarEventsRefetch: vi.fn(),
   calendarRangeCalls: vi.fn(),
+  logHabit: vi.fn(async () => {}),
   routerPush: vi.fn(),
   routeParams: {},
   tabRouteNames: [] as string[],
@@ -257,7 +260,7 @@ vi.mock("@/hooks/use-habits", async () => {
       refresh: vi.fn(),
     };
   },
-  useLogHabit: () => ({ mutate: vi.fn() }),
+  useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: state.logHabit }),
 });
 });
 
@@ -320,12 +323,15 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
     );
   },
 }));
-vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
-  CalendarDayDetail: (props: Record<string, any>) => {
+vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/(tabs)/calendar/_components/calendar-day-detail')>()
+  return { CalendarDayDetail: (props: React.ComponentProps<typeof actual.CalendarDayDetail>) => {
     calendarDayDetailProps.current = props;
+    if (heldQueries.realDayDetail) return <actual.CalendarDayDetail {...props} />
     return <View testID={props.loadingLabel ? "calendar-day-skeleton" : "calendar-day-detail"}>{props.loadingLabel ? <View testID="skeleton-unit-settings" accessibilityRole="progressbar" accessibilityLabel={props.loadingLabel} /> : null}</View>;
   },
-}));
+  }
+});
 
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
@@ -436,6 +442,48 @@ class CalendarRenderBoundary extends React.Component<{ children: React.ReactNode
 describe("CalendarScreen views (mobile)", () => {
   let requestFixture: Awaited<ReturnType<typeof createHermeticFixtureRequest>>
   beforeAll(async () => { requestFixture = await createHermeticFixtureRequest() })
+
+  it('keeps a cached completed week habit noninteractive until the range logs arrive', async () => {
+    const day = '2026-09-12'
+    const habit = makeHabitScheduleItem({ id: 'completed-habit', title: 'Already logged habit', children: [], hasSubHabits: false, dueDate: day, scheduledDates: [day], isCompleted: true, instances: [{ date: day, status: 'Completed', logId: 'completed-log' }] })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    client.setQueryData(habitKeys.list({ dateFrom: day, dateTo: day, completeDay: true, includeOverdue: true }), [habit])
+    client.setQueryData(profileKeys.detail(), { ...profileFixture, timeZone: 'UTC', hasProAccess: true })
+    heldQueries.enabled = true
+    heldQueries.realDayDetail = true
+    heldQueries.profileRequest = Promise.resolve(profileFixture)
+    let release!: (response: CalendarMonthResponse) => void
+    heldQueries.calendarRequest = new Promise((resolve) => { release = resolve })
+    useAuthStore.setState({ isAuthenticated: true })
+    state.logHabit.mockClear()
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={client}><CalendarScreen /></QueryClientProvider>) })
+    try {
+      pressView(tree, 'week')
+      const week = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!
+      TestRenderer.act(() => { week.props.onSelectDay(day) })
+      const checkboxes = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox' && node.props.accessibilityLabel === habit.title)
+      await TestRenderer.act(() => { for (const row of checkboxes()) if (!row.props.disabled) row.props.onPress() })
+      expect.soft(state.logHabit).not.toHaveBeenCalled()
+      expect.soft(checkboxes().filter((row) => !row.props.disabled)).toHaveLength(0)
+      expect(tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === 'calendar.loading').length).toBeGreaterThan(0)
+      await TestRenderer.act(() => { release({ habits: [habit], logs: { [habit.id]: [{ id: 'completed-log', date: day, value: 1, createdAtUtc: `${day}T09:00:00Z` }] } }) })
+      await vi.waitFor(async () => {
+        await TestRenderer.act(async () => {})
+        expect(checkboxes()).toHaveLength(1)
+        expect(checkboxes()[0]!.props.accessibilityState.checked).toBe(true)
+      })
+      expect(checkboxes()[0]!.props.disabled).toBeFalsy()
+      expect(state.logHabit).not.toHaveBeenCalled()
+    } finally {
+      TestRenderer.act(() => tree.update(<></>))
+      client.clear()
+      heldQueries.enabled = false
+      heldQueries.realDayDetail = false
+      heldQueries.calendarRequest = null
+      useAuthStore.setState({ isAuthenticated: false })
+    }
+  })
 
   it('keeps Semana mounted and focused with the real calendar query while the profile is pending', async () => {
     const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)

@@ -865,7 +865,7 @@ describe('chat schemas', () => {
         'BulkLogHabits', 'BulkSkipHabits', 'CreateSubHabit', 'SuggestBreakdown',
         'AssignTags', 'DuplicateHabit', 'MoveHabit', 'CreateGoal', 'UpdateGoal',
         'DeleteGoal', 'UpdateGoalProgress', 'UpdateGoalStatus', 'LinkHabitsToGoal',
-        'CreateTag', 'UpdateTag', 'DeleteTag', 'ReorderGoals', 'ReorderHabits',
+        'CreateTag', 'UpdateTag', 'DeleteTag', 'ReorderGoals', 'ReorderHabits', 'UnlogHabit',
       ]
       for (const t of types) {
         expect(aiActionTypeSchema.safeParse(t).success).toBe(true)
@@ -1043,7 +1043,7 @@ describe('chat schemas', () => {
 
     it('accepts action types beyond the canonical enum', () => {
       const result = actionResultSchema.safeParse({
-        type: 'ReorderHabits',
+        type: 'UnknownAction',
         status: 'Success',
         entityId: null,
         entityName: null,

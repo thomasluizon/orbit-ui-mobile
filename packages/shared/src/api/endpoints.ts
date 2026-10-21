@@ -71,6 +71,7 @@ export const API = {
     summary: '/api/habits/summary',
     trends: '/api/habits/trends',
     rescheduleSuggestion: (id: string) => `/api/habits/${id}/reschedule-suggestion` as const,
+    interpretDate: '/api/habits/interpret-date',
     suggestSetup: '/api/habits/suggest-setup',
     calendarMonth: '/api/habits/calendar-month',
     retrospective: '/api/habits/retrospective',

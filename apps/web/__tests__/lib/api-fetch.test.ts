@@ -1,3 +1,6 @@
+import { syncChangesV2ResponseSchema } from '@orbit/shared/types/sync'
+import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
+import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { z } from 'zod'
@@ -62,6 +65,15 @@ describe('apiFetch', () => {
       expect(headers.get('Last-Event-ID')).toBe('epoch.1')
     },
   )
+
+  it.each([false, true])('normalizes serialized sync clocks with relative reminders omitted: %s', async (scheduledOnly) => {
+    const response = structuredClone(reminderWire.SyncChangesV2Response)
+    if (scheduledOnly) response.habits.updated[0]!.relativeReminders = []
+    mockFetch.mockResolvedValue(Response.json(response))
+    const parsed = await fetchJson(API.sync.changesV2, syncChangesV2ResponseSchema)
+    expect(parsed.habits.updated[0]?.scheduledReminders.map((reminder) => reminder.when)).toEqual(['same_day', 'day_before'])
+    expect(parsed.habits.updated[0]?.relativeReminders?.map((reminder) => reminder.when)).toEqual(scheduledOnly ? [] : ['same_day', 'day_before'])
+  })
 
   it('wakes the public API once per minute for starting refusals without publishing an error', async () => {
     vi.useFakeTimers()

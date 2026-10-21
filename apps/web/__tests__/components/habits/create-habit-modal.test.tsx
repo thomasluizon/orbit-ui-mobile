@@ -120,12 +120,22 @@ vi.mock('@/hooks/use-habit-suggestion', () => ({
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
+    resetModeDrafts: vi.fn(),
+    chooseItemType: vi.fn(),
+    validationFocusRequest: 0,
+    registerDateValidation: () => () => {},
     reportBackendErrors: vi.fn(() => false),
     form: {
       reset: mockFormReset,
       setValue: mockFormSetValue,
-      getValues: mockFormGetValues,
+      getValues: (field?: string) => {
+        if (field === 'itemType') return 'habit'
+        const values = mockFormGetValues(field)
+        if (field && values && typeof values === 'object' && !Array.isArray(values)) return (values as Record<string, unknown>)[field]
+        return values
+      },
       trigger: vi.fn().mockResolvedValue(true),
+      getFieldState: () => ({ invalid: false, isDirty: false, isTouched: false, isValidating: false, error: undefined }),
       watch: mockFormWatch,
       register: mockFormRegister,
       formState: { isValid: true, get isDirty() { return mockFormStatus.dirty } },
@@ -774,7 +784,7 @@ describe('CreateHabitModal', () => {
     mockFormGetValues.mockReturnValue({ ...values, reminderEnabled: true, dueTime: '09:00' })
     renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
-    expect(pushPermission.subscribe).toHaveBeenCalledOnce()
+    await waitFor(() => expect(pushPermission.subscribe).toHaveBeenCalledOnce())
     await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalledOnce())
   })
 
@@ -1192,7 +1202,7 @@ describe('CreateHabitModal', () => {
 
     expect(screen.getByDisplayValue('Edited while pending')).toBeDefined()
     expect(screen.getByDisplayValue('Suggested stretch')).toBeDefined()
-    expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
+    expect(proposal).toEqual({ setup: false, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
   })
 
   it('ignores a pending emoji suggestion after the title changes', async () => {
