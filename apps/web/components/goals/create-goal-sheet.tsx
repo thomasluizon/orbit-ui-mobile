@@ -50,7 +50,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
           </ActionRow>
         )}
       >
-        <form id={formId} onSubmit={(event) => { event.preventDefault(); void onSubmit() }} noValidate>
+        <form id={formId} onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void onSubmit() }} noValidate>
           <p className="max-w-prose pb-4 text-sm leading-[1.55] text-pretty text-[var(--fg-2)]">{t('goals.form.habitsExplainer')}</p>
           <div>
             <FieldWell
