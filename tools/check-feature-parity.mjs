@@ -11,16 +11,20 @@ const INVENTORY = '.claude/manifests/feature-parity.json'
 const RULES = 'tools/feature-parity-rules.json'
 const USAGE = `usage: check-feature-parity.mjs [--root <directory>] [--production <ref>] [--base <ref>] [--write] [--ci]
 
-Derives production capabilities from reachable routes, translation uses, option values,
+Derives legacy and active production capabilities from reachable routes, translation uses, option values,
 and keyboard handlers on web and Android. Resolves redesign evidence from source, never
 from a recorded completion status. Writes the untracked inventory only with --write.
 
   --root <directory>  repository (default: script's repository)
-  --production <ref>  production tree (default: origin/main; fetch it first)
-  --base <ref>        compare existing redesign debt with this tree in --ci mode
+  --production <ref>  active production tree (default: origin/main; fetch it first)
+  --base <ref>        compare existing debt with this immutable queued base in --ci mode
   --write             regenerate .claude/manifests/feature-parity.json
   --ci                report ticketed base debt as advisory; reject new losses
   --help, -h          print usage and exit 0
+
+Rules require provenance.legacyProduction, the immutable legacy production commit.
+Protects the deduplicated union of legacy and active production, including newer controls.
+For main pull requests use --production HEAD^1 --base HEAD^1 on the queued merge.
 
 No stdin. Exit codes: 0 retained or ticketed base debt in CI, 1 missing capability,
 2 usage, invalid rules, or source read failure. --write alone returns 0 after generation.`
@@ -42,6 +46,7 @@ function argumentsFor(argv) {
 
 function tree(root, ref) {
   const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  if (ref) ref = git(['rev-parse', '--verify', `${ref}^{commit}`]).trim()
   const paths = new Set(git(ref ? ['ls-tree', '-r', '--name-only', ref] : ['ls-files']).trim().split('\n'))
   const cache = new Map()
   if (ref) {
@@ -62,7 +67,7 @@ function tree(root, ref) {
     if (!cache.has(path)) cache.set(path, ref ? git(['show', `${ref}:${path}`]) : readFileSync(resolve(root, path), 'utf8'))
     return cache.get(path)
   }
-  return { paths, read, root, revision: ref ? git(['rev-parse', ref]).trim() : 'working-tree' }
+  return { paths, read, root, revision: ref ?? 'working-tree' }
 }
 
 function flatten(catalog, prefix = '', result = {}) {
@@ -571,7 +576,7 @@ function scanWidget(snapshot, add) {
 export function validateRules(capabilities, rules, read) {
   const ids = new Set(capabilities.map((entry) => entry.id))
   for (const section of Object.keys(rules)) {
-    if (!['mappings', 'removals', 'tickets', 'policies', 'staticHeadingLabels'].includes(section)) throw new Error(`unknown rules section: ${section}`)
+    if (!['provenance', 'mappings', 'removals', 'tickets', 'policies', 'staticHeadingLabels'].includes(section)) throw new Error(`unknown rules section: ${section}`)
   }
   for (const [path, rule] of Object.entries(rules.staticHeadingLabels ?? {})) {
     if (!/^apps\/(?:web|mobile)\/app\/.+\.tsx$/.test(path) || typeof rule.namespace !== 'string' || !/^[a-zA-Z]+$/.test(rule.namespace) || typeof rule.reason !== 'string' || !rule.reason.trim()) throw new Error(`${path}: static heading labels require a source path, namespace and rationale`)
@@ -588,7 +593,7 @@ export function validateRules(capabilities, rules, read) {
       }
       if (typeof rule.reason !== 'string' || !rule.reason.trim()) throw new Error(`${id}: missing rule rationale`)
       if (section === 'mappings') {
-        if (!Array.isArray(rule.targets) || rule.targets.length === 0 || rule.targets.some((target) => typeof target !== 'string' || !target.startsWith(`${id.split(':')[0]}:`))) throw new Error(`${id}: mapping targets must stay on the same platform`)
+        if (!Array.isArray(rule.targets) || rule.targets.length === 0 || rule.targets.some((target) => typeof target !== 'string' || !new RegExp(`^${id.split(':')[0]}:(?:control|display|content|route|shortcut|native-control|native-display):[^\\s].*$`).test(target))) throw new Error(`${id}: mapping targets must name capabilities on the same platform`)
       } else {
         if (rules.mappings?.[id] || rules.tickets?.[id]) throw new Error(`${id}: a removal cannot also be mapped or ticketed`)
         if (!['DESIGN.md', '.claude/specs/orbit-prod-release.md'].includes(rule.citation) || typeof rule.rule !== 'string' || !rule.rule.trim() || !read(rule.citation).includes(rule.rule)) throw new Error(`${id}: removal requires a verifiable owner rule citation`)
@@ -618,15 +623,18 @@ export function compare(production, redesign, rules) {
 
 function run(options) {
   const rules = JSON.parse(readFileSync(resolve(options.root, RULES), 'utf8'))
+  if (!rules.provenance || Object.keys(rules.provenance).length !== 1 || typeof rules.provenance.legacyProduction !== 'string' || !/^[a-f0-9]{40}$/.test(rules.provenance.legacyProduction)) throw new Error('provenance requires an immutable legacyProduction commit')
+  const legacy = tree(options.root, rules.provenance.legacyProduction)
   const production = tree(options.root, options.production)
+  const base = options.ci ? tree(options.root, options.base) : null
   const current = tree(options.root, null)
-  current.root = options.root
-  const observations = ['web', 'mobile'].flatMap((platform) => scan(production, platform, rules))
-  const capabilities = observations.filter((entry) => entry.kind !== 'content')
+  const sources = [...new Map([legacy, production].map((snapshot) => [snapshot.revision, snapshot])).values()]
+  const observations = sources.flatMap((snapshot) => ['web', 'mobile'].flatMap((platform) => scan(snapshot, platform, rules)))
+  const capabilities = [...new Map(observations.filter((entry) => entry.kind !== 'content').map((entry) => [entry.id, entry])).values()]
   const redesign = ['web', 'mobile'].flatMap((platform) => scan(current, platform, rules))
   validateRules(capabilities, rules, current.read)
   const entries = compare(capabilities, redesign, rules)
-  const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', production: production.revision, standingRemovals: rules.policies, allowedRemovals: rules.removals, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Reachable exported symbols, routes, translated controls and option bindings, keyboard handlers and native widget actions and figures. Mapped translation bindings require a reachable rendered consumer, resolved through property-specific values, calls and component props. Noninteractive translation references alone are supporting observations. Static source evidence does not prove runtime conditions, permissions or API behavior.', entries }
+  const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', legacyProduction: legacy.revision, production: production.revision, base: base?.revision ?? null, standingRemovals: rules.policies, allowedRemovals: rules.removals, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Deduplicated legacy and active production capabilities from reachable exported symbols, routes, translated controls and option bindings, keyboard handlers and native widget actions and figures. Mapped translation bindings require a reachable rendered consumer, resolved through property-specific values, calls and component props. Noninteractive translation references alone are supporting observations. Static source evidence does not prove runtime conditions, permissions or API behavior.', entries }
   if (options.write) {
     const { entries: rows, translationUses, ...header } = inventory
     const serialize = (entry) => JSON.stringify(entry, (key, value) => ['label', 'consumers'].includes(key) ? undefined : value)
@@ -638,7 +646,6 @@ function run(options) {
   console.log(`Outstanding tickets: ${[...new Set(missing.map((entry) => entry.ticket ?? 'ticket required'))].sort().join(', ') || 'none'}`)
   for (const entry of missing) console.log(`${entry.id} | ${entry.evidence.map((item) => `${item.file}:${item.line}`).join(', ')} | ${entry.ticket ?? 'ticket required'}`)
   if (options.ci) {
-    const base = tree(options.root, options.base)
     const baseEntries = compare(capabilities, ['web', 'mobile'].flatMap((platform) => scan(base, platform, rules)), rules)
     const losses = newLosses(entries, baseEntries)
     console.log(`Feature parity CI: ${missing.length - losses.length} ticketed base gaps advisory; ${losses.length} new or unticketed losses blocking.`)
