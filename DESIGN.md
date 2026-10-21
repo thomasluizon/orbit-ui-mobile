@@ -1619,6 +1619,15 @@ Work down this list and stop at the first match: focus already moves there, so n
 
 ## Special surfaces
 
+**Email sign-in links.** The login code step captures the incoming address and code together,
+removes the secret from navigable history and completes through the same guarded owner as manual
+entry. Waiting for connectivity or fresh bot protection retains the existing code step. Verification
+uses its existing busy presentation. Refusal preserves manual editing, explicit Verify and permitted
+resend, without an automatic replacement email or retry loop. A changed address, link or session
+invalidates pending work. Existing accounts and explicit reactivation keep their session owners.
+Android uses the installed email-OTP hint, iOS its one-time-code content type and web one-time-code
+autocomplete, with one accessible editable field. Provider suggestions remain opportunistic.
+
 **Paywall.** At most 3 plans. Mark exactly one recommended and style it with the composed TierCard selected treatment. Write bullets as outcomes, not feature names, 3 to 6 visible per plan. Keep the CTA verb identical across every tier. Pair the monthly/annual toggle with an explicit savings callout: the arithmetic is visible, never implied.
 
 **Landing hero (`orbit-landing-page`).** A 3-second message gate: the headline and CTA are readable within 3 seconds, with no visual treatment between the visitor and the offer. If a treatment competes, reduce the treatment, not the copy.

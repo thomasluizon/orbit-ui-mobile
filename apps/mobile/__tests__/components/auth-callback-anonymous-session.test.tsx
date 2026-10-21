@@ -34,6 +34,7 @@ vi.unmock('react-i18next')
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
   rawUrl: null as string | null,
+  params: {},
   fetch: vi.fn(), replace: vi.fn(), showError: vi.fn(), openAuthSession: vi.fn(),
   clearCache: vi.fn(async () => {}), resetQueries: vi.fn(async () => {}),
   resetAccount: vi.fn(async () => {}), clearOffline: vi.fn(async () => {}),
@@ -52,7 +53,7 @@ vi.mock('@react-native-async-storage/async-storage', () => {
 vi.mock('expo-router', () => ({
   router: { replace: mocks.replace },
   useRouter: () => ({ replace: mocks.replace, push: vi.fn(), canGoBack: () => false }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mocks.params,
   useFocusEffect: () => {},
 }))
 vi.mock('expo-linking', () => ({ useLinkingURL: () => mocks.rawUrl }))
@@ -136,6 +137,7 @@ function expectNoTeardown() {
 beforeEach(async () => {
   vi.clearAllMocks()
   mocks.rawUrl = null
+  mocks.params = {}
   vi.stubGlobal('fetch', mocks.fetch)
   vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'test-client')
   vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', '')
@@ -432,4 +434,47 @@ it.each(['dismiss', 'cancel'])('recovers from a delayed %s Google callback after
   expect(requestCount(API.auth.googleCode)).toBe(0)
   expect(useAuthStore.getState().isAuthenticated).toBe(false)
   expect(mocks.replace).not.toHaveBeenCalled()
+})
+
+
+it('retains email return navigation when the successful session removes its login screen', async () => {
+  const ordinaryLogin = useAuthStore.getState().login
+  let signalSessionWritten!: () => void
+  const sessionWritten = new Promise<void>((resolve) => { signalSessionWritten = resolve })
+  let releaseLogin!: () => void
+  const completionReleased = new Promise<void>((resolve) => { releaseLogin = resolve })
+  useAuthStore.setState({ login: async (...arguments_: Parameters<typeof ordinaryLogin>) => {
+    const result = await ordinaryLogin(...arguments_)
+    signalSessionWritten()
+    await completionReleased
+    return result
+  } })
+  mocks.params = { returnUrl: '/profile' }
+  mocks.fetch.mockImplementation((url: string) => {
+    const path = new URL(url).pathname
+    if (path === API.auth.sendCode) return Promise.resolve(new Response('{}'))
+    if (path === API.auth.verifyCode) return Promise.resolve(Response.json(success))
+    if (path === API.profile.get) return Promise.resolve(Response.json(profile))
+    throw new Error('Unexpected request in email completion')
+  })
+  function ProtectedEmailLogin() {
+    const authenticated = useAuthStore((state) => state.isAuthenticated)
+    return authenticated ? null : <LoginContent />
+  }
+  try {
+    const screen = await mount(<ProtectedEmailLogin />)
+    await TestRenderer.act(() => { screen.root.findByType(EmailStep).props.onEmailChange(profile.email) })
+    await TestRenderer.act(() => screen.root.findByType(EmailStep).props.onSendCode())
+    await TestRenderer.act(async () => {
+      screen.root.findByType(CodeStep).props.onCodeChange('123456')
+      await sessionWritten
+    })
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(screen.root.findAllByType(LoginContent).length).toBe(0)
+    await TestRenderer.act(() => { releaseLogin(); return Promise.resolve() })
+    expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/profile')
+  } finally {
+    releaseLogin()
+    useAuthStore.setState({ login: ordinaryLogin })
+  }
 })

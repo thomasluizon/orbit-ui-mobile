@@ -5,8 +5,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { ApiClientError, extractAuthBackendMessage, isValidEmail, resolveAuthLoginErrorKey,
+  LoginAttemptScope, readLoginEmailLink, type LoginAttempt, type LoginEmailLink,
   deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
-import { useAuthStore } from '@/stores/auth-store'
+import { useAuthStore, getSessionGeneration } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
@@ -46,6 +47,7 @@ export function useLoginFlow(isAuthCallback = false) {
   const params = useLocalSearchParams<{ ref?: string; returnUrl?: string; email?: string; code?: string; from?: string; googleError?: string }>()
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
+  const isAuthLoading = useAuthStore((s) => s.isLoading)
   const { isOnline } = useOffline()
   const turnstileSiteKey = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY
   const {
@@ -53,6 +55,7 @@ export function useLoginFlow(isAuthCallback = false) {
     resetKey: turnstileResetKey,
     onToken: onTurnstileToken,
     takeToken: takeTurnstileToken,
+    resetToken: resetTurnstileToken,
   } = useTurnstileToken(turnstileSiteKey, isOnline)
   const onboardingLocallyDone = useOnboardingDraftStore((s) => s.onboardingLocallyDone)
   const plannedHabitCount = useOnboardingDraftStore((s) => s.habits.length)
@@ -82,15 +85,72 @@ export function useLoginFlow(isAuthCallback = false) {
   const [lockCountdown, setLockCountdown] = useState(0)
   const [accountBack, setAccountBack] = useState<BackendLoginResponse | null>(null)
   const busy = useRef(false)
-  const pendingAutoCode = useRef<string | null>(null)
+  const [attemptScope] = useState(() => new LoginAttemptScope())
+  const pendingAutoCode = useRef<{ code: string; attempt: LoginAttempt } | null>(null)
+  const linkAttempt = useRef<{ attempt: LoginAttempt; submitted: boolean } | null>(null)
+  const accountAttempt = useRef<LoginAttempt | null>(null)
+  const committedAttempt = useRef<LoginAttempt | null>(null)
+  const [incomingLink, setIncomingLink] = useState<LoginEmailLink | null>(null)
+  const [lastLink, setLastLink] = useState<LoginEmailLink | null>(null)
   const returnUrlAttemptRef = useRef<ReturnUrlAttempt | null>(null)
   const attempts = useRef(new Map<string, LoginAttempts>())
   const entry = useLoginCodeEntry((code) => {
     if (!isOnline) return
-    if (turnstileSiteKey && !turnstileToken) pendingAutoCode.current = code
+    if (turnstileSiteKey && !turnstileToken) pendingAutoCode.current = { code, attempt: attemptScope.capture(email, getSessionGeneration().epoch) }
     else void verifyCode(code)
   })
-  const { setCodeDigits } = entry
+  const queryEmail = params.email
+  const queryCode = params.code
+  const linkKey = JSON.stringify([queryEmail, queryCode])
+  const [previousLinkKey, setPreviousLinkKey] = useState<string | null>(null)
+  if (linkKey !== previousLinkKey) {
+    setPreviousLinkKey(linkKey)
+    const link = readLoginEmailLink(queryEmail, queryCode, lastLink, !isAuthCallback)
+    if (link !== undefined) setIncomingLink(link)
+    if (link) {
+      setLastLink(link)
+      setEmail(link.email)
+      entry.setCodeDigits(link.code.split(''))
+      setStep('code')
+      setAccountBack(null)
+      setCodeFailure(null)
+    }
+  }
+
+  useEffect(() => {
+    const unsubscribe = useAuthStore.subscribe(() => attemptScope.observeSession(getSessionGeneration().epoch))
+    return () => {
+      unsubscribe()
+      const committed = committedAttempt.current
+      if (!committed || !useAuthStore.getState().isAuthenticated || !attemptScope.owns(committed, getSessionGeneration().epoch)) attemptScope.invalidate()
+    }
+  }, [attemptScope])
+
+  useEffect(() => {
+    if (!incomingLink) { linkAttempt.current = null; return }
+    attemptScope.invalidate()
+    if (turnstileSiteKey) resetTurnstileToken()
+    pendingAutoCode.current = null
+    linkAttempt.current = { attempt: attemptScope.capture(incomingLink.email, getSessionGeneration().epoch), submitted: false }
+  }, [attemptScope, incomingLink, resetTurnstileToken, turnstileSiteKey])
+
+  useEffect(() => {
+    if (isAuthCallback || (queryEmail === undefined && queryCode === undefined)) return
+    if (!readLoginEmailLink(queryEmail, queryCode)) { attemptScope.invalidate(); pendingAutoCode.current = null }
+    router.setParams({ email: undefined, code: undefined })
+  }, [attemptScope, isAuthCallback, queryEmail, queryCode, router])
+
+  useEffect(() => {
+    if (!incomingLink || isAuthLoading || !isOnline || (turnstileSiteKey && !turnstileToken) || isSubmitting) return
+    let active = true
+    void Promise.resolve().then(() => {
+      const pending = linkAttempt.current
+      if (!active || !pending || pending.submitted || !attemptScope.owns(pending.attempt, getSessionGeneration().epoch)) return
+      pending.submitted = true
+      entry.onCodeChange(incomingLink.code, true)
+    })
+    return () => { active = false }
+  }, [attemptScope, incomingLink, isAuthLoading, isOnline, isSubmitting, turnstileSiteKey, turnstileToken, entry])
 
   useEffect(() => {
     if (!isOnline) pendingAutoCode.current = null
@@ -108,15 +168,10 @@ export function useLoginFlow(isAuthCallback = false) {
       const referral = await getStoredReferralCode()
       if (!active) return
       setShowReferralBanner(Boolean(referral))
-      if (typeof params.email === 'string') setEmail(params.email)
-      if (typeof params.email === 'string' && isValidEmail(params.email) && isValidVerificationCode(params.code)) {
-        setCodeDigits(params.code.split(''))
-        setStep('code')
-      }
     }
     void hydrate().catch(() => { if (active) setErrorKey('auth.errors.unknownError') })
     return () => { active = false }
-  }, [isAuthCallback, params.code, params.email, params.ref, params.returnUrl, setCodeDigits])
+  }, [isAuthCallback, params.ref, params.returnUrl])
 
   useEffect(() => {
     if (codeFailure !== 'locked') return
@@ -158,37 +213,48 @@ export function useLoginFlow(isAuthCallback = false) {
     }
     const protection = takeTurnstileToken()
     if (!protection) return
+    const attempt = attemptScope.capture(email, getSessionGeneration().epoch)
+    const isCurrent = () => attemptScope.owns(attempt, getSessionGeneration().epoch)
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
     try {
       await apiClient(API.auth.sendCode, { method: 'POST', body: JSON.stringify({ email: email.trim(), language: i18n.language, ...protection }) })
+      if (!isCurrent()) return
       entry.resetCodeDigits()
       setCodeFailure(null)
       setStep('code')
       setSuccessMessage(t('auth.codeSent'))
       entry.startResendCountdown()
-    } catch (error: unknown) { if (!reportValidationFailure(error)) setErrorKey(resolveErrorKey(error, 'send')) }
+    } catch (error: unknown) { if (isCurrent() && !reportValidationFailure(error)) setErrorKey(resolveErrorKey(error, 'send')) }
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  async function completeLogin(response: BackendLoginResponse, attemptId: string) {
+  async function completeLogin(response: BackendLoginResponse, attemptId: string, attempt: LoginAttempt) {
+    const isCurrentAttempt = () => attemptScope.owns(attempt, getSessionGeneration().epoch) && isAuthReturnUrlAttemptCurrent(attemptId)
+    if (!isCurrentAttempt() || useAuthStore.getState().isAuthenticated) return
+    attemptScope.release(attempt)
     const isCurrentLoginSession = await login(response.token, response.refreshToken, {
       userId: response.userId, name: response.name, email: response.email,
+    }, attempt.epoch, isCurrentAttempt, (epoch) => {
+      attempt.epoch = epoch
+      committedAttempt.current = attempt
     })
-    if (!isCurrentLoginSession?.() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
+    if (!isCurrentLoginSession?.()) return
+    attempt.epoch = getSessionGeneration().epoch
+    if (!isCurrentAttempt() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
     const referralCode = await getStoredReferralCode()
-    if (!isCurrentLoginSession()) return
+    if (!isCurrentLoginSession() || !isCurrentAttempt()) return
     if (referralCode) {
       await clearStoredReferralCode()
-      if (!isCurrentLoginSession()) return
+      if (!isCurrentLoginSession() || !isCurrentAttempt()) return
       setShowReferralBanner(false)
     }
-    if (!isCurrentLoginSession() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
+    if (!isCurrentLoginSession() || !isCurrentAttempt() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
     const storedReturnUrl = await getStoredAuthReturnUrl(attemptId)
-    if (!isCurrentLoginSession() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
-    await clearStoredAuthReturnUrl(attemptId, isCurrentLoginSession)
-    if (!isCurrentLoginSession() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
+    if (!isCurrentLoginSession() || !isCurrentAttempt() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
+    await clearStoredAuthReturnUrl(attemptId, () => isCurrentLoginSession() && isCurrentAttempt())
+    if (!isCurrentLoginSession() || !isCurrentAttempt() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
     const returnUrl = getSafeReturnUrl(storedReturnUrl)
     router.replace(returnUrl)
   }
@@ -221,43 +287,61 @@ export function useLoginFlow(isAuthCallback = false) {
   async function verifyCode(codeOverride?: string) {
     const code = codeOverride ?? entry.codeDigits.join('')
     if (busy.current || !isOnline || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
+    const submission = deriveLoginEmailSubmission(email, attempts.current, Date.now())
+    if (submission.status === 'locked') {
+      setCodeFailure('locked')
+      setLockCountdown(submission.remainingSeconds)
+      return
+    }
     if (!isValidVerificationCode(code)) {
       setErrorKey('auth.errors.codeFormat')
       setCodeFocusRequest((request) => request + 1)
       return
     }
-    const protection = takeTurnstileToken()
-    if (!protection) return
+    const attempt = attemptScope.capture(email, getSessionGeneration().epoch)
+    const isCurrent = () => attemptScope.owns(attempt, getSessionGeneration().epoch)
+    const controller = new AbortController()
+    if (!isValidEmail(attempt.email) || useAuthStore.getState().isAuthenticated || useAuthStore.getState().isLoading) return
     const returnUrlAttempt = getOrCreateReturnUrlAttempt(
       returnUrlAttemptRef, returnUrlAttemptRef.current?.returnUrl,
     )
+    attemptScope.watch(attempt, () => controller.abort())
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
     try {
       await returnUrlAttempt.ready
       const referralCode = await getStoredReferralCode()
+      if (!isCurrent() || !isAuthReturnUrlAttemptCurrent(returnUrlAttempt.id)) return
+      const protection = takeTurnstileToken()
+      if (!protection) return
+      pendingAutoCode.current = null
       const response = await apiClient<BackendLoginResponse>(API.auth.verifyCode, {
-        method: 'POST', body: JSON.stringify({ email: email.trim(), code, language: i18n.language,
-          ...protection, ...(referralCode ? { referralCode } : {}) }),
+        method: 'POST', body: JSON.stringify({ email: attempt.email, code, language: i18n.language,
+          ...protection, ...(referralCode ? { referralCode } : {}) }), skipAuthRecovery: true, isCurrent, signal: controller.signal,
       })
-      if (response.wasReactivated) setAccountBack(response)
-      else await completeLogin(response, returnUrlAttempt.id)
-    } catch (error: unknown) { reportVerificationFailure(error) }
-    finally { busy.current = false; setIsSubmitting(false) }
+      if (!isCurrent() || !isAuthReturnUrlAttemptCurrent(returnUrlAttempt.id)) return
+      if (response.wasReactivated) { accountAttempt.current = attempt; setAccountBack(response) }
+      else await completeLogin(response, returnUrlAttempt.id, attempt)
+    } catch (error: unknown) { if (isCurrent()) reportVerificationFailure(error) }
+    finally { attemptScope.release(attempt); busy.current = false; setIsSubmitting(false) }
   }
 
   function handleTurnstileToken(token: string | null) {
-    onTurnstileToken(token)
+    if (!onTurnstileToken(token)) return
     if (!token || !isOnline || !pendingAutoCode.current) return
-    const code = pendingAutoCode.current
+    const pending = pendingAutoCode.current
     pendingAutoCode.current = null
-    void verifyCode(code)
+    if (attemptScope.owns(pending.attempt, getSessionGeneration().epoch) && pending.attempt.email === email.trim()) void verifyCode(pending.code)
   }
 
   function onCodeChange(value: string) {
+    if (incomingLink && value !== incomingLink.code) {
+      attemptScope.invalidate()
+      setIncomingLink(null)
+    }
     setErrorKey(null)
-    if (pendingAutoCode.current !== value) pendingAutoCode.current = null
+    if (pendingAutoCode.current?.code !== value) pendingAutoCode.current = null
     entry.onCodeChange(value)
   }
 
@@ -265,7 +349,11 @@ export function useLoginFlow(isAuthCallback = false) {
     if (busy.current || !isOnline || (codeFailure === 'locked' && lockCountdown > 0) || (!entry.canResend && codeFailure !== 'expired')) return
     const protection = takeTurnstileToken()
     if (!protection) return
+    attemptScope.invalidate()
+    setIncomingLink(null)
     pendingAutoCode.current = null
+    const attempt = attemptScope.capture(email, getSessionGeneration().epoch)
+    const isCurrent = () => attemptScope.owns(attempt, getSessionGeneration().epoch)
     busy.current = true
     setIsSubmitting(true)
     setIsResending(true)
@@ -273,16 +361,21 @@ export function useLoginFlow(isAuthCallback = false) {
     setErrorKey(null)
     try {
       await apiClient(API.auth.sendCode, { method: 'POST', body: JSON.stringify({ email: email.trim(), language: i18n.language, ...protection }) })
+      if (!isCurrent()) return
       entry.resetCodeDigits()
       setCodeFailure(null)
       setSuccessMessage(t('auth.codeResent'))
       entry.startResendCountdown()
-    } catch (error: unknown) { if (!reportValidationFailure(error)) setErrorKey(resolveErrorKey(error, 'send')) }
+    } catch (error: unknown) { if (isCurrent() && !reportValidationFailure(error)) setErrorKey(resolveErrorKey(error, 'send')) }
     finally { busy.current = false; setIsSubmitting(false); setIsResending(false) }
   }
 
   function backToEmail() {
     if (busy.current) return
+    attemptScope.invalidate()
+    setIncomingLink(null)
+    if (turnstileSiteKey) resetTurnstileToken()
+    setAccountBack(null)
     setStep('email')
     setSuccessMessage(null)
     setErrorKey(null)
@@ -305,14 +398,15 @@ export function useLoginFlow(isAuthCallback = false) {
   }
 
   async function continueAccount() {
-    if (!accountBack || busy.current) return
+    const attempt = accountAttempt.current
+    if (!accountBack || busy.current || !attempt || !attemptScope.owns(attempt, getSessionGeneration().epoch)) return
     const returnUrlAttempt = getOrCreateReturnUrlAttempt(
       returnUrlAttemptRef, returnUrlAttemptRef.current?.returnUrl,
     )
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
-    try { await returnUrlAttempt.ready; await completeLogin(accountBack, returnUrlAttempt.id) }
+    try { await returnUrlAttempt.ready; await completeLogin(accountBack, returnUrlAttempt.id, attempt) }
     catch { setErrorKey('auth.errors.unknownError') }
     finally { busy.current = false; setIsSubmitting(false) }
   }
@@ -320,7 +414,19 @@ export function useLoginFlow(isAuthCallback = false) {
   function openPrivacyPolicy() { router.push('/about') }
   function openTerms() { router.push('/about') }
 
-  return { t, step, email, setEmail: (value: string) => { setEmail(value); setErrorKey(null) }, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
+  function changeEmail(value: string) {
+    if (value !== email) {
+      attemptScope.invalidate()
+      if (turnstileSiteKey && (step === 'code' || busy.current)) resetTurnstileToken()
+      setIncomingLink(null)
+      pendingAutoCode.current = null
+      setAccountBack(null)
+    }
+    setEmail(value)
+    setErrorKey(null)
+  }
+
+  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
     emailFieldError: getBackendFieldError(validationError, 'Email'),
     codeFieldError: getBackendFieldError(validationError, 'Code'),
     codeFocusRequest,

@@ -96,7 +96,7 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   expiresAt: number | null
-  login: (token: string, refreshToken: string | null, user: User, expectedEpoch?: number) => Promise<(() => boolean) | null>
+  login: (token: string, refreshToken: string | null, user: User, expectedEpoch?: number, isAttemptCurrent?: () => boolean, onSessionCommitted?: (epoch: number) => void) => Promise<(() => boolean) | null>
   logout: (observedCredential?: SessionSnapshot) => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
@@ -442,16 +442,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   expiresAt: null,
 
-  login: async (token, refreshToken, user, expectedEpoch) => {
-    if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
+  login: async (token, refreshToken, user, expectedEpoch, isAttemptCurrent, onSessionCommitted) => {
+    const ownsLogin = () => matchesExpectedSessionEpoch(expectedEpoch) && (isAttemptCurrent?.() ?? true)
+    if (!ownsLogin()) return null
     const previousAccountId = get().user?.userId ?? null
     let ownership = getSessionGeneration()
-    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
-    set(deriveSessionPhase('establishing'))
+    const establishLogin = () => {
+      useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+      set(deriveSessionPhase('establishing'))
+    }
+    if (!isAttemptCurrent) establishLogin()
     try {
       const loginSession = await withCredentialMutationLock(async () => {
-        if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
+        if (!ownsLogin()) return null
         await clearPendingGoogleAuthSessionForLogin()
+        if (!ownsLogin()) return null
+        if (isAttemptCurrent) establishLogin()
         if (configCache.getSnapshot().accountId !== user.userId) configCache.setAccount(null)
         offlineQueue.discardLegacy()
         await setToken(token)
@@ -466,6 +472,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         advanceSessionEpoch()
         credentialVersion += 1
         configCache.setAccount(user.userId)
+        onSessionCommitted?.(getSessionEpoch())
         set({
           ...deriveSessionPhase('establishing'),
           user,

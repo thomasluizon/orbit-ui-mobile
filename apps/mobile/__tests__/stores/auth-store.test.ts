@@ -896,6 +896,18 @@ describe('mobile auth store security paths', () => {
     })
   })
 
+  it('rejects an invalidated email attempt at the credential lock without writing tokens', async () => {
+    const epoch = getSessionGeneration().epoch
+    let current = true
+    const user = { userId: 'user-1', email: 'user@example.com', name: 'User' }
+    const login = useAuthStore.getState().login('access-token', null, user, epoch, () => current)
+    current = false
+    await expect(login).resolves.toBeNull()
+    expect(setTokenMock).not.toHaveBeenCalled()
+    expect(setRefreshTokenMock).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().sessionPhase).toBe('signed-out')
+  })
+
   it('aborts a blocked login when teardown changes the session', async () => {
     let releasePersistedCacheClear!: () => void
     const persistedCacheClearReleased = new Promise<void>((resolve) => {

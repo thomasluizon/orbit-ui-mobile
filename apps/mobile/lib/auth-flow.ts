@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { uuid } from 'expo-modules-core'
 import {
   isValidReferralCode as isValidReferralCodeShared,
+  isSafeAuthReturnUrl,
   isValidVerificationCode as isValidVerificationCodeShared,
 } from '@orbit/shared/utils'
 
@@ -44,7 +45,7 @@ export function isValidVerificationCode(value: string | null | undefined): value
 }
 
 export function isSafeReturnUrl(value: string | null | undefined): value is string {
-  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
+  return isSafeAuthReturnUrl(value)
 }
 
 export function getSafeReturnUrl(value: string | null | undefined, fallback = '/(tabs)'): string {

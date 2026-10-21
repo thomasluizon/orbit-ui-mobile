@@ -76,26 +76,32 @@ export function resolveLoginErrorState(
   return { key, message: t(key) }
 }
 
+interface AuthRequestAttempt {
+  signal: AbortSignal
+  isCurrent: () => boolean
+  onSuccess: (response: unknown) => Promise<void>
+}
+
 export async function fetchAuthEndpoint(
   url: string,
   body: Record<string, unknown>,
+  attempt?: AuthRequestAttempt,
 ): Promise<unknown> {
-  const request = () => fetchWithThrottle(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept-Language': typeof body.language === 'string' ? body.language : 'en' },
-    body: JSON.stringify(body),
-  })
-  const response = url === '/api/auth/verify-code'
-    ? await withCookieSettingLogin(request)
-    : await request()
-  if (!response.ok) {
-    const data: unknown = await response.json().catch(() => null)
-    throw new AuthFetchError(
-      response.status,
-      mergeRequestIdIntoBody(data, response.headers.get('x-orbit-request-id')),
-    )
+  const request = async () => {
+    if (attempt && !attempt.isCurrent()) throw new Error('Authentication attempt changed')
+    const response = await fetchWithThrottle(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept-Language': typeof body.language === 'string' ? body.language : 'en' },
+      body: JSON.stringify(body),
+      ...(attempt ? { signal: attempt.signal } : {}),
+    })
+    const payload: unknown = await response.json().catch(() => null)
+    if (attempt && (!attempt.isCurrent() || attempt.signal.aborted)) throw new Error('Authentication attempt changed')
+    if (!response.ok) throw new AuthFetchError(response.status, mergeRequestIdIntoBody(payload, response.headers.get('x-orbit-request-id')))
+    if (attempt) await attempt.onSuccess(payload)
+    return payload
   }
-  return response.json()
+  return url === '/api/auth/verify-code' ? withCookieSettingLogin(request) : request()
 }
 
 export async function handleVerifySuccess(
@@ -104,9 +110,12 @@ export async function handleVerifySuccess(
   setAuth: (lr: LoginResponse) => void,
   router: ReturnType<typeof useRouter>,
   getReturnUrl: () => string,
+  isCurrent: () => boolean = () => true,
 ) {
+  if (!isCurrent()) return
   setAuth(loginResponse)
   await hydrateProfilePresentation()
+  if (!isCurrent()) return
   if (referralCode) {
     document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
   }
