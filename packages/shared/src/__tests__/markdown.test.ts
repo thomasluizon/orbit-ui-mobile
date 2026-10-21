@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { marked, type Tokens } from 'marked'
 import { getMarkdownImageLabel, stripInlineMarkdown } from '../utils/markdown'
 import { splitDescriptionLinks } from '../utils/description-links'
@@ -17,6 +17,44 @@ describe('plain description links', () => {
 
   it.each(['javascript:alert(1)', 'data:text/html,hello', 'orbit://habit', 'mailto:person@example.com', '//example.com', 'https:///example.com', 'https://', 'https://bad%20host', 'https://example.com:wrong', 'javascript:https://example.com', 'https://example.com\\path', 'https://example.com/%zz'])('leaves %s inert', (source) => {
     expect(splitDescriptionLinks(source)).toEqual([{ text: source, offset: 0 }])
+  })
+
+  it('rejects the encoded host accepted by the recorded Chromium constructor', () => {
+    const RuntimeURL = globalThis.URL
+    const malformed = 'https://bad%20host'
+    vi.stubGlobal('URL', class extends RuntimeURL {
+      constructor(input: string) {
+        super(input === malformed ? 'https://example.invalid/' : input)
+        if (input === malformed) Object.defineProperties(this, {
+          hostname: { value: 'bad%20host' },
+          href: { value: 'https://bad%20host/' },
+        })
+      }
+    })
+    try {
+      const safe = 'https://example.com/a%20b?q=%23value'
+      const source = `(${malformed}).\n(${safe}).`
+      const parts = splitDescriptionLinks(source)
+      expect(parts.map(({ text }) => text).join('')).toBe(source)
+      expect(parts.filter(({ href }) => href)).toEqual([{ text: safe, href: safe, offset: source.indexOf(safe) }])
+      for (const part of parts) expect(source.slice(part.offset, part.offset + part.text.length)).toBe(part.text)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each([
+    'https://example.com/a%20b?q=%23value&next=%2Fpath',
+    'https://%65xample.com/a%25b',
+    'https://例え.jp/道?q=%E9%81%93',
+    'https://%E4%BE%8B%E3%81%88.jp/%E9%81%93',
+    'http://[::1]/a%20b',
+  ])('links %s without changing its source or offsets', (destination) => {
+    const source = `See (${destination}).\n`
+    const parts = splitDescriptionLinks(source)
+    expect(parts.filter(({ href }) => href)).toEqual([{ text: destination, href: destination, offset: 5 }])
+    expect(parts.map(({ text }) => text).join('')).toBe(source)
+    for (const part of parts) expect(source.slice(part.offset, part.offset + part.text.length)).toBe(part.text)
   })
 
   it('keeps balanced URL parentheses while excluding sentence punctuation', () => {

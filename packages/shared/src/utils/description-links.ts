@@ -4,6 +4,10 @@ function descriptionLinkDestination(text: string): string | undefined {
   if (!/^https?:\/\/[^/?#\\]/i.test(text) || /\\|%(?![\da-f]{2})/i.test(text)) return
   try {
     const destination = new URL(text)
+    if (!destination.hostname.startsWith('[') || destination.hostname.includes('%')) {
+      const hostname = decodeURIComponent(destination.hostname)
+      if (Array.from(hostname).some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127 || '#%/:<>?@[\\]^|'.includes(character))) return
+    }
     if ((destination.protocol === 'http:' || destination.protocol === 'https:') && destination.hostname) return text
   } catch {
     return

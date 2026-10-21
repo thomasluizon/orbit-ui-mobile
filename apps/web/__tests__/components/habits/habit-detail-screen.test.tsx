@@ -1302,7 +1302,7 @@ describe('HabitDetailScreen', () => {
   })
 
   it('keeps the complete plain description visible with independent safe absolute links', () => {
-    const description = '  **Read** <b>this</b>\n\nhttps://example.com/notes?q=one&next=two\nhttp://example.org/' + 'long'.repeat(100) + '\nDone.'
+    const description = '  **Read** <b>this</b>\n\nhttps://example.com/notes?q=one&next=two\nhttps://example.com/a%20b?q=%23value\nhttp://example.org/' + 'long'.repeat(100) + '\nDone.'
     mocks.detail = { ...makeDetail(), description }
     render(<HabitDetailScreen habitId="habit-1" />)
     const prose = document.getElementById('habit-description')!
