@@ -24,7 +24,159 @@ const organizationToken = (org = "thomasluizon", url = "https://sentry.io", extr
 const authEnvelope = (scopes) => ({ version: "0", auth: scopes === null ? null : { scopes }, user: null })
 const reportedShape = { version: "string", auth: { scopes: "array<string>" }, user: "null" }
 const anonymousShape = { version: "string", auth: "null", user: "null" }
-const unavailableAuth = { token_auth: "unavailable", native_get_scope: "unavailable", complete_shape: "shape_unavailable" }
+const unavailableAuth = { token_auth: "unavailable", native_get_scope: "unavailable", organization_get_scope: "unavailable", complete_shape: "shape_unavailable" }
+
+// Source-defined CONTROL serializer fixture, never an observed private response:
+// https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/serializers/models/organization.py#L314-L402
+const organizationRecord = () => ({
+  id: "123456789", slug: "current-private-slug", name: SENTINEL,
+  status: { id: "active", name: SENTINEL }, dateCreated: "2020-01-01T00:00:00Z",
+  isEarlyAdopter: false, require2FA: false, allowMemberInvite: true,
+  allowMemberProjectCreation: true, allowSuperuserAccess: true,
+  avatar: { avatarType: "letter_avatar", avatarUuid: null, avatarUrl: null },
+  links: { organizationUrl: `https://untrusted.invalid/${SENTINEL}`, regionUrl: "https://de.sentry.io/" },
+  hasAuthProvider: false,
+})
+
+async function resourceRouting(subject, { scopes = ["org:ci", "org:read"], record = organizationRecord(),
+  credential = organizationToken(), respond } = {}) {
+  return execute(subject, {
+    env: { ...environment, SENTRY_AUTH_TOKEN: credential },
+    fetchImpl: async (url, options) => {
+      if (respond) {
+        const response = await respond(url, options)
+        if (response) return response
+      }
+      if (url === "https://sentry.io/api/0/") return new Response(JSON.stringify(authEnvelope(scopes)))
+      if (url === "https://sentry.io/api/0/organizations/") return new Response(JSON.stringify([record]))
+      if (url === "https://sentry.io/api/0/organizations/thomasluizon/chunk-upload/") {
+        return new Response(JSON.stringify({ detail: "The requested resource does not exist" }), {
+          status: 404, headers: { "X-Sentry-Proxy-URL": SENTINEL },
+        })
+      }
+      return new Response(JSON.stringify({ [SENTINEL]: SENTINEL }))
+    },
+  })
+}
+
+async function resourceRegressionCases() {
+  const result = await resourceRouting(diagnostic)
+  T("android-sentry routing regression: authenticated native 404 collects one ID and one observed-region comparison", result.calls.map(([url]) => url).join(" ")
+    === "https://sentry.io/api/0/organizations/thomasluizon/chunk-upload/ https://sentry.io/api/0/ https://sentry.io/api/0/organizations/ https://sentry.io/api/0/organizations/123456789/chunk-upload/ https://de.sentry.io/api/0/organizations/123456789/chunk-upload/")
+  T("android-sentry routing regression: native failure and global auth remain independent of healthy comparisons", result.status === 1
+    && result.report.requests[0].outcome === "resource_or_access_unavailable"
+    && result.report.requests[1].auth_evidence.token_auth === "reported"
+    && result.report.requests[0].error_evidence?.classification === "resource_does_not_exist_detail"
+    && result.report.requests[0].proxy_header_present === true && !result.output.includes(SENTINEL))
+}
+
+async function routingCases() {
+  for (const scope of ["org:read", "org:write", "org:admin"]) {
+    const result = await resourceRouting(diagnostic, { scopes: ["org:ci", scope] })
+    const evidence = result.report.requests[2].organization_evidence
+    T("android-sentry routing: each existing org-list alternative permits only one complete private record", result.calls.length === 5
+      && result.report.requests[1].auth_evidence.organization_get_scope === "listed_alternative_observed"
+      && evidence.numeric_id === "decimal_observed" && evidence.slug_comparison === "differs_from_expected" && evidence.region === "de"
+      && evidence.complete_shape[0].dateCreated === "string"
+      && !result.output.includes(scope) && !result.output.includes("current-private-slug") && !result.output.includes("123456789")
+      && !result.output.includes(SENTINEL) && Buffer.byteLength(result.output) <= 8192)
+  }
+  const match = await resourceRouting(diagnostic, { record: { ...organizationRecord(), slug: "thomasluizon" } })
+  T("android-sentry routing: current slug match is a fixed comparison only", match.report.requests[2].organization_evidence.slug_comparison === "matches_expected")
+  const unknownRows = [[], [organizationRecord(), organizationRecord()], {}, [null], [{ ...organizationRecord(), [SENTINEL]: SENTINEL }]]
+  for (const key of Object.keys(organizationRecord())) {
+    const missing = organizationRecord()
+    delete missing[key]
+    unknownRows.push([missing], [{ ...organizationRecord(), [key]: null }])
+  }
+  for (const key of ["avatar", "links", "status"]) unknownRows.push([{ ...organizationRecord(), [key]: { ...organizationRecord()[key], [SENTINEL]: SENTINEL } }])
+  for (const rows of unknownRows) {
+    const result = await resourceRouting(diagnostic, { respond: async (url) => url.endsWith("/organizations/") ? new Response(JSON.stringify(rows)) : null })
+    T("android-sentry routing: missing, extra, multiple and mistyped records never authorize identity reads", result.status === 1
+      && result.calls.length === 3 && result.report.requests[2].organization_evidence.complete_shape === "shape_unavailable"
+      && !result.output.includes(SENTINEL))
+  }
+  for (const id of ["", "1e3", "12/34", "../private", "12?secret=private", "１２", "https://untrusted.invalid", SENTINEL]) {
+    const result = await resourceRouting(diagnostic, { record: { ...organizationRecord(), id } })
+    T("android-sentry routing: only decimal identity can derive an options path", result.calls.length === 3
+      && result.report.requests[2].organization_evidence.numeric_id === "unavailable" && !result.output.includes(SENTINEL))
+  }
+  const invalidRegions = ["http://us.sentry.io", "https://us.sentry.io:443", "https://private@us.sentry.io", "https://us.sentry.io/path",
+    "https://us.sentry.io?secret=private", "https://us.sentry.io#private", "https://us.sentry.io.untrusted.invalid", "https://untrusted.invalid", "https://sentry.io", "US", ""]
+  for (const region of [...invalidRegions, "https://us.sentry.io///", "https://de.sentry.io/"]) {
+    const record = organizationRecord()
+    record.links.regionUrl = region
+    const listed = await resourceRouting(diagnostic, { record })
+    // Exact current issuance payload, not a decoded real credential:
+    // https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/utils/security/orgauthtoken_token.py#L17-L34
+    const credential = organizationToken("thomasluizon", "https://sentry.io", { iat: 1, region_url: region })
+    const hinted = await resourceRouting(diagnostic, { scopes: ["org:ci"], credential })
+    const accepted = region === "https://us.sentry.io///" || region === "https://de.sentry.io/"
+    T("android-sentry routing: record and issuance hint accept exact official origins with slash normalization only", listed.calls.length === (accepted ? 5 : 4)
+      && hinted.calls.length === (accepted ? 4 : 3) && !hinted.calls.some(([url]) => url.endsWith("/organizations/"))
+      && hinted.report.resource_branch === "known_slug_control" && !hinted.output.includes(credential)
+      && !hinted.output.includes("region_url\":\"https:") && !listed.output.includes(SENTINEL)
+      && [...hinted.calls, ...listed.calls].every(([url]) => /^(https:\/\/(sentry\.io|us\.sentry\.io|de\.sentry\.io))\//.test(url)))
+  }
+  for (const extra of [{}, { region_url: "https://us.sentry.io" }, { iat: "1", region_url: "https://us.sentry.io" },
+    { iat: 1, region_url: "https://us.sentry.io", [SENTINEL]: SENTINEL }]) {
+    const credential = organizationToken("thomasluizon", "https://sentry.io", extra)
+    const result = await resourceRouting(diagnostic, { scopes: ["org:ci"], credential })
+    T("android-sentry routing: legacy, extra and unknown hint schemas stay unavailable without rejecting the credential", result.calls.length === 3
+      && result.report.target_selection === "embedded_target_matches" && result.report.token_region_hint.region === "unavailable"
+      && result.report.token_region_hint.complete_shape === "shape_unavailable" && !result.output.includes(SENTINEL))
+  }
+  await routingErrorCases()
+  await routingLimitCases()
+}
+
+async function routingErrorCases() {
+  for (const [status, envelope, expected] of [[404, { detail: "The requested resource does not exist" }, "resource_does_not_exist_detail"],
+    [401, { detail: "Invalid org token" }, "invalid_org_token_detail"], [403, { detail: "Invalid org token" }, "invalid_org_token_detail"],
+    [404, { detail: "Invalid org token" }, "unavailable"], [404, { detail: SENTINEL }, "unavailable"],
+    [404, { detail: "The requested resource does not exist", [SENTINEL]: SENTINEL }, "unavailable"]]) {
+    const result = await resourceRouting(diagnostic, { respond: async (url) => url.includes("chunk-upload")
+      ? new Response(JSON.stringify(envelope), { status, headers: { "X-Sentry-Proxy-URL": SENTINEL } }) : null })
+    T("android-sentry routing: fixed source errors never invalidate independent global auth or emit private detail/header", result.status === 1
+      && result.report.requests[0].error_evidence.classification === expected && result.report.requests[0].proxy_header_present === true
+      && result.report.requests[1].auth_evidence.token_auth === "reported" && !result.output.includes(SENTINEL)
+      && !result.output.includes("Invalid org token") && !result.output.includes("The requested resource does not exist"))
+  }
+  const credential = organizationToken("thomasluizon", "https://sentry.io", { iat: 1, region_url: "https://us.sentry.io" })
+  const control = await resourceRouting(diagnostic, { scopes: ["org:ci"], credential, respond: async (url) => url.includes("/config/")
+    ? new Response(JSON.stringify({ authenticated: false, memberAuthenticated: false, [SENTINEL]: SENTINEL })) : null })
+  T("android-sentry routing: control config consumes no session or provider fields and hint stays supplementary", control.calls.length === 4
+    && control.report.requests[1].auth_evidence.token_auth === "reported" && control.report.requests[2].body === "json_object_fields_unused"
+    && control.report.regional_source === "token_issuance_hint" && !control.output.includes("memberAuthenticated") && !control.output.includes(SENTINEL))
+  const nativeHealthy = await resourceRouting(diagnostic, { respond: async (url) => url.includes("chunk-upload") ? new Response("{}") : null })
+  T("android-sentry routing: complete healthy native and auxiliary reads can pass without an upload claim", nativeHealthy.status === 0
+    && nativeHealthy.report.outcome === "lookup_reads_healthy" && nativeHealthy.calls.length === 5)
+}
+
+async function routingLimitCases() {
+  for (const failedRequest of [3, 4, 5]) {
+    for (const failure of ["redirect", "oversize", "network", "timeout"]) {
+      const originalTimeout = AbortSignal.timeout
+      const keepAlive = setTimeout(() => {}, 1000)
+      let requestCount = 0
+      if (failure === "timeout") AbortSignal.timeout = (milliseconds) => originalTimeout(milliseconds === 10000 ? 10 : milliseconds)
+      try {
+        const result = await resourceRouting(diagnostic, { respond: async (_url, { signal }) => {
+          if (++requestCount !== failedRequest) return null
+          if (failure === "redirect") return new Response("{}", { status: 302, headers: { Location: `https://untrusted.invalid/${SENTINEL}` } })
+          if (failure === "oversize") return new Response(JSON.stringify({ [SENTINEL]: "x".repeat(65536) }))
+          if (failure === "network") throw new Error(SENTINEL)
+          return new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error(SENTINEL)), { once: true }))
+        } })
+        T("android-sentry routing: every conditional request stops on transport, redirect, body cap or timeout", result.status === 1
+          && result.calls.length === failedRequest && !result.output.includes(SENTINEL) && Buffer.byteLength(result.output) <= 8192)
+      } finally {
+        AbortSignal.timeout = originalTimeout
+        clearTimeout(keepAlive)
+      }
+    }
+  }
+}
 
 function authResponse(subject, envelope, { lookupStatus = 200, authStatus = 200 } = {}) {
   return execute(subject, {
@@ -139,9 +291,9 @@ guard("fixed GET and redirect refusal", ['method: "GET", redirect: "manual"', 'm
   const result = await execute(subject)
   return result.calls.every(([, options]) => options.method === "GET" && options.redirect === "manual")
 })
-guard("fixed destinations and request count", ["const REQUEST_LIMIT = 2", "const REQUEST_LIMIT = 1"], async (subject) => {
+guard("fixed destinations and request count", ["const REQUEST_LIMIT = 5", "const REQUEST_LIMIT = 2"], async (subject) => {
   const result = await execute(subject)
-  return result.status === 0 && result.calls.map(([url]) => url).join(" ") === "https://sentry.io/api/0/organizations/thomasluizon/chunk-upload/ https://sentry.io/api/0/"
+  return result.status === 0 && result.calls.map(([url]) => url).join(" ") === "https://sentry.io/api/0/organizations/thomasluizon/chunk-upload/ https://sentry.io/api/0/ https://sentry.io/api/0/auth/organizations/thomasluizon/config/"
 })
 guard("response cap", ["if (bytes > BODY_LIMIT)", "if (false)"], async (subject) => {
   const result = await execute(subject, { fetchImpl: async () => new Response(JSON.stringify({ private: "x".repeat(65536) })) })
@@ -226,8 +378,10 @@ guard("incomplete native lookup cannot appear healthy", ['result.outcome === "ht
   const result = await lookup404(subject, ["org:ci"])
   return result.status === 1 && result.report.outcome === "diagnostic_incomplete"
 })
-guard("unknown complete shape remains incomplete", ['result.auth_evidence.complete_shape !== "shape_unavailable"', "true"], async (subject) =>
-  (await authResponse(subject, { ...authEnvelope(["org:ci"]), user: {} })).status === 1)
+guard("unknown complete shape cannot authorize resource probes", ['auth.auth_evidence.complete_shape === "shape_unavailable"', "false"], async (subject) => {
+  const result = await authResponse(subject, { ...authEnvelope(["org:ci"]), user: {} })
+  return result.status === 1 && result.calls.length === 2
+})
 guard("no listed scope remains incomplete", ['result.auth_evidence.native_get_scope === "listed_alternative_observed"', "true"], async (subject) =>
   (await authResponse(subject, authEnvelope([]))).status === 1)
 
@@ -259,6 +413,81 @@ async function timeoutCheck(subject, total) {
 guard("request deadline cancels transport", ["AbortSignal.any([timeout, totalSignal])", "AbortSignal.any([totalSignal])"], (subject) => timeoutCheck(subject, false))
 guard("total deadline cancels transport", ["AbortSignal.any([timeout, totalSignal])", "AbortSignal.any([timeout])"], (subject) => timeoutCheck(subject, true))
 
+guard("org-list scope cannot be inferred from native upload scope", ['const ORGANIZATION_GET_SCOPES = ["org:read", "org:write", "org:admin"]',
+  'const ORGANIZATION_GET_SCOPES = ["org:read", "org:write", "org:admin", "org:ci"]'], async (subject) => {
+  const result = await resourceRouting(subject, { scopes: ["org:ci"] })
+  return result.calls.length === 3 && result.calls[2][0] === "https://sentry.io/api/0/auth/organizations/thomasluizon/config/"
+})
+guard("one current organization only", ['parsed.length !== 1', 'false'], async (subject) => {
+  const result = await resourceRouting(subject, { respond: async (url) => url.endsWith("/organizations/")
+    ? new Response(JSON.stringify([organizationRecord(), organizationRecord()])) : null })
+  return result.calls.length === 3 && result.report.requests[2].organization_evidence.complete_shape === "shape_unavailable"
+})
+guard("complete organization schema excludes unknown nested keys", ['Object.keys(value).length === Object.keys(shape).length', 'true'], async (subject) => {
+  const record = organizationRecord()
+  record.links[SENTINEL] = SENTINEL
+  const result = await resourceRouting(subject, { record })
+  return result.calls.length === 3 && result.report.requests[2].organization_evidence.complete_shape === "shape_unavailable"
+})
+guard("complete organization schema checks primitive types", ['typeof value === shape', 'true'], async (subject) => {
+  const result = await resourceRouting(subject, { record: { ...organizationRecord(), require2FA: SENTINEL } })
+  return result.calls.length === 3 && result.report.requests[2].organization_evidence.complete_shape === "shape_unavailable"
+})
+guard("only successful list response can derive identity", ['kind === "organization_list" && success', 'kind === "organization_list"'], async (subject) => {
+  const result = await resourceRouting(subject, { respond: async (url) => url.endsWith("/organizations/")
+    ? new Response(JSON.stringify([organizationRecord()]), { status: 403 }) : null })
+  return result.calls.length === 3 && result.status === 1
+})
+guard("decimal ID is required before path construction", ['/^[0-9]+$/.test(organization.id)', 'true'], async (subject) => {
+  const result = await resourceRouting(subject, { record: { ...organizationRecord(), id: `../${SENTINEL}` } })
+  return result.calls.length === 3 && result.calls.every(([url]) => !url.includes(SENTINEL))
+})
+guard("regional comparison requires exact allowlisted origin", ['origin === REGIONS.us', 'origin.startsWith(REGIONS.us)'], async (subject) => {
+  const record = organizationRecord()
+  record.links.regionUrl = "https://us.sentry.io.untrusted.invalid"
+  const result = await resourceRouting(subject, { record })
+  return result.calls.length === 4 && result.report.requests[2].organization_evidence.region === "unavailable"
+})
+guard("issuance hint requires complete supported schema", ['matchesShape(payload, TOKEN_HINT_SHAPE)', 'true'], async (subject) => {
+  const result = await resourceRouting(subject, { scopes: ["org:ci"], credential: organizationToken("thomasluizon", "https://sentry.io", {
+    iat: 1, region_url: "https://us.sentry.io", [SENTINEL]: SENTINEL,
+  }) })
+  return result.calls.length === 3 && result.report.token_region_hint.complete_shape === "shape_unavailable"
+})
+guard("record type receipt cannot disclose identity", ['evidence.complete_shape = [ORGANIZATION_SHAPE]', 'evidence.complete_shape = [organization]'], async (subject) => {
+  const result = await resourceRouting(subject)
+  return !result.output.includes(SENTINEL) && !result.output.includes("123456789") && !result.output.includes("current-private-slug")
+})
+guard("token type receipt cannot disclose metadata", ['hint.complete_shape = TOKEN_HINT_SHAPE', 'hint.complete_shape = payload'], async (subject) => {
+  const result = await resourceRouting(subject, { scopes: ["org:ci"], credential: organizationToken("thomasluizon", "https://sentry.io", {
+    iat: 1, region_url: "https://de.sentry.io",
+  }) })
+  return !result.output.includes('"region_url": "https://') && !result.output.includes('"iat": 1')
+})
+guard("error detail class requires exact full envelope", ['matchesShape(parsed, { detail: "string" })', 'typeof parsed?.detail === "string"'], async (subject) => {
+  const result = await resourceRouting(subject, { respond: async (url) => url.includes("chunk-upload")
+    ? new Response(JSON.stringify({ detail: "The requested resource does not exist", [SENTINEL]: SENTINEL }), { status: 404 }) : null })
+  return result.report.requests[0].error_evidence.classification === "unavailable" && !result.output.includes(SENTINEL)
+})
+guard("error comparison is exact rather than arbitrary detail echo", ['evidence.classification = "resource_does_not_exist_detail"', 'evidence.classification = parsed.detail'], async (subject) => {
+  const result = await resourceRouting(subject)
+  return result.report.requests[0].error_evidence.classification === "resource_does_not_exist_detail" && !result.output.includes("The requested resource does not exist")
+})
+guard("native-compatible user agent", ['"User-Agent": "sentry-cli/3.6.0"', '"User-Agent": "other"'], async (subject) => {
+  const result = await resourceRouting(subject)
+  return result.calls.every(([, options]) => options.headers["User-Agent"] === "sentry-cli/3.6.0")
+})
+guard("every child stays isolated from credential and metadata", ['const childEnvironment = { PATH: env.PATH }', 'const childEnvironment = { ...env }'], async (subject) => {
+  const credential = organizationToken("thomasluizon", "https://sentry.io", { iat: 1, region_url: "https://de.sentry.io" })
+  const result = await resourceRouting(subject, { credential })
+  return result.children.every(([, argv, options]) => Object.keys(options.env).join() === "PATH"
+    && !JSON.stringify([argv, options]).includes(credential) && !JSON.stringify([argv, options]).includes("region_url"))
+})
+guard("full conditional branch obeys request cap", ['const REQUEST_LIMIT = 5', 'const REQUEST_LIMIT = 4'], async (subject) => {
+  const result = await resourceRouting(subject)
+  return result.calls.length === 5 && result.report.limits.requests === 5
+})
+
 async function authCases() {
   // https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/bases/organization.py#L182-L187
   for (const scope of ["project:read", "project:write", "project:admin", "project:releases", "org:ci"]) {
@@ -272,7 +501,7 @@ async function authCases() {
   T("android-sentry auth: null auth is not a rejected-credential claim", anonymous.status === 1
     && anonymous.report.requests[1].outcome === "http_read_ok"
     && JSON.stringify(anonymous.report.requests[1].auth_evidence) === JSON.stringify({
-      token_auth: "not_reported", native_get_scope: "unavailable", complete_shape: anonymousShape,
+      token_auth: "not_reported", native_get_scope: "unavailable", organization_get_scope: "unavailable", complete_shape: anonymousShape,
     }))
   for (const scopes of [[], [""], ["future:canary"], [SENTINEL, "unrelated:scope"], ["org:ci", SENTINEL]]) {
     const result = await authResponse(diagnostic, authEnvelope(scopes))
@@ -328,7 +557,7 @@ async function authTransportCases() {
   for (const oversized of [false, true]) {
     let cancelled = false
     let released = false
-    const response = { status: 200, body: { getReader: () => ({
+    const response = { status: 200, headers: new Headers(), body: { getReader: () => ({
       read: async () => { if (!oversized) throw new Error(SENTINEL); return { value: new Uint8Array(65537), done: false } },
       cancel: async () => { cancelled = true }, releaseLock: () => { released = true },
     }) } }
@@ -359,9 +588,10 @@ function outputStreamCases(source, stageModule) {
       runProcess: async (file) => ({
         status: 0, stdout: file === "git" ? ${JSON.stringify(SOURCE)} : "sentry-cli 3.6.0", stderr: ${JSON.stringify(SENTINEL)}
       }),
-      fetchImpl: async (url) => new Response(JSON.stringify(url.includes("chunk-upload")
-        ? { ignored: ${JSON.stringify(SENTINEL)} }
-        : { version: ${JSON.stringify(SENTINEL)}, auth: { scopes: ["org:ci", ${JSON.stringify(SENTINEL)}] }, user: null }),
+      fetchImpl: async (url) => new Response(JSON.stringify(url.endsWith("/organizations/")
+        ? [${JSON.stringify(organizationRecord())}]
+        : url.includes("chunk-upload") ? { ignored: ${JSON.stringify(SENTINEL)} }
+        : { version: ${JSON.stringify(SENTINEL)}, auth: { scopes: ["org:ci", "org:read", ${JSON.stringify(SENTINEL)}] }, user: null }),
         { status: url.includes("chunk-upload") ? ${lookupStatus} : 200, headers: { "X-Private": ${JSON.stringify(SENTINEL)} } })
     }`
     const name = `cli-stream-${lookupStatus}`
@@ -371,11 +601,14 @@ function outputStreamCases(source, stageModule) {
     const other = lookupStatus === 200 ? result.stderr : result.stdout
     T("android-sentry auth: actual entry point emits sanitized evidence on its selected stream only", result.status === (lookupStatus === 200 ? 0 : 1)
       && other === "" && !output.includes(SENTINEL) && !output.includes(credential) && !output.includes("sntrys_")
-      && JSON.parse(output).requests[1].auth_evidence.token_auth === "reported" && Buffer.byteLength(output) <= 8192)
+      && !output.includes("current-private-slug") && !output.includes("123456789")
+      && JSON.parse(output).requests.length === 5 && JSON.parse(output).requests[1].auth_evidence.token_auth === "reported" && Buffer.byteLength(output) <= 8192)
   }
 }
 
 export const cases = async () => {
+  await resourceRegressionCases()
+  await routingCases()
   const anonymous404 = await lookup404(diagnostic, null)
   const reported404 = await lookup404(diagnostic, ["org:ci"])
   T("android-sentry: native 404 plus index 200/null retains no-reported-auth evidence", anonymous404.report.requests[1].auth_evidence?.token_auth === "not_reported")
@@ -415,7 +648,7 @@ export const cases = async () => {
     const result = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: credential } })
     T("android-sentry: repeated trailing slashes retain the private match and fixed GETs", result.status === 0
       && result.report.target_selection === "embedded_target_matches"
-      && result.calls.map(([destination]) => destination).join(" ") === "https://sentry.io/api/0/organizations/thomasluizon/chunk-upload/ https://sentry.io/api/0/"
+      && result.calls.map(([destination]) => destination).join(" ") === "https://sentry.io/api/0/organizations/thomasluizon/chunk-upload/ https://sentry.io/api/0/ https://sentry.io/api/0/auth/organizations/thomasluizon/config/"
       && result.calls.every(([, options]) => options.method === "GET" && options.redirect === "manual" && options.headers.Authorization === `Bearer ${credential}`)
       && !result.output.includes(credential) && !result.output.includes(url) && Buffer.byteLength(result.output) <= 8192
       && !JSON.stringify(result.children).includes(credential))
@@ -491,5 +724,5 @@ async function workflowCases() {
     mutate(broken)
     T(`android-sentry workflow: ${name} rejects owning negative control`, !verify(broken))
   }
-  T("android-sentry workflow: secret follows locked installation without raw summary/artifact output", steps.at(-1).name === "Probe native upload lookup" && !/GITHUB_STEP_SUMMARY|upload-artifact|SENTRY_LOG_LEVEL|--debug/.test(workflowSource))
+  T("android-sentry workflow: secret follows locked installation without raw summary/artifact output", steps.at(-1).name === "Probe native upload and resource routing" && !/GITHUB_STEP_SUMMARY|upload-artifact|SENTRY_LOG_LEVEL|--debug/.test(workflowSource))
 }
