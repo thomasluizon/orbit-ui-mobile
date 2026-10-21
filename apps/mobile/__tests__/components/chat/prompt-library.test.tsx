@@ -7,7 +7,7 @@ import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contrac
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PROMPT_TEMPLATES, PROMPT_PRESENTATION } from '@orbit/shared/chat/prompt-library'
 import { findPromptSlot } from '@orbit/shared/chat/composer-controls'
-import { CatalogIdea } from '@/components/chat/prompt-idea'
+import { CatalogIdea, PromptIdea } from '@/components/chat/prompt-idea'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { PromptLibrary } from '@/components/chat/prompt-library'
 import { AstraConversation } from '@/components/chat/conversation'
@@ -30,6 +30,7 @@ vi.mock('@/hooks/use-overlay-back', () => ({ useOverlayBack: (_active: boolean, 
 type HostProps = {
   accessibilityRole?: string
   accessibilityLabel?: string
+  accessibilityHint?: string
   accessibilityState: { disabled: boolean }
   onPress?: () => void
   onPressIn?: () => void
@@ -233,18 +234,75 @@ it.each(['en', 'pt-BR'] as const)('keeps all approved native examples, single ta
   const onSelect = vi.fn()
   act(() => { tree = create(<View style={{ gap: 12 }}>{PROMPT_TEMPLATES.map(template => <CatalogIdea key={template.id} template={template} disabled={false} onSelect={onSelect} />)}</View>) })
   expect(hosts().filter(node => node.props.testID === 'prompt-example')).toHaveLength(12)
+  expect(hosts().filter(node => node.props.accessibilityRole === 'button')).toHaveLength(36)
   for (const template of PROMPT_TEMPLATES) {
     const label = i18n.t(template.labelKey)
     const prompt = i18n.t(template.promptKey)
     const target = button(label)
     const example = target.findAll(node => node.props.testID === 'prompt-example')[0]
     expect(example ? text(example) : undefined).toBe(PROMPT_PRESENTATION[template.id].example ? prompt : undefined)
+    const description = PROMPT_PRESENTATION[template.id].example ? prompt : undefined
+    expect(target.props.accessibilityLabel).toBe(label)
+    expect(target.props.accessibilityHint).toBe(findPromptSlot(prompt) ? description : description ? `${description} ${i18n.t('chat.title')}` : i18n.t('chat.title'))
+    expect(target.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(1)
+    expect(target.props.accessibilityState.disabled).toBe(false)
     expect(target.findAll(node => typeof node.type === 'string' && node.props.testID === 'prompt-attribution').length).toBe(findPromptSlot(prompt) ? 0 : 1)
     press(label)
     expect(onSelect).toHaveBeenLastCalledWith(template.id, label, prompt)
   }
   expect(onSelect).toHaveBeenCalledTimes(36)
   expectNativeCardGeometry()
+})
+
+it.each(['en', 'pt-BR'] as const)('describes native request and preparation actions with and without examples in %s', async locale => {
+  await i18n.changeLanguage(locale)
+  const label = i18n.t('chat.templates.items.goalHabits.label')
+  const prompt = i18n.t('chat.templates.items.goalHabits.prompt')
+  const onSelect = vi.fn()
+  act(() => { tree = create(<View />) })
+  for (const invokesAstra of [true, false]) {
+    for (const example of [prompt, undefined]) {
+      const view = (disabled: boolean) => <PromptIdea label={label} example={example} invokesAstra={invokesAstra} disabled={disabled} onSelect={onSelect} />
+      act(() => tree.update(view(false)))
+      const target = button(label)
+      expect(hosts().filter(node => node.props.accessibilityRole === 'button')).toHaveLength(1)
+      expect(target.props.accessibilityLabel).toBe(label)
+      expect(target.props.accessibilityHint).toBe(invokesAstra ? example ? `${prompt} ${i18n.t('chat.title')}` : i18n.t('chat.title') : example)
+      expect(target.props.accessibilityState.disabled).toBe(false)
+      onSelect.mockClear()
+      press(label)
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith()
+      act(() => tree.update(view(true)))
+      expect(button(label).props.accessibilityState.disabled).toBe(true)
+      press(label)
+      expect(onSelect).toHaveBeenCalledOnce()
+    }
+  }
+})
+
+it.each(['en', 'pt-BR'] as const)('describes actual live request callbacks and keeps their disabled guard in %s', async locale => {
+  await i18n.changeLanguage(locale)
+  const onSelect = vi.fn()
+  const onBack = vi.fn()
+  const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0, profile: createMockProfile() })
+  const suggestions = toComposerSuggestions(chips.map(chip => ({ id: chip.id, label: i18n.t(chip.key), onSelect })))
+  library({ suggestions, onBack })
+  const live = hosts().filter(node => node.props.testID === 'prompt-live-idea')
+  expect(live).toHaveLength(suggestions.length)
+  for (const suggestion of suggestions) {
+    const target = button(suggestion.label)
+    expect(target.props.accessibilityLabel).toBe(suggestion.label)
+    expect(target.props.accessibilityHint).toBe(i18n.t('chat.title'))
+    expect(target.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(1)
+  }
+  press(suggestions[0]!.label)
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith()
+  expect(onBack).toHaveBeenCalledOnce()
+  act(() => tree.update(<PromptLibrary suggestions={suggestions} onBack={onBack} onSelect={vi.fn()} disabledReason={i18n.t('shell.composer.offline.reason')} hasProAccess hasGoogleConnection />))
+  for (const suggestion of suggestions) expect(button(suggestion.label).props.accessibilityState.disabled).toBe(true)
+  press(suggestions[1]!.label)
+  expect(onSelect).toHaveBeenCalledOnce()
+  expect(onBack).toHaveBeenCalledOnce()
 })
 
 it('hides live suggestions for a query, restores them on clear and browses without activation', () => {

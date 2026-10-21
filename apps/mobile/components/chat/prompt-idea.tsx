@@ -29,7 +29,8 @@ export function PromptIdea({ label, icon, example, invokesAstra = true, catalogI
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [focused, setFocused] = useState(false)
   const [hovered, setHovered] = useState(false)
-  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={example} accessibilityState={{ disabled }} disabled={disabled}
+  const accessibilityHint = [example, invokesAstra ? t('chat.title') : undefined].filter(Boolean).join(' ') || undefined
+  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={accessibilityHint} accessibilityState={{ disabled }} disabled={disabled}
     testID={catalogId ? `prompt-idea:${catalogId}` : 'prompt-live-idea'} onPress={() => { if (!disabled) onSelect() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
     style={({ pressed }) => [styles.action, { backgroundColor: !disabled && (pressed || hovered || focused) ? tokens.bgHover : catalogId ? tokens.bgCard : 'transparent', opacity: disabled ? 0.5 : 1 }]}>
     <View style={styles.content}>
