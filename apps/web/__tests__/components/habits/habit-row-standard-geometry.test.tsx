@@ -28,7 +28,7 @@ describe('habit row standard in Chromium', () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
-  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+  afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
 
   it.each([false, true])('transitions the painted surface on arrival and exit, selected=%s', async (selected) => {
     const mounted = render(<HabitRow habit={createMockHabit({ title: 'Read', description: 'Read two pages.' })}
@@ -128,6 +128,7 @@ describe('habit row standard in Chromium', () => {
     [1, 2].flatMap((scale) => (['en', 'pt-BR'] as const).map((locale) => ({ mode, width, scale, locale }))),
   )))('keeps the check and row geometry in $mode at $width with $scale text', async ({ mode, width, scale, locale }) => {
     geometryLocale.value = locale
+    vi.stubGlobal('innerWidth', width)
     document.documentElement.style.fontSize = `${16 * scale}px`
     const mounted = render(<div className="habit-panel">
       {(['empty', 'done', 'overdue', 'bad'] as const).map((state) => <HabitRow key={state}
@@ -228,11 +229,12 @@ describe('habit row standard in Chromium', () => {
     [1, 2].flatMap((scale) => (['en', 'pt-BR'] as const).map((locale) => ({ mode, width, scale, locale }))),
   )))('measures preview, full-row feedback and centres in $mode at $width with $scale text in $locale', async ({ mode, width, scale, locale }) => {
     geometryLocale.value = locale
+    vi.stubGlobal('innerWidth', width)
     document.documentElement.style.fontSize = `${16 * scale}px`
     const description = 'Read two pages before breakfast. '.repeat(12)
     const mounted = render(<div className="habit-panel">
-      {[0, 1].flatMap((depth) => [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) =>
-        <HabitRow key={`${depth}-${parent}-${described}-${selected}`} depth={depth as 0 | 1}
+      {[0, 1, 2].flatMap((depth) => [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) =>
+        <HabitRow key={`${depth}-${parent}-${described}-${selected}`} depth={depth}
           selectMode={selected !== undefined} selected={selected}
           habit={createMockHabit({ title: 'Read ten minutes every morning', description: described ? description : parent ? ' \n ' : null, frequencyUnit: selected === false ? null : 'Day' })}
           meta={['08:00']} hasChildren={parent} structuralColumn
@@ -251,7 +253,7 @@ describe('habit row standard in Chromium', () => {
       page.setDefaultTimeout(3000)
       const rows = page.locator('[data-testid="habit-row"]')
       const rowCount = await rows.count()
-      expect(rowCount).toBe(24)
+      expect(rowCount).toBe(36)
       for (let index = 0; index < rowCount; index++) {
         const row = rows.nth(index)
         const described = Math.floor(index / 3) % 2 === 1
@@ -413,11 +415,11 @@ async function assertPreviewRow(row: Locator, page: Page, scale: number, describ
   function assertControlGeometry() {
     expect(Math.abs(measured.check.x - measured.target.x)).toBeLessThanOrEqual(1)
     expect(Math.abs(measured.check.y - measured.target.y)).toBeLessThanOrEqual(1)
-    if (scale === 1) expect(Math.abs(measured.target.y - measured.row.y)).toBeLessThanOrEqual(1)
+    if (!measured.supporting) expect(Math.abs(measured.target.y - measured.row.y)).toBeLessThanOrEqual(1)
     else expect(measured.target.top - measured.row.top).toBe(measured.depth ? 4 : 8)
     expect(measured.meta.left - measured.title.left).toBeCloseTo(0, 1)
-    expect(measured.supporting).toBe(scale === 2)
-    if (scale === 2) expect(measured.target.top).toBeCloseTo(measured.title.top, 1)
+    expect(measured.supporting).toBe(scale === 2 || measured.depth === 2 && page.viewportSize()!.width === 320)
+    if (measured.supporting) expect(measured.target.top).toBeCloseTo(measured.title.top, 1)
     if (measured.glyph) {
       expect(Math.abs(measured.glyph.x - measured.check.x)).toBeLessThanOrEqual(1)
       expect(Math.abs(measured.glyph.y - measured.check.y)).toBeLessThanOrEqual(1)
@@ -465,7 +467,7 @@ async function assertPrimaryFocus(row: Locator, scale: number) {
   expect(focus).toMatchObject({ outline: 'solid', width: '2px', offset: '-4px', radius: '20px', overflow: 'hidden' })
   const measured = await measurePreviewRow(row)
   assertTypePaintBounds(measured)
-  if (scale === 2) expect(measured.body).toEqual(measured.row)
+  if (measured.supporting) expect(measured.body).toEqual(measured.row)
   await body.evaluate((element) => (element as HTMLElement).blur())
 }
 

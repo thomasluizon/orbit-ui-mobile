@@ -195,6 +195,7 @@ export function buildFlatHabitItems(
   visibleHabits: NormalizedHabit[],
   collapsedIds: Set<string>,
   getVisibleChildren: (parentId: string) => NormalizedHabit[],
+  maxInlineDepth = Infinity,
 ): DragItem[] {
   const items: DragItem[] = []
 
@@ -208,7 +209,7 @@ export function buildFlatHabitItems(
       hasChildren: children.length > 0,
       hasSubHabits: habit.hasSubHabits,
     })
-    if (!collapsedIds.has(habit.id)) {
+    if (depth < maxInlineDepth && !collapsedIds.has(habit.id)) {
       for (const child of children) {
         addHabitTree(child, depth + 1)
       }

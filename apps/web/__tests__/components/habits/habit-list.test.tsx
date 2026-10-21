@@ -676,6 +676,40 @@ describe('HabitList', () => {
     }
   })
 
+  function assertCascadeActions(container: HTMLElement, drilling: boolean, width: number) {
+    if (drilling) return
+    const disclosure = container.querySelector<HTMLButtonElement>('[data-habit-title="Branch"] [data-habit-row-control="disclosure"]')!
+    fireEvent.click(disclosure)
+    expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeNull()
+    fireEvent.click(disclosure)
+    expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeInTheDocument()
+    if (width !== 320) return
+    const boundary = container.querySelector('[data-habit-title="Nested parent"] [data-habit-row-control="disclosure"]')!
+    expect(boundary).not.toHaveAttribute('aria-expanded')
+    expect(boundary).not.toHaveAttribute('aria-controls')
+    fireEvent.click(boundary)
+    expect(drillInto).toHaveBeenCalledWith('nested-parent')
+  }
+
+  function assertCascadeGeometry(geometry: { depth: number; titleWidth: number; metadataEdge: number; top: number; bottom: number; inset: number; textEdge: number; wellInset: number; targets: { left: number; right: number; width: number; height: number }[] }[], expectedDepths: number[], width: number, drilling: boolean) {
+    for (const [index, row] of geometry.entries()) {
+      expect(row.wellInset, `well at visible depth ${expectedDepths[index]}`).toBe(8 + 16 * expectedDepths[index]!)
+      expect(row.textEdge, `text at visible depth ${expectedDepths[index]}`).toBe(84 + 16 * expectedDepths[index]!)
+      expect(row.titleWidth).toBeGreaterThan(0)
+      expect(row.metadataEdge).toBe(row.textEdge)
+      if (index && !drilling) expect(row.top - geometry[index - 1]!.bottom).toBe(expectedDepths[index] === 0 ? 12 : 4)
+      expect(row.inset).toBe(16)
+      expect(row.textEdge).toBe(84 + 16 * row.depth)
+      expect(row.wellInset).toBe(8 + 16 * row.depth)
+      for (const target of row.targets) {
+        expect(target.left).toBeGreaterThanOrEqual(16)
+        expect(target.right).toBeLessThanOrEqual(width - 16)
+        expect(target.width).toBeGreaterThanOrEqual(48)
+        expect(target.height).toBeGreaterThanOrEqual(48)
+      }
+    }
+  }
+
   it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].map((drilling) => ({ view, drilling }))))(
     'keeps the list inset and content edges per depth in $view, drilling=$drilling', async ({ view, drilling }) => {
     rowImplementation.actual = true
@@ -683,8 +717,13 @@ describe('HabitList', () => {
     const child = createMockHabit({ id: 'child', title: 'Child', description: '**Read** two pages before breakfast.', parentId: parent.id, scheduledDates: [TODAY], isGeneral: parent.isGeneral })
     const branch = createMockHabit({ ...child, id: 'branch', title: 'Branch', hasSubHabits: true })
     const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', scheduledDates: [TODAY], isGeneral: parent.isGeneral })
-    for (const habit of [parent, child, branch, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
+    const grandchild = createMockHabit({ ...child, id: 'grandchild', title: 'Grandchild', parentId: branch.id })
+    const nestedParent = createMockHabit({ ...grandchild, id: 'nested-parent', title: 'Nested parent', hasSubHabits: true })
+    const deeper = createMockHabit({ ...grandchild, id: 'deeper', title: 'Deeper', parentId: nestedParent.id })
+    for (const habit of [parent, child, branch, grandchild, nestedParent, deeper, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
     mockHabitsData.childrenByParent.set(parent.id, [child.id, branch.id])
+    mockHabitsData.childrenByParent.set(branch.id, [grandchild.id, nestedParent.id])
+    mockHabitsData.childrenByParent.set(nestedParent.id, [deeper.id])
     mockHabitsData.topLevelHabits = [parent, leaf]
     if (drilling) {
       mockDrillState.currentParent = parent
@@ -698,16 +737,21 @@ describe('HabitList', () => {
     const launch = launchChrome()
     try {
       const browser = await launch
-      const cases = [320, 412, 1352].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode }))))
-      for (const { width, textScale, selectMode } of cases) {
+      const cases = [320, 412, 1352].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].flatMap((selectMode) => (['light', 'dark'] as const).flatMap((mode) => (['en', 'pt-BR'] as const).map((locale) => ({ width, textScale, selectMode, mode, locale }))))))
+      for (const { width, textScale, selectMode, mode, locale } of cases) {
+        dragLocale.english = locale === 'en'
+        dragLocale.portuguese = locale === 'pt-BR'
+        vi.stubGlobal('innerWidth', width)
         document.documentElement.style.fontSize = `${16 * textScale}px`
         const { container, unmount } = renderWithProviders(<HabitList view={view} isSelectMode={selectMode} selectedHabitIds={new Set([child.id])}
           filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+        assertCascadeActions(container, drilling, width)
         const markup = container.innerHTML
         unmount()
         const page = await browser.newPage({ viewport: { width, height: 915 } })
         try {
-          await page.setContent(`<style>${stylesheet.css}:root{font-size:${16 * textScale}px}</style>${markup}`)
+          const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+          await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style>${markup}`)
           const geometry = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => rows.map((row) => {
             const body = row.querySelector('[data-habit-row-body]')!
             const content = row.querySelector('[data-personal-text-content]') ?? body
@@ -715,6 +759,10 @@ describe('HabitList', () => {
             const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
             return {
               depth: Number(row.getAttribute('data-depth')),
+              titleWidth: title.getBoundingClientRect().width,
+              metadataEdge: row.querySelector('[data-habit-row-type]')!.getBoundingClientRect().left,
+              top: row.getBoundingClientRect().top,
+              bottom: row.getBoundingClientRect().bottom,
               inset: row.getBoundingClientRect().left,
               textEdge: title.getBoundingClientRect().left,
               wellInset: well.getBoundingClientRect().left - body.getBoundingClientRect().left,
@@ -724,23 +772,17 @@ describe('HabitList', () => {
               }),
             }
           }))
-          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: drilling ? 2 : 3 }, () => 'Read two pages before breakfast.'))
-          expect(geometry).toHaveLength(drilling ? 2 : 4)
-          for (const row of geometry) {
-            expect(row.inset).toBe(16)
-            expect(row.textEdge).toBe(84 + 16 * row.depth)
-            expect(row.wellInset).toBe(8 + 16 * row.depth)
-            for (const target of row.targets) {
-              expect(target.left).toBeGreaterThanOrEqual(16)
-              expect(target.right).toBeLessThanOrEqual(width - 16)
-              expect(target.width).toBeGreaterThanOrEqual(48)
-              expect(target.height).toBeGreaterThanOrEqual(48)
-            }
-          }
+          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: drilling ? 2 : width === 320 ? 5 : 6 }, () => 'Read two pages before breakfast.'))
+          const expectedDepths = drilling ? [0, 0] : width === 320 ? [0, 1, 1, 2, 2, 0] : [0, 1, 1, 2, 2, 3, 0]
+          expect(geometry).toHaveLength(expectedDepths.length)
+          expect(await page.evaluate(() => window.innerWidth)).toBe(width)
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+          assertCascadeGeometry(geometry, expectedDepths, width, drilling)
         } finally { await page.close() }
       }
     } finally {
       document.documentElement.style.removeProperty('font-size')
+      vi.unstubAllGlobals()
       await closeChrome(launch)
     }
   }, 45_000)
@@ -845,6 +887,31 @@ describe('HabitList', () => {
     expect(container).toHaveTextContent(boundary)
     expect(body).toHaveFocus()
     expect(reorderHabitsMutate).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'pt-BR'])('retains grandchild depth through keyboard reorder and completion in %s', async (locale) => {
+    rowImplementation.actual = true
+    dragLocale.english = locale === 'en'
+    dragLocale.portuguese = locale === 'pt-BR'
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', scheduledDates: [TODAY] })
+    const branch = createMockHabit({ id: 'branch', title: 'Branch', parentId: parent.id, scheduledDates: [TODAY] })
+    const first = createMockHabit({ id: 'first', title: 'First', parentId: branch.id, position: 0, scheduledDates: [TODAY] })
+    const second = createMockHabit({ ...first, id: 'second', title: 'Second', position: 1 })
+    for (const habit of [parent, branch, first, second]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [branch.id])
+    mockHabitsData.childrenByParent.set(branch.id, [first.id, second.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const { container } = renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted />)
+    const row = container.querySelector('[data-habit-title="First"]')!
+    expect(row).toHaveAttribute('data-depth', '2')
+    const body = row.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+    body.focus()
+    fireEvent.keyDown(body, { key: 'ArrowDown', altKey: true })
+    expect(reorderHabitsMutate).toHaveBeenCalledWith({ positions: [{ habitId: second.id, position: 0 }, { habitId: first.id, position: 1 }] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    await act(async () => { fireEvent.click(row.querySelector('[data-habit-row-control="check"]')!) })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ habitId: first.id }))
+    expect(row).toHaveAttribute('data-depth', '2')
+    expect(body).toHaveFocus()
   })
 
   function renderVisibleSiblingKeyboardList(

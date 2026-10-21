@@ -15,6 +15,7 @@ import type { HabitScheduleItem, NormalizedHabit } from '@orbit/shared/types/hab
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
+import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { HabitListAllDone } from '@/components/habit-list/empty-state'
 import { SearchEmpty } from '@/components/search/search-results'
@@ -53,6 +54,7 @@ afterEach(() => {
   })
   mountedTrees.clear()
   vi.useRealTimers()
+  __resetTestHostConfig()
 })
 
 const TODAY = formatAPIDate(new Date())
@@ -915,13 +917,16 @@ describe('HabitList', () => {
   })
 
   it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].flatMap((drilling) =>
-    [false, true].map((selectMode) => ({ view, drilling, selectMode })),
-  )))('applies display depth once in $view, drilling=$drilling, selecting=$selectMode', ({ view, drilling, selectMode }) => {
+    [false, true].flatMap((selectMode) => [320, 412, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ view, drilling, selectMode, width, fontScale })))),
+  )))('applies display depth once in $view, drilling=$drilling, selecting=$selectMode at $width/$fontScale', ({ view, drilling, selectMode, width, fontScale }) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     const parent = createMockHabit({ id: 'parent', title: 'Parent', description: '**Read** two pages before breakfast.', hasSubHabits: true, isGeneral: view === 'general', scheduledDates: [TODAY] })
     const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', description: '**Read** two pages before breakfast.', parentId: parent.id, isGeneral: parent.isGeneral, scheduledDates: [TODAY] })
     const branch = createMockHabit({ ...leaf, id: 'branch', title: 'Branch', hasSubHabits: true })
-    const grandchild = createMockHabit({ ...leaf, id: 'grandchild', parentId: branch.id })
-    seedHabits([parent, leaf, branch])
+    const grandchild = createMockHabit({ ...leaf, id: 'grandchild', title: 'Grandchild', parentId: branch.id })
+    const nestedParent = createMockHabit({ ...grandchild, id: 'nested-parent', title: 'Nested parent', hasSubHabits: true })
+    const deeper = createMockHabit({ ...grandchild, id: 'deeper', title: 'Deeper', parentId: nestedParent.id })
+    seedHabits([parent, leaf, branch, grandchild, nestedParent, deeper])
     if (drilling) {
       mockDrillState.currentParent = parent
       mockDrillState.currentParentId = parent.id
@@ -938,16 +943,32 @@ describe('HabitList', () => {
       TestRenderer.act(() => { composition = createTestTree(<View>{list.props.data.map((item: NormalizedHabit, index: number) => list.props.renderItem({ item, index }))}</View>) })
     }
     const rows = composition.root.findAllByType(HabitRow)
-    expect(rows.map((row: { props: { habit: NormalizedHabit; depth: 0 | 1 } }) => [row.props.habit.id, row.props.depth])).toEqual(drilling
-      ? [[leaf.id, 0], [branch.id, 0]] : [[parent.id, 0], [leaf.id, 1], [branch.id, 1]])
-    const geometry = measureInteractionFills(composition.toJSON(), 320, false)
+    const expectedDepths = drilling ? [0, 0] : width === 320 ? [0, 1, 1, 2, 2] : [0, 1, 1, 2, 2, 3]
+    const geometry = measureInteractionFills(composition.toJSON(), width, false, fontScale)
     const rowBounds = geometry.filter((part) => part.host.props.testID === 'habit-row')
-    expect(rowBounds).toHaveLength(rows.length)
+    expect(rowBounds).toHaveLength(expectedDepths.length)
     expect(composition.root.findAllByType('Text').filter((node: { props: { testID?: string; children?: string } }) => node.props.testID === 'habit-row-description').map((node: { props: { children: string } }) => node.props.children)).toEqual(rows.map(() => 'Read two pages before breakfast.'))
     rowBounds.forEach((bounds, index) => {
       const well = geometry.find((part) => [32, 46].includes(Number(part.style.width)) && part.style.borderRadius === 12 && part.ancestors.includes(bounds.slot))!
-      expect(well.left - bounds.left).toBe(rows[index]!.props.depth === 1 ? 24 : 8)
+      expect(well.left - bounds.left).toBe(8 + 16 * expectedDepths[index]!)
+      const title = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes(rows[index]!.props.habit.title) && part.style.opacity !== 0 && part.ancestors.includes(bounds.slot))!
+      expect(title.left - bounds.left).toBe(68 + 16 * expectedDepths[index]!)
     })
+    if (!drilling) {
+      const findRow = (id: string) => tree.root.findAllByType(HabitRow).find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === id)!
+      const branchDisclosure = () => findRow(branch.id).findAllByType('Pressable').find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'common.collapse' || node.props.accessibilityLabel === 'common.expand')!
+      TestRenderer.act(() => branchDisclosure().props.onPress())
+      expect(tree.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toEqual([parent.id, leaf.id, branch.id])
+      TestRenderer.act(() => branchDisclosure().props.onPress())
+      expect(tree.root.findAllByType(HabitRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual(expectedDepths)
+      if (width === 320) {
+        const boundary = findRow(nestedParent.id).findAllByType('Pressable').find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'habits.actions.openSubHabits')!
+        expect(boundary.props.accessibilityState).toBeUndefined()
+        TestRenderer.act(() => boundary.props.onPress())
+        expect(mockDrillState.drillInto).toHaveBeenCalledWith(nestedParent.id)
+      }
+      expect(toggleSelectionCascade).not.toHaveBeenCalled()
+    }
     TestRenderer.act(() => tree.unmount())
     if (drilling) TestRenderer.act(() => composition.unmount())
   })
@@ -2549,6 +2570,20 @@ describe('HabitList', () => {
     expect(mockDrillState.refreshCurrent).toHaveBeenCalledTimes(1)
   })
 
+  it('reorders grandchildren within their parent while keeping their visible depth', async () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent' })
+    const branch = createMockHabit({ id: 'branch', title: 'Branch', parentId: parent.id })
+    const first = createMockHabit({ id: 'first', title: 'First', parentId: branch.id, position: 0 })
+    const second = createMockHabit({ ...first, id: 'second', title: 'Second', position: 1 })
+    seedHabits([parent, branch, first, second])
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
+    const list = tree.root.findByType('DraggableFlatList')
+    await TestRenderer.act(async () => { await list.props.onDragEnd({ from: 3, to: 2 }) })
+    expect(reorderMutateAsync).toHaveBeenCalledWith({ positions: [{ habitId: second.id, position: 0 }, { habitId: first.id, position: 1 }] })
+    expect(tree.root.findAllByType(HabitRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2, 2])
+  })
+
   it('submits reordered positions on drag end', async () => {
     const first = createMockHabit({ id: 'first', title: 'First', position: 0 })
     const second = createMockHabit({ id: 'second', title: 'Second', position: 1 })
@@ -2637,7 +2672,8 @@ describe('HabitList', () => {
   it('temporarily collapses dragged parents and restores them after drop', async () => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', position: 0 })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', position: 0 })
-    seedHabits([parent, child])
+    const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: child.id, position: 0 })
+    seedHabits([parent, child, grandchild])
 
     let tree: any
 
@@ -2660,6 +2696,7 @@ describe('HabitList', () => {
 
     expect(findDraggableCards().length).toBeGreaterThanOrEqual(2)
 
+    expect(tree.root.findAllByType(HabitRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2])
     const initialCount = findDraggableCards().length
     const [parentCard] = findDraggableCards()
 
@@ -2677,6 +2714,7 @@ describe('HabitList', () => {
     })
 
     expect(findDraggableCards().length).toBeGreaterThanOrEqual(initialCount)
+    expect(tree.root.findAllByType(HabitRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2])
   })
 
   it('computes parent progress recursively for deep habit trees', () => {
