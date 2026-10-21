@@ -1376,7 +1376,7 @@
           "prompt": "Me ajude a recomeçar depois de um dia sem fazer meus hábitos."
         },
         "afterWeek": {
-          "label": "Voltar após uma semana difícil",
+          "label": "Voltar após semana difícil",
           "prompt": "Me ajude a recomeçar depois de uma semana difícil."
         },
         "smallerHabit": {
@@ -1432,7 +1432,7 @@
           "prompt": "Me mostre os eventos de hoje da agenda."
         },
         "findTime": {
-          "label": "Achar tempo para um hábito",
+          "label": "Encaixar um hábito",
           "prompt": "Ache um horário para '{'hábito'}' entre os eventos de hoje."
         },
         "tomorrow": {

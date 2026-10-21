@@ -1,10 +1,14 @@
 import React from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { AccessibilityInfo, Animated, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { PROMPT_TEMPLATES, PROMPT_PRESENTATION } from '@orbit/shared/chat/prompt-library'
+import { findPromptSlot } from '@orbit/shared/chat/composer-controls'
+import { CatalogIdea } from '@/components/chat/prompt-idea'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { PromptLibrary } from '@/components/chat/prompt-library'
 import { AstraConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
@@ -37,7 +41,7 @@ type HostProps = {
   'data-slot'?: string
 }
 type ReactTestInstance = { type: unknown; props: HostProps; children: (string | ReactTestInstance)[]; findAll: (predicate: (node: ReactTestInstance) => boolean) => ReactTestInstance[] }
-type ReactTestRenderer = { root: ReactTestInstance; unmount: () => void; update: (element: React.ReactElement) => void }
+type ReactTestRenderer = { toJSON: () => Parameters<typeof measureProfileRow>[0]; root: ReactTestInstance; unmount: () => void; update: (element: React.ReactElement) => void }
 const { act, create } = require('react-test-renderer') as {
   act: { (callback: () => Promise<void>): Promise<void>; (callback: () => void): void }
   create: (element: React.ReactElement, options?: { createNodeMock: () => unknown }) => ReactTestRenderer
@@ -91,10 +95,10 @@ it('shows one category, searches across categories in Portuguese and clears a mi
 it('paginates search results in groups of at most eight templates', () => {
   library()
   search('me ajude')
-  const labels = hosts().filter(node => node.props['data-slot'] === 'list-row-title').map(text)
+  const labels = hosts().filter(node => node.props['data-slot'] === 'prompt-idea-title').map(text)
   expect(labels).toHaveLength(8)
   press('Mais ideias')
-  expect(hosts().filter(node => node.props['data-slot'] === 'list-row-title').map(text)).not.toEqual(labels)
+  expect(hosts().filter(node => node.props['data-slot'] === 'prompt-idea-title').map(text)).not.toEqual(labels)
   expect(button('Ideias anteriores').props.accessibilityState.disabled).toBe(false)
 })
 
@@ -122,7 +126,7 @@ it('uses the composer live rows and their activation, and omits an empty live se
   const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0, profile: createMockProfile() })
   const suggestions = toComposerSuggestions(chips.map(chip => ({ id: chip.id, label: chip.key, onSelect: select })))
   library({ suggestions, onBack: back })
-  expect(hosts().filter(node => node.props['data-slot'] === 'list-row-title').slice(0, suggestions.length).map(text)).toEqual(suggestions.map(suggestion => suggestion.label))
+  expect(hosts().filter(node => node.props['data-slot'] === 'prompt-idea-title').slice(0, suggestions.length).map(text)).toEqual(suggestions.map(suggestion => suggestion.label))
   press(suggestions[0]!.label)
   expect(select).toHaveBeenCalledOnce()
   expect(back).toHaveBeenCalledOnce()
@@ -175,7 +179,7 @@ it('selects the first editable slot and sends one complete prompt while retainin
   expect(send).not.toHaveBeenCalled()
   press('Ver ideias')
   press('Recomeçar')
-  press('Voltar após uma semana difícil')
+  press('Voltar após semana difícil')
   expect(send).toHaveBeenCalledExactlyOnceWith('Me ajude a recomeçar depois de uma semana difícil.')
   expect(useChatStore.getState().draft).toBe('Me lembre de {hábito} às {hora}.')
 })
@@ -223,3 +227,74 @@ it('refocuses the heading when reopened during the native exit', async () => {
   const heading = hosts().find(node => node.props.accessibilityRole === 'header' && text(node) === 'Ideias')!
   expect(accessibilityFocus).toHaveBeenCalledWith(expect.objectContaining({ __nativeTag: heading.props.__nativeTag }), 'focus')
 })
+
+it.each(['en', 'pt-BR'] as const)('keeps all approved native examples, single targets and exact callback prompts in %s', async locale => {
+  await i18n.changeLanguage(locale)
+  const onSelect = vi.fn()
+  act(() => { tree = create(<View style={{ gap: 12 }}>{PROMPT_TEMPLATES.map(template => <CatalogIdea key={template.id} template={template} disabled={false} onSelect={onSelect} />)}</View>) })
+  expect(hosts().filter(node => node.props.testID === 'prompt-example')).toHaveLength(12)
+  for (const template of PROMPT_TEMPLATES) {
+    const label = i18n.t(template.labelKey)
+    const prompt = i18n.t(template.promptKey)
+    const target = button(label)
+    const example = target.findAll(node => node.props.testID === 'prompt-example')[0]
+    expect(example ? text(example) : undefined).toBe(PROMPT_PRESENTATION[template.id].example ? prompt : undefined)
+    expect(target.findAll(node => typeof node.type === 'string' && node.props.testID === 'prompt-attribution').length).toBe(findPromptSlot(prompt) ? 0 : 1)
+    press(label)
+    expect(onSelect).toHaveBeenLastCalledWith(template.id, label, prompt)
+  }
+  expect(onSelect).toHaveBeenCalledTimes(36)
+  expectNativeCardGeometry()
+})
+
+it('hides live suggestions for a query, restores them on clear and browses without activation', () => {
+  const select = vi.fn()
+  const suggestions = toComposerSuggestions([{ id: 'one', label: 'Primeira sugestão', icon: <View testID="supplied-live-icon" />, onSelect: select }, { id: 'two', label: 'Segunda sugestão', onSelect: select }])
+  library({ suggestions, onSelect: select })
+  expect(hosts().some(node => node.props.testID === 'supplied-live-icon')).toBe(true)
+  press('Lembrar')
+  search('sem resultado')
+  expect(button('Primeira sugestão')).toBeUndefined()
+  expect(text(tree.root)).not.toContain('Para você agora')
+  press('Limpar busca')
+  expect(button('Primeira sugestão')).toBeDefined()
+  expect(button('Criar um lembrete')).toBeDefined()
+  expect(select).not.toHaveBeenCalled()
+})
+
+it('guards repeated activation, exiting actions and stale callbacks after unmount', () => {
+  const select = vi.fn()
+  library({ onSelect: select })
+  const action = button('Montar minha manhã').props.onPress!
+  act(() => { action(); action() })
+  expect(select).toHaveBeenCalledTimes(1)
+  act(() => tree.update(<PromptLibrary visible={false} onBack={vi.fn()} onSelect={select} suggestions={[]} hasProAccess hasGoogleConnection />))
+  act(() => action())
+  expect(select).toHaveBeenCalledTimes(1)
+  act(() => tree.update(<PromptLibrary visible onBack={vi.fn()} onSelect={select} suggestions={[]} hasProAccess hasGoogleConnection />))
+  press('Montar minha manhã')
+  expect(select).toHaveBeenCalledTimes(2)
+  act(() => tree.update(<View />))
+  act(() => action())
+  expect(select).toHaveBeenCalledTimes(2)
+})
+
+function expectNativeCardGeometry() {
+  for (const width of [320, 360, 384, 412, 1352]) {
+    for (const scale of [1, 2]) {
+      const layout = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+      expect(layout.controls).toHaveLength(36)
+      for (const control of layout.controls) {
+        expect(control.height).toBeGreaterThanOrEqual(48)
+        expect(control.inlineClearance).toBeGreaterThanOrEqual(16)
+      }
+      const titles = layout.parts.filter(part => part.slot === 'prompt-idea-title')
+      expect(titles).toHaveLength(36)
+      for (const template of PROMPT_TEMPLATES) {
+        const title = layout.texts.find(item => item.label === i18n.t(template.labelKey))!
+        expect(title.clipped).toBe(false)
+        if (scale === 1) expect(title.lines, template.id).toBe(1)
+      }
+    }
+  }
+}
