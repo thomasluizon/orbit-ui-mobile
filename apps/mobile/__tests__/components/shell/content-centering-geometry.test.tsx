@@ -13,7 +13,8 @@ import { Composer } from '@/components/shell/composer'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { TodayDateControl } from '@/components/today/today-date-control'
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SHELL_SCROLLER_CLEARANCE } from '@/components/shell/shell-scroller-clearance'
 import { createTokensV2 } from '@/lib/theme'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -133,12 +134,19 @@ it.each([240, 360])('reserves room for complete Hoje controls at 740 by %ipx', a
       onToggleSelect={vi.fn()} onToggleCollapse={vi.fn()} onRefresh={vi.fn()} onToggleCompleted={vi.fn()} />
   </Shell412>) as GeometryTree })
   try {
+    const scrollerHost = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-scroller')[0]!
+    const pageMinimum = StyleSheet.flatten(scrollerHost.props.style as StyleProp<ViewStyle>).minHeight as number
+    expect.soft(pageMinimum - SHELL_SCROLLER_CLEARANCE, 'declared page minimum retains usable space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
     const shell = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-412')[0]!
     const reportLayout = shell.props.onLayout as (event: Pick<LayoutChangeEvent, 'nativeEvent'>) => void
     await act(() => reportLayout({ nativeEvent: { layout: { x: 0, y: 0, ...viewport } } }))
+    const flow = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-flow-viewport')[0]!
+    const destinationMinimum = StyleSheet.flatten(flow.props.contentContainerStyle as StyleProp<ViewStyle>).minHeight
+    expect.soft(destinationMinimum, 'outer destination budgets the same physical page minimum').toBe(pageMinimum + SPACING.s64 + TOUCH_TARGET_MIN + TAB_BAR_MIN_HEIGHT)
     const boxes = measureSafeArea(tree.toJSON(), host => host.props.accessibilityLabel ?? host.props.testID, viewport)
     const scroller = boxes.get('shell-scroller')!
     expect(scroller.bottom - scroller.top).toBeGreaterThanOrEqual(SPACING.s96)
+    expect.soft(scroller.bottom - scroller.top - SHELL_SCROLLER_CLEARANCE, 'measured page retains usable space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
     const date = boxes.get('Sexta-feira, 04/09/2026, Hoje')!
     expect(scroller.bottom - scroller.top).toBeGreaterThanOrEqual(date.bottom - date.top + SPACING.s8)
     const background = boxes.get('shell-background')!

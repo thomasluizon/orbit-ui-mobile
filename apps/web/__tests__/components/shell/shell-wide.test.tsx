@@ -8,6 +8,7 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { Fab } from '@/components/ui/fab'
 import { Toast } from '@/components/ui/toast'
 import en from '@orbit/shared/i18n/en.json'
+import { SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 const media = vi.hoisted(() => ({ width: 1023 }))
 
@@ -234,6 +235,47 @@ describe('ShellWide', () => {
     }
     rerender(shell(false))
     expect(getComputedStyle(scroller).scrollPaddingBottom).toBe('auto')
+  })
+
+  it('retains usable page space in the initial and measured floating destination budgets', () => {
+    media.width = 740
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    const observers: { callback: () => void; targets: Set<Element> }[] = []
+    vi.stubGlobal('ResizeObserver', class {
+      readonly targets = new Set<Element>()
+      constructor(callback: () => void) { observers.push({ callback, targets: this.targets }) }
+      observe(target: Element) { this.targets.add(target) }
+      disconnect() {}
+    })
+    try {
+      const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+        header={<button type="button">Header</button>} tabBar={<nav>Tabs</nav>}
+        composer={<div>Composer</div>} fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>}>
+        <button type="button">Complete habit</button>
+      </ShellWide>)
+      const viewport = container.querySelector<HTMLElement>('[data-shell-destination-viewport]')!
+      const scroller = container.querySelector<HTMLElement>('[data-shell-scroller]')!
+      const header = container.querySelector<HTMLElement>('[data-shell-header]')!
+      const tabs = container.querySelector<HTMLElement>('[data-shell-tab-bar]')!
+      const observer = observers.find(observer => observer.targets.has(header))!
+      const focusClearance = Number.parseFloat(getComputedStyle(scroller).scrollPaddingBottom)
+      const destinationMinimum = () => Number.parseFloat(viewport.style.getPropertyValue('--shell-destination-min-height'))
+      const initialMinimum = destinationMinimum()
+      expect(focusClearance).toBe(SPACING.s96)
+      expect(observer.targets).toEqual(new Set([header, tabs]))
+      expect.soft(initialMinimum - TOUCH_TARGET_MIN - TAB_BAR_MIN_HEIGHT - SPACING.s64 - focusClearance,
+        'initial destination retains usable page space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
+      const headerBounds = vi.spyOn(header, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 740, TOUCH_TARGET_MIN))
+      const tabBounds = vi.spyOn(tabs, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 740, TAB_BAR_MIN_HEIGHT))
+      act(() => observer.callback())
+      expect(destinationMinimum(), 'matching measurements retain the initial budget').toBe(initialMinimum)
+      headerBounds.mockReturnValue(new DOMRect(0, 0, 740, SPACING.s64))
+      tabBounds.mockReturnValue(new DOMRect(0, 0, 740, SPACING.s96))
+      act(() => observer.callback())
+      expect(destinationMinimum()).toBe(initialMinimum + SPACING.s64 - TOUCH_TARGET_MIN + SPACING.s96 - TAB_BAR_MIN_HEIGHT)
+      expect.soft(destinationMinimum() - SPACING.s64 - SPACING.s96 - SPACING.s64 - focusClearance,
+        'measured destination retains usable page space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
+    } finally { vi.stubGlobal('ResizeObserver', OriginalResizeObserver) }
   })
 
   it.each(['absent', 'empty', 'notice', 'tall'] as const)('keeps the floating action independent of page and pinned controls with %s notice', (state) => {

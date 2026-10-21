@@ -99,10 +99,12 @@ the destination itself scrolls inside those insets. Android reuses FlowViewport;
 uses the destination viewport. Header and tab measurements retain taller chrome, and both
 tab bars share their unchanged 80px minimum through `TAB_BAR_MIN_HEIGHT`.
 
-The page scroller retains a 96px minimum so the date title and numeric date, and a two-line
-habit-row control, fit with focus clearance when scrolled to the centre. The bottom viewport
-yields height before the page region, and the destination viewport scrolls when both minimums
-and the measured header and tabs exceed the window.
+The floating page scroller retains 96px of usable space plus its 96px end focus clearance,
+giving a derived 192px physical minimum. The date title and numeric date, and a two-line
+habit-row control, fit in the usable region when scrolled to the centre. Initial and measured
+destination budgets include that same sum, the 64px bottom viewport and their header and tab
+heights. The bottom viewport yields height before the page region, and the destination viewport
+scrolls when both minimums and the measured header and tabs exceed the window.
 Android applies that minimum only while the floating target is present. Without it, the page
 keeps its 48px minimum and the pinned action or composer owns its bounded ScrollView, preserving
 the existing short-window budget. Only floating compositions enable shared bottom scrolling.

@@ -344,7 +344,7 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
 function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boolean, floating: boolean) {
   const focusClearance = floating ? SPACING.s96 : undefined
   if (!hasBottomChrome) return { padding: '', minimum: 'min-h-0', focusClearance }
-  if (floating) return { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8', focusClearance }
+  if (floating) return { padding: 'pb-24 lg:pb-8', minimum: 'min-h-[calc(var(--orbit-space-96)+var(--orbit-space-96))] lg:min-h-8', focusClearance }
   return reservesComposerSpace
     ? { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8', focusClearance }
     : { padding: 'pb-8', minimum: 'min-h-8', focusClearance }
@@ -362,21 +362,22 @@ function ShellDestinationViewport({ floating, hasHeader, hasTabBar, children }: 
   children: ReactNode
 }>) {
   const viewportRef = useRef<HTMLDivElement>(null)
-  const minimumHeight = SPACING.s96 + SPACING.s64 + (hasHeader ? TOUCH_TARGET_MIN : 0) + (hasTabBar ? TAB_BAR_MIN_HEIGHT : 0)
+  const minimumPageHeight = SPACING.s96 + (floating ? SPACING.s96 : 0)
+  const minimumHeight = minimumPageHeight + SPACING.s64 + (hasHeader ? TOUCH_TARGET_MIN : 0) + (hasTabBar ? TAB_BAR_MIN_HEIGHT : 0)
   useEffect(() => {
     const viewport = viewportRef.current
     if (!floating || !viewport) return
     const header = viewport.querySelector('[data-shell-header]')
     const tabs = viewport.querySelector('[data-shell-tab-bar]')
     const resize = () => {
-      const height = SPACING.s96 + SPACING.s64 + (header?.getBoundingClientRect().height ?? 0) + (tabs?.getBoundingClientRect().height ?? 0)
+      const height = minimumPageHeight + SPACING.s64 + (header?.getBoundingClientRect().height ?? 0) + (tabs?.getBoundingClientRect().height ?? 0)
       viewport.style.setProperty('--shell-destination-min-height', `${height}px`)
     }
     const observer = new ResizeObserver(resize)
     if (header) observer.observe(header)
     if (tabs) observer.observe(tabs)
     return () => observer.disconnect()
-  }, [floating, hasHeader, hasTabBar])
+  }, [floating, hasHeader, hasTabBar, minimumPageHeight])
   return <div className={floating ? 'min-h-0 flex-1 pb-[var(--safe-bottom)] lg:contents' : 'contents'}>
     <div ref={viewportRef} data-shell-destination-viewport=""
       className={floating ? 'h-full overflow-y-auto overflow-x-hidden overscroll-contain [&>[data-shell-background]]:min-h-[var(--shell-destination-min-height)] lg:contents lg:overflow-visible lg:[&>[data-shell-background]]:min-h-0' : 'contents'}
