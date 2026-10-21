@@ -11,9 +11,12 @@ import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixture
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { createQueuedAck } from '@/lib/offline-mutations'
 import { ActivityIndicator } from 'react-native'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { __setFocusImpl } from '@/test-mocks/react-native'
+import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 
 const mutation = vi.hoisted(() => vi.fn())
+const suggestionMutation = vi.hoisted(() => vi.fn())
 const completion = vi.hoisted(() => vi.fn())
 const detailRefetch = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 const tagManagement = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn(), delete: vi.fn(), assign: vi.fn() }))
@@ -42,7 +45,7 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
-  useHabitSuggestion: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useHabitSuggestion: () => ({ isPending: false, mutateAsync: suggestionMutation }),
 }))
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => true,
@@ -62,13 +65,10 @@ vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError, showSuccess: vi.fn(), showInfo }),
 }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
-vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null }))
-vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => null }))
-vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => null }))
-vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => null }))
-vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
-vi.mock('@/components/ui/date-field', () => ({ DateField: () => null }))
+vi.unmock('@/components/ui/date-field')
+vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn().mockResolvedValue([]) }))
+vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, toggleReminder: () => void) => ({ toggleReminder, showNotice: false, openSettings: vi.fn() }) }))
+vi.mock('@/hooks/use-checklist-templates', () => ({ useChecklistTemplates: () => ({ data: [] }), useCreateChecklistTemplate: () => ({ mutate: vi.fn(), isPending: false }), useDeleteChecklistTemplate: () => ({ mutate: vi.fn(), isPending: false }) }))
 const { act, create } = require('react-test-renderer') as typeof import('react-test-renderer')
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
@@ -93,7 +93,11 @@ async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
     return Promise.resolve()
   })
   const label = mode === 'create' ? 'habits.createHabit' : 'common.save'
-  return { onSaved, onClose, tree, setOpen: async (open: boolean) => { await act(() => { tree.update(element(open)); return Promise.resolve() }) }, title: tree.root.findAll((node) => (node.type as unknown) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
+  const changeHabit = async (next: typeof selectedHabit) => {
+    selectedHabit = next
+    await act(() => { tree.update(element(true)); return Promise.resolve() })
+  }
+  return { onSaved, onClose, tree, changeHabit, setOpen: async (open: boolean) => { await act(() => { tree.update(element(open)); return Promise.resolve() }) }, title: tree.root.findAll((node) => (node.type as unknown) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
 }
 
 async function changeTitle(title: ReactTestInstance, value: string) {
@@ -220,6 +224,155 @@ describe('controlled full editor checklist', () => {
   function inputs(tree: ReactTestRenderer) {
     return tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.checklistItemLabel')
   }
+  it.each(['habit', 'account'] as const)('isolates a replacement %s draft from an older pending result', async (replacement) => {
+    let finish!: () => void
+    mutation.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const { tree, submit, onClose, onSaved, changeHabit } = await renderSheet('edit', editedHabit)
+    await pressSubmit(submit)
+    await settleMutation()
+    if (replacement === 'habit') await changeHabit(createMockHabit({ id: '22222222-2222-4222-8222-222222222222', isGeneral: true, frequencyUnit: null }))
+    else await act(() => { advanceAccountGeneration(); return Promise.resolve() })
+    const nextTitle = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!
+    await changeTitle(nextTitle, 'Replacement draft')
+    await act(() => { finish(); return Promise.resolve() })
+    await settleMutation()
+    expect(nextTitle.props.value).toBe('Replacement draft')
+    expect(nextTitle.props.editable).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(mutation).toHaveBeenCalledOnce()
+    void act(() => tree.update(<></>))
+  })
+  it('disables the real dated form inputs and draft actions together', async () => {
+    let finish!: () => void
+    mutation.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const { tree, submit } = await renderSheet('edit', createMockHabit({ checklistItems: editedHabit.checklistItems, frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true, dueTime: '08:00', dueEndTime: '09:00' }))
+    const form = tree.root.findAll((node) => node.type === HabitFormFields)[0]!
+    const textHosts = form.findAll((node) => String(node.type) === 'TextInput')
+    expect(textHosts.map((node) => node.props.accessibilityLabel)).toEqual(expect.arrayContaining(['habits.form.describe', 'habits.form.datePhrase', 'habits.form.frequency', 'habits.form.exactTime', 'habits.form.dueEndTime', 'habits.form.checklistItemLabel', 'habits.form.description']))
+    await pressSubmit(submit)
+    await settleMutation()
+    expect(mutation).toHaveBeenCalledOnce()
+    for (const host of textHosts) {
+      expect(host.props.editable, String(host.props.accessibilityLabel)).toBe(false)
+      expect(host.props.accessibilityState, String(host.props.accessibilityLabel)).toMatchObject({ disabled: true })
+    }
+    const actions = form.findAll((node) => String(node.type) === 'Pressable' && Boolean(node.props.accessibilityRole))
+    expect(actions.length).toBeGreaterThan(20)
+    for (const control of actions) expect(control.props.disabled, String(control.props.accessibilityLabel)).toBe(true)
+    await act(() => { finish(); return Promise.resolve() })
+    await settleMutation()
+    void act(() => tree.update(<></>))
+  })
+  it.each(['confirmed', 'queued', 'rejected', 'uncertain'] as const)('keeps local and form text together across an already-delivered callback probe and %s completion', async (outcome) => {
+    let finish!: (value: unknown) => void
+    let reject!: (error: unknown) => void
+    mutation.mockImplementation(() => new Promise((resolve, rejectRequest) => { finish = resolve; reject = rejectRequest }))
+    const { tree, title, submit, onClose, onSaved } = await renderSheet('edit', editedHabit)
+    const description = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.description')[0]!
+    const checklist = inputs(tree)[0]!
+    const hosts = [title, description, checklist]
+    const values = ['Submitted title', 'Submitted description', 'Submitted item']
+    for (const [index, host] of hosts.entries()) await changeTitle(host, values[index]!)
+    const deliveredCallbacks = hosts.map((host) => host.props.onChangeText as (value: string) => void)
+    await pressSubmit(submit)
+    await settleMutation()
+    void act(() => { for (const callback of deliveredCallbacks) callback('Already delivered after snapshot') })
+    const helpers = tree.root.findAll((node) => node.type === HabitFormFields)[0]!.props.formHelpers as import('@/hooks/use-habit-form').HabitFormHelpers
+    expect(hosts.map((host) => host.props.value)).toEqual(values)
+    expect(helpers.form.getValues()).toMatchObject({ title: values[0], description: values[1], checklistItems: [{ text: values[2], isChecked: true }, { text: 'Read a chapter', isChecked: false }] })
+    await act(async () => {
+      if (outcome === 'rejected') reject({ status: 403 })
+      else if (outcome === 'uncertain') reject(new Error('timeout'))
+      else finish(outcome === 'queued' ? createQueuedAck('synthetic-pending-update') : undefined)
+      await Promise.resolve()
+    })
+    await settleMutation()
+    expect(mutation).toHaveBeenCalledOnce()
+    expect(completion).not.toHaveBeenCalled()
+    expect(tagManagement.assign).not.toHaveBeenCalled()
+    if (outcome === 'confirmed' || outcome === 'queued') {
+      expect(onClose).toHaveBeenCalledOnce()
+      expect(onSaved).toHaveBeenCalledTimes(outcome === 'confirmed' ? 1 : 0)
+      if (outcome === 'queued') expect(showInfo).toHaveBeenCalledWith('habits.form.waitingToSync')
+    } else {
+      expect(onClose).not.toHaveBeenCalled()
+      expect(onSaved).not.toHaveBeenCalled()
+      expect(hosts.map((host) => host.props.value)).toEqual(values)
+      for (const host of hosts) expect(host.props.editable).toBe(true)
+      expect(detailRefetch).toHaveBeenCalledTimes(outcome === 'uncertain' ? 1 : 0)
+      if (outcome === 'uncertain') expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'habits.form.saveUncertain')).not.toHaveLength(0)
+      await changeTitle(checklist, 'Explicit retry item')
+      mutation.mockResolvedValueOnce(undefined)
+      await pressSubmit(submit)
+      await settleMutation()
+      expect(mutation).toHaveBeenCalledTimes(2)
+      expect(mutation.mock.calls[1]![0].data.checklistItems[0].text).toBe('Explicit retry item')
+      expect(onSaved).toHaveBeenCalledOnce()
+    }
+    void act(() => tree.update(<></>))
+  })
+  it.each(['onSuggestSetup', 'onSuggestEmoji'] as const)('retires an already-started %s result at the submitted draft boundary', async (action) => {
+    let finishSave!: () => void
+    let finishSuggestion!: (response: HabitSetupSuggestion) => void
+    mutation.mockImplementation(() => new Promise<void>((resolve) => { finishSave = resolve }))
+    suggestionMutation.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => { finishSuggestion = resolve }))
+    const { tree, submit } = await renderSheet('edit', editedHabit)
+    let proposal!: Promise<unknown>
+    void act(() => { proposal = (tree.root.findAll((node) => node.type === HabitFormFields)[0]!.props[action] as () => Promise<unknown>)() })
+    expect(suggestionMutation).toHaveBeenCalledOnce()
+    await pressSubmit(submit)
+    await settleMutation()
+    const emojiControl = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === (action === 'onSuggestEmoji' ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest'))[0]!
+    expect(emojiControl.props.disabled).toBe(true)
+    const helpers = tree.root.findAll((node) => node.type === HabitFormFields)[0]!.props.formHelpers as import('@/hooks/use-habit-form').HabitFormHelpers
+    const submitted = helpers.form.getValues()
+    await act(async () => {
+      finishSuggestion({ emoji: '🏊', frequencyUnit: 'Week', frequencyQuantity: 2, days: [], isFlexible: true, flexibleTarget: 2, dueTime: '07:00', subHabits: [], checklistItems: ['Delayed checklist'] })
+      await proposal
+    })
+    expect(helpers.form.getValues()).toEqual(submitted)
+    expect(mutation).toHaveBeenCalledOnce()
+    await act(() => { finishSave(); return Promise.resolve() })
+    await settleMutation()
+    void act(() => tree.update(<></>))
+  })
+  it.each(['title', 'description', 'checklist'] as const)('freezes the actual %s host while the submitted snapshot is pending', async (field) => {
+    let finish!: () => void
+    mutation.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const { tree, title, submit, onClose, onSaved } = await renderSheet('edit', editedHabit)
+    const description = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.description')[0]!
+    const checklist = inputs(tree)[0]!
+    const hosts = { title, description, checklist }
+    await changeTitle(title, 'Ready to save')
+    await changeTitle(description, 'Keep this description')
+    void act(() => {
+      (checklist.props.onFocus as () => void)()
+      ;(checklist.props.onChangeText as (value: string) => void)('Pack the latest bag')
+    })
+    expect(mutation).not.toHaveBeenCalled()
+    expect(completion).not.toHaveBeenCalled()
+    for (const write of Object.values(tagManagement)) expect(write).not.toHaveBeenCalled()
+    await pressSubmit(submit)
+    await settleMutation()
+    expect(mutation).toHaveBeenCalledOnce()
+    expect(mutation.mock.calls[0]![0].data).toMatchObject({ title: 'Ready to save', description: 'Keep this description', checklistItems: [{ text: 'Pack the latest bag', isChecked: true }, { text: 'Read a chapter', isChecked: false }] })
+    expect(buttonState(submit)).toMatchObject({ busy: true, disabled: true })
+    expect(submit.findAll((node) => String(node.type) === 'Text').some((node) => node.props.children === 'common.save')).toBe(true)
+    const host = hosts[field]
+    expect(host.props.editable).toBe(false)
+    expect(host.props.accessibilityState).toMatchObject({ disabled: true })
+    await pressSubmit(submit)
+    expect(mutation).toHaveBeenCalledOnce()
+    const dismiss = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!
+    void act(() => (dismiss.props.onPress as () => void)())
+    expect(onClose).not.toHaveBeenCalled()
+    await act(() => { finish(); return Promise.resolve() })
+    await settleMutation()
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(onSaved).toHaveBeenCalledOnce()
+    void act(() => tree.update(<></>))
+  })
   it('keeps focused text and checked state together through local moves and one Save', async () => {
     mutation.mockResolvedValue(undefined)
     const { tree, submit } = await renderSheet('edit', editedHabit)

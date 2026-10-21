@@ -10,6 +10,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
 import { HabitFormFields } from './habit-form-fields'
+import { HabitFormInteractionProvider } from './habit-form-fields/habit-form-interaction'
 import {
   applySuggestionChecklist,
   applySuggestionSchedule,
@@ -134,7 +135,9 @@ function EditHabitDraft({
       name: 'title',
     }),
   )
-  const tags = useTagSelection()
+  const submittedDraftRevisionRef = useRef(0)
+  const getDraftRevision = useCallback(() => submittedDraftRevisionRef.current, [])
+  const tags = useTagSelection([], undefined, getDraftRevision)
   const relationshipFieldsTouchedRef = useRef({
     goalIds: false,
     tagIds: false,
@@ -379,6 +382,8 @@ function EditHabitDraft({
       flushBufferedInputsRef.current()
       const request = await prepareSave()
       if (!request || !isCurrent()) return
+      submittedDraftRevisionRef.current += 1
+      suggestionRevision.advance()
       setSaving(true)
       setSaveError(null)
       try {
@@ -408,6 +413,7 @@ function EditHabitDraft({
   }
 
   const handleSuggestEmoji = useCallback(async () => {
+    if (submittingRef.current) return null
     flushBufferedInputsRef.current()
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
     const title = currentTitle.trim()
@@ -445,6 +451,7 @@ function EditHabitDraft({
   }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
+    if (submittingRef.current) return null
     flushBufferedInputsRef.current()
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
     const title = currentTitle.trim()
@@ -538,6 +545,7 @@ function EditHabitDraft({
             style={detailFieldsPending ? styles.fieldsPending : null}
             accessibilityElementsHidden={detailFieldsPending}
           >
+            <HabitFormInteractionProvider disabled={detailFieldsPending || saving}>
             <HabitFormFields
               formHelpers={formHelpers}
               tags={trackedTags}
@@ -560,6 +568,7 @@ function EditHabitDraft({
               onUpgrade={navigateToUpgrade}
               startDate={habit && getHabitDisplayStartDate(habit)}
             />
+            </HabitFormInteractionProvider>
           </View>
         </View>
       </Sheet>

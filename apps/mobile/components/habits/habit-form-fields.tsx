@@ -1,3 +1,4 @@
+import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { SPACING } from '@orbit/shared/theme'
 import { X } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
@@ -63,6 +64,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 function HabitEndTimeField({ formHelpers, dueTime }: Readonly<{ formHelpers: HabitFormHelpers; dueTime: string }>) {
+  const { disabled, guard } = useHabitFormInteraction()
   const { t } = useTranslation()
   const dueEndTime = useWatch({ control: formHelpers.form.control, name: 'dueEndTime' }) ?? ''
   const error = validateEndTime(dueTime, dueEndTime)
@@ -71,11 +73,11 @@ function HabitEndTimeField({ formHelpers, dueTime }: Readonly<{ formHelpers: Hab
     <TimeField
       label={t('habits.form.dueEndTime')}
       value={toTime24(dueEndTime)}
-      disabled={!dueTime}
+      disabled={disabled || !dueTime}
       hint={dueTime ? undefined : t('habits.form.endTimeRequiresStart')}
       error={error ? t(error) : undefined}
-      onChange={(value) => formHelpers.form.setValue('dueEndTime', value, { shouldDirty: true })}
-      onClear={() => formHelpers.form.setValue('dueEndTime', '', { shouldDirty: true })}
+      onChange={guard((value) => formHelpers.form.setValue('dueEndTime', value, { shouldDirty: true }))}
+      onClear={guard(() => formHelpers.form.setValue('dueEndTime', '', { shouldDirty: true }))}
     />
   )
 }
@@ -125,6 +127,7 @@ function AstraFallback({
   onAsk,
   tokens,
 }: Readonly<AstraFallbackProps>) {
+  const { disabled, guard } = useHabitFormInteraction()
   if (!visible) return null
   return (
     <View style={{ gap: 12 }}>
@@ -133,7 +136,7 @@ function AstraFallback({
         <Skeleton variant="settings" label={readingLabel} />
       ) : (
         <View style={{ alignItems: 'flex-start', gap: 8 }}>
-          <PillButton variant="secondary" disabled={atLimit} onClick={onAsk}>{askLabel}</PillButton>
+          <PillButton variant="secondary" disabled={disabled || atLimit} onClick={guard(onAsk)}>{askLabel}</PillButton>
           {!atLimit ? <Text style={{ color: tokens.fg3, fontSize: 12 }}>{costLabel}</Text> : null}
         </View>
       )}
@@ -170,14 +173,15 @@ interface EndDateEditorProps {
 }
 
 function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
+  const { disabled, guard } = useHabitFormInteraction()
   const [focusRequest, setFocusRequest] = useState(0)
   if (!visible) return null
   return (
     <View style={{ gap: 8 }}>
       <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
-      <DateField label={t('habits.form.endDate')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} focusRequest={focusRequest} />
+      <DateField disabled={disabled} label={t('habits.form.endDate')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={guard(onChange)} focusRequest={focusRequest} />
       {value ? <View style={{ alignItems: 'flex-end' }}>
-        <PillButton variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
+        <PillButton disabled={disabled} variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
           onChange('')
           setFocusRequest((request) => request + 1)
         }}><X size={20} /></PillButton>
@@ -247,11 +251,12 @@ function ReminderEditors({
   onValidationError,
   t,
 }: Readonly<ReminderEditorsProps>) {
+  const { guard } = useHabitFormInteraction()
   if (!dueTime) {
     return <ScheduledReminderSection inline tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} />
   }
   return (
-    <ReminderSection inline toggleLabel={t('habits.form.reminder')} tokens={tokens} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} scheduledReminderCount={scheduledReminders.length} onValidationError={onValidationError}>
+    <ReminderSection inline toggleLabel={t('habits.form.reminder')} tokens={tokens} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={guard(onReminderTimesChange)} onToggleReminder={onToggle} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} scheduledReminderCount={scheduledReminders.length} onValidationError={onValidationError}>
       <ScheduledReminderSection inline tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} offsetReminderCount={reminderTimes.length} nested />
     </ReminderSection>
   )
@@ -260,6 +265,7 @@ function ReminderEditors({
 function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderTimesChange, showError, tokens }: Readonly<{ formHelpers: HabitFormHelpers; controller: ReturnType<typeof createHabitFormController>; reminderTimes: number[]; onReminderTimesChange: (times: number[]) => void; showError: (message: string) => void; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const { form } = formHelpers
+  const { disabled, guard } = useHabitFormInteraction()
   const dueTime = useWatch({ control: form.control, name: 'dueTime' }) ?? ''
   const reminderEnabled = useWatch({ control: form.control, name: 'reminderEnabled' }) ?? false
   const scheduledReminders = useWatch({ control: form.control, name: 'scheduledReminders' }) ?? []
@@ -268,11 +274,12 @@ function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderT
     <>
             <View style={{ gap: 16 }}>
               <TimeField
+                disabled={disabled}
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
                 value={toTime24(dueTime)}
-                onChange={controller.setDueTime}
-                onClear={controller.clearDueTime}
+                onChange={guard(controller.setDueTime)}
+                onClear={guard(controller.clearDueTime)}
               />
               <HabitEndTimeField formHelpers={formHelpers} dueTime={dueTime} />
             </View>
@@ -284,7 +291,7 @@ function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderT
                 reminderTimes={reminderTimes}
                 scheduledReminders={scheduledReminders}
                 tokens={tokens}
-                onReminderTimesChange={onReminderTimesChange}
+                onReminderTimesChange={guard(onReminderTimesChange)}
                 onToggle={() => controller.setReminderEnabled(!reminderEnabled)}
                 onSetScheduledReminders={(items) => form.setValue('scheduledReminders', items, { shouldDirty: true })}
                 onValidationError={showError}
@@ -298,13 +305,14 @@ function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderT
 function HabitAvoidanceFields({ formHelpers, controller, hasProAccess, tokens, onUpgrade }: Readonly<{ formHelpers: HabitFormHelpers; controller: ReturnType<typeof createHabitFormController>; hasProAccess: boolean; tokens: ReturnType<typeof createTokensV2>; onUpgrade: () => void }>) {
   const { t } = useTranslation()
   const { form } = formHelpers
+  const { disabled, guard } = useHabitFormInteraction()
   const isBadHabit = useWatch({ control: form.control, name: 'isBadHabit' }) ?? false
   const slipAlertEnabled = useWatch({ control: form.control, name: 'slipAlertEnabled' }) ?? false
   if (formHelpers.isGeneral) return null
   return (
     <>
             {/* eslint-disable-next-line local/max-button-words -- Orbit Habit Create draws the avoid-habit switch label. */}
-            <ListRow placement="column" title={t('habits.form.habitTypeAvoid')} description={t('habits.form.habitTypeAvoidHint')} toggle={{ checked: isBadHabit, onChange: (checked) => form.setValue('isBadHabit', checked, { shouldDirty: true }) }} />
+            <ListRow disabled={disabled} placement="column" title={t('habits.form.habitTypeAvoid')} description={t('habits.form.habitTypeAvoidHint')} toggle={{ checked: isBadHabit, onChange: guard((checked) => form.setValue('isBadHabit', checked, { shouldDirty: true })) }} />
 
             <SlipAlertEditor visible={isBadHabit} tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} t={t} />
     </>
@@ -338,6 +346,7 @@ export function HabitFormFields({
   defaultExpanded = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
+  const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const { t, i18n } = useTranslation()
   const locale = resolveSupportedLocale(i18n.language)
   const translate = useCallback((key: string, values?: Record<string, unknown>) => t(key, values), [t])
@@ -394,7 +403,7 @@ export function HabitFormFields({
   const suggestTags = useSuggestTags()
   const tagSuggestions = useTagSuggestions({
     availableTags,
-    title, description, language: i18n.language, disabled: tagMutationPending || tags.atTagLimit,
+    title, description, language: i18n.language, disabled: disabled || tagMutationPending || tags.atTagLimit,
     request: suggestTags.mutateAsync,
     accept: (suggestion) => tags.acceptSuggestedTag(suggestion, async (name, color) => (await createTag.mutateAsync({ name, color })).id),
   })
@@ -434,32 +443,34 @@ export function HabitFormFields({
 
   const controller = useMemo(
     () => createHabitFormController({
-      onSlipAlertEnabledChange,
-      onReminderEnabledChange,
+      onSlipAlertEnabledChange: onSlipAlertEnabledChange ? guard(onSlipAlertEnabledChange) : undefined,
+      onReminderEnabledChange: onReminderEnabledChange ? guard(onReminderEnabledChange) : undefined,
       onSuggestionContextChange,
       lockedGeneral,
       atLimit: atMessageLimit,
       action: onSuggestSetup,
       target: {
         hasSchedule: () => isFlexible || Boolean(frequencyUnit),
-        setOneTime: () => { if (form.getValues('itemType') !== 'habit') setOneTime() },
-        setRecurring,
-        setFlexible,
-        setGeneral,
-        toggleDay,
+        setOneTime: guard(() => { if (form.getValues('itemType') !== 'habit') setOneTime() }),
+        setRecurring: guard(setRecurring),
+        setFlexible: guard(setFlexible),
+        setGeneral: guard(setGeneral),
+        toggleDay: guard(toggleDay),
         getOwnership() { return phraseOwnership },
         setOwnership(ownership) {
+          if (isDisabled()) return
           setPhraseOwnership(ownership)
           onPhraseOwnershipChange?.(ownership)
         },
-        updateProposal(update) { setProposal(update) },
+        updateProposal(update) { if (!isDisabled()) setProposal(update) },
         setField(field, value, validate = false) {
+          if (isDisabled()) return
           const options = validate ? { shouldDirty: true, shouldValidate: true } : { shouldDirty: true }
           setValue(field, value as never, options)
         },
       },
     }),
-    [atMessageLimit, form, frequencyUnit, isFlexible, lockedGeneral, onPhraseOwnershipChange, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
+    [atMessageLimit, guard, isDisabled, form, frequencyUnit, isFlexible, lockedGeneral, onPhraseOwnershipChange, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
   )
 
   useEffect(() => {
@@ -480,6 +491,7 @@ export function HabitFormFields({
   }, [controller, onResolveSubHabitProposalReady])
 
   async function createNewTag() {
+    if (isDisabled()) return
     const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
     if (validationError) {
       showError(translate(validationError))
@@ -493,6 +505,7 @@ export function HabitFormFields({
   }
 
   async function saveEditedTag() {
+    if (isDisabled()) return
     try {
       await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
     } catch (error: unknown) {
@@ -501,7 +514,7 @@ export function HabitFormFields({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessibilityState={{ busy: disabled }}>
       <HabitTypeField formHelpers={formHelpers} lockedGeneral={lockedGeneral} onChange={() => { onSuggestionContextChange?.(); controller.clearProposal() }} />
       <HabitUnderstanding
         showSchedule={itemType !== 'task' && !formHelpers.isGeneral}
@@ -544,24 +557,24 @@ export function HabitFormFields({
       <HabitDateField formHelpers={formHelpers} />
 
       <View style={styles.disclosure}>
-        <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} expanded={detailsOpen} placement="column" chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
+        <ListRow disabled={disabled} icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} expanded={detailsOpen} placement="column" chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
         {detailsOpen ? (
           <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
             <HabitScheduleFields
               hidden={itemType === 'task'}
               general={formHelpers.isGeneral}
               generalLocked={lockedGeneral === false}
-              onGeneral={() => { onSuggestionContextChange?.(); controller.clearProposal(); setGeneral() }}
+              onGeneral={guard(() => { onSuggestionContextChange?.(); controller.clearProposal(); setGeneral() })}
               proposed={proposal.setup}
               unit={frequencyUnit ?? null}
               quantity={watchedQuantity ?? null}
               flexible={isFlexible}
-              disabled={lockedGeneral === true}
+              disabled={disabled || lockedGeneral === true}
               onModeChange={controller.setScheduleMode}
               onChange={controller.setSchedule}
             />
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
-            <HabitTimingFields formHelpers={formHelpers} controller={controller} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} showError={showError} tokens={tokens} />
+            <HabitTimingFields formHelpers={formHelpers} controller={controller} reminderTimes={reminderTimes} onReminderTimesChange={guard(onReminderTimesChange)} showError={showError} tokens={tokens} />
             <View style={{ gap: 8 }}>
               <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
               <HabitChecklist items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
@@ -571,10 +584,10 @@ export function HabitFormFields({
               {subHabitChildren}
             </SubHabitSection>
             <HabitAvoidanceFields formHelpers={formHelpers} controller={controller} hasProAccess={hasProAccess} tokens={tokens} onUpgrade={onUpgrade} />
-            <View><TagPickerField suggestions={<TagSuggestions suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={tags.setNewTagName} onCommit={() => void createNewTag()} onCancel={() => { newTagErrors.clearBackendErrors(); tags.setShowNewTag(false) }} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} value={tags.editTagName} disabled={updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={tags.setEditTagName} onCommit={() => void saveEditedTag()} onCancel={() => { editTagErrors.clearBackendErrors(); tags.cancelEditTag() }} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
-            <View><GoalLinkingField selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={onToggleGoal} /></View>
-            <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
-            <View><Input label={t('habits.form.description')} error={descriptionFailure} focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)} value={description} onChange={(value) => setValue('description', value, { shouldDirty: true })} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} /></View>
+            <View><TagPickerField suggestions={<TagSuggestions suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} onToggle={guard(tags.toggleTag)} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled || createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void createNewTag()} onCancel={() => { newTagErrors.clearBackendErrors(); tags.setShowNewTag(false) }} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} value={tags.editTagName} disabled={disabled || updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void saveEditedTag()} onCancel={() => { editTagErrors.clearBackendErrors(); tags.cancelEditTag() }} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
+            <View><GoalLinkingField selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={guard(onToggleGoal)} /></View>
+            <EndDateEditor visible={showEndDate} value={endDate} onChange={guard((value) => setValue('endDate', value, { shouldDirty: true }))} t={t} />
+            <View><Input disabled={disabled} label={t('habits.form.description')} error={descriptionFailure} focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)} value={description} onChange={guard((value) => setValue('description', value, { shouldDirty: true }))} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} /></View>
           </Animated.View>
         ) : null}
       </View>

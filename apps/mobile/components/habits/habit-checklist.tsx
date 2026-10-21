@@ -1,4 +1,5 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
 import {
@@ -63,6 +64,7 @@ function EditableChecklistItem({
   styles,
   tokens,
 }: Readonly<EditableChecklistItemProps>) {
+  const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const { t } = useTranslation()
   const [localText, setLocalText] = useState(text)
   const [focused, setFocused] = useState(false)
@@ -83,7 +85,7 @@ function EditableChecklistItem({
             pressed && !isFirst ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveUp}
-          disabled={isFirst}
+          disabled={disabled || isFirst}
         >
           <ChevronUp size={16} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </Pressable>
@@ -95,20 +97,22 @@ function EditableChecklistItem({
             pressed && !isLast ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveDown}
-          disabled={isLast}
+          disabled={disabled || isLast}
         >
           <ChevronDown size={16} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
         </Pressable>
       </View>
       <View style={styles.uncheckedBox} />
-      <BottomSheetAppTextInput
+      <BottomSheetAppTextInput isChangeDisabled={isDisabled}
+        editable={!disabled}
+        accessibilityState={{ disabled }}
         value={localText}
         style={styles.itemTextInput}
         placeholderTextColor={tokens.fg3}
         accessibilityLabel={t('habits.form.checklistItemLabel', { n: index + 1 })}
         onFocus={() => setFocused(true)}
-        onBlur={() => { setFocused(false); if (localText !== text) onUpdateText(index, localText) }}
-        onChangeText={(value) => { setLocalText(value); onUpdateText(index, value) }}
+        onBlur={guard(() => { setFocused(false); if (localText !== text) onUpdateText(index, localText) })}
+        onChangeText={guard((value) => { setLocalText(value); onUpdateText(index, value) })}
       />
       <Pressable
         accessibilityRole="button"
@@ -119,13 +123,14 @@ function EditableChecklistItem({
           pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
         onPress={() => onDuplicate(index)}
-        disabled={duplicateDisabled}
+        disabled={disabled || duplicateDisabled}
       >
         <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('habits.form.removeChecklistItem')}
+        disabled={disabled}
         style={({ pressed }) => [
           styles.itemAction,
           pressed ? { backgroundColor: tokens.bgHover } : null,
@@ -221,6 +226,7 @@ export function HabitChecklist({
   onToggle,
   onReset,
 }: Readonly<HabitChecklistProps>) {
+  const { disabled, guard } = useHabitFormInteraction()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -335,11 +341,11 @@ export function HabitChecklist({
               <EditableChecklistItem
                 text={item.text}
                 index={index}
-                onUpdateText={updateItemText}
-                onDuplicate={duplicateItem}
-                onRemove={removeItem}
-                onMoveUp={() => moveItem(index, index - 1)}
-                onMoveDown={() => moveItem(index, index + 1)}
+                onUpdateText={guard(updateItemText)}
+                onDuplicate={guard(duplicateItem)}
+                onRemove={guard(removeItem)}
+                onMoveUp={guard(() => moveItem(index, index - 1))}
+                onMoveDown={guard(() => moveItem(index, index + 1))}
                 isFirst={index === 0}
                 isLast={index === items.length - 1}
                 duplicateDisabled={atItemLimit}
@@ -373,7 +379,8 @@ export function HabitChecklist({
         <View style={styles.clearRow}>
           <Pressable
             accessibilityRole="button"
-            onPress={clearAll}
+            disabled={disabled}
+            onPress={guard(clearAll)}
             style={({ pressed }) => [styles.clearAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
             <Text style={[styles.clearText, { color: tokens.statusBadText }]}>{t('habits.form.clearChecklist')}</Text>
@@ -384,11 +391,11 @@ export function HabitChecklist({
       {editable && (
         <ChecklistAddRow
           value={newItemText}
-          onChangeText={setNewItemText}
-          onAdd={addItem}
+          onChangeText={guard(setNewItemText)}
+          onAdd={guard(addItem)}
           styles={styles}
           tokens={tokens}
-          disabled={atItemLimit}
+          disabled={disabled || atItemLimit}
         />
       )}
       {editable && atItemLimit ? (

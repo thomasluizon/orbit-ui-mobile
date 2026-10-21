@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useHabitFormInteraction } from './habit-form-interaction'
 import type { TextInput } from 'react-native'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { View, Text, } from "react-native";
@@ -38,12 +39,14 @@ export function TagEditorRow({
   styles,
   tokens,
 }: Readonly<TagEditorRowProps>) {
+  const { isDisabled } = useHabitFormInteraction()
   const inputRef = useRef<TextInput>(null)
   useEffect(() => { if (focusRequest) inputRef.current?.focus() }, [focusRequest])
   return (
     <View style={styles.tagEditor}>
     <View style={styles.tagFormRow}>
       <BottomSheetAppTextInput
+        isChangeDisabled={isDisabled}
         ref={inputRef}
         accessibilityHint={error}
         value={value}
@@ -51,6 +54,7 @@ export function TagEditorRow({
         maxLength={MAX_TAG_NAME_LENGTH}
         accessibilityLabel={inputAriaLabel}
         editable={!disabled}
+        accessibilityState={{ disabled }}
         style={{ flex: 1 }}
         onChangeText={onChange}
         onSubmitEditing={onCommit}
