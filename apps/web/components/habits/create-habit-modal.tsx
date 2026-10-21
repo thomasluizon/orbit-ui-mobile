@@ -318,6 +318,7 @@ export function CreateHabitModal({
   const handleSubmit = useCallback(
     async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
+      e.stopPropagation()
       const submittingAccount = getAccountGeneration()
 
       if (isSubHabitMode && !canUseSubHabits) {
