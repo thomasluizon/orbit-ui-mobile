@@ -413,11 +413,13 @@ function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear }: R
       captureError(error)
     } finally { scope.pending = false }
   }
-  return <>
-  <ComposerTextAction words={props.words} tokens={tokens} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
+  return <View style={styles.textControls}>
+  {!inMenu ? <View style={styles.textActionSlot}>
+    <ComposerTextAction words={props.words} tokens={tokens} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
+  </View> : null}
   <ComposerControls props={props} tokens={tokens} onPaste={canPaste && inMenu ? () => void pasteMessage() : undefined}
     onClear={canClear && inMenu ? onClear : undefined} />
-  </>
+  </View>
 }
 
 function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
@@ -720,6 +722,17 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  textControls: {
+    minWidth: 48,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: SPACING.s4,
+  },
+  textActionSlot: {
+    width: 48,
+    minHeight: 48,
   },
   trailingControls: {
     maxWidth: '100%',

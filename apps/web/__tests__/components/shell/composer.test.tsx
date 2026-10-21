@@ -215,7 +215,7 @@ describe('Composer', () => {
   it.each(['oi', '   ', '\n'])('shows clear as the first trailing control for typed text %j', value => {
     render(<Composer {...props({ value, onVoice: vi.fn(), voiceWords })} />)
     const clear = screen.getByRole('button', { name: words.clear })
-    expect(clear.parentElement).toHaveAttribute('data-composer-trailing-controls')
+    expect(clear.closest('[data-composer-trailing-controls]')).not.toBeNull()
     expect(clear.parentElement?.firstElementChild).toBe(clear)
   })
 

@@ -17,6 +17,10 @@ Astra wording within the same target. Context-specific requests reuse Ask Astra 
 reschedule entry uses Reschedule with Astra / Reagendar com a Astra. Follow-up and proactive targets
 retain their specific text. Complete ideas send; slotted ideas only prepare a draft. Composer entry
 and send remain distinct, with input width and wrapping preserving every action at enlarged text.
+The composer reserves its text-action target when allowance disables that action, including when
+paste and clear move into the attachment menu. Near-limit and exhausted states keep the same
+frame and input position before and after text measurement; the real status slot retains its
+96px minimum and grows with its content. Unavailable actions add no hidden focus target.
 Loading, offline, limit, proposal, validation and manual recovery states retain their guards.
 This amendment supersedes the glyph-removal inventory below only for invocation/entry controls;
 static headings, attribution, plan facts and deterministic acceptance keep their current treatment.

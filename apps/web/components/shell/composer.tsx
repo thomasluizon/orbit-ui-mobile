@@ -267,11 +267,13 @@ function ComposerTextControls({ props, inMenu, onPasteText, onClear }: Readonly<
       return
     } finally { scope.pending = false }
   }
-  return <>
-  <ComposerTextAction words={props.words} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
+  return <div className="flex min-w-12 min-h-12 shrink-0 items-end gap-[4px]">
+  {!inMenu ? <div className="w-12 min-h-12 shrink-0">
+    <ComposerTextAction words={props.words} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
+  </div> : null}
   <ComposerControls props={props} onPaste={canPaste && inMenu ? () => void pasteMessage() : undefined}
     onClear={canClear && inMenu ? onClear : undefined} />
-  </>
+  </div>
 }
 
 function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>, placeholder: string, state: ComposerProps['state']) {

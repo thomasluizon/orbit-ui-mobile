@@ -43,6 +43,7 @@ function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpen
   const state = ['oneLine', 'typing', 'longText', 'tray1', 'tray2', 'tray3', 'retry'].includes(scenario) ? 'idle' : scenario
   return {
     state,
+    astraRequestLabel: messages.habits.form.askDate,
     ...(state === 'offline' ? { limitReason: messages.shell.composer.offline.reason } : {}),
     ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason } : {}),
     value: scenario === 'oneLine' ? 'Oi' : scenario === 'typing' ? 'First\nSecond\nThird' : scenario === 'longText' ? 'Long message\n'.repeat(12) : '',
@@ -60,10 +61,10 @@ function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpen
 }
 
 interface PillGeometry {
-  pill: { left: number; right: number; height: number }
+  pill: { left: number; right: number; top: number; bottom: number; height: number }
   documentWidth: number
-  input: { width: number; contentWidth: number; height: number; scrollHeight: number; maximumHeight: number; placeholderWidth: number } | null
-  controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[]
+  input: { left: number; right: number; top: number; bottom: number; width: number; contentWidth: number; height: number; scrollHeight: number; maximumHeight: number; placeholderWidth: number } | null
+  controls: { name: string; left: number; right: number; top: number; bottom: number; width: number; height: number }[]
 }
 
 async function expectNarrowMenuPaste(page: import('@playwright/test').Page, messages: typeof en) {
@@ -123,25 +124,48 @@ async function expectNarrowMenuPaste(page: import('@playwright/test').Page, mess
   } finally { widthSpy.mockRestore(); contextSpy.mockRestore(); view.unmount(); vi.unstubAllGlobals() }
 }
 
-function assertPillGeometry(measured: PillGeometry, context: { width: number; fontScale: number; withOpener: boolean; scenario: GeometryScenario }) {
+function assertPillActions(controls: PillGeometry['controls'], { withOpener, scenario, messages }: { withOpener: boolean; scenario: GeometryScenario; messages: typeof en }, evidence: string) {
+  const names = controls.map(control => control.name)
+  const voiceActive = scenario === 'recording' || scenario === 'transcribing'
+  const expected = [
+    ...(withOpener ? [`${messages.todayAstra.openConversation}, Astra`] : []),
+    voiceActive ? messages.shell.composer.voice.stop : messages.shell.composer.actions,
+    `${messages.shell.composer.send}, ${messages.habits.form.askDate}`,
+  ]
+  const textAction = ['oneLine', 'typing', 'longText'].includes(scenario) ? messages.shell.composer.clear : messages.shell.composer.paste
+  const possibleNames = [...expected, ...names.includes(textAction) ? [textAction] : []]
+  expect([...names].sort((left, right) => left.localeCompare(right)), evidence).toEqual(possibleNames.sort((left, right) => left.localeCompare(right)))
+  if (['sending', 'atLimit', 'offline', 'recording', 'transcribing'].includes(scenario)) expect(names, evidence).not.toContain(textAction)
+}
+
+function assertPillGeometry(measured: PillGeometry, context: { width: number; fontScale: number; withOpener: boolean; scenario: GeometryScenario; messages: typeof en }) {
   const { width, fontScale, withOpener, scenario } = context
   const evidence = JSON.stringify({ width, fontScale, withOpener, scenario, measured })
   expect(measured.documentWidth, evidence).toBe(width)
-  expect(measured.controls.length, evidence).toBeGreaterThanOrEqual(withOpener ? 3 : 2)
+  assertPillActions(measured.controls, context, evidence)
   for (const [index, control] of measured.controls.entries()) {
     expect(control.width, evidence).toBeGreaterThanOrEqual(48)
     expect(control.height, evidence).toBeGreaterThanOrEqual(48)
-    expect(control.left, evidence).toBeGreaterThanOrEqual(measured.pill.left)
-    expect(control.right, evidence).toBeLessThanOrEqual(measured.pill.right)
+    expect(control.left, evidence).toBeGreaterThanOrEqual(measured.pill.left + INTERACTION_FILL_CLEARANCE)
+    expect(control.right, evidence).toBeLessThanOrEqual(measured.pill.right - INTERACTION_FILL_CLEARANCE)
+    expect(control.top, evidence).toBeGreaterThanOrEqual(measured.pill.top + INTERACTION_FILL_CLEARANCE)
+    expect(control.bottom, evidence).toBeLessThanOrEqual(measured.pill.bottom - INTERACTION_FILL_CLEARANCE)
     if (index > 0) {
       const previous = measured.controls[index - 1]!
       expect(control.left >= previous.right || control.top >= previous.bottom, evidence).toBe(true)
+    }
+    if (measured.input) {
+      const input = measured.input
+      expect(control.right <= input.left || control.left >= input.right || control.bottom <= input.top || control.top >= input.bottom, evidence).toBe(true)
     }
   }
   if (measured.input) {
     const input = measured.input
     expect(input.width, evidence).toBeGreaterThanOrEqual(48 * fontScale)
     expect(measured.pill.height, evidence).toBeGreaterThanOrEqual(input.height + 8)
+    expect(input.height, evidence).toBeGreaterThanOrEqual(24 * fontScale + 24)
+    expect(input.height, evidence).toBeLessThanOrEqual(input.maximumHeight)
+    if (fontScale === 1) expect(input.placeholderWidth, evidence).toBeLessThanOrEqual(input.contentWidth)
     if (scenario === 'longText') {
       expect(input.height, evidence).toBe(input.maximumHeight)
       expect(input.scrollHeight, evidence).toBeGreaterThan(input.height)
@@ -289,7 +313,7 @@ describe('Composer compact geometry in Chromium', () => {
         builder.onResolve({ filter: /^\\.\\/proactive-action$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onResolve({ filter: /^@\\/stores\\/auth-store$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents:
-          'export const useAuthStore = { getState: () => ({ isAuthenticated: true, user: { userId: "composer-account" } }) }; export const Menu = () => null; export const Sheet = () => null; export const GoalDetailDrawer = () => null; export const MessageBubble = ({message}) => message.content; export const PromptLibrary = () => null; export const ProactiveAction = () => null; export const useRouter = () => ({}); export const useTranslations = () => key => key === \"nav.astra\" ? \"Astra\" : key === \"habits.form.askDate\" ? \"Ask Astra\" : key;', loader: 'js' }));
+          'export const useAuthStore = { getState: () => ({ isAuthenticated: true, user: { userId: "composer-account" } }) }; export const Menu = () => null; export const Sheet = () => null; export const GoalDetailDrawer = () => null; export const MessageBubble = ({message}) => message.content; export const PromptLibrary = () => null; export const ProactiveAction = () => null; export const useRouter = () => ({}); export const useTranslations = () => key => key === \"nav.astra\" ? \"Astra\" : key === \"habits.form.askDate\" ? JSON.parse(document.getElementById(\"configuration\").textContent).astraRequestLabel : key;', loader: 'js' }));
       } }];
       const result = await build(options);
       process.stdout.write(result.outputFiles[0].text);
@@ -444,7 +468,7 @@ describe('Composer compact geometry in Chromium', () => {
             const field = element.parentElement!
             const pill = field.getBoundingClientRect()
             const text = element.getBoundingClientRect()
-            const send = field.querySelector('button:last-child')!.getBoundingClientRect()
+            const send = field.querySelector('[data-composer-trailing-controls] > button')!.getBoundingClientRect()
             const style = getComputedStyle(element)
             return { top: text.top, bottom: text.bottom, height: text.height, fieldTop: pill.top, fieldBottom: pill.bottom,
               sendBottom: send.bottom, scrollHeight: element.scrollHeight, maximumHeight: parseFloat(style.maxHeight),
@@ -993,18 +1017,20 @@ describe('Composer compact geometry in Chromium', () => {
           const canvas = document.createElement('canvas').getContext('2d')!
           if (input) canvas.font = getComputedStyle(input).font
           return {
-            pill: { left: bounds.left, right: bounds.right, height: bounds.height },
+            pill: { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, height: bounds.height },
             documentWidth: document.documentElement.scrollWidth,
             input: input ? { width: input.clientWidth, height: input.clientHeight, scrollHeight: input.scrollHeight,
+              left: input.getBoundingClientRect().left, right: input.getBoundingClientRect().right,
+              top: input.getBoundingClientRect().top, bottom: input.getBoundingClientRect().bottom,
               contentWidth: input.clientWidth - parseFloat(getComputedStyle(input).paddingInlineStart) - parseFloat(getComputedStyle(input).paddingInlineEnd),
               maximumHeight: parseFloat(getComputedStyle(input).maxHeight), placeholderWidth: canvas.measureText(input.placeholder).width } : null,
             controls: [...pill.querySelectorAll('button')].map((button) => {
               const rectangle = button.getBoundingClientRect()
-              return { left: rectangle.left, right: rectangle.right, top: rectangle.top, bottom: rectangle.bottom, width: rectangle.width, height: rectangle.height }
+              return { name: button.getAttribute('aria-label')!, left: rectangle.left, right: rectangle.right, top: rectangle.top, bottom: rectangle.bottom, width: rectangle.width, height: rectangle.height }
             }),
           }
         })
-        assertPillGeometry(measured, { width, fontScale, withOpener, scenario })
+        assertPillGeometry(measured, { width, fontScale, withOpener, scenario, messages })
 
       }
     } finally { await page.close() }
