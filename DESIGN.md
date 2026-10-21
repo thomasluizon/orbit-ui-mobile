@@ -286,8 +286,12 @@ Each figure answers one question. There are at most four figures, including the 
 The root never opens with a large streak numeral or repeats the detail below its entries.
 
 Three icon-led rows follow, using the Perfil sub-menu pattern. Sequência opens
-`/progress/streak` and owns the current and longest streak, day strip, tier, legend,
-freeze bank, next freeze, protected days and repair. Metas opens `/progress/goals`
+`/progress/streak` with a stable summary: current streak, day strip and one Freezes row.
+Its trailing value uses the bank’s count / capacity format in the secondary foreground.
+The row opens a sheet holding longest streak, tier, legend, freeze bank, next freeze,
+protected days and repair. The count stays visible in repair states; existing repair
+labels do not fit the single-line summary at every compact width in both locales.
+Metas opens `/progress/goals`
 and owns creation, filters, reordering and the existing goal detail actions.
 Conquistas opens `/progress/achievements` and owns the level and XP row followed by the
 achievement categories. Its supporting line names level and XP so that home is findable.

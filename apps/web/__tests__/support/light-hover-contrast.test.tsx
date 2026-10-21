@@ -62,6 +62,27 @@ describe('rendered light hover contrast', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each((['light', 'dark'] as const).flatMap((mode) => ([undefined, 'column'] as const).map((placement) => ({ mode, placement }))))('keeps disabled ListRow chevrons visible in $mode with $placement placement', async ({ mode, placement }) => {
+    const { container, unmount } = render(<ListRow title="Preferences" placement={placement} disabled onClick={vi.fn()} />)
+    const page = await browser.newPage()
+    try {
+      const tokens = resolveWebThemeVariables('orange', mode)
+      const variables = Object.entries(tokens).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
+      const control = page.getByRole('button', { name: 'Preferences' })
+      expect(await control.isDisabled()).toBe(true)
+      const painted = await control.locator('[data-slot="list-row-chevron"] svg').evaluate((icon) => {
+        let opacity = 1
+        for (let node: Element | null = icon; node; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity)
+        return { color: getComputedStyle(icon).stroke, opacity, hidden: icon.getAttribute('aria-hidden') }
+      })
+      expect(painted.hidden).toBe('true')
+      for (const surface of ['--bg', '--bg-elev', '--bg-card', '--bg-well'] as const) {
+        expect(controlContrast(painted.color, 'rgba(0,0,0,0)', [tokens['--bg']!, tokens[surface]!], painted.opacity).graphic, surface).toBeGreaterThanOrEqual(3)
+      }
+    } finally { await page.close(); unmount() }
+  })
+
   it.each(['light', 'dark'].flatMap((mode) => ['hover', 'press'].map((phase) => ({ mode: mode as 'light' | 'dark', phase }))))('keeps the status dot $phase paint stack visible in $mode', async ({ mode, phase }) => {
     const { container, unmount } = render(<StatusDot state="empty" size={30} ariaLabel="Log habit" onToggle={() => {}} />)
     const page = await browser.newPage({ viewport: { width: 600, height: 900 }, reducedMotion: 'reduce', hasTouch: phase === 'press' })

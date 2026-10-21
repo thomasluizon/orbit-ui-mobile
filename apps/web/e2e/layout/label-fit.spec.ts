@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
@@ -136,6 +137,7 @@ async function checkTodayLabels(page: Page, words: typeof en | typeof ptBR) {
 
 for (const width of [320, 360, 384, 412]) {
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    const t = createTranslator({ locale, messages: words })
     test.describe(`${locale} label contract at ${width}px`, () => {
       const profile = profileSchema.parse({
         ...profileFixture, name: userFields.name, email: userFields.email,
@@ -167,15 +169,15 @@ for (const width of [320, 360, 384, 412]) {
 
       test('Progress legend remains whole', async ({ page }) => {
         await page.goto('/progress/streak')
+        await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }).click()
         await expect(page.locator('[data-component="freeze-bank"]')).toBeVisible()
         for (const caption of [
           words.progressScreen.streak.longest, words.streakDisplay.detail.tierTileLabel,
           words.progressScreen.streak.banked, words.progressScreen.streak.used, words.progressScreen.streak.next,
         ]) await markRequiredLabels(page.getByText(caption, { exact: true }))
         await checkSurfaceLabels(page)
-        await page.getByRole('button', { name: words.progressScreen.streak.legend, exact: true }).click()
-        const sheet = page.getByRole('dialog', { name: words.progressScreen.streak.legend, exact: true })
-        await markRequiredLabels(sheet.getByRole('heading', { name: words.progressScreen.streak.legend, exact: true }))
+        const sheet = page.getByRole('dialog', { name: words.progressScreen.streak.freezes, exact: true })
+        await expect(sheet.getByRole('group', { name: words.progressScreen.streak.legend, exact: true })).toBeVisible()
         await expectLegendFits(sheet, [
           words.progressScreen.streak.active, words.progressScreen.streak.frozen, words.progressScreen.streak.missed,
         ])

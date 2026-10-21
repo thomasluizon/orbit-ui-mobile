@@ -504,7 +504,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const relationshipControlsAvailable = detailQuery.data ? hasAuthoritativeHabitRelationshipState(detailQuery.data, cachedHabitsQuery.data?.habitsById.get(habitId), habitsQuery.data?.habitsById.get(habitId)) : false
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
-  const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
+  const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr, profile.weekStartDay) : false
   const summary = habit ? computeHabitFrequencyLabel(habit, t) : null
   const language = profile.language ?? i18n.language
   const strip = habit ? buildHabitStripModel(habit, logs, today, language, profile.weekStartDay) : null

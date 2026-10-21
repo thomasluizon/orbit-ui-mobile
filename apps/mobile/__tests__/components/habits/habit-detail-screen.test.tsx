@@ -25,7 +25,7 @@ import {
 } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
-import { updateHabitRequestSchema } from '@orbit/shared/types/habit'
+import { habitDetailSchema, updateHabitRequestSchema } from '@orbit/shared/types/habit'
 import { StatusRing } from '@/components/ui/status-ring'
 import { DateRow } from '@/components/ui/date-row'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
@@ -126,6 +126,7 @@ const mocks = vi.hoisted(() => ({
   hasProAccess: true,
   timeZone: 'UTC',
   profileReady: true,
+  weekStartDay: 1,
   focusEffect: null as null | (() => void | (() => void)),
   suggestion: null as RescheduleSuggestion | null,
   rescheduleOptions: [] as { enabled: boolean }[],
@@ -317,7 +318,7 @@ vi.mock('@/hooks/use-profile', () => ({
       hasProAccess: mocks.hasProAccess,
       language: mocks.language,
       uses24HourClock: mocks.uses24HourClock,
-      weekStartDay: 1,
+      weekStartDay: mocks.weekStartDay,
       timeZone: mocks.timeZone,
     } : undefined,
   }),
@@ -391,7 +392,7 @@ vi.mock('@/components/dates/day-cell', () => ({
     return React.createElement('DayCell', { testID: `history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`, outcome, accessibilityLabel: label })
   },
 }))
-vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => React.createElement('DayStrip', { testID: 'detail-strip', size, dayCount: days.length }) }))
+vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => React.createElement('DayStrip', { testID: 'detail-strip', size, dayCount: days.length, days }) }))
 vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children, label, loadingLabel }: { children: React.ReactNode; label: string; loadingLabel?: string }) => React.createElement('MonthGrid', { label, loadingLabel }, children),
 }))
@@ -511,6 +512,7 @@ describe('HabitDetailScreen', () => {
     mocks.hasProAccess = true
     mocks.timeZone = 'UTC'
     mocks.profileReady = true
+    mocks.weekStartDay = 1
     mocks.scopedCompleteDay = false
     mocks.suggestion = null
     mocks.rescheduleOptions = []
@@ -1391,6 +1393,75 @@ describe('HabitDetailScreen', () => {
       { path: '/?date=2026-08-28', selectedDate: '2026-08-28' },
     ])
     expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { unit: 'Month', origin: '2026-01-31', advanced: '2026-02-28', originalDay: 31, rejectedDay: 28 },
+    { unit: 'Year', origin: '2024-02-29', advanced: '2025-02-28', originalDay: 29, rejectedDay: 28 },
+  ])('keeps $unit strip and month history anchored after due date advancement', (example) => {
+    vi.setSystemTime(new Date(`${example.origin}T12:00:00Z`))
+    mocks.logs = []
+    mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
+      createdAtUtc: `${example.origin.slice(0, 7)}-01T12:00:00Z`,
+      frequencyUnit: example.unit, frequencyQuantity: 1, dueDate: example.origin,
+      scheduledStartDate: example.origin })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date={example.origin} />) })
+    expect(tree!.root.findByProps({ testID: `history-day-${example.originalDay}-inside` }).props.outcome).toBe('none')
+    expect(tree!.root.findByProps({ testID: `history-day-${example.rejectedDay}-inside` }).props.outcome).toBe('not-scheduled')
+    expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.days.at(-1)).toBe('missed')
+    mocks.detail = { ...mocks.detail, dueDate: example.advanced }
+    TestRenderer.act(() => { tree!.update(<HabitDetailScreen habitId="habit-1" date={example.origin} />) })
+    expect(tree!.root.findByProps({ testID: `history-day-${example.originalDay}-inside` }).props.outcome).toBe('none')
+    expect(tree!.root.findByProps({ testID: `history-day-${example.rejectedDay}-inside` }).props.outcome).toBe('not-scheduled')
+    expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.days.at(-1)).toBe('missed')
+  })
+
+  it.each([0, 1] as const)('maps interval weeks into history and strip with week start %i', (weekStartDay) => {
+    mocks.weekStartDay = weekStartDay
+    mocks.logs = []
+    for (const example of [
+      { unit: 'Month', date: '2026-02-28', dueDate: '2026-06-30', scheduled: true },
+      { unit: 'Month', date: '2026-03-31', dueDate: '2026-06-30', scheduled: false },
+      { unit: 'Month', date: '2026-05-31', dueDate: '2026-06-30', scheduled: weekStartDay === 0 },
+      { unit: 'Week', date: '2026-02-14', dueDate: '2026-03-14', scheduled: true },
+      { unit: 'Week', date: '2026-02-21', dueDate: '2026-03-14', scheduled: false },
+    ]) {
+      vi.setSystemTime(new Date(`${example.date}T12:00:00Z`))
+      mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
+        createdAtUtc: '2026-01-01T12:00:00Z', frequencyUnit: example.unit, frequencyQuantity: 1,
+        intervalWeeks: 2, scheduledStartDate: '2026-01-31', dueDate: example.dueDate })
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date={example.date} />) })
+      const day = Number(example.date.slice(-2))
+      expect(tree.root.findByProps({ testID: `history-day-${day}-inside` }).props.outcome)
+        .toBe(example.scheduled ? 'none' : 'not-scheduled')
+      expect(tree.root.findByProps({ testID: 'detail-strip' }).props.days.at(-1))
+        .toBe(example.scheduled ? 'missed' : 'not-scheduled')
+      TestRenderer.act(() => tree.unmount())
+    }
+  })
+
+  it.each([0, 1] as const)('agrees on Sunday bad-habit completion with week start %i', (weekStartDay) => {
+    vi.setSystemTime(new Date('2026-03-01T12:00:00Z'))
+    mocks.weekStartDay = weekStartDay
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedHabits = new Map()
+    mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
+      createdAtUtc: '2026-01-01T12:00:00Z', isBadHabit: true,
+      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2,
+      scheduledStartDate: '2026-01-31', dueDate: '2026-03-09' })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-03-01" />) })
+    const scheduled = weekStartDay === 1
+
+    expect(tree.root.findByProps({ testID: 'history-day-1-inside' }).props.outcome)
+      .toBe(scheduled ? 'full' : 'not-scheduled')
+    expect(tree.root.findByProps({ testID: 'detail-strip' }).props.days.at(-1))
+      .toBe(scheduled ? 'done' : 'not-scheduled')
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    expect(header.findByType(StatusRing).props.status).toBe(scheduled ? 'done' : 'empty')
   })
 
   it('reconciles an explicit-date log and unlog across the mounted detail', async () => {
