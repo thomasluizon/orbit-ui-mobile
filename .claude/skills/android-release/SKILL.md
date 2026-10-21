@@ -91,18 +91,59 @@ in memory, respecting native precedence. A mismatch stops before authentication;
 decoded payload are never printed. Malformed or unrecognized credential syntax stops locally and
 does not establish that the server rejected the credential. No credential is passed to subprocesses.
 As in the locked CLI, every trailing slash is removed from a nonempty embedded URL for comparison;
-null or empty URL uses the configured host. An omitted URL remains unrecognized. Request destinations
-stay fixed, and different hosts, schemes, paths, queries, fragments or userinfo are refused.
+null or empty URL uses the configured host. An omitted URL remains unrecognized. The native request
+destination stays fixed. Only the resource discriminator below can derive
+a decimal-ID path and select an exact official regional comparison; arbitrary hosts, schemes,
+paths, queries, fragments, ports or userinfo are refused.
 
-The diagnostic makes at most two GETs: the native uploader's organization `chunk-upload/` lookup
-and supplementary `/api/0/` auth-info. Each request has a ten-second deadline and 64 KiB body cap;
-the overall deadline is 45 seconds and output is capped at 8 KiB. Redirects are refused. It has
-no inventory, retry, arbitrary target/method input, cache or artifact path. Lookup fields and raw
-errors stay unused. Supplementary auth/scopes are classified in memory; private bodies are never
-returned, printed, saved or passed to a subprocess. The CLI is used only for its version: its
-authenticated `info` transport has no equivalent body cap. The bounded GETs reproduce its read paths and source-verified target
-selection. CLI `info --config-status-json` can exit zero with `auth.successful:false`; neither its
-exit code nor `config.org` proves authentication or the effective token organization.
+The diagnostic always attempts the native uploader's organization `chunk-upload/` lookup and
+supplementary `/api/0/` auth-info, unless a transport, redirect or size boundary stops the run.
+It then selects bounded resource comparisons from the existing credential's observed scopes:
+
+- An existing org-list GET alternative (`org:read`, `org:write`, `org:admin`) permits one global
+  `/api/0/organizations/` read. Only exactly one record matching the complete pinned CONTROL
+  serializer, including all nested keys/types, can supply a decimal organization ID. One global
+  chunk-options GET uses that ID. At most one regional ID comparison follows if `links.regionUrl`
+  matches exactly `https://us.sentry.io` or `https://de.sentry.io` after removing trailing slashes.
+  Current identity/name/slug and all URL values stay private; only fixed slug-comparison and
+  region labels plus complete type-only receipts leave memory. Extra/missing keys, wrong types,
+  multiple/empty rows or a nondecimal ID leave identity reads unavailable. There is no pagination.
+- Without an observed org-list alternative, the helper reads only the fixed known-slug CONTROL
+  `/api/0/auth/organizations/thomasluizon/config/` route, using status and bounded object shape.
+  Every config value stays unused, including user-session authentication booleans. A supported
+  token issuance `region_url` hint may select one regional fixed-slug options comparison from
+  the same exact origins. This optional hint requires the complete source-defined issuance
+  shape; legacy, absent, malformed, extra or unknown metadata leaves it unavailable without
+  invalidating the credential. It is issuance metadata, not current-region evidence. A negative
+  hint-based result cannot prove disappearance. No guessed region or fallback inventory follows.
+
+Additional reads require reported token auth and the complete supported index envelope. A native
+upload scope alone never authorizes the org list. No scope value or unknown key is printed, and
+no new grant is requested. The [org-list permission](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/bases/organization.py#L80-L83),
+[CONTROL list filter/serializer selection](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/core/endpoints/organization_index.py#L276-L402),
+[complete serializer](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/serializers/models/organization.py#L314-L402),
+[token issuance](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/utils/security/orgauthtoken_token.py#L17-L34)
+and [CONTROL config lookup](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/endpoints/auth_organization_config.py#L32-L59)
+are pinned public producers, not a claim about the deployed SaaS revision or an observed private schema.
+
+The cap is five GETs to collect both independent resource boundaries and one regional comparison
+in one pass. Each request retains its ten-second deadline and 64 KiB body cap; the overall deadline
+remains 45 seconds and output is capped at 8 KiB. Slow branches can remain uncollected. Redirects
+are refused; there is no retry, arbitrary target/method input, cache or artifact path. The native
+User-Agent is `sentry-cli/3.6.0`. The helper retains only presence of `X-Sentry-Proxy-URL`, never its
+value; absence is inconclusive. Error bodies permit only the exact `{detail:string}` envelope:
+source-compatible `The requested resource does not exist` on 404 and `Invalid org token` on 401/403
+become fixed classes, without printing text or selecting a cause. A cell rejection cannot erase
+separate global auth evidence. These follow the pinned [resource exception](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/exceptions.py#L17-L19),
+[org-token authenticator](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/authentication.py#L754-L778)
+and [DRF scalar wrapper](https://github.com/encode/django-rest-framework/blob/3.17.2/rest_framework/views.py#L87-L100).
+
+Private bodies never reach output, storage or children. The CLI is used only for its version:
+its authenticated `info` transport has no equivalent body cap. The bounded GETs reproduce its read
+paths and source-verified target selection. CLI `info --config-status-json` can exit zero with
+`auth.successful:false`; neither its exit code nor `config.org` proves authentication or effective
+organization. Native lookup failure remains separately visible and independently unhealthy even
+when every auxiliary read succeeds.
 
 Record source SHA, CLI, expected target, target-comparison outcome and each safe HTTP/body outcome.
 The API index returns 200 even for anonymous requests. Its supported `auth.scopes` string array
@@ -121,8 +162,9 @@ follow the pinned [index producer](https://github.com/getsentry/sentry/blob/d4ac
 and [native GET permission](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/bases/organization.py#L182-L187);
 the deployed service revision and future contracts remain unverified.
 
-A healthy diagnostic requires both healthy bounded reads, reported token auth, an observed listed
-scope and a recognized complete envelope. Unavailable evidence, no reported auth or no listed scope
+A healthy diagnostic requires the native and selected auxiliary bounded reads to succeed,
+reported token auth, an observed native GET scope and a recognized complete index envelope.
+Unavailable evidence, no reported auth or no listed scope
 keeps it incomplete. An auth-info 403 can mean unavailable read scope, while a lookup 404 cannot
 distinguish absent organization from denied access. Do not add grants to make an auxiliary read pass. Malformed JSON,
 oversize, redirect, timeout, network/TLS and HTTP failures remain incomplete evidence. Even healthy

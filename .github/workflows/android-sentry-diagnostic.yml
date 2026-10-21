@@ -42,7 +42,7 @@ jobs:
           node-version: 22
       - name: Install locked native CLI
         run: npm ci
-      - name: Probe native upload lookup
+      - name: Probe native upload and resource routing
         shell: bash
         env:
           EXPECTED_SOURCE_SHA: ${{ github.sha }}

@@ -40,7 +40,9 @@ Follow `.claude/skills/android-release/SKILL.md` to derive the next version and 
 For a native Sentry upload blocker, follow that procedure's **Sentry organization lookup recovery**:
 use the trusted-main same-secret diagnostic. An API index 200 alone does not prove token auth; retain
 the bounded auth/scopes classification and exact type-only receipt when available. Reported auth
-and a listed scope do not resolve a native lookup 404 or prove target access. Retain those evidence
+and a listed scope do not resolve a native lookup 404 or prove target access. Use that procedure's
+bounded scope-selected identity/control and regional comparisons without adding grants or guessing
+destinations. Preserve the native failure independently of auxiliary success. Retain those evidence
 limits, repair only a demonstrated cause and recheck Play plus concurrent releases before any
 never-uploaded-code retry. Use confirmed
 GitHub/Play CLI or API interfaces first, with Console fallback only for history or availability those
