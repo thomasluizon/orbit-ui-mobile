@@ -97,18 +97,38 @@ stay fixed, and different hosts, schemes, paths, queries, fragments or userinfo 
 The diagnostic makes at most two GETs: the native uploader's organization `chunk-upload/` lookup
 and supplementary `/api/0/` auth-info. Each request has a ten-second deadline and 64 KiB body cap;
 the overall deadline is 45 seconds and output is capped at 8 KiB. Redirects are refused. It has
-no inventory, retry, arbitrary target/method input, cache or artifact path. It discards all response
-fields and raw errors. The CLI is used only for its version: its authenticated `info` transport has
-no equivalent body cap. The bounded GETs reproduce its read paths and source-verified target
+no inventory, retry, arbitrary target/method input, cache or artifact path. Lookup fields and raw
+errors stay unused. Supplementary auth/scopes are classified in memory; private bodies are never
+returned, printed, saved or passed to a subprocess. The CLI is used only for its version: its
+authenticated `info` transport has no equivalent body cap. The bounded GETs reproduce its read paths and source-verified target
 selection. CLI `info --config-status-json` can exit zero with `auth.successful:false`; neither its
 exit code nor `config.org` proves authentication or the effective token organization.
 
 Record source SHA, CLI, expected target, target-comparison outcome and each safe HTTP/body outcome.
-An auth-info 403 can mean unavailable read scope, while a lookup 404 cannot distinguish absent
-organization from denied access. Do not add grants to make an auxiliary read pass. Malformed JSON,
+The API index returns 200 even for anonymous requests. Its supported `auth.scopes` string array
+reports token auth; `auth:null` means only that this response did not report token auth, without
+establishing revocation, invalidity or the reason. Missing or unsupported auth/scopes shapes leave
+auth evidence unavailable. Empty scopes and unrelated/future strings still report auth; only a
+fixed observation says whether any current native GET alternative appeared: `project:read`,
+`project:write`, `project:admin`, `project:releases`, `org:ci`. Values are never printed, and scope
+presence does not prove target access or justify broader grants.
+
+Complete type-only receipts require exactly `version`, `auth`, `user`, a string version, null user,
+and either null auth or exactly `scopes` with a string array. Extra/missing keys, wrong types and
+user objects yield `shape_unavailable`, without printing unknown keys or traversing user fields.
+Auth evidence remains separate from complete-shape evidence. These shapes and scope alternatives
+follow the pinned [index producer](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/endpoints/index.py#L17-L30)
+and [native GET permission](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/bases/organization.py#L182-L187);
+the deployed service revision and future contracts remain unverified.
+
+A healthy diagnostic requires both healthy bounded reads, reported token auth, an observed listed
+scope and a recognized complete envelope. Unavailable evidence, no reported auth or no listed scope
+keeps it incomplete. An auth-info 403 can mean unavailable read scope, while a lookup 404 cannot
+distinguish absent organization from denied access. Do not add grants to make an auxiliary read pass. Malformed JSON,
 oversize, redirect, timeout, network/TLS and HTTP failures remain incomplete evidence. Even healthy
-reads do not prove project access, successful upload or the original cause. If the lookup is already
-healthy, retain the original cause as unknown and gather discriminating evidence before a repair.
+reads and reported auth/scopes do not prove project access, successful upload or the original cause.
+A native lookup 404 stays incomplete even with reported auth and a listed scope. If the lookup is
+already healthy, retain the original cause as unknown and gather discriminating evidence before a repair.
 
 Apply only the demonstrated configuration/access repair through its existing authorized owner,
 then retain before/after read evidence. Source changes after a diagnostic merge require a fresh

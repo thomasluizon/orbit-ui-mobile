@@ -68,7 +68,8 @@ name or git status. Read `CONVENTIONS.md` before adding one.
 
 Android release diagnosis: `node tools/android-sentry-diagnostic.mjs` runs only in trusted-main
 Actions with the existing production token. It performs two bounded read-only requests and emits
-only safe status evidence. Use `android-sentry-diagnostic.yml`; see the Android release procedure
+only safe status, auth/scope classification and recognized complete type-only evidence. Use
+`android-sentry-diagnostic.yml`; see the Android release procedure
 for source selection, evidence limits and Open recovery.
 
 ## Product gates
