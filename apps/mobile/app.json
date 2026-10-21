@@ -167,7 +167,7 @@
         "@sentry/react-native/expo",
         {
           "url": "https://sentry.io/",
-          "organization": "thomasluizon",
+          "organization": "orbit-ai-habit-tracker",
           "project": "orbit-mobile"
         }
       ],
