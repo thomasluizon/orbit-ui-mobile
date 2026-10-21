@@ -81,11 +81,14 @@ their fills and inset focus indicators remain inside their unchanged column boxe
 permits adjoining cell boundaries, never a fill extending outside its cell or covering content.
 
 The mounted native `calendar-time-grid.test.tsx` exercises the actual header and InsetFocusPressable
-in both themes and locales, including overlapping hover, press and focus, cancellation, independent
-columns, remount, reduced motion and exact date activation. The paired web owner test retains the
+in both themes and locales. Its real installed Hover gesture uses the registry and event receiver
+boundary, with guards for attachment to the complete header, non-canceling JS routing and lifecycle
+cleanup. Cases retain overlapping hover, press and focus, cancellation, failure, independent columns,
+remount, reduced motion and exact date activation. The paired web owner test retains the
 contained-cell and inset-focus markers and verifies that pointer and focus transitions leave date
 selection unchanged until activation. Computed web hover and cell geometry remain owned by the
-existing Chromium and layout checks; native host styles do not prove Android rendering.
+existing Chromium and layout checks; the native receiver and host styles do not execute Android
+MotionEvents or prove device rendering.
 
 Android's style regression renders the actual habit header with its emoji selector and summary,
 and the shared row, pill, icon pill and chip with adjacent controls. Yoga measures the resolved

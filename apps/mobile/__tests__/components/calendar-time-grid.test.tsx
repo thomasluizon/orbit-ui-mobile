@@ -1,4 +1,7 @@
 import React from "react";
+import { createRequire, Module } from 'node:module';
+import type { HoverGesture, GestureStateChangeEvent } from 'react-native-gesture-handler';
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable';
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { StyleSheet } from "react-native";
 import * as ReactNative from "react-native";
@@ -27,6 +30,53 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => {
 vi.mock("@/lib/motion", () => ({ usePrefersReducedMotion: vi.fn(() => false) }));
 
 const TestRenderer = require("react-test-renderer");
+
+const loadGestureModule = createRequire(import.meta.url);
+const { HoverGesture: InstalledHoverGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/hoverGesture') as { HoverGesture: new () => HoverGesture };
+const { findHandler } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/handlersRegistry') as { findHandler: (tag: number) => HoverGesture | undefined };
+const { State } = loadGestureModule('react-native-gesture-handler/lib/commonjs/State') as typeof import('react-native-gesture-handler/lib/typescript/State');
+const { PointerType } = loadGestureModule('react-native-gesture-handler/lib/commonjs/PointerType') as typeof import('react-native-gesture-handler/lib/typescript/PointerType');
+
+function loadInstalledReceiver() {
+  const nativePath = loadGestureModule.resolve('react-native');
+  const previous = loadGestureModule.cache[nativePath];
+  const nativeModule = new Module(nativePath);
+  nativeModule.exports = ReactNative;
+  loadGestureModule.cache[nativePath] = nativeModule;
+  try {
+    return loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/eventReceiver') as {
+      onGestureHandlerEvent: (event: GestureStateChangeEvent) => void;
+    };
+  } finally {
+    if (previous) loadGestureModule.cache[nativePath] = previous;
+    else delete loadGestureModule.cache[nativePath];
+  }
+}
+const { onGestureHandlerEvent } = loadInstalledReceiver();
+
+function attachedHeaderHover(header: TestNode): HoverGesture {
+  let detector = header.parent;
+  while (detector && typeof detector.type !== 'string') detector = detector.parent;
+  expect(detector?.type, 'the native hover detector must wrap this header control').toBe('GestureDetector');
+  const child = React.Children.only(detector!.props.children) as React.ReactElement<{ testID?: string; collapsable?: boolean }>;
+  expect(child.type, 'hover must attach to the full header control').toBe(InsetFocusPressable);
+  expect(child.props.testID).toBe('time-grid-col-header');
+  expect(header.props.collapsable).toBe(false);
+  const gesture = detector!.props.gesture as HoverGesture;
+  expect(gesture).toBeInstanceOf(InstalledHoverGesture);
+  expect(gesture.handlerName).toBe('HoverGestureHandler');
+  expect(gesture.config).toMatchObject({ manualActivation: true, cancelsTouchesInView: false, runOnJS: true });
+  expect(findHandler(gesture.handlerTag)).toBe(gesture);
+  return gesture;
+}
+
+function deliverHover(gesture: HoverGesture, state: typeof State[keyof typeof State], oldState: typeof State[keyof typeof State]) {
+  TestRenderer.act(() => onGestureHandlerEvent({
+    handlerTag: gesture.handlerTag, numberOfPointers: 1, pointerType: PointerType.MOUSE,
+    x: 24, y: 16, absoluteX: 72, absoluteY: 32, state, oldState,
+  }));
+}
+
 
 type TestNode = {
   type: unknown;
@@ -834,10 +884,16 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
   const tree = renderGrid(columns, new Map(), onSelectDay, false, displayTime, 'UTC', palette, language, words.calendar.timeGrid.noSetTime);
   const headers = () => hostsByTestID(tree, 'time-grid-col-header');
   const header = () => headers()[0]!;
+  const hover = attachedHeaderHover(header());
+  const otherHover = attachedHeaderHover(headers()[1]!);
+  expect(otherHover).not.toBe(hover);
   const style = (pressed = false) => resolveStyle(header().props.style({ pressed }));
   const paint = (pressed = false) => style(pressed).backgroundColor ?? 'transparent';
-  const run = (event: 'onHoverIn' | 'onHoverOut' | 'onPressIn' | 'onPressOut') => {
-    TestRenderer.act(() => { header().props[event]?.(); });
+  const run = (event: 'hoverBegin' | 'hoverFinalize' | 'onPressIn' | 'onPressOut') => {
+    expect(attachedHeaderHover(header())).toBe(hover);
+    if (event === 'hoverBegin') deliverHover(hover, State.BEGAN, State.UNDETERMINED);
+    else if (event === 'hoverFinalize') deliverHover(hover, State.END, State.BEGAN);
+    else TestRenderer.act(() => { header().props[event]?.(); });
   };
   const focus = (index: number) => {
     __setTouchMode(false);
@@ -848,7 +904,7 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
     for (let parent = node.parent; parent; parent = parent.parent) if (parent === header()) return true;
     return false;
   });
-  return { tree, columns, onSelectDay, palette, headers, header, style, paint, run, focus, outlines };
+  return { tree, columns, onSelectDay, palette, headers, header, hover, otherHover, style, paint, run, focus, outlines };
 }
 
 function headerGeometry(style: Record<string, unknown>) {
@@ -862,16 +918,16 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     const initialFocus = __getFocusedNativeTag();
     expect(view.paint()).toBe('transparent');
     for (let cycle = 0; cycle < 3; cycle++) {
-      view.run('onHoverIn');
-      view.run('onHoverIn');
+      view.run('hoverBegin');
+      view.run('hoverBegin');
       expect(view.paint()).toBe(view.palette.bgHover);
       expect(view.style().transform).toBeUndefined();
       expect(view.outlines()).toHaveLength(0);
       expect(__getFocusedNativeTag()).toBe(initialFocus);
       expect(headerGeometry(view.style())).toEqual(initialGeometry);
       expect(resolveStyle(view.headers()[1]!.props.style).backgroundColor ?? 'transparent').toBe('transparent');
-      view.run('onHoverOut');
-      view.run('onHoverOut');
+      view.run('hoverFinalize');
+      view.run('hoverFinalize');
       expect(view.paint()).toBe('transparent');
     }
     expect(view.onSelectDay).not.toHaveBeenCalled();
@@ -879,7 +935,7 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
 
   it.each(['en', 'pt-BR'] as const)('retains hover after press-out and held press after hover-out in %s', (language) => {
     const view = headerInteractions(mode, language);
-    view.run('onHoverIn');
+    view.run('hoverBegin');
     view.run('onPressIn');
     expect(view.paint(true)).toBe(view.palette.bgHover);
     expect(view.style(true).transform).toEqual([{ scale: 0.96 }]);
@@ -887,7 +943,7 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     expect(view.paint()).toBe(view.palette.bgHover);
     expect(view.style().transform).toBeUndefined();
     view.run('onPressIn');
-    view.run('onHoverOut');
+    view.run('hoverFinalize');
     expect(view.paint(true)).toBe(view.palette.bgHover);
     view.run('onPressOut');
     expect(view.paint()).toBe('transparent');
@@ -899,8 +955,8 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     const initialGeometry = headerGeometry(view.style());
     view.focus(0);
     expect(view.paint()).toBe(view.palette.bgHover);
-    view.run('onHoverIn');
-    view.run('onHoverOut');
+    view.run('hoverBegin');
+    view.run('hoverFinalize');
     view.run('onPressIn');
     view.run('onPressOut');
     expect(view.paint()).toBe(view.palette.bgHover);
@@ -917,11 +973,11 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
   it.each(['en', 'pt-BR'] as const)('clears only focus on blur while hover or held press remains in %s', (language) => {
     const view = headerInteractions(mode, language);
     view.focus(0);
-    view.run('onHoverIn');
+    view.run('hoverBegin');
     view.focus(1);
     expect(view.paint()).toBe(view.palette.bgHover);
     expect(view.outlines()).toHaveLength(0);
-    view.run('onHoverOut');
+    view.run('hoverFinalize');
     expect(view.paint()).toBe('transparent');
     view.focus(0);
     view.run('onPressIn');
@@ -954,17 +1010,46 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     for (const width of [320, 1352]) {
       vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 640, scale: 1, fontScale: 1 });
       const view = headerInteractions(mode, language);
-      view.run('onHoverIn');
+      view.run('hoverBegin');
       view.focus(0);
       view.run('onPressIn');
       TestRenderer.act(() => { view.tree.update(<></>); });
+      expect(findHandler(view.hover.handlerTag)).toBeUndefined();
+      expect(findHandler(view.otherHover.handlerTag)).toBeUndefined();
       const remounted = headerInteractions(mode, language);
+      expect(remounted.hover.handlerTag).not.toBe(view.hover.handlerTag);
+      deliverHover(view.hover, State.BEGAN, State.UNDETERMINED);
       expect(remounted.paint()).toBe('transparent');
       expect(remounted.outlines()).toHaveLength(0);
-      remounted.run('onHoverIn');
+      remounted.run('hoverBegin');
       expect(remounted.paint()).toBe(remounted.palette.bgHover);
       expect(view.onSelectDay).not.toHaveBeenCalled();
       expect(remounted.onSelectDay).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each(['en', 'pt-BR'] as const)('finalizes cancelled and failed hover without selecting or leaking into another column in %s', (language) => {
+    for (const terminal of [State.END, State.CANCELLED, State.FAILED]) {
+      const view = headerInteractions(mode, language);
+      view.run('hoverBegin');
+      expect(view.paint()).toBe(view.palette.bgHover);
+      deliverHover(view.otherHover, State.BEGAN, State.UNDETERMINED);
+      deliverHover(view.hover, terminal, State.BEGAN);
+      expect(view.paint()).toBe('transparent');
+      expect(resolveStyle(view.headers()[1]!.props.style).backgroundColor).toBe(view.palette.bgHover);
+      deliverHover(view.otherHover, terminal, State.BEGAN);
+      expect(resolveStyle(view.headers()[1]!.props.style).backgroundColor ?? 'transparent').toBe('transparent');
+      view.focus(0);
+      view.run('onPressIn');
+      view.run('hoverBegin');
+      deliverHover(view.hover, terminal, State.BEGAN);
+      expect(view.paint(true)).toBe(view.palette.bgHover);
+      view.run('onPressOut');
+      expect(view.paint()).toBe(view.palette.bgHover);
+      expect(view.outlines()).toHaveLength(1);
+      view.focus(1);
+      expect(view.paint()).toBe('transparent');
+      expect(view.onSelectDay).not.toHaveBeenCalled();
     }
   });
 
@@ -975,12 +1060,12 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     expect(view.paint(true)).toBe(view.palette.bgHover);
     expect(view.style(true).transform).toBeUndefined();
     view.run('onPressOut');
-    view.run('onHoverIn');
+    view.run('hoverBegin');
     expect(view.paint()).toBe(view.palette.bgHover);
     view.run('onPressIn');
     expect(view.paint(true)).toBe(view.palette.bgHover);
     expect(view.style(true).transform).toBeUndefined();
-    view.run('onHoverOut');
+    view.run('hoverFinalize');
     expect(view.paint(true)).toBe(view.palette.bgHover);
     view.run('onPressOut');
     expect(view.paint()).toBe('transparent');
