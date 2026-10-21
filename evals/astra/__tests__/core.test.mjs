@@ -145,11 +145,13 @@ describe('tool evidence', () => {
       { name: 'create_habit', arguments: { frequency_unit: 'Day' } },
     ] })).pass).toBe(false)
   })
-  it('checks result payloads and status when expected', () => {
-    const expectations = { required: [{ name: 'query_habits', resultStatus: 'Succeeded', result: { payload: { count: 2 } } }] }
+  it('checks source-derived result text, null payload and status when expected', () => {
+    const expectations = { required: [{ name: 'query_habits', resultStatus: 'Succeeded', result: {
+      entityName: 'No habits found matching the given filters.', payload: null,
+    } }] }
     const matching = call('query_habits', {})
     expect(behavior(envelope([matching]), context(expectations)).pass).toBe(true)
-    matching.result.payload.count = 3
+    matching.result.entityName = 'A different result'
     expect(behavior(envelope([matching]), context(expectations)).pass).toBe(false)
   })
   it('matches one bulk call with an unordered ID set', () => {
