@@ -14,7 +14,7 @@ type WritableFields<T> = { -readonly [TKey in keyof T]: T[TKey] }
 type ReadOnlyVariant = Extract<ListRowProps, { readOnly: true }>
 type ActionVariant = Extract<ListRowProps, { readOnly?: false }>
 type ExpectedKeys =
-  | 'icon' | 'textMode' | 'valueTextMode' | 'personalExpanded' | 'title'
+  | 'icon' | 'textMode' | 'valueHidden' | 'valueTextMode' | 'personalExpanded' | 'title'
   | 'wrapTitle' | 'accessibilityLabel' | 'expanded' | 'controls' | 'description'
   | 'value' | 'wrapValue' | 'trailing' | 'danger' | 'chevron' | 'href'
   | 'onClick' | 'disabled' | 'placement' | 'toggle' | 'compact' | 'readOnly' | 'action'
@@ -55,6 +55,7 @@ export type ListRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<Pick<ReadOnlyVariant, 'readOnly' | 'action'>, { readOnly: true; action?: never }>>,
   Assert<IsExactWidth<Pick<ActionVariant, 'readOnly' | 'action'>, { readOnly?: false; action?: ListRowAction }>>,
   Assert<IsExactWidth<ListRowProps['textMode'], 'label' | 'personal' | undefined>>,
+  Assert<IsExactWidth<ListRowProps['valueHidden'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['valueTextMode'], 'personal' | undefined>>,
   Assert<IsExactWidth<ListRowProps['personalExpanded'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['placement'], 'column' | undefined>>,

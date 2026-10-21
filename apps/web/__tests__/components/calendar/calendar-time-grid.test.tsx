@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
-import { enUS } from 'date-fns/locale'
+import { enUS, ptBR } from 'date-fns/locale'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -44,6 +44,7 @@ function renderGrid(
   isLoading = false,
   formatTime = displayTime,
   timeZone: string | null = 'UTC',
+  dateFnsLocale = enUS,
 ) {
   return render(
     <CalendarTimeGrid
@@ -51,7 +52,7 @@ function renderGrid(
       dayMap={dayMap}
       onSelectDay={onSelectDay}
       displayTime={formatTime}
-      dateFnsLocale={enUS}
+      dateFnsLocale={dateFnsLocale}
       allDayLabel="No set time"
       nowLabel="Now"
       isLoading={isLoading}
@@ -228,13 +229,32 @@ describe('CalendarTimeGrid', () => {
     expect(screen.getAllByTestId('time-grid-col-header')).toHaveLength(4)
   })
 
-  it('opens the clicked day from a column header', () => {
+  it.each([enUS, ptBR])('keeps contained date targets inert until activation in $code', (dateFnsLocale) => {
     const onSelectDay = vi.fn()
-    const col = column(2025, 5, 16)
-    renderGrid([col], new Map(), onSelectDay)
-
-    fireEvent.click(screen.getByTestId('time-grid-col-header'))
-    expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
+    const columns = [{ ...column(2025, 5, 16), isToday: true }, column(2025, 5, 17, true)]
+    renderGrid(columns, new Map(), onSelectDay, false, displayTime, 'UTC', dateFnsLocale)
+    const headers = screen.getAllByTestId('time-grid-col-header')
+    for (const header of headers) {
+      expect(header).toHaveRole('button')
+      expect(header).toHaveAttribute('type', 'button')
+      expect(header).toHaveAttribute('data-interaction-fill-cell', '')
+      expect(header).toHaveAttribute('data-focus-inset', 'panel')
+      expect(header.style.minHeight).toBe('52px')
+      expect(header.style.padding).toBe('var(--orbit-space-8) var(--orbit-space-4)')
+      fireEvent.pointerEnter(header)
+      fireEvent.pointerDown(header)
+      fireEvent.pointerLeave(header)
+      fireEvent.pointerCancel(header)
+      act(() => header.focus())
+      expect(header).toHaveFocus()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    }
+    expect(onSelectDay).not.toHaveBeenCalled()
+    fireEvent.click(headers[1]!)
+    expect(onSelectDay).toHaveBeenCalledExactlyOnceWith(columns[1]!.dateStr)
+    onSelectDay.mockClear()
+    fireEvent.click(headers[0]!)
+    expect(onSelectDay).toHaveBeenCalledExactlyOnceWith(columns[0]!.dateStr)
   })
 
   it('discloses the full timed name without changing the selected day', () => {

@@ -1,4 +1,8 @@
+import { progressStreakNow, progressStreakStates } from '@orbit/shared/__tests__/progress-streak-fixtures'
+import { deriveStreakFreezeState } from '@orbit/shared/utils/gamification-selectors'
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createApiClientError } from '@orbit/shared'
 import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { __setScrollToImpl } from '../../test-mocks/react-native'
@@ -7,7 +11,7 @@ import * as ReactNative from 'react-native'
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/factories'
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
@@ -18,7 +22,9 @@ import StreakPage from '@/app/progress/streak'
 import GoalsPage from '@/app/progress/goals'
 import AchievementsPage from '@/app/progress/achievements'
 import { ListRow } from '@/components/ui/list-row'
+import { ChevronRight } from '@/components/ui/icons'
 import type { ProgressSubmenuId } from '@orbit/shared/utils/progress-navigation'
+import { FreezeBank } from '@/components/ui/freeze-bank'
 import { PillButton } from '@/components/ui/pill-button'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { i18n } from '@/lib/i18n'
@@ -67,6 +73,8 @@ const mocks = vi.hoisted(() => ({
   router: { dismissTo: vi.fn(), push: vi.fn() },
   retrospectiveHook: vi.fn(),
   gamificationEnabled: vi.fn(),
+  useRealRepair: false,
+  repairRequest: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
   reorder: { mutate: vi.fn(), isPending: false, isError: false },
   drag: vi.fn(),
@@ -199,24 +207,28 @@ vi.mock('@/hooks/use-goals', () => ({
   useReorderGoals: () => mocks.reorder,
   useUpdateGoalStatus: () => mocks.updateStatus,
 }))
-vi.mock('@/hooks/use-gamification', () => ({
-  useGamificationProfile: (enabled?: boolean) => {
-    mocks.gamificationEnabled(enabled)
-    return mocks.gamification
-  },
-  useRepairStreak: () => mocks.repair,
-  useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
-    if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
-    if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
-    if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
-    return {
-      ...mocks.freeze,
-      streakInfo: null,
-      isFrozenToday: false,
-      streakQuery: { ...mocks.freeze.streakQuery, isError: false },
-    }
-  },
-}))
+vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.repairRequest(...args) }))
+vi.mock('@/hooks/use-gamification', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-gamification')>()
+  return {
+    useGamificationProfile: (enabled?: boolean) => {
+      mocks.gamificationEnabled(enabled)
+      return mocks.gamification
+    },
+    useRepairStreak: (timeZone: string | null) => mocks.useRealRepair ? actual.useRepairStreak(timeZone) : mocks.repair,
+    useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
+      if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
+      if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
+      if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
+      return {
+        ...mocks.freeze,
+        streakInfo: null,
+        isFrozenToday: false,
+        streakQuery: { ...mocks.freeze.streakQuery, isError: false },
+      }
+    },
+  }
+})
 vi.mock('@/hooks/use-retrospective', () => ({
   useProgressRetrospective: () => {
     mocks.retrospectiveHook()
@@ -240,12 +252,16 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     : null,
 }))
 
-async function renderProgress(createNodeMock?: (element: { props: Record<string, unknown> }) => unknown, screen?: ProgressSubmenuId): Promise<TestTree> {
+async function renderProgress(createNodeMock?: (element: { props: Record<string, unknown> }) => unknown, screen?: ProgressSubmenuId, openDetails = true): Promise<TestTree> {
   let tree: TestTree | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(screen === 'streak' ? <StreakPage /> : screen === 'goals' ? <GoalsPage /> : screen === 'achievements' ? <AchievementsPage /> : <ProgressScreen />, { createNodeMock })
     await Promise.resolve()
   })
+  if (screen === 'streak' && openDetails) {
+    const entry = tree!.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]
+    if (entry && !entry.props.disabled) await TestRenderer.act(() => (entry.props.onPress as () => void)())
+  }
   return tree!
 }
 
@@ -719,6 +735,7 @@ describe('mobile ProgressContent', () => {
   beforeEach(() => {
     useChatStore.setState({ draft: '', contextualSuggestion: null })
     useUIStore.getState().setAstraConversationOpen(false)
+    mocks.useRealRepair = false
     theme.mode = 'dark'
     mocks.dragActive = false
     mocks.account.profile.timeZone = 'America/Sao_Paulo'
@@ -991,7 +1008,7 @@ describe('mobile ProgressContent', () => {
     expect(mocks.router.push).not.toHaveBeenCalled()
   })
 
-  it('discloses the streak legend and keeps the top habit outside the figures', async () => {
+  it('opens and dismisses freeze details while keeping the top habit outside the figures', async () => {
     const tree = await renderProgress()
     const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
     expect(figures).toHaveLength(3)
@@ -1000,25 +1017,16 @@ describe('mobile ProgressContent', () => {
     expect(habit.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'Read')).toHaveLength(1)
     expect(habit.props.accessibilityRole).toBe('button')
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'progressScreen.streak.active')).toHaveLength(0)
-    const streakTree = await renderProgress(undefined, 'streak')
-    const entry = streakTree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.legend')[0]!
-    const pill = streakTree.root.findAll((node) => node.type === PillButton && node.props.label === 'progressScreen.streak.legend')[0]!
-    expect(pill.props).toMatchObject({ variant: 'ghost', size: 'sm', iconOnly: true })
-    const tokens = createTokensV2('purple', theme.mode)
-    const entryStyle = (pressed = false) => StyleSheet.flatten((entry.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed }))
-    expect(entryStyle()).toMatchObject({ width: 48, height: 48, borderWidth: 1.5, borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' })
-    expect(entryStyle().borderRadius).toBeGreaterThanOrEqual(24)
-    expect(entryStyle(true).backgroundColor).toBe(tokens.bgHover)
-    expect(entry.props.onHoverIn).toBeTypeOf('function')
-    await TestRenderer.act(() => { (entry.props.onHoverIn as () => void)() })
-    expect(entryStyle().backgroundColor).toBe(tokens.bgHover)
-    expect(entryStyle().transform).toBeUndefined()
-    await TestRenderer.act(() => { (entry.props.onHoverOut as () => void)() })
-    expect(entryStyle().backgroundColor).toBe('transparent')
+    const streakTree = await renderProgress(undefined, 'streak', false)
+    const entry = streakTree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
     expect(entry.props.accessibilityState).toMatchObject({ expanded: false })
     await TestRenderer.act(() => { (entry.props.onPress as () => void)() })
     expect(entry.props.accessibilityState).toMatchObject({ expanded: true })
-    expect(streakTree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'progressScreen.streak.active')).toHaveLength(1)
+    const sheet = streakTree.root.findAll((node) => node.type === 'Sheet')[0]!
+    const close = sheet.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!
+    await TestRenderer.act(() => { (close.props.onPress as () => void)() })
+    expect(streakTree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+    expect(entry.props.accessibilityState).toMatchObject({ expanded: false })
   })
 
   it.each(['overview', 'streak', 'achievements'] as const)('keeps the %s Pro boundary in its own screen', async (destination) => {
@@ -1247,6 +1255,60 @@ describe('mobile ProgressContent', () => {
     expect(text).toContain('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')
   })
 
+  it.each(['pending', 'error'] as const)('retains a real repair mutation across details dismissal while %s', async (state) => {
+    vi.setSystemTime(new Date(progressStreakNow))
+    mocks.useRealRepair = true
+    const streak = structuredClone(progressStreakStates.find(({ name }) => name === 'repair available')!.streak)
+    Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
+    let rejectRequest!: (error: Error) => void
+    mocks.repairRequest.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRequest = reject }))
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    let tree!: TestTree & { unmount: () => void }
+    await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={client}><StreakPage /></QueryClientProvider>) })
+    const openDetails = async () => {
+      const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
+      await TestRenderer.act(() => (entry.props.onPress as () => void)())
+    }
+    const repairAction = () => findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')
+    const dismissDetails = async () => {
+      const dismiss = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!
+      await TestRenderer.act(() => (dismiss.props.onPress as () => void)())
+      expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+    }
+    const flushMutation = async () => {
+      await TestRenderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)) })
+    }
+    try {
+      await openDetails()
+      await TestRenderer.act(() => (repairAction().props.onPress as () => void)())
+      const confirm = tree.root.findAll((node) => node.type === 'ConfirmSheet')[0]!
+      await TestRenderer.act(() => (confirm.props.onConfirm as () => void)())
+      await flushMutation()
+      expect(mocks.repairRequest).toHaveBeenCalledOnce()
+      expect(mocks.repairRequest.mock.calls[0]![1]).toEqual({ method: 'POST', body: JSON.stringify({ dates: ['2026-09-09'] }) })
+      const repairHost = repairAction
+      expect(repairHost().props.disabled).toBe(true)
+      expect(repairHost().props.accessibilityState).toMatchObject({ busy: true })
+      await dismissDetails()
+      if (state === 'pending') {
+        await openDetails()
+        expect(repairHost().props.disabled).toBe(true)
+        expect(repairHost().props.accessibilityState).toMatchObject({ busy: true })
+        expect(mocks.repairRequest).toHaveBeenCalledOnce()
+        await dismissDetails()
+      }
+      await TestRenderer.act(() => rejectRequest(createApiClientError(500, null, 'Repair failed')))
+      await flushMutation()
+      await openDetails()
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert').map((node) => node.props.children)).toContain('progressScreen.streak.repairError')
+      expect(repairHost().props.disabled).toBe(false)
+      expect(mocks.repairRequest).toHaveBeenCalledOnce()
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+      client.clear()
+    }
+  })
+
   it('names automatic coverage, then keeps a confirmed manual repair source-neutral', async () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
@@ -1406,6 +1468,9 @@ describe('mobile ProgressContent', () => {
 
     expect(text).toContain('progressScreen.streak.bankFull:{"count":3}')
     expect(text).not.toContain('progressScreen.streak.next')
+    const sheet = tree.root.findAll((node) => node.type === 'Sheet')[0]!
+    expect(sheet.findAll((node) => node.props.testID === 'capacity-notice-action')).toHaveLength(0)
+    expect(sheet.findAll((node) => node.type === ListRow && node.props.href === '/upgrade')).toHaveLength(0)
   })
 
   it.each([
@@ -1491,6 +1556,110 @@ describe('mobile ProgressContent', () => {
     }
   })
 
+  it('keeps the freeze legend inside one sheet', async () => {
+    const tree = await renderProgress(undefined, 'streak')
+    const sheets = tree.root.findAll((node) => node.type === 'Sheet')
+    expect(sheets).toHaveLength(1)
+    for (const state of ['active', 'frozen', 'missed']) {
+      expect(sheets[0]!.findAll((node) => node.type === 'Text' && node.props.children === `progressScreen.streak.${state}`)).toHaveLength(1)
+    }
+    expect(tree.root.findAll((node) => node.type === PillButton && node.props.label === 'progressScreen.streak.legend')).toHaveLength(0)
+  })
+
+  it.each(progressStreakStates.flatMap((state) => [412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => (['en', 'pt-BR'] as const).map((locale) => ({ ...state, width, fontScale, locale }))))))('keeps loading and loaded streak blocks identical for $name at $width with scale $fontScale in $locale', async ({ streak, width, fontScale, locale }) => {
+    vi.setSystemTime(new Date(progressStreakNow))
+    const original = { ...mocks.freeze }
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
+    mocks.usePortugueseCatalog = true
+    await i18n.changeLanguage(locale)
+    try {
+      Object.assign(mocks.freeze, deriveStreakFreezeState(null, mocks.account.profile), { streakInfo: null })
+      const tree = await renderProgress(undefined, 'streak', false)
+      const section = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-streak-section')[0]!
+      const blocks = () => section.children.flatMap(function hosts(node): unknown[] {
+        if (typeof node !== 'object') return []
+        return typeof node.type === 'string' ? [{ type: node.type, style: StyleSheet.flatten(node.props.style ?? {}) }] : node.children.flatMap(hosts)
+      })
+      const before = blocks()
+      const rowHost = () => {
+        const hosts = tree.toJSON()!
+        function find(host: HabitRowHost): HabitRowHost | undefined {
+          if (host.type === 'Pressable' && String(host.props.accessibilityLabel).startsWith((locale === 'en' ? en : ptBR).progressScreen.streak.freezes)) return host
+          for (const child of host.children ?? []) {
+            if (typeof child !== 'string') { const found = find(child); if (found) return found }
+          }
+        }
+        return (Array.isArray(hosts) ? hosts : [hosts]).map(find).find(Boolean)!
+      }
+      expect(rowHost().props.accessibilityLabel).toBe((locale === 'en' ? en : ptBR).progressScreen.streak.freezes)
+      const loadingEntry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === rowHost().props.accessibilityLabel)[0]!
+      expect(loadingEntry.props.disabled).toBe(true)
+      const beforeHeight = measureProfileRow(rowHost(), Math.min(width, 740) - 32, fontScale).height
+      expect(section.findAll((node) => node.props.testID === 'freeze-bank')).toHaveLength(0)
+      Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
+      await TestRenderer.act(() => tree.update(<StreakPage />))
+      expect(blocks()).toEqual(before)
+      const label = (locale === 'en' ? en : ptBR).progressScreen.streak.freezes
+      const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith(label))[0]!
+      const expected = `${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`
+      expect(entry.props.accessibilityLabel).toBe(i18n.t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }))
+      expect(entry.findAll((node) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1)
+      const measured = measureProfileRow(rowHost(), Math.min(width, 740) - 32, fontScale)
+      expect(measured.height).toBe(beforeHeight)
+      const value = measured.texts.find((text) => text.label === expected)!
+      expect(value.lines).toBe(1)
+      expect(value.clipped).toBe(false)
+      expect(value.right).toBeLessThanOrEqual(Math.min(width, 740) - 32)
+      expect(entry.findAll((node) => node.type === ChevronRight)).toHaveLength(1)
+      await TestRenderer.act(() => (entry.props.onPress as () => void)())
+      const sheet = tree.root.findAll((node) => node.type === 'Sheet')[0]!
+      const bank = sheet.findAll((node) => node.type === FreezeBank)[0]!
+      expect(bank.props.inSheet).toBe(true)
+      expect(bank.props.banked).toBe(streak.streakFreezesAccumulated)
+      expect(bank.props.protectedDays).toHaveLength(streak.recentFreezeDates.length)
+      await TestRenderer.act(() => tree.update(<></>))
+    } finally {
+      Object.assign(mocks.freeze, original)
+      dimensions.mockRestore()
+      mocks.usePortugueseCatalog = false
+      await i18n.changeLanguage('en')
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the disabled freeze chevron above the non-text contrast floor in %s', async (mode) => {
+    theme.mode = mode
+    const previous = mocks.freeze.streakInfo
+    mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo
+    try {
+      const tree = await renderProgress(undefined, 'streak', false)
+      const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
+      expect(entry.props.disabled).toBe(true)
+      const icons = entry.findAll((node) => node.type === ChevronRight)
+      expect(icons).toHaveLength(1)
+      let opacity = 1
+      for (let node: TestNode | null = icons[0]!; node; node = node.parent) {
+        if (typeof node.type === 'string') opacity *= Number(StyleSheet.flatten(node.props.style as ViewStyle).opacity ?? 1)
+      }
+      const tokens = createTokensV2('purple', mode)
+      expect(controlContrast(icons[0]!.props.color as string, 'rgba(0,0,0,0)', [tokens.bg], opacity).graphic).toBeGreaterThanOrEqual(3)
+    } finally {
+      mocks.freeze.streakInfo = previous
+    }
+  })
+
+  it('keeps the loaded freeze count legible during light focus and press', async () => {
+    theme.mode = 'light'
+    const tree = await renderProgress(undefined, 'streak', false)
+    const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
+    const tokens = createTokensV2('purple', 'light')
+    for (const interaction of ['onFocus', 'onPressIn'] as const) {
+      await TestRenderer.act(() => (entry.props[interaction] as () => void)())
+      const value = entry.findAll((node) => node.type === 'Text' && node.props.children === '2 / 3')[0]!
+      const foreground = StyleSheet.flatten(value.props.style as TextStyle).color as string
+      expect(contrastOnSurface(foreground, [tokens.bg, tokens.bgHover])).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
   it('masks pending streak history until the returned day labels are available', async () => {
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
     const streakInfo = { ...mocks.freeze.streakInfo, lastActiveDate: '2026-09-08', recentFreezeDates: ['2026-09-07'] }
@@ -1549,13 +1718,13 @@ describe('mobile ProgressContent', () => {
     expect(section).toBeDefined()
     expect(section.findAll((node) => node.type === 'Text' && node.props.children === '4')).toHaveLength(1)
     expect(section.findAll((node) => node.props.scope === 'account')[0]?.props.days).toHaveLength(14)
-    const bank = section.findAll((node) => node.type === 'View' && node.props.testID === 'freeze-bank')[0]!
-    expect(bank.props.accessibilityState).toEqual({ busy: true })
+    expect(section.findAll((node) => node.type === 'View' && node.props.testID === 'freeze-bank')).toHaveLength(0)
+    expect(section.props.accessibilityState).toEqual({ busy: true })
     const blockCount = blocks().length
     mocks.freeze.streakInfo = streakInfo
     await TestRenderer.act(() => tree.update(<StreakPage />))
     expect(blocks()).toHaveLength(blockCount)
-    expect(bank.props.accessibilityState).toEqual({ busy: false })
+    expect(section.props.accessibilityState).toEqual({ busy: false })
     mocks.freeze.streakInfo = null as unknown as typeof streakInfo
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.streak.lockedBody')).toHaveLength(0)
 
@@ -1718,6 +1887,10 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
     let tree: { root: TestNode; update: (element: React.ReactNode) => void; unmount: () => void } | undefined
     TestRenderer.act(() => { tree = TestRenderer.create(<StreakPage />) })
+    TestRenderer.act(() => {
+      const entry = tree!.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
+      ;(entry.props.onPress as () => void)()
+    })
     const regions = tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && !['goal-reorder-status', 'progress-window-status'].includes(String(node.props.testID)))
     expect(regions, 'the empty polite region must already be mounted').toHaveLength(1)
     const region = regions[0]!
@@ -1759,7 +1932,7 @@ describe('mobile ProgressContent', () => {
     expect(changed.root.findAll((node) => node.props.children === 'Sep 8').length).toBeGreaterThan(0)
   })
 
-  it('announces frozen today above the strip and includes its protected date', async () => {
+  it('shows frozen today in freeze protection and includes its protected date', async () => {
     vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
     mocks.freeze.isFrozenToday = true
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
@@ -1767,7 +1940,8 @@ describe('mobile ProgressContent', () => {
     const hosts = tree.root.findAll((node) => typeof node.type === 'string')
     const banner = hosts.findIndex((node) => node.props.accessibilityLiveRegion === 'polite' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')
     expect(banner).toBeGreaterThanOrEqual(0)
-    expect(banner).toBeLessThan(hosts.findIndex((node) => node.props.testID === 'day-strip-account'))
+    const sheet = tree.root.findAll((node) => node.type === 'Sheet')[0]!
+    expect(sheet.findAll((node) => node === hosts[banner])).toHaveLength(1)
     expect(tree.root.findAll((node) => node.props.testID === 'day-strip-cell-frozen').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.streak.protectedToday').length).toBeGreaterThan(0)
     mocks.freeze.isFrozenToday = false

@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
@@ -56,6 +57,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
   test.describe(`Stat tile shape in ${locale}`, () => {
     test.use({ appLocale: locale, subscriptionState: 'stripe', layoutProfile: { canViewGamification: true } })
     const words = locale === 'pt-BR' ? ptBR : en
+    const t = createTranslator({ locale, messages: words })
 
     for (const width of [320, 412, 1280]) {
       test(`keeps streak and window figures at the start edge with stable loading height at ${width}px`, async ({ page, context }) => {
@@ -85,7 +87,8 @@ for (const locale of ['pt-BR', 'en'] as const) {
             expect(Math.abs(tile.height - loadingGeometry[index]!.height)).toBeLessThanOrEqual(0.5)
           })
           await page.goto('/progress/streak')
-          const streakSection = page.getByRole('region', { name: words.progressScreen.sections.streak })
+          await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }).click()
+          const streakSection = page.getByRole('dialog', { name: words.progressScreen.streak.freezes, exact: true })
           const streakTiles = streakSection.locator('[data-state="default"]')
           await expect(streakTiles).toHaveCount(2)
           expectTileShape(await tileGeometry(streakTiles))

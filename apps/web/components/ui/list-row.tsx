@@ -20,6 +20,10 @@ type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
   personalTextInsetStart?: boolean
 }
 
+function RowChevron({ Chevron, disabled, textMode }: Readonly<Pick<WebListRowProps, 'disabled' | 'textMode'> & { Chevron: typeof ChevronRight }>) {
+  return <span data-slot="list-row-chevron" className="flex shrink-0 items-center justify-center" style={{ width: 24, minHeight: textMode === 'label' ? 'max(24px, 1.4875rem)' : 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color={disabled ? 'var(--fg-1)' : 'var(--fg-3)'} strokeWidth={1.5} /></span>
+}
+
 function hasSupportingLine({ description, textMode, value }: Readonly<Pick<WebListRowProps, 'description' | 'textMode' | 'value'>>) {
   return !!description || (textMode === 'personal' && !!value)
 }
@@ -76,11 +80,12 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
   </span>
 }
 
-function RowValue({ value, textMode, wrapValue, valueTextMode, personalExpanded }: Readonly<Pick<WebListRowProps, 'value' | 'textMode' | 'wrapValue' | 'valueTextMode' | 'personalExpanded'>>) {
+function RowValue({ value, valueHidden, textMode, wrapValue, valueTextMode, personalExpanded }: Readonly<Pick<WebListRowProps, 'value' | 'valueHidden' | 'textMode' | 'wrapValue' | 'valueTextMode' | 'personalExpanded'>>) {
   if (!value) return null
-  if (typeof value !== 'string') return <span className="orbit-list-row-value-line flex min-w-0 max-w-full items-center" data-slot="list-row-value">{value}</span>
-  if (valueTextMode === 'personal') return <PersonalText expanded={personalExpanded} data-slot="list-row-value" className="t-meta min-w-0" style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</PersonalText>
-  const text = <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'min-w-0 max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: textMode === 'label' ? 23.8 / 12 : 1.4 }}>{value}</span>
+  const visibility = valueHidden ? 'hidden' : undefined
+  if (typeof value !== 'string') return <span aria-hidden={valueHidden || undefined} style={{ visibility }} className="orbit-list-row-value-line flex min-w-0 max-w-full items-center" data-slot="list-row-value">{value}</span>
+  if (valueTextMode === 'personal') return <PersonalText aria-hidden={valueHidden || undefined} expanded={personalExpanded} data-slot="list-row-value" className="t-meta min-w-0" style={{ visibility, color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</PersonalText>
+  const text = <span aria-hidden={valueHidden || undefined} data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'min-w-0 max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ visibility, color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: textMode === 'label' ? 23.8 / 12 : 1.4 }}>{value}</span>
   return textMode === 'label' ? <span className="orbit-list-row-value-line flex min-w-0 max-w-full items-center">{text}</span> : text
 }
 
@@ -171,7 +176,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
   const props = disclosedProps.toggle ? { ...disclosedProps, textMode: 'label' as const } : disclosedProps
   const { accessibilityLabel, action, chevron = true, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span data-slot="list-row-content" id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing, alignsFirstLine(props))}>{body}{!readOnly && !props.toggle && chevron ? <span data-slot="list-row-chevron" className="flex shrink-0 items-center justify-center" style={{ width: 24, minHeight: props.textMode === 'label' ? 'max(24px, 1.4875rem)' : 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.5} /></span> : null}</span>
+  const content = <span data-slot="list-row-content" id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing, alignsFirstLine(props))}>{body}{!readOnly && !props.toggle && chevron ? <RowChevron Chevron={Chevron} disabled={props.disabled} textMode={props.textMode} /> : null}</span>
   const bodyStyle = getBodyStyle(hasSupportingLine(props), props.placement === 'column')
 
   const actionBody = rowControl(props, content, bodyStyle)

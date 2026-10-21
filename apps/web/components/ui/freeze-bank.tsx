@@ -12,12 +12,12 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
 
   return (
     <div data-component="freeze-bank" role="group" aria-busy={loading} aria-label={props.loadingLabel} data-bank-state={atCeiling ? 'at-ceiling' : 'banked'} data-progress-state={atCeiling ? 'resting' : 'earning'} data-protected-state={protectedEmpty ? 'empty' : 'protected'} className="relative flex flex-col gap-4">
-      <div inert={loading || undefined} aria-hidden={loading || undefined} className={loading ? 'invisible' : undefined}><StreakLegend words={props.words} /></div>
+      <div inert={loading || undefined} aria-hidden={loading || undefined} className={loading ? 'invisible' : undefined}><StreakLegend inSheet={props.inSheet} words={props.words} /></div>
       <div inert={loading || undefined} aria-hidden={loading || undefined} className={`flex flex-wrap gap-4${loading ? ' invisible' : ''}`}>
         <StatTile value={props.longestValue} label={props.longestLabel} />
         <StatTile value={props.tierValue} label={props.tierLabel} />
       </div>
-      <div inert={loading || undefined} aria-hidden={loading || undefined} className={`flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]${loading ? ' invisible' : ''}`}>
+      <div inert={loading || undefined} aria-hidden={loading || undefined} className={`flex flex-col ${props.inSheet ? 'gap-2' : 'gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]'}${loading ? ' invisible' : ''}`}>
         <div className="flex gap-3 max-[22.5rem]:flex-col">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <p className="font-display text-[22px] font-medium tabular-nums text-[var(--fg-1)]">{props.banked} <span className="text-[14px] text-[var(--fg-3)]">/ {props.ceiling}</span></p>

@@ -1,11 +1,15 @@
 import React from "react";
+import { createRequire, Module } from 'node:module';
+import type { HoverGesture, GestureStateChangeEvent } from 'react-native-gesture-handler';
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable';
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { StyleSheet } from "react-native";
 import * as ReactNative from "react-native";
 import { Resvg } from '@resvg/resvg-js';
 import en from '@orbit/shared/i18n/en.json';
 import ptBR from '@orbit/shared/i18n/pt-BR.json';
-import { __setScrollToImpl } from "../../test-mocks/react-native";
+import { __focusHost, __getFocusedNativeTag, __setTouchMode, __setScrollToImpl } from "../../test-mocks/react-native";
+import { usePrefersReducedMotion } from "@/lib/motion";
 import { CalendarEntryDetails } from "@/app/(tabs)/calendar/_components/calendar-entry-details";
 import { sheetTestControls } from "@/__tests__/support/sheet-double";
 import type { TFunction } from "i18next";
@@ -23,7 +27,56 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => {
   return { currentScheme: scheme, currentTheme: themeMode, surfaces: createSurfaces(scheme, themeMode), radius, shadows, applyTheme: vi.fn(), toggleTheme: vi.fn() };
 } }));
 
+vi.mock("@/lib/motion", () => ({ usePrefersReducedMotion: vi.fn(() => false) }));
+
 const TestRenderer = require("react-test-renderer");
+
+const loadGestureModule = createRequire(import.meta.url);
+const { HoverGesture: InstalledHoverGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/hoverGesture') as { HoverGesture: new () => HoverGesture };
+const { findHandler } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/handlersRegistry') as { findHandler: (tag: number) => HoverGesture | undefined };
+const { State } = loadGestureModule('react-native-gesture-handler/lib/commonjs/State') as typeof import('react-native-gesture-handler/lib/typescript/State');
+const { PointerType } = loadGestureModule('react-native-gesture-handler/lib/commonjs/PointerType') as typeof import('react-native-gesture-handler/lib/typescript/PointerType');
+
+function loadInstalledReceiver() {
+  const nativePath = loadGestureModule.resolve('react-native');
+  const previous = loadGestureModule.cache[nativePath];
+  const nativeModule = new Module(nativePath);
+  nativeModule.exports = ReactNative;
+  loadGestureModule.cache[nativePath] = nativeModule;
+  try {
+    return loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/eventReceiver') as {
+      onGestureHandlerEvent: (event: GestureStateChangeEvent) => void;
+    };
+  } finally {
+    if (previous) loadGestureModule.cache[nativePath] = previous;
+    else delete loadGestureModule.cache[nativePath];
+  }
+}
+const { onGestureHandlerEvent } = loadInstalledReceiver();
+
+function attachedHeaderHover(header: TestNode): HoverGesture {
+  let detector = header.parent;
+  while (detector && typeof detector.type !== 'string') detector = detector.parent;
+  expect(detector?.type, 'the native hover detector must wrap this header control').toBe('GestureDetector');
+  const child = React.Children.only(detector!.props.children) as React.ReactElement<{ testID?: string; collapsable?: boolean }>;
+  expect(child.type, 'hover must attach to the full header control').toBe(InsetFocusPressable);
+  expect(child.props.testID).toBe('time-grid-col-header');
+  expect(header.props.collapsable).toBe(false);
+  const gesture = detector!.props.gesture as HoverGesture;
+  expect(gesture).toBeInstanceOf(InstalledHoverGesture);
+  expect(gesture.handlerName).toBe('HoverGestureHandler');
+  expect(gesture.config).toMatchObject({ manualActivation: true, cancelsTouchesInView: false, runOnJS: true });
+  expect(findHandler(gesture.handlerTag)).toBe(gesture);
+  return gesture;
+}
+
+function deliverHover(gesture: HoverGesture, state: typeof State[keyof typeof State], oldState: typeof State[keyof typeof State]) {
+  TestRenderer.act(() => onGestureHandlerEvent({
+    handlerTag: gesture.handlerTag, numberOfPointers: 1, pointerType: PointerType.MOUSE,
+    x: 24, y: 16, absoluteX: 72, absoluteY: 32, state, oldState,
+  }));
+}
+
 
 type TestNode = {
   type: unknown;
@@ -57,7 +110,7 @@ function column(dateStr: string, isFuture = false): TimeGridColumn {
 }
 
 const mounted: Tree[] = [];
-afterEach(() => { TestRenderer.act(() => { for (const tree of mounted) tree.update(<></>); }); mounted.length = 0; setRuntimeTheme({ themeMode: 'dark' }); vi.restoreAllMocks(); sheetTestControls.defer(false); });
+afterEach(() => { TestRenderer.act(() => { for (const tree of mounted) tree.update(<></>); }); mounted.length = 0; setRuntimeTheme({ themeMode: 'dark' }); vi.restoreAllMocks(); vi.mocked(usePrefersReducedMotion).mockReturnValue(false); __setTouchMode(true); sheetTestControls.defer(false); });
 
 const displayTime = (time: string) => time;
 const tokens = createTokensV2("purple", "dark");
@@ -819,5 +872,206 @@ describe("CalendarTimeGrid (mobile)", () => {
     const tree = renderGrid([col], dayMap);
 
     expect(hostsByTestID(tree, "time-grid-empty")).toHaveLength(0);
+  });
+});
+
+function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
+  setRuntimeTheme({ themeMode: mode });
+  const palette = createTokensV2('purple', mode);
+  const columns = [{ ...column('2026-10-05'), isToday: true }, column('2026-10-06', true)];
+  const onSelectDay = vi.fn();
+  const words = language === 'pt-BR' ? ptBR : en;
+  const tree = renderGrid(columns, new Map(), onSelectDay, false, displayTime, 'UTC', palette, language, words.calendar.timeGrid.noSetTime);
+  const headers = () => hostsByTestID(tree, 'time-grid-col-header');
+  const header = () => headers()[0]!;
+  const hover = attachedHeaderHover(header());
+  const otherHover = attachedHeaderHover(headers()[1]!);
+  expect(otherHover).not.toBe(hover);
+  const style = (pressed = false) => resolveStyle(header().props.style({ pressed }));
+  const paint = (pressed = false) => style(pressed).backgroundColor ?? 'transparent';
+  const run = (event: 'hoverBegin' | 'hoverFinalize' | 'onPressIn' | 'onPressOut') => {
+    expect(attachedHeaderHover(header())).toBe(hover);
+    if (event === 'hoverBegin') deliverHover(hover, State.BEGAN, State.UNDETERMINED);
+    else if (event === 'hoverFinalize') deliverHover(hover, State.END, State.BEGAN);
+    else TestRenderer.act(() => { header().props[event]?.(); });
+  };
+  const focus = (index: number) => {
+    __setTouchMode(false);
+    TestRenderer.act(() => { __focusHost(headers()[index]!.props.__nativeTag); });
+  };
+  const outlines = () => tree.root.findAll((node) => {
+    if (node.type !== 'View' || resolveStyle(node.props.style).outlineWidth !== 2) return false;
+    for (let parent = node.parent; parent; parent = parent.parent) if (parent === header()) return true;
+    return false;
+  });
+  return { tree, columns, onSelectDay, palette, headers, header, hover, otherHover, style, paint, run, focus, outlines };
+}
+
+function headerGeometry(style: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(style).filter(([key]) => key !== 'backgroundColor' && key !== 'transform'));
+}
+
+describe.each(['dark', 'light'] as const)('Calendar column-header interactions in %s', (mode) => {
+  it.each(['en', 'pt-BR'] as const)('paints hover alone independently without changing geometry or focus in %s', (language) => {
+    const view = headerInteractions(mode, language);
+    const initialGeometry = headerGeometry(view.style());
+    const initialFocus = __getFocusedNativeTag();
+    expect(view.paint()).toBe('transparent');
+    for (let cycle = 0; cycle < 3; cycle++) {
+      view.run('hoverBegin');
+      view.run('hoverBegin');
+      expect(view.paint()).toBe(view.palette.bgHover);
+      expect(view.style().transform).toBeUndefined();
+      expect(view.outlines()).toHaveLength(0);
+      expect(__getFocusedNativeTag()).toBe(initialFocus);
+      expect(headerGeometry(view.style())).toEqual(initialGeometry);
+      expect(resolveStyle(view.headers()[1]!.props.style).backgroundColor ?? 'transparent').toBe('transparent');
+      view.run('hoverFinalize');
+      view.run('hoverFinalize');
+      expect(view.paint()).toBe('transparent');
+    }
+    expect(view.onSelectDay).not.toHaveBeenCalled();
+  });
+
+  it.each(['en', 'pt-BR'] as const)('retains hover after press-out and held press after hover-out in %s', (language) => {
+    const view = headerInteractions(mode, language);
+    view.run('hoverBegin');
+    view.run('onPressIn');
+    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.style(true).transform).toEqual([{ scale: 0.96 }]);
+    view.run('onPressOut');
+    expect(view.paint()).toBe(view.palette.bgHover);
+    expect(view.style().transform).toBeUndefined();
+    view.run('onPressIn');
+    view.run('hoverFinalize');
+    expect(view.paint(true)).toBe(view.palette.bgHover);
+    view.run('onPressOut');
+    expect(view.paint()).toBe('transparent');
+    expect(view.onSelectDay).not.toHaveBeenCalled();
+  });
+
+  it.each(['en', 'pt-BR'] as const)('retains focus paint and one inset outline through hover and cancelled press in %s', (language) => {
+    const view = headerInteractions(mode, language);
+    const initialGeometry = headerGeometry(view.style());
+    view.focus(0);
+    expect(view.paint()).toBe(view.palette.bgHover);
+    view.run('hoverBegin');
+    view.run('hoverFinalize');
+    view.run('onPressIn');
+    view.run('onPressOut');
+    expect(view.paint()).toBe(view.palette.bgHover);
+    expect(view.style().transform).toBeUndefined();
+    expect(view.outlines()).toHaveLength(1);
+    expect(resolveStyle(view.outlines()[0]!.props.style).outlineOffset).toBe(-6);
+    expect(headerGeometry(view.style())).toEqual(initialGeometry);
+    view.focus(1);
+    expect(view.paint()).toBe('transparent');
+    expect(view.outlines()).toHaveLength(0);
+    expect(view.onSelectDay).not.toHaveBeenCalled();
+  });
+
+  it.each(['en', 'pt-BR'] as const)('clears only focus on blur while hover or held press remains in %s', (language) => {
+    const view = headerInteractions(mode, language);
+    view.focus(0);
+    view.run('hoverBegin');
+    view.focus(1);
+    expect(view.paint()).toBe(view.palette.bgHover);
+    expect(view.outlines()).toHaveLength(0);
+    view.run('hoverFinalize');
+    expect(view.paint()).toBe('transparent');
+    view.focus(0);
+    view.run('onPressIn');
+    view.focus(1);
+    expect(view.paint(true)).toBe(view.palette.bgHover);
+    view.run('onPressOut');
+    expect(view.paint()).toBe('transparent');
+    expect(view.onSelectDay).not.toHaveBeenCalled();
+  });
+
+  it.each(['en', 'pt-BR'] as const)('keeps touch activation exact and cancellation inert with the full-column target in %s', (language) => {
+    const view = headerInteractions(mode, language);
+    const initial = view.style();
+    expect(initial).toMatchObject({ width: 192, paddingVertical: 8, borderLeftWidth: 1, borderBottomWidth: 1 });
+    expect(renderedAncestorHeight(view.header())).toBeGreaterThanOrEqual(48);
+    view.run('onPressIn');
+    expect(view.paint(true)).toBe(view.palette.bgHover);
+    view.run('onPressOut');
+    expect(view.paint()).toBe('transparent');
+    expect(view.onSelectDay).not.toHaveBeenCalled();
+    TestRenderer.act(() => { view.header().props.onPress(); });
+    expect(view.onSelectDay).toHaveBeenCalledExactlyOnceWith(view.columns[0]!.dateStr);
+    view.onSelectDay.mockClear();
+    TestRenderer.act(() => { view.headers()[1]!.props.onPress(); });
+    expect(view.onSelectDay).toHaveBeenCalledExactlyOnceWith(view.columns[1]!.dateStr);
+    expect(headerGeometry(view.style())).toEqual(headerGeometry(initial));
+  });
+
+  it.each(['en', 'pt-BR'] as const)('resets local feedback on remount in narrow and wide windows in %s', (language) => {
+    for (const width of [320, 1352]) {
+      vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 640, scale: 1, fontScale: 1 });
+      const view = headerInteractions(mode, language);
+      view.run('hoverBegin');
+      view.focus(0);
+      view.run('onPressIn');
+      TestRenderer.act(() => { view.tree.update(<></>); });
+      expect(findHandler(view.hover.handlerTag)).toBeUndefined();
+      expect(findHandler(view.otherHover.handlerTag)).toBeUndefined();
+      const remounted = headerInteractions(mode, language);
+      expect(remounted.hover.handlerTag).not.toBe(view.hover.handlerTag);
+      deliverHover(view.hover, State.BEGAN, State.UNDETERMINED);
+      expect(remounted.paint()).toBe('transparent');
+      expect(remounted.outlines()).toHaveLength(0);
+      remounted.run('hoverBegin');
+      expect(remounted.paint()).toBe(remounted.palette.bgHover);
+      expect(view.onSelectDay).not.toHaveBeenCalled();
+      expect(remounted.onSelectDay).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each(['en', 'pt-BR'] as const)('finalizes cancelled and failed hover without selecting or leaking into another column in %s', (language) => {
+    for (const terminal of [State.END, State.CANCELLED, State.FAILED]) {
+      const view = headerInteractions(mode, language);
+      view.run('hoverBegin');
+      expect(view.paint()).toBe(view.palette.bgHover);
+      deliverHover(view.otherHover, State.BEGAN, State.UNDETERMINED);
+      deliverHover(view.hover, terminal, State.BEGAN);
+      expect(view.paint()).toBe('transparent');
+      expect(resolveStyle(view.headers()[1]!.props.style).backgroundColor).toBe(view.palette.bgHover);
+      deliverHover(view.otherHover, terminal, State.BEGAN);
+      expect(resolveStyle(view.headers()[1]!.props.style).backgroundColor ?? 'transparent').toBe('transparent');
+      view.focus(0);
+      view.run('onPressIn');
+      view.run('hoverBegin');
+      deliverHover(view.hover, terminal, State.BEGAN);
+      expect(view.paint(true)).toBe(view.palette.bgHover);
+      view.run('onPressOut');
+      expect(view.paint()).toBe(view.palette.bgHover);
+      expect(view.outlines()).toHaveLength(1);
+      view.focus(1);
+      expect(view.paint()).toBe('transparent');
+      expect(view.onSelectDay).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each(['en', 'pt-BR'] as const)('keeps static feedback while reduced motion suppresses press scale in %s', (language) => {
+    vi.mocked(usePrefersReducedMotion).mockReturnValue(true);
+    const view = headerInteractions(mode, language);
+    view.run('onPressIn');
+    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.style(true).transform).toBeUndefined();
+    view.run('onPressOut');
+    view.run('hoverBegin');
+    expect(view.paint()).toBe(view.palette.bgHover);
+    view.run('onPressIn');
+    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.style(true).transform).toBeUndefined();
+    view.run('hoverFinalize');
+    expect(view.paint(true)).toBe(view.palette.bgHover);
+    view.run('onPressOut');
+    expect(view.paint()).toBe('transparent');
+    view.focus(0);
+    expect(view.paint()).toBe(view.palette.bgHover);
+    expect(view.style().transform).toBeUndefined();
+    expect(view.onSelectDay).not.toHaveBeenCalled();
   });
 });
