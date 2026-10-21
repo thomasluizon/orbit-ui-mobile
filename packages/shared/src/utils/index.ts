@@ -821,3 +821,5 @@ export { HabitModeDrafts } from './habit-form-state'
 export { HabitDateEditor } from './habit-date-editor'
 export { getHabitRowTypeLabelKey, getHabitTypeLabelKey } from './habit-card-helpers'
 export { readTypedHabitPhrase } from './habit-phrase-parser'
+
+export { getHabitInlineDepthLimit } from './habit-row-layout'
