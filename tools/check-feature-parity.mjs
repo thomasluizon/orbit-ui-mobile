@@ -24,6 +24,8 @@ from a recorded completion status. Writes the untracked inventory only with --wr
 
 Rules require provenance.legacyProduction, the immutable legacy production commit.
 Protects the deduplicated union of legacy and active production, including newer controls.
+Mappings may qualify fallback evidence with owners, a nonempty list of same-platform source paths.
+Content targets still require rendered consumers; owners qualify those consumers, not literals.
 For main pull requests use --production HEAD^1 --base HEAD^1 on the queued merge.
 
 No stdin. Exit codes: 0 retained or ticketed base debt in CI, 1 missing capability,
@@ -591,9 +593,14 @@ export function validateRules(capabilities, rules, read) {
         if (!/^#[1-9]\d*$/.test(rule)) throw new Error(`${id}: expected a ticket reference`)
         continue
       }
+      if (section === 'mappings' && (!rule || typeof rule !== 'object' || Array.isArray(rule) || Object.keys(rule).some((key) => !['targets', 'reason', 'owners'].includes(key)))) throw new Error(`${id}: mapping requires targets, reason and optional owners`)
       if (typeof rule.reason !== 'string' || !rule.reason.trim()) throw new Error(`${id}: missing rule rationale`)
       if (section === 'mappings') {
         if (!Array.isArray(rule.targets) || rule.targets.length === 0 || rule.targets.some((target) => typeof target !== 'string' || !new RegExp(`^${id.split(':')[0]}:(?:control|display|content|route|shortcut|native-control|native-display):[^\\s].*$`).test(target))) throw new Error(`${id}: mapping targets must name capabilities on the same platform`)
+        if ('owners' in rule) {
+          if (!Array.isArray(rule.owners) || rule.owners.length === 0 || new Set(rule.owners).size !== rule.owners.length || rule.owners.some((path) => typeof path !== 'string' || !path.startsWith(`apps/${id.split(':')[0]}/`) || !/\.[jt]sx?$/.test(path) || /[\\\s]/.test(path) || posix.normalize(path) !== path)) throw new Error(`${id}: mapping owners must be unique source paths on the same platform`)
+          for (const path of rule.owners) read(path)
+        }
       } else {
         if (rules.mappings?.[id] || rules.tickets?.[id]) throw new Error(`${id}: a removal cannot also be mapped or ticketed`)
         if (!['DESIGN.md', '.claude/specs/orbit-prod-release.md'].includes(rule.citation) || typeof rule.rule !== 'string' || !rule.rule.trim() || !read(rule.citation).includes(rule.rule)) throw new Error(`${id}: removal requires a verifiable owner rule citation`)
@@ -613,7 +620,13 @@ export function compare(production, redesign, rules) {
     const rule = rules.mappings?.[capability.id]
     const removal = rules.removals?.[capability.id]
     const direct = byId.get(capability.id)
-    const candidates = direct ? [direct] : (rule?.targets ?? []).map((id) => byId.get(id)).filter((entry) => entry && (entry.kind !== 'content' || entry.consumers?.length))
+    const candidates = direct ? [direct] : (rule?.targets ?? []).map((id) => {
+      const entry = byId.get(id)
+      if (!entry || (entry.kind === 'content' && !entry.consumers?.length)) return null
+      if (!rule.owners) return entry
+      const locations = (entry.kind === 'content' ? entry.consumers : entry.evidence).filter((item) => rule.owners.includes(item.file))
+      return locations.length ? { ...entry, ...(entry.kind === 'content' ? { consumers: locations } : { evidence: locations }) } : null
+    }).filter(Boolean)
     const retained = Boolean(direct) || Boolean(rule?.targets && candidates.length === rule.targets.length)
     if (retained) return { ...capability, disposition: 'retained', redesign: candidates.flatMap((entry) => entry.kind === 'content' ? entry.consumers : entry.evidence) }
     if (removal) return { ...capability, disposition: 'approved-removal', removal }

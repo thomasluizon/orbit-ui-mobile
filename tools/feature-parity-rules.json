@@ -2144,9 +2144,12 @@
     },
     "web:control:habits.form.emojiSuggest": {
       "targets": [
-        "web:content:habits.form.emojiSuggest"
+        "web:control:habits.form.askDate"
       ],
-      "reason": "The restored label reaches rendered output through its component or bound control."
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
+      ],
+      "reason": "#1607 identifies emoji generation with Ask Astra in EmojiSuggestionButton, retaining the guarded onSuggest callback and the separate manual picker."
     },
     "web:control:habits.form.emojiSuggesting": {
       "targets": [
@@ -3308,6 +3311,88 @@
         "web:route:/progress"
       ],
       "reason": "Progresso owns achievements, streaks and goals."
+    },
+    "web:control:habits.actions.reschedule": {
+      "targets": [
+        "web:control:habits.actions.rescheduleAstra"
+      ],
+      "reason": "#1607 identifies the existing overdue reschedule menu action with Astra while retaining onReschedule and completion guards."
+    },
+    "web:control:habits.form.suggestTags": {
+      "targets": [
+        "web:control:habits.form.askDate"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
+      ],
+      "reason": "#1607 identifies the existing suggestions.suggest action with Ask Astra in Tags; ordinary tag picking and proposal acceptance remain separate."
+    },
+    "web:control:habits.reschedule.retry": {
+      "targets": [
+        "web:control:habits.form.askDate"
+      ],
+      "owners": [
+        "apps/web/components/habits/reschedule-sheet.tsx"
+      ],
+      "reason": "#1607 identifies the error-branch retry with Ask Astra while retaining its refetch callback, eligibility and capacity branches."
+    },
+    "web:display:common.selectedDate": {
+      "targets": [
+        "web:content:common.selectedDate"
+      ],
+      "reason": "#1607 grants one selected-date readback in DateField: its formatted value and rendered trigger accessibility label replace the duplicate ordinary form sentence."
+    },
+    "web:display:habits.form.dateProposed": {
+      "targets": [
+        "web:content:habits.form.dateProposed"
+      ],
+      "reason": "#1607 retains the candidate Proposed label and conditional status beside the actual editable DateField, with deterministic acceptance and manual recovery."
+    },
+    "mobile:control:habits.actions.reschedule": {
+      "targets": [
+        "mobile:control:habits.actions.rescheduleAstra"
+      ],
+      "reason": "#1607 identifies the existing overdue reschedule menu action with Astra while retaining onReschedule and completion guards."
+    },
+    "mobile:control:habits.form.suggestTags": {
+      "targets": [
+        "mobile:control:habits.form.askDate"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx"
+      ],
+      "reason": "#1607 identifies the existing suggestions.suggest action with Ask Astra in Tags; ordinary tag picking and proposal acceptance remain separate."
+    },
+    "mobile:control:habits.reschedule.retry": {
+      "targets": [
+        "mobile:control:habits.form.askDate"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/reschedule-sheet.tsx"
+      ],
+      "reason": "#1607 identifies the error-branch retry with Ask Astra while retaining its refetch callback, eligibility and capacity branches."
+    },
+    "mobile:display:common.selectedDate": {
+      "targets": [
+        "mobile:content:common.selectedDate"
+      ],
+      "reason": "#1607 grants one selected-date readback in DateField: its formatted value and rendered trigger accessibility label replace the duplicate ordinary form sentence."
+    },
+    "mobile:display:habits.form.dateProposed": {
+      "targets": [
+        "mobile:content:habits.form.dateProposed"
+      ],
+      "reason": "#1607 retains the candidate Proposed label and conditional status beside the actual editable DateField, with deterministic acceptance and manual recovery."
+    },
+    "web:display:habits.form.suggestTags": {
+      "targets": [
+        "web:control:habits.form.askDate",
+        "web:control:habits.form.suggestingTags"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
+      ],
+      "reason": "#1607 retains tag-generation context in the actual Ask Astra action and its pending hint; a duplicate heading, ordinary picker or independent status cannot retain that action."
     }
   },
   "removals": {
