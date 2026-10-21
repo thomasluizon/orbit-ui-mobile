@@ -11,12 +11,14 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { format } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
+import { usePrefersReducedMotion } from "@/lib/motion";
 
 import { X } from '@/components/ui/icons';
 import { PersonalText } from '@/components/ui/personal-text';
@@ -228,53 +230,64 @@ function ColumnHeader({
   styles: ReturnType<typeof createStyles>;
 }>) {
   const locale = language === "pt-BR" ? ptBR : enUS;
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const hoverGesture = useMemo(() => Gesture.Hover()
+    .manualActivation(true)
+    .cancelsTouchesInView(false)
+    .runOnJS(true)
+    .onBegin(() => setHovered(true))
+    .onFinalize(() => setHovered(false)), []);
+  const prefersReducedMotion = usePrefersReducedMotion();
   return (
-    <InsetFocusPressable
-      testID="time-grid-col-header"
-      focusOffset={-6}
-      accessibilityRole="button"
-      onPress={() => onSelectDay(column.dateStr)}
-      style={({ pressed }) => [
-        styles.colHeader,
-        { width: colWidth },
-        pressed && {
-          backgroundColor: tokens.bgHover,
-          transform: [{ scale: 0.96 }],
-        },
-      ]}
-    >
-      <Text
-        style={[
-          styles.colHeaderWeekday,
-          { color: tokens.fg2 },
-        ]}
-      >
-        {formatCalendarWeekday(column.dateStr, language)}
-      </Text>
-      <View
-        style={[
-          styles.colHeaderDatePill,
-          column.isToday && { backgroundColor: tokens.primary },
+    <GestureDetector gesture={hoverGesture}>
+      <InsetFocusPressable
+        testID="time-grid-col-header"
+        focusOffset={-6}
+        accessibilityRole="button"
+        onPress={() => onSelectDay(column.dateStr)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={({ pressed }) => [
+          styles.colHeader,
+          { width: colWidth },
+          (hovered || pressed || focused) && { backgroundColor: tokens.bgHover },
+          pressed && !prefersReducedMotion && { transform: [{ scale: 0.96 }] },
         ]}
       >
         <Text
-          testID="time-grid-col-date"
           style={[
-            styles.colHeaderDate,
-            {
-              color: column.isToday
-                ? tokens.fgOnPrimary
-                : column.isFuture
-                  ? tokens.fg2
-                  : tokens.fg1,
-              fontFamily: "GeistMono_500Medium",
-            },
+            styles.colHeaderWeekday,
+            { color: tokens.fg2 },
           ]}
         >
-          {format(column.date, "d", { locale })}
+          {formatCalendarWeekday(column.dateStr, language)}
         </Text>
-      </View>
-    </InsetFocusPressable>
+        <View
+          style={[
+            styles.colHeaderDatePill,
+            column.isToday && { backgroundColor: tokens.primary },
+          ]}
+        >
+          <Text
+            testID="time-grid-col-date"
+            style={[
+              styles.colHeaderDate,
+              {
+                color: column.isToday
+                  ? tokens.fgOnPrimary
+                  : column.isFuture
+                    ? tokens.fg2
+                    : tokens.fg1,
+                fontFamily: "GeistMono_500Medium",
+              },
+            ]}
+          >
+            {format(column.date, "d", { locale })}
+          </Text>
+        </View>
+      </InsetFocusPressable>
+    </GestureDetector>
   );
 }
 

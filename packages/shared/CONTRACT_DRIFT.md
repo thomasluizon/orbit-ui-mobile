@@ -1,83 +1,111 @@
 # Contract drift
 
-The `Contract Drift` pull request job in `.github/workflows/test.yml` regenerates
-`src/types/__generated__/api.generated.ts` from the orbit-api commit recorded in
-`src/types/__generated__/api.spec.commit`. The two files must agree. A later
-orbit-api merge cannot change the result of an existing UI pull request.
-UI `main` pins orbit-api `main`. UI `redesign/main` pins orbit-api
-`redesign/main`.
+The whole-tree blocking `Contract Drift` steps in `.github/workflows/guards.yml`
+regenerate `src/types/__generated__/api.generated.ts` from the full producer SHA
+in `api.spec.commit` and the optional `api.spec.selection.json` beside it.
+The pin, selection and output form one atomic contract snapshot. Later API
+merges cannot change an existing UI pull request's immutable input.
 
-The generated file is a diff target only. It is excluded from the barrel, `tsc`,
-ESLint, and coverage. The hand-written Zod schemas in `src/types/*` remain the
-runtime contract. Review the generated diff before updating those schemas. Follow
-the append-only and deploy-API-first rules in the root `CLAUDE.md`.
+The selector contains exactly two strings, for example:
 
-## Rebaseline pull requests
-
-The default branch copy of `.github/workflows/contract-rebaseline.yml` runs every
-six hours and on `orbit-api-contract-drift` `repository_dispatch`. It compares
-UI `main` with orbit-api `main` and uses the single `chore/contract-snapshot`
-pull request.
-
-GitHub only runs scheduled workflows on the default branch. To rebaseline
-`redesign/main`, dispatch the existing `Redesign drift control` workflow against
-that ref:
-
-```bash
-gh workflow run redesign-drift.yml --ref redesign/main
+```json
+{"id":"orbit-http-v1-r2","httpVersion":"1.0"}
 ```
 
-The redesign workflow calls `.github/workflows/contract-rebaseline.yml` at the
-same commit. It compares the pinned spec with orbit-api `redesign/main` and
-opens or updates one `chore/contract-snapshot-redesign` pull request against UI
-`redesign/main`. It never pushes to either base branch. Both jobs regenerate
-with `orval@8.37.0`. A spec change that produces identical Zod output still
-updates the pin, so the review shows that the spec moved.
+The resolver reads `src/Orbit.Api/OpenApi/artifacts.json` at the pinned commit,
+validates its complete descriptors and resolves that exact identity to its
+canonical repository path. HTTP version, revision, document title and path must
+agree. Invalid metadata, an unpublished identity, missing documents, network or
+parse failures stop generation. An explicit selection never falls back.
 
-Review that pull request's generated diff. If the consumed contract changed,
-update the matching hand-written Zod schemas in the shared package before
-merging.
+Absence of the selector retains the historical SHA-only meaning:
+`src/Orbit.Api/openapi.json`, HTTP v1 legacy. No catalog is required for these
+older producers. Removing a selector is a deliberate legacy selection and must
+regenerate the matching legacy snapshot in the same change.
 
-The workflow runs two jobs. The `generate` job runs `npm ci` and Orval with a
-read-only token and uploads only the two generated files. The `publish` job
-installs nothing and mints a repository-scoped GitHub App token with
-`contents: write` and `pull-requests: write`. It uses that token to push and
-open or update the pull request, so its checks start without manual approval.
-It commits and pushes with `core.hooksPath=/dev/null`, so no install script or
-repository hook runs while the write token exists.
-
-Create a GitHub App installed only on `thomasluizon/orbit-ui-mobile` with
-Contents and Pull requests read/write permissions. Set its App ID as the
-repository Actions variable `CONTRACT_REBASELINE_APP_ID` and its private
-key as the repository Actions secret `CONTRACT_REBASELINE_APP_PRIVATE_KEY`.
-The App token is minted only in `publish`; `generate` never receives either
-credential. Without both settings, `publish` fails before pushing a branch.
+The selected corrected v1 document describes the existing HTTP v1 API. Choosing
+its documentation revision does not change web HTTP v2 headers, Android's default
+HTTP v1 transport, enum writes, reminders or queue formats. Generated Zod remains
+a diff target, excluded from runtime barrels, type checks, lint and Sonar
+analysis. Workspace Vitest coverage includes generated schemas imported by tests.
+Handwritten schemas remain the runtime contract. Review consumed discrepancies
+separately under the append-only and deploy-API-first rules in `CLAUDE.md`.
 
 ## Regenerating locally
 
-Read the full SHA from `src/types/__generated__/api.spec.commit`, download that
-commit's `src/Orbit.Api/openapi.json`, and run orval from `packages/shared`:
+From the repository root:
 
-```bash
-pin=$(cat src/types/__generated__/api.spec.commit)
-curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o /tmp/orbit-openapi.json
-ORBIT_OPENAPI_SPEC=/tmp/orbit-openapi.json npx --yes orval@8.37.0 --config ./orval.config.ts
+```sh
+npm run generate:zod -w @orbit/shared
+node packages/shared/scripts/generate-contract.mjs --check
 ```
 
-To adopt a newer API spec, change the pin to its full commit SHA, download that
-commit's spec, regenerate, and commit the pin and snapshot together. The same
-`ORBIT_OPENAPI_SPEC` variable can point at a local spec for investigation, but
-the committed snapshot must regenerate from the pinned commit.
+To adopt a producer, update `api.spec.commit` with its full lowercase
+40-character SHA, choose its published identity and HTTP version in
+`api.spec.selection.json`, then regenerate. Commit all source metadata and output
+together. API deployment acceptance is required before adoption ships;
+generation proves reproducibility, not deployment.
 
-Output is byte-deterministic: orval is pinned at `8.37.0`, the Zod target uses
-`override.zod.version: 4`, and `.gitattributes` forces LF line endings.
+Generation stages output before replacing the snapshot, so fetch, validation and
+Orval failures preserve the prior committed files. `--check` regenerates into a
+temporary directory and rejects stale bytes without rewriting the snapshot.
+Orval is pinned at `8.37.0`, Zod output at version `4`, and LF is enforced by
+`.gitattributes`. Direct `npx --yes orval@8.37.0 --config ./orval.config.ts` from
+`packages/shared` uses the same resolver and immutable default.
+Corrected revisions retain the title and HTTP version in a compact generated
+header; the producer description remains in the immutable document. Legacy
+documents keep Orval's existing header format.
 
-## Dependency pins that keep orval runnable
+For investigation only, that direct Orval command accepts `ORBIT_OPENAPI_SPEC`
+as an absolute local document path. The committed selector and catalog still
+validate, and the local document must match their identity and HTTP version.
+URLs and external document references are rejected. The normal generator and
+blocking check reject this override entirely; investigation output cannot
+replace committed-pin reproducibility.
 
-Two root `package.json` development dependencies keep orval's transitive tools
-on their required majors:
+## Rebaseline pull requests
 
-- `ajv@^8.20.0` supplies `ajv/dist/core` to orval's
-  `@scalar/openapi-parser` and `ajv-draft-04`. ESLint keeps its nested `ajv@6`.
-- `commander@~15.0.0` supplies orval's typed CLI. Expo autolinking keeps its
-  nested `commander@7`.
+`.github/workflows/contract-rebaseline.yml` runs every six hours and on the
+`orbit-api-contract-drift` repository dispatch. It proposes API `main` movement
+against UI `main` using `chore/contract-snapshot`. The supported redesign entry is:
+
+```sh
+gh workflow run redesign-drift.yml --ref redesign/main
+```
+
+That caller uses `.github/workflows/contract-rebaseline-redesign.yml` at the same
+commit, proposing API `redesign/main` against UI `redesign/main` through
+`chore/contract-snapshot-redesign`. Both workflows use the target UI branch's
+selection. An old routine branch never supplies its pin or selector as input.
+An unavailable selected revision on a candidate producer fails without fallback.
+SHA-only movement still appears even when generated bytes are identical.
+
+Each read-only generation runner uploads only the generated output, full SHA
+and selector when present. Comparisons cover the complete set, including an
+existing routine branch's metadata. Publication runs on a fresh runner, installs
+nothing and never runs the generator. It checks that the target branch still
+matches the generation base, refuses handwritten changes on the routine branch,
+and incorporates the target branch before applying the artifact. It removes any
+old selector before download, so legacy absence cannot inherit stale metadata.
+All three paths participate in staging, branch comparison and publication.
+Routine branches remain serialized, with one pull request per supported target.
+
+The publication runner alone mints the repository-scoped GitHub App token with
+Contents and Pull requests read/write permissions. Set the repository Actions
+variable `CONTRACT_REBASELINE_APP_ID` and secret
+`CONTRACT_REBASELINE_APP_PRIVATE_KEY` for an App installed on the UI repository.
+Without both, publication fails before pushing. The target-branch merge uses
+normal hooks before token creation. Only the existing CI commit and push disable
+hooks on this isolated runner so repository code never runs with the write token.
+Generation receives neither App credential.
+
+Review the generated diff and source identity before merging, retain accepted
+producer additions, and update handwritten schemas only for independently proven
+consumed discrepancies. Reconcile an older routine pull request separately from
+handwritten selector implementation; it is not the owner of tooling changes.
+
+## Dependency pins that keep Orval runnable
+
+Root development dependencies retain `ajv@^8.20.0` for Orval's parser and
+`ajv-draft-04`, and `commander@~15.0.0` for its CLI. ESLint retains nested `ajv@6`
+and Expo autolinking retains nested `commander@7`.

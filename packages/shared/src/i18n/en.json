@@ -3492,6 +3492,8 @@
       "today": "Today",
       "legend": "Streak day legend",
       "legendTitle": "Legend",
+      "freezes": "Freezes",
+      "freezesCount": "Freezes, {banked} of {ceiling}",
       "banked": "Banked",
       "used": "Used this month",
       "next": "Next freeze",

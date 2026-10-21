@@ -34,11 +34,14 @@ function getBodyStyle(hasDescription: boolean, column: boolean) {
   return [styles.body, column ? styles.columnBody : styles.insetBody, hasDescription ? styles.descriptionBody : null]
 }
 
-function RowValue({ value, wrap, color, personal, expanded, label }: Readonly<{ value: ListRowProps['value']; wrap: boolean; color: string; personal?: boolean; expanded?: boolean; label?: boolean }>) {
+function RowValue({ value, hidden, wrap, color, personal, expanded, label }: Readonly<{ value: ListRowProps['value']; hidden?: boolean; wrap: boolean; color: string; personal?: boolean; expanded?: boolean; label?: boolean }>) {
   if (!value) return null
-  if (typeof value !== 'string') return <View data-slot="list-row-value" style={styles.trailing}>{value}</View>
-  if (personal) return <PersonalText expanded={expanded} style={[styles.value, { maxWidth: '100%', color }]}>{value}</PersonalText>
-  return <Text data-slot="list-row-value" style={[styles.value, wrap ? styles.wrappedValue : null, label ? styles.labelValue : null, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
+  const accessibility = { accessibilityElementsHidden: hidden, importantForAccessibility: hidden ? 'no-hide-descendants' : 'auto' } as const
+  const hiddenStyle = hidden ? { opacity: 0 } : null
+  const foreground = hidden ? 'transparent' : color
+  if (typeof value !== 'string') return <View {...accessibility} data-slot="list-row-value" style={[styles.trailing, hiddenStyle]}>{value}</View>
+  if (personal) return <PersonalText {...accessibility} expanded={expanded} style={[styles.value, { maxWidth: '100%', color: foreground }]}>{value}</PersonalText>
+  return <Text {...accessibility} data-slot="list-row-value" style={[styles.value, wrap ? styles.wrappedValue : null, label ? styles.labelValue : null, { color: foreground }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
 
 function titleLineLimit(textMode: ListRowProps['textMode'], wrapTitle: ListRowProps['wrapTitle']) {
@@ -70,7 +73,7 @@ function PlainRowText({ style, onTextLayout, ...props }: Readonly<TextProps>) {
   }} />
 }
 
-function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, readOnly, toggle, titleColor, valueColor, personalExpanded, valueTextMode, labelWrapped, firstLineHeight, onTitleLayout }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly' | 'toggle' | 'personalExpanded' | 'valueTextMode'> & { titleColor: string; valueColor: string; labelWrapped: boolean; firstLineHeight: number; onTitleLayout: TextProps['onTextLayout'] }>) {
+function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, readOnly, toggle, valueHidden, titleColor, valueColor, personalExpanded, valueTextMode, labelWrapped, firstLineHeight, onTitleLayout }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly' | 'toggle' | 'personalExpanded' | 'valueTextMode' | 'valueHidden'> & { titleColor: string; valueColor: string; labelWrapped: boolean; firstLineHeight: number; onTitleLayout: TextProps['onTextLayout'] }>) {
   const Title = textMode === 'personal' ? PersonalText : PlainRowText
   const Description = textMode === 'personal' ? PersonalText : PlainRowText
   const keepsControlInline = !!toggle || hasInlineControl(textMode, trailing, value, readOnly === true || labelWrapped)
@@ -79,7 +82,7 @@ function RowTextContent({ title, textMode, wrapTitle, description, value, wrapVa
     {titleLine}
     {description ? <Description data-slot="list-row-description" {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, textMode === 'label' ? styles.wrappedDescription : null, { color: valueColor }]}>{description}</Description> : null}
   </View>
-  const rowValue = <RowValue label={textMode === 'label'} personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
+  const rowValue = <RowValue hidden={valueHidden} label={textMode === 'label'} personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
   return arrangedRowText({ textMode, wrapValue, trailing, value, description }, text, rowValue, keepsControlInline, labelWrapped || alignsFirstLine({ textMode, description, value, toggle, trailing, readOnly }), firstLineHeight)
 }
 
@@ -169,6 +172,15 @@ function accessoryLineStyle(props: ListRowProps, labelWrapped: boolean, firstLin
   return { minHeight: Math.max(props.toggle ? 28 : 24, firstLineHeight), justifyContent: 'center' as const }
 }
 
+function RowChevron({ ChevronIcon, disabled, tokens, lineStyle }: Readonly<{
+  ChevronIcon: typeof ChevronRight
+  disabled: boolean
+  tokens: ReturnType<typeof createTokensV2>
+  lineStyle: ReturnType<typeof accessoryLineStyle>
+}>) {
+  return <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={[styles.chevron, lineStyle]}><ChevronIcon size={24} color={disabled ? tokens.fg1 : tokens.fg3} strokeWidth={1.5} /></View>
+}
+
 function RowAction({ action, hasDescription, reducedMotion, tokens }: Readonly<{ action: ListRowProps['action']; hasDescription: boolean; reducedMotion: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   if (!action) return null
   return (
@@ -207,7 +219,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
       ) : null}
       <RowTextContent {...props} labelWrapped={labelWrapped} firstLineHeight={titleLayout.height} onTitleLayout={(event) => { const firstLine = event.nativeEvent.lines[0]; if (firstLine) { const wrapped = event.nativeEvent.lines.length > 1; setTitleLayout((previous) => previous.wrapped === wrapped && previous.height === firstLine.height ? previous : { wrapped, height: firstLine.height }) } }} trailing={rowTrailing} titleColor={titleColor} valueColor={interaction.highlighted ? tokens.fg2 : tokens.fg3} />
       {rowTrailing && props.textMode !== 'label' ? <View data-slot="list-row-trailing" style={[styles.trailing, switchLine]}>{rowTrailing}</View> : null}
-      {!readOnly && !props.toggle && chevron ? <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={[styles.chevron, switchLine]}><ChevronIcon size={24} color={tokens.fg3} strokeWidth={1.5} /></View> : null}
+      {!readOnly && !props.toggle && chevron ? <RowChevron ChevronIcon={ChevronIcon} disabled={disabled} tokens={tokens} lineStyle={switchLine} /> : null}
     </AnimatedContent>
   )
 

@@ -31,7 +31,7 @@
     "test": "vitest run",
     "test:barrel-import": "vitest run --config vitest.barrel-import.config.ts",
     "test:theme": "vitest run src/__tests__/theme.test.ts",
-    "generate:zod": "orval --config ./orval.config.ts",
+    "generate:zod": "node scripts/generate-contract.mjs",
     "mutation": "stryker run",
     "clean": "rm -rf dist"
   },

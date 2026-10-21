@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -5,7 +6,6 @@ import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { expectInteractionFill } from './label-interaction-fill'
 import { test } from './upgrade-fixtures'
 import {
   matchesProgressGoalsRequest, progressGoalsEmptyGamification, progressGoalsEmptyPage,
@@ -39,11 +39,12 @@ async function expectGoalsWell(well: Locator) {
 
 for (const locale of ['pt-BR', 'en'] as const) {
   const words = locale === 'pt-BR' ? ptBR : en
+  const t = createTranslator({ locale, messages: words })
   for (const mode of ['dark', 'light'] as const) {
     for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 706 }, { width: 412, height: 915 }]) {
       test.describe(`Progress goals in ${locale} ${mode} at ${viewport.width}`, () => {
         test.use({ appLocale: locale, subscriptionState: 'trial', layoutProfile: { ...progressGoalsEmptyProfile, language: locale, themePreference: mode }, viewport, colorScheme: mode })
-        test('keeps the section empty state compact, figures shared and legend a ghost pill', async ({ page, context }) => {
+        test('keeps the section empty state compact, figures shared and legend in freeze details', async ({ page, context }) => {
           await context.route(`${LAYOUT_ORIGIN}${API.gamification.profile}`, (route) => route.fulfill({ json: progressGoalsEmptyGamification }))
           await context.route(`${LAYOUT_ORIGIN}${API.gamification.streak}`, (route) => route.fulfill({ json: progressGoalsEmptyStreak }))
           let goalPage = progressGoalsEmptyPage
@@ -57,6 +58,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await expect(empty.getByRole('button', { name: words.progressScreen.goals.createAction })).toHaveAttribute('data-variant', viewport.width >= 768 ? 'secondary' : 'primary')
           await expect(empty.locator('p')).toHaveText(words.progressScreen.goals.empty)
           await page.goto('/progress/streak')
+          await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: progressGoalsEmptyStreak.streakFreezesAccumulated, ceiling: progressGoalsEmptyStreak.maxStreakFreezesAccumulated }), exact: true }).click()
           const bank = page.locator('[data-component="freeze-bank"]')
           await expect(bank).toHaveAttribute('data-protected-state', 'empty')
           const figures = await bank.evaluate((element) => {
@@ -70,24 +72,15 @@ for (const locale of ['pt-BR', 'en'] as const) {
           expect(Math.abs(figures.widths[0]! - figures.widths[1]!)).toBeLessThanOrEqual(1)
           expect(figures.gap).toBeCloseTo(12, 0)
           expect(Math.abs(figures.secondStart - figures.expectedStart)).toBeLessThanOrEqual(1)
-          const legend = bank.getByRole('button', { name: words.progressScreen.streak.legend })
-          await expect(legend).toHaveAttribute('data-variant', 'ghost')
-          await expect(legend).toHaveAttribute('data-size', 'sm')
-          expect(await legend.evaluate((element) => {
-            const style = getComputedStyle(element)
-            const box = element.getBoundingClientRect()
-            return { radius: Number.parseFloat(style.borderRadius), width: box.width, height: box.height, ring: style.boxShadow }
-          })).toMatchObject({ width: expect.any(Number), height: expect.any(Number), ring: expect.stringMatching(/0px 0px 0px 1\.5px/) })
-          expect(await legend.evaluate((element) => getComputedStyle(element).boxShadow)).toContain('inset')
-          const legendBox = await legend.boundingBox()
-          expect(legendBox!.width).toBeGreaterThanOrEqual(48)
-          expect(legendBox!.height).toBeGreaterThanOrEqual(48)
-          expect(await legend.evaluate((element) => Number.parseFloat(getComputedStyle(element).borderRadius))).toBeGreaterThanOrEqual(legendBox!.height / 2)
-          await expectInteractionFill(legend)
-          await legend.click()
-          await expect(page.getByRole('dialog', { name: words.progressScreen.streak.legend })).toBeVisible()
+          const details = page.getByRole('dialog', { name: words.progressScreen.streak.freezes, exact: true })
+          const legend = bank.getByRole('group', { name: words.progressScreen.streak.legend, exact: true })
+          await expect(legend).toBeVisible()
+          await expect(legend.getByText(words.progressScreen.streak.active, { exact: true })).toBeVisible()
+          await expect(legend.getByText(words.progressScreen.streak.frozen, { exact: true })).toBeVisible()
+          await expect(legend.getByText(words.progressScreen.streak.missed, { exact: true })).toBeVisible()
           await page.keyboard.press('Escape')
-          await expect(legend).toBeFocused()
+          await expect(details).toHaveCount(0)
+          await expect(page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: progressGoalsEmptyStreak.streakFreezesAccumulated, ceiling: progressGoalsEmptyStreak.maxStreakFreezesAccumulated }), exact: true })).toBeFocused()
           goalPage = paginatedGoalResponseSchema.parse({ ...progressGoalsEmptyPage, items: [createMockGoal()], totalCount: 1, totalPages: 1 })
           await page.goto('/progress/goals')
           await section.getByRole('button', { name: `${words.progressScreen.goals.filter}: ${words.progressScreen.goals.all}`, exact: true }).click()
