@@ -22,7 +22,6 @@ async function expectVisibleFieldInsets(page: Page, messages: Messages, scope?: 
   const rules = [
     { selector: '[data-input-root] input, [data-input-root] textarea, .form-input, [cmdk-input], [data-hour-cycle], [data-habit-phrase-field] textarea', padding: 16 },
     { selector: '[data-composer-input]', padding: 8 },
-    { selector: `[data-habit-detail-content] input[aria-label=${JSON.stringify(messages.habits.detail.rename)}]`, padding: 0 },
     { selector: `input[aria-label=${JSON.stringify(messages.habits.form.tagName)}]`, padding: 12 },
     { selector: `input[aria-label^=${JSON.stringify(messages.habits.form.checklistItemLabel.split('{n}')[0])}]`, padding: 8 },
   ]
@@ -89,17 +88,17 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, route => route.fulfill({ json: [] }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, route => route.fulfill({ json: metrics }))
         await page.goto(`/habits/${habit.id}`)
-        const title = page.locator('[data-habit-detail-content] h1 > button')
+        const title = page.locator('[data-habit-detail-content] h1')
         await expect(title).toHaveText(habit.title)
-        const hit = await title.evaluate(readExpandedControlGeometry)
+        const hit = await page.getByRole('button', { name: messages.habits.editHabit, exact: true }).evaluate(readExpandedControlGeometry)
         expect(hit.height).toBeGreaterThanOrEqual(48)
         expect(hit.edgeHits).toEqual([true, true, true, true])
         const composer = page.locator('[data-composer-input]:visible')
         await expect(composer).toBeVisible()
         expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(60, 1)
         await expectVisibleFieldInsets(page, messages)
-        await title.click()
-        await expect(page.getByRole('textbox', { name: messages.habits.detail.rename })).toBeVisible()
+        await page.getByRole('button', { name: messages.habits.editHabit, exact: true }).click()
+        await expect(page.getByRole('textbox', { name: messages.habits.form.describe })).toBeVisible()
         await expectVisibleFieldInsets(page, messages)
       })
 

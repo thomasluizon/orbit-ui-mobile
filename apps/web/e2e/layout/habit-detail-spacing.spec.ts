@@ -36,7 +36,7 @@ for (const width of [412, 1280]) {
         { hasTags: true, hasDescription: true },
       ]) {
         test(`uses the drawn gaps with tags ${hasTags} and description ${hasDescription} and title ${title}`, async ({ page, context }) => {
-          const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title, dueTime: '08:00:00', description: hasDescription ? 'Uma pausa para cuidar da rotina.' : null })
+          const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title, emoji: '📚', dueTime: '08:00:00', description: hasDescription ? 'Uma pausa para cuidar da rotina.' : null })
           const schedule = makeHabitScheduleItem({ id: habitId, title: habit.title, dueTime: habit.dueTime, description: habit.description, tags: hasTags ? makeHabitScheduleItem().tags : [] })
           const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items: [schedule], page: 1, pageSize: 200, totalCount: 1, totalPages: 1 })
           await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
@@ -48,8 +48,8 @@ for (const width of [412, 1280]) {
 
           await page.goto(`/habits/${habitId}`)
           const column = page.locator('[data-habit-detail-content]')
-          await expect(column.locator('h1 > button')).toHaveText(habit.title)
-          const hit = await column.locator('h1 > button').evaluate(readExpandedControlGeometry)
+          await expect(column.locator('h1')).toHaveText(habit.title)
+          const hit = await column.getByRole('button', { name: ptBr.habits.editHabit, exact: true }).evaluate(readExpandedControlGeometry)
           expect(hit.height).toBeGreaterThanOrEqual(48)
           expect(hit.edgeHits).toEqual([true, true, true, true])
           await expect(column.locator('.habit-detail-strip > p').first()).toHaveText(ptBr.habits.detail.lastThirtyDays)
@@ -58,12 +58,12 @@ for (const width of [412, 1280]) {
           await page.evaluate(() => document.fonts.ready)
           const geometry = await column.evaluate((element) => {
             const header = element.querySelector('header')!
-            const well = header.querySelector('button[aria-haspopup="dialog"]')!
+            const well = header.querySelector('[data-habit-detail-emoji]')!
             const row = header.querySelector<HTMLElement>('[data-habit-detail-header-row]')!
             const heading = header.querySelector('h1')!
             const copy = heading.parentElement!
             const controls = row.firstElementChild!
-            const titleButton = heading.querySelector('button')!
+            const titleButton = heading
             const titleRange = document.createRange()
             titleRange.selectNodeContents(titleButton.querySelector('[data-personal-text]')!)
             const titleTextBounds = titleRange.getBoundingClientRect()

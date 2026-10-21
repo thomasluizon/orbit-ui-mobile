@@ -1,19 +1,13 @@
 import { DescriptionCopyButton } from './description-copy-button'
-import { TypedTextInput } from '@/components/ui/typed-text-input'
-import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
-import { useReducedMotion } from 'react-native-reanimated'
-import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, resolveResponsiveTypeRole } from '@orbit/shared/theme'
 import {
-  buildHabitDetailUpdateRequest,
-  createAccountScopedHabitDetailWriteQueue,
   buildHabitDetailHeaderSummary,
   isHabitDetailCompletionDisabled,
   buildHabitDetailReminderRows,
@@ -52,6 +46,7 @@ import {
   parseAPIDate,
   shouldShowHabitMetrics,
   getHabitTypeLabelKey,
+  getHabitRowTypeLabelKey,
 } from '@orbit/shared/utils'
 import { prepareChatRequest } from '@orbit/shared/stores'
 import { useChatStore } from '@/stores/chat-store'
@@ -71,13 +66,12 @@ import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
 import { DateRow } from '@/components/ui/date-row'
 import { CreateHabitModal } from './create-habit-modal'
-import { HabitDetailFields, HabitDetailSchedule } from './habit-detail-fields'
+import { HabitDetailFields } from './habit-detail-fields'
+import { EditHabitModal } from './edit-habit-modal'
 import { HabitChecklist } from './habit-checklist'
-import { HabitEmojiSelector } from './habit-form-fields/habit-emoji-selector'
-import { createStyles as createFormStyles } from './habit-form-fields/styles'
 import { HabitLogButton } from './habit-log-button'
 import { HabitRow } from './habit-row'
 import { useHabitDetail, useHabitLogs, useHabitMetrics, useHabits } from '@/hooks/use-habit-queries'
@@ -92,7 +86,7 @@ import { createTokensV2, responsiveTypeStyle } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
 
-type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
+type ConfirmAction = 'delete' | 'log' | 'delete-child' | null
 
 function habitStripCellSize(width: number): number {
   return width >= 480 ? 16 : 8
@@ -182,70 +176,42 @@ function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Reado
   )
 }
 
-function HabitDescription({ description, tokens }: Readonly<{ description: string; tokens: ReturnType<typeof createTokensV2> }>) {
-  const { t } = useTranslation()
-  const [descriptionOpen, setDescriptionOpen] = useState(false)
-  const [descriptionHovered, setDescriptionHovered] = useState(false)
-  return (
-    <View testID="habit-detail-description" style={styles.headerMetadata}>
-      <InsetFocusPressable
-        accessibilityRole="button"
-        accessibilityLabel={descriptionOpen ? t('common.collapse') : description}
-        accessibilityHint={descriptionOpen ? undefined : t('habits.detail.viewDescription')}
-        accessibilityState={{ expanded: descriptionOpen }}
-        onPress={() => setDescriptionOpen((open) => !open)}
-        onHoverIn={() => setDescriptionHovered(true)}
-        onHoverOut={() => setDescriptionHovered(false)}
-        style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 8, overflow: 'hidden', backgroundColor: pressed || descriptionHovered ? tokens.bgHover : 'transparent' })}
-      >
-        {({ pressed, focused }) => <>
-          <Text numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { flex: 1, color: pressed || focused || descriptionHovered ? tokens.fg2 : tokens.fg3 }]}>{descriptionOpen ? t('common.collapse') : description}</Text>
-          <ChevronDown accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} style={descriptionOpen ? { transform: [{ rotate: '180deg' }] } : undefined} />
-        </>}
-      </InsetFocusPressable>
-      {descriptionOpen ? <Text selectable style={[styles.muted, { fontSize: 16, lineHeight: 24.8, color: tokens.fg3 }]}>{description}</Text> : null}
-      {descriptionOpen ? <DescriptionCopyButton key={description} description={description} /> : null}
-    </View>
-  )
+function inheritedGeneralLock(habit: NormalizedHabit): boolean | null {
+  return habit.parentId ? habit.isGeneral : null
 }
 
-function Header({ habit, summary, completed, logged, overdue, progress, tokens, onPatch, onLog, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; overdue: boolean; progress?: number; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => Promise<boolean>; onLog: () => void; completionDisabled: boolean; completionReason?: string }>) {
+function HabitDueDate({ habit, language }: Readonly<{ habit: NormalizedHabit; language: string }>) {
+  const { t } = useTranslation()
+  if (getHabitTypeLabelKey(habit) !== 'habits.form.typeTask' || !habit.dueDate) return null
+  return <DateRow label={t('habits.form.taskDate')} value={formatLocaleDate(parseAPIDate(habit.dueDate), language, { dateStyle: 'medium' })} />
+}
+
+function HabitDescription({ description, tokens }: Readonly<{ description: string; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation()
+  return <View testID="habit-detail-description" style={[styles.headerMetadata, { gap: 8 }]}>
+    <Text style={[styles.sectionTitle, { color: tokens.fg2 }]}>{t('habits.form.description')}</Text>
+    <Text selectable style={[styles.muted, { fontSize: 16, lineHeight: 24.8, color: tokens.fg2 }]}>{description}</Text>
+    <DescriptionCopyButton key={description} description={description} />
+  </View>
+}
+
+function Header({ habit, summary, completed, logged, overdue, progress, tokens, onEdit, onLog, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; overdue: boolean; progress?: number; tokens: ReturnType<typeof createTokensV2>; onEdit: () => void; onLog: () => void; completionDisabled: boolean; completionReason?: string }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
-  const [editing, setEditing] = useState(false)
-  const [renameHovered, setRenameHovered] = useState(false)
-  const [renameFocused, setRenameFocused] = useState(false)
   const titleType = responsiveTypeStyle('habitTitle', width)
   const titleLineHeight = resolveResponsiveTypeRole('habitTitle', width).size * 1.4
-  const [title, setTitle] = useState(habit.title)
-  const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
-  const save = async () => {
-    const next = title.trim()
-    if (!next || next === habit.title) {
-      setTitle(habit.title)
-      setEditing(false)
-      return
-    }
-    if (await onPatch({ title: next })) setEditing(false)
-  }
   return (
     <>
       <View testID="habit-detail-header-row" style={styles.header}>
         <View style={styles.headerActions}>
-          <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={(emoji) => { void onPatch({ emoji }) }} wellSize={76} tokens={tokens} styles={formStyles} />
+          {habit.emoji ? <View accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={{ width: 76, height: 76, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tokens.bgWell }}><Text style={{ fontSize: 34 }}>{habit.emoji}</Text></View> : null}
           <View style={styles.headerSpacer} />
-          <PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.rename')} onClick={() => setEditing(true)}><Pencil size={20} color={tokens.fg1} /></PillButton>
+          <PillButton variant="ghost" size="sm" iconOnly minimumHeight={TOUCH_TARGET_MIN} label={t(getHabitTypeLabelKey(habit) === 'habits.form.typeTask' ? 'habits.editTask' : 'habits.editHabit')} onClick={onEdit}><Pencil size={20} color={tokens.fg1} /></PillButton>
           <HabitLogButton label={t(logged ? 'habits.detail.unlog' : 'habits.detail.log', { title: habit.title })} completed={completed} logged={logged} status={overdue ? 'overdue' : 'empty'} progress={progress} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
         </View>
         <View style={styles.headerCopy}>
-          <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
-          {editing ? <TypedTextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} onPress={() => setEditing(true)} onHoverIn={() => setRenameHovered(true)} onHoverOut={() => setRenameHovered(false)} onFocus={() => setRenameFocused(true)} onBlur={() => setRenameFocused(false)} style={styles.renameFrame}>
-            {({ pressed }) => <>
-              <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.renameFill, pressed || renameHovered || renameFocused ? { backgroundColor: tokens.bgHover } : null, renameFocused ? { outlineWidth: 2, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null]} />
-              <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></View>
-            </>}
-          </Pressable>}
-          <Text testID="habit-detail-type" style={[styles.summary, { color: tokens.fg3 }]}>{t(getHabitTypeLabelKey(habit))}</Text>
+          <Text accessibilityRole="header" selectable style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</Text>
+          <Text testID="habit-detail-type" style={[styles.summary, { color: tokens.fg3 }]}>{t(getHabitRowTypeLabelKey(habit))}</Text>
           {summary ? <Text numberOfLines={1} style={[styles.summary, { color: tokens.fg3 }]}>{summary}</Text> : null}
         </View>
       </View>
@@ -416,18 +382,6 @@ function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Rea
     backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} /></View>
 }
 
-function DetailChecklist({ editing, ...props }: Readonly<React.ComponentProps<typeof HabitChecklist> & { editing: boolean }>) {
-  return editing ? null : <HabitChecklist {...props} />
-}
-
-function useDetailWrites(habitId: string, accountGeneration: number): ReturnType<typeof createAccountScopedHabitDetailWriteQueue> {
-  const [scope, setScope] = useState(() => ({ accountGeneration, habitId, queue: createAccountScopedHabitDetailWriteQueue(accountGeneration, getAccountGeneration) }))
-  if (scope.accountGeneration !== accountGeneration || scope.habitId !== habitId) {
-    setScope({ accountGeneration, habitId, queue: createAccountScopedHabitDetailWriteQueue(accountGeneration, getAccountGeneration) })
-  }
-  return scope.queue
-}
-
 export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }: Readonly<HabitDetailScreenProps>) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -477,13 +431,10 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   }, { completeDay: true })
   const cachedHabitsQuery = useHabits({}, { enabled: needsHabitDetailListFallback(detailQuery.data) })
   const logHabit = useLogHabit()
-  const updateHabit = useUpdateHabit()
-  const detailAccountGeneration = useAccountGeneration()
-  const detailWrites = useDetailWrites(habitId, detailAccountGeneration)
   const updateChecklist = useUpdateChecklist()
   const deleteHabit = useDeleteHabit()
   const { showError } = useAppToast()
-  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [editOpen, setEditOpen] = useAccountScopedState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
@@ -519,14 +470,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const completionReason = boundary === 'read-only'
     ? t('habits.todayBoundary.readOnly')
     : boundary === 'future' ? t('habits.todayBoundary.future') : undefined
-  const reducedMotion = useReducedMotion()
-  const [detailOpacity] = useState(() => new Animated.Value(0))
-  useEffect(() => {
-    if (detailsOpen) {
-      detailOpacity.setValue(0)
-      Animated.timing(detailOpacity, { toValue: 1, duration: reducedMotion ? 0 : 160, easing: Easing.bezier(...motionEasings.standard), useNativeDriver: true }).start()
-    }
-  }, [detailOpacity, detailsOpen, reducedMotion])
   const back = useCallback(() => {
     if (parentId) router.back()
     else if (fromToday) router.back()
@@ -541,10 +484,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       return false
     }
   }, [showError])
-  const patch = (next: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => {
-    if (!habit) return Promise.resolve(false)
-    return detailWrites.save(habit, next, (request) => runWrite(() => updateHabit.mutateAsync({ habitId, data: request }), t('habits.detail.updateError')))
-  }
   const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog', confirmed = false) => {
     const currentDate = new Date()
     const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
@@ -644,29 +583,32 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     <FlowShell nav={false} mode="detail" header={appBar}>
       <View testID="habit-detail-content" style={styles.content}>
       <View>
-        <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} overdue={habitsQuery.data?.habitsById.get(habitId)?.isOverdue ?? habit.isOverdue} progress={headerProgress} tokens={tokens} onPatch={patch} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
+        <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} overdue={habitsQuery.data?.habitsById.get(habitId)?.isOverdue ?? habit.isOverdue} progress={headerProgress} tokens={tokens} onEdit={() => setEditOpen(true)} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
         <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} tokens={tokens} />
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} tokens={tokens} />
-        {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} tokens={tokens} /></View> : null}
+        <HabitDueDate habit={habit} language={language} />
+
       </View>
-      <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} scheduleEditing={scheduleOpen} returnFocus={focusStrip} />
-      <DetailChecklist editing={detailsOpen} items={habit.checklistItems} interactive onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />
-      <Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} error={metricsQuery.isError} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} />
-      <ReminderReadout habit={habit} tokens={tokens} />
+      <HabitChecklist items={habit.checklistItems} interactive onToggle={(index) => void toggleItem(index)} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} />
       {children.length > 0 ? <Surface>
         <SectionTitle color={tokens.fg1}>{t('habits.detail.inside')}</SectionTitle>
         <DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} />
         <View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View>
         {subHabitCreation}
       </Surface> : subHabitCreation}
-      <History habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
+        {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} tokens={tokens} /></View> : null}
+      <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} scheduleEditing={editOpen} returnFocus={focusStrip} />
       <AskAstraRow habit={habit} />
-      <HabitDetailSchedule habit={habit} summary={summary ?? ''} open={scheduleOpen} tokens={tokens} onToggle={() => setScheduleOpen((value) => !value)} onCancel={() => setScheduleOpen(false)} onSave={(patchValue) => { void patch(patchValue).then((saved) => { if (saved) setScheduleOpen(false) }) }} />
-      <View style={{ gap: 12 }}><ListRow placement="column" icon={disclosureIcon(detailsOpen)} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><Animated.View nativeID="habit-detail-fields" style={{ opacity: detailOpacity, display: detailsOpen ? 'flex' : 'none' }}><HabitDetailFields key={habit.id} open={detailsOpen} habit={habit} hasProAccess={hasPro} relationshipControlsAvailable={relationshipControlsAvailable} tokens={tokens} onItemsChange={(items) => { void setItems(items) }} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View></View>
+      <View style={{ gap: 12 }}><ListRow placement="column" icon={disclosureIcon(detailsOpen)} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><View nativeID="habit-detail-fields" style={{ gap: 24, display: detailsOpen ? 'flex' : 'none' }}>
+      <Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} error={metricsQuery.isError} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} />
+      <ReminderReadout habit={habit} tokens={tokens} />
+      <History habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
+        <HabitDetailFields key={habit.id} habit={habit} summary={summary} />
+      </View></View>
       <DateRow label={t('habits.detail.startedOn')} value={formatLocaleDate(getHabitDisplayStartDate(habit), language, { dateStyle: 'medium' })} />
       <ListRow placement="column" icon={<Trash2 size={24} color={tokens.statusBad} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
+      <EditHabitModal open={editOpen} onClose={() => setEditOpen(false)} habit={habit} relationshipFieldsLoaded={relationshipControlsAvailable} parentIsGeneral={inheritedGeneralLock(habit)} onSaved={async () => { await detailQuery.refetch() }} />
       <CreateHabitModal open={createOpen} onClose={() => setCreateOpen(false)} initialDate={dateStr} parentHabit={habit} />
-      <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void setItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
       <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).message, { name: pendingDateLog?.name ?? habit.title, date: formatLocaleDate(parseAPIDate(pendingDateLog?.date ?? dateStr), language, { dateStyle: 'long' }) })} confirmLabel={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).action)} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
         const pending = pendingDateLog
@@ -685,7 +627,7 @@ const styles = StyleSheet.create({
   reminderHeading: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   reminderRow: { flexDirection: 'row', alignItems: 'center', minHeight: 32, gap: 8 },
   reminderTime: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
-  stripSection: { gap: 8, paddingTop: SPACING.s24 },
+  stripSection: { gap: 8 },
   stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
   navigation: { alignSelf: 'center', width: '100%', maxWidth: 652 },
   content: { alignSelf: 'center', width: '100%', maxWidth: 620, gap: 24 },
@@ -696,10 +638,6 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerSpacer: { flex: 1 },
   headerCopy: { width: '100%', minWidth: 0, gap: 8 },
-  renameFrame: { minWidth: TOUCH_TARGET_MIN, minHeight: 32, position: 'relative' },
-  renameFill: { position: 'absolute', top: -4, bottom: -4, left: -12, right: -12, minWidth: TOUCH_TARGET_MIN, borderRadius: 12 },
-  hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
-  titleInput: { borderBottomWidth: 2, padding: SPACING.s0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 24 },
   sectionHeader: { gap: 8 },

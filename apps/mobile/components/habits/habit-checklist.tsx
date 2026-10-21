@@ -1,4 +1,3 @@
-import { PersonalText } from '@/components/ui/personal-text'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
@@ -31,7 +30,6 @@ interface HabitChecklistProps {
   onItemsChange?: (items: ChecklistItem[]) => void
   onToggle?: (index: number) => void
   onReset?: () => void
-  onClear?: () => void
 }
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -67,28 +65,12 @@ function EditableChecklistItem({
 }: Readonly<EditableChecklistItemProps>) {
   const { t } = useTranslation()
   const [localText, setLocalText] = useState(text)
-
+  const [focused, setFocused] = useState(false)
   const [previousText, setPreviousText] = useState(text)
   if (text !== previousText) {
     setPreviousText(text)
-    setLocalText(text)
+    if (!focused) setLocalText(text)
   }
-
-  const flushLocalText = useCallback(() => {
-    if (localText !== text) {
-      onUpdateText(index, localText)
-    }
-  }, [localText, text, index, onUpdateText])
-
-  const handleDuplicate = useCallback(() => {
-    flushLocalText()
-    onDuplicate(index)
-  }, [flushLocalText, onDuplicate, index])
-
-  const handleRemove = useCallback(() => {
-    flushLocalText()
-    onRemove(index)
-  }, [flushLocalText, onRemove, index])
 
   return (
     <View style={styles.editableItem}>
@@ -123,8 +105,10 @@ function EditableChecklistItem({
         value={localText}
         style={styles.itemTextInput}
         placeholderTextColor={tokens.fg3}
-        onChangeText={setLocalText}
-        onBlur={flushLocalText}
+        accessibilityLabel={t('habits.form.checklistItemLabel', { n: index + 1 })}
+        onFocus={() => setFocused(true)}
+        onBlur={() => { setFocused(false); if (localText !== text) onUpdateText(index, localText) }}
+        onChangeText={(value) => { setLocalText(value); onUpdateText(index, value) }}
       />
       <Pressable
         accessibilityRole="button"
@@ -134,7 +118,7 @@ function EditableChecklistItem({
           duplicateDisabled ? { opacity: 0.35 } : null,
           pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
-        onPress={handleDuplicate}
+        onPress={() => onDuplicate(index)}
         disabled={duplicateDisabled}
       >
         <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
@@ -146,7 +130,7 @@ function EditableChecklistItem({
           styles.itemAction,
           pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
-        onPress={handleRemove}
+        onPress={() => onRemove(index)}
       >
         <X size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
@@ -173,28 +157,11 @@ function InteractiveChecklistItem({
   styles,
   tokens,
 }: Readonly<InteractiveChecklistItemProps>) {
-  const [expanded, setExpanded] = useState(false)
   const [pressed, setPressed] = useState(false)
-  function handlePress() {
-    onToggle(index)
-  }
-
-  const dividerStyle =
-    index < itemsLength - 1 ? styles.interactiveItemDivider : null
-
-  const itemLabel = (
-    <PersonalText expanded={expanded}
-      style={[
-        styles.itemText,
-        item.isChecked && styles.itemTextChecked,
-        pressed && { color: tokens.fg2 },
-      ]}
-    >{item.text}</PersonalText>
-  )
-
-  return <View style={[dividerStyle, { flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', padding: interactive ? SPACING.s4 : SPACING.s0 }]}>
-    <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={item.text} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, flexDirection: 'row', gap: 8, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><View style={{ flex: 1, minWidth: 0 }}>{itemLabel}</View><ChevronDown accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></Pressable>
-    {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={handlePress} /> : null}
+  const content = <Text style={[styles.itemText, { lineHeight: 22.4 }, item.isChecked && styles.itemTextChecked, pressed && { color: tokens.fg2 }]}>{item.text}</Text>
+  return <View style={[index < itemsLength - 1 ? styles.interactiveItemDivider : null, { flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', padding: SPACING.s4 }]}>
+    {interactive ? <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={item.text} onPress={() => onToggle(index)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{content}</Pressable> : <View style={{ flex: 1, minWidth: 0 }}>{content}</View>}
+    {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={() => onToggle(index)} /> : null}
   </View>
 }
 
@@ -253,7 +220,6 @@ export function HabitChecklist({
   onItemsChange,
   onToggle,
   onReset,
-  onClear,
 }: Readonly<HabitChecklistProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -353,19 +319,7 @@ export function HabitChecklist({
               {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={1.8} />}
             </Pressable>
           )}
-          {interactive && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('habits.form.clearChecklist')}
-              style={({ pressed }) => [
-                styles.actionButton,
-                pressed ? { backgroundColor: tokens.bgHover } : null,
-              ]}
-              onPress={onClear}
-            >
-              <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
-            </Pressable>
-          )}
+
         </View>
       )}
 

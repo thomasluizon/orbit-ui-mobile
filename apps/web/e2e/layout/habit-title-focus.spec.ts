@@ -3,6 +3,7 @@ import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { test } from './layout-test'
 import { readExpandedControlGeometry } from './expanded-control-geometry'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { API } from '@orbit/shared/api'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
@@ -36,27 +37,21 @@ async function expectClearTitleIndicator(page: Page, heading: Locator, target: L
   await finishAnimations(page)
   await expect(target).toBeFocused()
   expect(await target.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
-  expect(await readFieldIndicators(heading, 'h1', { includeDescendants: true })).toHaveLength(1)
-  expect(await readOutlineVisibility(target, '::before')).toMatchObject({ width: 2, visible: true, clippedBy: [] })
+  expect(await readFieldIndicators(heading, 'h1', { includeDescendants: true })).toHaveLength(0)
+  expect(await readFieldIndicators(target, 'button', { includeDescendants: true })).toHaveLength(1)
+  expect(await readOutlineVisibility(target)).toMatchObject({ width: 2, visible: true, clippedBy: [] })
   const hit = await target.evaluate(readExpandedControlGeometry)
   expect(hit.edgeHits).toEqual([true, true, true, true])
+  expect(hit.height).toBeGreaterThanOrEqual(48)
+  expect(hit.width).toBeGreaterThanOrEqual(48)
   const paint = await target.evaluate(readControlPaint)
   const clearance = await target.evaluate((element, bounds) => {
-    const heading = element.closest('h1')!
-    const type = heading.parentElement!.querySelector('[data-habit-detail-type]')!.getBoundingClientRect()
-    const style = getComputedStyle(element, '::before')
-    const offset = Number.parseFloat(style.outlineOffset)
-    const outerEdge = offset + Number.parseFloat(style.outlineWidth)
-    const range = document.createRange()
-    range.selectNodeContents(heading.querySelector('button')!)
-    const text = range.getBoundingClientRect()
-    return {
-      glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
-      typeGap: type.top - bounds.bottom - outerEdge,
-    }
+    const heading = element.closest('[data-habit-detail-header-row]')!.querySelector('h1')!.getBoundingClientRect()
+    const glyph = element.querySelector('svg')!.getBoundingClientRect()
+    return { glyphGap: Math.min(glyph.left - bounds.left, bounds.right - glyph.right, glyph.top - bounds.top, bounds.bottom - glyph.bottom), titleGap: heading.top - bounds.bottom }
   }, paint.bounds)
-  expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
-  expect(clearance.typeGap).toBeGreaterThanOrEqual(0)
+  expect(clearance.glyphGap).toBeGreaterThanOrEqual(4)
+  expect(clearance.titleGap).toBeGreaterThanOrEqual(4)
 }
 
 for (const width of [412, 1100]) {
@@ -71,13 +66,13 @@ for (const width of [412, 1100]) {
       await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habitId)}`, (route) => route.fulfill({ json: [] }))
       await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habitId)}`, (route) => route.fulfill({ json: metrics }))
       await page.goto(`/habits/${habitId}`)
-      await expect(page.locator('[data-habit-detail-content] h1 > button')).toHaveText(habit.title)
+      await expect(page.locator('[data-habit-detail-content] h1')).toHaveText(habit.title)
       await finishAnimations(page)
     })
 
     test('leaves both title targets unfocused and without an indicator on direct load', async ({ page }) => {
       const heading = page.getByRole('heading', { level: 1, name: habit.title })
-      const button = heading.getByRole('button')
+      const button = page.getByRole('button', { name: ptBr.habits.editHabit, exact: true })
       for (const target of [heading, button]) {
         await expect(target).not.toBeFocused()
         const styles = await target.evaluate((element) => {
@@ -91,10 +86,10 @@ for (const width of [412, 1100]) {
 
     test('aligns the title glyphs with the summary and controls and retains the base height', async ({ page }) => {
       const heading = page.getByRole('heading', { level: 1, name: habit.title })
-      const hit = await heading.getByRole('button').evaluate(readExpandedControlGeometry)
+      const hit = await page.getByRole('button', { name: ptBr.habits.editHabit, exact: true }).evaluate(readExpandedControlGeometry)
       expect(hit.edgeHits).toEqual([true, true, true, true])
       const geometry = await heading.evaluate((heading, hit) => {
-        const button = heading.querySelector('button')!
+        const button = heading
         const type = heading.parentElement!.querySelector('[data-habit-detail-type]')!
         const summary = type.nextElementSibling
         const row = heading.closest('[data-habit-detail-header-row]')!
@@ -126,7 +121,7 @@ for (const width of [412, 1100]) {
           summaryGap: summaryRect ? summaryRect.top - typeRect.bottom : null,
           hitHeight: hit.height,
           rowHeight: row.getBoundingClientRect().height,
-          baseHeight: controls.getBoundingClientRect().height + 8 + Math.max(48, lines * lineHeight + 16) - 16 + 8 + typeRect.height + (summaryRect ? 8 + summaryRect.height : 0),
+          baseHeight: controls.getBoundingClientRect().height + 8 + lines * lineHeight + 8 + typeRect.height + (summaryRect ? 8 + summaryRect.height : 0),
         }
       }, hit)
       expect(geometry.summaryX).not.toBeNull()
@@ -142,8 +137,8 @@ for (const width of [412, 1100]) {
 
     test('draws one clear indicator after Tab from the controls and none after heading focus', async ({ page }) => {
       const heading = page.getByRole('heading', { level: 1, name: habit.title })
-      const button = heading.getByRole('button')
-      await page.locator('[data-habit-detail-header-row] > div').first().getByRole('button').last().focus()
+      const button = page.getByRole('button', { name: ptBr.habits.editHabit, exact: true })
+      await page.getByRole('button', { name: ptBr.common.backToToday, exact: true }).focus()
       await page.keyboard.press('Tab')
       await expectClearTitleIndicator(page, heading, button)
       await heading.focus()

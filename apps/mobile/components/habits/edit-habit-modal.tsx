@@ -1,5 +1,8 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { isQueuedResult } from '@/lib/queued-api-mutation'
+import { StyleSheet, Text, View } from 'react-native'
 import { useWatch } from 'react-hook-form'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -19,7 +22,8 @@ import { useHabitForm } from '@/hooks/use-habit-form'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
-import { useAssignTags } from '@/hooks/use-tags'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
@@ -30,6 +34,7 @@ import {
   coalesceFormText,
   createHabitFormSuggestionRevision,
   extractBackendErrorCode,
+  extractBackendStatus,
   getFriendlyErrorMessage,
   getHabitDisplayStartDate,
   hasHabitFormProposal,
@@ -74,7 +79,22 @@ function hasEditHabitChanges({
     JSON.stringify(reminderTimes) !== initialReminderTimes
 }
 
-export function EditHabitModal({
+function visibleEmojiFailure(
+  failure: { title: string; message: string; atLimit: boolean; habitId: string | null } | null,
+  habitId: string | null,
+  title: string,
+) {
+  if (failure?.habitId !== habitId || failure.title !== title) return undefined
+  return failure
+}
+
+export function EditHabitModal(props: Readonly<EditHabitModalProps>) {
+  const generation = useAccountGeneration()
+  if (!props.open) return null
+  return <EditHabitDraft key={`${generation}:${props.habit?.id}`} {...props} />
+}
+
+function EditHabitDraft({
   open,
   onClose,
   habit,
@@ -88,8 +108,18 @@ export function EditHabitModal({
     [t],
   )
   const styles = useMemo(() => createStyles(), [])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const updateHabit = useUpdateHabit()
-  const assignTags = useAssignTags()
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [uncertain, setUncertain] = useState(false)
+  const submittingRef = useRef(false)
+  const mountedRef = useRef(true)
+  useLayoutEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
   const suggestion = useHabitSuggestion()
   const [isEmojiSuggesting, setIsEmojiSuggesting] = useState(false)
   const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean; habitId: string | null } | null>(null)
@@ -122,7 +152,12 @@ export function EditHabitModal({
     },
     acceptSuggestedTag: async (...args: Parameters<typeof tags.acceptSuggestedTag>) => {
       relationshipFieldsTouchedRef.current.tagIds = true
-      await tags.acceptSuggestedTag(...args)
+      await tags.acceptSuggestedTag(args[0], (name, color) => {
+        tags.setNewTagName(name)
+        tags.setNewTagColor(color)
+        tags.setShowNewTag(true)
+        return Promise.resolve(null)
+      })
     },
     deleteTag: async (...args: Parameters<typeof tags.deleteTag>) => {
       relationshipFieldsTouchedRef.current.tagIds = true
@@ -157,7 +192,7 @@ export function EditHabitModal({
   })
   const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
-    isDirty,
+    isDirty: isDirty || uncertain,
     onDismiss: () => closeSheet(onClose),
   })
   const router = useRouter()
@@ -172,6 +207,7 @@ export function EditHabitModal({
     data: habitDetail,
     isPending: detailPending,
     error: detailError,
+    refetch: refetchDetail,
   } = useHabitDetail(open && habit ? habit.id : null)
   const detailFieldsPending = open && !!habit && detailPending
   const childrenIsGeneral = habitDetail?.children[0]?.isGeneral ?? null
@@ -301,11 +337,9 @@ export function EditHabitModal({
     applyHabitFormMode(prefill.mode, formHelpers)
   }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags])
 
-  const handleSubmit = useCallback(async () => {
-    if (!habit) return
-    flushBufferedInputsRef.current()
-    if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return }
-    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+  async function prepareSave() {
+    if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return null }
+    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return null
 
     const error = formHelpers.validateAll({
       reminderTimes,
@@ -314,7 +348,7 @@ export function EditHabitModal({
     })
     if (error) {
       reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
-      return
+      return null
     }
     const data = habitFormSchema.parse(formHelpers.form.getValues())
 
@@ -332,44 +366,46 @@ export function EditHabitModal({
     if (!relationshipFieldsHydratedRef.current && !goalIdsChanged) delete request.goalIds
     if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
 
+    if (relationshipFieldsHydratedRef.current || tagIdsChanged) request.tagIds = [...tags.selectedTagIds]
+    return request
+  }
+
+  async function handleSubmit() {
+    if (!habit || submittingRef.current) return
+    submittingRef.current = true
+    const generation = getAccountGeneration()
+    const isCurrent = () => mountedRef.current && getAccountGeneration() === generation
     try {
-      await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-      if (relationshipFieldsHydratedRef.current || tagIdsChanged) {
-        await assignTags.mutateAsync({
-          habitId: habit.id,
-          tagIds: tags.selectedTagIds,
-        })
+      flushBufferedInputsRef.current()
+      const request = await prepareSave()
+      if (!request || !isCurrent()) return
+      setSaving(true)
+      setSaveError(null)
+      try {
+        const outcome = await updateHabit.mutateAsync({ habitId: habit.id, data: request })
+        if (!isCurrent()) return
+        setUncertain(false)
+        if (isQueuedResult(outcome)) {
+          showInfo(t('habits.form.waitingToSync'))
+          closeSheet(onClose)
+          return
+        }
+        closeSheet(onClose)
+        await onSaved?.()
+      } catch (error: unknown) {
+        if (!isCurrent()) return
+        if (formHelpers.reportBackendErrors(error)) return
+        const status = extractBackendStatus(error)
+        const unknownOutcome = status === undefined || status >= 500 || status === 408
+        setUncertain((previous) => previous || unknownOutcome)
+        setSaveError(unknownOutcome ? t('habits.form.saveUncertain') : getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
+        if (unknownOutcome) await refetchDetail()
       }
-      closeSheet(onClose)
-      await onSaved?.()
-    } catch (error: unknown) {
-      if (formHelpers.reportBackendErrors(error)) return
-      showError(
-        getFriendlyErrorMessage(
-          error,
-          translate,
-          'errors.updateHabit',
-          'habit',
-        ),
-      )
+    } finally {
+      submittingRef.current = false
+      if (isCurrent()) setSaving(false)
     }
-  }, [
-    habit,
-    formHelpers,
-    initialGoalIds,
-    initialTagIds,
-    originalEndDate,
-    selectedGoalIds,
-    reminderTimes,
-    tags,
-    updateHabit,
-    assignTags,
-    closeSheet,
-    onClose,
-    onSaved,
-    showError,
-    translate,
-  ])
+  }
 
   const handleSuggestEmoji = useCallback(async () => {
     flushBufferedInputsRef.current()
@@ -464,28 +500,30 @@ export function EditHabitModal({
   }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
 
+  const visibleFailure = visibleEmojiFailure(emojiFailure, sessionHabitId, watchedTitle)
+
   return (
     <>
-      {open ? (<Sheet
+      <Sheet
         ref={sheetRef}
         open
-        onClose={dismissGuard.canDismiss ? onClose : undefined}
-        onAttemptDismiss={dismissGuard.requestDismiss}
-        title={t('habits.editHabit')}
+        onClose={!saving && dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={() => { if (!submittingRef.current) dismissGuard.requestDismiss() }}
+        title={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')}
         actions={(
           <ActionRow>
             <PillButton
               size="sm"
               variant="ghost"
-              disabled={updateHabit.isPending}
+              disabled={saving}
               onClick={dismissGuard.requestDismiss}
             >
               {t('common.cancel')}
             </PillButton>
             <PillButton
               size="sm"
-              disabled={detailFieldsPending}
-              loading={updateHabit.isPending || assignTags.isPending}
+              disabled={detailFieldsPending || saving}
+              loading={saving}
               onClick={() => void handleSubmit()}
             >
               {t('common.save')}
@@ -493,9 +531,10 @@ export function EditHabitModal({
           </ActionRow>
         )}
       >
+        <View accessibilityLiveRegion="polite">{saveError ? <Text style={{ color: tokens.statusBadText, fontSize: 14, lineHeight: 20 }}>{saveError}</Text> : null}</View>
         <View style={styles.scrollContent}>
           <View
-            pointerEvents={detailFieldsPending ? 'none' : 'auto'}
+            pointerEvents={detailFieldsPending || saving ? 'none' : 'auto'}
             style={detailFieldsPending ? styles.fieldsPending : null}
             accessibilityElementsHidden={detailFieldsPending}
           >
@@ -513,8 +552,8 @@ export function EditHabitModal({
               onSuggestSetup={handleSuggest}
               onSuggestEmoji={handleSuggestEmoji}
               isEmojiSuggesting={isEmojiSuggesting}
-              emojiSuggestionError={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined}
-              emojiSuggestionLimitReached={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && emojiFailure.atLimit}
+              emojiSuggestionError={visibleFailure?.atLimit ? undefined : visibleFailure?.message}
+              emojiSuggestionLimitReached={visibleFailure?.atLimit}
               isSuggesting={suggestion.isPending}
               defaultExpanded={true}
               lockedGeneral={lockedGeneral}
@@ -523,9 +562,10 @@ export function EditHabitModal({
             />
           </View>
         </View>
-      </Sheet>) : null}
+      </Sheet>
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
+        message={uncertain ? t('habits.form.saveUncertain') : t(formHelpers.isOneTime ? 'habits.form.unsavedTask' : 'habits.form.unsavedHabit')}
         onKeepEditing={dismissGuard.cancelDismiss}
         onDiscard={dismissGuard.confirmDismiss}
       />

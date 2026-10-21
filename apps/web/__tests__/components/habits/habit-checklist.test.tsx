@@ -90,16 +90,17 @@ describe('HabitChecklist', () => {
       render(<HabitChecklist items={items} interactive onToggle={onToggle} />)
       const checkboxes = screen.getAllByRole('checkbox')
       fireEvent.click(checkboxes[0]!)
-      expect(onToggle).toHaveBeenCalledWith(0)
+      expect(onToggle).toHaveBeenCalledExactlyOnceWith(0)
     })
 
-    it('discloses the full label without changing its checked state', () => {
+    it('checks the actual item body exactly once without a disclosure for readable text', () => {
       const onToggle = vi.fn()
-      const items = makeItems()
-      render(<HabitChecklist items={items} interactive onToggle={onToggle} />)
+      const onItemsChange = vi.fn()
+      render(<HabitChecklist items={makeItems()} interactive onToggle={onToggle} onItemsChange={onItemsChange} />)
       fireEvent.click(screen.getByRole('button', { name: 'Step 3' }))
-      expect(screen.getByRole('button', { name: 'Step 3' })).toHaveAttribute('aria-expanded', 'true')
-      expect(onToggle).not.toHaveBeenCalled()
+      expect(onToggle).toHaveBeenCalledExactlyOnceWith(2)
+      expect(onItemsChange).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: 'Step 3' })).not.toHaveAttribute('aria-expanded')
     })
 
     it('shows reset button when at least one item is checked', () => {
@@ -116,18 +117,9 @@ describe('HabitChecklist', () => {
       expect(onReset).toHaveBeenCalledOnce()
     })
 
-    it('shows clear button in interactive mode', () => {
-      const items = makeItems()
-      render(<HabitChecklist items={items} interactive />)
-      expect(screen.getByLabelText('habits.form.clearChecklist')).toBeDefined()
-    })
-
-    it('calls onClear when clear button is clicked', () => {
-      const onClear = vi.fn()
-      const items = makeItems()
-      render(<HabitChecklist items={items} interactive onClear={onClear} />)
-      fireEvent.click(screen.getByLabelText('habits.form.clearChecklist'))
-      expect(onClear).toHaveBeenCalledOnce()
+    it('keeps structural clear in the editor', () => {
+      render(<HabitChecklist items={makeItems()} interactive />)
+      expect(screen.queryByLabelText('habits.form.clearChecklist')).toBeNull()
     })
 
     it('does not show reset when no items are checked', () => {

@@ -2,10 +2,9 @@
 
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
-import { useCallback, useId, useState } from 'react'
-import { GripHorizontal, ChevronDown, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
+import { useCallback, useId } from 'react'
+import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { useTranslations } from 'next-intl'
 import {
@@ -46,7 +45,6 @@ interface HabitChecklistProps {
   onItemsChange?: (items: ChecklistItem[]) => void
   onToggle?: (index: number) => void
   onReset?: () => void
-  onClear?: () => void
 }
 
 export function HabitChecklist({
@@ -57,7 +55,6 @@ export function HabitChecklist({
   onItemsChange,
   onToggle,
   onReset,
-  onClear,
 }: Readonly<HabitChecklistProps>) {
   const t = useTranslations()
   const dndContextId = useId()
@@ -165,17 +162,7 @@ export function HabitChecklist({
               <RotateCcw size={16} strokeWidth={1.8} aria-hidden="true" />
             </button>
           )}
-          {interactive && (
-            <button
-              type="button"
-              aria-label={t('habits.form.clearChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[color,background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)]"
-              style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
-              onClick={onClear}
-            >
-              <X size={16} strokeWidth={1.8} aria-hidden="true" className="text-[var(--status-bad)]" />
-            </button>
-          )}
+
         </div>
       )}
 
@@ -380,27 +367,15 @@ function InteractiveChecklistItem({
   interactive: boolean
   onToggle: (index: number) => void
 }>) {
-  const [expanded, setExpanded] = useState(false)
-  const textId = useId()
   const rowStyle: React.CSSProperties = {
     borderBottom: index < itemsLength - 1 ? '1px solid var(--hairline)' : 'none',
   }
-
-  const textControl = <button type="button" aria-label={item.text} aria-expanded={expanded} aria-controls={textId} onClick={() => setExpanded(!expanded)} className="orbit-hover-text flex items-center gap-2 min-h-12 min-w-0 w-full rounded-[12px] px-2 py-1 text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><PersonalText id={textId} expanded={expanded} className="flex-1" style={{ color: item.isChecked ? 'var(--fg-3)' : 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16 }}>{item.text}</PersonalText><ChevronDown aria-hidden="true" size={20} strokeWidth={1.5} className={`shrink-0 ${expanded ? 'rotate-180' : ''}`} /></button>
-
-  const itemText = <PersonalTextAction className="flex-1" label={item.text} contentClassName="flex items-center gap-2 min-h-12 w-full rounded-[12px] px-2 py-1 text-start" control={textControl} />
-
-  if (!interactive) {
-    return (
-      <div className="flex items-center gap-3" style={rowStyle}>
-        {itemText}
-      </div>
-    )
-  }
-
+  const content = <span className="block min-w-0 flex-1 whitespace-pre-wrap break-words text-base leading-[1.4]" style={{ color: item.isChecked ? 'var(--fg-3)' : 'var(--fg-1)' }}>{item.text}</span>
+  const control = <button type="button" aria-label={item.text} onClick={() => onToggle(index)} className="orbit-hover-text min-h-12 w-full rounded-[12px] text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">{content}</button>
   return (
-    <div style={rowStyle}>
-      <div className="flex min-w-0 items-start gap-2 p-1">{itemText}<Checkbox label={item.text} checked={item.isChecked} onChange={() => onToggle(index)} /></div>
+    <div className="flex min-w-0 items-start gap-2 p-1" style={rowStyle}>
+      {interactive ? <PersonalTextAction className="flex-1" label={item.text} contentClassName="flex min-h-12 min-w-0 items-center rounded-[12px] px-2 py-1" control={control} /> : <div className="min-w-0 flex-1 px-2 py-1">{content}</div>}
+      {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={() => onToggle(index)} /> : null}
     </div>
   )
 }

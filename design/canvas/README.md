@@ -3,6 +3,18 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Habit detail read and draft amendment
+
+`Orbit Habit Detail.dc.html` replaces inline rename/settings with one type-aware pencil opening the
+complete editor at compact and wide widths. Its read title and emoji are static. Plain Task/Habit
+type, readable source description and one immediate completion checklist precede secondary facts.
+Readable checklist labels have no disclosure arrow. Uncheck all remains immediate; structural clear,
+text, duplicate, remove and reorder are staged in the editor. Save and Cancel own that habit draft.
+Shared-object management remains independently committed. Pending, rejected, uncertain and native
+queued outcomes follow `DESIGN.md` and the paired habit-form surface inventory. The drawing's editor
+transition reuses its existing field composition; production uses `EditHabitModal` and `HabitFormFields`.
+Frozen rendering and native device acceptance remain separate from source and unit evidence.
+
 ### Habit form type and date amendment
 
 Create and edit place the two vertical type radios before the focal title. The editable account-date
@@ -24,8 +36,8 @@ verification boundaries.
 
 Shared rows use the complete nouns `Tarefa` / `Task` or `Hábito` / `Habit` as quiet type metadata
 beneath the full-width title. This supersedes the longer task caption in exported rows, including
-detail children. Form choices and detail headers retain `Tarefa única` / `One-time task` and
-`Hábito` / `Habit`. Row primary and selection accessible names match the short visible caption
+detail children. Form choices retain `Tarefa única` / `One-time task` and `Hábito` / `Habit`.
+Detail headers use the same plain nouns as rows. Row primary and selection accessible names match the short visible caption
 exactly once. Typography, insets, widths, status, counts, checks and menus retain their geometry;
 default controls stay row-centred and every row keeps its supporting footer above 130% text.
 
