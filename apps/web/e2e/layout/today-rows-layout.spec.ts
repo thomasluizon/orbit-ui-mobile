@@ -1,5 +1,5 @@
 import { openTodayListOptions } from './hydration-guard'
-import { setHabitTextScale } from './subhabit-indent-geometry'
+import { setHabitTextScale, settleHabitRows } from './subhabit-indent-geometry'
 import { writeFile } from 'node:fs/promises'
 import { expect, type Page, type Locator } from '@playwright/test'
 import { test } from './layout-test'
@@ -274,6 +274,7 @@ async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: ty
       await leaf.locator('[data-habit-row-body]').click()
       await expect(leaf.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
     }
+    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting)
     for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page)
   }
   await page.getByRole('button', { name: copy.common.cancel, exact: true }).click()
@@ -291,13 +292,32 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
     const check = element.querySelector('[data-habit-check]')!
     let target = check.parentElement!
     while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
-    return { row: bounds(element), depth: Number(element.getAttribute('data-depth')), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
+    const geometry = { row: bounds(element), depth: Number(element.getAttribute('data-depth')), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
       supporting: Boolean(element.querySelector('[data-habit-row-heading]')),
       parent: Boolean(element.querySelector('[data-habit-row-control="disclosure"]')),
       preview: preview && { ...bounds(preview), size: getComputedStyle(preview).fontSize, lineHeight: Number.parseFloat(getComputedStyle(preview).lineHeight) },
       textEdge, well: bounds(well), meta: meta && bounds(meta), check: bounds(check), target: bounds(target),
       glyph: check.querySelector('svg') ? bounds(check.querySelector('svg')!) : null,
       controls: Array.from(element.querySelectorAll('[data-habit-row-control]')).map(bounds) }
+    const controlChains = Array.from(element.querySelectorAll('[data-habit-row-control]')).map((control) => {
+      const chain = []
+      for (let node: Element | null = control; node && node !== element; node = node.parentElement) {
+        const style = getComputedStyle(node)
+        chain.push({
+          tag: node.tagName, className: node.className, inlineStyle: node.getAttribute('style'), rect: bounds(node),
+          display: style.display, position: style.position, top: style.top, transform: style.transform,
+          paddingBlockStart: style.paddingBlockStart, paddingTop: style.paddingTop, margin: style.margin,
+          alignItems: style.alignItems, alignSelf: style.alignSelf, gridRow: style.gridRow, gridColumn: style.gridColumn,
+          transitionProperty: style.transitionProperty, transitionDuration: style.transitionDuration,
+          animations: node.getAnimations().map((animation) => ({
+            property: animation instanceof CSSTransition ? animation.transitionProperty : null,
+            playState: animation.playState, currentTime: String(animation.currentTime),
+          })),
+        })
+      }
+      return { control: control.getAttribute('data-habit-row-control'), chain }
+    })
+    return { ...geometry, controlChains }
   })
   try {
     assertPreviewText()
@@ -375,13 +395,16 @@ function observeHabitPreviewFailure(element: Element) {
       inlinePadding: { block: inline.paddingBlock, start: inline.paddingBlockStart, end: inline.paddingBlockEnd },
       rect: { left: box.left, right: box.right, top: box.top, bottom: box.bottom,
         x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height },
-      display: style.display, alignItems: style.alignItems, minHeight: style.minHeight,
+      display: style.display, position: style.position, top: style.top, margin: style.margin,
+      alignItems: style.alignItems, alignSelf: style.alignSelf, minHeight: style.minHeight,
+      gridRow: style.gridRow, gridColumn: style.gridColumn,
       paddingBlockStart: style.paddingBlockStart, paddingBlockEnd: style.paddingBlockEnd,
       lineHeight: style.lineHeight, fontSize: style.fontSize,
       transitionProperty: style.transitionProperty, transitionDuration: style.transitionDuration, transform: style.transform,
       transitions: node.getAnimations()
         .filter((animation): animation is CSSTransition => animation instanceof CSSTransition)
         .map((animation) => ({ property: animation.transitionProperty,
+          playState: animation.playState, currentTime: String(animation.currentTime),
           duration: animation.effect!.getTiming().duration, easing: animation.effect!.getTiming().easing })),
     }
   }
@@ -389,6 +412,11 @@ function observeHabitPreviewFailure(element: Element) {
   for (let node = element.querySelector('[data-personal-text]'); node && node !== element; node = node.parentElement) {
     titleChain.push(readStyle(node))
   }
+  const controlChains = Array.from(element.querySelectorAll('[data-habit-row-control]')).map((control) => {
+    const chain = []
+    for (let node: Element | null = control; node && node !== element; node = node.parentElement) chain.push(readStyle(node))
+    return { control: control.getAttribute('data-habit-row-control'), chain }
+  })
   const title = element.getAttribute('data-habit-title')
   return {
     habitTitle: ['Parent', 'Child parent', 'Grandchild', 'Child 1', 'Timed', 'Untimed'].includes(title ?? '') ? title : 'unexpected-fixture-row',
@@ -398,7 +426,7 @@ function observeHabitPreviewFailure(element: Element) {
     rootClass: document.documentElement.className,
     supporting: Boolean(element.querySelector('[data-habit-row-heading]')),
     selectedMode: Boolean(element.querySelector('[data-habit-row-control="selection"]')),
-    row: readStyle(element), body: readStyle(element.querySelector('[data-habit-row-body]')!), titleChain,
+    row: readStyle(element), body: readStyle(element.querySelector('[data-habit-row-body]')!), titleChain, controlChains,
   }
 }
 
