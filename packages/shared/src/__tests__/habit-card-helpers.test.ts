@@ -11,6 +11,8 @@ import {
   computeHabitMatchBadges,
   getHabitLogDateDecision,
   getHabitLogDateConfirmationKeys,
+  getHabitRowTypeLabelKey,
+  getHabitTypeLabelKey,
 } from '../utils/habit-card-helpers'
 
 function createTranslator() {
@@ -23,6 +25,17 @@ function createTranslator() {
 }
 
 describe('habit card helpers', () => {
+  it.each([
+    { frequencyUnit: null, isFlexible: false, isGeneral: false, rowKey: 'habits.rowTypeTask', fullKey: 'habits.form.typeTask' },
+    { frequencyUnit: 'Day', isFlexible: false, isGeneral: false, rowKey: 'habits.form.typeHabit', fullKey: 'habits.form.typeHabit' },
+    { frequencyUnit: 'Week', isFlexible: true, isGeneral: false, rowKey: 'habits.form.typeHabit', fullKey: 'habits.form.typeHabit' },
+    { frequencyUnit: null, isFlexible: false, isGeneral: true, rowKey: 'habits.form.typeHabit', fullKey: 'habits.form.typeHabit' },
+  ] as const)('keeps row and full type labels distinct for $frequencyUnit, flexible=$isFlexible, general=$isGeneral', ({ rowKey, fullKey, ...schedule }) => {
+    const habit = createMockHabit(schedule)
+    expect(getHabitRowTypeLabelKey(habit)).toBe(rowKey)
+    expect(getHabitTypeLabelKey(habit)).toBe(fullKey)
+  })
+
   it('uses permanent removal copy only for an unlog before a known child creation date', () => {
     const child = createMockHabit({
       parentId: 'parent-1',

@@ -631,6 +631,7 @@
     "backToHabits": "All habits",
     "completed": "completed",
     "rowProgress": "{done} of {total}",
+    "rowTypeTask": "Task",
     "drillProgress": "{done} of {total} done",
     "deleteConfirmTitle": "Delete this habit?",
     "deleteConfirmMessage": "This removes the habit and any sub-habits. You can undo it from the message that appears.",
@@ -693,7 +694,6 @@
       "newHabit": "New habit",
       "fromConversation": "Came from your conversation with Astra.",
       "createWhy": "Write what you want to keep up.",
-      "startDateValue": "Starts on {date}",
       "describe": "What you want to keep up",
       "describePlaceholder": "Run 3 times a week",
       "understood": "Orbit understood",
@@ -743,8 +743,26 @@
       "anyTimeHint": "Leave empty for any time of day",
       "reminders": "Reminders",
       "endDatePlaceholder": "31/12/2026",
+      "itemType": "Type",
+      "typeTask": "One-time task",
+      "typeHabit": "Habit",
+      "typeRequired": "Choose a type.",
+      "taskDate": "Do on",
+      "habitStartDate": "Starts on",
+      "datePhrase": "When",
+      "taskDateQuestion": "When do you want to do this?",
+      "habitDateQuestion": "When do you want to start?",
+      "datePhraseUnresolved": "I couldn't identify the date. Choose it on the calendar.",
+      "dateInvalid": "That date doesn't exist. Choose another.",
+      "dateBudgetReached": "Astra has reached today's limit. Choose the date on the calendar.",
+      "dateStale": "Choose the date on the calendar.",
+      "askDate": "Ask Astra",
+      "acceptDate": "Use date",
+      "dateProposed": "Astra suggested this date.",
+      "dateConfirmationRequired": "Use the suggested date or choose another in the calendar.",
+      "noSchedule": "No schedule",
+      "noScheduleHint": "Log it whenever it happens.",
       "startDate": "Start",
-      "startDateReason": "The start date is the day you create the habit and does not change after that.",
       "description": "Description",
       "emoji": "Emoji",
       "emojiDescription": "Choose a visual cue for this habit",
@@ -3753,7 +3771,7 @@
   },
   "streakDisplay": {
     "badge": {
-      "tooltip": "1 day streak | {count} day streak"
+      "tooltip": "1-day streak | {count}-day streak"
     },
     "detail": {
       "tierLegendary": "Legendary",
@@ -4046,6 +4064,7 @@
     "close": "Close",
     "streak": {
       "eyebrow": "Streak",
+      "unit": "day | days",
       "line": "Your streak reached {count} days."
     },
     "goal": {

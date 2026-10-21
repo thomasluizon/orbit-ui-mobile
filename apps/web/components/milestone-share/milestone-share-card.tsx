@@ -6,7 +6,7 @@ import { SPACING } from '@orbit/shared/theme'
 import type { CSSProperties, Ref } from 'react'
 import { useTranslations } from 'next-intl'
 import { achievementEmoji } from '@orbit/shared/utils'
-import { ShareCardQr } from '@/components/share/share-card-qr'
+import { ShareCardQr, type ShareCardQrHandle } from '@/components/share/share-card-qr'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 
 const rarityBadgeStyle: CSSProperties = {
@@ -30,6 +30,8 @@ interface MilestoneShareCardProps {
   variant: MilestoneShareVariant
   referralUrl: string
   ref?: Ref<HTMLDivElement>
+  qrRef?: Ref<ShareCardQrHandle>
+  onQrError?: () => void
 }
 
 /** Flat token-native milestone card and the html-to-image capture target. */
@@ -37,6 +39,8 @@ export function MilestoneShareCard({
   variant,
   referralUrl,
   ref,
+  qrRef,
+  onQrError,
 }: Readonly<MilestoneShareCardProps>) {
     const t = useTranslations()
     const shortLink = referralUrl.replace(/^https?:\/\//, '')
@@ -106,7 +110,7 @@ export function MilestoneShareCard({
             style={{ gap: 12, padding: SPACING.s16, borderTop: '1px solid var(--hairline)' }}
           >
             <div style={{ padding: SPACING.s4, borderRadius: 12, background: '#ffffff', lineHeight: 0 }}>
-              <ShareCardQr value={referralUrl} size={56} />
+              <ShareCardQr ref={qrRef} onError={onQrError} value={referralUrl} size={56} />
             </div>
             <div style={{ minWidth: 0 }}>
               <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}>{t('shareCard.scanToJoin')}</p>

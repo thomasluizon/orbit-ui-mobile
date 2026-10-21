@@ -455,20 +455,39 @@ real. Two things change instead:
 
 ### Expressing repetition without the model leaking
 
-**The four internal type names never render, in either locale.** Not "recorrente", not "flexível", not
-"tarefa única", not "geral". The domain stores flags; the interface asks a person about their life.
+Creation and editing begin with two vertical RadioRow choices: `Tarefa única` / `One-time task`
+and `Hábito` / `Habit`. An unseeded create requires a deliberate choice. An edit or an explicit
+inherited type shows its actual selection. The focal title remains editable before that choice;
+validation focuses the type group and preserves every field. Title parsing and Astra replies cannot
+overwrite a deliberate type. Raw schedule enum names never render.
 
-Creation is **one input plus a live preview sentence**. The person types or speaks. The recognised
-words are highlighted **inside** the input, so it is visible which words the parser consumed. A plain
-sentence beneath states what Orbit understood, for example "3 times a week, any days" or "every Monday
-and Thursday at 08:00". Correction is tappable, day pills or a count stepper, never a re-typed syntax.
-Exact time, reminders, end date and description sit behind ONE disclosure.
+A task has no cadence corrections. Habit exposes fixed repetition, count-based repetition and
+`Sem data` / `No schedule`, with `Registre quando acontecer.` / `Log it whenever it happens.`.
+The schedule group stays reachable in the undated branch. Tree constraints remain enforced, and
+General cannot gain reminders or avoidance settings. Switching modes preserves their drafts.
 
-**A parser that cannot resolve a phrase says so and offers the two controls.** It never guesses
-silently.
+The editable date group precedes the single details disclosure. It has a persistent `Quando` /
+`When` label, the type-specific question, natural-language input and the existing calendar picker.
+The picker is labelled `Fazer em` / `Do on` for tasks and `Começar em` / `Starts on` for dated
+habits. New dates use account today after its timezone is known; a caller-selected day is an
+explicit prefill. Edit uses the task due date or persisted recurring start anchor, never the
+recurring next-due cursor. A selected end date has an explicit clear action.
 
-**The form shows an immutable start date, never the mutating next-due date.** Today's "Começar em" is
-a moving cursor wearing a fixed label, and it is a structural defect rather than a copy one.
+Deterministic calendar parsing spends no message. Unsupported wording can request Astra explicitly;
+invalid and ambiguous dates keep the manual picker. The candidate stays Proposed until accepted
+or manually selected. Unresolved text and unaccepted candidates validate visibly on Submit and
+focus the date input. Manual selection, including the same date, clears that issue. Account,
+locale, timezone, day, phrase, picker, type, schedule, end-date and form changes invalidate old
+interpretations. Only the paid action depends on AI capacity. Offline editing and manual picking
+remain available; web saving retains its connection requirement and Android retains offline saving.
+
+Exact time, reminders, end date, description, checklist, sub-habits, tags, goals and avoidance
+controls retain their existing homes behind one disclosure. Read-only DateRow remains a valid
+primitive elsewhere; editable form dates use DateField.
+
+Rows and detail place the complete, quiet type vocabulary beneath the full-width title, with no
+badge or ellipsis on type. Existing status words and parent counts remain. Rows grow with text.
+The paired owners and capability audit are in `design/habit-form-surfaces.md`.
 
 ### Surfaces that no longer exist
 
@@ -1200,6 +1219,11 @@ glyph outside the conversation.
 
 ## Habit list
 
+The painted row owns its background and inset-outline hover transition, using the surface duration in both directions. Body feedback promotes its hairline to the strong token; press and reduced motion are immediate. Sibling control interaction suppresses body feedback immediately. The structural selection checkbox has independent shape-clipped hover and press feedback in checked and unchecked states and restores on exit or cancellation.
+
+- **Stored description preview:** the canonical web and Android row renders title, then the existing description flattened by `stripInlineMarkdown`, then existing metadata. Omit the preview and its gap when normalization is empty; preserve the stored source. This explicitly requested person-authored content uses Geist Sans 14/400, line height 1.55, fg-3 at rest and the row's fg-2 interaction promotion, with the existing 4px content-stack gap. At default text it occupies one naturally ellipsized line; above 130% text it permits two lines and grows the row, wrapping oversized prose tokens as a last resort. Titles retain 17px root and 14px child sizes, their word-boundary rules and full-name access. Links and images contribute text labels only; URLs and HTML-looking text remain inert. The body opens the existing detail disclosure with full source and copy; the preview adds no action or request.
+- **One row feedback surface:** enabled body hover or press replaces the complete radius-20 row's resting fill with `bg-hover`. Body, completion, disclosure and overflow remain independent siblings; interacting with a separate control paints only that control. Fill clears content by at least 8px inline and 4px vertically, and neighbours by at least 4px. The 28px check and its own fill share the 48px target's centre within 1px; at default text that target centres on the actual row, including described rows. Large text retains first-title-line control alignment; parent supporting metadata follows the description at its depth-specific edge.
+
 - **Every habit row owns its bordered body:** current `--bg-card` surface fill plus an inset 1px `--hairline` border, radius 20, including parent and inline child rows. Family grouping adds no second fill or border. Keep 4px between rows inside a Hoje family and 12px between families; habit detail child rows use 12px. The owner standard is “esse e o novo padrao dos habitos” on landing Figma rows `7:72` and `7:84`, file `aLwwyaY3Dtw1NVesAWsNO7`.
 - **Panel row height matches across kinds.** A single-row panel is sized to the same row height as a family's parent row.
 - The panel is the quietest step so the `--bg-well` emoji squares inside it read as the lighter elevation.
@@ -1375,13 +1399,50 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 | occasional (modals, sheets, drawers, toasts, settings) | the standard scale below |
 | rare / first-run (onboarding, milestone, celebration) | the only place the delight budget lives |
 
-**Daily streak feedback is state indication, once per day.** The daily streak moment uses the
-280ms movement token and ease-out curve for a 12px number change and a single day-ring sweep.
-It stays neutral, leaves the screen and composer interactive, and dismisses after 2500ms.
-Reduced motion shows the final number and completed ring immediately, with no movement.
-There is no glow, gradient, confetti, looping or exclamation. Logging has no additional Android
-haptic unless its logging interaction already uses one. Milestone days show only the milestone
-panel for the streak; other earned facts retain their queue order.
+**Daily streak feedback is state indication, once per day.** One panel occupies the existing
+shell notice slot above the composer, leaving every underlying control interactive. Daily inset
+and gap are 16px and 12px; milestone and other fact inset and gap remain 24px and 16px. The
+44px neutral day ring centres a still monochrome `OrbitMark` at `size={16}`, `accent={false}`.
+Its track uses the empty role and its completed stroke uses `fg-1`, including during movement.
+Measure SVG length at runtime; absent measurement leaves a completed static ring.
+
+| Phase | Purpose | Normal motion | Reduced motion |
+|---|---|---|---|
+| Enter | Preventing a jarring change | Fully opaque panel, +12px to 0 in 280ms, ease-out | Final panel immediately |
+| Daily figure and ring | State indication | Old/new figures cross-fade and move 12px within one clip; one measured ring sweep on the same 280ms timeline | Final figure, unit, mark and completed ring |
+| Hold | Static fact | Final value and quiet localized day unit, no movement | Same fact |
+| Exit | Preventing a jarring change | Live presentation to +12px and opacity 0 in 220ms, ease-in | Immediate removal |
+
+The daily figure is display 28px with tabular numbers. Reserve both figures before movement;
+never animate layout dimensions. Static resting styles carry the final fact. At 200% text the
+panel grows and text may wrap without clipping the figure, unit, label or distinct 48px close.
+Only daily eligibility proves the previous value; milestones retain their complete final sentence.
+Other earned facts remain manual and acquire neither rolling figures nor an automatic deadline.
+The native rotating accent ring is replaced by the same single measured neutral sweep for parity.
+
+Daily automatic exit begins at 2280ms and retains its layout reservation through 2500ms. Hover
+or keyboard focus pauses that deadline, including during automatic exit: cancel the exit and its
+fallback, settle visibly and keep observing the retained container. Restart a fresh 2500ms schedule
+only after every pause reason ends. Close stays available during entrance. Manual dismissal is
+committed; repeated close or subsequent hover cannot restart it. Keep the actual departing queue
+item active until completion, with one exact-ID, account-generation-guarded, idempotent path shared
+by animation completion and a bounded exit-deadline fallback. Cancel every callback on unmount,
+account replacement or invalidation; privacy and invalid facts take precedence over exit continuity.
+
+Reduced motion has no translation, scale, numeral change, sweep or delayed manual removal. A live
+preference change settles a held fact without resetting its deadline and completes a pending exit
+immediately. Hiding or backgrounding settles cosmetic movement without a new pause reason. Preserve
+the valid deadline and compare the clock on resume: expired daily facts complete immediately,
+remaining facts stay static and manual facts gain no expiry. Never replay entry or announcements
+for the same ID on refresh, theme change or resume.
+
+One initially empty polite atomic region announces the localized final fact once. Animated
+fragments and the ring are decorative; retain an accessible static description and an accessible
+close. Arrival and automatic expiry never move focus. After manual keyboard close, hand off only
+when the close still owned focus: to the next close, a connected origin, or the stable shell main
+target. Never restore focus across accounts. Native keyboard focus requires separate TalkBack
+verification. There is no glow, gradient, confetti, looping or exclamation, and no additional
+Android haptic. Milestone days show only their milestone panel; queue priority and receipts remain.
 
 **Every animation must name its purpose from this closed list:** feedback · spatial consistency · state indication · preventing a jarring change · explanation · delight (rare/first-run tier only). **If you cannot name it, delete it.**
 

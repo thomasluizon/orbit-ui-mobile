@@ -42,7 +42,7 @@ export function WrappedPlayer({
     ? formatClosedWrappedMonth(closedMonth, locale)
     : t(`wrapped.player.window.${period}`)
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
-  const { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download } = useShareCard()
+  const { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download, resetFeedback } = useShareCard()
   const { profile } = useProfile()
   const current = slides[index]
   const canTapToPage = current?.id !== 'consistency' || period !== 'week' || !!profile
@@ -61,6 +61,7 @@ export function WrappedPlayer({
   }, [])
 
   function page(direction: PageDirection) {
+    resetFeedback()
     if (direction === 'forward') next()
     else prev()
   }
@@ -68,7 +69,7 @@ export function WrappedPlayer({
   const onNavigationKey = useEffectEvent((event: KeyboardEvent) => {
     if (event.key === 'ArrowRight') page('forward')
     else if (event.key === 'ArrowLeft') page('back')
-    else if (event.key === 'Escape') onClose()
+    else if (event.key === 'Escape') dismiss()
   })
 
   useEffect(() => {
@@ -80,6 +81,11 @@ export function WrappedPlayer({
   }, [])
 
   if (!current) return null
+
+  function dismiss() {
+    resetFeedback()
+    onClose()
+  }
 
   function handleShare() {
     void share({
@@ -119,7 +125,7 @@ export function WrappedPlayer({
             ref={closeRef}
             type="button"
             aria-label={t('wrapped.close')}
-            onClick={onClose}
+            onClick={dismiss}
             className="icon-btn touch-target shrink-0 overflow-hidden"
           >
             <X size={20} strokeWidth={1.8} aria-hidden="true" />

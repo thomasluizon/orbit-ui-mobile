@@ -19,7 +19,7 @@ describe.each([
       ? `Complete ${quantity === 1 ? 'once' : `${quantity} times`} a ${period}`
       : `Conclua ${quantity === 1 ? 'uma vez' : `${quantity} vezes`} por ${period}`
     const fields = (quantity: number) => <I18nextProvider i18n={i18n}>
-      <HabitScheduleFields unit={unit} quantity={quantity} flexible disabled={false} onChange={vi.fn()} />
+      <HabitScheduleFields unit={unit} quantity={quantity} flexible disabled={false} onModeChange={vi.fn()} onChange={vi.fn()} />
     </I18nextProvider>
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(fields(1)) })

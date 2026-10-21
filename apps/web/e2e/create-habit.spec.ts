@@ -1,23 +1,14 @@
 import { test, expect } from '@playwright/test'
 import { listHabitTitles } from './support/api'
 import { smokeLabel } from './support/unique'
+import { createSmokeHabit } from './support/smoke-adapters'
 
 test('create a habit from the Today FAB', async ({ page }) => {
   const title = smokeLabel('create')
 
   await page.goto('/')
 
-  await page.getByRole('button', { name: 'Create' }).click()
-
-  const titleInput = page.locator('#habit-form-title')
-  await expect(titleInput).toBeVisible()
-  await titleInput.fill(title)
-
-  const submit = page.getByTestId('habit-create-submit')
-  await expect(submit).toBeEnabled()
-  await submit.click()
-
-  await expect(titleInput).toBeHidden()
+  await createSmokeHabit(page, title)
   await expect
     .poll(() => listHabitTitles(page.request), { timeout: 30_000, intervals: [1_000] })
     .toContain(title)

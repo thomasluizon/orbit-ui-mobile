@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['src/__tests__/**/*.test.ts'],
+    include: ['src/__tests__/**/*.test.ts', 'scripts/**/*.test.mjs'],
     /** CI runs workspace suites one at a time; local suites share the host. */
     maxWorkers: process.env.CI ? '100%' : '25%',
     testTimeout: 15000,

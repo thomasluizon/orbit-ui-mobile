@@ -1,5 +1,7 @@
 'use client'
 
+import { getHabitTypeLabelKey } from '@orbit/shared/utils'
+
 import { DescriptionCopyButton } from './description-copy-button'
 
 import { PersonalText } from '@/components/ui/personal-text'
@@ -41,13 +43,14 @@ import {
   getHabitLogDateDecision,
   getHabitLogDateConfirmationKeys,
   getTodayBoundary,
+  needsHabitDetailListFallback,
   hasAuthoritativeHabitRelationshipState,
   hasHabitScheduleOnDate,
   isHabitHistoryMonthLoaded,
   isHabitCompletedOnDate,
   isHabitSlipping,
   mergeHabitDetailWithScopedHabit,
-  normalizeHabitDetailForDrill,
+  normalizeDrillDetailChild,
   parseAPIDate,
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
@@ -190,6 +193,7 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
   completionDisabled: boolean
   completionReason?: string
 }>) {
+  const typeTranslation = useTranslations()
   const t = useTranslations('habits.detail')
   const [editing, setEditing] = useAccountScopedState(false)
   const [title, setTitle] = useAccountScopedState(habit.title)
@@ -230,6 +234,7 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
               </button>
             </h1>
           )}
+          <p data-habit-detail-type="" className="font-mono text-xs leading-[1.4] text-[var(--fg-3)]">{typeTranslation(getHabitTypeLabelKey(habit))}</p>
           {summary ? <p className="truncate font-mono text-xs tabular-nums text-[var(--fg-3)]">{summary}</p> : null}
         </div>
       </div>
@@ -530,7 +535,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     includeOverdue: true,
     includeGeneral: true,
   }, undefined, { completeDay: true })
-  const allHabitsQuery = useHabits({})
+  const cachedHabitsQuery = useHabits({}, undefined, { enabled: needsHabitDetailListFallback(detailQuery.data) })
   const logHabit = useLogHabit()
   const updateHabit = useUpdateHabit()
   const detailAccountGeneration = useAccountGeneration()
@@ -552,11 +557,11 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 
   const habit = useMemo(() => {
     if (!detailQuery.data) return null
-    const merged = mergeHabitDetailWithScopedHabit(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), dateStr, habitsQuery.data?.habitsById.get(habitId))
+    const merged = mergeHabitDetailWithScopedHabit(detailQuery.data, cachedHabitsQuery.data?.habitsById.get(habitId), dateStr, habitsQuery.data?.habitsById.get(habitId))
     return parentId ? { ...merged, parentId } : merged
-  }, [allHabitsQuery.data, detailQuery.data, habitId, dateStr, habitsQuery.data, parentId])
-  useDocumentTitle(detailQuery.isLoading || allHabitsQuery.isLoading ? t('habits.detail.screenTitle') : habit?.title ?? t('habits.detail.screenTitle'), habitId)
-  const relationshipControlsAvailable = detailQuery.data ? hasAuthoritativeHabitRelationshipState(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), habitsQuery.data?.habitsById.get(habitId)) : false
+  }, [cachedHabitsQuery.data, detailQuery.data, habitId, dateStr, habitsQuery.data, parentId])
+  useDocumentTitle(detailQuery.isLoading ? t('habits.detail.screenTitle') : habit?.title ?? t('habits.detail.screenTitle'), habitId)
+  const relationshipControlsAvailable = detailQuery.data ? hasAuthoritativeHabitRelationshipState(detailQuery.data, cachedHabitsQuery.data?.habitsById.get(habitId), habitsQuery.data?.habitsById.get(habitId)) : false
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
   const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
@@ -596,7 +601,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     const currentDate = new Date()
     const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
     const targetHabit = targetHabitId === habitId ? habit
-      : habitsQuery.data?.habitsById.get(targetHabitId) ?? allHabitsQuery.data?.habitsById.get(targetHabitId)
+      : habitsQuery.data?.habitsById.get(targetHabitId) ?? cachedHabitsQuery.data?.habitsById.get(targetHabitId)
     const decision = getHabitLogDateDecision(targetHabit, dateStr, accountToday, profile.timeZone, confirmed, intent)
     setInvalidLogDate(null)
     switch (decision) {
@@ -651,7 +656,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const openChild = (childId: string) => router.push(`/habits/${childId}?date=${dateStr}&parent=${habitId}${fromToday ? '&from=today' : ''}`)
   const retryFailedQueries = () => {
     if (detailQuery.isError || !detailQuery.data) void detailQuery.refetch()
-    if (allHabitsQuery.isError) void allHabitsQuery.refetch()
   }
   const childUnavailableReasonKey = getHabitDetailChildUnavailableReasonKey(
     habitsQuery.isError, habitsQuery.isLoading, !!habitsQuery.data,
@@ -668,21 +672,20 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     })
   }
 
-  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
-  if (detailQuery.isError || allHabitsQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
+  if (detailQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
+  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
 
-  const children = (normalizeHabitDetailForDrill(detailQuery.data as HabitDetail, dateStr)
-    .childrenByParent.get(habit.id) ?? [])
-    .map((child) => {
-      const scopedChild = getAvailableHabitDetailScopedChild(
-        habitsQuery.data?.habitsById.get(child.id), habitsQuery.isError, habitsQuery.isLoading,
-      )
-      return {
-        ...buildHabitDetailChildDateModel(child, scopedChild, dateStr, todayStr),
-        completionReason: getHabitDetailChildCompletionReason(scopedChild, completionReason, childUnavailableReason),
-        completionStatusUnavailable: scopedChild === undefined,
-      }
-    })
+  const children = (detailQuery.data as HabitDetail).children.map((sourceChild) => {
+    const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)
+    const scopedChild = getAvailableHabitDetailScopedChild(
+      habitsQuery.data?.habitsById.get(child.id), habitsQuery.isError, habitsQuery.isLoading,
+    )
+    return {
+      ...buildHabitDetailChildDateModel(child, scopedChild, dateStr, todayStr, sourceChild),
+      completionReason: getHabitDetailChildCompletionReason(scopedChild, completionReason, childUnavailableReason),
+      completionStatusUnavailable: scopedChild === undefined,
+    }
+  })
   const childProgress = computeHabitDayProgress(
     children.filter((child) => !child.completionStatusUnavailable).map((child) => child.habit),
     (child) => hasHabitScheduleOnDate(child, dateStr),
@@ -715,7 +718,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <AskAstraRow habit={habit} />
       <HabitDetailSchedule habit={habit} summary={summary ?? ''} open={scheduleOpen} onToggle={() => setScheduleOpen((value) => !value)} onCancel={() => setScheduleOpen(false)} onSave={(patch) => { void patchHabit(patch).then((saved) => { if (saved) setScheduleOpen(false) }) }} />
       <section className="flex flex-col" style={{ gap: 12 }}><ListRow placement="column" icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><div hidden={!detailsOpen} id="habit-detail-fields" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}><HabitDetailFields key={habit.id} open={detailsOpen} habit={habit} hasProAccess={hasProAccess} relationshipControlsAvailable={relationshipControlsAvailable} onItemsChange={(items) => { void updateItems(items) }} onPatch={patchHabit} onUpgrade={() => router.push('/upgrade')} /></div></section>
-      <DateRow label={t('habits.detail.startedOn')} value={formatLocaleDate(getHabitDisplayStartDate(habit), language, { dateStyle: 'medium' })} note={t('habits.form.startDateReason')} />
+      <DateRow label={t('habits.detail.startedOn')} value={formatLocaleDate(getHabitDisplayStartDate(habit), language, { dateStyle: 'medium' })} />
       <ListRow placement="column" icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void updateItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />

@@ -2,11 +2,12 @@ import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import en from '@orbit/shared/i18n/en.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { proactiveApiResponses } from '@orbit/shared/__tests__/factories'
 
 import { serverAuthFetch, serverAuthMutate, serverPublicFetch } from '@/lib/server-fetch'
 import { createHabit, updateHabit } from '@/app/actions/habits'
 import { API } from '@orbit/shared/api'
-import { confirmPendingOperation, executePendingOperation, reportProactiveOpened, reportProactiveActed } from '@/app/actions/chat'
+import { confirmPendingOperation, executePendingOperation, reportProactiveOpened, reportProactiveActed, getCurrentProactiveItem } from '@/app/actions/chat'
 import { POST as eventTicket } from '@/app/api/events/ticket/route'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -646,3 +647,32 @@ describe('Astra proxy failure logging through server actions', () => {
 })
 
 afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))
+
+
+describe('current proactive response boundary', () => {
+  beforeEach(() => {
+    resolveServerSessionMock.mockReset()
+    mockFetch.mockReset()
+    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+  })
+
+  it.each(proactiveApiResponses)('accepts serialized $trigger facts through the current-item action', async (response) => {
+    mockFetch.mockResolvedValue(Response.json(response))
+    await expect(getCurrentProactiveItem()).resolves.toEqual(response)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves null facts and the no-current-item response', async () => {
+    const response = { ...proactiveApiResponses[0], facts: null }
+    mockFetch.mockResolvedValueOnce(Response.json(response))
+    await expect(getCurrentProactiveItem()).resolves.toEqual(response)
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    await expect(getCurrentProactiveItem()).resolves.toBeNull()
+  })
+
+  it.each([1, true, {}, null])('rejects malformed proactive facts trigger %j', async (trigger) => {
+    const response = proactiveApiResponses[0]!
+    mockFetch.mockResolvedValue(Response.json({ ...response, facts: { ...response.facts, trigger } }))
+    await expect(getCurrentProactiveItem()).rejects.toMatchObject({ status: 502, code: 'INVALID_RESPONSE_SCHEMA' })
+  })
+})

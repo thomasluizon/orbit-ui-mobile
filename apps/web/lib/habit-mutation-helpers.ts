@@ -106,6 +106,7 @@ function applyOptionalHabitSchedulePatch(
   if ('frequencyUnit' in data) patch.frequencyUnit = data.frequencyUnit ?? null
   if ('frequencyQuantity' in data) patch.frequencyQuantity = data.frequencyQuantity ?? null
   if ('days' in data) patch.days = data.days ?? []
+  if ('startDate' in data) patch.startDate = data.startDate
   if ('dueDate' in data) patch.dueDate = data.dueDate ?? ''
   if ('dueTime' in data) patch.dueTime = data.dueTime ?? null
   if ('dueEndTime' in data) patch.dueEndTime = data.dueEndTime ?? null

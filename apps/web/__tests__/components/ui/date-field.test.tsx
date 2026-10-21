@@ -238,3 +238,9 @@ describe('DateField', () => {
     expect(screen.getByText('September')).toBeInTheDocument()
   })
 })
+
+it('focuses the calendar trigger after a caller removes its focused action', () => {
+  const { rerender } = render(<DateField label="End date" value="2026-11-01" onChange={vi.fn()} />)
+  rerender(<DateField label="End date" value="" onChange={vi.fn()} focusRequest={1} />)
+  expect(screen.getByRole('button', { name: 'End date, common.selectDate' })).toHaveFocus()
+})

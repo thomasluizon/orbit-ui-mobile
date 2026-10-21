@@ -7,6 +7,14 @@ import { T, REPO_ROOT, root, stage, run } from './_harness.mjs'
 import { scan, compare, validateRules, newLosses } from '../check-feature-parity.mjs'
 
 const manifestPath = '.claude/manifests/feature-parity.json'
+const restoredRuleIds = [
+  'web:control:habits.form.emojiSuggest', 'web:control:habits.form.emojiSuggesting',
+  'web:control:orbitMcp.configInstructions', 'web:control:orbitMcp.replaceKey',
+  'mobile:display:orbitMcp.replaceKey',
+  'web:control:shell.collapseSidebar', 'web:control:shell.expandSidebar',
+  'web:display:orbitMcp.created', 'web:display:orbitMcp.lastUsed',
+  ...['web', 'mobile'].flatMap((platform) => ['yes', 'no'].map((value) => `${platform}:display:common.${value}`)),
+]
 
 function generatedInventory(catalog, rules) {
   const directory = join(root, 'parity-source')
@@ -20,7 +28,8 @@ function generatedInventory(catalog, rules) {
   }
   for (const platform of ['web', 'mobile']) {
     const ids = Object.entries(rules.tickets).filter(([id, ticket]) => id.startsWith(`${platform}:`) && ticket === '#1447').map(([id]) => id)
-    ids.push(...['common.nextWeek', 'common.previousWeek', 'chat.attachFile', 'gamification.levelUp.title', 'goals.completedCelebrationTitle'].map((key) => `${platform}:control:${key}`))
+    ids.push(...restoredRuleIds.filter((id) => id.startsWith(`${platform}:`)))
+    ids.push(...['common.nextWeek', 'common.previousWeek', 'common.selectDate', 'common.selectedDate', 'chat.attachFile', 'gamification.levelUp.title', 'goals.completedCelebrationTitle'].map((key) => `${platform}:control:${key}`))
     if (platform === 'web') ids.push('web:control:calendar.agenda.nextDay', 'web:control:calendar.agenda.previousDay')
     for (const id of ids) fixtureCatalog[id.split(':')[2]] = id.split(':')[2]
     const labels = ids.map((id) => id.includes(':display:')
@@ -39,6 +48,8 @@ function generatedInventory(catalog, rules) {
   git(['config', 'user.name', 'Orbit Gate'])
   git(['add', ...Object.keys(files)])
   git(['commit', '-q', '-m', 'Production source fixture'])
+  const provenance = { legacyProduction: git(['rev-parse', 'HEAD']) }
+  put('tools/feature-parity-rules.json', JSON.stringify({ provenance, staticHeadingLabels: rules.staticHeadingLabels }))
   mkdirSync(join(directory, '.claude/manifests'), { recursive: true })
   const generate = (extra = []) => run('check-feature-parity.mjs', ['--root', directory, '--production', 'production', '--write', ...extra])
   const generated = generate(['--ci', '--base', 'production'])
@@ -48,11 +59,11 @@ function generatedInventory(catalog, rules) {
   T('the generated parity inventory is not tracked', tracked === '')
   if (tracked) git(['add', manifestPath])
   git(['commit', '-q', '--allow-empty', '-m', 'Generated inventory policy fixture'])
-  return { directory, put, git, generate, inventory, source: files['packages/shared/src/parity-controls.tsx'] }
+  return { directory, put, git, generate, inventory, provenance, source: files['packages/shared/src/parity-controls.tsx'] }
 }
 
 function inventoryRegressions(fixture) {
-  const { directory, put, git, generate, source } = fixture
+  const { directory, put, git, generate, source, provenance } = fixture
   const controls = 'packages/shared/src/parity-controls.tsx'
   const manifest = () => JSON.parse(readFileSync(join(directory, manifestPath), 'utf8'))
   const secondLine = () => manifest().entries.find((entry) => entry.id === 'web:control:common.all').redesign[0].line
@@ -76,12 +87,12 @@ function inventoryRegressions(fixture) {
   put(controls, source.replace("<button onClick={open}>{t('habits.viewAll')}</button>", '<span />'))
   const loss = generate(['--ci', '--base', base])
   T('the CLI rejects a new loss despite a stale local manifest', loss.status === 1 && /web:control:habits.viewAll \| packages\/shared\/src\/parity-controls.tsx:1/.test(loss.stdout), loss.stdout + loss.stderr)
-  put('tools/feature-parity-rules.json', JSON.stringify({ tickets: { 'web:control:habits.viewAll': '#1423', 'mobile:control:habits.viewAll': '#1423' } }))
+  put('tools/feature-parity-rules.json', JSON.stringify({ provenance, tickets: { 'web:control:habits.viewAll': '#1423', 'mobile:control:habits.viewAll': '#1423' } }))
   T('a restoration ticket cannot exempt a new source loss', generate(['--ci', '--base', base]).status === 1)
   git(['add', controls, 'tools/feature-parity-rules.json'])
   git(['commit', '-q', '-m', 'Ticketed source debt fixture'])
   T('ticketed base losses remain advisory without a committed manifest', generate(['--ci', '--base', 'HEAD']).status === 0)
-  put('tools/feature-parity-rules.json', '{}')
+  put('tools/feature-parity-rules.json', JSON.stringify({ provenance }))
   T('an unticketed base loss still blocks', generate(['--ci', '--base', 'HEAD']).status === 1)
   put(controls, source)
   rmSync(join(directory, '.claude/manifests'), { recursive: true })
@@ -89,11 +100,138 @@ function inventoryRegressions(fixture) {
   T('writing the inventory creates its output directory', fresh.status === 0, fresh.stderr)
 }
 
+
+function promotionFixture(catalog) {
+  const directory = join(root, 'parity-promotion')
+  const put = (path, source) => stage(`parity-promotion/${path}`, source)
+  const git = (args) => execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim()
+  put('packages/shared/src/i18n/en.json', catalog)
+  const route = 'apps/web/app/page.tsx'
+  const legacy = "export default function Home() { return <button onClick={open}>{t('habits.viewAll')}</button> }"
+  const current = "export default function Home() { return <><button onClick={open}>{t('common.all')}</button><button onClick={open}>{t('chat.attachFile')}</button></> }"
+  put(route, legacy)
+  put('tools/feature-parity-rules.json', '{}')
+  put('DESIGN.md', 'Verified removal permission')
+  git(['init', '-q', '--initial-branch=main'])
+  git(['config', 'user.email', 'gate@orbit.test'])
+  git(['config', 'user.name', 'Orbit Gate'])
+  git(['add', route, 'packages/shared/src/i18n/en.json', 'tools/feature-parity-rules.json', 'DESIGN.md'])
+  git(['commit', '-q', '-m', 'Legacy production source'])
+  const legacyRevision = git(['rev-parse', 'HEAD'])
+  const rules = {
+    provenance: { legacyProduction: legacyRevision },
+    mappings: { 'web:control:habits.viewAll': { targets: ['web:control:common.all'], reason: 'Relocated control' } },
+    tickets: { 'web:control:habits.viewAll': '#1423' },
+  }
+  put(route, current)
+  put('tools/feature-parity-rules.json', JSON.stringify(rules))
+  git(['add', route, 'tools/feature-parity-rules.json'])
+  git(['commit', '-q', '-m', 'Promoted production with a new control'])
+  const promoted = git(['rev-parse', 'HEAD'])
+  const check = (production = promoted, base = promoted) => run('check-feature-parity.mjs', ['--root', directory, '--production', production, '--base', base, '--ci', '--write'])
+  return { directory, put, git, route, legacy, current, legacyRevision, promoted, rules, check }
+}
+
+function promotionRegressions(catalog) {
+  const fixture = promotionFixture(catalog)
+  const { directory, put, git, route, legacy, current, legacyRevision, promoted, rules, check } = fixture
+  const beforePromotion = check(legacyRevision)
+  T('legacy production and its verified rules reach a complete comparison', beforePromotion.status === 0, beforePromotion.stderr)
+  const afterPromotion = check()
+  T('promoted production preserves legacy rules and current capabilities', afterPromotion.status === 0, afterPromotion.stderr)
+  if (afterPromotion.status === 0) {
+    const inventory = JSON.parse(readFileSync(join(directory, manifestPath), 'utf8'))
+    T('the union deduplicates routes and records both immutable source revisions and base', inventory.entries.length === 4 && inventory.production === promoted && inventory.legacyProduction === legacyRevision && inventory.base === promoted)
+    T('legacy relocation and the postlegacy control both have evidence', ['web:control:habits.viewAll', 'web:control:chat.attachFile'].every((id) => inventory.entries.some((entry) => entry.id === id && entry.disposition === 'retained' && entry.redesign.length > 0)))
+  }
+  put(route, current.replace("<button onClick={open}>{t('chat.attachFile')}</button>", ''))
+  const currentLoss = check()
+  T('a control shipped after the legacy snapshot remains blocking', currentLoss.status === 1 && currentLoss.stdout.includes('web:control:chat.attachFile |'), currentLoss.stdout + currentLoss.stderr)
+  put(route, current.replace("<button onClick={open}>{t('common.all')}</button>", ''))
+  const relocationLoss = check()
+  T('a ticket cannot exempt a newly lost legacy relocation target', relocationLoss.status === 1 && relocationLoss.stdout.includes('web:control:habits.viewAll |'), relocationLoss.stdout + relocationLoss.stderr)
+  git(['add', route])
+  git(['commit', '-q', '-m', 'Existing ticketed relocation gap'])
+  T('existing ticketed debt remains advisory with legacy production', check(legacyRevision, 'HEAD').status === 0)
+  put('tools/feature-parity-rules.json', JSON.stringify({ ...rules, tickets: {} }))
+  T('existing unticketed legacy debt blocks', check(legacyRevision, 'HEAD').status === 1)
+  put('tools/feature-parity-rules.json', JSON.stringify(rules))
+  put(route, current)
+  git(['add', route])
+  git(['commit', '-q', '-m', 'Restore the relocated control'])
+  const restoredBase = git(['rev-parse', 'HEAD'])
+  put(route, current.replace("<button onClick={open}>{t('common.all')}</button>", ''))
+  T('a restored then lost legacy capability blocks despite its ticket', check(legacyRevision, restoredBase).status === 1)
+  put(route, legacy)
+  T('restoring the original legacy control satisfies its relocation', check(legacyRevision, restoredBase).status === 0)
+  put(route, current)
+  invalidPromotionInputs(fixture)
+}
+
+function invalidPromotionInputs({ put, git, check, rules, legacyRevision, promoted }) {
+  const invalidRules = [
+    ['missing provenance', { ...rules, provenance: undefined }, /provenance/],
+    ['unknown provenance field', { ...rules, provenance: { ...rules.provenance, ignored: legacyRevision } }, /provenance/],
+    ['floating legacy reference', { ...rules, provenance: { legacyProduction: 'main' } }, /immutable/],
+    ['missing legacy object', { ...rules, provenance: { legacyProduction: 'f'.repeat(40) } }, /./],
+    ['noncommit legacy object', { ...rules, provenance: { legacyProduction: git(['rev-parse', `${legacyRevision}^{tree}`]) } }, /./],
+    ['wrong era provenance', { ...rules, provenance: { legacyProduction: promoted } }, /no production capability/],
+    ['unknown source ID', { ...rules, tickets: { 'web:control:invented': '#1423' } }, /no production capability/],
+    ['cross-platform mapping', { ...rules, mappings: { 'web:control:habits.viewAll': { reason: 'Moved', targets: ['mobile:control:common.all'] } } }, /same platform/],
+    ['invalid mapping kind', { ...rules, mappings: { 'web:control:habits.viewAll': { reason: 'Moved', targets: ['web:invented:common.all'] } } }, /mapping targets/],
+    ['empty mapping', { ...rules, mappings: { 'web:control:habits.viewAll': { reason: 'Moved', targets: [] } } }, /mapping targets/],
+    ['unverifiable removal citation', { ...rules, mappings: {}, tickets: {}, removals: { 'web:control:habits.viewAll': { reason: 'Removed', citation: 'DESIGN.md', rule: 'Invented permission' } } }, /citation/],
+    ['invalid ticket', { ...rules, tickets: { 'web:control:habits.viewAll': 'done' } }, /ticket reference/],
+  ]
+  for (const [name, variant, message] of invalidRules) {
+    put('tools/feature-parity-rules.json', JSON.stringify(variant))
+    const result = check()
+    T(`${name} is rejected before comparison`, result.status === 2 && message.test(result.stderr), result.stdout + result.stderr)
+  }
+  put('tools/feature-parity-rules.json', JSON.stringify(rules))
+  T('an invalid active production reference fails closed', check('missing-production').status === 2)
+  T('an invalid queued base fails closed', check(legacyRevision, 'missing-base').status === 2)
+}
+
+
+function restoredRuleRegressions(platform, current, files, inventory, rules, observations) {
+  const capabilities = inventory.entries.filter((entry) => restoredRuleIds.includes(entry.id) && entry.platform === platform)
+  const retained = compare(capabilities, observations, rules)
+  T(`${platform} closed restoration tickets resolve to their actual rendered replacements`, retained.length === restoredRuleIds.filter((id) => id.startsWith(`${platform}:`)).length && retained.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0), retained.filter((entry) => entry.disposition !== 'retained').map((entry) => entry.id).join(', '))
+  const paths = [...new Set(capabilities.flatMap((entry) => rules.mappings[entry.id].targets).flatMap((id) => observations.find((entry) => entry.id === id)?.evidence.map((item) => item.file) ?? []))]
+  const originals = new Map(paths.map((path) => [path, files[path]]))
+  for (const path of paths) {
+    if (path.endsWith('habit-emoji-selector.tsx')) files[path] = files[path].replace("{t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}", '{null}')
+    else if (path.endsWith('shell-wide.tsx')) files[path] = files[path].replace('aria-label={toggleLabel}', '').replace('title={toggleLabel}', '')
+    else if (path.endsWith('mcp-code-client.tsx')) files[path] = files[path].split('\n').filter((line) => !line.includes("t('orbitMcp.configInstructions')") && !line.includes("t('orbitMcp.replaceKey')")).join('\n')
+    else if (path.endsWith('profile-api-keys.tsx')) files[path] = files[path].split('\n').filter((line) => !line.includes("t('orbitMcp.created')") && !line.includes("t('orbitMcp.lastUsed')") && !line.includes("apiKey.isReadOnly ? t('orbitMcp.permReadOnly')")).join('\n')
+    T(`${platform} the restoration evidence source is deliberately broken`, files[path] !== originals.get(path), path)
+  }
+  const removed = compare(capabilities, scan(current, platform), rules)
+  T(`${platform} closed restoration tickets cannot exempt lost replacements`, newLosses(removed, retained).length === capabilities.length, removed.filter((entry) => entry.disposition !== 'missing').map((entry) => entry.id).join(', '))
+  for (const [path, source] of originals) files[path] = source
+}
+
+function workflowRegressions(workflow) {
+  const charter = run('check-gate-charter.mjs', [])
+  T('the parity workflow satisfies its declared changed-file scope', charter.status === 0, charter.stderr)
+  const comparison = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__1')
+  const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
+  for (const step of [comparison, artifact]) {
+    T(`${step.id} covers main and supported redesign pull requests`, step.if.includes("github.event_name == 'pull_request'") && step.if.includes("github.base_ref == 'main'") && step.if.includes("github.base_ref == 'redesign/main'"))
+  }
+  T('main production and debt comparisons use the immutable queued base', comparison.run.includes('--production "HEAD^1" --base "HEAD^1"') && comparison.run.includes('"$BASE_REF" = main'))
+  T('redesign retains active production and an immutable queued debt base', comparison.run.includes('--production origin/main --base "HEAD^1"'))
+  T('evidence uploads even when the comparison fails', artifact.if.includes('always()') && artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
+}
+
 export const cases = () => {
   const workflow = yaml.load(readFileSync(join(REPO_ROOT, '.github/workflows/guards.yml'), 'utf8'))
+  workflowRegressions(workflow)
   const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
   T('Guards uploads the generated inventory from its hidden directory', artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
   const catalog = readFileSync(join(REPO_ROOT, 'packages/shared/src/i18n/en.json'), 'utf8')
+  promotionRegressions(catalog)
   const snapshot = (source, extra = {}) => {
     const files = {
       'packages/shared/src/i18n/en.json': catalog,
@@ -268,6 +406,45 @@ export const cases = () => {
     load(`apps/${platform}`)
     load('packages/shared/src')
     const current = { paths: new Set(Object.keys(files)), read: (path) => files[path] }
+    const apiKeys = `apps/${platform}/components/profile/profile-api-keys.tsx`
+    const currentObservations = scan(current, platform)
+    const currentControls = currentObservations.filter((entry) => entry.kind !== 'content')
+    const originalApiKeys = files[apiKeys]
+    const entry = /<ListRow\s+compact\s+icon=\{<Key[\s\S]*?onClick=\{\(\) => setShowStepUp\(true\)\}\s*\/>/
+    T(`${platform} the actual API-key entry is reachable before mutation`, entry.test(originalApiKeys) && currentControls.some((capability) => capability.id === `${platform}:control:profile.apiKeys.open`))
+    files[apiKeys] = originalApiKeys.replace(entry, '{null}')
+    const withoutEntry = scan(current, platform)
+    const entryLosses = newLosses(compare(currentControls, withoutEntry, rules), compare(currentControls, currentObservations, rules))
+    T(`${platform} removing the actual API-key entry blocks a current production loss`, entryLosses.some((capability) => capability.id === `${platform}:control:profile.apiKeys.open`))
+    const legacyEntry = [{ id: `${platform}:control:advancedSettings.title`, platform, kind: 'control', key: 'advancedSettings.title', evidence: [] }]
+    T(`${platform} removing the actual API-key entry also blocks its legacy relocation`, newLosses(compare(legacyEntry, withoutEntry, rules), compare(legacyEntry, currentObservations, rules)).length === 1)
+    files[apiKeys] = originalApiKeys
+    restoredRuleRegressions(platform, current, files, inventory, rules, currentObservations)
+    const keyOwner = `apps/${platform}/components/profile/profile-api-keys.tsx`
+    const noExpiryId = `${platform}:display:common.never`
+    const keyObservations = scan(current, platform, rules)
+    const keyCapabilities = keyObservations.filter((entry) => entry.id === noExpiryId)
+    const beforeKey = compare(keyCapabilities, keyObservations, rules)
+    T(`${platform} no-expiry metadata resolves to the existing key details output`, beforeKey.length === 1 && beforeKey[0].disposition === 'retained' && beforeKey[0].redesign.every((item) => item.file === keyOwner))
+    const originalKeyOwner = files[keyOwner]
+    files[keyOwner] = originalKeyOwner.replace(": t('common.never')}</", ': null}</')
+    T(`${platform} mutation removes no-expiry output while retaining the input placeholder`, files[keyOwner] !== originalKeyOwner && files[keyOwner].includes("placeholder={t('common.never')}"))
+    const afterKey = compare(keyCapabilities, scan(current, platform, rules), rules)
+    T(`${platform} the creation placeholder cannot retain deleted no-expiry metadata`, afterKey.length === 1 && afterKey[0].disposition === 'missing')
+    T(`${platform} removing restored no-expiry metadata blocks parity`, newLosses(afterKey, beforeKey).some((entry) => entry.id === noExpiryId))
+    files[keyOwner] = originalKeyOwner
+    const dateField = `apps/${platform}/components/ui/date-field.tsx`
+    const dateCapabilities = inventory.entries.filter((entry) => ['common.selectDate', 'common.selectedDate'].some((key) => entry.id === `${platform}:control:${key}`))
+    const beforeDate = compare(dateCapabilities, scan(current, platform, rules), rules)
+    T(`${platform} legacy date selection resolves to its rendered field`, beforeDate.length === 2 && beforeDate.every((entry) => entry.disposition === 'retained' && entry.redesign.some((item) => item.file === dateField)))
+    const originalDateField = files[dateField]
+    files[dateField] = 'export function DateField() { return null }'
+    const withoutDateField = scan(current, platform, rules)
+    T(`${platform} removing the date field preserves the separate selected-date readout`, withoutDateField.some((entry) => entry.id === `${platform}:display:common.selectedDate`))
+    const afterDate = compare(dateCapabilities, withoutDateField, rules)
+    T(`${platform} a separate date readout cannot retain deleted date selection`, afterDate.every((entry) => entry.disposition === 'missing'))
+    T(`${platform} removing the date field blocks both legacy date capabilities`, newLosses(afterDate, beforeDate).length === 2)
+    files[dateField] = originalDateField
     const guide = `apps/${platform}/components/profile/profile-mcp-guide.tsx`
     const guideCapabilities = inventory.entries.filter((entry) => entry.platform === platform && rules.tickets[entry.id] === '#1447')
     const beforeGuide = compare(guideCapabilities, scan(current, platform), rules)
@@ -322,6 +499,13 @@ export const cases = () => {
     const originalCelebration = files[celebration]
     files[celebration] = originalCelebration.split('\n').filter((line) => !line.includes('{line}</p>') && !line.includes('{line}</Text>')).join('\n')
     T(`${platform} mutation deletes only the actual celebration output`, files[celebration] !== originalCelebration && files[celebration].includes('plural(translatedLine, pluralCount)'))
+    const accessibleCelebration = compare(titles, scan(current, platform), rules)
+    T(`${platform} the remaining accessible final fact retains both celebration titles`, accessibleCelebration.every((entry) => entry.disposition === 'retained'))
+    files[celebration] = files[celebration]
+      .replace(/ (?:aria-label|accessibilityLabel)=\{label\}/g, '')
+      .replace(/<span role="status"[^>]*>\{announcement\}<\/span>/, '')
+      .replace(/<Text testID=\{daily \? 'daily-streak-announcement' : 'celebration-announcement'\} accessibilityLiveRegion="polite"\s+style=\{styles\.announcement\}>\{announcement\}<\/Text>/, '')
+    T(`${platform} mutation removes the accessible final fact and announcement consumers`, !files[celebration].includes('{announcement}</') && !/(?:aria-label|accessibilityLabel)=\{label\}/.test(files[celebration]) && files[celebration].includes('setAnnouncement(label)'))
     const afterCelebration = compare(titles, scan(current, platform), rules)
     T(`${platform} unrelated plural consumers cannot retain either deleted celebration title`, afterCelebration.every((entry) => entry.disposition === 'missing'))
     T(`${platform} deleting the celebration output blocks both mapped titles`, newLosses(afterCelebration, beforeCelebration).length === 2)
