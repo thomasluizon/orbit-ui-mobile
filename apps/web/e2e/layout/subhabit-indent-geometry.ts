@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { settleAnimations } from './settle-animations'
 
-export async function setHabitTextScale(page: Page, scale: number, supportingTitles: readonly string[] = []) {
+export async function setHabitTextScale(page: Page, scale: number, supportingTitles: readonly string[] = [], narrowSupportingTitles: readonly string[] = []) {
   const identities = await page.evaluateHandle(() => {
     const nodes = [document.documentElement, ...document.querySelectorAll('[data-testid="habit-row"]')]
     return { root: document.documentElement, nodes: new Map(nodes.map((node, index) => [node, index + 1])) }
@@ -41,7 +41,7 @@ export async function setHabitTextScale(page: Page, scale: number, supportingTit
       receipt = actual
       return { rootFont: actual.root.computedFont, rows: actual.rows.map(({ title, headings }) => ({ title, headings })) }
     }, { message: 'Habit text scale and supporting phases must settle together' }).toEqual({
-      rootFont: `${16 * scale}px`, rows: supportingTitles.map((title) => ({ title, headings: scale > 1.3 ? 1 : 0 })),
+      rootFont: `${16 * scale}px`, rows: supportingTitles.map((title) => ({ title, headings: scale > 1.3 || narrowSupportingTitles.includes(title) ? 1 : 0 })),
     })
     await settleHabitRows(page.getByTestId('habit-row'), scale)
   } catch (cause) {

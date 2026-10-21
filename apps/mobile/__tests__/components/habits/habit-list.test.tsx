@@ -917,8 +917,8 @@ describe('HabitList', () => {
   it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].flatMap((drilling) =>
     [false, true].map((selectMode) => ({ view, drilling, selectMode })),
   )))('applies display depth once in $view, drilling=$drilling, selecting=$selectMode', ({ view, drilling, selectMode }) => {
-    const parent = createMockHabit({ id: 'parent', title: 'Parent', description: '**Read** two pages before breakfast.', hasSubHabits: true, isGeneral: view === 'general', scheduledDates: [TODAY] })
-    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', description: '**Read** two pages before breakfast.', parentId: parent.id, isGeneral: parent.isGeneral, scheduledDates: [TODAY] })
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', description: '**Read** two pages before breakfast.', checklistItems: [{ text: 'Page', isChecked: true }, { text: 'Page', isChecked: false }], hasSubHabits: true, isGeneral: view === 'general', scheduledDates: [TODAY] })
+    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', description: '**Read** two pages before breakfast.', checklistItems: [{ text: 'Page', isChecked: true }, { text: 'Page', isChecked: false }], parentId: parent.id, isGeneral: parent.isGeneral, scheduledDates: [TODAY] })
     const branch = createMockHabit({ ...leaf, id: 'branch', title: 'Branch', hasSubHabits: true })
     const grandchild = createMockHabit({ ...leaf, id: 'grandchild', parentId: branch.id })
     seedHabits([parent, leaf, branch])
@@ -940,6 +940,11 @@ describe('HabitList', () => {
     const rows = composition.root.findAllByType(HabitRow)
     expect(rows.map((row: { props: { habit: NormalizedHabit; depth: 0 | 1 } }) => [row.props.habit.id, row.props.depth])).toEqual(drilling
       ? [[leaf.id, 0], [branch.id, 0]] : [[parent.id, 0], [leaf.id, 1], [branch.id, 1]])
+    for (const row of rows) {
+      const meta = row.findAllByType('View').find((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-meta')!
+      expect(meta.findAllByType('Text')[0].props.testID).toBe('habit-row-type')
+      expect(meta.findByProps({ testID: 'habit-row-checklist' }).findByType('Text').props.children).toBe('1/2')
+    }
     const geometry = measureInteractionFills(composition.toJSON(), 320, false)
     const rowBounds = geometry.filter((part) => part.host.props.testID === 'habit-row')
     expect(rowBounds).toHaveLength(rows.length)

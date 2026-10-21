@@ -1,4 +1,4 @@
-import { computeHabitFutureHint, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
+import { computeHabitFutureHint, getHabitChecklistProgress, getHabitRowTypeLabelKey, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { HabitRowMetaPart } from './habit-row-content'
@@ -38,7 +38,7 @@ export function buildHabitRowMetaParts({
   t,
   locale,
 }: BuildHabitRowMetaPartsParams): HabitRowMetaPart[] {
-  const metaParts: HabitRowMetaPart[] = []
+  const metaParts: HabitRowMetaPart[] = [{ kind: 'type', label: t(getHabitRowTypeLabelKey(habit)) }]
   if (childProgress && childProgress.total > 0) {
     metaParts.push(t('habits.rowProgress', childProgress))
   } else if (habit.dueTime) {
@@ -53,12 +53,14 @@ export function buildHabitRowMetaParts({
     const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
     if (futureHint) metaParts.push({ kind: 'future', label: futureHint })
   }
+  const checklist = getHabitChecklistProgress(habit)
+  if (checklist) metaParts.push({ kind: 'checklist', ...checklist, label: `${t('habits.form.checklist')}, ${t('habits.rowProgress', checklist)}` })
   return metaParts
 }
 
 interface BuildHabitRowAccessibilityLabelParams {
   title: string
-  dotState: HabitStatus
+  dotState?: HabitStatus
   metaParts?: HabitRowMetaPart[]
   linkedGoal: boolean
   showStreak: boolean
@@ -76,9 +78,13 @@ export function buildHabitRowAccessibilityLabel({
   streak,
   t,
 }: BuildHabitRowAccessibilityLabelParams): string {
-  const parts = [title, t(`habits.statusDot.${dotState}` as const)]
+  const type = metaParts.find((part) => typeof part !== 'string' && part.kind === 'type')
+  const parts = [title]
+  if (type && typeof type !== 'string') parts.push(type.label)
+  if (dotState) parts.push(t(`habits.statusDot.${dotState}` as const))
   for (const part of metaParts) {
     if (typeof part === 'string') parts.push(part)
+    else if (part.kind === 'checklist') parts.push(part.label)
     else if (part.kind === 'overdue' && dotState !== 'overdue') parts.push(t('habits.overdue'))
     else if (part.kind === 'bad' && dotState !== 'bad') parts.push(t('habits.statusDot.bad'))
   }

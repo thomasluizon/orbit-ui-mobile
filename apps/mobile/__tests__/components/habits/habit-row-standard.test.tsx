@@ -51,15 +51,16 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
   expect(type.ancestors).not.toContain(primary.slot)
   expect(metadata.ancestors).not.toContain(primary.slot)
   expect(geometry.some((part) => type.ancestors.includes(part.slot) && 'importantForAccessibility' in part.host.props && part.host.props.importantForAccessibility === 'no-hide-descendants')).toBe(true)
-  const footerContent = geometry.find((part) => part.slot === type.ancestors.at(-1))!
+  const footerContent = geometry.find((part) => part.slot === metadata.ancestors.at(-1))!
   expect(footerContent.right).toBe(row.right - 8)
-  expect(type.right).toBe(footerContent.right)
-  expect(footerContent.style).toMatchObject({ flex: 1, minWidth: 0, gap: 4 })
+  expect(metadata.right).toBe(footerContent.right)
+  expect(footerContent.style).toMatchObject({ flex: 1, minWidth: 0 })
   const heading = geometry.find((part) => title.ancestors.includes(part.slot) && part.style.minHeight === (depth ? 52 : 68) && part.style.paddingTop === (depth ? 4 : 8))!
   const description = geometry.find((part) => part.host.props.testID === 'habit-row-description')
   expect(type.top - heading.bottom).toBeCloseTo(description ? 0 : 4, 1)
   expect(type.top - (description ?? title).bottom).toBeGreaterThanOrEqual(4)
-  expect(metadata.top - type.bottom).toBeCloseTo(4, 1)
+  expect(type.top).toBeCloseTo(metadata.top, 1)
+  expect(type.bottom).toBeLessThanOrEqual(metadata.bottom)
   expect(row.bottom - metadata.bottom).toBeCloseTo(8, 1)
   expect(metadata.host.props.numberOfLines).toBeUndefined()
 }
@@ -98,7 +99,7 @@ describe('habit row standard on Android', () => {
     const types = geometry.filter((part) => part.host.props.testID === 'habit-row-type')
     expect(types).toHaveLength(1)
     const type = types[0]!
-    expect(geometry.filter((part) => part.host.props.testID === 'habit-row-meta')).toHaveLength(0)
+    expect(geometry.filter((part) => part.host.props.testID === 'habit-row-meta')).toHaveLength(1)
     expect(type.host.children).toEqual([en.habits.form.typeHabit])
     expect(row.bottom - type.bottom).toBeCloseTo(8, 1)
     TestRenderer.act(() => tree.unmount())

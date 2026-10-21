@@ -1,8 +1,8 @@
-import { getHabitRowTypeLabelKey, stripInlineMarkdown } from '@orbit/shared/utils'
+import { stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
-import { Fragment, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { ListChecks } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { createTokensV2 } from '@/lib/theme'
 import { styles } from './habit-row-styles'
@@ -12,6 +12,8 @@ export type HabitRowMetaPart =
   | { kind: 'overdue' }
   | { kind: 'bad' }
   | { kind: 'future'; label: string }
+  | { kind: 'type'; label: string }
+  | { kind: 'checklist'; label: string; done: number; total: number }
 
 interface HabitRowContentProps {
   habit: NormalizedHabit
@@ -23,6 +25,8 @@ interface HabitRowContentProps {
   metaParts: HabitRowMetaPart[]
   tokens: ReturnType<typeof createTokensV2>
   metaOnSupportingLine?: boolean
+  onContentWidth?: (width: number) => void
+  onTokenWidth?: (key: string, width: number) => void
 }
 
 export function HabitRowContent({
@@ -35,11 +39,12 @@ export function HabitRowContent({
   metaParts,
   tokens,
   metaOnSupportingLine = false,
+  onContentWidth,
+  onTokenWidth,
 }: Readonly<HabitRowContentProps>) {
-  const { t } = useTranslation()
   const description = stripInlineMarkdown(habit.description ?? '')
   return (
-    <View style={styles.titleBlock}>
+    <View testID="habit-row-title-block" onLayout={(event) => onContentWidth?.(event.nativeEvent.layout.width)} style={styles.titleBlock}>
       <PersonalText expanded={expanded}
         style={[
           styles.title,
@@ -56,66 +61,52 @@ export function HabitRowContent({
         numberOfLines={largeText ? 2 : 1} ellipsizeMode="tail"
         style={[styles.description, { color: metaColor }]}>{description}</Text> : null}
 
-      {metaOnSupportingLine ? null : <HabitRowTypeLabel label={t(getHabitRowTypeLabelKey(habit))} color={metaColor} />}
-      {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} />}
+      {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} largeText={largeText} onTokenWidth={onTokenWidth} />}
     </View>
   )
 }
 
-export function HabitRowTypeLabel({ label, color }: Readonly<{ label: string; color: string }>) {
-  return <Text testID="habit-row-type" style={[styles.meta, { color }]}>{label}</Text>
+export function habitRowMetaPartKey(part: HabitRowMetaPart, index: number): string {
+  return `${index}:${typeof part === 'string' ? part : 'label' in part ? part.label : part.kind}`
 }
 
-export function HabitRowMetaStrip({ metaParts, metaColor, tokens, expanded = false }: Readonly<{
+export function HabitRowMetaStrip({ metaParts, metaColor, tokens, largeText = false, onTokenWidth }: Readonly<{
   metaParts: HabitRowMetaPart[]
   metaColor: string
   tokens: ReturnType<typeof createTokensV2>
-  expanded?: boolean
+  largeText?: boolean
+  onTokenWidth?: (key: string, width: number) => void
 }>) {
-  const { t } = useTranslation()
   const visibleMeta = metaParts.filter((part) => typeof part === 'string' || part.kind !== 'future')
-  const metaKeys = visibleMeta.map((_, index) => `meta-part-${index}`)
+  const metaKeys = visibleMeta.map(habitRowMetaPartKey)
   if (visibleMeta.length === 0) return null
   return (
-    <Text testID="habit-row-meta"
-      numberOfLines={expanded ? undefined : 1}
-      style={[styles.meta, { color: metaColor }]}
-    >
-      {visibleMeta.map((part, i) => {
-        let partContent: ReactNode
-        if (typeof part === 'string') partContent = part
-        else if (part.kind === 'future') partContent = part.label
-        else if (part.kind === 'overdue')
-          partContent = (
-            <Text
-              style={{
-                fontFamily: 'Geist_500Medium',
-                color: tokens.statusOverdueText,
-              }}
-            >
-              {t('habits.overdue')}
-            </Text>
-          )
-        else
-          partContent = (
-            <Text
-              style={{
-                fontFamily: 'Geist_500Medium',
-                color: tokens.statusBadText,
-              }}
-            >
-              {t('habits.statusDot.bad')}
-            </Text>
-          )
-        return (
-          <Fragment key={metaKeys[i]}>
-            {i > 0 ? (
-              <Text style={{ color: metaColor }}> · </Text>
-            ) : null}
-            {partContent}
-          </Fragment>
-        )
-      })}
-    </Text>
+    <View testID="habit-row-meta" accessible={false} importantForAccessibility="no-hide-descendants"
+      style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4, minWidth: 0 }}>
+      {visibleMeta.map((part, i) => <View key={metaKeys[i]} testID="habit-row-meta-token" onLayout={(event) => onTokenWidth?.(metaKeys[i]!, event.nativeEvent.layout.width)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <HabitRowMetaToken part={part} metaColor={metaColor} tokens={tokens} largeText={largeText} />
+        {i < visibleMeta.length - 1 ? <Text style={[styles.meta, { color: metaColor }]}>·</Text> : null}
+      </View>)}
+    </View>
   )
+}
+
+function HabitRowMetaToken({ part, metaColor, tokens, largeText }: Readonly<{
+  part: HabitRowMetaPart
+  metaColor: string
+  tokens: ReturnType<typeof createTokensV2>
+  largeText: boolean
+}>) {
+  const { t } = useTranslation()
+  if (typeof part !== 'string' && part.kind === 'checklist') return (
+    <View testID="habit-row-checklist" style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <ListChecks size={largeText ? 24 : 16} color={metaColor} strokeWidth={1.5} accessible={false} />
+      <Text style={[styles.meta, { color: metaColor }]}>{`${part.done}/${part.total}`}</Text>
+    </View>
+  )
+  const kind = typeof part === 'string' ? undefined : part.kind
+  const label = typeof part === 'string' ? part : 'label' in part ? part.label : t(part.kind === 'overdue' ? 'habits.overdue' : 'habits.statusDot.bad')
+  const stateColor = kind === 'overdue' ? tokens.statusOverdueText : tokens.statusBadText
+  return <Text testID={kind === 'type' ? 'habit-row-type' : undefined}
+    style={[styles.meta, { color: metaColor }, kind === 'overdue' || kind === 'bad' ? { color: stateColor, fontFamily: 'Geist_500Medium' } : null]}>{label}</Text>
 }

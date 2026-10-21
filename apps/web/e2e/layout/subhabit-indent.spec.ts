@@ -56,9 +56,9 @@ async function openFamily(page: Page) {
   await expect(habitRow(page, branch.title)).toBeVisible()
 }
 
-async function expectSupportingHeadings(page: Page, scale: number) {
+async function expectSupportingHeadings(page: Page, scale: number, narrowSupportingTitles: readonly string[] = []) {
   for (const item of [habit, branch]) {
-    await expect(habitRow(page, item.title).locator('[data-habit-row-heading]')).toHaveCount(scale === 2 ? 1 : 0)
+    await expect(habitRow(page, item.title).locator('[data-habit-row-heading]')).toHaveCount(scale > 1.3 || narrowSupportingTitles.includes(item.title) ? 1 : 0)
   }
 }
 
@@ -74,6 +74,7 @@ for (const width of [320, 412, 1352]) {
     for (const theme of ['light', 'dark'] as const) {
       test.describe(`sub-habit indentation at ${width} in ${locale}, ${theme}`, () => {
         const words = locale === 'en' ? en : ptBR
+        const narrowSupportingTitles = width === 320 && locale === 'pt-BR' ? [branch.title] : []
         test.use({ viewport: { width, height: 915 } })
         test.beforeEach(async ({ context }) => {
           await setLayoutFixtureSession(context, [
@@ -96,8 +97,8 @@ for (const width of [320, 412, 1352]) {
               await expect(habitRow(page, child.title).locator('[data-habit-row-control="selection"]')).toBeVisible()
             }
             for (const scale of [1, 2]) {
-              await setHabitTextScale(page, scale, [habit.title, branch.title])
-              await expectSupportingHeadings(page, scale)
+              await setHabitTextScale(page, scale, [habit.title, branch.title], narrowSupportingTitles)
+              await expectSupportingHeadings(page, scale, narrowSupportingTitles)
               const rows = await assertHabitRows(page.locator('[data-testid="habit-row"]:visible'), width, [0, 1, 1, 1], scale, selecting)
               for (const row of rows.slice(1)) {
                 expect(row.bounds.left).toBe(rows[0]!.bounds.left)

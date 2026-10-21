@@ -1,7 +1,7 @@
-import { useTranslations } from 'next-intl'
-import { getHabitRowTypeLabelKey, stripInlineMarkdown } from '@orbit/shared/utils'
+import { getHabitChecklistProgress, getHabitRowTypeLabelKey, stripInlineMarkdown, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
-import { Fragment, type ReactNode } from 'react'
+import { ListChecks } from '@/components/ui/icons'
+import type { ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 /** Inline meta token rendered between dots in the row's meta strip.
@@ -11,6 +11,17 @@ export type HabitRowMetaToken =
   | { kind: 'overdue'; label: string }
   | { kind: 'bad'; label: string }
   | { kind: 'future'; label: string }
+  | { kind: 'type'; label: string }
+  | { kind: 'checklist'; label: string; done: number; total: number }
+
+export function buildHabitRowMetaTokens(habit: NormalizedHabit, meta: HabitRowMetaToken[], t: HabitCardTranslationAdapter): HabitRowMetaToken[] {
+  const checklist = getHabitChecklistProgress(habit)
+  return [
+    { kind: 'type', label: t(getHabitRowTypeLabelKey(habit)) },
+    ...meta,
+    ...(checklist ? [{ kind: 'checklist' as const, ...checklist, label: `${t('habits.form.checklist')}, ${t('habits.rowProgress', checklist)}` }] : []),
+  ]
+}
 
 interface HabitRowContentProps {
   habit: NormalizedHabit
@@ -33,27 +44,21 @@ export function HabitRowContent({
   typeOnSupportingLine = false,
   meta,
 }: Readonly<HabitRowContentProps>) {
-  const t = useTranslations()
   const description = stripInlineMarkdown(habit.description ?? '')
   const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
   const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
   return (
-    <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
+    <div data-habit-row-title-block="" className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
       <TitleText expanded={expanded} title={habit.title} size={titleSize} color={titleColor} />
       {description ? <span id={descriptionId} aria-hidden={descriptionId ? true : undefined} data-habit-row-description=""
         className={`habit-row-description min-w-0 overflow-hidden ${largeText ? 'line-clamp-2' : 'block whitespace-nowrap text-ellipsis'}`}
         style={{ fontFamily: 'var(--font-sans)', fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
         {description}
       </span> : null}
-      {typeOnSupportingLine ? null : <HabitRowTypeLabel label={t(getHabitRowTypeLabelKey(habit))} />}
-      {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
+      {typeOnSupportingLine ? null : <MetaStrip tokens={visibleMeta} largeText={largeText} />}
       {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>
   )
-}
-
-export function HabitRowTypeLabel({ label }: Readonly<{ label: string }>) {
-  return <span data-habit-row-type="" className="habit-row-meta min-w-0 self-start font-mono text-xs leading-[1.4]">{label}</span>
 }
 
 const TITLE_TEXT_STYLE_BASE = {
@@ -87,25 +92,27 @@ export function TitleText({ title, size, color, expanded }: Readonly<TitleTextPr
 
 interface MetaStripProps {
   tokens: HabitRowMetaToken[]
-  expanded?: boolean
+  largeText?: boolean
 }
 
-export function MetaStrip({ tokens, expanded = false }: Readonly<MetaStripProps>) {
+export function MetaStrip({ tokens, largeText = false }: Readonly<MetaStripProps>) {
   return (
     <span
       data-habit-row-meta=""
-      className={`habit-row-meta block min-w-0 ${expanded ? 'whitespace-normal' : 'overflow-hidden whitespace-nowrap text-ellipsis'}`}
+      aria-hidden="true"
+      className="habit-row-meta flex min-w-0 flex-wrap items-center gap-[4px]"
       style={{
         fontFamily: 'var(--font-mono)',
         fontSize: '0.75rem',
         fontVariantNumeric: 'tabular-nums',
+        lineHeight: 1.4,
       }}
     >
       {tokens.map((token, i) => (
-        <Fragment key={metaTokenKey(token, i)}>
-          {i > 0 && <span style={{ margin: "var(--orbit-space-0) var(--orbit-space-4)" }}>·</span>}
-          {renderMetaToken(token)}
-        </Fragment>
+        <span key={metaTokenKey(token, i)} data-habit-row-meta-token="" className="inline-flex shrink-0 items-center gap-[4px] whitespace-nowrap">
+          {renderMetaToken(token, largeText)}
+          {i < tokens.length - 1 && <span>·</span>}
+        </span>
       ))}
     </span>
   )
@@ -116,12 +123,17 @@ function metaTokenKey(token: HabitRowMetaToken, index: number): string {
   return `${token.kind}:${index}`
 }
 
-function renderMetaToken(token: HabitRowMetaToken): ReactNode {
+function renderMetaToken(token: HabitRowMetaToken, largeText: boolean): ReactNode {
   if (typeof token === 'string') return token
+  if (token.kind === 'type') return <span data-habit-row-type="">{token.label}</span>
+  if (token.kind === 'checklist') return <span data-habit-row-checklist="" className="inline-flex shrink-0 items-center gap-[4px] whitespace-nowrap">
+    <ListChecks size={largeText ? 24 : 16} strokeWidth={1.5} aria-hidden="true" focusable="false" />
+    <span>{`${token.done}/${token.total}`}</span>
+  </span>
   const color = token.kind === 'overdue'
     ? 'var(--status-overdue-text)'
     : token.kind === 'bad'
       ? 'var(--status-bad-text)'
       : undefined
-  return <span style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
+  return <span data-habit-row-meta-state={token.kind} style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
 }
