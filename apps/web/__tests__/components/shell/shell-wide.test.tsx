@@ -219,6 +219,23 @@ describe('ShellWide', () => {
     expect(fab?.parentElement).toHaveClass('pointer-events-none')
   })
 
+  it.each([320, 412, 1352])('keeps browser focus reveal clear of the floating action at %ipx', (width) => {
+    media.width = width
+    const shell = (floating: boolean, notice?: ReactNode) => <ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      notice={notice} composer={<div>Composer</div>} fab={floating ? <Fab label="Create" onClick={vi.fn()}>+</Fab> : undefined}>
+      <button type="button">Complete habit</button><button type="button">Habit options</button>
+    </ShellWide>
+    const { container, rerender } = render(shell(true))
+    const scroller = container.querySelector<HTMLElement>('[data-shell-scroller]')!
+    for (const notice of [undefined, <></>, <Toast key="notice" kind="neutral" message="Saved" />]) {
+      rerender(shell(true, notice))
+      expect(getComputedStyle(scroller).scrollPaddingBottom).toBe(width < 1024 ? '96px' : 'auto')
+      expect(scroller).toBe(container.querySelector('[data-shell-scroller]'))
+    }
+    rerender(shell(false))
+    expect(getComputedStyle(scroller).scrollPaddingBottom).toBe('auto')
+  })
+
   it.each(['absent', 'empty', 'notice', 'tall'] as const)('keeps the floating action independent of page and pinned controls with %s notice', (state) => {
     media.width = 412
     const create = vi.fn()

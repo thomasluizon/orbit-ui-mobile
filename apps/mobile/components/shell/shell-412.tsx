@@ -10,7 +10,7 @@ import { ShellComposerSlotProvider, useShellComposerHost } from './shell-compose
 import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot'
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 import { ShellScrollToTopSlotProvider, useShellScrollToTopHost } from './shell-scroll-to-top-slot'
-import { ShellFocusTargetContext } from './shell-focus-target'
+import { ShellFocusTargetContext, ShellListFocusContext } from './shell-focus-target'
 import { RootScrollProvider } from './root-scroll-context'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
@@ -168,6 +168,17 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     ? SHELL_SCROLLER_CLEARANCE
     : 32
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
+  function revealListFocus(target: HostInstance, scrollBy: (offset: number) => void) {
+    if (props.fab === undefined || conversationOpen) return
+    mainRef.current?.measureInWindow((_left, top, _width, height) => {
+      target.measureInWindow((_targetLeft, targetTop, _targetWidth, targetHeight) => {
+        if (focusElement.current !== target) return
+        const delta = targetTop < top ? targetTop - top
+          : Math.max(0, targetTop + targetHeight - (top + height - SHELL_SCROLLER_CLEARANCE))
+        if (delta !== 0) scrollBy(delta)
+      })
+    })
+  }
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const safeTop = (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0
@@ -210,7 +221,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           ) : null}
 
           <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, props.fab !== undefined && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
-            {props.children}
+            <ShellListFocusContext.Provider value={revealListFocus}>{props.children}</ShellListFocusContext.Provider>
             <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
             {props.fab !== undefined ? (
               <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>

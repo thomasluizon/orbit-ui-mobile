@@ -66,6 +66,20 @@ final row and its controls with the floating target at the end of a long list. I
 rows may pass behind the target; free space beside it remains visible and interactive.
 Wide web uses sidebar creation and has no floating add target.
 
+Keyboard focus uses the same 96px clearance as scroll-end content. Compact web applies
+`scroll-padding-bottom` to the actual page scroller, leaving its viewport, paint and pointer
+coverage intact. Android captures ordinary list focus through the existing shell focus host,
+measures the focused target against the shell viewport and scrolls only the active list by the
+missing clearance. Already revealed controls cause no corrective scroll. The native adapter
+uses the supported host measurement and list offset APIs; it never measures unfocused rows or adds an
+accessibility-focus callback. Composer, menu and modal focus retain their own owners.
+
+The intermediate-action Chromium guard uses actual Tab and Shift+Tab between the real row's
+check and menu at 320 and 412, with and without a notice. Its authored focus-reveal assertions
+require separate Chromium execution; floating-band rendering evidence alone does not
+prove keyboard focus visibility. Native shell/list tests exercise the focus adapter with
+Yoga-derived viewport and FAB bounds, separately from Android keyboard and TalkBack acceptance.
+
 Android mounts the production components and checks their resolved styles and Yoga geometry.
 Its guard proves that the actual list viewport contains the real Fab target's vertical band,
 with no full-width opaque floating region, and retains declared end clearance for the last row.

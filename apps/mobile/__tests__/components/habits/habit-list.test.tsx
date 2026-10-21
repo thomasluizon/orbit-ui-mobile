@@ -3,7 +3,10 @@ import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
-import { FlatList, StyleSheet, View, type ViewStyle } from 'react-native'
+import { FlatList, StyleSheet, View, type ViewStyle, type HostInstance } from 'react-native'
+import { __setMeasureInWindowImpl, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { Shell412 } from '@/components/shell/shell-412'
+import { Fab } from '@/components/ui/fab'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, createApiClientError, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -845,6 +848,48 @@ describe('HabitList', () => {
     expect(onScroll).toHaveBeenCalledWith(700)
     expect(mockDrillState.drillReset).not.toHaveBeenCalled()
     expect(mockDrillState.currentParentId).toBe(surface === 'drill' ? parent.id : null)
+  })
+
+  it.each([{ width: 412, height: 915, withNotice: false }, { width: 320, height: 915, withNotice: true }, { width: 840, height: 240, withNotice: true }])('reveals intermediate list focus above the actual floating action at $width/$height with notice=$withNotice', async ({ width, height, withNotice }) => {
+    __setWindowDimensions({ width, height, scale: 1, fontScale: height < 320 ? 2 : 1 })
+    replaySelection.isSelectMode = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Shell412 header={<View style={{ height: 48 }} />}
+        notice={withNotice ? <Toast kind="neutral" message="Saved" persistent /> : undefined}
+        composer={<View style={{ height: 64 }} />} tabBar={<View style={{ height: 80 }} />}
+        fab={<Fab label="Create" onClick={vi.fn()}><View /></Fab>}>
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+      </Shell412>, {
+        createNodeMock: (element: { type: unknown }) => element.type === 'DraggableFlatList' ? { scrollToOffset: rootListScroll.scrollToOffset } : null,
+      }) as GeometryTree
+      mountedTrees.add(tree)
+    })
+    await TestRenderer.act(() => tree.root.findByProps({ testID: 'shell-412' }).props.onLayout({ nativeEvent: { layout: { width, height } } }))
+    const boxes = measureSafeArea(tree.toJSON(), host => host.props.testID, { width, height })
+    const viewport = boxes.get('shell-scroller')!
+    const fab = boxes.get('fab')!
+    __setMeasureInWindowImpl(callback => callback(viewport.left, viewport.top, viewport.width, viewport.bottom - viewport.top))
+    const list = tree.root.findByType('DraggableFlatList')
+    list.props.onScrollOffsetChange(700)
+    rootListScroll.scrollToOffset.mockClear()
+    const target = { measureInWindow: (callback: (x: number, y: number, width: number, height: number) => void) => callback(fab.left, fab.top + 6, 48, 48) } as HostInstance
+    await TestRenderer.act(() => {
+      tree.root.findByProps({ testID: 'shell-412' }).props.onFocusCapture({ target, nativeEvent: { target: 123 } })
+      list.props.onFocus?.({ target, nativeEvent: { target: 123 } })
+    })
+    expect(rootListScroll.scrollToOffset).toHaveBeenCalledOnce()
+    const options = rootListScroll.scrollToOffset.mock.calls[0]![0] as { offset: number; animated: boolean }
+    expect(options.animated).toBe(false)
+    expect(fab.top + 6 + 48 - (options.offset - 700)).toBeLessThanOrEqual(fab.top - 16)
+    expect(fab.top + 6 - (options.offset - 700)).toBeGreaterThanOrEqual(viewport.top)
+    rootListScroll.scrollToOffset.mockClear()
+    const visibleTarget = { measureInWindow: (callback: (x: number, y: number, width: number, height: number) => void) => callback(fab.left, viewport.top + 8, 48, 48) } as HostInstance
+    await TestRenderer.act(() => {
+      tree.root.findByProps({ testID: 'shell-412' }).props.onFocusCapture({ target: visibleTarget, nativeEvent: { target: 124 } })
+      list.props.onFocus?.({ target: visibleTarget, nativeEvent: { target: 124 } })
+    })
+    expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
   })
 
   it('keeps a mounted mock HabitList isolated when skip flow becomes active', () => {

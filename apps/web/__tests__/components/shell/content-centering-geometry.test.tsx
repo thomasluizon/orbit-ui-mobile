@@ -293,6 +293,60 @@ describe('page content centring and add control clearance', () => {
     } finally { await page.close() }
   })
 
+  it.each([320, 412])('reveals intermediate habit actions through forward and backward Tab at %ipx', async (width) => {
+    const habits = normalizeHabits(Array.from({ length: 40 }, (_, index) => makeHabitScheduleItem({ id: `focus-${index}`, title: `Read chapter ${index}` })))
+    for (const withNotice of [false, true]) {
+      const { container, unmount } = render(<NextIntlClientProvider locale="en" messages={en}><ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+        notice={withNotice ? <Toast kind="neutral" message="Saved" /> : undefined}
+        composer={<Composer state="idle" value="Draft" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
+        fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
+        <div className="flex flex-col gap-3 px-4">{[...habits.values()].map(habit => <HabitRow key={habit.id} habit={habit} actions={{ onDetail: vi.fn(), onLog: vi.fn(), onEdit: vi.fn() }} />)}</div>
+      </ShellWide></NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        for (const backward of [false, true]) {
+          const before = await page.evaluate((backward) => {
+            const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+            const row = scroller.querySelectorAll('[data-testid="habit-row"]')[15]!
+            const check = row.querySelector<HTMLElement>('[data-habit-row-control="check"]')!
+            const menu = row.querySelector<HTMLElement>('[data-habit-row-control="menu"]')!
+            const target = backward ? check : menu
+            const fab = document.querySelector('[data-fab]')!.getBoundingClientRect()
+            scroller.scrollTop += target.getBoundingClientRect().top - (fab.top + 6)
+            ;(backward ? menu : check).focus({ preventScroll: true })
+            const bounds = target.getBoundingClientRect()
+            return { top: bounds.top, bottom: bounds.bottom, fabTop: fab.top, fabBottom: fab.bottom, offset: scroller.scrollTop }
+          }, backward)
+          expect(before.top).toBeGreaterThanOrEqual(before.fabTop)
+          expect(before.bottom).toBeLessThanOrEqual(before.fabBottom)
+          await page.keyboard.press(backward ? 'Shift+Tab' : 'Tab')
+          const after = await page.evaluate((backward) => {
+            const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+            const row = scroller.querySelectorAll('[data-testid="habit-row"]')[15]!
+            const target = row.querySelector<HTMLElement>(`[data-habit-row-control="${backward ? 'check' : 'menu'}"]`)!
+            const bounds = target.getBoundingClientRect()
+            const fab = document.querySelector('[data-fab]')!.getBoundingClientRect()
+            return { focused: document.activeElement === target, indicator: target.matches(':focus-visible'), top: bounds.top, bottom: bounds.bottom,
+              width: bounds.width, height: bounds.height, viewportTop: scroller.getBoundingClientRect().top, fabTop: fab.top, offset: scroller.scrollTop,
+              hit: target.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)) }
+          }, backward)
+          expect(after.focused).toBe(true)
+          expect(after.indicator).toBe(true)
+          expect(after.width).toBeGreaterThanOrEqual(48)
+          expect(after.height).toBeGreaterThanOrEqual(48)
+          expect(after.top).toBeGreaterThanOrEqual(after.viewportTop)
+          expect(after.bottom).toBeLessThanOrEqual(after.fabTop - 16)
+          expect(after.hit).toBe(true)
+          expect(after.offset).toBeGreaterThan(before.offset)
+          await page.keyboard.press(backward ? 'Tab' : 'Shift+Tab')
+          expect(await page.locator('[data-shell-scroller]').evaluate(element => element.scrollTop)).toBe(after.offset)
+        }
+      } finally { await page.close(); unmount() }
+    }
+  })
+
   it.each([
     ...windows.map(viewport => ({ ...viewport, mode: 'dark' as const, words: ptBR, textScale: 1, noticeState: 'absent' })),
     ...[320, 412].flatMap(width => (['dark', 'light'] as const).flatMap(mode => [en, ptBR].flatMap(words =>

@@ -28,6 +28,7 @@ import { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
+import { useShellListFocus } from '@/components/shell/shell-focus-target'
 import {
   buildHabitDateBuckets,
   filterHabitViewRoots,
@@ -459,14 +460,23 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const stateListRef = useRef<FlatList<string>>(null)
     const allListRef = useRef<FlatList<DragItem>>(null)
+    const listScrollOffset = useRef(0)
+    const revealListFocus = useShellListFocus((delta) => {
+      const target = scrollContainerRef.current ?? allListRef.current ?? drillListRef.current ?? stateListRef.current
+      const offset = Math.max(0, listScrollOffset.current + delta)
+      listScrollOffset.current = offset
+      target?.scrollToOffset({ offset, animated: false })
+    })
     const handleListScroll = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        listScrollOffset.current = e.nativeEvent.contentOffset.y
         onScroll?.(e.nativeEvent.contentOffset.y)
       },
       [onScroll],
     )
     const handleMainListOffsetChange = useCallback(
       (offsetY: number) => {
+        listScrollOffset.current = offsetY
         onScroll?.(offsetY)
       },
       [onScroll],
@@ -1694,6 +1704,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             drillListRef={drillListRef}
             refreshControl={refreshControl}
             onListScroll={handleListScroll}
+            onFocus={revealListFocus}
             onScrollBeginDrag={onScrollBeginDrag}
             bulkBarStyle={bulkBarStyle}
             renderHabitCard={renderHabitCard}
@@ -1710,6 +1721,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             ref={stateListRef}
+            onFocus={revealListFocus}
             onScroll={handleListScroll}
             scrollEventThrottle={16}
             data={SKELETON_KEYS}
@@ -1736,6 +1748,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             ref={stateListRef}
+            onFocus={revealListFocus}
             onScroll={handleListScroll}
             scrollEventThrottle={16}
             data={[]}
@@ -1782,6 +1795,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (view === 'all') return <>
       <FlatList
         ref={allListRef}
+        onFocus={revealListFocus}
         testID="habit-list-all"
         data={flatItems}
         keyExtractor={keyExtractor}
@@ -1807,6 +1821,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       <>
         <DraggableFlatList
           ref={scrollContainerRef}
+          onFocus={revealListFocus}
           data={activeDragItems}
           keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
           renderItem={renderItem}

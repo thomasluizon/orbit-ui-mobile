@@ -6,6 +6,7 @@ import {
   View,
   type ListRenderItem,
   type NativeScrollEvent,
+  type FocusEvent,
   type NativeSyntheticEvent,
   type RefreshControlProps,
   type StyleProp,
@@ -33,6 +34,7 @@ interface HabitDrillProps {
   drillListRef: RefObject<FlatList<NormalizedHabit> | null>
   refreshControl: ReactElement<RefreshControlProps>
   onListScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
+  onFocus?: (event: FocusEvent) => void
   onScrollBeginDrag?: () => void
   bulkBarStyle: StyleProp<ViewStyle>
   renderHabitCard: (
@@ -76,6 +78,7 @@ export function HabitDrill({
   drillListRef,
   refreshControl,
   onListScroll,
+  onFocus,
   onScrollBeginDrag,
   bulkBarStyle,
   renderHabitCard,
@@ -185,6 +188,7 @@ export function HabitDrill({
       contentContainerStyle={[styles.listContent, bulkBarStyle]}
       refreshControl={refreshControl}
       onScroll={onListScroll}
+      onFocus={onFocus}
       scrollEventThrottle={16}
       onScrollBeginDrag={onScrollBeginDrag}
       showsVerticalScrollIndicator={false}

@@ -342,11 +342,12 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
 }
 
 function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boolean, floating: boolean) {
-  if (!hasBottomChrome) return { padding: '', minimum: 'min-h-0' }
-  if (floating) return { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8' }
+  const focusClearance = floating ? SPACING.s96 : undefined
+  if (!hasBottomChrome) return { padding: '', minimum: 'min-h-0', focusClearance }
+  if (floating) return { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8', focusClearance }
   return reservesComposerSpace
-    ? { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8' }
-    : { padding: 'pb-8', minimum: 'min-h-8' }
+    ? { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8', focusClearance }
+    : { padding: 'pb-8', minimum: 'min-h-8', focusClearance }
 }
 
 function getSidebarCreateRefusal(props: ResponsiveShellProps, wide: boolean, collapsed: boolean) {
@@ -412,6 +413,7 @@ function ShellWideBackground({
     <main
       ref={registerScroller}
       data-shell-scroller=""
+      style={{ scrollPaddingBottom: wide ? undefined : scrollerSpacing.focusClearance }}
       className={`relative overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${hasFlowAction ? 'h-full' : 'min-h-0 flex-1'} ${scrollerSpacing.padding}`}
     >
       <span
