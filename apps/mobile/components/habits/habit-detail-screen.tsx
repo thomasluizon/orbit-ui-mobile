@@ -570,7 +570,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       completionStatusUnavailable: scopedChild === undefined,
     }
   })
-  const subHabitCreation = <ListRow placement="column" icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} />
+  const subHabitCreation = <ListRow placement="column" icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} onClick={() => setCreateOpen(true)} />
   const childProgress = computeHabitDayProgress(
     children.filter((child) => !child.completionStatusUnavailable).map((child) => child.habit),
     (child) => hasHabitScheduleOnDate(child, dateStr),

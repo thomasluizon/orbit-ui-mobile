@@ -32,10 +32,3 @@ export function getTrialUrgent(
   const trialDaysLeft = getTrialDaysLeft(profile, now)
   return trialDaysLeft !== null && trialDaysLeft <= 2
 }
-
-export function getIsYearlyPro(
-  profile: Pick<Profile, 'hasProAccess' | 'isLifetimePro' | 'subscriptionInterval'> | null | undefined,
-): boolean {
-  if (!profile) return false
-  return profile.hasProAccess && (profile.isLifetimePro || profile.subscriptionInterval === 'yearly')
-}

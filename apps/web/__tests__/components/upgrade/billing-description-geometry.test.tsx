@@ -40,7 +40,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 375, 412, 480].flatMap((w
   const page = await browser.newPage({ viewport: { width, height: 2000 } })
   try {
     for (const state of ['stripe', 'offline'] as const) {
-      const markup = renderToStaticMarkup(<main style={{ padding: 16 }}><BillingDashboard state={state} billing={billing} status={status} locale={locale} usagePercent={0} usageUrgent={false} onOpenPortal={vi.fn()} onRetryPortal={vi.fn()} t={t} /></main>)
+      const markup = renderToStaticMarkup(<main style={{ padding: 16 }}><BillingDashboard state={state} billing={billing} status={status} locale={locale} usagePercent={0} onOpenPortal={vi.fn()} onRetryPortal={vi.fn()} t={t} /></main>)
       await page.setContent(`<style>${stylesheet}:root { font-size: ${16 * scale}px }</style>${markup}`)
       await loadAppFonts(page)
       const rows = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.orbit-list-row-shell')].map((row) => {

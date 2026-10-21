@@ -1,7 +1,6 @@
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { SPACING } from '@orbit/shared/theme'
 import { X } from '@/components/ui/icons'
-import { Badge } from '@/components/ui/badge'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -21,9 +20,7 @@ import { toTime24,
   coalesceFormText,
   formatHabitReminderLabel,
   getFriendlyErrorMessage,
-  habitFeaturePlan,
   isHabitDailySchedule,
-  isFeatureEnabled,
   isHabitAstraLimitReached,
   readTypedHabitPhrase,
   resolveSupportedLocale,
@@ -33,7 +30,6 @@ import { MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm, validateEndTime } from '
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
@@ -158,9 +154,7 @@ interface ReminderEditorsProps {
 }
 
 interface SubHabitSectionProps {
-  canUseSubHabits: boolean
   proposed: boolean
-  onUpgrade: () => void
   children?: ReactNode
   t: (key: string) => string
 }
@@ -219,22 +213,17 @@ function SlipAlertEditor({
 }
 
 function SubHabitSection({
-  canUseSubHabits,
   proposed,
-  onUpgrade,
   children,
   t,
 }: Readonly<SubHabitSectionProps>) {
+  if (!children) return null
   return (
     <View style={{ gap: 8 }}>
       <FormSectionLabel>{t('habits.form.subHabits')}</FormSectionLabel>
-      {canUseSubHabits ? (
-        <Proposed proposed={proposed && !!children} scope="field" label={t('habits.detail.proposed')}>
-          {children}
-        </Proposed>
-      ) : (
-        <ListRow title={t('common.upgrade')} trailing={<Badge>{t('common.proBadge')}</Badge>} placement="column" onClick={onUpgrade} />
-      )}
+      <Proposed proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
+        {children}
+      </Proposed>
     </View>
   )
 }
@@ -356,7 +345,6 @@ export function HabitFormFields({
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const { showError } = useAppToast()
   const hasProAccess = useHasProAccess()
-  const { config } = useConfig()
   const { profile } = useProfile()
   const { form, daysList, showEndDate, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
   const { setValue, formState: { errors } } = form
@@ -376,7 +364,6 @@ export function HabitFormFields({
   const endDate = useWatch({ control: form.control, name: 'endDate' }) ?? ''
   const description = useWatch({ control: form.control, name: 'description' }) ?? ''
   const checklistItems = useWatch({ control: form.control, name: 'checklistItems' }) ?? []
-  const canUseSubHabits = isFeatureEnabled(config, 'sub_habits', habitFeaturePlan(hasProAccess))
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposal, setProposal] = useState(EMPTY_HABIT_FORM_PROPOSAL)
   const rendersGranularSubHabits = typeof children === 'function'
@@ -580,7 +567,7 @@ export function HabitFormFields({
               <HabitChecklist items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
               <ChecklistTemplates items={checklistItems} onLoad={controller.setChecklistItems} />
             </View>
-            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits && !rendersGranularSubHabits} onUpgrade={onUpgrade} t={t}>
+            <SubHabitSection proposed={proposal.subHabits && !rendersGranularSubHabits} t={t}>
               {subHabitChildren}
             </SubHabitSection>
             <HabitAvoidanceFields formHelpers={formHelpers} controller={controller} hasProAccess={hasProAccess} tokens={tokens} onUpgrade={onUpgrade} />

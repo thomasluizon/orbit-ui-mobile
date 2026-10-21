@@ -230,6 +230,7 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
+      "usage": "Mensagens hoje: {used} de {limit}",
       "placeholder": "Peça à Astra",
       "send": "Enviar",
       "clear": "Limpar mensagem",
@@ -250,8 +251,10 @@
         "image": "Foto"
       },
       "limit": {
+        "renewal": "As mensagens voltam à meia-noite, no seu fuso horário.",
+        "exhausted": "Você usou as mensagens de hoje com a Astra.",
         "placeholder": "Sem mensagens hoje",
-        "reason": "Você usou as {allowance} mensagens de hoje com a Astra. Listas, registro de hábitos e entrada por voz continuam funcionando sem a Astra."
+        "reason": "Você usou as {allowance} mensagens de hoje com a Astra."
       },
       "busy": {
         "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
@@ -683,6 +686,9 @@
     },
     "frequencyLabel": "Frequência",
     "form": {
+      "proRequired": "Isso faz parte do Orbit Pro.",
+      "capacityTitle": "Limite de hábitos atingido",
+      "capacityBody": "Você pode ter até {limit, number} hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.",
       "emojiSuggest": "Sugerir emoji",
       "emojiSuggesting": "Buscando emoji…",
       "aiSuggest": "Sugerir com IA",
@@ -690,7 +696,7 @@
       "aiSuggestApplied": "Sugestão de IA aplicada",
       "aiSuggestError": "Não foi possível gerar uma sugestão. Tente novamente.",
       "aiSuggestEmpty": "Sem sugestão para este hábito. Preencha os detalhes por conta própria.",
-      "aiSuggestLimitReached": "Você atingiu o limite de mensagens de IA de hoje.",
+      "aiSuggestLimitReached": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso horário.",
       "title": "Título",
       "newHabit": "Novo hábito",
       "fromConversation": "Veio da sua conversa com a Astra.",
@@ -1518,7 +1524,7 @@
     "fileAttached": "Arquivo anexado \"{name}\":",
     "sendError": "Não foi possível enviar a mensagem. Tente de novo.",
     "timeoutError": "A resposta demorou demais. Tente de novo.",
-    "limitReachedError": "Você atingiu o limite de mensagens da Astra de hoje. Amanhã você pode enviar mais.",
+    "limitReachedError": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso horário.",
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
@@ -2355,7 +2361,7 @@
     "allowance": {
       "title": "Mensagens hoje",
       "usage": "{used} de {limit} usadas",
-      "spent": "As mensagens de hoje acabaram. A sua lista continua funcionando sem elas.",
+      "spent": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso horário.",
       "plan": "Plano",
       "free": "Grátis",
       "pro": "Pro",
@@ -2882,7 +2888,7 @@
         "daysLabel": "Dias da semana",
         "timeLabel": "Hora",
         "timeHint": "Deixe vazio para qualquer hora do dia",
-        "limit": "As {allowance} mensagens de hoje acabaram. Ler a frase também usa essa cota.",
+        "limit": "Você usou as {allowance} mensagens de hoje com a Astra. Ler a frase também usa essa cota.",
         "days": {
           "sunday": "D", "monday": "S", "tuesday": "T", "wednesday": "Q", "thursday": "Q", "friday": "S", "saturday": "S"
         },
@@ -3133,11 +3139,6 @@
     "subscribe": "Assinar Pro",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
-    "features": {
-      "subHabits": {
-        "tooltip": "Divida hábitos complexos em etapas menores. Os sub-hábitos ficam dentro de um hábito principal, para organizar melhor."
-      }
-    },
     "convert": {
       "promise": "O plano muda a Astra, nunca os seus hábitos e registros.",
       "trialEyebrow": "Seu teste Pro está ativo",
@@ -3224,8 +3225,7 @@
         "title": "Mensagens da Astra",
         "aiMessages": "Hoje",
         "aiMessagesOf": "{used} de {limit}",
-        "nearLimit": "Você está perto do limite da Astra de hoje",
-        "nearLimitBody": "Seu limite será renovado automaticamente amanhã."
+        "nearLimit": "Você está perto do limite da Astra de hoje"
       },
       "invoices": {
         "title": "Histórico de faturas",
@@ -3298,9 +3298,9 @@
       "appUpdated": "O Orbit foi atualizado. Recarregue a página e tente de novo. O texto não salvo será perdido.",
       "edgeBlocked": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Mude o texto e tente de novo.",
       "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
-      "habitLimit": "Você pode ter até 1.000 hábitos ativos, sem contar sub-hábitos. Apague um hábito para adicionar outro.",
+      "habitLimit": "Você pode ter até {limit, number} hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.",
       "calendarPro": "A sincronização do calendário precisa do Orbit Pro. Veja a tela de upgrade para ativar.",
-      "astraLimit": "Você atingiu o limite de mensagens da Astra de hoje. Amanhã você pode enviar mais.",
+      "astraLimit": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso horário.",
       "payGate": "Este recurso precisa do Orbit Pro. Veja suas opções na tela de upgrade.",
       "reload": "Recarregar",
       "noPermission": "Você não tem permissão para isso.",

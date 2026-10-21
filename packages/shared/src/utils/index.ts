@@ -516,7 +516,6 @@ export {
 } from './tag-cache'
 export {
   getCurrentPlan,
-  getIsYearlyPro,
   getTrialDaysLeft,
   getTrialExpired,
   getTrialUrgent,

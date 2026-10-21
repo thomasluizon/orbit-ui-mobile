@@ -187,7 +187,6 @@ export function BillingDashboard({
       <ProBenefits heading t={t} tokens={tokens} />
       <UsageCard
         usagePercent={usagePercent}
-        usageUrgent={usagePercent >= 80}
         profile={usageProfile}
         t={t}
         tokens={tokens}

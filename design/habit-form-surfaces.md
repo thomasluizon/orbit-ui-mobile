@@ -50,7 +50,7 @@ The comparison sources are pre-promotion web `dfc321dc1^` and Android release so
 | Start and end time | Retained ordering validation and clear actions; unset wire times remain null or omitted |
 | Relative offsets and absolute clock reminders | Retained separate editors, validation and request stores; General excludes both |
 | Checklist editing, templates, ordering and clearing | Retained existing checklist and template owners |
-| Sub-habits and inherited constraints | Retained editor, creation gates and General tree constraints |
+| Sub-habits and inherited constraints | Retained editor and General tree constraints; creation is available on every plan |
 | Tag selection, create, rename, delete and suggestions | Retained existing tag picker and suggestion adapters |
 | Goal links | Retained existing goal picker and request handling |
 | Avoidance and slip alerts | Retained for dated items; forbidden General combinations remain unavailable |
@@ -97,7 +97,7 @@ orchestrator; no Android production release or version floor change is implied.
 | Checklist templates | Loading selects draft structure; explicit template saving remains independent management |
 | Goal/tag associations | Editor selection draft; optional tagIds joins the ordinary update, without a subsequent assignment write |
 | Tag create/edit/delete and new suggested tag | Existing explicit management; new suggestions open the tag editor before Add; Cancel only discards habit associations |
-| Independent goal/habit creation and sub-habit management | Existing explicit creation and gates; created objects are independent of outer Cancel |
+| Independent goal/habit creation and sub-habit management | Existing explicit creation; sub-habits are available on every plan and created objects are independent of outer Cancel |
 | Avoidance and slip alert | Existing full form and actual plan/General constraints |
 | Activity strip, statistics, reminder readout, cadence/end/started facts and month history | Retained read owners; More details holds secondary facts and full month navigation |
 | Linked-goal navigation | Read facts open the existing goal detail owner; association editing uses the pencil |
