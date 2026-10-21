@@ -10,7 +10,7 @@ import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, buildChildrenIndex, formatAPIDate, getAllDoneOnDate, getReturningInterval, hasHabitScheduleOnDate, normalizeHabits } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
-import { DailyStreakMoment } from '@/components/gamification/daily-streak-moment'
+import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
 
 import { makeEnrichedHabitDetail, makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -73,6 +73,7 @@ vi.mock('@/lib/posthog', () => ({
 }))
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
     params ? `${key}:${JSON.stringify(params)}` : key,
 }))
@@ -111,7 +112,7 @@ vi.mock('@/lib/actions/habits', () => ({
 vi.mock('@/stores/ui-store', async () => {
   const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
   return { useUIStore: Object.assign(
-    () => ({
+    (selector?: (state: ReturnType<typeof actual.useUIStore.getState>) => unknown) => selector ? actual.useUIStore(selector) : ({
       activeFilters: {},
       showStreakMoment: actual.useUIStore.getState().showStreakMoment,
       completeActiveCelebration: actual.useUIStore.getState().completeActiveCelebration,
@@ -121,6 +122,7 @@ vi.mock('@/stores/ui-store', async () => {
     }),
     {
       getState: () => ({
+        ...actual.useUIStore.getState(),
         activeFilters: {},
         showStreakMoment: actual.useUIStore.getState().showStreakMoment,
         completeActiveCelebration: actual.useUIStore.getState().completeActiveCelebration,
@@ -2777,7 +2779,7 @@ describe('bulk streak and all-done ordering regressions', () => {
       expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['all-done'])
       if (active.kind === 'daily-streak') {
         vi.useFakeTimers()
-        moment = render(React.createElement(DailyStreakMoment, { id: active.id, streak, reducedMotion: true, closeRef: null, onDismiss: () => store.getState().completeActiveCelebration(active.id) }))
+        moment = render(React.createElement(CelebrationPanel))
         await act(() => vi.advanceTimersByTime(DAILY_STREAK_MOMENT_DURATION - 1))
         expect(store.getState().activeCelebration?.kind).toBe('daily-streak')
         await act(() => vi.advanceTimersByTime(1))

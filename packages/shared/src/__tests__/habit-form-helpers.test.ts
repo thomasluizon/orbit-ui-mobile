@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
-import { readHabitPhrase } from '../utils/habit-phrase-parser'
+import { readHabitPhrase, readTypedHabitPhrase } from '../utils/habit-phrase-parser'
 import { buildCreateHabitRequest } from '../utils/habit-request-builders'
 import {
   EMPTY_HABIT_FORM_PROPOSAL,
@@ -28,7 +28,6 @@ import {
   normalizeHabitFormData,
   releaseHabitPhraseOwnership,
   requestHabitFormProposal,
-  resolveHabitStartDate,
   shouldShowHabitAstraFallback,
   validateHabitFormInput,
 } from '../utils/habit-form-helpers'
@@ -437,7 +436,7 @@ describe('habit form helpers', () => {
     expect(buildHabitUnderstandingSentence([], [], true, 'Year', 2, '', locale, translate)).toBe(pluralYear)
   })
 
-  it('tracks proposal visibility, Astra limits, start dates, and reminder labels', () => {
+  it('tracks proposal visibility, Astra limits and reminder labels', () => {
     const proposal = { ...EMPTY_HABIT_FORM_PROPOSAL, checklist: true }
     const translate = (key: string) => key
 
@@ -447,8 +446,6 @@ describe('habit form helpers', () => {
     expect(shouldShowHabitAstraFallback('Read', null, () => true, proposal)).toBe(false)
     expect(isHabitAstraLimitReached(4, 5)).toBe(false)
     expect(isHabitAstraLimitReached(5, 5)).toBe(true)
-    expect(resolveHabitStartDate(undefined, '2026-09-02')).toBe('2026-09-02')
-    expect(resolveHabitStartDate(null, '2026-09-02')).toBeNull()
     expect(formatHabitReminderLabel(0, translate)).toBe('habits.form.reminderAtTime')
     expect(formatHabitReminderLabel(31, translate)).toBe('31 habits.form.reminderMinutes')
     expect(formatHabitReminderLabel(61, translate)).toBe('1 habits.form.reminderHour')
@@ -825,6 +822,54 @@ describe('habit form helpers', () => {
     )).toBe('every Wednesday and Thursday, every 2 weeks')
   })
 
+  it.each([false, true])('separates schedule mode selection from explicit cadence edits, flexible=%s', (flexible) => {
+    let ownership = { cadence: true, dueTime: true }
+    let proposal = { ...EMPTY_HABIT_FORM_PROPOSAL, setup: true }
+    const setRecurring = vi.fn()
+    const setFlexible = vi.fn()
+    const setField = vi.fn()
+    const invalidate = vi.fn()
+    const controller = createHabitFormController({
+      action: undefined, atLimit: false, lockedGeneral: null, onSuggestionContextChange: invalidate,
+      target: {
+        getOwnership: () => ownership, setOwnership: (next) => { ownership = next },
+        updateProposal: (update) => { proposal = update(proposal) },
+        setOneTime: vi.fn(), setRecurring, setFlexible, setGeneral: vi.fn(), setField, toggleDay: vi.fn(),
+      },
+    })
+    controller.setScheduleMode(flexible)
+    expect(setRecurring).toHaveBeenCalledTimes(flexible ? 0 : 1)
+    expect(setFlexible).toHaveBeenCalledTimes(flexible ? 1 : 0)
+    expect(setField).not.toHaveBeenCalled()
+    expect(ownership).toEqual({ cadence: false, dueTime: true })
+    expect(proposal.setup).toBe(false)
+    expect(invalidate).toHaveBeenCalledOnce()
+    controller.setSchedule('Month', 2, flexible)
+    expect(setField.mock.calls).toEqual([['frequencyUnit', 'Month'], ['frequencyQuantity', 2], ['days', []]])
+  })
+
+  it.each([
+    { type: 'task' as const, general: false, owned: true, expected: { cadence: false, dueTime: true } },
+    { type: 'habit' as const, general: true, owned: true, expected: { cadence: false, dueTime: false } },
+    { type: 'habit' as const, general: false, owned: true, expected: { cadence: true, dueTime: true } },
+    { type: 'habit' as const, general: false, owned: false, expected: { cadence: false, dueTime: false } },
+  ])('reconciles $type General=$general phrase ownership without rewriting its draft, owned=$owned', ({ type, general, owned, expected }) => {
+    let ownership = { cadence: owned, dueTime: owned }
+    const setField = vi.fn()
+    const setRecurring = vi.fn()
+    const controller = createHabitFormController({
+      action: undefined, atLimit: false, lockedGeneral: null,
+      target: {
+        getOwnership: () => ownership, setOwnership: (next) => { ownership = next }, updateProposal: vi.fn(),
+        setOneTime: vi.fn(), setRecurring, setFlexible: vi.fn(), setGeneral: vi.fn(), setField, toggleDay: vi.fn(),
+      },
+    })
+    controller.reconcilePhraseOwnership(readTypedHabitPhrase('Read every Monday at 09:00', 'en', type, general))
+    expect(ownership).toEqual(expected)
+    expect(setField).not.toHaveBeenCalled()
+    expect(setRecurring).not.toHaveBeenCalled()
+  })
+
   it('honors locked cadence and toggle overrides', async () => {
     let proposal = { setup: true, checklist: true, subHabits: true, checklistItems: 2, subHabitItems: 1 }
     const ownership = { cadence: false, dueTime: false }
@@ -861,6 +906,8 @@ describe('habit form helpers', () => {
     controller.setQuantity(3)
     controller.setIntervalWeeks(2)
     controller.setSchedule('Month', 4, true)
+    controller.setScheduleMode(false)
+    controller.setScheduleMode(true)
     expect(setGeneral).toHaveBeenCalledTimes(4)
     expect(toggleDay).not.toHaveBeenCalled()
     controller.setReminderEnabled(true)

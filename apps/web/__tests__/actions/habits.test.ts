@@ -86,6 +86,22 @@ describe('habit server actions', () => {
     expect(habitDetailSchema.parse(reminderWire.HabitDetailResponse).scheduledReminders).toEqual(request.scheduledReminders)
   })
 
+  it('transports the confirmed date contract and recurring anchor without changing task due dates', async () => {
+    const response = { date: '2026-10-26', referenceDate: '2026-10-20' }
+    mockApiResponse(response)
+    expect(await bindServerAction(habitServerActions.interpretHabitDate)({ phrase: 'after vacation', language: 'en' }, 'account-a')).toEqual(response)
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/api/habits/interpret-date'), expect.objectContaining({ method: 'POST', body: JSON.stringify({ phrase: 'after vacation', language: 'en' }) }))
+    mockApiResponse({ id: 'new-habit' })
+    await createHabit({ title: 'Read', frequencyUnit: 'Day', frequencyQuantity: 1, startDate: '2026-10-26' }, 'account-a')
+    expect(JSON.parse(mockFetch.mock.lastCall![1].body)).toMatchObject({ startDate: '2026-10-26' })
+    mock204()
+    await updateHabit('habit', { title: 'Read', isBadHabit: false, startDate: '2026-10-26', clearEndDate: true }, 'account-a')
+    expect(JSON.parse(mockFetch.mock.lastCall![1].body)).toMatchObject({ startDate: '2026-10-26', clearEndDate: true })
+    await updateHabit('task', { title: 'Task', isBadHabit: false, dueDate: '2026-10-26' }, 'account-a')
+    expect(JSON.parse(mockFetch.mock.lastCall![1].body)).toMatchObject({ dueDate: '2026-10-26' })
+    expect(JSON.parse(mockFetch.mock.lastCall![1].body)).not.toHaveProperty('startDate')
+  })
+
   describe('createHabit', () => {
     it('returns a serializable refresh rejection for the client boundary', async () => {
       resolveServerSessionMock

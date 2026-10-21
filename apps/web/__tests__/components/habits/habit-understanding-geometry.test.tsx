@@ -36,7 +36,7 @@ describe('habit understanding geometry', () => {
 
   it.each([320, 412, 1352])('contains manual schedule choices within their field column at %s', async (width) => {
     const view = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
-      <HabitScheduleFields unit="Month" quantity={3} flexible disabled={false} onChange={vi.fn()} />
+      <HabitScheduleFields unit="Month" quantity={3} flexible disabled={false} onModeChange={vi.fn()} onChange={vi.fn()} />
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 1000 } })
     try {

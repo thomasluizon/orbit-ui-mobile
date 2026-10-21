@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test'
+import { settleAnimations } from './settle-animations'
 
 export async function setHabitTextScale(page: Page, scale: number, supportingTitles: readonly string[] = []) {
   const identities = await page.evaluateHandle(() => {
@@ -42,9 +43,41 @@ export async function setHabitTextScale(page: Page, scale: number, supportingTit
     }, { message: 'Habit text scale and supporting phases must settle together' }).toEqual({
       rootFont: `${16 * scale}px`, rows: supportingTitles.map((title) => ({ title, headings: scale > 1.3 ? 1 : 0 })),
     })
+    await settleHabitRows(page.getByTestId('habit-row'), scale)
   } catch (cause) {
     throw new Error(`Habit text scale ${scale} did not settle: ${JSON.stringify(receipt)}`, { cause })
   } finally { await identities.dispose() }
+}
+
+function readHabitRowPhase(rows: Element[], { scale, selecting }: { scale: number; selecting?: boolean }) {
+  const animations = rows.flatMap((row) => row.getAnimations({ subtree: true }))
+    .filter((animation) => animation.pending || animation.playState === 'running' || animation.playState === 'paused')
+    .map((animation) => {
+      if (animation.effect?.getComputedTiming().endTime === Infinity) throw new Error('Habit rows have a nonterminating layout animation')
+      return { property: animation instanceof CSSTransition ? animation.transitionProperty : null,
+        playState: animation.playState, pending: animation.pending }
+    })
+  return {
+    matching: getComputedStyle(document.documentElement).fontSize === `${16 * scale}px` && rows.every((row) => {
+      const selections = row.querySelectorAll('[data-habit-row-control="selection"]').length
+      const visualContents = row.querySelectorAll('[data-personal-text-content]').length
+      return row.isConnected && row.querySelectorAll('[data-habit-row-heading]').length === (scale > 1.3 ? 1 : 0)
+        && row.querySelectorAll('[data-personal-text]').length === 1
+        && (selecting === undefined || selections === Number(selecting) && visualContents === Number(selecting))
+    }),
+    animations,
+  }
+}
+
+export async function settleHabitRows(rows: Locator, scale: number, selecting?: boolean) {
+  await expect.poll(async () => {
+    const before = await rows.evaluateAll(readHabitRowPhase, { scale, selecting })
+    if (!before.matching) return before
+    if (before.animations.length > 0) await Promise.all((await rows.all()).map((row) => row.evaluate(settleAnimations)))
+    await rows.page().evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
+    return rows.evaluateAll(readHabitRowPhase, { scale, selecting })
+  }, { message: 'Habit row topology and owned layout animations must settle before geometry' })
+    .toEqual({ matching: true, animations: [] })
 }
 
 function readHabitGeometry(row: HTMLElement) {
@@ -65,7 +98,7 @@ function readHabitGeometry(row: HTMLElement) {
   const visibleFragments = [...range.getClientRects()].filter((rect) =>
     rect.width > 0 && rect.height > 0 && rect.left < titleBounds.right && rect.right > titleBounds.left
     && rect.top < titleBounds.bottom && rect.bottom > titleBounds.top)
-  return {
+  const geometry = {
     rootFontSize: parseFloat(getComputedStyle(document.documentElement).fontSize),
     depth: Number(row.getAttribute('data-depth')),
     bounds: boundsOf(row), well: boundsOf(well), title: titleBounds,
@@ -76,6 +109,51 @@ function readHabitGeometry(row: HTMLElement) {
     overflow: row.scrollWidth - row.clientWidth,
     targets: Array.from(row.querySelectorAll('[data-habit-row-control]')).map(boundsOf),
     checks: Array.from(row.querySelectorAll('[data-habit-check]')).map(boundsOf),
+  }
+  const readOwner = (node: Element) => {
+    const style = getComputedStyle(node)
+    return {
+      tag: node.tagName, className: node.className, connected: node.isConnected,
+      inlineStyle: node.getAttribute('style'), bounds: boundsOf(node),
+      display: style.display, visibility: style.visibility, opacity: style.opacity,
+      position: style.position, top: style.top, left: style.left, transform: style.transform,
+      width: style.width, minWidth: style.minWidth, maxWidth: style.maxWidth,
+      flexBasis: style.flexBasis, flexGrow: style.flexGrow, flexShrink: style.flexShrink,
+      alignItems: style.alignItems, alignSelf: style.alignSelf, overflow: style.overflow,
+      padding: style.padding, margin: style.margin, boxSizing: style.boxSizing,
+      gridColumn: style.gridColumn, gridRow: style.gridRow,
+      gridTemplateColumns: style.gridTemplateColumns, gridTemplateRows: style.gridTemplateRows,
+      transitionProperty: style.transitionProperty, transitionDuration: style.transitionDuration,
+      animations: node.getAnimations().map((animation) => ({
+        target: animation.effect instanceof KeyframeEffect && animation.effect.target instanceof Element
+          ? animation.effect.target.tagName : null,
+        property: animation instanceof CSSTransition ? animation.transitionProperty : null,
+        playState: animation.playState, currentTime: String(animation.currentTime),
+      })),
+    }
+  }
+  const titleChain = []
+  for (let node: Element | null = title; node; node = node.parentElement) {
+    titleChain.push(readOwner(node))
+    if (node === row) break
+  }
+  return {
+    ...geometry,
+    habitTitle: row.getAttribute('data-habit-title'), connected: row.isConnected,
+    rootInlineFont: document.documentElement.style.fontSize,
+    selection: Array.from(row.querySelectorAll('[data-habit-row-control="selection"]'))
+      .map((node) => ({ pressed: node.getAttribute('aria-pressed'), ...readOwner(node) })),
+    disclosures: Array.from(row.querySelectorAll('[data-habit-row-control="disclosure"]'))
+      .map((node) => ({ expanded: node.getAttribute('aria-expanded'), ...readOwner(node) })),
+    controlChains: Array.from(row.querySelectorAll('[data-habit-row-control]')).map((control) => {
+      const chain = []
+      for (let node: Element | null = control; node; node = node.parentElement) {
+        chain.push(readOwner(node))
+        if (node === row) break
+      }
+      return { control: control.getAttribute('data-habit-row-control'), chain }
+    }),
+    titleChain,
   }
 }
 
@@ -109,11 +187,17 @@ function assertReadableHabit(row: ReturnType<typeof readHabitGeometry>, width: n
   }
 }
 
-export async function assertHabitRows(rows: Locator, width: number, depths: number[], scale: number) {
+export async function assertHabitRows(rows: Locator, width: number, depths: number[], scale: number, selecting?: boolean) {
   await expect(rows).toHaveCount(depths.length)
+  await settleHabitRows(rows, scale, selecting)
   const geometry = await Promise.all((await rows.all()).map((row) => row.evaluate(readHabitGeometry)))
   expect(geometry.map((row) => row.depth)).toEqual(depths)
-  for (const row of geometry) assertReadableHabit(row, width, scale)
+  for (const row of geometry) {
+    try { assertReadableHabit(row, width, scale) }
+    catch (cause) {
+      throw new Error(`${cause instanceof Error ? cause.message : String(cause)}\nHabit geometry: ${JSON.stringify({ width, scale, row })}`, { cause })
+    }
+  }
   expect(await rows.page().evaluate(() => document.documentElement.scrollWidth)).toBe(width)
   return geometry
 }

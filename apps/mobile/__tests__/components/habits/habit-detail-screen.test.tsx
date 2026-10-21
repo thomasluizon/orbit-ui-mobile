@@ -526,6 +526,16 @@ describe('HabitDetailScreen', () => {
     vi.useRealTimers()
   })
 
+  it.each([false, true])('keeps the whole type below the full detail title, task: %s', (task) => {
+    mocks.detail = { ...makeDetail(), title: 'A complete title with enough words to occupy the available width', frequencyUnit: task ? null : 'Day', frequencyQuantity: task ? null : 1 }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const type = tree.root.findAll((node: TestNode) => node.type === 'Text' && node.props.testID === 'habit-detail-type')[0]!
+    expect(type.props.children).toBe(task ? 'habits.form.typeTask' : 'habits.form.typeHabit')
+    expect(type.props.numberOfLines).toBeUndefined()
+    expect(renderedText(tree.toJSON())).toContain(mocks.detail.title)
+  })
+
   it('keeps child progress in an unlogged bad habit parent header', () => {
     mocks.realHeaderRing = true
     mocks.logs = []
@@ -674,12 +684,15 @@ describe('HabitDetailScreen', () => {
   it.each(['light', 'dark'] as const)('keeps detail child monograms readable through the complete %s paint stack', (mode) => {
     mocks.realPressTokens = true
     mocks.realHabitRows = true
+    mocks.detail = { ...makeDetail(), children: makeDetail().children.map((child) => ({ ...child, description: '**Read** two pages before breakfast.' })) }
+    mocks.scopedHabits.set('child-1', { ...makeScopedChild('2026-08-28'), description: '**Read** two pages before breakfast.' })
     mocks.theme = mode
     const tokens = createTokensV2('purple', mode)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ backgroundColor: tokens.bg }}><HabitDetailScreen habitId="habit-1" /></View>) })
     const group = tree.root.findByProps({ testID: 'detail-children' })
     const row = group.findByProps({ testID: 'habit-row' })
+    expect(row.findByProps({ testID: 'habit-row-description' }).props.children).toBe('Read two pages before breakfast.')
     const geometry = measureInteractionFills(tree.toJSON(), 320, false)
     const rowBounds = geometry.find((part) => part.host.props.testID === 'habit-row')!
     const wellBounds = geometry.find((part) => part.style.width === 32 && part.style.borderRadius === 12 && part.ancestors.includes(rowBounds.slot))!

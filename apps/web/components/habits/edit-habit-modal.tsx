@@ -24,6 +24,7 @@ import {
   applyHabitFormMode,
   buildEditHabitFormState,
   applyHabitEmojiSuggestion,
+  reportHabitFormValidationError,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
@@ -263,6 +264,7 @@ export function EditHabitModal({
         }
       : prefill.formValues
     if (habitChanged) { setEmojiFailure(null); formHelpers.clearBackendErrors() }
+    formHelpers.resetModeDrafts()
     formHelpers.form.reset(formValues)
     setOriginalEndDate(prefill.originalEndDate)
     setReminderTimes(prefill.reminderTimes)
@@ -290,6 +292,8 @@ export function EditHabitModal({
       e.preventDefault()
       if (!habit) return
 
+      if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return }
+      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
       const error = formHelpers.validateAll({
         reminderTimes,
         selectedGoalIds,
@@ -297,10 +301,9 @@ export function EditHabitModal({
       })
       const reminderForm = error ? null : habitFormSchema.safeParse(formHelpers.form.getValues())
       if (!error && reminderForm?.success && reminderForm.data.reminderEnabled) requestReminderPermission()
-      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
 
       if (error) {
-        showError(error)
+        reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
         return
       }
       const data = habitFormSchema.parse(formHelpers.form.getValues())
