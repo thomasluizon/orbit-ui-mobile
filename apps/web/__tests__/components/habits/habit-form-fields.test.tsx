@@ -182,11 +182,17 @@ describe('HabitFormFields', () => {
     mockProfileState.hasProAccess = false
   })
 
-  it.each([false, true])('uses the API sub-habit flag for Pro access %s', (hasProAccess) => {
+  it('omits an empty sub-habit section when the edit form supplies no editor', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></QueryClientProvider>)
+    expect(screen.queryByText('habits.form.subHabits')).toBeNull()
+  })
+
+  it.each([false, true])('keeps the sub-habit editor available with Pro access %s', (hasProAccess) => {
     mockProfileState.hasProAccess = hasProAccess
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
-    expect(screen.queryByText('sub-habit-editor') !== null).toBe(hasProAccess)
-    expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(!hasProAccess)
+    expect(screen.queryByText('sub-habit-editor')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(false)
   })
 
   it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
@@ -620,11 +626,11 @@ describe('HabitFormFields', () => {
     expect(screen.queryByText('habits.form.endDate')).toBeNull()
   })
 
-  it('routes the free sub-habit row to upgrade while keeping goals available', () => {
+  it('keeps sub-habits and goals available without an upgrade row', () => {
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
 
-    fireEvent.click(screen.getByRole('button', { name: /common\.upgrade/ }))
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+    expect(screen.getByText('sub-habit-editor')).toBeDefined()
+    expect(mockRouterPush).not.toHaveBeenCalled()
     expect(screen.getByText('goal-linking')).toBeDefined()
   })
 

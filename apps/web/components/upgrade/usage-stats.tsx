@@ -1,13 +1,15 @@
+import { AI_MESSAGE_COUNTER_THRESHOLD } from '@orbit/shared/chat'
 import { useTranslations } from 'next-intl'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 
-export function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
+export function UsageStats({ usagePercent, profile, t }: Readonly<{
   usagePercent: number
-  usageUrgent: boolean
   profile: { aiMessagesUsed: number; aiMessagesLimit: number } | null
   t: ReturnType<typeof useTranslations>
 }>) {
+  const remaining = profile ? profile.aiMessagesLimit - profile.aiMessagesUsed : null
+  const nearLimit = remaining !== null && remaining <= AI_MESSAGE_COUNTER_THRESHOLD
   return (
     <div className="flex flex-col gap-3">
     <section className="flex flex-col gap-2">
@@ -34,10 +36,10 @@ export function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
 
       />
     </section>
-    {usageUrgent ? (
+    {nearLimit ? (
       <CapacityNotice
-        message={t('upgrade.billing.usage.nearLimit')}
-        body={t('upgrade.billing.usage.nearLimitBody')}
+        message={t(remaining <= 0 ? 'shell.composer.limit.exhausted' : 'upgrade.billing.usage.nearLimit')}
+        body={t('shell.composer.limit.renewal')}
       />
     ) : null}
     </div>

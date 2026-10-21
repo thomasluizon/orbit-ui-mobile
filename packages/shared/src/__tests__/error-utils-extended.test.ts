@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { z } from 'zod'
 import {
   ApiClientError,
@@ -602,6 +602,12 @@ describe('getFriendlyErrorMessage (extended)', () => {
     expect(getFriendlyErrorMessage(err, translate, 'errors.generic')).toBe(
       't:toast.errors.tooManyRequests',
     )
+  })
+
+  it('interpolates the shared habit ceiling in boundary errors', () => {
+    const translateBoundary = vi.fn(() => 'Habit boundary')
+    getFriendlyErrorMessage(codedError('HABIT_LIMIT_REACHED', 'Boundary'), translateBoundary, 'errors.generic')
+    expect(translateBoundary).toHaveBeenCalledWith('errors.api.habitLimit', { limit: 1000 })
   })
 
   it('translates habit title required key', () => {

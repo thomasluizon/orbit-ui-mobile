@@ -230,6 +230,7 @@
     "closeRail": "Close panel",
     "openPalette": "Open command palette",
     "composer": {
+      "usage": "Messages today: {used} of {limit}",
       "placeholder": "Ask Astra",
       "send": "Send",
       "clear": "Clear message",
@@ -250,8 +251,10 @@
         "image": "Photo"
       },
       "limit": {
+        "renewal": "Messages return at midnight, your time.",
+        "exhausted": "Today's Astra messages are used.",
         "placeholder": "No messages today",
-        "reason": "Today's allowance of {allowance} Astra messages is used. Lists, habit logging, and voice input still work without using Astra."
+        "reason": "Today's allowance of {allowance} Astra messages is used."
       },
       "busy": {
         "reason": "Astra is still answering. Wait for this response before sending another message."
@@ -682,6 +685,9 @@
     },
     "frequencyLabel": "Frequency",
     "form": {
+      "proRequired": "This is part of Orbit Pro.",
+      "capacityTitle": "Habit limit reached",
+      "capacityBody": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",
       "emojiSuggest": "Suggest emoji",
       "emojiSuggesting": "Finding emoji…",
       "aiSuggest": "Suggest with AI",
@@ -689,7 +695,7 @@
       "aiSuggestApplied": "AI suggestion applied",
       "aiSuggestError": "Couldn't generate a suggestion. Please try again.",
       "aiSuggestEmpty": "No suggestion for this one. Add the details yourself.",
-      "aiSuggestLimitReached": "You've reached today's AI message limit.",
+      "aiSuggestLimitReached": "You've used today's Astra messages. More arrive at midnight, your time.",
       "title": "Title",
       "newHabit": "New habit",
       "fromConversation": "Came from your conversation with Astra.",
@@ -1513,7 +1519,7 @@
     "fileAttached": "Attached file \"{name}\":",
     "sendError": "Failed to send message. Please try again.",
     "timeoutError": "The request timed out. Please try again.",
-    "limitReachedError": "You've reached today's Astra message limit. You can send more messages tomorrow.",
+    "limitReachedError": "You've used today's Astra messages. More arrive at midnight, your time.",
     "aiError": "Sorry, something went wrong. Please try again.",
     "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
@@ -2350,7 +2356,7 @@
     "allowance": {
       "title": "Today's messages",
       "usage": "{used} of {limit} used",
-      "spent": "Today's messages have been used. Your list keeps working without them.",
+      "spent": "Today's messages are used. They return at midnight, your time.",
       "plan": "Plan",
       "free": "Free",
       "pro": "Pro",
@@ -3128,11 +3134,6 @@
     "subscribe": "Subscribe to Pro",
     "plan": "Plan",
     "restorePurchase": "Restore purchase",
-    "features": {
-      "subHabits": {
-        "tooltip": "Break complex habits into smaller steps. Sub-habits nest under a parent habit for better organization."
-      }
-    },
     "convert": {
       "promise": "The plan changes what Astra can do, never your habits and logs.",
       "trialEyebrow": "Your Pro trial is active",
@@ -3219,8 +3220,7 @@
         "title": "Astra messages",
         "aiMessages": "Today",
         "aiMessagesOf": "{used} of {limit}",
-        "nearLimit": "You are close to today's Astra limit",
-        "nearLimitBody": "Your allowance resets automatically tomorrow."
+        "nearLimit": "You are close to today's Astra limit"
       },
       "invoices": {
         "title": "Invoice history",
@@ -3293,9 +3293,9 @@
       "appUpdated": "Orbit was updated. Reload the page and try again. Unsaved text will be lost.",
       "edgeBlocked": "This request was blocked before it reached Orbit. Change the text and try again.",
       "edgeBlockedRetry": "This request was blocked before it reached Orbit. Try again in a few minutes. If it keeps happening, contact support.",
-      "habitLimit": "You can have up to 1,000 active habits, not counting sub-habits. Delete a habit to add another.",
+      "habitLimit": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",
       "calendarPro": "Calendar sync needs Orbit Pro. Open Upgrade to turn it on.",
-      "astraLimit": "You've reached today's Astra message limit. You can send more messages tomorrow.",
+      "astraLimit": "You've used today's Astra messages. More arrive at midnight, your time.",
       "payGate": "This feature needs Orbit Pro. Open Upgrade to see your options.",
       "reload": "Reload",
       "noPermission": "You don't have permission to do that.",

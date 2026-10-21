@@ -154,7 +154,6 @@ export function BillingDashboard({
   status,
   locale,
   usagePercent,
-  usageUrgent,
   onOpenPortal,
   onRetryPortal,
   t,
@@ -164,7 +163,6 @@ export function BillingDashboard({
   status: SubscriptionStatus | null
   locale: string
   usagePercent: number
-  usageUrgent: boolean
   onOpenPortal: () => void
   onRetryPortal: () => void
   t: UpgradeTranslations
@@ -176,7 +174,7 @@ export function BillingDashboard({
       {!status.isLifetimePro ? <ProviderHandoff provider="stripe" state={state} onManage={state === 'portal-failed' ? onRetryPortal : onOpenPortal} t={t} /> : null}
       <PaymentMethodSection method={status.isLifetimePro ? null : billing?.paymentMethod} state={state} onOpenPortal={onOpenPortal} t={t} />
       <ProBenefits heading t={t} />
-      <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
+      <UsageStats usagePercent={usagePercent} profile={status} t={t} />
       <InvoiceHistory invoices={status.isLifetimePro ? undefined : billing?.recentInvoices} locale={locale} state={state} t={t} />
       {!status.isLifetimePro ? <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p> : null}
     </div>
