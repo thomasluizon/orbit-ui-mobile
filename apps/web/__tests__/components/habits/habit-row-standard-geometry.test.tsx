@@ -169,7 +169,8 @@ describe('habit row standard in Chromium', () => {
       const types = await page.locator('[data-habit-row-type]').evaluateAll((elements) => elements.map((element) => {
         const bounds = element.getBoundingClientRect()
         const paint = getComputedStyle(element)
-        const title = element.previousElementSibling!.getBoundingClientRect()
+        const row = element.closest('[data-testid="habit-row"]')!
+        const title = row.querySelector('[data-personal-text]')!.getBoundingClientRect()
         return { text: element.textContent, overflow: paint.textOverflow, whiteSpace: paint.whiteSpace, top: bounds.top, bottom: title.bottom, height: bounds.height }
       }))
       expect(types).toHaveLength(10)
