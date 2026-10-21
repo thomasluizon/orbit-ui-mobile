@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { readFileSync, mkdirSync, writeFileSync, cpSync } from "node:fs"
 import { dirname, join } from "node:path"
+import { createRequire } from "node:module"
 import { pathToFileURL } from "node:url"
 import yaml from "js-yaml"
 import * as diagnostic from "../android-sentry-diagnostic.mjs"
@@ -71,14 +72,14 @@ function candidateReads(subject, { credential = organizationToken("orbit-ai-habi
 }
 
 async function candidateCases() {
-  for (const [credential, selection, matches] of [[organizationToken(), "embedded_configured_organization", false],
+  for (const [credential, selection, matches] of [[organizationToken(), "embedded_previous_organization", false],
     [organizationToken("orbit-ai-habit-tracker"), "embedded_current_organization", true],
-    [token, "configured_defaults", false], [`sntryu_${token}`, "configured_defaults", false]]) {
+    [token, "configured_defaults", true], [`sntryu_${token}`, "configured_defaults", true]]) {
     const result = await candidateReads(diagnostic, { credential })
     T("android-sentry current target: fixed reads preserve native selection, configuration agreement and incomplete old binding", result.status === (matches ? 0 : 1)
       && result.calls.map(([url]) => url).join() === destinations.join() && result.report.target_selection === selection
       && result.report.current_target_reads === "route_access_observed"
-      && result.report.native_configuration_agreement === (matches ? "differs_from_configured" : "matches_configured")
+      && result.report.native_configuration_agreement === (matches ? "matches_configured" : "differs_from_configured")
       && result.report.candidate_target_agreement === (matches ? "matches_candidate" : "differs_from_candidate")
       && result.report.outcome === (matches ? "current_target_reads_observed" : "native_target_differs_from_candidate")
       && result.report.native_upload === "native_upload_unverified"
@@ -87,15 +88,19 @@ async function candidateCases() {
       && !result.output.includes(SENTINEL) && !result.output.includes(credential))
   }
   for (const org of ["thomasluizon", "orbit-ai-habit-tracker"]) {
-    for (const url of [null, "", "https://sentry.io/", "https://sentry.io////"]) {
+    for (const url of [null, "", "https://sentry.io", "https://sentry.io/", "https://sentry.io////"]) {
       const result = await candidateReads(diagnostic, { credential: organizationToken(org, url, { iat: 1, region_url: `https://untrusted.invalid/${SENTINEL}`, [SENTINEL]: SENTINEL }) })
       T("android-sentry current target: both recognized bindings normalize URLs without consuming issuance extras", result.calls.map(([destination]) => destination).join() === destinations.join()
-        && result.report.candidate_target_agreement === (org === "thomasluizon" ? "differs_from_candidate" : "matches_candidate") && !result.output.includes(SENTINEL))
+        && result.status === (org === "thomasluizon" ? 1 : 0)
+        && result.report.target_selection === (org === "thomasluizon" ? "embedded_previous_organization" : "embedded_current_organization")
+        && result.report.native_configuration_agreement === (org === "thomasluizon" ? "differs_from_configured" : "matches_configured")
+        && result.report.candidate_target_agreement === (org === "thomasluizon" ? "differs_from_candidate" : "matches_candidate")
+        && result.report.native_upload === "native_upload_unverified" && !result.output.includes(SENTINEL))
     }
   }
-  const overridden = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken(), SENTRY_ORG: "orbit-ai-habit-tracker", SENTRY_URL: `https://untrusted.invalid/${SENTINEL}`, SENTRY_PROJECT: SENTINEL } })
+  const overridden = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken(), SENTRY_ORG: "orbit-ai-habit-tracker", SENTRY_URL: `https://untrusted.invalid/${SENTINEL}`, SENTRY_PROJECT: "orbit-mobile" } })
   T("android-sentry current target: env/default edits cannot override an old embedded organization", overridden.status === 1
-    && overridden.report.target_selection === "embedded_configured_organization" && overridden.report.candidate_target_agreement === "differs_from_candidate"
+    && overridden.report.target_selection === "embedded_previous_organization" && overridden.report.candidate_target_agreement === "differs_from_candidate"
     && overridden.calls.map(([url]) => url).join() === destinations.join() && !overridden.output.includes(SENTINEL))
   for (const body of ["[]", `[{"${SENTINEL}":{"nested":["${SENTINEL}"]}}]`, "[null,false,42]"]) {
     const result = await candidateReads(diagnostic, { respond: async (url) => url === destinations[2] ? new Response(body, { headers: { Link: `https://untrusted.invalid/${SENTINEL}`, "X-Sentry-Proxy-URL": SENTINEL } }) : null })
@@ -226,7 +231,24 @@ guard("credential size", ["token.length > BODY_LIMIT", "false"], async (subject)
   const oversized = `sntrys_${payload}_${Buffer.alloc(32, 1).toString("base64").replace(/=+$/, "")}`
   return (await execute(subject, { env: { ...environment, SENTRY_AUTH_TOKEN: oversized } })).report.outcome === "credential_format_unrecognized"
 })
-guard("embedded org overrides defaults", ["payload.org !== ORGANIZATION && payload.org !== CURRENT_ORGANIZATION", "false"], async (subject) => {
+guard("configured organization stays current", ['const ORGANIZATION = "orbit-ai-habit-tracker"', 'const ORGANIZATION = "thomasluizon"'], async (subject) => {
+  const result = await candidateReads(subject)
+  return result.status === 0 && result.report.expected.organization === "orbit-ai-habit-tracker"
+    && result.report.native_configuration_agreement === "matches_configured" && result.calls.length === 3
+})
+for (const [name, condition, credential, override] of [
+  ["legacy organization override", 'env.SENTRY_ORG !== undefined && env.SENTRY_ORG !== ORGANIZATION', token, { SENTRY_ORG: SENTINEL }],
+  ["legacy host override", 'env.SENTRY_URL !== undefined && env.SENTRY_URL.replace(/\\/+$/, "") !== HOST', token, { SENTRY_URL: SENTINEL }],
+  ["project override", 'env.SENTRY_PROJECT !== undefined && env.SENTRY_PROJECT !== PROJECT', organizationToken("orbit-ai-habit-tracker"), { SENTRY_PROJECT: SENTINEL }],
+  ["empty embedded host fallback override", '!payload.url && env.SENTRY_URL !== undefined && env.SENTRY_URL.replace(/\\/+$/, "") !== HOST', organizationToken("orbit-ai-habit-tracker", null), { SENTRY_URL: SENTINEL }],
+]) {
+  guard(name, [condition, "false"], async (subject) => {
+    const result = await execute(subject, { env: { ...environment, SENTRY_AUTH_TOKEN: credential, ...override } })
+    return result.status === 1 && result.report.outcome === "native_override_mismatch"
+      && result.calls.length === 0 && result.children.length === 0 && !result.output.includes(SENTINEL) && !result.output.includes(credential)
+  })
+}
+guard("embedded org overrides defaults", ["payload.org !== ORGANIZATION && payload.org !== PREVIOUS_ORGANIZATION", "false"], async (subject) => {
   const result = await execute(subject, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken("other-org") } })
   return result.report.outcome === "embedded_organization_mismatch" && result.calls.length === 0 && !result.output.includes("other-org")
 })
@@ -402,7 +424,7 @@ guard("every child stays isolated from credential and metadata", ['const childEn
   return result.children.every(([, argv, options]) => Object.keys(options.env).join() === "PATH"
     && !JSON.stringify([argv, options]).includes(credential) && !JSON.stringify([argv, options]).includes("region_url"))
 })
-guard("candidate organization cannot regress to configured slug", ['const CURRENT_ORGANIZATION = "orbit-ai-habit-tracker"', 'const CURRENT_ORGANIZATION = ORGANIZATION'], async (subject) => {
+guard("candidate organization cannot regress to previous slug", ['const LOOKUP = `${HOST}/api/0/organizations/${ORGANIZATION}/chunk-upload/`', 'const LOOKUP = `${HOST}/api/0/organizations/${PREVIOUS_ORGANIZATION}/chunk-upload/`'], async (subject) => {
   const result = await candidateReads(subject, { credential: organizationToken() })
   return result.calls.map(([url]) => url).join() === destinations.join() && result.status === 1
 })
@@ -430,13 +452,21 @@ guard("old effective selection never becomes a green comparison", ['report.candi
   const result = await candidateReads(subject, { credential: organizationToken() })
   return result.status === 1 && result.report.outcome === "native_target_differs_from_candidate" && result.report.current_target_reads === "route_access_observed"
 })
-guard("embedded current selection cannot collapse into defaults", ['organization: payload.org', 'organization: ORGANIZATION'], async (subject) => {
-  const result = await execute(subject)
-  return result.report.candidate_target_agreement === "matches_candidate" && result.report.native_configuration_agreement === "differs_from_configured"
+guard("previous embedded selection cannot collapse into current defaults", ['organization: payload.org', 'organization: ORGANIZATION'], async (subject) => {
+  const result = await candidateReads(subject, { credential: organizationToken() })
+  return result.status === 1 && result.report.target_selection === "embedded_previous_organization"
+    && result.report.candidate_target_agreement === "differs_from_candidate" && result.report.native_configuration_agreement === "differs_from_configured"
+    && result.report.current_target_reads === "route_access_observed"
 })
-guard("native selection cannot come from env overrides", ['organization: payload.org', 'organization: CURRENT_ORGANIZATION'], async (subject) => {
+guard("native selection cannot come from env overrides", ['organization: payload.org', 'organization: env.SENTRY_ORG ?? payload.org'], async (subject) => {
   const result = await execute(subject, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken(), SENTRY_ORG: "orbit-ai-habit-tracker" } })
-  return result.status === 1 && result.report.candidate_target_agreement === "differs_from_candidate"
+  return result.status === 1 && result.report.target_selection === "embedded_previous_organization"
+    && result.report.native_configuration_agreement === "differs_from_configured" && result.report.candidate_target_agreement === "differs_from_candidate"
+    && result.report.current_target_reads === "route_access_observed"
+})
+guard("previous binding label stays distinct", ['payload.org === PREVIOUS_ORGANIZATION ?', 'false ?'], async (subject) => {
+  const result = await candidateReads(subject, { credential: organizationToken() })
+  return result.report.target_selection === "embedded_previous_organization" && result.status === 1
 })
 guard("index prerequisite requires reported authentication", ['if (stopped || auth.outcome !== "http_read_ok" || auth.auth_evidence.token_auth !== "reported"\n    || auth.auth_evidence.complete_shape === "shape_unavailable"\n    || auth.auth_evidence.native_get_scope !== "listed_alternative_observed") return', 'if (stopped) return'], async (subject) => {
   const result = await authResponse(subject, authEnvelope(null))
@@ -537,7 +567,8 @@ async function authTransportCases() {
 
 function outputStreamCases(source, stageModule) {
   for (const [suffix, credential, expectedStatus] of [["current", organizationToken("orbit-ai-habit-tracker", null, { ignored: SENTINEL }), 0],
-    ["old", organizationToken("thomasluizon", null, { ignored: SENTINEL }), 1]]) {
+    ["old", organizationToken("thomasluizon", null, { ignored: SENTINEL }), 1],
+    ["defaults", token, 0], ["prefixed-defaults", `sntryu_${token}`, 0]]) {
     const options = `{
       root: ${JSON.stringify(REPO_ROOT)}, env: ${JSON.stringify({ ...environment, SENTRY_AUTH_TOKEN: credential })},
       runProcess: async (file) => ({
@@ -559,6 +590,92 @@ function outputStreamCases(source, stageModule) {
   }
 }
 
+async function configuredTargetRegressionCases() {
+  const require = createRequire(import.meta.url)
+  const { getSentryProperties } = require("../../node_modules/@sentry/react-native/plugin/build/withSentry.js")
+  const app = JSON.parse(readFileSync(join(REPO_ROOT, "apps/mobile/app.json"), "utf8"))
+  const options = app.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === "@sentry/react-native/expo")[1]
+  T("android-sentry alignment: tracked plugin selects the current organization with the same host and project",
+    JSON.stringify(options) === JSON.stringify({ url: "https://sentry.io/", organization: "orbit-ai-habit-tracker", project: "orbit-mobile" }))
+  const originalVariant = process.env.ORBIT_APP_VARIANT
+  try {
+    for (const variant of ["production", "staging"]) {
+      process.env.ORBIT_APP_VARIANT = variant
+      const config = require("../../apps/mobile/app.config.js")()
+      const plugin = config.plugins.find((entry) => Array.isArray(entry) && entry[0] === "@sentry/react-native/expo")[1]
+      const properties = getSentryProperties(plugin).split("\n")
+      T(`android-sentry alignment: actual ${variant} plugin producer emits current native defaults without a token`,
+        properties.includes("defaults.org=orbit-ai-habit-tracker") && properties.includes("defaults.url=https://sentry.io/")
+        && properties.includes("defaults.project=orbit-mobile") && !properties.some((line) => line.startsWith("auth.token=")))
+    }
+  } finally {
+    if (originalVariant === undefined) delete process.env.ORBIT_APP_VARIANT
+    else process.env.ORBIT_APP_VARIANT = originalVariant
+  }
+  for (const [syntax, credential, selection, current] of [
+    ["previous embedded", organizationToken(), "embedded_previous_organization", false],
+    ["current embedded", organizationToken("orbit-ai-habit-tracker"), "embedded_current_organization", true],
+    ["legacy defaults", token, "configured_defaults", true],
+    ["prefixed legacy defaults", `sntryu_${token}`, "configured_defaults", true],
+  ]) {
+    const result = await candidateReads(diagnostic, { credential })
+    T(`android-sentry alignment: ${syntax} agrees only with its actual current native selection`,
+      result.report.expected.organization === "orbit-ai-habit-tracker"
+      && JSON.stringify(result.report.expected) === JSON.stringify(result.report.comparison_target)
+      && result.report.target_selection === selection && result.status === (current ? 0 : 1)
+      && result.report.native_configuration_agreement === (current ? "matches_configured" : "differs_from_configured")
+      && result.report.candidate_target_agreement === (current ? "matches_candidate" : "differs_from_candidate")
+      && result.report.outcome === (current ? "current_target_reads_observed" : "native_target_differs_from_candidate")
+      && result.report.current_target_reads === "route_access_observed"
+      && result.calls.map(([url]) => url).join() === destinations.join() && result.report.native_upload === "native_upload_unverified")
+  }
+}
+
+async function nativeOverrideCases() {
+  for (const credential of [token, `sntryu_${token}`]) {
+    for (const override of [
+      { SENTRY_ORG: "thomasluizon" }, { SENTRY_ORG: SENTINEL }, { SENTRY_ORG: "" },
+      { SENTRY_URL: `https://untrusted.invalid/${SENTINEL}` }, { SENTRY_URL: "" },
+      { SENTRY_PROJECT: SENTINEL }, { SENTRY_PROJECT: "" },
+    ]) {
+      const result = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: credential, ...override } })
+      T("android-sentry defaults: conflicting native overrides refuse locally without choosing destinations or exposing values",
+        result.status === 1 && result.report.outcome === "native_override_mismatch" && result.calls.length === 0
+        && result.children.length === 0 && result.report.native_upload === "native_upload_unverified"
+        && !result.output.includes(SENTINEL) && !result.output.includes(credential))
+    }
+    const matching = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: credential,
+      SENTRY_ORG: "orbit-ai-habit-tracker", SENTRY_URL: "https://sentry.io////", SENTRY_PROJECT: "orbit-mobile" } })
+    T("android-sentry defaults: matching native overrides retain the real configured-default classification", matching.status === 0
+      && matching.report.target_selection === "configured_defaults" && matching.report.native_configuration_agreement === "matches_configured"
+      && matching.calls.map(([url]) => url).join() === destinations.join())
+  }
+  for (const org of ["thomasluizon", "orbit-ai-habit-tracker"]) {
+    const current = org === "orbit-ai-habit-tracker"
+    const embedded = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken(org),
+      SENTRY_ORG: current ? "thomasluizon" : "orbit-ai-habit-tracker", SENTRY_URL: SENTINEL, SENTRY_PROJECT: "orbit-mobile" } })
+    T("android-sentry embedded: org and nonempty URL win over conflicting env suggestions", embedded.status === (current ? 0 : 1)
+      && embedded.report.target_selection === (current ? "embedded_current_organization" : "embedded_previous_organization")
+      && embedded.report.native_configuration_agreement === (current ? "matches_configured" : "differs_from_configured")
+      && embedded.calls.map(([url]) => url).join() === destinations.join() && !embedded.output.includes(SENTINEL))
+    for (const url of [null, ""]) {
+      const fallback = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken(org, url), SENTRY_URL: SENTINEL } })
+      T("android-sentry embedded: conflicting fallback host is refused without credential forwarding", fallback.status === 1
+        && fallback.report.outcome === "native_override_mismatch" && fallback.calls.length === 0 && fallback.children.length === 0 && !fallback.output.includes(SENTINEL))
+    }
+    const project = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: organizationToken(org), SENTRY_PROJECT: SENTINEL } })
+    T("android-sentry embedded: project override cannot silently agree with the fixed project", project.status === 1
+      && project.report.outcome === "native_override_mismatch" && project.calls.length === 0 && !project.output.includes(SENTINEL))
+    for (const url of [undefined, 42, false, { [SENTINEL]: SENTINEL }]) {
+      const credential = organizationToken(org, null, { url })
+      const result = await candidateReads(diagnostic, { credential })
+      T("android-sentry embedded: omitted and wrong-type URLs refuse for both recognized organizations", result.status === 1
+        && result.report.outcome === "credential_format_unrecognized" && result.calls.length === 0 && result.children.length === 0
+        && !result.output.includes(SENTINEL) && !result.output.includes(credential))
+    }
+  }
+}
+
 async function currentTargetRegressionCases() {
   for (const [syntax, credential] of [["old embedded", organizationToken()],
     ["current embedded", organizationToken("orbit-ai-habit-tracker")], ["legacy defaults", token]]) {
@@ -573,6 +690,8 @@ async function currentTargetRegressionCases() {
 }
 
 export const cases = async () => {
+  await configuredTargetRegressionCases()
+  await nativeOverrideCases()
   await currentTargetRegressionCases()
   await candidateCases()
   await authCases()
@@ -588,7 +707,7 @@ export const cases = async () => {
   for (const entry of guards) {
     T(`android-sentry: ${entry.name}`, await entry.verify(diagnostic))
     const [before, after] = entry.mutation
-    T(`android-sentry: ${entry.name} mutation targets implementation`, source.includes(before))
+    T(`android-sentry: ${entry.name} mutation targets implementation`, source.includes(before) && source.replace(before, after) !== source)
     const mutant = await loadMutant(entry.name.replaceAll(" ", "-"), source.replace(before, after))
     T(`android-sentry: ${entry.name} rejects owning negative control`, !await entry.verify(mutant))
   }
