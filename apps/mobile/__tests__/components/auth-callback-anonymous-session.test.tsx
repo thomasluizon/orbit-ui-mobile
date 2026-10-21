@@ -4,6 +4,7 @@ import { i18n } from '@/lib/i18n'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockConfigResponse, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
@@ -22,7 +23,7 @@ import { apiClient } from '@/lib/api-client'
 import * as authSession from '@/stores/auth-store'
 import { getSessionGeneration, useAuthStore } from '@/stores/auth-store'
 import { reconcileSessionOnForeground } from '@/lib/session-resume'
-import { clearAllTokens, getToken, setToken } from '@/lib/secure-store'
+import { clearAllTokens, getToken, getRefreshToken, setToken } from '@/lib/secure-store'
 import { createAuthReturnUrlAttempt, getStoredReferralCode, storeAuthReturnUrl } from '@/lib/auth-flow'
 import {
   AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, getPendingGoogleAuthVerifier,
@@ -39,6 +40,10 @@ const mocks = vi.hoisted(() => ({
   clearCache: vi.fn(async () => {}), resetQueries: vi.fn(async () => {}),
   resetAccount: vi.fn(async () => {}), clearOffline: vi.fn(async () => {}),
   referral: vi.fn(),
+  setParams: vi.fn(),
+  widgetToken: null as string | null,
+  saveWidgetToken: vi.fn((token: string) => { mocks.widgetToken = token; return Promise.resolve() }),
+  clearWidgetToken: vi.fn(() => { mocks.widgetToken = null; return Promise.resolve() }),
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => {
@@ -52,7 +57,7 @@ vi.mock('@react-native-async-storage/async-storage', () => {
 })
 vi.mock('expo-router', () => ({
   router: { replace: mocks.replace },
-  useRouter: () => ({ replace: mocks.replace, push: vi.fn(), canGoBack: () => false }),
+  useRouter: () => ({ replace: mocks.replace, push: vi.fn(), canGoBack: () => false, setParams: mocks.setParams }),
   useLocalSearchParams: () => mocks.params,
   useFocusEffect: () => {},
 }))
@@ -70,7 +75,7 @@ vi.mock('@/lib/auth-flow', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/auth-flow')>(), getStoredReferralCode: mocks.referral,
 }))
 vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
-vi.mock('@/lib/orbit-widget', () => ({ clearWidgetToken: vi.fn(async () => {}), saveWidgetToken: vi.fn(async () => {}) }))
+vi.mock('@/lib/orbit-widget', () => ({ clearWidgetToken: mocks.clearWidgetToken, saveWidgetToken: mocks.saveWidgetToken }))
 vi.mock('@/lib/offline-queue', () => ({ clear: vi.fn(), retainAccount: vi.fn(), claimLegacyAccount: vi.fn(), discardLegacy: vi.fn() }))
 vi.mock('@/lib/offline-mutations', () => ({ cancelScheduledFlush: vi.fn(), resumeOfflineReplay: vi.fn() }))
 vi.mock('@/lib/offline-state', () => ({ clearOfflineState: mocks.clearOffline }))
@@ -138,6 +143,7 @@ beforeEach(async () => {
   vi.clearAllMocks()
   mocks.rawUrl = null
   mocks.params = {}
+  mocks.widgetToken = null
   vi.stubGlobal('fetch', mocks.fetch)
   vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'test-client')
   vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', '')
@@ -476,5 +482,70 @@ it('retains email return navigation when the successful session removes its logi
   } finally {
     releaseLogin()
     useAuthStore.setState({ login: ordinaryLogin })
+  }
+})
+
+function holdAccessTokenPersistence() {
+  let enter!: () => void
+  let release!: () => void
+  let resolve!: () => void
+  const entered = new Promise<void>((signal) => { enter = signal })
+  const released = new Promise<void>((signal) => { release = signal })
+  const resolved = new Promise<void>((signal) => { resolve = signal })
+  const write = SecureStore.setItemAsync
+  vi.spyOn(SecureStore, 'setItemAsync').mockImplementationOnce(async (...arguments_) => {
+    enter()
+    await released
+    await write(...arguments_)
+    resolve()
+  })
+  return { entered, release, resolved }
+}
+
+it.each(['unmount', 'warm replacement'])('cancels the actual email session during persistence on %s', async (change) => {
+  const generation = getSessionGeneration()
+  const successor = { ...success, token: 'next-access', refreshToken: 'next-refresh', userId: 'next-user', email: 'next@example.com' }
+  const published: string[] = []
+  const unsubscribe = useAuthStore.subscribe((state) => { if (state.user) published.push(state.user.userId) })
+  mocks.params = { email: success.email, code: '123456', returnUrl: '/profile' }
+  mocks.fetch.mockImplementation((url: string, options?: RequestInit) => {
+    const path = new URL(url).pathname
+    if (path === API.auth.verifyCode) {
+      if (typeof options?.body !== 'string') throw new Error('Expected serialized email verification')
+      return Promise.resolve(Response.json(JSON.parse(options.body).email === successor.email ? successor : success))
+    }
+    if (path === API.profile.get) return Promise.resolve(Response.json(profile))
+    throw new Error('Unexpected request in credential cancellation')
+  })
+  const port = holdAccessTokenPersistence()
+  const screen = await mount(<LoginContent />)
+  try {
+    await port.entered
+    expect(requestCount(API.auth.verifyCode)).toBe(1)
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    await TestRenderer.act(() => {
+      if (change === 'unmount') screen.unmount()
+      else {
+        mocks.params = { email: successor.email, code: '654321', returnUrl: '/profile' }
+        screen.update(<I18nextProvider i18n={i18n}><QueryClientProvider client={queryClient}><LoginContent /></QueryClientProvider></I18nextProvider>)
+      }
+    })
+  } finally { port.release() }
+  await TestRenderer.act(async () => { await port.resolved })
+  unsubscribe()
+  expect.soft(published.includes(success.userId)).toBe(false)
+  if (change === 'unmount') {
+    expect.soft(useAuthStore.getState().user === null && !useAuthStore.getState().isAuthenticated).toBe(true)
+    expect.soft((await getToken()) === null && (await getRefreshToken()) === null && mocks.widgetToken === null).toBe(true)
+    expect.soft(getSessionGeneration()).toEqual(generation)
+    expect.soft(mocks.replace).not.toHaveBeenCalled()
+    expect(requestCount(API.profile.get)).toBe(0)
+  } else {
+    expect.soft(requestCount(API.auth.verifyCode)).toBe(2)
+    expect.soft(useAuthStore.getState().user?.userId === successor.userId && useAuthStore.getState().isAuthenticated).toBe(true)
+    expect.soft((await getToken()) === successor.token && (await getRefreshToken()) === successor.refreshToken && mocks.widgetToken === successor.token).toBe(true)
+    expect.soft(getSessionGeneration()).toEqual({ epoch: generation.epoch + 1, credentialVersion: generation.credentialVersion + 1 })
+    expect.soft(mocks.replace).toHaveBeenCalledExactlyOnceWith('/profile')
+    expect(requestCount(API.profile.get)).toBe(1)
   }
 })

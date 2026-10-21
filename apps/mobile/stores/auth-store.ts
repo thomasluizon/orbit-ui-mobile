@@ -176,6 +176,36 @@ async function withCredentialMutationLock<T>(mutation: () => Promise<T>): Promis
   }
 }
 
+async function commitLoginCredentials(
+  token: string,
+  refreshToken: string | null,
+  ownsLogin: () => boolean,
+  rollbackOnCancellation: boolean,
+  publishSession: () => SessionSnapshot,
+): Promise<SessionSnapshot | null> {
+  const previousCredentials = rollbackOnCancellation
+    ? { token: await getToken(), refreshToken: await getRefreshToken() }
+    : null
+  if (!ownsLogin()) return null
+  await setToken(token)
+  if (ownsLogin()) {
+    if (refreshToken) await setRefreshToken(refreshToken)
+    else await clearRefreshToken()
+  }
+  if (ownsLogin()) await saveWidgetToken(token).catch(() => {})
+  if (ownsLogin()) return publishSession()
+
+  if (previousCredentials) {
+    await clearAllTokens()
+    if (previousCredentials.token) await setToken(previousCredentials.token)
+    if (previousCredentials.refreshToken) await setRefreshToken(previousCredentials.refreshToken)
+    await (previousCredentials.token
+      ? saveWidgetToken(previousCredentials.token)
+      : clearWidgetToken()).catch(() => {})
+  }
+  return null
+}
+
 type SessionTeardownResult = {
   epoch: number
   refreshToken: string | null
@@ -457,29 +487,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!ownsLogin()) return null
         await clearPendingGoogleAuthSessionForLogin()
         if (!ownsLogin()) return null
-        if (isAttemptCurrent) establishLogin()
-        if (configCache.getSnapshot().accountId !== user.userId) configCache.setAccount(null)
-        offlineQueue.discardLegacy()
-        await setToken(token)
-        if (refreshToken) {
-          await setRefreshToken(refreshToken)
-        } else {
-          await clearRefreshToken()
-        }
-        await saveWidgetToken(token).catch(() => {})
-        bindStepUpStateToAccount(user.userId)
-        clearPendingNotificationDeletes()
-        advanceSessionEpoch()
-        credentialVersion += 1
-        configCache.setAccount(user.userId)
-        onSessionCommitted?.(getSessionEpoch())
-        set({
-          ...deriveSessionPhase('establishing'),
-          user,
-          isLoading: false,
-          expiresAt: getExpiresAt(token),
+        const previousPhase = get().sessionPhase
+        if (isAttemptCurrent) set(deriveSessionPhase('establishing'))
+        const committed = await commitLoginCredentials(token, refreshToken, ownsLogin, Boolean(isAttemptCurrent), () => {
+          if (isAttemptCurrent) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+          if (configCache.getSnapshot().accountId !== user.userId) configCache.setAccount(null)
+          offlineQueue.discardLegacy()
+          bindStepUpStateToAccount(user.userId)
+          clearPendingNotificationDeletes()
+          advanceSessionEpoch()
+          credentialVersion += 1
+          configCache.setAccount(user.userId)
+          onSessionCommitted?.(getSessionEpoch())
+          set({
+            ...deriveSessionPhase('establishing'),
+            user,
+            isLoading: false,
+            expiresAt: getExpiresAt(token),
+          })
+          return getSessionGeneration()
         })
-        return getSessionGeneration()
+        if (!committed) {
+          if (isAttemptCurrent) set(deriveSessionPhase(previousPhase))
+          return null
+        }
+        return committed
       })
       if (!loginSession) return null
       ownership = loginSession

@@ -9,7 +9,7 @@ import { i18n } from '@/lib/i18n'
 import { getRuntimeTheme } from '@/lib/theme'
 import { useLogout } from '@/hooks/use-logout'
 import { useThrottleStore } from '@/stores/throttle-store'
-import { getErrorSurface, getStepUpStorageKey } from '@orbit/shared/utils'
+import { getErrorSurface, getStepUpStorageKey, LoginAttemptScope } from '@orbit/shared/utils'
 import StepUpScreen from '@/app/step-up'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { AccountEventConnection } from '@/lib/account-event-connection'
@@ -318,6 +318,41 @@ function renderHookValue<T>(hook: () => T): T {
   TestRenderer.act(() => TestRenderer.create(React.createElement(Probe)))
   return value
 }
+
+function deferredCredentialPort() {
+  let enter!: () => void
+  let release!: () => void
+  let resolve!: () => void
+  const entered = new Promise<void>((signal) => { enter = signal })
+  const released = new Promise<void>((signal) => { release = signal })
+  const resolved = new Promise<void>((signal) => { resolve = signal })
+  return { entered, release, resolved, resolve, wait: async () => { enter(); await released } }
+}
+
+type CredentialBoundary = 'access' | 'refresh' | 'clear-refresh' | 'widget'
+
+function holdLoginCredentials(boundary: CredentialBoundary, priorToken: string | null = null) {
+  const port = deferredCredentialPort()
+  const credentials = { access: priorToken, refresh: priorToken, widget: priorToken }
+  let blocked = false
+  async function write(stage: CredentialBoundary, mutation: () => void) {
+    const held = stage === boundary && !blocked
+    if (held) { blocked = true; await port.wait() }
+    mutation()
+    if (held) port.resolve()
+  }
+  getTokenMock.mockImplementation(() => Promise.resolve(credentials.access))
+  getRefreshTokenMock.mockImplementation(() => Promise.resolve(credentials.refresh))
+  setTokenMock.mockImplementation((token: string) => write('access', () => { credentials.access = token }))
+  setRefreshTokenMock.mockImplementation((token: string) => write('refresh', () => { credentials.refresh = token }))
+  clearRefreshTokenMock.mockImplementation(() => write('clear-refresh', () => { credentials.refresh = null }))
+  saveWidgetTokenMock.mockImplementation((token: string) => write('widget', () => { credentials.widget = token }))
+  clearAllTokensMock.mockImplementation(() => { credentials.access = null; credentials.refresh = null; return Promise.resolve() })
+  clearWidgetTokenMock.mockImplementation(() => { credentials.widget = null; return Promise.resolve() })
+  return { port, credentials }
+}
+
+const credentialBoundaries: CredentialBoundary[] = ['access', 'refresh', 'clear-refresh', 'widget']
 
 describe('mobile auth store security paths', () => {
   it('refuses credentials from a callback owned by a replaced session', async () => {
@@ -906,6 +941,121 @@ describe('mobile auth store security paths', () => {
     expect(setTokenMock).not.toHaveBeenCalled()
     expect(setRefreshTokenMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState().sessionPhase).toBe('signed-out')
+  })
+
+  it.each(credentialBoundaries)('cancels email login during %s persistence and removes cancelled credentials', async (boundary) => {
+    const { port, credentials } = holdLoginCredentials(boundary)
+    const generation = getSessionGeneration()
+    const scope = new LoginAttemptScope()
+    const attempt = scope.capture('user@example.com', generation.epoch)
+    const user = { userId: 'user-1', email: attempt.email, name: 'User' }
+    const committed = vi.fn()
+    const published: boolean[] = []
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      scope.observeSession(getSessionGeneration().epoch)
+      published.push(state.user?.userId === user.userId || state.isAuthenticated)
+    })
+    const login = useAuthStore.getState().login(makeJwt(Math.floor(Date.now() / 1000) + 3600),
+      boundary === 'clear-refresh' ? null : 'refresh-token', user, attempt.epoch,
+      () => scope.owns(attempt, getSessionGeneration().epoch), committed)
+    try {
+      await port.entered
+      scope.invalidate()
+    } finally { port.release() }
+    const result = await login
+    await port.resolved
+    unsubscribe()
+    expect.soft(result === null).toBe(true)
+    expect.soft(committed).not.toHaveBeenCalled()
+    expect.soft(published.some(Boolean)).toBe(false)
+    expect.soft(getSessionGeneration()).toEqual(generation)
+    expect.soft(Object.values(credentials).every((value) => value === null)).toBe(true)
+    expect.soft(useAuthStore.getState().sessionPhase).toBe('signed-out')
+    expect(resetAccountQueriesMock).not.toHaveBeenCalled()
+    expect(apiClientMock).not.toHaveBeenCalled()
+    expect(posthogMocks.identifyPostHogUser).not.toHaveBeenCalled()
+    expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(false)
+  })
+
+  it.each(credentialBoundaries)('keeps the queued successor after cancelling %s persistence', async (boundary) => {
+    const { port, credentials } = holdLoginCredentials(boundary)
+    const generation = getSessionGeneration()
+    const scope = new LoginAttemptScope()
+    const attempt = scope.capture('user@example.com', generation.epoch)
+    const cancelledCommit = vi.fn()
+    const successorCommit = vi.fn()
+    const login = useAuthStore.getState().login('cancelled-access', boundary === 'clear-refresh' ? null : 'cancelled-refresh',
+      { userId: 'cancelled', email: attempt.email, name: 'Cancelled' }, attempt.epoch,
+      () => scope.owns(attempt, getSessionGeneration().epoch), cancelledCommit)
+    await port.entered
+    scope.invalidate()
+    const successor = scope.capture('next@example.com', generation.epoch)
+    const nextToken = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'next-user', successor.email)
+    const nextLogin = useAuthStore.getState().login(nextToken, 'next-refresh',
+      { userId: 'next-user', email: successor.email, name: 'Next' }, successor.epoch,
+      () => scope.owns(successor, getSessionGeneration().epoch), successorCommit)
+    port.release()
+    const [cancelled, current] = await Promise.all([login, nextLogin])
+    expect.soft(cancelled === null).toBe(true)
+    expect.soft(current?.()).toBe(true)
+    expect.soft(cancelledCommit).not.toHaveBeenCalled()
+    expect.soft(successorCommit).toHaveBeenCalledExactlyOnceWith(generation.epoch + 1)
+    expect.soft(credentials.access === nextToken && credentials.refresh === 'next-refresh' && credentials.widget === nextToken).toBe(true)
+    expect.soft(useAuthStore.getState().user?.userId === 'next-user').toBe(true)
+    expect(getSessionGeneration()).toEqual({ epoch: generation.epoch + 1, credentialVersion: generation.credentialVersion + 1 })
+  })
+
+  it.each(credentialBoundaries)('commits a current email login after %s persistence', async (boundary) => {
+    const { port, credentials } = holdLoginCredentials(boundary)
+    const generation = getSessionGeneration()
+    const scope = new LoginAttemptScope()
+    const attempt = scope.capture('user@example.com', generation.epoch)
+    const token = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600)
+    const refreshToken = boundary === 'clear-refresh' ? null : 'refresh-token'
+    const committed = vi.fn()
+    const login = useAuthStore.getState().login(token, refreshToken,
+      { userId: 'user-1', email: attempt.email, name: 'User' }, attempt.epoch,
+      () => scope.owns(attempt, getSessionGeneration().epoch), committed)
+    await port.entered
+    port.release()
+    expect((await login)?.()).toBe(true)
+    await port.resolved
+    expect(committed).toHaveBeenCalledExactlyOnceWith(generation.epoch + 1)
+    expect(credentials.access === token && credentials.refresh === refreshToken && credentials.widget === token).toBe(true)
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it.each(credentialBoundaries)('restores prior credentials after cancelling %s persistence', async (boundary) => {
+    const priorToken = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'prior-user')
+    const { port, credentials } = holdLoginCredentials(boundary, priorToken)
+    const priorUser = { userId: 'prior-user', email: 'prior@example.com', name: 'Prior' }
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true, user: priorUser })
+    const generation = getSessionGeneration()
+    const scope = new LoginAttemptScope()
+    const attempt = scope.capture('next@example.com', generation.epoch)
+    const login = useAuthStore.getState().login('cancelled-access', boundary === 'clear-refresh' ? null : 'cancelled-refresh',
+      { userId: 'cancelled', email: attempt.email, name: 'Cancelled' }, attempt.epoch,
+      () => scope.owns(attempt, getSessionGeneration().epoch))
+    await port.entered
+    scope.invalidate()
+    port.release()
+    expect((await login) === null).toBe(true)
+    expect(Object.values(credentials).every((value) => value === priorToken)).toBe(true)
+    expect(getSessionGeneration()).toEqual(generation)
+    expect(useAuthStore.getState().user === priorUser && useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it.each([false, true])('completes login despite widget persistence failure with attempt ownership %s', async (ownedAttempt) => {
+    const generation = getSessionGeneration()
+    const committed = vi.fn()
+    saveWidgetTokenMock.mockRejectedValueOnce(new Error('Widget persistence unavailable'))
+    const login = await useAuthStore.getState().login('access-token', 'refresh-token',
+      { userId: 'user-1', email: 'user@example.com', name: 'User' }, generation.epoch,
+      ownedAttempt ? () => true : undefined, committed)
+    expect(login?.()).toBe(true)
+    expect(committed).toHaveBeenCalledExactlyOnceWith(generation.epoch + 1)
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
   })
 
   it('aborts a blocked login when teardown changes the session', async () => {
