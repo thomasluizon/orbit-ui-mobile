@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { summarize, writeReport } from './report.mjs'
 
 export function beforeAll({ suite }) {
@@ -33,6 +34,7 @@ export function beforeEach({ test }) {
     return value
   }
   test.vars = substitute(test.vars)
+  test.vars.evalRequestId = randomUUID()
   return { test }
 }
 

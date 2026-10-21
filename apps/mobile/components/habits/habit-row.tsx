@@ -60,13 +60,12 @@ function buildMenuItems(
   actions: HabitRowActions,
   isSelectMode: boolean,
   completionReadOnly: boolean,
-  hasProAccess: boolean,
   isOverdue: boolean,
   hasSubHabits: boolean,
   t: (key: string) => string,
 ): MenuItem[] {
   const items: MenuItem[] = []
-  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask', badge: hasProAccess ? undefined : 'Pro' })
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
   if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
   if (actions.onReschedule && isOverdue && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule'), icon: 'calendar-time' })
@@ -116,7 +115,6 @@ export interface HabitRowProps {
   actions?: HabitRowActions
   style?: StyleProp<ViewStyle>
   panelEnd?: boolean
-  hasProAccess?: boolean
 }
 
 function HabitRowStructuralColumn({
@@ -277,7 +275,6 @@ export const HabitRow = memo(function HabitRow({
   actions = EMPTY_HABIT_ROW_ACTIONS,
   style,
   panelEnd = true,
-  hasProAccess = true,
 }: Readonly<HabitRowProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
@@ -333,8 +330,8 @@ export const HabitRow = memo(function HabitRow({
   } = useAnchoredMenu()
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
   const menuItems = useMemo(
-    () => buildMenuItems(actions, isSelectMode, completionReadOnly, hasProAccess, isOverdue, habit.hasSubHabits, t),
-    [actions, completionReadOnly, habit.hasSubHabits, hasProAccess, isOverdue, isSelectMode, t],
+    () => buildMenuItems(actions, isSelectMode, completionReadOnly, isOverdue, habit.hasSubHabits, t),
+    [actions, completionReadOnly, habit.hasSubHabits, isOverdue, isSelectMode, t],
   )
 
   const openMenu = useCallback(() => {

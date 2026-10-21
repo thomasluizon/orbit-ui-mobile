@@ -49,12 +49,11 @@ function buildMenuItems(
   actions: HabitRowActions,
   canSelect: boolean,
   canDrillInto: boolean,
-  hasProAccess: boolean,
   completionReadOnly: boolean,
   state: HabitStatus,
 ): MenuItem[] {
   const items: MenuItem[] = []
-  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask', badge: hasProAccess ? undefined : 'Pro' })
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
   if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
   if (actions.onReschedule && state === 'overdue' && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule'), icon: 'calendar-time' })
@@ -83,7 +82,6 @@ interface HabitRowTrailingProps {
   canSelect: boolean
   canDrillInto: boolean
   actions: HabitRowActions
-  hasProAccess: boolean
   onToggleStatus: () => void
   completionReadOnly: boolean
   completionReason?: string
@@ -162,7 +160,6 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   canSelect,
   canDrillInto,
   actions,
-  hasProAccess,
   completionReadOnly,
   } = props
   const t = useTranslations()
@@ -182,7 +179,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const closeMenu = () => setMenuOpen(false)
   const openMenu = () => setMenuOpen(true)
   const menuId = useId()
-  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly, state)
+  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, completionReadOnly, state)
 
   return (
     <div className="flex items-center shrink-0" style={{ gap: 8 }}>

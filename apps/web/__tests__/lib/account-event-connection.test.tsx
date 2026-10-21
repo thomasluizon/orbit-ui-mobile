@@ -236,7 +236,8 @@ it.each([false, true])('refreshes exhausted AI usage after midnight only after t
   const view = render(<AccountEventConnection />)
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
   await settle()
-  const exhausted = createMockProfile({ aiMessagesUsed: 20 })
+  const profile = createMockProfile()
+  const exhausted = { ...profile, aiMessagesUsed: profile.aiMessagesLimit }
   client.setQueryData(profileKeys.detail(), exhausted)
   const fetchProfile = vi.fn(async () => createMockProfile({ aiMessagesUsed: 0 }))
   const observer = new QueryObserver(client, { queryKey: profileKeys.detail(), queryFn: fetchProfile })

@@ -50,7 +50,7 @@ The comparison sources are pre-promotion web `dfc321dc1^` and Android release so
 | Start and end time | Retained ordering validation and clear actions; unset wire times remain null or omitted |
 | Relative offsets and absolute clock reminders | Retained separate editors, validation and request stores; General excludes both |
 | Checklist editing, templates, ordering and clearing | Retained existing checklist and template owners |
-| Sub-habits and inherited constraints | Retained editor, creation gates and General tree constraints |
+| Sub-habits and inherited constraints | Retained editor and General tree constraints; creation is available on every plan |
 | Tag selection, create, rename, delete and suggestions | Retained existing tag picker and suggestion adapters |
 | Goal links | Retained existing goal picker and request handling |
 | Avoidance and slip alerts | Retained for dated items; forbidden General combinations remain unavailable |
