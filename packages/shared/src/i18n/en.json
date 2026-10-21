@@ -758,6 +758,7 @@
       "datePhrase": "When",
       "taskDateQuestion": "When do you want to do this?",
       "habitDateQuestion": "When do you want to start?",
+      "recurrenceRequiresHabit": "To repeat, choose Habit.",
       "datePhraseUnresolved": "I couldn't identify the date. Choose it on the calendar.",
       "dateInvalid": "That date doesn't exist. Choose another.",
       "dateBudgetReached": "Astra has reached today's limit. Choose the date on the calendar.",

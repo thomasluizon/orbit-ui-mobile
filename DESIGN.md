@@ -485,6 +485,16 @@ locale, timezone, day, phrase, picker, type, schedule, end-date and form changes
 interpretations. Only the paid action depends on AI capacity. Offline editing and manual picking
 remain available; web saving retains its connection requirement and Android retains offline saving.
 
+Recurrence-only wording in When has its own local route. `toda semana`, `todas as semanas`,
+`semanalmente`, `every week` and `weekly` select fixed Every week for an explicitly selected dated
+Habit, preserving its chosen date. The existing schedule control shows Week 1; the entered words
+stay in the input without a second summary or Astra attribution. A Task keeps its type and date,
+with one inline recovery: `To repeat, choose Habit.` / `Para repetir, escolha Hábito.` Submit focuses
+the actual type group without marking the selected Task as missing. Selecting Habit is deliberate;
+clearing or replacing the wording and manual date selection also recover. Manual cadence changes,
+form reopening and context replacement never replay an old weekly read. Mixed wording stays with
+the existing date recovery and never guesses a cadence.
+
 Exact time, reminders, end date, description, checklist, sub-habits, tags, goals and avoidance
 controls retain their existing homes behind one disclosure. Read-only DateRow remains a valid
 primitive elsewhere; editable form dates use DateField.

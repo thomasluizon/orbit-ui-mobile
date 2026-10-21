@@ -372,7 +372,7 @@ type HabitControllerField =
 
 interface HabitFormControllerTarget {
   setOneTime: () => void
-  setRecurring: () => void
+  setRecurring: (restoreDraft?: boolean) => void
   setFlexible: () => void
   setGeneral: () => void
   getOwnership: () => HabitPhraseFormOwnership
@@ -414,6 +414,7 @@ export interface HabitFormController {
   setQuantity: (quantity: number) => void
   setScheduleMode: (flexible: boolean) => void
   setSchedule: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
+  setWeeklyRecurrence: () => void
 }
 
 export function createHabitFormController({
@@ -502,6 +503,17 @@ export function createHabitFormController({
       applyHabitQuantityCorrection(quantity, lockedGeneral, target)
     },
     setScheduleMode,
+    setWeeklyRecurrence: (): void => {
+      if (lockedGeneral === true) return
+      onSuggestionContextChange?.()
+      resolveSection('setup')
+      releaseOwnership('cadence')
+      target.setRecurring(false)
+      target.setField('frequencyUnit', 'Week')
+      target.setField('frequencyQuantity', 1)
+      target.setField('days', [])
+      target.setField('intervalWeeks', 1)
+    },
     setSchedule: (unit, quantity, flexible): void => {
       if (lockedGeneral === true) return
       setScheduleMode(flexible)

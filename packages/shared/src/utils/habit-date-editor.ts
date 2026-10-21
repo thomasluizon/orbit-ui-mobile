@@ -1,9 +1,12 @@
 import { DateInterpretationSession, type DateInterpretationContext } from './date-interpretation-session'
 import type { DateInterpretation } from '../types/habit'
 import type { DatePhraseResult } from './date-phrase-parser'
+import { isWeeklyRecurrencePhrase } from './habit-phrase-parser'
 
 interface DateEditorAdapter {
+  owner: object
   context: () => DateInterpretationContext
+  applyWeeklyRecurrence: () => void
   write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => void
   request: (input: { phrase: string; language: string }, signal: AbortSignal) => Promise<DateInterpretation>
   failure: (error: unknown) => string
@@ -15,7 +18,7 @@ export interface DateEditorSnapshot {
   pending: boolean
   failure: string | null
   capacity: boolean
-  status: DatePhraseResult['status']
+  status: DatePhraseResult['status'] | 'recurrence'
 }
 
 export class HabitDateEditor {
@@ -25,7 +28,14 @@ export class HabitDateEditor {
   private abort: AbortController | null = null
   private context = ''
   constructor(private adapter: DateEditorAdapter) {}
-  configure(adapter: DateEditorAdapter): void { this.adapter = adapter }
+  configure(adapter: DateEditorAdapter): void {
+    if (adapter.owner !== this.adapter.owner) {
+      this.abort?.abort()
+      this.session.invalidate()
+      this.context = ''
+    }
+    this.adapter = adapter
+  }
   subscribe = (listener: () => void): (() => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   getSnapshot = (): DateEditorSnapshot => this.snapshot
   open(): void { this.session.open() }
@@ -38,11 +48,14 @@ export class HabitDateEditor {
 
   sync(): void {
     const context = this.adapter.context()
-    const serialized = JSON.stringify(context)
-    if (serialized === this.context) return
-    this.context = serialized
+    if (JSON.stringify(context) === this.context) return
     this.abort?.abort()
-    this.session.sync(context)
+    this.rememberContext()
+    if (isWeeklyRecurrencePhrase(context.phrase)) {
+      this.setRecurrenceIssue(context)
+      this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: 'recurrence' })
+      return
+    }
     if (context.phrase) {
       this.adapter.write('dateIssue', 'habits.form.dateStale')
     }
@@ -54,12 +67,38 @@ export class HabitDateEditor {
     this.session.invalidate()
     this.adapter.write('datePhrase', phrase)
     const context = { ...this.adapter.context(), phrase }
+    if (isWeeklyRecurrencePhrase(phrase)) {
+      this.applyRecurrence(context)
+      this.setRecurrenceIssue(context)
+      this.rememberContext()
+      this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: 'recurrence' })
+      return
+    }
     const result = this.session.parse(context)
     this.adapter.write('dateIssue', result.status === 'empty' || result.status === 'resolved' ? '' : result.status === 'invalid' ? 'habits.form.dateInvalid' : 'habits.form.datePhraseUnresolved')
     if (result.status === 'resolved') this.adapter.write('dueDate', result.date)
-    this.context = JSON.stringify(this.adapter.context())
-    this.session.sync(this.adapter.context())
+    this.rememberContext()
     this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: result.status })
+  }
+
+  private applyRecurrence(context: DateInterpretationContext): void {
+    if (context.type === 'habit' && context.schedule !== 'general' && context.date) this.adapter.applyWeeklyRecurrence()
+  }
+
+  private setRecurrenceIssue(context: DateInterpretationContext): void {
+    this.adapter.write('dateIssue', context.type === 'task' ? 'habits.form.recurrenceRequiresHabit' : '')
+  }
+
+  private rememberContext(): void {
+    const context = this.adapter.context()
+    this.context = JSON.stringify(context)
+    this.session.sync(context)
+  }
+
+  chooseType(): void {
+    const { phrase } = this.adapter.context()
+    if (isWeeklyRecurrencePhrase(phrase)) this.setPhrase(phrase)
+    else this.sync()
   }
 
   selectDate(date: string): void {
@@ -68,13 +107,13 @@ export class HabitDateEditor {
     this.adapter.write('dueDate', date)
     this.adapter.write('datePhrase', '')
     this.adapter.write('dateIssue', '')
-    this.context = JSON.stringify(this.adapter.context())
-    this.session.sync(this.adapter.context())
+    this.rememberContext()
     this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: 'empty' })
   }
 
   async ask(online: boolean, atLimit: boolean): Promise<void> {
     const context = this.adapter.context()
+    if (isWeeklyRecurrencePhrase(context.phrase)) return
     const ticket = this.session.begin(context, online, atLimit)
     if (!ticket) return
     const abort = new AbortController()

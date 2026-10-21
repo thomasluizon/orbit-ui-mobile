@@ -431,8 +431,9 @@ export function HabitFormFields({
       if (readPhraseLocally && (previous.itemType !== itemType || previous.general !== formHelpers.isGeneral)) controller.reconcilePhraseOwnership(localRead)
       return
     }
+    if (!previous && formHelpers.retiredCadenceTitle === title) return
     controller.readPhrase(readPhraseLocally, localRead, emoji)
-  }, [controller, emoji, formHelpers.isGeneral, itemType, localRead, readPhraseLocally, title])
+  }, [controller, emoji, formHelpers.isGeneral, formHelpers.retiredCadenceTitle, itemType, localRead, readPhraseLocally, title])
 
   useEffect(() => {
     if (!onResolveSubHabitProposalReady) return
@@ -504,7 +505,7 @@ export function HabitFormFields({
         onAsk={() => void controller.askAstra()}
       />
 
-      <HabitDateField formHelpers={formHelpers} />
+      <HabitDateField formHelpers={formHelpers} onWeeklyRecurrence={controller.setWeeklyRecurrence} />
 
       <div className="flex flex-col" style={{ gap: 12 }}>
         <ListRow
