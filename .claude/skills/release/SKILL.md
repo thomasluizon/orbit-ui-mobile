@@ -37,4 +37,9 @@ After success, verify the live service. API: require `https://api.useorbit.org/h
 
 Follow `.claude/skills/android-release/SKILL.md` to derive the next version and Play versionCode across all tracks. Confirm the exact inputs with the owner before dispatch. Production uses `open` by default or explicitly requested `production`, always from `main`. Staging uses only `internal`, from the selected branch. Never promote a binary across tracks.
 
+For a native Sentry upload blocker, follow that procedure's **Sentry organization lookup recovery**:
+use the trusted-main same-secret diagnostic, retain its evidence limits, repair only a demonstrated
+cause and recheck Play plus concurrent releases before any never-uploaded-code retry. Pin the
+approved carrying main source and keep Open submission separate from verified tester availability.
+
 Before staging Android dispatch, require the staging API Render service and `https://api-staging.useorbit.org/health` to be healthy at the planned API commit. Dispatch `android-release.yml` with `--ref <selected branch>` and the confirmed inputs. Resolve the unique new run on that branch and SHA, then use `wait-release.mjs --repo ui`. Verify the Play upload step and API health again. A successful upload does not establish when Play makes the build available to testers.

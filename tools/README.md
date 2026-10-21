@@ -64,6 +64,13 @@ name or git status. Read `CONVENTIONS.md` before adding one.
 | `lib/performance-measurement.mjs` | Canonical implementation of the performance workflow's normalization contract. It parses measured SQL conservatively, ranks query statistics, applies mapped execution contexts, and makes unknown SQL or unavailable measurement non-signaling with an explicit reason. | imported by the tools harness and generated into the audit workflow |
 | `generate-performance-workflow.mjs` | Generates the measured-performance block in the sandboxed audit workflow from `lib/performance-measurement.mjs`, or fails when the committed block drifted. | `node tools/generate-performance-workflow.mjs (--check \| --write)` |
 
+## Android release diagnostics
+
+Android release diagnosis: `node tools/android-sentry-diagnostic.mjs` runs only in trusted-main
+Actions with the existing production token. It performs two bounded read-only requests and emits
+only safe status evidence. Use `android-sentry-diagnostic.yml`; see the Android release procedure
+for source selection, evidence limits and Open recovery.
+
 ## Product gates
 
 These back required CI checks. They fail a merge.
