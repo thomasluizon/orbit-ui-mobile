@@ -1,5 +1,8 @@
 'use client'
 
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { findPromptSlot } from '@orbit/shared/chat'
+
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion, useReducedMotion, useIsPresent } from 'motion/react'
@@ -56,13 +59,13 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4">
       {props.suggestions.length > 0 ? <section aria-label={t('chat.templates.forYou')}>
         <SectionLabel>{t('chat.templates.forYou')}</SectionLabel>
-        {props.suggestions.map(suggestion => <ListRow key={suggestion.id} title={suggestion.label} textMode="label" chevron={false} disabled={!!props.disabledReason} onClick={() => { suggestion.onSelect(); props.onBack() }} />)}
+        {props.suggestions.map(suggestion => <ListRow accessibilityLabel={`${suggestion.label}, ${t('nav.astra')}`} icon={<AstraGlyph size={24} />} value={t('nav.astra')} key={suggestion.id} title={suggestion.label} textMode="label" chevron={false} disabled={!!props.disabledReason} onClick={() => { suggestion.onSelect(); props.onBack() }} />)}
       </section> : null}
       {PROMPT_CATEGORIES.map(item => {
         const rows = visible.filter(template => template.category === item)
         return rows.length > 0 ? <section key={item} aria-label={t(`chat.templates.categories.${item}`)}>
           <SectionLabel>{t(`chat.templates.categories.${item}`)}</SectionLabel>
-          {rows.map(template => <ListRow key={template.id} title={t(template.labelKey)} textMode="label" chevron={false} disabled={!!props.disabledReason}
+          {rows.map(template => <ListRow accessibilityLabel={findPromptSlot(t(template.promptKey)) ? undefined : `${t(template.labelKey)}, ${t('nav.astra')}`} icon={findPromptSlot(t(template.promptKey)) ? undefined : <AstraGlyph size={24} />} value={findPromptSlot(t(template.promptKey)) ? undefined : t('nav.astra')} key={template.id} title={t(template.labelKey)} textMode="label" chevron={false} disabled={!!props.disabledReason}
             onClick={() => props.onSelect(template.id, t(template.labelKey), t(template.promptKey))} />)}
         </section> : null
       })}

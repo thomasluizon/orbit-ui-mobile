@@ -1,3 +1,5 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { findPromptSlot } from '@orbit/shared/chat'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -74,13 +76,13 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: SPACING.s16 }} keyboardShouldPersistTaps="handled">
       {props.suggestions.length > 0 ? <View>
         <SectionLabel>{t('chat.templates.forYou')}</SectionLabel>
-        {props.suggestions.map(suggestion => <ListRow key={suggestion.id} title={suggestion.label} textMode="label" chevron={false} disabled={!!props.disabledReason} onClick={() => { suggestion.onSelect(); props.onBack() }} />)}
+        {props.suggestions.map(suggestion => <ListRow accessibilityLabel={`${suggestion.label}, ${t('nav.astra')}`} icon={<AstraGlyph size={24} />} value={t('nav.astra')} key={suggestion.id} title={suggestion.label} textMode="label" chevron={false} disabled={!!props.disabledReason} onClick={() => { suggestion.onSelect(); props.onBack() }} />)}
       </View> : null}
       {PROMPT_CATEGORIES.map(item => {
         const rows = visible.filter(template => template.category === item)
         return rows.length > 0 ? <View key={item}>
           <SectionLabel>{t(`chat.templates.categories.${item}`)}</SectionLabel>
-          {rows.map(template => <ListRow key={template.id} title={t(template.labelKey)} textMode="label" chevron={false} disabled={!!props.disabledReason}
+          {rows.map(template => <ListRow accessibilityLabel={findPromptSlot(t(template.promptKey)) ? undefined : `${t(template.labelKey)}, ${t('nav.astra')}`} icon={findPromptSlot(t(template.promptKey)) ? undefined : <AstraGlyph size={24} />} value={findPromptSlot(t(template.promptKey)) ? undefined : t('nav.astra')} key={template.id} title={t(template.labelKey)} textMode="label" chevron={false} disabled={!!props.disabledReason}
             onClick={() => props.onSelect(template.id, t(template.labelKey), t(template.promptKey))} />)}
         </View> : null
       })}

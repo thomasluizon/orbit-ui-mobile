@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -19,7 +20,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { ArrowUp, Clipboard as ClipboardIcon, FileText, Image, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
+import { Clipboard as ClipboardIcon, FileText, Image, Plus, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -86,6 +87,7 @@ function SuggestionStrip({
   tokens,
   focusTarget,
 }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
+  const { t } = useTranslation()
   const { fontScale } = useWindowDimensions()
   const [availableWidth, setAvailableWidth] = useState(0)
   const [measurements, setMeasurements] = useState<Record<string, number>>({})
@@ -105,7 +107,7 @@ function SuggestionStrip({
           <InsetFocusPressable
             key={suggestion.id}
             accessibilityRole="button"
-            accessibilityLabel={suggestion.label}
+            accessibilityLabel={`${suggestion.label}, ${t('nav.astra')}`}
             onPress={() => {
               if (focusTarget.current) AccessibilityInfo.sendAccessibilityEvent(focusTarget.current, 'focus')
               suggestion.onSelect()
@@ -125,7 +127,7 @@ function SuggestionStrip({
               style={styles.suggestionContent}
             >
               {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-              <Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+              <Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text><AstraGlyph size={16} color={tokens.fg2} /><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{t('nav.astra')}</Text>
             </View>
           </InsetFocusPressable>
         ))}
@@ -293,7 +295,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, pasteInMenu
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   return (
-<View testID="composer-text-slot" style={styles.textSlot}>
+<View testID="composer-text-slot" style={[styles.textSlot, { minWidth: 48 * fontScale, flexBasis: 48 * fontScale }]}>
         <TypedTextInput
           ref={inputRef}
           accessibilityLabel={props.words.inputLabel ?? props.words.placeholder}
@@ -341,6 +343,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, pasteInMenu
 }
 
 function OpenConversationControl({ props, tokens }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2 }>) {
+  const { t } = useTranslation()
   const triggerRef = useRef<View>(null)
   const returnFocusPending = useRef(false)
   const conversationOpen = useUIStore(state => state.astraConversationOpen)
@@ -362,11 +365,11 @@ function OpenConversationControl({ props, tokens }: Readonly<{ props: MobileComp
       easing: toAnimatedEasing(mobileMotion.easings.enter), useNativeDriver: true,
     }).start()
   }
-  return <InsetFocusPressable ref={triggerRef} accessibilityRole="button" accessibilityLabel={props.conversationLabel}
+  return <InsetFocusPressable ref={triggerRef} accessibilityRole="button" accessibilityLabel={`${props.conversationLabel}, ${t('nav.astra')}`}
       onPress={() => { returnFocusPending.current = true; props.onOpenConversation?.() }}
       onPressIn={() => animate(mobileMotion.orbital.press.scale)} onPressOut={() => animate(1)}
       style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-      <Animated.View style={{ transform: [{ scale }] }}><AstraGlyph size={20} color={tokens.fg3} /></Animated.View>
+      <Animated.View style={{ transform: [{ scale }] }}><AstraGlyph size={20} color={tokens.fg3} /></Animated.View><Text style={{ color: tokens.fg3, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('nav.astra')}</Text>
     </InsetFocusPressable>
 }
 
@@ -418,6 +421,7 @@ function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear }: R
 }
 
 function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
+  const { t } = useTranslation()
   const [focused, setFocused] = useState(false)
   const [pasteInMenu, setPasteInMenu] = useState(false)
   const pasteFocus = useRef<string | null>(null)
@@ -454,7 +458,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
         focusColor={tokens.primary}
         focusContrastColor={sendIsAccent ? tokens.bg : undefined}
         accessibilityRole="button"
-        accessibilityLabel={props.words.send}
+        accessibilityLabel={`${props.words.send}, ${t('habits.form.askDate')}`}
         accessibilityState={{ disabled: !canSend, busy: props.state === 'sending' }}
         disabled={!canSend}
         onPress={() => {
@@ -472,7 +476,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
           !canSend && props.state !== 'sending' ? styles.disabled : null,
         ]}
       >
-        {props.state === 'sending' ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />}
+        <AstraGlyph size={20} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} /><Text style={{ flexShrink: 1, color: sendIsAccent ? tokens.fgOnPrimary : tokens.fg3, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('habits.form.askDate')}</Text><View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: 20, opacity: props.state === 'sending' ? 1 : 0 }}><ActivityIndicator animating={props.state === 'sending'} size="small" color={tokens.fgOnPrimary} /></View>
       </InsetFocusPressable>
       </View>
     </View>
@@ -493,16 +497,18 @@ function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; token
 }
 
 function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
+  const { t } = useTranslation()
   const prefersReducedMotion = usePrefersReducedMotion()
   if (!props.onRetry) return null
   return (
     <InsetFocusPressable
       accessibilityRole="button"
       onPress={props.onRetry}
+      accessibilityLabel={`${props.words.retry}, ${t('nav.astra')}`}
       style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}
     >
-      <RefreshCw size={16} strokeWidth={2} color={tokens.fg2} />
-      <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.words.retry}</Text>
+      <AstraGlyph size={16} color={tokens.fg2} />
+      <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.words.retry}</Text><Text style={[styles.retryText, { color: tokens.fg2 }]}>{t('nav.astra')}</Text>
     </InsetFocusPressable>
   )
 }
@@ -686,7 +692,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   openConversation: {
-    width: 48,
+    minWidth: 48,
+    maxWidth: '100%',
+    flexDirection: 'row',
+    gap: SPACING.s8,
+    paddingHorizontal: SPACING.s8,
+    paddingVertical: SPACING.s4,
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
@@ -695,6 +706,8 @@ const styles = StyleSheet.create({
   },
   field: {
     minHeight: 56,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -709,7 +722,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   trailingControls: {
+    maxWidth: '100%',
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
     alignItems: 'flex-end',
     gap: 4,
   },
@@ -746,7 +762,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sendButton: {
-    width: 48,
+    minWidth: 48,
+    maxWidth: '100%',
+    flexDirection: 'row',
+    gap: SPACING.s8,
+    paddingHorizontal: SPACING.s8,
+    paddingVertical: SPACING.s4,
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',

@@ -619,6 +619,7 @@
       "skip": "Pular",
       "openSubHabits": "Abrir os sub-hábitos",
       "unlog": "Marcar como não feito",
+      "rescheduleAstra": "Reagendar com a Astra",
       "reschedule": "Reagendar"
     },
     "reschedule": {
@@ -755,6 +756,7 @@
       "typeRequired": "Escolha o tipo.",
       "taskDate": "Fazer em",
       "habitStartDate": "Começar em",
+      "datePhrasePlaceholder": "Escreva do seu jeito",
       "datePhrase": "Quando",
       "taskDateQuestion": "Quando você quer fazer isso?",
       "habitDateQuestion": "Quando você quer começar?",

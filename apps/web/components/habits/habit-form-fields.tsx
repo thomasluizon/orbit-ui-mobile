@@ -1,9 +1,11 @@
 'use client'
 
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+
 import { X } from '@/components/ui/icons'
 
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
-import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
+import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 
 import { useCallback, useEffect, useState, useId, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -116,7 +118,7 @@ function AstraFallback({
         <Skeleton variant="settings" label={readingLabel} />
       ) : (
         <div className="flex flex-col items-start" style={{ gap: 8 }}>
-          <PillButton variant="secondary" disabled={atLimit} onClick={onAsk}>{askLabel}</PillButton>
+          <PillButton leadingIcon={<AstraGlyph size={16} />} variant="secondary" disabled={atLimit} onClick={onAsk}>{askLabel}</PillButton>
           {!atLimit ? <p className="text-xs text-[var(--fg-3)]">{costLabel}</p> : null}
         </div>
       )}
@@ -341,10 +343,6 @@ export function HabitFormFields({
   const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
   const editTagErrors = useBackendFieldErrors({ name: tags.editTagName }, { name: 'Name' })
   const descriptionFailure = formHelpers.backendFieldErrors.description
-  useBackendErrorDisclosure(descriptionFailure, formHelpers.backendFocusRequest, () => {
-    setDetailsPresented(true)
-    setDetailsOpen(true)
-  })
   const [proposal, setProposal] = useAccountScopedState(EMPTY_HABIT_FORM_PROPOSAL)
   const rendersGranularSubHabits = typeof children === 'function'
   const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
@@ -494,7 +492,18 @@ export function HabitFormFields({
         onToggleDay={(day) => controller.toggleDay(day, daily, days)}
         onQuantityChange={controller.setQuantity}
         labels={understandingLabels}
-      />
+      >
+        <Input
+          label={t('habits.form.description')}
+          error={descriptionFailure}
+          focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)}
+          value={description}
+          onChange={(value) => setValue('description', value, { shouldDirty: true })}
+          multiline
+          rows={3}
+          maxLength={10000}
+        />
+      </HabitUnderstanding>
 
       <AstraFallback
         visible={itemType !== 'task' && !formHelpers.isGeneral && shouldShowHabitAstraFallback(title, sentence, onSuggestSetup, proposal)}
@@ -611,19 +620,6 @@ export function HabitFormFields({
             </section>
 
             <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
-
-            <section>
-              <Input
-                label={t('habits.form.description')}
-                error={descriptionFailure}
-                focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)}
-                value={description}
-                onChange={(value) => setValue('description', value, { shouldDirty: true })}
-                multiline
-                rows={3}
-                maxLength={10000}
-              />
-            </section>
           </div>
         ) : null}
       </div>

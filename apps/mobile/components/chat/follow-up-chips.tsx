@@ -1,4 +1,5 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -18,14 +19,14 @@ export function FollowUpChips({ followUps, onSelect }: Readonly<{
       {followUps.slice(0, 3).map((text) => <Pressable
         key={text}
         accessibilityRole="button"
-        accessibilityLabel={text}
+        accessibilityLabel={`${text}, ${t('nav.astra')}`}
         onPress={() => onSelect(text)}
         style={({ pressed }) => ({
           minHeight: TOUCH_TARGET_MIN, width: '100%', justifyContent: 'center', paddingVertical: SPACING.s12, paddingHorizontal: SPACING.s16, borderRadius: 12, overflow: 'hidden',
           backgroundColor: pressed ? tokens.bgHover : tokens.bgWell,
           borderWidth: 1, borderColor: tokens.hairline,
         })}
-      ><Text style={{ color: tokens.fg2, fontSize: 14, lineHeight: 20, fontFamily: 'Geist_500Medium' }}>{text}</Text></Pressable>)}
+      ><Text style={{ color: tokens.fg2, fontSize: 14, lineHeight: 20, fontFamily: 'Geist_500Medium' }}>{text}</Text><View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.s8, paddingTop: SPACING.s8 }}><AstraGlyph size={16} color={tokens.fg2} /><Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('nav.astra')}</Text></View></Pressable>)}
     </View>
   </View>
 }

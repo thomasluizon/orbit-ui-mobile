@@ -1,5 +1,7 @@
 'use client'
 
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
@@ -104,8 +106,8 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-          <PillButton variant={filledVariant} size="sm" onClick={() => void refetch()}>
-            {t('habits.reschedule.retry')}
+          <PillButton leadingIcon={<AstraGlyph size={16} />} variant={filledVariant} size="sm" onClick={() => void refetch()}>
+            {t('habits.form.askDate')}
           </PillButton>
         </>
       )

@@ -235,14 +235,14 @@ describe('Composer', () => {
     render(<ControlledComposer />)
     const input = screen.getByRole('textbox')
     fireEvent.change(input, { target: { value: 'First\nSecond' } })
-    expect(screen.getByRole('button', { name: words.send })).toBeEnabled()
+    expect(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })).toBeEnabled()
     const clear = screen.getByRole('button', { name: words.clear })
     clear.focus()
     fireEvent.click(clear)
     expect(onChangeValue).toHaveBeenLastCalledWith('')
     expect(input).toHaveValue('')
     expect(input).toHaveFocus()
-    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
+    expect(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })).toBeDisabled()
     expect(screen.queryByRole('button', { name: words.clear })).not.toBeInTheDocument()
     expect(onAttachRemove).not.toHaveBeenCalled()
     if (attached) expect(screen.getByText('walk.png')).toBeInTheDocument()
@@ -402,7 +402,7 @@ describe('Composer', () => {
   it('keeps focus in the composer when a selected chip disappears', () => {
     const chips = suggestions(3)
     const view = render(<Composer {...props({ suggestions: chips })} />)
-    fireEvent.click(screen.getByRole('button', { name: chips[0]!.label }))
+    fireEvent.click(screen.getByRole('button', { name: `${chips[0]!.label}, nav.astra` }))
     expect(document.activeElement).toHaveAttribute('data-composer-root')
     view.rerender(<Composer {...props({ suggestions: chips, state: 'sending' })} />)
     expect(document.activeElement).toHaveAttribute('data-composer-root')
@@ -411,7 +411,7 @@ describe('Composer', () => {
   it('selects only the pressed suggestion', () => {
     const chips = suggestions(3)
     render(<Composer {...props({ suggestions: chips })} />)
-    fireEvent.click(screen.getByRole('button', { name: chips[1]!.label }))
+    fireEvent.click(screen.getByRole('button', { name: `${chips[1]!.label}, nav.astra` }))
     expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
     expect(chips[0]!.onSelect).not.toHaveBeenCalled()
     expect(chips[2]!.onSelect).not.toHaveBeenCalled()
@@ -448,14 +448,14 @@ describe('Composer', () => {
   it.each(['', '   '])('does not send a blank value %j', (value) => {
     const onSend = vi.fn()
     render(<Composer {...props({ value, onSend })} />)
-    fireEvent.click(screen.getByRole('button', { name: words.send }))
+    fireEvent.click(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` }))
     expect(onSend).not.toHaveBeenCalled()
   })
 
   it('sends a nonblank value once', () => {
     const onSend = vi.fn()
     render(<Composer {...props({ value: 'oi', onSend })} />)
-    fireEvent.click(screen.getByRole('button', { name: words.send }))
+    fireEvent.click(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` }))
     expect(onSend).toHaveBeenCalledOnce()
   })
 
@@ -471,7 +471,7 @@ describe('Composer', () => {
     ['transcribing', { state: 'transcribing', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
   ] as const)('styles the send control for %s', (_case, overrides, accented, disabled) => {
     render(<Composer {...props(overrides)} />)
-    const send = screen.getByRole('button', { name: words.send })
+    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
     if (accented) expect(send).toHaveAttribute('data-accent', '')
     else expect(send).not.toHaveAttribute('data-accent')
     expect(send).toHaveClass(accented ? 'bg-[var(--primary)]' : 'bg-[var(--bg-well)]')
@@ -480,9 +480,9 @@ describe('Composer', () => {
     }
     if (_case === 'idle with text' || _case === 'idle with a file only') {
       expect(send).toHaveClass('enabled:hover:bg-[var(--primary-hover)]')
-    } else {
-      expect(send.querySelector('span[aria-hidden="true"]')).toBeNull()
     }
+    expect(send.querySelector('span[aria-hidden="true"]')).toHaveStyle({ visibility: _case === 'sending' ? 'visible' : 'hidden' })
+    expect(send.querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
     if (_case === 'sending') expect(send).not.toHaveClass('disabled:opacity-40')
     else if (disabled) expect(send).toHaveClass('disabled:opacity-40')
     if (disabled) expect(send).toBeDisabled()
@@ -503,7 +503,7 @@ describe('Composer', () => {
         })}
       />,
     )
-    const send = screen.getByRole('button', { name: words.send })
+    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
     expect(send).toBeDisabled()
     fireEvent.click(send)
     expect(onSend).not.toHaveBeenCalled()
@@ -528,7 +528,7 @@ describe('Composer', () => {
   it('disables input and send and hides suggestions during sending', () => {
     render(<Composer {...props({ state: 'sending', value: 'oi' })} />)
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-    const send = screen.getByRole('button', { name: words.send })
+    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
     expect(send).toBeDisabled()
     expect(send).toHaveAttribute('aria-busy', 'true')
     expect(send.querySelector('.orbit-essential-loading')).not.toBeNull()
@@ -540,7 +540,7 @@ describe('Composer', () => {
     expect(screen.getByText('limit sentinel')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
+    expect(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })).toBeDisabled()
     expect(container.querySelector('[data-accent]')).toBeNull()
   })
 
@@ -620,7 +620,7 @@ describe('Composer', () => {
         })}
       />,
     )
-    const send = screen.getByRole('button', { name: words.send })
+    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
     expect(send).toBeEnabled()
     fireEvent.click(send)
     expect(onSend).toHaveBeenCalledOnce()
@@ -651,10 +651,10 @@ describe('Composer', () => {
     const onRetry = vi.fn()
     const retryWords = { ...words, retry: 'retry sentinel' }
     const { rerender } = render(<Composer {...props({ words: retryWords, onRetry })} />)
-    fireEvent.click(screen.getByRole('button', { name: retryWords.retry }))
+    fireEvent.click(screen.getByRole('button', { name: `${retryWords.retry}, nav.astra` }))
     expect(onRetry).toHaveBeenCalledOnce()
     rerender(<Composer {...props()} />)
-    expect(screen.queryByRole('button', { name: retryWords.retry })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: `${retryWords.retry}, nav.astra` })).not.toBeInTheDocument()
   })
 
   it('uses the placeholder word as both placeholder and accessible name', () => {

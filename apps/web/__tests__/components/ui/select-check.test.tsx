@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 
 function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
   const [value, setValue] = useState('first')
@@ -208,6 +209,37 @@ describe('RadioRow secondary text contrast', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 1352].flatMap(width => [1, 2].flatMap(scale => (['dark', 'light'] as const).map(mode => ({ width, scale, mode })))))('balances real form choices at $width, scale $scale, $mode', async ({ width, scale, mode }) => {
+    const { container } = render(<div>{['Task', 'Tarefa', 'Habit', 'Hábito', 'A recurring habit with a long readable choice that grows naturally across multiple lines'].map(label => <RadioRow key={label} label={label} wrapLabel selected onSelect={vi.fn()} />)}<RadioRow label="Disabled" wrapLabel disabled reasonScope="group" selected /></div>)
+    const page = await browser.newPage({ viewport: { width, height: 1500 }, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet}:root{${variables};--fs-base:${16 * scale}px}</style><main style="padding:16px;max-width:740px">${container.innerHTML}</main>`)
+      await loadAppFonts(page)
+      const rows = page.locator('[role="radio"]')
+      for (const row of await rows.all()) {
+        for (const interact of [async () => {}, () => row.hover(), () => row.focus(), () => page.mouse.down()]) {
+          await interact()
+          const measured = await row.evaluate(element => {
+            const bounds = element.getBoundingClientRect()
+            const title = element.querySelector('[data-slot="list-row-title"]')!
+            const text = title.getBoundingClientRect()
+            const glyph = element.querySelector('[data-slot="list-row-trailing"]')!.getBoundingClientRect()
+            const line = parseFloat(getComputedStyle(title).lineHeight)
+            return { height: bounds.height, wrapped: text.height > line + 1, top: text.top - bounds.top, bottom: bounds.bottom - text.bottom,
+              centers: Math.abs((glyph.top + glyph.bottom) / 2 - (text.top + Math.min(text.height, line) / 2)), inline: Math.min(text.left - bounds.left, bounds.right - glyph.right) }
+          })
+          expect(measured.height).toBeGreaterThanOrEqual(52)
+          if (!measured.wrapped) expect(Math.abs(measured.top - measured.bottom)).toBeLessThanOrEqual(1)
+          expect(measured.centers).toBeLessThanOrEqual(1)
+          expect(measured.inline).toBeGreaterThanOrEqual(8)
+          expect(Math.min(measured.top, measured.bottom)).toBeGreaterThanOrEqual(4)
+          await page.mouse.up()
+        }
+      }
+    } finally { await page.close(); container.remove() }
+  })
 
   it('keeps the expanded personal text natively focusable and scrollable', async () => {
     const label = `${'longaddress'.repeat(12)}@example.com`

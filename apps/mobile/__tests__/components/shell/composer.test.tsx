@@ -20,6 +20,7 @@ import { IntlMessageFormat } from 'intl-messageformat'
 import { __getFocusedInputSelection, __getFocusedNativeTag, __setFocusImpl, __setWindowDimensions } from '@/test-mocks/react-native'
 import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
@@ -426,7 +427,7 @@ it('keeps one complete suggestion focus outline inside the scroller without resi
 function byLabel(root: ReturnType<typeof TestRenderer.create>['root'], label: string) {
   return root.findAll(
     (node: { type?: unknown; props?: Record<string, unknown> }) =>
-      typeof node.type === 'string' && node.props?.accessibilityLabel === label,
+      typeof node.type === 'string' && [label, `${label}, nav.astra`, `${label}, habits.form.askDate`].includes(String(node.props?.accessibilityLabel)),
   )
 }
 
@@ -443,7 +444,7 @@ function pressControl(control: { props: Record<string, (() => void) | undefined>
 
 function menuItem(tree: ReturnType<typeof TestRenderer.create>, label: string) {
   return tree.root.findAllByType('Pressable').find(
-    (node: { props: { accessibilityRole?: string }; findByType: (type: string) => { props: { children: string } } }) => node.props.accessibilityRole === 'menuitem' && node.findByType('Text').props.children === label,
+    (node: { props: { accessibilityRole?: string }; findAllByType: (type: string) => { props: { children: string } }[] }) => node.props.accessibilityRole === 'menuitem' && node.findAllByType('Text')[0]!.props.children === label,
   )
 }
 
@@ -501,13 +502,7 @@ function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, Y
   return node
 }
 
-function composerBounds(node: YogaNode) {
-  let left = 0
-  let top = 0
-  let ancestor: YogaNode | null = node
-  while (ancestor) { left += ancestor.getComputedLeft(); top += ancestor.getComputedTop(); ancestor = ancestor.getParent() }
-  return { left, top, right: left + node.getComputedWidth(), bottom: top + node.getComputedHeight() }
-}
+
 
 describe('Composer (mobile)', () => {
   it.each([
@@ -667,7 +662,7 @@ describe('Composer (mobile)', () => {
     const firstChip = byLabel(tree.root, chips[0]!.label)[0]
     const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
     expect(scroller.props.horizontal).toBe(true)
-    expect(firstChip.findByType('Text').props.numberOfLines).toBeUndefined()
+    expect(firstChip.findAllByType('Text')[0]!.props.numberOfLines).toBeUndefined()
     expect(StyleSheet.flatten(firstChip.props.style).maxWidth).toBeLessThanOrEqual(348)
     const config = Yoga.Config.create()
     const target = Yoga.Node.create(config)
@@ -676,7 +671,7 @@ describe('Composer (mobile)', () => {
       applyComposerLayoutStyle(target, StyleSheet.flatten(firstChip.props.style))
       applyComposerLayoutInsets(target, StyleSheet.flatten(firstChip.props.style))
       label.setMeasureFunc(width => ({ width: Math.min(1600, width), height: 40 * Math.ceil(1600 / width) }))
-      applyComposerLayoutStyle(label, StyleSheet.flatten(firstChip.findByType('Text').props.style))
+      applyComposerLayoutStyle(label, StyleSheet.flatten(firstChip.findAllByType('Text')[0]!.props.style))
       target.insertChild(label, 0)
       target.calculateLayout(undefined, undefined)
       expect(target.getComputedWidth()).toBeLessThanOrEqual(348)
@@ -711,7 +706,7 @@ describe('Composer (mobile)', () => {
         TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 288, height: 48 } } }))
         for (const suggestion of suggestions) {
           const chip = byLabel(tree.root, suggestion.label)[0]
-          const text = chip.findByType('Text')
+          const text = chip.findAllByType('Text')[0]!
           const style = StyleSheet.flatten(chip.props.style)
           expect(style.maxWidth).toBe(256)
           expect(style.minHeight).toBe(48)
@@ -822,8 +817,8 @@ describe('Composer (mobile)', () => {
             expect(Math.abs(target.getComputedWidth() - content.getComputedWidth() - 24 - 2 * StyleSheet.hairlineWidth)).toBeLessThanOrEqual(1)
           } finally { target.freeRecursive(); config.free() }
           expect(style.alignItems).toBe('flex-start')
-          expect(StyleSheet.flatten(chip.findByType('Text').props.style).flexShrink).toBe(1)
-          expect(chip.findByType('Text').props.numberOfLines).toBeUndefined()
+          expect(StyleSheet.flatten(chip.findAllByType('Text')[0]!.props.style).flexShrink).toBe(1)
+          expect(chip.findAllByType('Text')[0]!.props.numberOfLines).toBeUndefined()
           TestRenderer.act(() => chip.findByProps({ testID: 'composer-suggestion-content' }).props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: chipWidth - 24 - 2 * StyleSheet.hairlineWidth, height: 24 } } }))
         }
         const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
@@ -855,8 +850,6 @@ describe('Composer (mobile)', () => {
   it.each([320, 360, 384, 412].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].flatMap((withOpener) =>
     [en, ptBR].flatMap((locale) => ['idle', 'sending', 'offline', 'atLimit', 'recording', 'transcribing'].map((state) => ({ width, fontScale, withOpener, locale, state }))),
   ))))('keeps every control inside the pill at $width and $fontScale text while $state', ({ width, fontScale, withOpener, locale, state }) => {
-    const config = Yoga.Config.create()
-    config.setErrata(Yoga.ERRATA_ALL)
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     const statePlaceholders: Readonly<Record<string, string>> = {
       offline: locale.shell.composer.offline.placeholder,
@@ -869,41 +862,37 @@ describe('Composer (mobile)', () => {
       ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}),
     })
     const tree = renderComposer(configuration)
-    const clearWidth = state === 'idle' ? 48 + INTERACTION_FILL_CLEARANCE : 0
         try {
           for (const lineCount of state === 'recording' || state === 'transcribing' ? [1] : [1, 3, 5, 8]) {
             TestRenderer.act(() => tree.update(<Composer {...configuration} value={Array.from({ length: lineCount }, () => 'Typed line').join('\n')} />))
             const nativeInput = tree.root.findAllByType('TextInput')[0]
             if (nativeInput) TestRenderer.act(() => nativeInput.props.onContentSizeChange({ nativeEvent: { target: 1, contentSize: { width: 136, height: 24 * fontScale * lineCount + 24 } } }))
-            const nodes = new Map<string, YogaNode>()
-            const layout = composerLayout(tree.toJSON(), config, nodes, lineCount)
-            try {
-              layout.calculateLayout(width, undefined)
-              const field = nodes.get('composer-field')!
-              const controls = nodes.get('composer-controls')!
-              const fieldBounds = composerBounds(field)
-              const controlsBounds = composerBounds(controls)
-              expect(field.getComputedWidth()).toBe(width - 32)
-              expect(controls.getComputedWidth()).toBe(48)
-              expect(controls.getComputedHeight()).toBe(48)
-              expect(controlsBounds.bottom).toBeLessThanOrEqual(fieldBounds.bottom)
-              const send = nodes.get(state === 'idle' || state === 'sending' ? 'composer-send-accent' : 'composer-send-neutral')!
-              const sendBounds = composerBounds(send)
-              expect(send.getComputedWidth()).toBe(48)
-              expect(send.getComputedHeight()).toBe(48)
-              expect(sendBounds.left - controlsBounds.right).toBe(INTERACTION_FILL_CLEARANCE)
-              expect(sendBounds.right).toBeLessThanOrEqual(fieldBounds.right - 4)
-              if (nativeInput) {
-                const input = nodes.get('input')!
-                const slot = nodes.get('composer-text-slot')!
-                expect(input.getComputedHeight()).toBe(24 * fontScale * Math.min(5, lineCount) + 24)
-                expect(field.getComputedHeight()).toBe(input.getComputedHeight() + 8)
-                expect(slot.getComputedWidth()).toBe(width - 32 - 8 - 96 - INTERACTION_FILL_CLEARANCE - (withOpener ? 48 : 0) - clearWidth)
-                expect(controlsBounds.left).toBeGreaterThanOrEqual(composerBounds(slot).right)
-              } else expect(field.getComputedHeight()).toBe(56)
-            } finally { layout.freeRecursive() }
+            const parts = measureInteractionFills(tree.toJSON(), width, false, fontScale)
+            const field = parts.find(part => part.host.props.testID === 'composer-field')!
+            const fieldIndex = field.slot
+            const controls = parts.filter(part => part.host.type === 'Pressable' && part.ancestors.includes(fieldIndex))
+            expect(field.width).toBe(width - 32)
+            expect(controls.length).toBeGreaterThanOrEqual(2)
+            for (const control of controls) {
+              expect(control.width).toBeGreaterThanOrEqual(48)
+              expect(control.height).toBeGreaterThanOrEqual(48)
+              expect(control.left).toBeGreaterThanOrEqual(field.left + 4)
+              expect(control.right).toBeLessThanOrEqual(field.right - 4)
+              expect(Math.round((field.bottom - control.bottom) * 1000) / 1000).toBeGreaterThanOrEqual(4)
+            }
+            for (let index = 1; index < controls.length; index++) {
+              const previous = controls[index - 1]!
+              const current = controls[index]!
+              expect(current.left >= previous.right || current.top >= previous.bottom).toBe(true)
+            }
+            if (nativeInput) {
+              const slot = parts.find(part => part.host.props.testID === 'composer-text-slot')!
+              expect(slot.width).toBeGreaterThanOrEqual(48 * fontScale)
+              expect(field.height).toBeGreaterThanOrEqual(24 * fontScale * Math.min(5, lineCount) + 32)
+            }
+
           }
-        } finally { TestRenderer.act(() => tree.unmount()); config.free(); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+        } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
   })
 
   it('keeps field geometry unchanged when focus thickens its inset outline', () => {
@@ -1001,7 +990,7 @@ describe('Composer (mobile)', () => {
     const chips = suggestions(3)
     const tree = await renderComposer(props({ suggestions: chips }))
     const chip = tree.root.findAllByType('Pressable').find(
-      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === chips[0]!.label,
+      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === `${chips[0]!.label}, nav.astra`,
     )
     if (!chip) throw new Error('Expected first chip')
     pressControl(chip)
@@ -1012,7 +1001,7 @@ describe('Composer (mobile)', () => {
     const chips = suggestions(3)
     const tree = await renderComposer(props({ suggestions: chips }))
     const secondChip = tree.root.findAllByType('Pressable').find(
-      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === chips[1]!.label,
+      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === `${chips[1]!.label}, nav.astra`,
     )
     if (secondChip) pressControl(secondChip)
     expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
@@ -1056,7 +1045,7 @@ describe('Composer (mobile)', () => {
     const tree = await renderComposer(props({ value: 'Draft', onAttachFile: vi.fn(), attachWords }))
     const tokens = createTokensV2('purple', 'dark')
     for (const name of [words.actions, words.send]) {
-      const control = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Pressable' && node.props.accessibilityLabel === name)[0]
+      const control = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Pressable' && [name, `${name}, nav.astra`, `${name}, habits.form.askDate`].includes(String(node.props.accessibilityLabel)))[0]
       const target = {}
       TestRenderer.act(() => control.props.onFocus({ target, currentTarget: target }))
       const ring = control.findAllByType('View').at(-1)

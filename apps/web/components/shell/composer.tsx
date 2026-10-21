@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -13,7 +14,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { ArrowUp, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
+import { Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -80,6 +81,7 @@ function AttachmentTray({
 }
 
 function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string }>) {
+  const t = useTranslations()
   const layoutRef = useRef<HTMLDivElement>(null)
   const [layout, setLayout] = useState({ availableWidth: 0, gap: COMPOSER_CHIP_GAP })
   useEffect(() => {
@@ -112,7 +114,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
           <button
             key={suggestion.id}
             type="button"
-            aria-label={suggestion.label}
+            aria-label={`${suggestion.label}, ${t('nav.astra')}`}
             style={{ maxWidth }}
             onClick={(event) => {
               const root = event.currentTarget.closest('[data-composer-root]')
@@ -122,8 +124,8 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
             className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
           >
             <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
-              {suggestion.icon ? <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center">{suggestion.icon}</span> : null}
-              <span data-suggestion-label className="min-w-0">{suggestion.label}</span>
+              <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center"><AstraGlyph size={16} /></span>
+              <span data-suggestion-label className="min-w-0">{suggestion.label}</span><span translate="no">{t('nav.astra')}</span>
             </span>
           </button>
         ))}
@@ -304,6 +306,7 @@ function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
+  const t = useTranslations()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const textActionInMenu = useTextActionMenu(inputRef, props.words.placeholder, props.state)
   const pasteFocus = useRef<string | null>(null)
@@ -350,16 +353,16 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
-    <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+    <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
       {props.onOpenConversation && props.conversationLabel ? (
         <button
           type="button"
-          aria-label={props.conversationLabel}
+          aria-label={`${props.conversationLabel}, ${t('nav.astra')}`}
           data-open-conversation
           onClick={props.onOpenConversation}
-          className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:[&_svg]:scale-[0.96] motion-safe:[&_svg]:transition-transform motion-safe:[&_svg]:duration-150"
+          className="flex min-w-12 min-h-12 max-w-full shrink-0 items-center justify-center gap-2 px-2 py-1 rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:[&_svg]:scale-[0.96] motion-safe:[&_svg]:transition-transform motion-safe:[&_svg]:duration-150"
         >
-          <AstraGlyph size={20} color="currentColor" />
+          <AstraGlyph size={20} color="currentColor" /><span translate="no" className="text-sm">{t('nav.astra')}</span>
         </button>
       ) : null}
 
@@ -376,10 +379,10 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
           onFocus={props.onOpenConversation}
-          className="max-h-[calc(5lh+24px)] min-h-[48px] min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]"
+          className="max-h-[calc(5lh+24px)] min-h-[48px] min-w-[3em] basis-[3em] flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]"
         />}
 
-      <div data-composer-trailing-controls className="flex shrink-0 items-end gap-[4px]">
+      <div data-composer-trailing-controls className="flex max-w-full flex-wrap justify-end shrink-0 items-end gap-[4px]">
         <ComposerTextControls props={props} inMenu={textActionInMenu} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
@@ -387,7 +390,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
 
       <button
         type="button"
-        aria-label={props.words.send}
+        aria-label={`${props.words.send}, ${t('habits.form.askDate')}`}
         data-accent={sendIsAccent ? '' : undefined}
         data-focus-on-primary={sendIsAccent ? '' : undefined}
         aria-busy={props.state === 'sending' || undefined}
@@ -395,9 +398,9 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         onClick={() => {
           if (canSend) props.onSend()
         }}
-        className={`relative flex w-[48px] min-h-[48px] shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
+        className={`relative flex min-w-12 min-h-12 max-w-full shrink-0 items-center justify-center gap-2 px-2 py-1 overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
       >
-        {props.state === 'sending' ? <Loader2 size={20} strokeWidth={2} className="animate-spin orbit-essential-loading" aria-hidden="true" /> : <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />}
+        <AstraGlyph size={20} color="currentColor" /><span className="text-sm">{t('habits.form.askDate')}</span><span aria-hidden="true" className="inline-flex w-5 shrink-0" style={{ visibility: props.state === 'sending' ? 'visible' : 'hidden' }}><Loader2 size={20} strokeWidth={2} className="animate-spin orbit-essential-loading" /></span>
       </button>
       </div>
     </div>
@@ -416,15 +419,16 @@ function ComposerError({ props }: Readonly<{ props: ComposerProps }>) {
 }
 
 function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
+  const t = useTranslations()
   if (!props.onRetry) return null
   return (
     <button
       type="button"
       onClick={props.onRetry}
+      aria-label={`${props.words.retry}, ${t('nav.astra')}`}
       className="orbit-link-action flex min-h-[48px] items-center justify-center gap-2 self-start border-0 bg-transparent text-sm font-medium text-[var(--fg-2)] transition-[color] duration-[var(--dur-hover)] hover:text-[var(--fg-1)]"
     >
-      <RefreshCw size={16} strokeWidth={2} aria-hidden="true" />
-      <span>{props.words.retry}</span>
+      <AstraGlyph size={16} /><span>{props.words.retry}</span><span translate="no">{t('nav.astra')}</span>
     </button>
   )
 }

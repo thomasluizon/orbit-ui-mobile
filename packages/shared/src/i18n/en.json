@@ -619,6 +619,7 @@
       "skip": "Skip",
       "openSubHabits": "Open the sub habits",
       "unlog": "Mark incomplete",
+      "rescheduleAstra": "Reschedule with Astra",
       "reschedule": "Reschedule"
     },
     "reschedule": {
@@ -755,6 +756,7 @@
       "typeRequired": "Choose a type.",
       "taskDate": "Do on",
       "habitStartDate": "Starts on",
+      "datePhrasePlaceholder": "In your own words",
       "datePhrase": "When",
       "taskDateQuestion": "When do you want to do this?",
       "habitDateQuestion": "When do you want to start?",

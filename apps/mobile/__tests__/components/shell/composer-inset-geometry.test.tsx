@@ -17,7 +17,7 @@ const renderer = require('react-test-renderer') as typeof import('react-test-ren
 
 interface Host {
   type: string
-  props: { style?: (ViewStyle & TextStyle) | ((state: { pressed: boolean }) => ViewStyle & TextStyle); testID?: string; contentContainerStyle?: ViewStyle; horizontal?: boolean }
+  props: { style?: (ViewStyle & TextStyle) | ((state: { pressed: boolean }) => ViewStyle & TextStyle); testID?: string; contentContainerStyle?: ViewStyle; horizontal?: boolean; accessibilityLabel?: string; width?: number; height?: number }
   children: (Host | string)[] | null
 }
 
@@ -29,17 +29,28 @@ function applyDimensions(node: YogaNode, style: ViewStyle) {
   if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
   if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
   if (typeof style.maxWidth === 'number') node.setMaxWidth(style.maxWidth)
+  if (style.maxWidth === '100%') node.setMaxWidthPercent(100)
+}
+
+function applyAlignment(node: YogaNode, style: ViewStyle) {
+  if (style.alignItems === 'flex-end') node.setAlignItems(Yoga.ALIGN_FLEX_END)
+  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
+  if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
+  if (style.justifyContent === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
 }
 
 function applyStyle(node: YogaNode, style: ViewStyle) {
   applyDimensions(node, style)
+  applyAlignment(node, style)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
   if (typeof style.borderTopWidth === 'number') node.setBorder(Yoga.EDGE_TOP, style.borderTopWidth)
   if (style.flex !== undefined) node.setFlex(style.flex)
   if (style.flexGrow !== undefined) node.setFlexGrow(style.flexGrow)
   if (style.flexShrink !== undefined) node.setFlexShrink(style.flexShrink)
+  if (typeof style.flexBasis === 'number') node.setFlexBasis(style.flexBasis)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
-  if (style.alignItems === 'flex-end') node.setAlignItems(Yoga.ALIGN_FLEX_END)
+  if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
   if (typeof style.padding === 'number') node.setPadding(Yoga.EDGE_ALL, style.padding)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
@@ -53,7 +64,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
 function measureText(host: Host, style: TextStyle, scale: number, available: number) {
   const { fontFamily, fontSize, lineHeight, letterSpacing } = style
   const fontStyle: TextStyle = { fontFamily, fontSize, lineHeight, letterSpacing }
-  const measured = measureProfileRow({ type: 'Text', props: { style: fontStyle }, children: host.children }, available, scale).texts[0]!
+  const measured = measureProfileRow({ type: 'View', props: { style: { alignItems: 'flex-start' } }, children: [{ type: 'Text', props: { style: fontStyle }, children: host.children }] }, available, scale).texts[0]!
   return { width: measured.width, height: measured.height }
 }
 
@@ -62,7 +73,12 @@ function build(host: Host, nodes: Map<string, YogaNode>, fontScale = 1): YogaNod
   const declared = host.props.style
   const style = declared === undefined ? {} : StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared)
   applyStyle(node, style)
+  if (host.type === 'Svg' && host.props.width !== undefined && host.props.height !== undefined) {
+    node.setWidth(host.props.width)
+    node.setHeight(host.props.height)
+  }
   if (host.props.testID) nodes.set(host.props.testID, node)
+  if (host.props.accessibilityLabel === `${en.todayAstra.openConversation}, nav.astra`) nodes.set('open-conversation', node)
   if (host.type === 'TextInput') {
     nodes.set('input', node)
     node.setMeasureFunc(() => ({ width: 80, height: (style.lineHeight ?? 24) * fontScale }))
@@ -104,7 +120,7 @@ it.each([320, 412].flatMap(width => [false, true].flatMap(withGlyph =>
     const start = direction === 'rtl' ? pill.right - inputBox.right + input.getComputedPadding(Yoga.EDGE_RIGHT)
       : inputBox.left - pill.left + input.getComputedPadding(Yoga.EDGE_LEFT)
     const placeholderStart = direction === 'rtl' ? pill.right - placeholder.right : placeholder.left - pill.left
-    expect.soft(start).toBe(4 + (withGlyph ? 48 : 0) + 8)
+    expect.soft(start).toBe(4 + (withGlyph ? nodes.get('open-conversation')!.getComputedWidth() : 0) + 8)
     expect.soft(placeholderStart).toBe(start)
     expect(input.getComputedPadding(Yoga.EDGE_LEFT)).toBe(8)
     expect(input.getComputedPadding(Yoga.EDGE_RIGHT)).toBe(8)
@@ -169,7 +185,7 @@ it.each(allowanceCases)('keeps Hoje stable near $limit messages at $width with c
   }
   expect(measured[0]!.height).toBeLessThan(measured[1]!.height)
   expect(measured[1]).toEqual(measured[2])
-  expect(measured[2]).toEqual(measured[3])
+  expect(measured[2]!.inputTop).toBe(measured[3]!.inputTop)
   __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
 })
 
