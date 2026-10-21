@@ -37,8 +37,10 @@ for (const width of [412, 1280]) {
           try {
             await page.goto(`/habits/${habitId}`)
             const column = page.locator('[data-habit-detail-content]')
+            await column.getByRole('button', { name: words.habits.detail.moreDetails, exact: true }).click()
             const card = column.locator('[data-habit-detail-stat-card]')
             await expect(card).toHaveCount(1)
+            await expect(card).toBeVisible()
             await expect(card).toHaveAttribute('aria-busy', 'true')
             const rows = card.locator('[data-habit-detail-stat-row]')
             await expect(rows).toHaveCount(3)

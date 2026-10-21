@@ -131,6 +131,8 @@ export function HabitChecklist({
     [onToggle],
   )
 
+  if (!editable && items.length === 0) return null
+
   return (
     <div className="flex flex-col gap-3">
       {items.length > 0 && !editable && (
@@ -227,7 +229,7 @@ export function HabitChecklist({
         <div className="flex justify-end">
           <button
             type="button"
-            className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center orbit-hover-text rounded-sm px-2 text-[var(--status-bad-text)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)]"
+            className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center orbit-hover-text rounded-full px-2 text-[var(--status-bad-text)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
@@ -370,11 +372,16 @@ function InteractiveChecklistItem({
   const rowStyle: React.CSSProperties = {
     borderBottom: index < itemsLength - 1 ? '1px solid var(--hairline)' : 'none',
   }
-  const content = <span className="block min-w-0 flex-1 whitespace-pre-wrap break-words text-base leading-[1.4]" style={{ color: item.isChecked ? 'var(--fg-3)' : 'var(--fg-1)' }}>{item.text}</span>
-  const control = <button type="button" aria-label={item.text} onClick={() => onToggle(index)} className="orbit-hover-text min-h-12 w-full rounded-[12px] text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">{content}</button>
   return (
     <div className="flex min-w-0 items-start gap-2 p-1" style={rowStyle}>
-      {interactive ? <PersonalTextAction className="flex-1" label={item.text} contentClassName="flex min-h-12 min-w-0 items-center rounded-[12px] px-2 py-1" control={control} /> : <div className="min-w-0 flex-1 px-2 py-1">{content}</div>}
+      {interactive ? <PersonalTextAction
+        className="group/checklist-item flex-1"
+        label={item.text}
+        contentClassName="flex min-h-12 min-w-0 items-center rounded-[12px] px-2 py-1"
+        control={<button type="button" aria-label={item.text} onClick={() => onToggle(index)} className="orbit-hover-text min-h-12 w-full rounded-[12px] text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">
+          <span className={`block min-w-0 flex-1 whitespace-pre-wrap break-words text-base leading-[1.4] ${item.isChecked ? 'text-[var(--fg-3)] group-hover/checklist-item:text-[var(--fg-2)] group-focus-within/checklist-item:text-[var(--fg-2)] group-active/checklist-item:text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{item.text}</span>
+        </button>}
+      /> : <div className="min-w-0 flex-1 px-2 py-1"><span className="block min-w-0 whitespace-pre-wrap break-words text-base leading-[1.4]" style={{ color: item.isChecked ? 'var(--fg-3)' : 'var(--fg-1)' }}>{item.text}</span></div>}
       {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={() => onToggle(index)} /> : null}
     </div>
   )

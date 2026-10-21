@@ -70,7 +70,7 @@ for (const width of [412, 1100]) {
       await finishAnimations(page)
     })
 
-    test('leaves both title targets unfocused and without an indicator on direct load', async ({ page }) => {
+    test('leaves the title and framed pencil unfocused on direct load', async ({ page }) => {
       const heading = page.getByRole('heading', { level: 1, name: habit.title })
       const button = page.getByRole('button', { name: ptBr.habits.editHabit, exact: true })
       for (const target of [heading, button]) {
@@ -79,7 +79,16 @@ for (const width of [412, 1100]) {
           const style = getComputedStyle(element)
           return { outline: style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0, shadow: style.boxShadow }
         })
-        expect(styles).toEqual({ outline: false, shadow: 'none' })
+        expect(styles.outline).toBe(false)
+        expect(await target.evaluate((element) => element.matches(':focus-visible'))).toBe(false)
+        if (target === heading) expect(styles.shadow).toBe('none')
+        else {
+          const frame = await target.evaluate((element) => getComputedStyle(element).getPropertyValue('--hairline-strong').trim())
+          const shadows = styles.shadow.match(/rgba?\([^)]*\)[^,]*/g) ?? []
+          const painted = shadows.filter((shadow) => !/^rgba\(0,\s*0,\s*0,\s*0\)/.test(shadow))
+          expect(painted).toEqual([`${frame.replaceAll(' ', '').replaceAll(',', ', ')} 0px 0px 0px 1.5px inset`])
+          expect(await readFieldIndicators(target, 'button', { includeDescendants: true })).toEqual(['button:shadow'])
+        }
       }
       expect(await readFieldIndicators(heading, 'h1', { includeDescendants: true })).toEqual([])
     })

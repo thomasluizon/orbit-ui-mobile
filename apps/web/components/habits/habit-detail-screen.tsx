@@ -165,7 +165,7 @@ function HabitDescription({ description }: Readonly<{ description: string }>) {
   const t = useTranslations('habits.form')
   return <section data-habit-detail-description="" className="flex flex-col gap-2 pt-3">
     <h2 className="text-sm font-medium text-[var(--fg-2)]">{t('description')}</h2>
-    <p id="habit-description" className="max-w-prose select-text whitespace-pre-wrap [overflow-wrap:anywhere] text-base leading-[1.55] text-[var(--fg-2)]">{splitDescriptionLinks(description).map(({ text, href, offset }) => href ? <a key={offset} href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--fg-1)] underline decoration-from-font underline-offset-2 transition-colors [transition-duration:var(--dur-hover-surface)] hover:text-[var(--fg-2)]">{text}</a> : text)}</p>
+    <p id="habit-description" className="max-w-prose select-text whitespace-pre-wrap [overflow-wrap:anywhere] text-base leading-[1.55] text-[var(--fg-2)]">{splitDescriptionLinks(description).map(({ text, href, offset }) => href ? <a key={offset} href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--fg-1)] underline decoration-from-font underline-offset-2 transition-colors [transition-duration:var(--dur-hover)] hover:text-[var(--fg-2)]">{text}</a> : text)}</p>
     <DescriptionCopyButton key={description} description={description} />
   </section>
 }

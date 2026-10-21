@@ -48,8 +48,14 @@ describe('HabitChecklist', () => {
 
   describe('rendering', () => {
     it('renders without crashing with empty items', () => {
-      render(<HabitChecklist items={[]} />)
+      const { container } = render(<HabitChecklist items={[]} />)
       expect(screen.queryByRole('progressbar')).toBeNull()
+      expect(container).toBeEmptyDOMElement()
+    })
+
+    it('retains the add control in an empty editor', () => {
+      render(<HabitChecklist items={[]} editable />)
+      expect(screen.getByRole('textbox', { name: 'habits.form.checklistPlaceholder' })).toBeVisible()
     })
 
     it('renders all checklist item texts', () => {
@@ -131,12 +137,13 @@ describe('HabitChecklist', () => {
       expect(screen.queryByLabelText('habits.form.resetChecklist')).toBeNull()
     })
 
-    it('dims checked items without striking their labels', () => {
+    it('keeps checked items readable without striking their labels', () => {
       const items = [{ text: 'Done task', isChecked: true }]
       render(<HabitChecklist items={items} interactive />)
       const span = screen.getByText(personalText('Done task'))
-      expect(span).toHaveStyle({ color: 'var(--fg-3)' })
-      expect(span.className).not.toContain('line-through')
+      expect(span).toBeVisible()
+      expect(screen.getByRole('checkbox', { name: 'Done task' })).toBeChecked()
+      expect(getComputedStyle(span).textDecorationLine).not.toBe('line-through')
     })
 
     it('shows complete progress when all items are checked', () => {

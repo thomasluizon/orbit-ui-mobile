@@ -14,6 +14,29 @@ function descriptionLinkDestination(text: string): string | undefined {
   }
 }
 
+function trimDescriptionLink(text: string): string {
+  let end = text.length
+  while (end > 0 && ".,;!?'“”".includes(text[end - 1]!)) end -= 1
+  const pairs = [
+    { opening: '(', closing: ')', balance: 0 },
+    { opening: '[', closing: ']', balance: 0 },
+    { opening: '{', closing: '}', balance: 0 },
+  ]
+  for (let index = 0; index < end; index += 1) {
+    for (const pair of pairs) {
+      if (text[index] === pair.opening) pair.balance += 1
+      else if (text[index] === pair.closing) pair.balance -= 1
+    }
+  }
+  for (const pair of pairs) {
+    while (end > 0 && text[end - 1] === pair.closing && pair.balance < 0) {
+      end -= 1
+      pair.balance += 1
+    }
+  }
+  return text.slice(0, end)
+}
+
 export function splitDescriptionLinks(description: string): DescriptionPart[] {
   const parts: DescriptionPart[] = []
   let cursor = 0
@@ -21,10 +44,7 @@ export function splitDescriptionLinks(description: string): DescriptionPart[] {
     const match = /^[([{'"<]*(https?:\/\/[^\s<>"`]+)/i.exec(token[0])
     if (!match) continue
     const offset = token.index + match[0].length - match[1]!.length
-    let text = match[1]!.replace(/[.,;!?'“”]+$/, '')
-    for (const [opening, closing] of [['(', ')'], ['[', ']'], ['{', '}']] as const) {
-      while (text.endsWith(closing) && text.split(closing).length > text.split(opening).length) text = text.slice(0, -1)
-    }
+    const text = trimDescriptionLink(match[1]!)
     const href = descriptionLinkDestination(text)
     if (!href) continue
     if (offset > cursor) parts.push({ text: description.slice(cursor, offset), offset: cursor })

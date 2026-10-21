@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import ts from 'typescript'
 import { marked, type Tokens } from 'marked'
 import { getMarkdownImageLabel, stripInlineMarkdown } from '../utils/markdown'
 import { splitDescriptionLinks } from '../utils/description-links'
@@ -59,6 +62,38 @@ describe('plain description links', () => {
 
   it('keeps balanced URL parentheses while excluding sentence punctuation', () => {
     expect(splitDescriptionLinks('(https://example.com/a_(b)).').filter(({ href }) => href)).toEqual([{ text: 'https://example.com/a_(b)', href: 'https://example.com/a_(b)', offset: 1 }])
+  })
+
+  it.each([
+    [`https://example.com/${'!'.repeat(5_000)}x`, `https://example.com/${'!'.repeat(5_000)}x`],
+    [`https://example.com/a${')'.repeat(5_000)}`, 'https://example.com/a'],
+    ['https://example.com/(a)[b]{c}', 'https://example.com/(a)[b]{c}'],
+    ['https://example.com/a)]}', 'https://example.com/a)]'],
+    ['https://example.com/a)]', 'https://example.com/a)'],
+    ['https://example.com/a))!!', 'https://example.com/a'],
+  ])('preserves adversarial and ordered bracket source %s', (token, destination) => {
+    const source = `Before ${token}\nAfter https://example.org/safe.`
+    const parts = splitDescriptionLinks(source)
+    expect(parts.map(({ text }) => text).join('')).toBe(source)
+    expect(parts.filter(({ href }) => href)).toEqual([
+      { text: destination, href: destination, offset: 7 },
+      { text: 'https://example.org/safe', href: 'https://example.org/safe', offset: source.indexOf('https://example.org/safe') },
+    ])
+    for (const part of parts) expect(source.slice(part.offset, part.offset + part.text.length)).toBe(part.text)
+  })
+
+  it('bounds adversarial exported parser work across three isolated runs', () => {
+    const source = readFileSync(new URL('../utils/description-links.ts', import.meta.url), 'utf8')
+    const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
+    const probe = `${compiled}\nconst source = 'https://example.com/' + '!'.repeat(160_000) + 'x https://example.org/a' + ')'.repeat(40_000); const parts = splitDescriptionLinks(source); if (parts.map(part => part.text).join('') !== source || parts.filter(part => part.href).length !== 2 || parts.some(part => source.slice(part.offset, part.offset + part.text.length) !== part.text)) process.exit(1); process.stdout.write('ok');`
+    const runs = Array.from({ length: 3 }, () => {
+      const start = performance.now()
+      const result = spawnSync(process.execPath, ['--input-type=module'], { input: probe, encoding: 'utf8', timeout: 3_000, killSignal: 'SIGKILL' })
+      return { milliseconds: performance.now() - start, status: result.status, output: result.stdout, error: result.error?.message }
+    })
+    const median = runs.map(({ milliseconds }) => milliseconds).sort((left, right) => left - right)[1]!
+    expect(runs.map(({ status, output }) => ({ status, output })), JSON.stringify(runs)).toEqual(Array.from({ length: 3 }, () => ({ status: 0, output: 'ok' })))
+    expect(median, JSON.stringify(runs)).toBeLessThan(2_500)
   })
 
   it.each(["javascript:alert('https://example.com')", 'data:text/plain,(https://example.com)', 'orbit:open(https://example.com)'])('does not activate an HTTP substring inside %s', (source) => {

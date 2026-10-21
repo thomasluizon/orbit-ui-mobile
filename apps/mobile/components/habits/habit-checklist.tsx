@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { useChecklistItemKeys } from '@/hooks/use-checklist-item-keys'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -300,6 +300,8 @@ export function HabitChecklist({
     [onToggle],
   )
 
+  if (!editable && items.length === 0) return null
+
   return (
     <View style={styles.container}>
       {items.length > 0 && !editable && (
@@ -437,7 +439,7 @@ function createStyles(tokens: AppTokens) {
   clearAction: {
     minHeight: TOUCH_TARGET_MIN,
     minWidth: TOUCH_TARGET_MIN,
-    borderRadius: 8,
+    borderRadius: radius.full,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',

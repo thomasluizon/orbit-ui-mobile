@@ -9,17 +9,24 @@ import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
+import { createApiClientError } from '@orbit/shared/utils/error-utils'
 
 const mutation = vi.hoisted(() => vi.fn())
 const completion = vi.hoisted(() => vi.fn())
 const detailRefetch = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 const tagManagement = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn(), delete: vi.fn(), assign: vi.fn() }))
 const showError = vi.hoisted(() => vi.fn())
+const showSuccess = vi.hoisted(() => vi.fn())
+const showInfo = vi.hoisted(() => vi.fn())
+const suggest = vi.hoisted(() => vi.fn())
 let currentForm!: import('@/hooks/use-habit-form').HabitFormHelpers
+let currentFields!: React.ComponentProps<typeof import('@/components/habits/habit-form-fields').HabitFormFields>
 vi.mock('@/components/habits/habit-form-fields', async (original) => {
   const actual = await original<typeof import('@/components/habits/habit-form-fields')>()
   return { HabitFormFields: (props: React.ComponentProps<typeof actual.HabitFormFields>) => {
     currentForm = props.formHelpers
+    currentFields = props
     return <actual.HabitFormFields {...props} />
   } }
 })
@@ -46,7 +53,7 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
-  useHabitSuggestion: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useHabitSuggestion: () => ({ isPending: false, mutateAsync: suggest }),
 }))
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => true,
@@ -63,7 +70,7 @@ vi.mock('@/hooks/use-tags', () => ({ useSuggestTags: () => ({ isPending: false, 
   useAssignTags: () => ({ isPending: false, mutateAsync: tagManagement.assign }),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showError, showSuccess: vi.fn(), showInfo: vi.fn() }),
+  useAppToast: () => ({ showError, showSuccess, showInfo }),
 }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
@@ -157,6 +164,111 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     mutation.mockResolvedValue(habit)
     await act(async () => fireEvent.click(submit))
     await waitFor(() => expect(onClose).toHaveBeenCalledWith(false))
+  })
+})
+
+function deferred<Result>() {
+  let resolve!: (result: Result) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<Result>((accept, refuse) => { resolve = accept; reject = refuse })
+  return { promise, resolve, reject }
+}
+
+describe('submitted editor suggestion ownership', () => {
+  const selectedHabit = createMockHabit({
+    title: 'Practice reading', emoji: '📚', frequencyUnit: 'Day', frequencyQuantity: 1,
+    days: ['Monday', 'Thursday'], dueTime: '08:00',
+    checklistItems: [{ text: 'Pack a bag', isChecked: true }, { text: 'Read a chapter', isChecked: false }],
+  })
+  const response: HabitSetupSuggestion = {
+    emoji: '🏊', frequencyUnit: 'Week', frequencyQuantity: 3, days: ['Tuesday'],
+    isFlexible: true, flexibleTarget: 3, dueTime: '07:00', subHabits: [], checklistItems: ['Towel'],
+  }
+  const emptyResponse: HabitSetupSuggestion = {
+    emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [],
+    isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [],
+  }
+  beforeEach(() => { vi.resetAllMocks() })
+
+  describe.each(['onSuggestEmoji', 'onSuggestSetup'] as const)('%s', (callback) => {
+    it.each([
+      ['applied', 'success'], ['empty', 'success'], ['rejected', 'success'],
+      ['applied', 'rejected'], ['empty', 'rejected'], ['rejected', 'rejected'],
+    ] as const)('retires a late %s response through %s Save', async (suggestionOutcome, saveOutcome) => {
+      const suggestion = deferred<HabitSetupSuggestion>()
+      const save = deferred<void>()
+      suggest.mockReturnValue(suggestion.promise)
+      mutation.mockReturnValue(save.promise)
+      const { submit, onClose } = await renderSheet('edit', selectedHabit)
+      let proposal!: ReturnType<NonNullable<typeof currentFields.onSuggestSetup>>
+      await act(async () => { proposal = currentFields[callback]!() })
+      expect(suggest).toHaveBeenCalledOnce()
+      const draft = structuredClone(currentForm.form.getValues())
+      await act(async () => fireEvent.click(submit))
+      await waitFor(() => expect(mutation).toHaveBeenCalledOnce())
+      const submitted = structuredClone(mutation.mock.calls[0]![0])
+      expect(submitted.data).toMatchObject({ emoji: '📚', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '08:00', checklistItems: selectedHabit.checklistItems })
+      await act(async () => {
+        if (suggestionOutcome === 'rejected') suggestion.reject(new Error('suggestion unavailable'))
+        else suggestion.resolve(suggestionOutcome === 'empty' ? emptyResponse : response)
+        await proposal
+      })
+      expect(currentForm.form.getValues()).toEqual(draft)
+      expect(screen.getAllByRole('textbox', { name: 'habits.form.checklistItemLabel' }).map((input) => (input as HTMLInputElement).value)).toEqual(['Pack a bag', 'Read a chapter'])
+      expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Practice reading')
+      expect(currentFields.emojiSuggestionError).toBeUndefined()
+      expect(currentFields.emojiSuggestionLimitReached).toBeFalsy()
+      expect(showSuccess).not.toHaveBeenCalled()
+      expect(showInfo).not.toHaveBeenCalled()
+      expect(showError).not.toHaveBeenCalled()
+      await act(async () => { await currentFields.onSuggestEmoji!(); await currentFields.onSuggestSetup!() })
+      expect(suggest).toHaveBeenCalledOnce()
+      expect(submit).toBeDisabled()
+      expect(submit).toHaveTextContent('common.save')
+      await act(async () => {
+        if (saveOutcome === 'success') save.resolve()
+        else save.reject(createApiClientError(403, { error: 'Forbidden' }, 'Forbidden'))
+      })
+      await waitFor(() => expect(submit).toBeEnabled())
+      expect(mutation.mock.calls[0]![0]).toEqual(submitted)
+      expect(currentForm.form.getValues()).toEqual(draft)
+      if (saveOutcome === 'success') expect(onClose).toHaveBeenCalledExactlyOnceWith(false)
+      else {
+        expect(onClose).not.toHaveBeenCalled()
+        expect(detailRefetch).not.toHaveBeenCalled()
+        expect(screen.queryByText('habits.form.saveUncertain')).not.toBeInTheDocument()
+        suggest.mockResolvedValue(response)
+        await act(async () => { await currentFields[callback]!() })
+        expect(currentForm.form.getValues('emoji')).toBe('🏊')
+        expect(showSuccess).toHaveBeenCalledExactlyOnceWith('habits.form.aiSuggestApplied')
+        if (callback === 'onSuggestSetup') {
+          expect(currentForm.form.getValues('checklistItems')).toEqual([...selectedHabit.checklistItems, { text: 'Towel', isChecked: false }])
+          expect(currentForm.form.getValues('dueTime')).toBe('07:00')
+        }
+      }
+    })
+
+    it('accepts an intentional suggestion before submission', async () => {
+      suggest.mockResolvedValue(response)
+      await renderSheet('edit', selectedHabit)
+      await act(async () => { await currentFields[callback]!() })
+      expect(currentForm.form.getValues('emoji')).toBe('🏊')
+      expect(showSuccess).toHaveBeenCalledExactlyOnceWith('habits.form.aiSuggestApplied')
+      expect(mutation).not.toHaveBeenCalled()
+    })
+
+    it('keeps suggestions available after invalid submission', async () => {
+      suggest.mockResolvedValue(response)
+      const { title, submit } = await renderSheet('edit', selectedHabit)
+      await act(async () => fireEvent.change(title, { target: { value: '' } }))
+      await act(async () => fireEvent.click(submit))
+      await waitFor(() => expect(title).toHaveAttribute('aria-invalid', 'true'))
+      await act(async () => fireEvent.change(title, { target: { value: 'Practice reading' } }))
+      await act(async () => { await currentFields[callback]!() })
+      expect(currentForm.form.getValues('emoji')).toBe('🏊')
+      expect(showSuccess).toHaveBeenCalledExactlyOnceWith('habits.form.aiSuggestApplied')
+      expect(mutation).not.toHaveBeenCalled()
+    })
   })
 })
 

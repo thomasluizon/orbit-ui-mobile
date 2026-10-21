@@ -354,6 +354,7 @@ function EditHabitDraft({
     try {
       const request = await prepareSave()
       if (!request || !isCurrent()) return
+      suggestionRevision.advance()
       setSaving(true)
       setSaveError(null)
       try {
@@ -378,6 +379,7 @@ function EditHabitDraft({
   }
 
   const handleSuggestEmoji = useCallback(async () => {
+    if (submittingRef.current) return null
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
     const title = currentTitle.trim()
     if (!title) return EMPTY_HABIT_FORM_PROPOSAL
@@ -414,6 +416,7 @@ function EditHabitDraft({
   }, [formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
+    if (submittingRef.current) return null
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
     const title = currentTitle.trim()
     if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL

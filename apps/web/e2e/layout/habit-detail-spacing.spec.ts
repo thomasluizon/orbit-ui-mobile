@@ -36,7 +36,7 @@ for (const width of [412, 1280]) {
         { hasTags: true, hasDescription: true },
       ]) {
         test(`uses the drawn gaps with tags ${hasTags} and description ${hasDescription} and title ${title}`, async ({ page, context }) => {
-          const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title, emoji: '📚', dueTime: '08:00:00', description: hasDescription ? 'Uma pausa para cuidar da rotina.' : null })
+          const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title, emoji: '📚', dueTime: '08:00:00', description: hasDescription ? 'Uma pausa para cuidar da rotina.' : null, checklistItems: hasTags ? [{ text: 'Preparar a água', isChecked: true }, { text: 'Beber a água', isChecked: false }] : [] })
           const schedule = makeHabitScheduleItem({ id: habitId, title: habit.title, dueTime: habit.dueTime, description: habit.description, tags: hasTags ? makeHabitScheduleItem().tags : [] })
           const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items: [schedule], page: 1, pageSize: 200, totalCount: 1, totalPages: 1 })
           await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
@@ -78,12 +78,15 @@ for (const width of [412, 1280]) {
             const headerSlot = Array.from(element.children).find((child) => child.contains(header))!
             const slots = Array.from(element.children)
             const between = slots.slice(slots.indexOf(headerSlot) + 1, slots.indexOf(strip))
+            const sections = [headerSlot, ...between, strip]
+            const adjacentSectionGaps = sections.slice(1).map((section, index) => section.getBoundingClientRect().top - sections[index]!.getBoundingClientRect().bottom)
+            const interveningSections = between.map((section) => section.querySelector('[data-testid="detail-children"]') ? 'children' : section.querySelector('[role="checkbox"]') && section.querySelector('[role="progressbar"]') ? 'checklist' : 'unknown')
             const metadata = Array.from(header.querySelectorAll('[data-habit-detail-tags], [data-habit-detail-description]'))
             let previousBottom = copy.getBoundingClientRect().bottom
             const metadataGaps = metadata.map((block) => {
               const content = block.firstElementChild!
               const gap = content.getBoundingClientRect().top - previousBottom
-              previousBottom = content.getBoundingClientRect().bottom
+              previousBottom = block.getBoundingClientRect().bottom
               return gap
             })
             const fontProbe = document.createElement('span')
@@ -121,11 +124,13 @@ for (const width of [412, 1280]) {
               titleFont: headingStyle.fontFamily,
               summarySize: summaryStyle.fontSize,
               summaryFont: summaryStyle.fontFamily,
-              headerToLabel: label.getBoundingClientRect().top - copy.getBoundingClientRect().bottom,
-              contentToLabel: label.getBoundingClientRect().top - previousBottom,
+              headerToFirstSection: between[0]!.getBoundingClientRect().top - copy.getBoundingClientRect().bottom,
+              contentToFirstSection: between[0]!.getBoundingClientRect().top - previousBottom,
+              stripLabelInset: label.getBoundingClientRect().top - strip.getBoundingClientRect().top,
+              adjacentSectionGaps,
               metadataGaps,
               zeroHeightSlots: between.filter((child) => child.getBoundingClientRect().height === 0).length,
-              interveningSlots: between.length,
+              interveningSections,
               emptyLiveRegion: headerSlot.querySelector('[role="status"][aria-live="polite"]')?.textContent === '',
             }
           })
@@ -155,11 +160,13 @@ for (const width of [412, 1280]) {
           expect(geometry.titleFont).toBe(geometry.displayFont)
           expect(geometry.summarySize).toBe('12px')
           expect(geometry.summaryFont).toBe(geometry.monoFont)
-          if (!hasTags && !hasDescription) expect(geometry.headerToLabel).toBe(24)
-          expect(geometry.contentToLabel).toBe(24)
+          if (!hasTags && !hasDescription) expect(geometry.headerToFirstSection).toBe(24)
+          expect(geometry.contentToFirstSection).toBe(24)
+          expect(geometry.stripLabelInset).toBe(0)
+          expect(geometry.adjacentSectionGaps).toEqual(Array(hasTags ? 3 : 2).fill(24))
           expect(geometry.metadataGaps).toEqual(Array(Number(hasTags) + Number(hasDescription)).fill(12))
           expect(geometry.zeroHeightSlots).toBe(0)
-          expect(geometry.interveningSlots).toBe(0)
+          expect(geometry.interveningSections).toEqual(hasTags ? ['checklist', 'children'] : ['children'])
           expect(geometry.emptyLiveRegion).toBe(true)
         })
       }

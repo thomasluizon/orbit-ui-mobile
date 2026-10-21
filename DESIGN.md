@@ -499,7 +499,8 @@ Habit detail opens as a concise read and completion surface: full title, plain T
 useful schedule and due facts, selectable stored description, one interactive checklist and existing
 sub-habits. One 48px type-aware pencil, Edit habit or Edit task, opens the existing complete editor.
 The reading title and emoji have no separate edit action. Description preserves its source and line
-breaks, remains selectable and keeps Copy description. Checklist labels wrap in full without a line
+breaks, remains selectable and keeps Copy description. The full detail description stays directly
+visible without an expand or collapse control. Checklist labels wrap in full without a line
 limit; no readable label carries a disclosure arrow. The body and its separate checkbox perform the
 same immediate completion action exactly once. Uncheck all remains immediate, with the existing
 last-item log question. Clear checklist is a structural draft action in the editor.
