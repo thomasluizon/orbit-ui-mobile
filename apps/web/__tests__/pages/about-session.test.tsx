@@ -274,7 +274,7 @@ it('carries conversation provenance while closing its overlay', () => {
     useUIStore.getState().setAstraConversationOpen(true)
     useUIStore.getState().setShowCreateModal(true)
   })
-  expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/habits/new?date=2026-09-12&from=%2F&origin=conversation')
+  expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/habits/new?from=%2F&origin=conversation')
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
 })
 
