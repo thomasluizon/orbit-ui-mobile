@@ -48,6 +48,7 @@ export const billingDetailsSchema = z.object({
   currency: z.string(),
   paymentMethod: billingPaymentMethodSchema.nullable(),
   recentInvoices: z.array(billingInvoiceSchema),
+  billedAmountPerPeriod: z.number().nullable().optional(),
 })
 
 export type BillingDetails = z.infer<typeof billingDetailsSchema>
