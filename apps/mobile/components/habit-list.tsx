@@ -20,7 +20,6 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native'
-import { usePathname, useRouter } from 'expo-router'
 import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
@@ -62,7 +61,6 @@ import {
 } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
-import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
@@ -439,8 +437,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const selectedDate = view === 'today' ? requestedDate : undefined
     const { t, i18n } = useTranslation()
     const accountHabitCount = useHabitCountLoaded()
-    const router = useRouter()
-    const pathname = usePathname()
     const { profile } = useProfile()
     const accountTimeZone = profile?.timeZone
     const todayStr = useCurrentDate(accountTimeZone)
@@ -1323,11 +1319,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const startAddSubHabit = useCallback(
       (parentId: string) => {
-        if (profile?.hasProAccess === false) {
-          router.push(buildUpgradeHref(pathname || '/'))
-          return
-        }
-
         const parentHabitCandidate = habitsById.get(parentId)
         if (!parentHabitCandidate) return
 
@@ -1341,9 +1332,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [
         collapsedIds,
         habitsById,
-        pathname,
-        profile?.hasProAccess,
-        router,
         toggleExpand,
       ],
     )
@@ -1523,7 +1511,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             childrenTotal={progress.total}
             isSelectMode={isSelectMode}
             isSelected={selectedIds.has(habit.id)}
-            hasProAccess={profile?.hasProAccess !== false}
             hasSubHabits={hasSubHabits}
             isDrillCard={Boolean(options?.isDrillCard)}
             onLongPressCard={options?.onLongPressCard}
@@ -1541,7 +1528,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         getChildrenProgress,
         isSelectMode,
         selectedIds,
-        profile?.hasProAccess,
       ],
     )
 
@@ -1689,7 +1675,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             drill={drill}
             styles={styles}
             t={t}
-            hasProAccess={profile?.hasProAccess !== false}
             listHeaderComponent={listHeaderComponent}
             drillListRef={drillListRef}
             refreshControl={refreshControl}

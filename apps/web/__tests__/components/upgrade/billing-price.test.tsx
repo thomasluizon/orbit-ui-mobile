@@ -37,7 +37,7 @@ describe.each(['en', 'pt-BR'] as const)('billing price in %s', (locale) => {
       })
       const t = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
       render(<BillingDashboard state="stripe" billing={billing} status={status} locale={locale}
-        usagePercent={0} usageUrgent={false} onOpenPortal={vi.fn()} onRetryPortal={vi.fn()} t={t} />)
+        usagePercent={0} onOpenPortal={vi.fn()} onRetryPortal={vi.fn()} t={t} />)
       const { plan, discounted, free } = prices[currency]
       const chargeAmount = billedAmountPerPeriod === 0 ? free : discounted
       const referenceLabel = `${locale === 'en' ? 'Plan' : 'Plano'}: ${plan}`

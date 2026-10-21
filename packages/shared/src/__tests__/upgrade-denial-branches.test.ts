@@ -18,7 +18,7 @@ describe('resolveUpgradeEntitlementDenial', () => {
       resolveUpgradeEntitlementDenial({ status: 403, code: null, reason: 'Yearly plan required' }),
     ).toEqual({
       shouldUpgrade: true,
-      requirement: 'yearlyPro',
+      requirement: 'pro',
       reason: 'Yearly plan required',
     })
   })
@@ -31,6 +31,10 @@ describe('resolveUpgradeEntitlementDenial', () => {
       requirement: 'pro',
       reason: 'Please upgrade',
     })
+  })
+
+  it('does not sell an upgrade for a habit ceiling even if its text mentions Pro', () => {
+    expect(resolveUpgradeEntitlementDenial({ status: 400, code: 'HABIT_LIMIT_REACHED', reason: 'Same ceiling on Free and Pro' }).shouldUpgrade).toBe(false)
   })
 
   it('does not upgrade when nothing indicates an entitlement gap', () => {

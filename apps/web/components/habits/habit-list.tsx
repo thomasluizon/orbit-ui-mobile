@@ -1064,11 +1064,6 @@ export function HabitList({
   }
 
   function startAddSubHabit(parentId: string) {
-    if (profile?.hasProAccess === false) {
-      router.push('/upgrade')
-      return
-    }
-
     const parent = habitsById.get(parentId)
     if (!parent) return
     if (!isOnline) { setRefusedSubHabitParentId(parentId); return }
@@ -1287,7 +1282,6 @@ export function HabitList({
         canLog={canLog}
         completionReadOnly={completionReadOnly}
         completionReason={boundary === 'read-only' ? t('habits.todayBoundary.readOnly') : boundary === 'future' ? t('habits.todayBoundary.future') : undefined}
-        hasProAccess={profile?.hasProAccess !== false}
         streak={habit.currentStreak}
         child={isChild}
         depth={displayDepth}
@@ -1419,7 +1413,6 @@ export function HabitList({
         <HabitDrill
           t={t}
           drill={drill}
-          hasProAccess={profile?.hasProAccess !== false}
           renderHabitCard={renderHabitCard}
           onAddSubHabit={startAddSubHabit}
           subHabitRefusal={refusedSubHabitParentId === drill.currentParentId && !isOnline}

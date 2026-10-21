@@ -5,7 +5,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import {
   useCurrentPlan,
   useHasProAccess,
-  useIsYearlyPro,
   useProfile,
   useTrialExpired,
   useTrialUrgent,
@@ -122,7 +121,6 @@ describe('mobile useProfile selectors', () => {
     expect(await renderHookValue(() => useCurrentPlan())).toBe('Pro')
     expect(await renderHookValue(() => useTrialExpired())).toBe(false)
     expect(await renderHookValue(() => useTrialUrgent())).toBe(false)
-    expect(await renderHookValue(() => useIsYearlyPro())).toBe(false)
   })
 
   it('reports trial urgency and expiry from the cached profile', async () => {

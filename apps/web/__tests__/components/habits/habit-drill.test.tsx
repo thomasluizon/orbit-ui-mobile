@@ -13,7 +13,7 @@ describe('typed drill heading', () => {
       drillLoading: false, drillError: '', drillInto: vi.fn(async () => {}), drillBack, drillReset: vi.fn(),
       refreshCurrent: vi.fn(async () => {}), getDrillChildren: () => [],
     }
-    render(<HabitDrill drill={drill} t={(key) => key} hasProAccess renderHabitCard={() => null} onAddSubHabit={vi.fn()} />)
+    render(<HabitDrill drill={drill} t={(key) => key} renderHabitCard={() => null} onAddSubHabit={vi.fn()} />)
     const title = screen.getByRole('heading', { name, level: 2 }).querySelector('[data-personal-text]')!
     expect(title).toHaveAttribute('aria-label', name)
     expect(title).toHaveStyle({ whiteSpace: name.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal' })

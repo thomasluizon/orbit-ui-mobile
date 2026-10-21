@@ -16,7 +16,6 @@ import type { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ArrowLeft } from '@/components/ui/icons'
-import { Badge } from '@/components/ui/badge'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -28,7 +27,6 @@ interface HabitDrillProps {
   drill: ReturnType<typeof useDrillNavigation>
   styles: ReturnType<typeof createStyles>
   t: (key: string, values?: Record<string, string | number>) => string
-  hasProAccess: boolean
   listHeaderComponent: ReactNode
   drillListRef: RefObject<FlatList<NormalizedHabit> | null>
   refreshControl: ReactElement<RefreshControlProps>
@@ -71,7 +69,6 @@ export function HabitDrill({
   drill,
   styles,
   t,
-  hasProAccess,
   listHeaderComponent,
   drillListRef,
   refreshControl,
@@ -145,7 +142,6 @@ export function HabitDrill({
       icon="plus"
       title={t('habits.form.addSubHabit')}
       chevron={false}
-      trailing={hasProAccess ? undefined : <Badge>Pro</Badge>}
       onClick={() => onAddSubHabit(drill.currentParentId!)}
     />
   ) : null
