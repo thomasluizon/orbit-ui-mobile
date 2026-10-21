@@ -432,7 +432,7 @@ describe('Composer compact geometry in Chromium', () => {
         const snapshots = []
         for (const used of [limit - 1, limit, limit - 1, limit]) {
           const next = allowanceConfiguration(messages, locale, used, limit, withSuggestions)
-          await page.evaluate(nextProps => document.dispatchEvent(new CustomEvent('composer-test-props', { detail: nextProps })), next)
+          await page.evaluate(nextProps => document.dispatchEvent(new CustomEvent('composer-test-props', { detail: JSON.parse(nextProps) })), JSON.stringify(next))
           await expect.poll(() => root.getAttribute('data-state')).toBe(next.state)
           const geometry = await root.evaluate(readAllowanceGeometry)
           const snapshot = await page.locator('[data-composer-input]').evaluate(input => {
