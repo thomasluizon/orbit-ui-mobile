@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 import { useTranslation } from 'react-i18next'
@@ -42,6 +42,9 @@ function SelectionAction({
   prefersReducedMotion: boolean
   children: ReactNode
 }>) {
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -50,9 +53,13 @@ function SelectionAction({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      onHoverIn={() => setHovered(!disabled)}
+      onHoverOut={() => setHovered(false)}
+      onFocus={() => setFocused(!disabled)}
+      onBlur={() => setFocused(false)}
       style={({ pressed }) => [
         styles.actionBtn,
-        { backgroundColor: pressed && !disabled ? pressedFill : 'transparent' },
+        { backgroundColor: (pressed || hovered || focused) && !disabled ? pressedFill : 'transparent' },
         pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
         disabled ? styles.disabled : null,
       ]}
