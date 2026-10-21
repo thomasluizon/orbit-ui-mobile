@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { isRecapShareEmpty, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { PillButton } from '@/components/ui/pill-button'
 import { Download, Share2 } from '@/components/ui/icons'
@@ -30,6 +30,7 @@ function ShareCardFeedback({ hasError, savedFileName }: Readonly<{ hasError: boo
 
 export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
   const { recap, isLoading, isError, refetch } = useWrapped(period, { enabled: true })
   const { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download, resetFeedback } = useShareCard()
@@ -44,7 +45,7 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   </>
 
   return (
-    <Sheet title={t('shareCard.share')} accessibleTitle={t('shareCard.title')} onClose={onClose} actions={actions}>
+    <Sheet ref={sheetRef} title={t('shareCard.share')} accessibleTitle={t('shareCard.title')} onAttemptDismiss={() => { resetFeedback(); closeSheet(onClose) }} actions={actions}>
       <div className="min-w-0">
         <div className="flex min-w-0 flex-col gap-section-gap">
           <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />

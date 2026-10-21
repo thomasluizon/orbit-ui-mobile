@@ -21,7 +21,10 @@ body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
 @keyframes cel-rise{from{transform:translateY(12px)}to{transform:none}}
-@keyframes cel-sweep{from{stroke-dashoffset:97.39}to{stroke-dashoffset:0}}
+@keyframes cel-sweep{from{stroke-dashoffset:var(--cel-length)}to{stroke-dashoffset:0}}
+@keyframes cel-old{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-12px)}}
+@keyframes cel-new{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cel-exit{from{transform:var(--cel-exit-from,none)}to{transform:translateY(12px);opacity:0}}
 .native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
 .native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .native-send:hover:not(:disabled){background:var(--primary-hover)}
@@ -77,12 +80,12 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">triggers&nbsp;&nbsp;</span>four remain the milestone and completion panel contract: CelebrationKind (celebration-queue.ts:1-6) also carries daily-streak for the transient daily moment, alongside streak, all-done, goal-completed and level-up. The streak milestone comes from AppConstants.StreakMilestoneTiers, and that list is [7, 14, 30, 90, 100, 365] (AppConstants.cs:90): the 30 drawn here is a tier, and no number outside the list may ever be drawn as one.</p>
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>streak, goal, level, day done, queued next, reduced motion, dismissed. Each state is the same panel with a different fact in it, because a person learning one shape learns all four. Queued next is also reached by using the screen: closing the first panel promotes the second. NO plan axis: none of the four triggers is gated and none differs between plans, so the absent switch is a decision.</p>
       <p><span style="color:var(--fg-3)">shape&nbsp;&nbsp;</span>it is a panel in the shell’s notice slot, pinned directly above the composer rather than in its place, not a modal: no scrim, nothing behind it disabled, and the day’s list stays live and tappable underneath. Skipping it is a tap on the close control or simply carrying on; it never waits for an answer. When two triggers land on the same log the panels QUEUE, one at a time: the shared store gives every kind a priority (celebration-queue.ts:61-70: streak 0, goal completed and all done 2, level up 3), sortCelebrationQueue:75 orders by that priority and then by arrival, and enqueueCelebrationItem:167 queues an item behind whatever is active, promoting the next when the active one completes. Two panels are never on screen together, and the queued next state draws exactly that: a streak panel first, the level up behind it, in the store’s own order. The host around the panel is scenery: its rows, menus, tab bar, sidebar create and palette are wired to nothing, said here once so nobody hunts for dead controls, while the panel’s own close is a real state change and the composer is Hoje’s, prop for prop, because two documents drawing one surface draw the same surface and Hoje is the authority.</p>
-      <p><span style="color:var(--fg-3)">motion&nbsp;&nbsp;</span>under a second in total: the panel rises 12px over 280ms and the ring sweeps once over 280ms, both on the standard curve, transform only. It does not fade in, because a panel whose resting state is invisible disappears entirely the moment a timeline is paused or a frame is dropped, and the static cue is the whole point of this one. Nothing loops, nothing bounces, nothing throws particles.</p>
+      <p><span style="color:var(--fg-3)">motion&nbsp;&nbsp;</span>500ms total movement: the fully opaque panel rises 12px over 280ms ease-out while the daily figure cross-fades by 12px and the measured neutral ring sweeps once. Manual exit retargets the live position toward +12px and opacity zero over 220ms ease-in. The daily exit starts at 2280ms and retains layout through 2500ms. Hover or keyboard focus cancels automatic exit, restores the static fact and starts a fresh 2500ms schedule only after all pause reasons end. Manual exit is committed; repeated close never restarts it. It does not fade in, because a panel whose resting state is invisible disappears entirely the moment a timeline is paused or a frame is dropped, and the static cue is the whole point of this one. Nothing loops, nothing bounces, nothing throws particles.</p>
       <p><span style="color:var(--fg-3)">static cue&nbsp;&nbsp;</span>the motion is never the message. The completed ring, the figure and the one line all state the fact and hold after the motion ends, so a person who looks up late, or whose screen was off, reads the same thing.</p>
-      <p><span style="color:var(--fg-3)">reduced motion&nbsp;&nbsp;</span>a dignified static state on both platforms, not a degraded one: the same panel, the same ring at its final value, the same line, arriving at full opacity with no rise and no sweep. Nothing is removed except the movement.</p>
+      <p><span style="color:var(--fg-3)">reduced motion&nbsp;&nbsp;</span>a dignified static state on both platforms, not a degraded one: the same panel, the same ring at its final value, the same line, arriving at full opacity with no rise, numeral change or sweep, and dismissing immediately on manual close. Live preference changes settle a held fact without resetting its deadline or immediately complete a pending exit. Backgrounding settles the final fact and resume compares the original deadline without replay or reannouncement. Account replacement and invalidation discard presentation and callbacks immediately.</p>
       <p><span style="color:var(--fg-3)">voice&nbsp;&nbsp;</span>no exclamation mark anywhere, in either locale. The line states what happened and stops; it does not congratulate, does not say keep going, and does not name the person.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>none. Every one of the four triggers is a completion, and completion never takes the accent, so the ring lands neutral at fg-1 and the only control is a ghost close. The ring sweeps in the accent while it is still travelling, which is the one legal frame, and resolves to fg-1 at 100 percent.</p>
-      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. The panel is 24 of padding at 20 radius, the ring is 44, and the close control keeps the 44 touch token.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>none. Every one of the four triggers is a completion, and completion never takes the accent, so the ring lands neutral at fg-1 and the only control is a ghost close. The single sweep stays neutral throughout. A still monochrome native 16px OrbitMark sits centred in the 44px ring, never the padded artwork in a 24px box.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. The panel is 24 of padding at 20 radius, the ring is 44, and the close control keeps its distinct 48px target and clipped hover/press fill. Daily content retains 16px padding, 12px gap and the 28px figure with a localized day unit. Text grows without clipping at 200%.</p>
       <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock: the streak day count, the goal figure, the level number, the day’s habit count and the allowance number inside the composer’s limit reason.</p>
       <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 a single habit log produces a daily moment only when it extends the account streak for today, at most once per day; a milestone uses the milestone panel instead. 2 it reads correctly with motion disabled and with the animation already finished. 3 nothing in it takes the accent and nothing in it blocks.</p>
       <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 the system has no celebration component, and that is a decision rather than a hole: one screen uses this shape, and a component is extracted on the third real use, not the first. It must not become a Toast either: a Toast carries one message line and at most one action, while this panel carries a completed ring, an eyebrow and a line, and the ring is the static cue that lets the celebration survive with motion disabled. 2 ProgressRing takes a value and holds no entrance, so the sweep is an SVG arc with one keyframe. 3 closed: both shells carry a notice slot now, pinned directly above the composer and never in its place, and the panel rides it with the composer restored beside it, so Astra's front door stays on screen while the celebration shows.</p>
@@ -120,6 +123,7 @@ const T = {
       { e: '\uD83D\uDCD6', name: 'Leitura da noite', time: '22:00' },
     ],
     close: 'Fechar',
+    daily: { eyebrow: 'Sequência', figure: '5', unit: 'dias' },
     streak: { eyebrow: 'Sequência', line: ['A sua sequência chegou a ', '30', ' dias.'], figure: '30' },
     goal: { eyebrow: 'Meta', line: ['A meta de leitura fechou em ', '12', ' livros.'], figure: '12' },
     level: { eyebrow: 'Nível', line: ['Você chegou ao nível ', '7', '.'], figure: '7' },
@@ -146,6 +150,7 @@ const T = {
       { e: '\uD83D\uDCD6', name: 'Evening reading', time: '22:00' },
     ],
     close: 'Close',
+    daily: { eyebrow: 'Streak', figure: '5', unit: 'days' },
     streak: { eyebrow: 'Streak', line: ['Your streak reached ', '30', ' days.'], figure: '30' },
     goal: { eyebrow: 'Goal', line: ['The reading goal closed at ', '12', ' books.'], figure: '12' },
     level: { eyebrow: 'Level', line: ['You reached level ', '7', '.'], figure: '7' },
@@ -154,29 +159,67 @@ const T = {
   },
 };
 
-const KIND = { streak: 'streak', goal: 'goal', level: 'level', 'day done': 'day',
+const KIND = { 'daily streak': 'daily', streak: 'streak', goal: 'goal', level: 'level', 'day done': 'day',
   'reduced motion': 'day', dismissed: null };
 
 class Component extends DCLogic {
   state = { mode: 'dark', width: '412', st: 'day done', loc: 'pt-BR', gone: false,
-    queue: ['day'], qi: 0 };
+    queue: ['day'], qi: 0, phase: 'enter' };
+  pauses = new Set();
+  timers = new Set();
+  panelNode = null;
+  exitFrom = 'none';
+
+  stopTimers() { this.timers.forEach(clearTimeout); this.timers.clear(); }
+  later(delay, action) { const timer = setTimeout(() => { this.timers.delete(timer); action(); }, delay); this.timers.add(timer); }
+  beginTimeline(st) {
+    this.stopTimers();
+    if (st === 'reduced motion') return;
+    this.later(280, () => this.setState({ phase: 'hold' }));
+    if (st === 'daily streak' && !this.pauses.size) this.later(2280, () => this.requestClose(false));
+  }
+  requestClose(manual) {
+    if (this.state.phase === 'manual-exit') return;
+    this.stopTimers();
+    this.exitFrom = this.panelNode ? getComputedStyle(this.panelNode).transform : 'none';
+    if (this.state.st === 'reduced motion') { this.finishClose(); return; }
+    this.setState({ phase: manual ? 'manual-exit' : 'automatic-exit' });
+    this.later(220, () => this.finishClose());
+  }
+  finishClose() {
+    this.stopTimers();
+    this.setState((previous) => previous.qi + 1 < previous.queue.length
+      ? { qi: previous.qi + 1, phase: 'enter' } : { gone: true });
+    this.later(280, () => this.setState({ phase: 'hold' }));
+  }
+  pause(reason, enabled) {
+    if (this.state.phase === 'manual-exit' || this.state.st !== 'daily streak') return;
+    if (enabled) this.pauses.add(reason); else this.pauses.delete(reason);
+    this.stopTimers();
+    this.setState({ phase: 'hold' });
+    if (!this.pauses.size) this.later(2280, () => this.requestClose(false));
+  }
 
   componentDidMount() {
+    this.beginTimeline(this.state.st);
     if (!window.OrbitDesignSystem_918bd5) {
       this._t = setInterval(() => {
         if (window.OrbitDesignSystem_918bd5) { clearInterval(this._t); this.forceUpdate(); }
       }, 60);
     }
   }
-  componentWillUnmount() { clearInterval(this._t); }
+  componentWillUnmount() { clearInterval(this._t); this.stopTimers(); }
 
   /* Two triggers on one log QUEUE in the shared store's own order: priority then arrival
      (celebration-queue.ts:70-80, sortCelebrationQueue:82). A streak (0) outranks a level up (3),
      so the queued next state holds those two. */
-  onCC = (next) => this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
-    gone: next.state === 'dismissed',
-    queue: next.state === 'queued next' ? ['streak', 'level'] : [KIND[next.state]].filter(Boolean),
-    qi: 0 });
+  onCC = (next) => {
+    this.pauses.clear();
+    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
+      gone: next.state === 'dismissed', phase: next.state === 'reduced motion' ? 'hold' : 'enter',
+      queue: next.state === 'queued next' ? ['streak', 'level'] : [KIND[next.state]].filter(Boolean), qi: 0 });
+    this.beginTimeline(next.state);
+  };
 
   /* The ring is the static cue: it holds its finished value after the motion ends. */
   ringNode(reduced) {
@@ -184,10 +227,10 @@ class Component extends DCLogic {
       style: { flex: '0 0 auto' } },
       H('circle', { cx: 17, cy: 17, r: 15.5, fill: 'none', stroke: 'var(--status-empty)', strokeWidth: 1.5 }),
       H('circle', { cx: 17, cy: 17, r: 15.5, fill: 'none', stroke: 'var(--fg-1)', strokeWidth: 2.5,
-        strokeLinecap: 'round', strokeDasharray: '97.39', transform: 'rotate(-90 17 17)',
+        strokeLinecap: 'round', transform: 'rotate(-90 17 17)',
+        ref: (circle) => { if (!circle) return; const length = circle.getTotalLength(); circle.style.setProperty('--cel-length', length); circle.setAttribute('stroke-dasharray', length); },
         /* No fill mode: the finished ring is the resting style, so it holds on a frozen timeline. */
-        style: reduced ? undefined : { animation: 'cel-sweep 280ms var(--ease-out)',
-          animationDelay: '60ms' } }));
+        style: reduced || this.state.phase !== 'enter' ? undefined : { animation: 'cel-sweep 280ms var(--ease-out)' } }));
   }
 
   renderVals() {
@@ -198,7 +241,7 @@ class Component extends DCLogic {
     const base = {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
-      stateAxis: ['day done', 'streak', 'goal', 'level', 'queued next', 'reduced motion', 'dismissed'],
+      stateAxis: ['daily streak', 'day done', 'streak', 'goal', 'level', 'queued next', 'reduced motion', 'dismissed'],
       is412: s.width === '412', isWide: s.width === 'wide',
       noop: () => {},
       showReport: this.props.showReport !== false,
@@ -212,20 +255,38 @@ class Component extends DCLogic {
     const kind = s.gone ? null : s.queue[s.qi];
     const fact = kind ? t[kind] : null;
 
-    const panel = fact ? H('div', { role: 'status', key: kind,
-      style: Object.assign({ marginInline: 16, display: 'flex', alignItems: 'center', gap: 16,
-        padding: 24, background: 'var(--bg-elev)', borderRadius: 'var(--r-card)',
+    const panel = fact ? H('div', { key: kind, ref: (node) => { this.panelNode = node; },
+      'aria-label': kind === 'daily' ? `${fact.figure} ${fact.unit}` : fact.line.join(''),
+      onPointerEnter: () => this.pause('hover', true), onPointerLeave: () => this.pause('hover', false),
+      onFocusCapture: () => this.pause('focus', true), onBlurCapture: () => this.pause('focus', false),
+      style: Object.assign({ marginInline: 16, display: 'flex', alignItems: 'center', gap: kind === 'daily' ? 12 : 16,
+        padding: kind === 'daily' ? 16 : 24, background: 'var(--bg-elev)', borderRadius: 'var(--r-card)',
         boxShadow: 'var(--sh-2), inset 0 0 0 1px var(--hairline)' },
-        reduced ? {} : { animation: 'cel-rise 280ms var(--ease-out) both' }) },
-      this.ringNode(reduced),
-      H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
-        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
-          letterSpacing: '.06em', textTransform: 'uppercase' } }, fact.eyebrow),
-        H('p', { style: { fontSize: 'var(--fs-md)', lineHeight: 1.45, textWrap: 'pretty' } },
-          fact.line[0], mock(fact.line[1]), fact.line[2])),
+        reduced || s.phase === 'hold' ? {} : s.phase === 'enter'
+          ? { animation: 'cel-rise 280ms var(--ease-out)' }
+          : { '--cel-exit-from': this.exitFrom, animation: 'cel-exit 220ms var(--ease-in) forwards' }) },
+      H('div', { 'aria-hidden': true, style: { position: 'relative', width: 44, height: 44, flexShrink: 0 } },
+        this.ringNode(reduced),
+        H('span', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, H(D.OrbitMark, { size: 16, accent: false }))),
+      kind === 'daily'
+        ? H('div', { 'aria-hidden': true, style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } },
+          H('p', { style: { fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' } }, fact.eyebrow),
+          H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'baseline' } },
+            H('span', { style: { display: 'grid', overflow: 'hidden', fontFamily: 'var(--font-display)', fontSize: 28,
+              lineHeight: 1.2, fontWeight: 500, fontVariantNumeric: 'tabular-nums' } },
+              H('span', { style: { gridArea: '1 / 1', opacity: 0,
+                animation: !reduced && s.phase === 'enter' ? 'cel-old 280ms var(--ease-out)' : undefined } }, mock('4')),
+              H('span', { style: { gridArea: '1 / 1',
+                animation: !reduced && s.phase === 'enter' ? 'cel-new 280ms var(--ease-out)' : undefined } }, mock(fact.figure))),
+            H('span', { style: { fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' } }, fact.unit)))
+        : H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+          H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+            letterSpacing: '.06em', textTransform: 'uppercase' } }, fact.eyebrow),
+          H('p', { style: { fontSize: 'var(--fs-md)', lineHeight: 1.45, textWrap: 'pretty' } },
+            fact.line[0], mock(fact.line[1]), fact.line[2])),
       H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.close,
-        onClick: () => this.setState((p) => p.qi + 1 < p.queue.length ? { qi: p.qi + 1 } : { gone: true }),
-        style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
+        disabled: s.phase === 'manual-exit', onClick: () => this.requestClose(true),
+        style: { width: 48, height: 48, paddingInline: 0, boxShadow: 'none' } },
         H(D.Icon, { name: 'x', size: 20 }))) : null;
 
     return Object.assign(base, {

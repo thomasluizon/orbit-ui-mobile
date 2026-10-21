@@ -144,11 +144,12 @@ describe('About destination geometry in Chromium', () => {
           return { left: bounds.left, width: bounds.width }
         }))
       for (const box of boxes) {
-        expect(box.left).toBe(16)
+        // WHY: #1570 centres the retained 652 column at wide widths. https://github.com/thomasluizon/orbit-tickets/issues/1570
+        expect(box.left).toBe((width - (width < 1024 ? width : 652)) / 2 + 16)
         expect(box.width).toBe(width < 1024 ? width - 32 : 620)
       }
       for (const fact of ['version', 'account']) {
-        expect(await page.locator(`[data-testid="about-fact-${fact}-label"]`).evaluate((element) => element.getBoundingClientRect().left)).toBe(16)
+        expect(await page.locator(`[data-testid="about-fact-${fact}-label"]`).evaluate((element) => element.getBoundingClientRect().left)).toBe((width - (width < 1024 ? width : 652)) / 2 + 16)
       }
       expect(await page.locator('[data-testid="about-content"]').evaluate((element) => getComputedStyle(element).minWidth)).toBe('0px')
     } finally { await page.close(); vi.unstubAllEnvs() }

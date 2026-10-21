@@ -31,13 +31,13 @@ import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   applyHabitEmojiSuggestion,
+  reportHabitFormValidationError,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
   coalesceFormText,
   createHabitFormSuggestionRevision,
   extractBackendErrorCode,
-  formatAPIDate,
   getFriendlyErrorMessage,
   getHabitPhraseTitle,
   hasHabitFormProposal,
@@ -161,7 +161,7 @@ export function CreateHabitModal({
 
   const formHelpers = useHabitForm({
     initialData: {
-      dueDate: initialDate ?? formatAPIDate(new Date()),
+      dueDate: initialDate ?? '',
     },
   })
   const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
@@ -289,13 +289,14 @@ export function CreateHabitModal({
 
     void Promise.resolve().then(() => {
       const { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
-      const fallbackDate = initialDate ?? formatAPIDate(new Date())
+      const fallbackDate = initialDate ?? ''
 
       setEmojiFailure(null)
       setCreateBoundary(null)
       setReminderWasManuallyToggled(false)
       setExpandAdvancedSignal(0)
       formHelpers.clearBackendErrors()
+      formHelpers.resetModeDrafts()
       formHelpers.form.reset({ ...buildEmptyHabitFormValues(fallbackDate), title: initialTitle })
       tags.resetTags()
       setSelectedGoalIds([])
@@ -313,6 +314,7 @@ export function CreateHabitModal({
         setReminderTimes(prefill.reminderTimes)
       } else if (activeView === 'general') {
         formHelpers.setGeneral()
+        formHelpers.form.setValue('itemType', 'habit')
       }
 
       setInitialTagIdsSnapshot(
@@ -401,6 +403,7 @@ export function CreateHabitModal({
     flushBufferedInputsRef.current()
 
     const subHabitValues = subHabits.map((entry) => entry.value)
+    if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return }
     if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
 
     const error = formHelpers.validateAll({
@@ -410,7 +413,7 @@ export function CreateHabitModal({
       subHabits: subHabitValues,
     })
     if (error) {
-      showError(error)
+      reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
       return
     }
     const data = habitFormSchema.parse(formHelpers.form.getValues())

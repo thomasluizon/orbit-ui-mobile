@@ -17,12 +17,20 @@ function normalizeHabitEmoji(emoji: string | null | undefined): string | null {
 
 type HabitRequestDraft = Partial<CreateHabitRequest>
 
+function assignCreateDate(request: HabitRequestDraft, values: HabitFormData, useStartDate: boolean): void {
+  if (!values.dueDate) return
+  if (useStartDate && (values.isFlexible || values.frequencyUnit)) request.startDate = values.dueDate
+  else request.dueDate = values.dueDate
+}
+
 function applyScheduleFields(
   req: HabitRequestDraft,
   data: HabitFormData,
+  useStartDate = false,
 ): void {
-  if (data.dueDate) req.dueDate = data.dueDate
+  assignCreateDate(req, data, useStartDate)
   if (data.isFlexible || data.frequencyUnit) req.intervalWeeks = data.intervalWeeks ?? 1
+  if ((data.isFlexible || data.frequencyUnit) && data.endDate) req.endDate = data.endDate
   if (data.isFlexible) {
     req.isFlexible = true
     if (data.frequencyUnit) req.frequencyUnit = data.frequencyUnit
@@ -31,7 +39,6 @@ function applyScheduleFields(
     req.frequencyUnit = data.frequencyUnit
     req.frequencyQuantity = data.frequencyQuantity ?? undefined
     if (data.days.length) req.days = data.days
-    if (data.endDate) req.endDate = data.endDate
   }
 }
 
@@ -106,8 +113,7 @@ export function buildCreateHabitRequest(
   if (data.isGeneral) {
     req.isGeneral = true
   } else {
-    req.dueDate = data.dueDate
-    applyScheduleFields(req, data)
+    applyScheduleFields(req, data, true)
     applyReminderFields(req, data, reminderTimes)
   }
   if (data.isBadHabit) req.slipAlertEnabled = data.slipAlertEnabled
@@ -125,17 +131,20 @@ function applyUpdateScheduleFields(
   isOneTime: boolean,
   originalEndDate: string,
 ): void {
-  if (data.dueDate) request.dueDate = data.dueDate
-  if (isOneTime) return
-  request.frequencyUnit = data.frequencyUnit ?? undefined
-  request.frequencyQuantity = data.frequencyQuantity ?? undefined
-  if (data.isFlexible || data.frequencyUnit) request.intervalWeeks = data.intervalWeeks ?? 1
-  if (data.days.length) request.days = data.days
+  if (data.dueDate) {
+    if (isOneTime) request.dueDate = data.dueDate
+    else request.startDate = data.dueDate
+  }
   if (data.endDate) {
     request.endDate = data.endDate
   } else if (originalEndDate) {
     request.clearEndDate = true
   }
+  if (isOneTime) return
+  request.frequencyUnit = data.frequencyUnit ?? undefined
+  request.frequencyQuantity = data.frequencyQuantity ?? undefined
+  if (data.isFlexible || data.frequencyUnit) request.intervalWeeks = data.intervalWeeks ?? 1
+  if (data.days.length) request.days = data.days
 }
 
 /**

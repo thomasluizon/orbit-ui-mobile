@@ -1113,6 +1113,12 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:display:common.never": {
+      "targets": [
+        "mobile:display:common.never"
+      ],
+      "reason": "ApiKeyDetails in apps/mobile/components/profile/profile-api-keys.tsx renders common.never when an existing key has no expiry, independently of the creation input placeholder."
+    },
     "mobile:display:common.no": {
       "targets": [
         "mobile:content:common.no"

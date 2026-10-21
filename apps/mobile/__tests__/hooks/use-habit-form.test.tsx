@@ -138,7 +138,7 @@ describe('mobile useHabitForm', () => {
   })
 
   it('validateAll flags a missing title and clears once one is provided', () => {
-    const form = renderHabitForm()
+    const form = renderHabitForm({ initialData: { itemType: 'task', dueDate: '2026-10-20' } })
     expect(form.current.validateAll()).toBe('habits.form.titleRequired')
 
     act(() => form.current.form.setValue('title', 'Read a book'))

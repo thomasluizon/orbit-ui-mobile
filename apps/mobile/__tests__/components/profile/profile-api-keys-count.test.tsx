@@ -9,6 +9,7 @@ import { i18n } from '@/lib/i18n'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Input } from '@/components/ui/input'
+import { Sheet } from '@/components/ui/sheet'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 import StepUpScreen from '@/app/step-up'
@@ -403,8 +404,29 @@ it('preserves no scopes, unused, read/write and no expiry states on Android', ()
   expect(text).toContain('orbitMcp.noScopes')
   expect(text).toContain('orbitMcp.never')
   expect(text).toContain('orbitMcp.permReadWrite')
+  expect(text).toContain('common.never')
   expect(text).not.toContain('orbitMcp.expiresOn')
   TestRenderer.act(() => tree.unmount())
+})
+
+it.each(['en', 'pt-BR'] as const)('reads existing Android key expiry without opening creation or reveal in %s', async (locale) => {
+  mocks.localize = true
+  await i18n.changeLanguage(locale)
+  mocks.apiKeys = [{ ...detailKey, expiresAtUtc: null }]
+  const tree = renderKeyDetails()
+  expect(keyText(tree)).toContain(i18n.t('common.never'))
+  expect(keyText(tree)).toContain(detailKey.name)
+  expect(keyText(tree)).toContain(i18n.t('orbitMcp.permReadOnly'))
+  expect(tree.root.findAllByType(Input)).toHaveLength(0)
+  expect(tree.root.findAllByType(Sheet)).toHaveLength(0)
+  expect(mocks.create).not.toHaveBeenCalled()
+
+  mocks.apiKeys = [detailKey]
+  TestRenderer.act(() => tree.update(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />))
+  expect(keyText(tree)).not.toContain(i18n.t('common.never'))
+  expect(keyText(tree)).toContain(locale === 'en' ? 'Expires Apr 5, 2027' : 'Expira em 5 de abr. de 2027')
+  TestRenderer.act(() => tree.unmount())
+  await i18n.changeLanguage('en')
 })
 
 it('withholds Android key details while locked or loading', () => {

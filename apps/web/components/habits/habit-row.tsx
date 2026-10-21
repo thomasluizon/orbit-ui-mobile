@@ -2,16 +2,15 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-
-import { useId, type KeyboardEvent, type ReactNode } from 'react'
-import { isHabitDoneForRange } from '@orbit/shared/utils'
+import { useId, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
-import { HabitRowContent, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
+import { HabitRowContent, HabitRowTypeLabel, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import { useHabitRowLargeText } from './use-habit-row-large-text'
@@ -156,7 +155,8 @@ export function HabitRow({
 }: Readonly<HabitRowProps>) {
   const t = useTranslations()
   const largeText = useHabitRowLargeText()
-  const supportingMeta = largeText && !!childProgress
+  const descriptionId = useDescriptionId(habit.description)
+  const supportingMeta = largeText
   const {
     onDetail,
     onToggleSelection,
@@ -206,6 +206,9 @@ export function HabitRow({
       />
 
       <HabitRowContent expanded={selectMode && selected}
+        descriptionId={descriptionId}
+        typeOnSupportingLine={supportingMeta}
+        largeText={largeText}
         habit={habit}
         titleSize={titleSize}
         titleColor={getTitleColor()}
@@ -216,7 +219,7 @@ export function HabitRow({
   const controls = (
     <>
       {structuralColumn && selectMode ? (
-        <button type="button" data-habit-row-control="selection" aria-label={habit.title}
+        <button type="button" data-habit-row-control="selection" aria-label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
           aria-pressed={selected} onClick={() => onToggleSelection?.()}
           className="flex min-h-[48px] w-[48px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96]">
           <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
@@ -256,30 +259,38 @@ export function HabitRow({
   const rowContents = (
     <>
       <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
-        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={habit.title}
+        descriptionId={descriptionId} typeLabel={t(getHabitRowTypeLabelKey(habit))}
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
-      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : controls}
+      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : <div className="flex shrink-0 items-center gap-[4px]">{controls}</div>}
     </>
   )
 
   return (
     <HabitRowLayout habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
-      largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}>
+      isChild={isChild} supportingMeta={supportingMeta}>
       {rowContents}
     </HabitRowLayout>
   )
 }
 
-function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children, independentText, label }: Readonly<{
+function useDescriptionId(description: NormalizedHabit['description']) {
+  const id = useId()
+  return stripInlineMarkdown(description ?? '') ? id : undefined
+}
+
+function HabitRowPrimaryButton({ onClick, supportingMeta, typeLabel, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children, independentText, label, descriptionId }: Readonly<{
   onClick: () => void
   independentText: boolean
   label: string
+  descriptionId?: string
+  typeLabel: string
   supportingMeta: boolean
   largeText: boolean
   isChild: boolean
-  rowPadding: number
+  rowPadding: CSSProperties
   meta: HabitRowMetaToken[]
   onReorder?: (direction: -1 | 1) => void
   reorderInstructionsId?: string
@@ -289,53 +300,62 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   const contentId = useId()
   const accessibleLabel = [label, meta.map((token) => typeof token === 'string' ? token : token.label).join('·')].filter(Boolean).join(' ')
   const layoutClass = supportingMeta ? 'grid grid-cols-subgrid grid-rows-subgrid' : 'flex'
-  const paddingStyle = { gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: SPACING.s8, alignItems: largeText ? 'flex-start' : undefined }
+  const paddingStyle = { ...rowPadding, gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, alignItems: largeText ? 'flex-start' : undefined }
   const control = (
       <button
         type="button"
         onClick={onClick}
         {...habitRowReorderProps(onReorder, reorderInstructionsId, t('dragAndDrop.roleDescription'))}
         data-habit-row-body=""
-        aria-label={independentText ? accessibleLabel : undefined}
-        className={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left ${independentText ? 'transition-[background-color]' : 'transition-[background-color,transform] active:scale-[0.96]'} duration-[var(--dur-hover)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
+        aria-label={accessibleLabel}
+        aria-describedby={[descriptionId, reorderInstructionsId].filter(Boolean).join(' ')}
+        className={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
         style={paddingStyle}
       >
         {supportingMeta ? (
-          <div data-habit-row-heading="" className="col-start-1 row-start-1 flex min-w-0 items-start" style={{ gap: 12, minHeight: isChild ? 52 : 68, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>
+          <div data-habit-row-heading="" className="col-start-1 row-start-1 flex min-w-0 items-start" style={{ gap: 12, minHeight: isChild ? 52 : 68, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8, paddingBlockEnd: descriptionId ? SPACING.s4 : undefined }}>
             {children}
           </div>
         ) : children}
-        {supportingMeta ? (
-          <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingBlockEnd: SPACING.s8 }}>
-            <span className="w-[48px] shrink-0" aria-hidden="true" />
-            <div className="min-w-0 flex-1"><MetaStrip tokens={meta.filter((token) => typeof token === 'string' || token.kind !== 'future')} expanded /></div>
-          </div>
-        ) : null}
+        {supportingMeta ? <HabitRowSupportingFooter typeLabel={typeLabel} meta={meta} descriptionPresent={Boolean(descriptionId)} /> : null}
       </button>
   )
-  return independentText ? <PersonalTextAction label={accessibleLabel} contentId={contentId} className={`${supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} transition-transform duration-[var(--dur-hover)] ease-[var(--ease-standard)] motion-safe:has-[>button:active]:scale-[0.96]`} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={paddingStyle} control={control} /> : control
+  return independentText ? <PersonalTextAction label={accessibleLabel} contentId={contentId} className={supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={paddingStyle} control={control} /> : control
 }
 
-function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild, supportingMeta, children }: Readonly<{
+function HabitRowSupportingFooter({ typeLabel, meta, descriptionPresent }: Readonly<{
+  typeLabel: string
+  meta: HabitRowMetaToken[]
+  descriptionPresent: boolean
+}>) {
+  const supportingTokens = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
+  return (
+    <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingInlineEnd: SPACING.s8, paddingBlockStart: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBlockEnd: SPACING.s8 }}>
+      <span className="w-[48px] shrink-0" aria-hidden="true" />
+      <div className="min-w-0 flex-1 flex flex-col" style={{ gap: 4 }}>
+        <HabitRowTypeLabel label={typeLabel} />
+        {supportingTokens.length > 0 ? <MetaStrip tokens={supportingTokens} expanded /> : null}
+      </div>
+    </div>
+  )
+}
+
+function HabitRowLayout({ habitTitle, depth, state, selected, isChild, supportingMeta, children }: Readonly<{
   habitTitle: string
   depth: 0 | 1
   state: HabitStatus
   selected: boolean
-  largeText: boolean
   isChild: boolean
   supportingMeta: boolean
   children: ReactNode
 }>) {
   const minHeight = isChild ? 52 : 68
+  const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : 'items-center gap-0'
   return (
     <div data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
-      className={`relative rounded-[20px] shadow-[inset_0_0_0_1px_var(--hairline)] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : largeText ? 'flex-col' : 'items-center gap-[4px]'}`}
+      className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
       style={{ minHeight }}>
-      {largeText && !supportingMeta ? (
-        <div className="flex w-full items-start gap-[4px]" style={{ minHeight, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>
-          {children}
-        </div>
-      ) : children}
+      {children}
     </div>
   )
 }
@@ -354,7 +374,11 @@ function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefin
   }
 }
 
-function habitRowPadding(isChild: boolean, largeText: boolean): number {
-  if (largeText) return SPACING.s0
-  return isChild ? SPACING.s4 : SPACING.s8
+function habitRowPadding(isChild: boolean, largeText: boolean): CSSProperties {
+  const defaultPaddingBlock = isChild ? SPACING.s4 : SPACING.s8
+  return {
+    paddingBlock: largeText ? SPACING.s0 : defaultPaddingBlock,
+    paddingInlineStart: isChild ? SPACING.s24 : SPACING.s8,
+    paddingInlineEnd: largeText ? SPACING.s0 : SPACING.s4,
+  }
 }

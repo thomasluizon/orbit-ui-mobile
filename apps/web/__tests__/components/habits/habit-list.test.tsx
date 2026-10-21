@@ -99,7 +99,7 @@ const toggleSelectionSpy = vi.fn()
 const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
 const routerPush = vi.fn()
-const getDrillChildrenMock = vi.fn(() => [])
+const getDrillChildrenMock = vi.fn<(id: string) => NormalizedHabit[]>(() => [])
 let mockHabitsDataUpdatedAt = 1
 let useActualHabitVisibility = false
 const mockDrillState = {
@@ -447,6 +447,57 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  beforeEach(() => {
+    dragLocale.portuguese = false
+    dragLocale.english = false
+    skipFlow.active = false
+    skipFlow.retryRead = false
+    skipFlow.scheduleItems = null
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    rowImplementation.actual = false
+    accountDate.timeZone = undefined
+    capturedDrillOptions = undefined
+    vi.clearAllMocks()
+    sheetTestControls.defer(false)
+    mockHabitsDataUpdatedAt = 1
+    useActualHabitVisibility = false
+    drillRefreshCurrent.mockReset()
+    drillInto.mockReset()
+    getDrillChildrenMock.mockReset()
+    getDrillChildrenMock.mockReturnValue([])
+    mockDrillState.drillStack = []
+    mockDrillState.currentParentId = null
+    mockDrillState.currentParent = null
+    mockDrillState.drillChildren = []
+    mockDrillState.completedCount = 0
+    mockDrillState.hasUnfilteredChildren = false
+    mockDrillState.canRevealCompletedChildren = false
+    mockDrillState.drillLoading = false
+    mockDrillState.drillError = null
+    skipHabitMutateAsync.mockReset()
+    skipHabitMutateAsync.mockResolvedValue(undefined)
+    deleteHabitMutateAsync.mockReset()
+    duplicateHabitMutateAsync.mockReset()
+    toggleSelectionSpy.mockReset()
+    habitListRefetch.mockReset()
+    habitListRefetch.mockResolvedValue(undefined)
+    logHabitMutateAsync.mockReset()
+    logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
+      const habit = mockHabitsData.habitsById.get(habitId)
+      if (!habit) return
+      mockHabitsData.habitsById.set(habitId, {
+        ...habit,
+        isCompleted: true,
+      })
+    })
+    mockHabitsData.habitsById.clear()
+    mockHabitsData.childrenByParent.clear()
+    mockHabitsData.topLevelHabits = []
+    mockHabitsData.totalCount = 0
+    accountHabitCount.count = 0
+    accountHabitCount.isLoaded = true
+  })
+
   it.each(['today', 'all', 'general'] as const)('offers search recovery instead of first run in %s', (view) => {
     dragLocale.english = true
     const clearSearch = vi.fn()
@@ -625,23 +676,32 @@ describe('HabitList', () => {
     }
   })
 
-  it('keeps the Hoje list inset and content edge fixed at enlarged text in both selection modes', async () => {
+  it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].map((drilling) => ({ view, drilling }))))(
+    'keeps the list inset and content edges per depth in $view, drilling=$drilling', async ({ view, drilling }) => {
     rowImplementation.actual = true
-    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
-    const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY] })
-    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', scheduledDates: [TODAY] })
-    for (const habit of [parent, child, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
-    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', description: '**Read** two pages before breakfast.', hasSubHabits: true, scheduledDates: [TODAY], isGeneral: view === 'general' })
+    const child = createMockHabit({ id: 'child', title: 'Child', description: '**Read** two pages before breakfast.', parentId: parent.id, scheduledDates: [TODAY], isGeneral: parent.isGeneral })
+    const branch = createMockHabit({ ...child, id: 'branch', title: 'Branch', hasSubHabits: true })
+    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', scheduledDates: [TODAY], isGeneral: parent.isGeneral })
+    for (const habit of [parent, child, branch, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id, branch.id])
     mockHabitsData.topLevelHabits = [parent, leaf]
+    if (drilling) {
+      mockDrillState.currentParent = parent
+      mockDrillState.currentParentId = parent.id
+      mockDrillState.drillStack = [parent.id]
+      mockDrillState.drillChildren = [child, branch]
+      getDrillChildrenMock.mockImplementation((id) => id === branch.id ? [createMockHabit({ ...child, id: 'grandchild', parentId: branch.id })] : [])
+    }
     const cssPath = resolve(process.cwd(), 'app/globals.css')
     const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
     const launch = launchChrome()
     try {
       const browser = await launch
-      const cases = [320, 600].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode }))))
+      const cases = [320, 412, 1352].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode }))))
       for (const { width, textScale, selectMode } of cases) {
         document.documentElement.style.fontSize = `${16 * textScale}px`
-        const { container, unmount } = renderWithProviders(<HabitList view="today" isSelectMode={selectMode}
+        const { container, unmount } = renderWithProviders(<HabitList view={view} isSelectMode={selectMode} selectedHabitIds={new Set([child.id])}
           filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
         const markup = container.innerHTML
         unmount()
@@ -654,6 +714,7 @@ describe('HabitList', () => {
             const title = (row.querySelector('[data-habit-row-heading] > div') ?? content.querySelector(':scope > div'))!
             const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
             return {
+              depth: Number(row.getAttribute('data-depth')),
               inset: row.getBoundingClientRect().left,
               textEdge: title.getBoundingClientRect().left,
               wellInset: well.getBoundingClientRect().left - body.getBoundingClientRect().left,
@@ -663,11 +724,12 @@ describe('HabitList', () => {
               }),
             }
           }))
-          expect(geometry).toHaveLength(3)
+          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: drilling ? 2 : 3 }, () => 'Read two pages before breakfast.'))
+          expect(geometry).toHaveLength(drilling ? 2 : 4)
           for (const row of geometry) {
             expect(row.inset).toBe(16)
-            expect(row.textEdge).toBe(84)
-            expect(row.wellInset).toBeGreaterThanOrEqual(8)
+            expect(row.textEdge).toBe(84 + 16 * row.depth)
+            expect(row.wellInset).toBe(8 + 16 * row.depth)
             for (const target of row.targets) {
               expect(target.left).toBeGreaterThanOrEqual(16)
               expect(target.right).toBeLessThanOrEqual(width - 16)
@@ -944,7 +1006,7 @@ describe('HabitList', () => {
     expect(bodies[0]).toHaveFocus()
   })
 
-  it('centres Hoje rows in 68px bodies with a contrasting parent track in both modes', async () => {
+  it('centres Hoje rows around their full content with a contrasting parent track in both modes', async () => {
     rowImplementation.actual = true
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY] })
@@ -965,12 +1027,29 @@ describe('HabitList', () => {
         await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
         const panels = await page.locator('.habit-panel').evaluateAll((elements) => elements.map((panel) => {
           const row = panel.querySelector('[data-testid="habit-row"]')!
+          const body = row.querySelector('[data-habit-row-body]')!
           const well = row.querySelector('[data-habit-row-body] > span')!
           const bounds = panel.getBoundingClientRect()
           const wellBounds = well.getBoundingClientRect()
           const track = row.querySelector('[data-habit-check]')
+          const title = row.querySelector('[data-personal-text]')!
+          const type = row.querySelector('[data-habit-row-type]')!
+          const meta = row.querySelector('[data-habit-row-meta]')
+          const stack = [title, type, ...(meta ? [meta] : [])].map((node) => {
+            const bounds = node.getBoundingClientRect()
+            return { top: bounds.top, bottom: bounds.bottom, height: bounds.height, left: bounds.left }
+          })
+          const padding = getComputedStyle(body)
+          const target = row.querySelector('[data-habit-row-control="check"]')!.getBoundingClientRect()
+          const rowBounds = row.getBoundingClientRect()
           return {
             height: bounds.height,
+            minimumHeight: Number.parseFloat(getComputedStyle(row).minHeight),
+            padding: Number.parseFloat(padding.paddingTop) + Number.parseFloat(padding.paddingBottom),
+            contentHeight: type.parentElement!.getBoundingClientRect().height,
+            stack, type: type.textContent,
+            target: { width: target.width, height: target.height, centre: target.top + target.height / 2 },
+            centre: rowBounds.top + rowBounds.height / 2,
             top: wellBounds.top - bounds.top,
             bottom: bounds.bottom - wellBounds.bottom,
             track: track ? getComputedStyle(track).boxShadow.match(/rgba?\([^)]+\)/u)?.[0] : null,
@@ -981,7 +1060,14 @@ describe('HabitList', () => {
         expect(panels).toHaveLength(2)
         expect(panels[0]?.track).toBe(mode === 'dark' ? 'rgb(139, 139, 142)' : 'rgb(126, 126, 130)')
         for (const panel of panels) {
-          expect(panel.height).toBe(68)
+          panel.stack.forEach((line) => expect(line.left).toBeCloseTo(panel.stack[0]!.left, 1))
+          panel.stack.slice(1).forEach((line, index) => expect(line.top - panel.stack[index]!.bottom).toBeCloseTo(4, 1))
+          expect(panel.type).toBe('habits.form.typeHabit')
+          expect(panel.contentHeight).toBeCloseTo(panel.stack.reduce((height, line) => height + line.height, 0) + 4 * (panel.stack.length - 1), 1)
+          expect(panel.height).toBeCloseTo(Math.max(panel.minimumHeight, panel.contentHeight + panel.padding, panel.target.height + panel.padding), 1)
+          expect(panel.target.width).toBe(48)
+          expect(panel.target.height).toBeGreaterThanOrEqual(48)
+          expect(Math.abs(panel.target.centre - panel.centre)).toBeLessThanOrEqual(1)
           expect(panel.top).toBeCloseTo(panel.bottom, 1)
           if (panel.track) expect(contrastOnSurface(panel.track, [panel.canvas, panel.card])).toBeGreaterThanOrEqual(3)
         }
@@ -1065,9 +1151,9 @@ describe('HabitList', () => {
     }
     expect(progress).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
     const body = row.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
-    const bodyName = [label, ['habits.rowProgress({"done":1,"total":2})', ...words].join('·')].join('')
+    const bodyName = `${label}, habits.form.typeHabit ${['habits.rowProgress({"done":1,"total":2})', ...words].join('·')}`
     expect(within(row).getByRole('button', {
-      name: (name) => name.replaceAll(' ', '') === bodyName.replaceAll(' ', ''),
+      name: bodyName,
     })).toBe(body)
     expect(within(row).getByRole('button', {
       name: `habits.statusDot.${status}, habits.${action}: ${label}, 1/2`,
@@ -1105,57 +1191,6 @@ describe('HabitList', () => {
       Reflect.deleteProperty(navigator, 'onLine')
     }
   })
-  beforeEach(() => {
-    dragLocale.portuguese = false
-    dragLocale.english = false
-    skipFlow.active = false
-    skipFlow.retryRead = false
-    skipFlow.scheduleItems = null
-    useAppToastStore.setState({ currentToast: null, queue: [] })
-    rowImplementation.actual = false
-    accountDate.timeZone = undefined
-    capturedDrillOptions = undefined
-    vi.clearAllMocks()
-    sheetTestControls.defer(false)
-    mockHabitsDataUpdatedAt = 1
-    useActualHabitVisibility = false
-    drillRefreshCurrent.mockReset()
-    drillInto.mockReset()
-    getDrillChildrenMock.mockReset()
-    getDrillChildrenMock.mockReturnValue([])
-    mockDrillState.drillStack = []
-    mockDrillState.currentParentId = null
-    mockDrillState.currentParent = null
-    mockDrillState.drillChildren = []
-    mockDrillState.completedCount = 0
-    mockDrillState.hasUnfilteredChildren = false
-    mockDrillState.canRevealCompletedChildren = false
-    mockDrillState.drillLoading = false
-    mockDrillState.drillError = null
-    skipHabitMutateAsync.mockReset()
-    skipHabitMutateAsync.mockResolvedValue(undefined)
-    deleteHabitMutateAsync.mockReset()
-    duplicateHabitMutateAsync.mockReset()
-    toggleSelectionSpy.mockReset()
-    habitListRefetch.mockReset()
-    habitListRefetch.mockResolvedValue(undefined)
-    logHabitMutateAsync.mockReset()
-    logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
-      const habit = mockHabitsData.habitsById.get(habitId)
-      if (!habit) return
-      mockHabitsData.habitsById.set(habitId, {
-        ...habit,
-        isCompleted: true,
-      })
-    })
-    mockHabitsData.habitsById.clear()
-    mockHabitsData.childrenByParent.clear()
-    mockHabitsData.topLevelHabits = []
-    mockHabitsData.totalCount = 0
-    accountHabitCount.count = 0
-    accountHabitCount.isLoaded = true
-  })
-
   it.each([false, true])('links disclosure panels through keyboard expansion without changing selection (select mode: %s)', async (selectMode) => {
     rowImplementation.actual = true
     const user = userEvent.setup()
@@ -1204,7 +1239,7 @@ describe('HabitList', () => {
     expect(within(document.getElementById(panelId)!).getByText(personalText(child.title))).toBeInTheDocument()
     expect(toggleSelectionSpy).not.toHaveBeenCalled()
     expect(selected).toEqual(new Set([parent.id]))
-    if (selectMode) expect(within(parentRow).getByRole('button', { name: parent.title, pressed: true })).toBeInTheDocument()
+    if (selectMode) expect(within(parentRow).getByRole('button', { name: `${parent.title}, habits.form.typeHabit`, pressed: true })).toBeInTheDocument()
   })
 
   it('gives nested parents and repeated lists distinct child panel relationships', () => {
@@ -3453,10 +3488,12 @@ describe('HabitList', () => {
         : page.getByRole('button', { name: 'common.back', exact: true })
       const controlBottom = await control.evaluate((element) => element.getBoundingClientRect().bottom)
       const contentTop = await page.evaluate((surface) => {
-        const content = surface === 'loading' ? document.querySelector('[data-variant="habit-row"]')!
-          : surface === 'error' ? document.querySelector('[role="alert"]')!.parentElement!
-          : surface === 'empty' || surface === 'filtered-empty' ? Array.from(document.querySelectorAll('p')).find((p) => p.textContent === (surface === 'empty' ? 'habits.noSubHabits' : 'habits.filterEmptySubHabits'))!.parentElement!
-          : document.querySelector('[data-testid="habit-card-first"]')!
+        let content: Element
+        if (surface === 'loading') content = document.querySelector('[data-variant="habit-row"]')!
+        else if (surface === 'error') content = document.querySelector('[role="alert"]')!.parentElement!
+        else if (surface === 'empty' || surface === 'filtered-empty') {
+          content = Array.from(document.querySelectorAll('p')).find((p) => p.textContent === (surface === 'empty' ? 'habits.noSubHabits' : 'habits.filterEmptySubHabits'))!.parentElement!
+        } else content = document.querySelector('[data-testid="habit-card-first"]')!
         return content.getBoundingClientRect().top
       }, surface)
       expect.soft(contentTop - controlBottom).toBe(24)

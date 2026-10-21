@@ -27,12 +27,24 @@ async function edges(element: Locator) {
 }
 
 async function expectContentEdges(elements: Locator, reference: { left: number; right: number }, width: number, cap = 560) {
-  const expectedRight = width < 1024 ? reference.right : Math.min(reference.right, reference.left + cap)
   await expect(elements.first()).toBeVisible()
   expect(await elements.count()).toBeGreaterThan(0)
+  let expectedLeft = reference.left
+  if (width >= 1024) {
+    // WHY: #1570 centres each retained cap in its scroller instead of pinning it to the calendar edge. https://github.com/thomasluizon/orbit-tickets/issues/1570
+    const frame = await elements.first().evaluate((element) => {
+      const bounds = element.closest('.orbit-content-frame')!.getBoundingClientRect()
+      const scroller = element.closest<HTMLElement>('[data-shell-scroller]')!
+      const left = scroller.getBoundingClientRect().left
+      return { left: bounds.left, before: bounds.left - left, after: left + scroller.clientWidth - bounds.right }
+    })
+    expect(Math.abs(frame.before - frame.after)).toBeLessThanOrEqual(0.5)
+    expectedLeft = frame.left + 16
+  }
+  const expectedRight = width < 1024 ? reference.right : expectedLeft + Math.min(reference.right - reference.left, cap)
   for (const element of [elements.first(), elements.last()]) {
     const bounds = await edges(element)
-    expect(bounds.left).toBeCloseTo(reference.left, 0)
+    expect(bounds.left).toBeCloseTo(expectedLeft, 0)
     expect(bounds.right).toBeCloseTo(expectedRight, 0)
   }
 }
@@ -85,8 +97,10 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
           const about = page.getByTestId('about-content')
           await expectContentEdges(about.locator(':scope > *'), reference, width, 620)
           await expect(page.getByTestId('about-fact-account-label')).toBeVisible()
+          // WHY: #1570 keeps fact labels on the centred about frame's existing child inset. https://github.com/thomasluizon/orbit-tickets/issues/1570
+          const aboutLeft = width < 1024 ? reference.left : (await edges(about)).left + 16
           for (const label of await about.getByTestId('about-facts').locator('[data-testid$="-label"]').all()) {
-            expect((await edges(label)).left).toBeCloseTo(reference.left, 0)
+            expect((await edges(label)).left).toBeCloseTo(aboutLeft, 0)
           }
         })
       })

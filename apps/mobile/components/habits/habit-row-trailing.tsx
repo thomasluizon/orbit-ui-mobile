@@ -1,6 +1,7 @@
 import { resolveHabitAccessibleStatus } from '@orbit/shared/utils'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { View } from 'react-native'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MoreVertical } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -68,11 +69,12 @@ function InteractiveParentRing({
   completionReadOnly, completionReason, completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
+  const [hovered, setHovered] = useState(false)
   const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(dotState, isDoneForRange)}` as const)
   const toggleLabel = isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionLabel = completionRingLabel(completionStatusUnavailable, statusName, toggleLabel, habit.title)
   return (
-    <Pressable focusOffset={-10} onPress={() => {
+    <Pressable focusOffset={-10} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPress={() => {
       if (completionReadOnly) return
       const parentAction = isDoneForRange ? actions.onUnlog : actions.onLog
       parentAction?.()
@@ -83,6 +85,7 @@ function InteractiveParentRing({
       style={({ pressed }) => [
         styles.parentRingButton,
         completionReadOnly ? { opacity: 0.4 } : null,
+        hovered && !completionReadOnly ? { backgroundColor: tokens.bgHover } : null,
         pressed && !completionReadOnly
           ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
       ]}>
@@ -119,6 +122,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   menuVisible,
   } = props
   const { t } = useTranslation()
+  const [menuHovered, setMenuHovered] = useState(false)
   return (
     <View style={styles.trailing}>
       <HabitRowCompletion {...props} />
@@ -126,11 +130,14 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
         <MenuAnchorHost anchorRef={menuButtonRef}>
           <Pressable
             onPress={onOpenMenu}
+            onHoverIn={() => setMenuHovered(true)}
+            onHoverOut={() => setMenuHovered(false)}
             accessibilityRole="button"
             accessibilityLabel={t('habits.actions.more')}
             accessibilityState={{ expanded: menuVisible }}
             style={({ pressed }) => [
               styles.menuButton,
+              menuHovered ? { backgroundColor: tokens.bgHover } : null,
               pressed
                 ? {
                     backgroundColor: tokens.bgHover,

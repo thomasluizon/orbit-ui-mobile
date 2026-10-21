@@ -3,8 +3,10 @@ import { PressFill } from '@/components/ui/press-fill'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
 import { SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
+  AccessibilityInfo,
+  useWindowDimensions,
   View,
   Text,
   Pressable,
@@ -38,6 +40,8 @@ interface DateFieldProps {
   onChange: (value: string) => void
   placeholder?: string
   label?: string
+  focusRequest?: number
+  appearance?: 'normal' | 'proposed'
 }
 
 interface DatePickerMonthNavProps {
@@ -218,7 +222,16 @@ export function DateField({
   onChange,
   placeholder,
   label,
+  focusRequest,
+  appearance = 'normal',
 }: Readonly<DateFieldProps>) {
+  const { fontScale } = useWindowDimensions()
+  const triggerRef = useRef<View>(null)
+  useEffect(() => {
+    if (!focusRequest || !triggerRef.current) return
+    triggerRef.current.setNativeProps({ hasTVPreferredFocus: true })
+    AccessibilityInfo.sendAccessibilityEvent(triggerRef.current, 'focus')
+  }, [focusRequest])
   const prefersReducedMotion = usePrefersReducedMotion()
   const { t, i18n } = useTranslation()
   const { profile } = useProfile()
@@ -311,29 +324,27 @@ export function DateField({
   }
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
+  const selectionLabel = displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')
 
   return (
     <>
       <Pressable
+        ref={triggerRef}
         style={({ pressed }) => [
           styles.trigger,
           pressed ? { transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
         ]}
         onPress={openPicker}
-        accessibilityLabel={
-          label ?? (displayValue
-            ? t('common.selectedDate', { date: displayValue })
-            : t('common.selectDate'))
-        }
+        accessibilityLabel={label ? `${label}, ${selectionLabel}` : selectionLabel}
         accessibilityRole="button"
       >{({ pressed }) => <>
         <PressFill pressed={pressed} color={tokens.bgHoverOpaque} />
         <Text
           style={[
             styles.triggerText,
-            !displayValue && { color: pressed ? tokens.fg2 : tokens.fg3 },
+            !displayValue || appearance === 'proposed' ? { color: pressed ? tokens.fg2 : tokens.fg3 } : null,
           ]}
-          numberOfLines={1}
+          numberOfLines={fontScale > 1.3 ? undefined : 1}
         >
           {displayValue || placeholder || t('common.selectDate')}
         </Text>

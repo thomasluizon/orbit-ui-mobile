@@ -57,6 +57,9 @@ export const HABIT_REMINDER_PRESETS = [
 
 export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFormData {
   return {
+    itemType: values.itemType,
+    datePhrase: values.datePhrase,
+    dateIssue: values.dateIssue,
     title: values.title ?? '',
     description: values.description ?? '',
     emoji: values.emoji ?? '',
@@ -244,11 +247,16 @@ export interface HabitUnderstandingLabels {
 }
 
 export interface HabitScheduleFieldsProps {
+  hidden?: boolean
+  general?: boolean
+  generalLocked?: boolean
+  onGeneral?: () => void
   proposed?: boolean
   unit: FrequencyUnit | null
   quantity: number | null
   flexible: boolean
   disabled: boolean
+  onModeChange: (flexible: boolean) => void
   onChange: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
 }
 
@@ -275,6 +283,7 @@ export interface HabitUnderstandingProps {
   dayOptions: HabitDayOption[]
   quantity: number
   mode: 'fixed' | 'flexible'
+  showSchedule?: boolean
   showCountCorrection?: boolean
   sentence: string | null
   consumed: readonly HabitPhraseToken[]
@@ -391,6 +400,7 @@ export interface HabitFormController {
   resolveSetupProposal: () => void
   resolveSubHabitProposal: () => void
   releaseDueTime: () => void
+  reconcilePhraseOwnership: (read: HabitPhraseRead) => void
   readPhrase: (enabled: boolean, read: HabitPhraseRead, emoji: string) => void
   setDueTime: (dueTime: string) => void
   clearDueTime: () => void
@@ -402,6 +412,7 @@ export interface HabitFormController {
   setIntervalWeeks: (intervalWeeks: number) => void
   toggleDay: (day: string, daily?: boolean, selectedDays?: readonly string[]) => void
   setQuantity: (quantity: number) => void
+  setScheduleMode: (flexible: boolean) => void
   setSchedule: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
 }
 
@@ -420,6 +431,14 @@ export function createHabitFormController({
   const releaseOwnership = (field: keyof HabitPhraseFormOwnership) => {
     target.setOwnership(releaseHabitPhraseOwnership(target.getOwnership(), field))
   }
+  const setScheduleMode = (flexible: boolean): void => {
+    if (lockedGeneral === true) return
+    onSuggestionContextChange?.()
+    resolveSection('setup')
+    releaseOwnership('cadence')
+    if (flexible) target.setFlexible()
+    else target.setRecurring()
+  }
 
   return {
     askAstra: async (): Promise<void> => {
@@ -433,6 +452,10 @@ export function createHabitFormController({
     resolveSetupProposal: (): void => resolveSection('setup'),
     resolveSubHabitProposal: (): void => resolveSection('subHabits'),
     releaseDueTime: (): void => releaseOwnership('dueTime'),
+    reconcilePhraseOwnership: (read): void => {
+      const ownership = target.getOwnership()
+      target.setOwnership({ cadence: ownership.cadence && read.cadence !== null, dueTime: ownership.dueTime && read.dueTime !== null })
+    },
     readPhrase: (enabled, read, emoji) => readOwnedHabitPhrase(enabled, read, emoji, lockedGeneral, target),
     setDueTime: (dueTime: string): void => {
       releaseOwnership('dueTime')
@@ -478,13 +501,10 @@ export function createHabitFormController({
       releaseOwnership('cadence')
       applyHabitQuantityCorrection(quantity, lockedGeneral, target)
     },
+    setScheduleMode,
     setSchedule: (unit, quantity, flexible): void => {
       if (lockedGeneral === true) return
-      onSuggestionContextChange?.()
-      resolveSection('setup')
-      releaseOwnership('cadence')
-      if (flexible) target.setFlexible()
-      else target.setRecurring()
+      setScheduleMode(flexible)
       target.setField('frequencyUnit', unit)
       target.setField('frequencyQuantity', quantity)
       if (flexible || unit !== 'Day' || quantity !== 1) target.setField('days', [])
@@ -737,13 +757,6 @@ export function getHabitDisplayStartDate(habit: Pick<NormalizedHabit, 'startDate
   return habit.startDate ?? habit.createdAtUtc
 }
 
-export function resolveHabitStartDate(
-  startDate: string | null | undefined,
-  dueDate: string,
-): string | null {
-  return startDate === undefined ? dueDate : startDate
-}
-
 export function formatHabitReminderLabel(
   minutes: number,
   translate: (key: string) => string,
@@ -872,6 +885,15 @@ export function applyHabitEmojiSuggestion(
   if (!emoji || emoji === currentEmoji) return false
   onApply(emoji)
   return true
+}
+
+export function reportHabitFormValidationError(
+  message: string,
+  getFieldState: (field: 'itemType' | 'datePhrase') => { invalid: boolean },
+  showError: (message: string) => void,
+): void {
+  if (getFieldState('itemType').invalid || getFieldState('datePhrase').invalid) return
+  showError(message)
 }
 
 export function buildHabitEmojiSuggestionAvailability(

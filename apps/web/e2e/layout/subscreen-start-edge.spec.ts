@@ -7,20 +7,18 @@ import { completeInstallOnboarding } from './install-onboarding'
 async function assertStartEdge(body: Locator, back: Locator) {
   await expect(body).toBeVisible()
   await expect(back).toBeVisible()
-  await expect.poll(async () => {
-    const backElement = await back.elementHandle()
-    try {
-      return await body.evaluate((element, control) => {
-        if (!element.isConnected || !control.isConnected) return Infinity
-        const bodyBounds = element.getBoundingClientRect()
-        const backBounds = control.getBoundingClientRect()
-        if (!bodyBounds.width || !backBounds.width) return Infinity
-        return Math.abs(bodyBounds.left - backBounds.left - 8)
-      }, backElement)
-    } finally {
-      await backElement.dispose()
-    }
-  }).toBeLessThanOrEqual(0.5)
+  // WHY: #1570 measures the existing child inset from a frame centred in the usable scroller. https://github.com/thomasluizon/orbit-tickets/issues/1570
+  await expect.poll(() => body.evaluate((element) => {
+    if (!element.isConnected) return Infinity
+    const bodyBounds = element.getBoundingClientRect()
+    const frame = element.closest('.orbit-content-frame, .mx-auto')!.getBoundingClientRect()
+    const scroller = element.closest<HTMLElement>('[data-shell-scroller]')!
+    if (!bodyBounds.width || !frame.width) return Infinity
+    const left = scroller.getBoundingClientRect().left
+    const before = frame.left - left
+    const after = left + scroller.clientWidth - frame.right
+    return Math.max(Math.abs(before - after), Math.abs(bodyBounds.left - frame.left - 16))
+  })).toBeLessThanOrEqual(0.5)
 }
 
 async function assertCap(box: Locator, maximum: number) {

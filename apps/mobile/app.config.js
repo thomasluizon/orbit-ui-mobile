@@ -25,6 +25,7 @@ module.exports = () => {
   const captureMode = readBooleanEnv("EXPO_PUBLIC_CAPTURE_MODE", false);
   const productionConfig = {
     ...baseConfig,
+    updates: { ...baseConfig.updates, enabled: false },
     android: {
       ...baseConfig.android,
       allowBackup: false,

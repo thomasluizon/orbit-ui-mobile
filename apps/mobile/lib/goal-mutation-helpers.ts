@@ -95,5 +95,6 @@ export async function invalidateGoalQueries(
 
   if (options?.includeHabits) {
     await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+    await queryClient.invalidateQueries({ queryKey: habitKeys.details() })
   }
 }

@@ -4,7 +4,7 @@ import type { ReactTestRenderer as NativeTestRenderer } from 'react-test-rendere
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { proactiveKeys } from '@orbit/shared/query'
-import { proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
+import { chatMessageSchema, proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { ProactiveAction } from '@/components/chat/proactive-action'
 import { TodayAstra } from '@/components/today/today-astra'
@@ -69,10 +69,13 @@ describe('proactive conversation', () => {
     await press(line, item.text)
     await press(line, item.text)
     expect(useChatStore.getState().messages).toEqual([expect.objectContaining({ role: 'ai', content: item.text })])
+    const restoredMessage = chatMessageSchema.parse(useChatStore.getState().messages[0])
+    expect(restoredMessage.proactiveItem?.facts).toEqual(item.facts)
+    expect(restoredMessage.proactiveItem?.facts).not.toBeNull()
     expect(mocks.api.mock.calls.filter(([path]) => path === API.proactive.opened(item.id))).toHaveLength(1)
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     const send = vi.fn(() => Promise.resolve())
-    const action = await render(<ProactiveAction isOnline={mocks.online} item={item} acted={false} onSend={send} />)
+    const action = await render(<ProactiveAction isOnline={mocks.online} item={restoredMessage.proactiveItem!} acted={false} onSend={send} />)
     expect(button(action, item.actionLabel).props.disabled).toBe(false)
     await press(action, item.actionLabel)
     await press(action, item.actionLabel)

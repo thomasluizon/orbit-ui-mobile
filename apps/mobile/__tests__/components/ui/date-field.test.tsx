@@ -2,6 +2,7 @@ import React from 'react'
 import { Pressable } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { DateField } from '@/components/ui/date-field'
+import { __getFocusedNativeTag } from '@/test-mocks/react-native'
 import { Calendar } from '@/components/ui/icons'
 import { createTokensV2, radius } from '@/lib/theme'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
@@ -182,4 +183,12 @@ describe('DateField (mobile)', () => {
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange.mock.calls[0]![0]).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
+})
+
+it('returns native focus to the trigger on a caller focus request', () => {
+  const tree = render(<DateField label="End date" value="2026-11-01" onChange={vi.fn()} />)
+  TestRenderer.act(() => { tree.update(<DateField label="End date" value="" onChange={vi.fn()} focusRequest={1} />) })
+  const trigger = tree.root.findByType('Pressable')
+  expect(__getFocusedNativeTag()).toBe(trigger.props.__nativeTag)
+  TestRenderer.act(() => { tree.unmount() })
 })

@@ -11,7 +11,7 @@ export const proactiveItemSchema = z.object({
   shownAtUtc: z.iso.datetime({ offset: true }).nullable(),
   pushedAtUtc: z.iso.datetime({ offset: true }).nullable(),
   facts: z.object({
-    trigger: z.int(),
+    trigger: z.string(),
     habitTitles: z.array(z.string()),
     habitCount: z.union([z.int(), z.string().regex(/^-?(?:0|[1-9]\d*)$/)]).nullish(),
     currentStreak: z.union([z.int(), z.string().regex(/^-?(?:0|[1-9]\d*)$/)]).nullish(),

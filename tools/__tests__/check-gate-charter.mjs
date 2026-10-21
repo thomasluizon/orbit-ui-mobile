@@ -44,6 +44,25 @@ const completeCharter = () => ({
 })
 
 export const cases = () => {
+  const testJobs = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8")).jobs
+  T("test.yml: SonarCloud Analysis consumes Unit Tests", testJobs.sonarcloud.needs === "unit-tests" &&
+    testJobs.sonarcloud.name === "SonarCloud Analysis")
+  const ancestors = new Set(["sonarcloud"])
+  for (const id of ancestors) {
+    const job = testJobs[id]
+    T(`test.yml: ${id} cannot be skipped by a branch condition`,
+      job !== undefined && (job.if === undefined || job.if === "${{ always() }}"),
+      `job condition: ${job?.if}`)
+    for (const step of job?.steps ?? []) {
+      T(`test.yml: ${id}/${step.name ?? step.uses ?? "run"} has no base_ref condition`,
+        !String(step.if ?? "").includes("base_ref"), `step condition: ${step.if}`)
+    }
+    for (const dependency of [job?.needs ?? []].flat()) ancestors.add(dependency)
+  }
+  for (const id of ["build", "web-tests", "workspace-tests", "unit-tests"]) {
+    T(`test.yml: SonarCloud depends on ${id}`, ancestors.has(id))
+  }
+
   const consolidated = structuredClone(currentGuards)
   consolidated.jobs.guards.steps = consolidated.jobs.guards.steps.filter((step) =>
     !step.id || step.id === "timeless__1")

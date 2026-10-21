@@ -111,7 +111,7 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
       expect(foreground).toBe(pressed ? tokens.fg2 : tokens.fg3)
       expect(contrastOnSurface(foreground, layers), `${label}, pressed=${pressed}`).toBeGreaterThanOrEqual(4.5)
       if (pressed && mode === 'dark') {
-        expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.029, 3)
+        expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.567, 3)
       }
       for (const separator of metadata.findAllByType('Text').filter(
         (node: { children: unknown[] }) => node.children.includes(' · '),
@@ -178,7 +178,7 @@ describe('HabitRow canonical content (mobile)', () => {
     )
     const supplementaryWords = state === 'bad' && flags.isOverdue ? ['habits.overdue'] : []
     expect(body.props.accessibilityLabel).toBe(
-      [label, `habits.statusDot.${state}`, 'habits.rowProgress', ...supplementaryWords].join(', '),
+      [label, 'habits.form.typeHabit', `habits.statusDot.${state}`, 'habits.rowProgress', ...supplementaryWords].join(', '),
     )
     expect(body.props.accessibilityHint).toBeUndefined()
     expect(tree!.root.findAllByType('Pressable').some(
@@ -218,7 +218,7 @@ describe('HabitRow canonical content (mobile)', () => {
     TestRenderer.act(() => renderer.unmount())
   })
 
-  it('keeps a child body on the shared leading edge', () => {
+  it('applies the child leading inset once inside the body', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Child' })} depth={1} />)
@@ -226,7 +226,7 @@ describe('HabitRow canonical content (mobile)', () => {
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
     expect(row.children[0].children[0].props.delayLongPress).toBe(500)
     expect(StyleSheet.flatten(row.props.style).paddingLeft).toBeUndefined()
-    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(8)
+    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(24)
   })
 
   it('keeps separate selection and structural columns with a neutral checkbox', () => {
@@ -239,9 +239,10 @@ describe('HabitRow canonical content (mobile)', () => {
         actions={{ onToggleExpand, onToggleSelection }} />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [body, selection, disclosureColumn] = row.children[0].children
+    const [body, controls] = row.children[0].children
+    const selection = controls.findByProps({ accessibilityRole: 'checkbox' })
     expect(selection.props.accessibilityState).toMatchObject({ checked: true })
-    const disclosure = disclosureColumn.findByProps({ accessibilityLabel: 'common.collapse' })
+    const disclosure = controls.findByProps({ accessibilityLabel: 'common.collapse' })
     expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
     expect(body.props.delayLongPress).toBe(500)
     const checkbox = selection.findAll((node: { props: { pointerEvents?: string } }) => node.props.pointerEvents === 'none')[0]
@@ -261,14 +262,16 @@ describe('HabitRow canonical content (mobile)', () => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [body, selection, trailing] = row.children[0].children
+    const [body, controls] = row.children[0].children
+    const selection = controls.findByProps({ accessibilityRole: 'checkbox' })
+    const trailing = controls.findAllByProps({ testID: 'habit-check' })[0]
     expect(selection.props.accessibilityState).toMatchObject({ checked: false })
     expect(trailing).toBeDefined()
     expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)
     expect(body.props.delayLongPress).toBe(500)
     expect(renderer!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
   })
-  it('omits descriptions and tags from the canonical row', () => {
+  it('restores descriptions while omitting retired tags from the canonical row', () => {
     const texts = renderRowText(
       createMockHabit({
         title: 'Read',
@@ -281,7 +284,7 @@ describe('HabitRow canonical content (mobile)', () => {
     )
 
     expect(texts).toContain('Read')
-    expect(texts).not.toContain('A long preview')
+    expect(texts).toContain('A long preview')
     expect(texts).not.toContain('Learning')
     expect(texts).not.toContain('Evening')
   })
@@ -334,13 +337,13 @@ describe('HabitRow status control names (mobile)', () => {
     const body = () => renderer!.root.findAllByType('Pressable').find(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )
-    expect(body().props.accessibilityLabel).toBe('Evening routine, habits.statusDot.bad')
+    expect(body().props.accessibilityLabel).toBe('Evening routine, habits.form.typeHabit, habits.statusDot.bad')
     TestRenderer.act(() => {
       renderer.update(<HabitRow habit={{ ...habit, isOverdue: true }} hasChildren
         childrenDone={1} childrenTotal={2} actions={{ onDetail }} />)
     })
     expect(body().props.accessibilityLabel).toBe(
-      'Evening routine, habits.statusDot.bad, habits.rowProgress, habits.overdue',
+      'Evening routine, habits.form.typeHabit, habits.statusDot.bad, habits.rowProgress, habits.overdue',
     )
     TestRenderer.act(() => body().props.onPress())
     expect(onDetail).toHaveBeenCalledOnce()
@@ -356,7 +359,7 @@ describe('HabitRow status control names (mobile)', () => {
     const body = renderer!.root.findAllByType('Pressable').find(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )
-    expect(body.props.accessibilityLabel).toBe('Read, habits.statusDot.empty, 08:00 - 09:00')
+    expect(body.props.accessibilityLabel).toBe('Read, habits.form.typeHabit, habits.statusDot.empty, 08:00 - 09:00')
     expect(body.props.accessibilityHint).toBe('habits.schedule.dueInDays')
     TestRenderer.act(() => renderer.unmount())
   })
@@ -403,7 +406,7 @@ describe('HabitRow status control names (mobile)', () => {
     const body = renderer!.root.findAll(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )[0]
-    expect(body.props.accessibilityLabel).toBe('Read')
+    expect(body.props.accessibilityLabel).toBe('Read, habits.form.typeHabit')
     TestRenderer.act(() => body.props.onPress())
     expect(onDetail).toHaveBeenCalledOnce()
     TestRenderer.act(() => {
@@ -442,15 +445,15 @@ describe('HabitRow status control names (mobile)', () => {
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     ) as Record<string, unknown>
     const restingRing = StyleSheet.flatten(ring.props.style({ pressed: false })) as Record<string, unknown>
-    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
+    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.13)')
     expect(pressedCard.borderWidth ?? 0).toBe(0)
     const outline = renderer!.root.findByProps({ testID: 'habit-row-outline' })
     expect(StyleSheet.flatten(outline.props.style)).toMatchObject({ position: 'absolute', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' })
     expect(StyleSheet.flatten(body.props.style({ pressed: true }))).toMatchObject({
-      backgroundColor: 'rgba(250,250,250,0.13)',
       borderRadius: 20,
       overflow: 'hidden',
     })
+    expect(StyleSheet.flatten(body.props.style({ pressed: true })).backgroundColor).toBeUndefined()
     expect(restingRing.backgroundColor).toBeUndefined()
 
     TestRenderer.act(() => body.props.onPressOut())
@@ -502,7 +505,7 @@ describe('HabitRow status control names (mobile)', () => {
 
     const selection = renderer!.root.findAll(
       (node: { props: Record<string, unknown> }) =>
-        node.props.accessibilityLabel === 'Meditate' && typeof node.props.style === 'function',
+        node.props.accessibilityLabel === 'Meditate, habits.form.typeHabit' && typeof node.props.style === 'function',
     )[0]
     const pressedSelection = StyleSheet.flatten(
       selection.props.style({ pressed: true }),

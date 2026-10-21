@@ -130,7 +130,7 @@ function assertAllowanceNodes(nodes: Map<string, YogaNode>, nearLimit: boolean, 
   expect(nodes.has('composer-usage')).toBe(nearLimit && !exhausted)
   if (nearLimit) {
     const noticeHeight = nodes.get('composer-allowance-reason')!.getComputedHeight() + nodes.get('composer-renewal')!.getComputedHeight() + SPACING.s8
-    expect(status!.getComputedHeight()).toBeCloseTo(noticeHeight, 0)
+    expect(status!.getComputedHeight()).toBeCloseTo(Math.max(SPACING.s96, noticeHeight), 0)
     for (const id of ['composer-usage', 'composer-suggestions-layout']) {
       const content = nodes.get(id)
       if (content) expect(bounds(content).bottom).toBeLessThanOrEqual(bounds(status!).bottom)

@@ -33,13 +33,13 @@ import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   applyHabitEmojiSuggestion,
+  reportHabitFormValidationError,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
   coalesceFormText,
   createHabitFormSuggestionRevision,
   extractBackendErrorCode,
-  formatAPIDate,
   getFriendlyErrorMessage,
   getHabitPhraseTitle,
   hasHabitFormProposal,
@@ -147,7 +147,7 @@ export function CreateHabitModal({
   const { requestPermission: requestReminderPermission } = useReminderPermission(false, () => {})
   const formHelpers = useHabitForm({
     initialData: {
-      dueDate: initialDate ?? formatAPIDate(new Date()),
+      dueDate: initialDate ?? '',
     },
   })
 
@@ -250,13 +250,14 @@ export function CreateHabitModal({
 
     void Promise.resolve().then(() => {
       const { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
-      const fallbackDate = initialDate ?? formatAPIDate(new Date())
+      const fallbackDate = initialDate ?? ''
 
       setEmojiFailure(null)
       setCreateBoundary(null)
       setReminderWasManuallyToggled(false)
       setExpandAdvancedSignal(0)
       formHelpers.clearBackendErrors()
+      formHelpers.resetModeDrafts()
       formHelpers.form.reset({ ...buildEmptyHabitFormValues(fallbackDate), title: initialTitle })
       tags.resetTags()
       setSelectedGoalIds([])
@@ -274,6 +275,7 @@ export function CreateHabitModal({
         setReminderTimes(prefill.reminderTimes)
       } else if (activeView === 'general') {
         formHelpers.setGeneral()
+        formHelpers.form.setValue('itemType', 'habit')
       }
 
       setInitialSnapshot({
@@ -335,22 +337,23 @@ export function CreateHabitModal({
       const submittingAccount = getAccountGeneration()
 
       const subHabitValues = subHabits.map((entry) => entry.value)
+      const missingType = !formHelpers.form.getValues('itemType')
+      if (missingType) { formHelpers.validateAll(); return }
+      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
       const error = formHelpers.validateAll({
         reminderTimes,
         selectedGoalIds,
         selectedTagIds: tags.selectedTagIds,
         subHabits: subHabitValues,
       })
-      const reminderForm = error ? null : habitFormSchema.safeParse(formHelpers.form.getValues())
-      if (!error && isOnline && reminderForm?.success && reminderForm.data.reminderEnabled) requestReminderPermission()
-      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
 
       if (error) {
-        showError(error)
+        reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
         return
       }
       if (!isOnline) return
       const data = habitFormSchema.parse(formHelpers.form.getValues())
+      if (data.reminderEnabled) requestReminderPermission()
 
       try {
         if (isSubHabitMode) {

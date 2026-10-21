@@ -1674,21 +1674,47 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: -10px;
 }
 
-[data-habit-row-body] {
+.habit-row {
   --habit-row-meta-color: var(--fg-3);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition-property: none;
 }
 
-.habit-row-meta {
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .habit-row {
+    transition: background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard);
+  }
+}
+
+.habit-row:has([data-habit-row-control]:active) {
+  transition: none;
+}
+
+.habit-row-meta,
+.habit-row-description {
   color: var(--habit-row-meta-color);
   transition: color var(--dur-hover) var(--ease-standard);
 }
 
-[data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):active {
+@media (hover: none), (pointer: coarse), (pointer: none) {
+  .habit-row:has([data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):active):not(:has([data-habit-row-control]:active)) {
+    background: var(--bg-hover);
+    --habit-row-meta-color: var(--fg-2);
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+    transition: none;
+  }
+}
+
+[data-habit-row-control]:not(:disabled):not([aria-disabled="true"]):active {
   background: var(--bg-hover);
-  --habit-row-meta-color: var(--fg-2);
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .habit-row:has([data-habit-row-control]:hover),
+  .habit-row:has([data-habit-row-body]:active) {
+    transition: none;
+  }
+
   .today-astra-line:not(:disabled):hover::before {
     opacity: 1;
   }
@@ -1715,9 +1741,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     background: var(--primary-hover);
   }
 
-  [data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):hover {
+  .habit-row:has([data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):is(:hover,:active)):not(:has([data-habit-row-control]:is(:hover,:active))) {
     background: var(--bg-hover);
     --habit-row-meta-color: var(--fg-2);
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }
 
   @layer components {
@@ -1815,11 +1842,20 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 /* Reduced motion: keep essential loading feedback while suppressing other motion. */
 @media (prefers-reduced-motion: reduce) {
+  .habit-form-disclosure[data-open] {
+    transform: none;
+  }
+
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .habit-row [data-habit-row-body],
+  .habit-row [data-personal-text-content] {
+    transition-duration: 0s !important;
   }
 
   .orbit-essential-loading {
@@ -2322,19 +2358,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     background: color-mix(in srgb, var(--fg-1) 90%, var(--bg));
   }
 }
-@keyframes celebration-rise {
-  from { transform: translateY(12px); }
-  to { transform: translateY(0); }
-}
-
-@keyframes celebration-ring-sweep {
-  from { stroke: var(--primary); stroke-dashoffset: 100; }
-  99% { stroke: var(--primary); }
-  to { stroke: var(--fg-1); stroke-dashoffset: 0; }
-}
-
-.celebration-ring { animation: celebration-ring-sweep 280ms var(--ease-out) both; }
-
 .orbit-streak-badge {
   isolation: isolate;
 }
@@ -2531,9 +2554,14 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
+.orbit-centred-column {
+  margin-inline: auto;
+}
+
 .orbit-content-frame {
   width: 100%;
   min-width: 0;
+  margin-inline: auto;
   padding-inline: var(--padding-screen-gutter);
 }
 
@@ -2615,13 +2643,15 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   outline-offset: 2px;
 }
 
+.celebration-copy { min-width: min(100%, 7em); }
+.daily-streak-clip > span { grid-area: 1 / 1; }
 .daily-streak-previous { opacity: 0; }
-@keyframes daily-streak-ring {
-  from { stroke-dashoffset: 100; }
+@keyframes celebration-ring-sweep {
+  from { stroke-dashoffset: var(--celebration-ring-length); }
   to { stroke-dashoffset: 0; }
 }
 @keyframes daily-streak-previous {
-  from { opacity: 1; }
+  from { transform: translateY(0); opacity: 1; }
   to { transform: translateY(-12px); opacity: 0; }
 }
 @keyframes daily-streak-number {
@@ -2629,9 +2659,9 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   to { transform: translateY(0); opacity: 1; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .daily-streak-ring { animation: daily-streak-ring var(--dur-3) var(--ease-out) both; }
-  .daily-streak-previous { animation: daily-streak-previous var(--dur-3) var(--ease-out) both; }
-  .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out) both; }
+  [data-entering] .celebration-ring { animation: celebration-ring-sweep var(--dur-3) var(--ease-out); }
+  [data-entering] .daily-streak-previous { animation: daily-streak-previous var(--dur-3) var(--ease-out); }
+  [data-entering] .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out); }
 }
 
 @keyframes astra-pending-pulse {

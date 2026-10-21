@@ -100,11 +100,12 @@ describe('AboutScreen', () => {
       const measured = measureProfileRow(tree.toJSON(), width, 1)
       for (const testID of ['about-identity', 'about-facts']) {
         const box = measured.boxes.find((box) => box.testID === testID)!
-        expect(box.left).toBe(16)
+        // WHY: #1570 centres the retained 652 column at wide widths. https://github.com/thomasluizon/orbit-tickets/issues/1570
+        expect(box.left).toBe((width - (width < 1024 ? width : 652)) / 2 + 16)
         expect(box.width).toBe(width < 1024 ? width - 32 : 620)
       }
       for (const id of ['version', 'account']) {
-        expect(measured.boxes.find((box) => box.testID === `about-fact-${id}-label`)!.left).toBe(16)
+        expect(measured.boxes.find((box) => box.testID === `about-fact-${id}-label`)!.left).toBe((width - (width < 1024 ? width : 652)) / 2 + 16)
       }
     } finally { TestRenderer.act(() => tree.unmount()) }
   })

@@ -1,10 +1,12 @@
 import { randomUUID } from 'expo-crypto'
-import type { HabitListSnapshots } from '@orbit/shared/query'
+import type { HabitDetailSnapshots, HabitDetailUpdates, HabitListSnapshots } from '@orbit/shared/query'
 import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
 import {
+  restoreCachedHabitDetails,
+  updateCachedHabitDetails,
   habitKeys,
   goalKeys,
   gamificationKeys,
@@ -125,7 +127,6 @@ type CreateSubHabitMutationInput = {
   data: CreateSubHabitRequest
   __offlineTempId?: string
 }
-type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
 type RestoreHabitInput = string | { habitId: string; reconcileNotFound: true }
 type LogHabitSnapshot = {
   occurrenceDate: string
@@ -692,7 +693,7 @@ export function useUpdateHabit() {
     void | QueuedMarker,
     Error,
     { habitId: string; data: UpdateHabitRequest; dependsOn?: string[] },
-    { previousLists: HabitListSnapshots; previousDetail: HabitDetail | undefined }
+    { previousLists: HabitListSnapshots; previousDetails: HabitDetailUpdates }
   >({
     mutationFn: async ({ habitId, data, dependsOn }) => {
       const request = validateApiRequest(data, updateHabitRequestSchema)
@@ -711,30 +712,25 @@ export function useUpdateHabit() {
     onMutate: async ({ habitId, data }) => {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
-        queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId) }),
+        queryClient.cancelQueries({ queryKey: habitKeys.details() }),
         queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
       ])
 
       const previousLists = snapshotHabitLists(queryClient)
-      const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(habitId))
       const patch = buildOptimisticHabitPatch(queryClient, data)
       updateHabitLists(queryClient, (items) =>
         optimisticPatchHabit(items, habitId, patch),
       )
-      queryClient.setQueryData<HabitDetail>(habitKeys.detail(habitId), (detail) =>
-        detail ? { ...detail, ...patch } : detail,
-      )
+      const previousDetails = updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? patch : {})
 
-      return { previousLists, previousDetail }
+      return { previousLists, previousDetails }
     },
 
     onError: (_err, _variables, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
-      if (context?.previousDetail) {
-        queryClient.setQueryData(habitKeys.detail(_variables.habitId), context.previousDetail)
-      }
+      if (context?.previousDetails) restoreCachedHabitDetails(queryClient, context.previousDetails)
     },
 
     onSettled: (data, error, { habitId }) =>
