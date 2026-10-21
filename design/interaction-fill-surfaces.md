@@ -25,7 +25,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Destination tab focus | `components/navigation/bottom-tab-bar.tsx`, `app/globals.css` | `components/navigation/bottom-tab-bar.tsx` | The single focus perimeter sits 4px inside the full-column target, including at the page edge and in forced colors |
 | Wide sidebar brand controls | `components/shell/shell-wide.tsx` | Web-only navigation chrome | The 48px bell and collapse targets retain their 12px gap; a 4px trailing row inset reserves clearance from the lockup, and focus stays inset |
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Both platforms reserve 8px above the explanation, covering the menu control's outward focus indicator plus the shared clearance |
-| Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date headers paint inside their own grid cells |
+| Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date headers compose hover, held press and focus paint inside their unchanged grid cells, with one inset focus indicator and press-only scale suppressed by reduced motion |
 | Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and a 4px checkbox gap; event fills retain 4px before their separate trailing action |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent 12px content gap retains 4px and focus stays inset |
 | Toast text action | `components/ui/toast.tsx` | `components/ui/app-toast.tsx` | The 4px negative margin on the text action is inside the toast padding and retains clearance from adjacent content; the close control is a PillButton |
@@ -79,6 +79,16 @@ target-only geometry is excluded. Text neighbours use their text ranges rather t
 control boxes. Adjacent time-grid date headers are explicitly marked as contained cell paint:
 their fills and inset focus indicators remain inside their unchanged column boxes. The exemption
 permits adjoining cell boundaries, never a fill extending outside its cell or covering content.
+
+The mounted native `calendar-time-grid.test.tsx` exercises the actual header and InsetFocusPressable
+in both themes and locales. Its real installed Hover gesture uses the registry and event receiver
+boundary, with guards for attachment to the complete header, non-canceling JS routing and lifecycle
+cleanup. Cases retain overlapping hover, press and focus, cancellation, failure, independent columns,
+remount, reduced motion and exact date activation. The paired web owner test retains the
+contained-cell and inset-focus markers and verifies that pointer and focus transitions leave date
+selection unchanged until activation. Computed web hover and cell geometry remain owned by the
+existing Chromium and layout checks; the native receiver and host styles do not execute Android
+MotionEvents or prove device rendering.
 
 Android's style regression renders the actual habit header with its emoji selector and summary,
 and the shared row, pill, icon pill and chip with adjacent controls. Yoga measures the resolved
