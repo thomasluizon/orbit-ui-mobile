@@ -24,6 +24,8 @@ import { measureInteractionFills } from '@/__tests__/support/interaction-fill-ge
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
+const astraCopy = vi.hoisted(() => ({ name: 'nav.astra' }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? astraCopy.name : key, i18n: { language: 'en' } }) }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
 const clipboard = vi.hoisted(() => ({ getStringAsync: vi.fn().mockResolvedValue(''), hasStringAsync: vi.fn().mockResolvedValue(true) }))
@@ -123,6 +125,29 @@ function renderComposer(composerProps: ComposerProps) {
   })
   return tree
 }
+
+it.each([en, ptBR])('attributes each suggestion once with the canonical decorative Astra mark', messages => {
+  astraCopy.name = messages.nav.astra
+  const chips = suggestions(3)
+  const tree = renderComposer(props({ suggestions: chips }))
+  try {
+    const controls = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      node.type === 'Pressable' && chips.some(chip => node.props.accessibilityLabel === `${chip.label}, ${messages.nav.astra}`))
+    expect(controls).toHaveLength(chips.length)
+    for (const [index, control] of controls.entries()) {
+      expect(control.props.accessibilityLabel).toBe(`${chips[index]!.label}, ${messages.nav.astra}`)
+      expect(textValues(control)).toEqual([`${chips[index]!.label} ${messages.nav.astra}`])
+      const marks = control.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+        typeof node.type === 'string' && node.props.testID === 'astra-mark-16')
+      expect(marks).toHaveLength(1)
+      expect(marks[0]!.props.accessible).toBe(false)
+    }
+    pressControl(controls[1])
+    expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
+    expect(chips[0]!.onSelect).not.toHaveBeenCalled()
+    expect(chips[2]!.onSelect).not.toHaveBeenCalled()
+  } finally { astraCopy.name = 'nav.astra'; TestRenderer.act(() => tree.unmount()) }
+})
 
 describe('clipboard composer control', () => {
   beforeEach(() => { authSession.isAuthenticated = true; authSession.user = { userId: 'account-a' } })
@@ -712,7 +737,7 @@ describe('Composer (mobile)', () => {
           expect(style.minHeight).toBe(48)
           expect(style.height).toBeUndefined()
           expect(style.alignItems).toBe('flex-start')
-          expect(text.props.children).toBe(suggestion.label)
+          expect(text.props.children).toBe(`${suggestion.label} nav.astra`)
           expect(suggestion.label).not.toContain(title)
           expect(text.props.numberOfLines).toBeUndefined()
           expect(StyleSheet.flatten(text.props.style)).toMatchObject({ flexShrink: 1, lineHeight: 20 })

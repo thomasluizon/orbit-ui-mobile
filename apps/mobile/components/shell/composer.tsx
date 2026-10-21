@@ -127,7 +127,7 @@ function SuggestionStrip({
               style={styles.suggestionContent}
             >
               {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-              <Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text><AstraGlyph size={16} color={tokens.fg2} /><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{t('nav.astra')}</Text>
+              <AstraGlyph size={16} color={tokens.fg2} /><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{`${suggestion.label} ${t('nav.astra')}`}</Text>
             </View>
           </InsetFocusPressable>
         ))}

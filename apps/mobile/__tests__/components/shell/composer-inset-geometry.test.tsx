@@ -5,7 +5,7 @@ import { expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 import { Menu } from '@/components/ui/menu'
 import { AI_MESSAGE_COUNTER_THRESHOLD, buildComposerChips } from '@orbit/shared/chat'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { SPACING } from '@orbit/shared/theme'
@@ -89,6 +89,7 @@ function build(host: Host, nodes: Map<string, YogaNode>, fontScale = 1, inField 
     nodes.set('input', node)
     node.setMeasureFunc(() => ({ width: 80, height: (style.lineHeight ?? 24) * fontScale }))
   } else if (host.type === 'Text') {
+    nodes.set(`text:${host.children?.filter(child => typeof child === 'string').join('')}`, node)
     node.setMeasureFunc((available, mode) => measureText(host, style, fontScale, mode === Yoga.MEASURE_MODE_UNDEFINED ? 10000 : available))
   } else {
     const children = host.type === 'ScrollView' ? [{ type: 'View', props: { style: { ...StyleSheet.flatten(host.props.contentContainerStyle), flexDirection: 'row' as const } }, children: host.children }] : host.children ?? []
@@ -141,6 +142,35 @@ function dailySuggestions(messages: typeof en) {
   return toComposerSuggestions(chips.map(({ id }) => ({ id,
     label: labels[id.replace('habitDetail.', '') as keyof typeof labels], onSelect: vi.fn() })))
 }
+
+it.each([en, ptBR])('keeps the live chip labels on one line beside their Astra attribution at default text', async messages => {
+  translation.words = { 'nav.astra': messages.nav.astra }
+  const habit = createMockHabit({ isOverdue: true, hasSubHabits: true })
+  const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [habit], totalHabitCount: 1,
+    profile: createMockProfile() })
+  const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id,
+    label: messages.shell.composer.chips.today[id.replace('today.', '') as keyof typeof messages.shell.composer.chips.today], onSelect: vi.fn() })))
+  let tree!: Tree
+  await renderer.act(() => { tree = renderer.create(<Composer state="idle" value="" words={messages.shell.composer}
+    suggestions={suggestions} onChangeValue={vi.fn()} onSend={vi.fn()} />) as Tree })
+  try {
+    const host = tree.root.findAll(node => node.props.testID === 'composer-suggestions-layout')[0]!
+    const onLayout = host.props.onLayout as (event: LayoutChangeEvent) => void
+    await renderer.act(() => onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 288, height: 48 } } } as LayoutChangeEvent))
+    const nodes = new Map<string, YogaNode>()
+    const layout = build(tree.toJSON(), nodes)
+    try {
+      layout.calculateLayout(320, undefined)
+      for (const suggestion of suggestions) {
+        const text = tree.root.findAll(node => String(node.type) === 'Text' && typeof node.props.children === 'string'
+          && node.props.children.startsWith(suggestion.label))[0]!
+        const body = nodes.get(`text:${String(text.props.children)}`)!
+        const label = measureProfileRow({ type: 'Text', props: { style: text.props.style as TextStyle }, children: [suggestion.label] }, body.getComputedWidth(), 1).texts[0]!
+        expect(label.lines, suggestion.label).toBe(1)
+      }
+    } finally { layout.freeRecursive() }
+  } finally { await renderer.act(() => tree.unmount()); translation.words = {} }
+})
 
 const allowanceCases = [320, 412].flatMap(width => [en, ptBR].flatMap(messages => [5, 50].flatMap(limit =>
   [false, true].map(withSuggestions => ({ width, messages, limit, withSuggestions, fontScale: 1 })))))

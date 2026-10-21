@@ -12,7 +12,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+const astraCopy = vi.hoisted(() => ({ name: 'nav.astra' }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'nav.astra' ? astraCopy.name : key }))
 
 const words = {
   placeholder: 'placeholder sentinel',
@@ -201,6 +202,123 @@ describe('clipboard composer control', () => {
 })
 
 describe('Composer', () => {
+  it.each([en, ptBR].flatMap(messages => (['idle', 'atLimit'] as const).map(initialState => ({ messages, initialState }))))('measures the prompt and reserved actions from $initialState through mounted allowance changes', async ({ messages, initialState }) => {
+    const readText = vi.fn().mockResolvedValue('Pasted message')
+    vi.stubGlobal('navigator', { clipboard: { readText } })
+    const onSend = vi.fn()
+    const onChangeValue = vi.fn()
+    const configuration = props({ suggestions: [], words: messages.shell.composer, onSend, onChangeValue, state: initialState, limitReason: 'reason',
+      onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation,
+      onAttachFile: vi.fn(), attachWords, attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], onAttachRemove: vi.fn() })
+    function Mounted({ configuration }: Readonly<{ configuration: ComposerProps }>) {
+      const [value, setValue] = useState('')
+      return <Composer {...configuration} value={value} onChangeValue={text => { onChangeValue(text); setValue(text) }} />
+    }
+    const view = render(<Mounted configuration={configuration} />)
+    const field = screen.getByRole('textbox') as HTMLTextAreaElement
+    const row = field.parentElement!
+    const trailing = row.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
+    const textControls = trailing.firstElementChild!
+    let width = 380
+    Object.assign(field.style, { fontSize: '16px', fontFamily: 'Geist', fontStyle: 'normal', fontWeight: '400',
+      paddingInlineStart: '8px', paddingInlineEnd: '8px' })
+    Object.assign(row.style, { paddingInlineStart: '4px', paddingInlineEnd: '4px' })
+    trailing.style.columnGap = '4px'
+    Object.assign((textControls as HTMLElement).style, { minWidth: '48px', columnGap: '4px' })
+    const promptWidth = messages === en ? 70.83193969726562 : 92.03193664550781
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      font: '', letterSpacing: '', measureText: () => ({ width: promptWidth }),
+    } as unknown as CanvasRenderingContext2D)
+    const rowWidth = vi.spyOn(row, 'clientWidth', 'get').mockImplementation(() => width)
+    const inputWidth = vi.spyOn(field, 'clientWidth', 'get').mockReturnValue(96)
+    const rectangles = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this === row) return new DOMRect(16, 17, width, 80)
+      if (this.hasAttribute('data-open-conversation')) return new DOMRect(20, 21, 77.984375, 48)
+      if (this === trailing.lastElementChild) return new DOMRect(220, 45, messages === en ? 133.984375 : 171.609375, 48)
+      if (this === textControls) return new DOMRect(120, 45, textControls.children.length === 2 ? 100 : 48, 48)
+      return new DOMRect(0, 0, 48, 48)
+    })
+    try {
+      const measure = () => act(() => document.fonts.dispatchEvent(new Event('loadingdone')))
+      await measure()
+      expect(field.style.minWidth).toBe(`min(100%, ${Math.ceil(promptWidth) + 16}px)`)
+      expect(field.style.flexBasis).toBe(`${Math.ceil(promptWidth) + 16}px`)
+      expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
+      const measuredMinimum = field.style.minWidth
+      for (const state of ['atLimit', 'idle', 'sending', 'idle'] as const) {
+        view.rerender(<Mounted configuration={props({ ...configuration, state, limitReason: 'reason',
+          words: { ...messages.shell.composer, placeholder: state === 'atLimit' ? messages.shell.composer.limit.placeholder : messages.shell.composer.placeholder } })} />)
+        await measure()
+        expect(field.style.minWidth).toBe(measuredMinimum)
+        expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
+      }
+      width = 568
+      await measure()
+      expect(screen.getAllByRole('button', { name: messages.shell.composer.paste })).toHaveLength(1)
+      width = 380
+      await measure()
+      fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+      const menu = await screen.findByRole('menu')
+      expect(within(menu).getAllByRole('menuitem')[0]).toHaveAccessibleName(messages.shell.composer.paste)
+      expect(within(menu).getAllByRole('menuitem', { name: messages.shell.composer.paste })).toHaveLength(1)
+      expect(onChangeValue).not.toHaveBeenCalled()
+      fireEvent.click(within(menu).getAllByRole('menuitem')[0]!)
+      await waitFor(() => expect(field).toHaveValue('Pasted message'))
+      await waitFor(() => expect(field).toHaveFocus())
+      expect([field.selectionStart, field.selectionEnd]).toEqual([14, 14])
+      expect(readText).toHaveBeenCalledOnce()
+      fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+      const clearMenu = await screen.findByRole('menu')
+      expect(within(clearMenu).getAllByRole('menuitem')[0]).toHaveAccessibleName(messages.shell.composer.clear)
+      expect(within(clearMenu).getAllByRole('menuitem', { name: messages.shell.composer.clear })).toHaveLength(1)
+      fireEvent.click(within(clearMenu).getAllByRole('menuitem')[0]!)
+      await waitFor(() => expect(field).toHaveValue(''))
+      await waitFor(() => expect(field).toHaveFocus())
+      expect([field.selectionStart, field.selectionEnd]).toEqual([0, 0])
+      expect(screen.getByText('walk.png')).toBeInTheDocument()
+      expect(onChangeValue.mock.calls).toEqual([['Pasted message'], ['']])
+      expect(onSend).not.toHaveBeenCalled()
+    } finally {
+      rectangles.mockRestore(); inputWidth.mockRestore(); rowWidth.mockRestore(); canvas.mockRestore()
+      view.unmount(); vi.unstubAllGlobals()
+    }
+  })
+
+  it.each([en, ptBR])('attributes each suggestion once with the canonical decorative Astra mark', messages => {
+    astraCopy.name = messages.nav.astra
+    const chips = suggestions(3)
+    const view = render(<Composer {...props({ suggestions: chips })} />)
+    try {
+      const controls = within(screen.getByRole('group', { name: words.suggestionsLabel })).getAllByRole('button')
+      for (const [index, control] of controls.entries()) {
+        expect(control).toHaveAccessibleName(`${chips[index]!.label}, ${messages.nav.astra}`)
+        expect(within(control).getAllByText(messages.nav.astra, { exact: true })).toHaveLength(1)
+        expect(control.querySelectorAll('svg')).toHaveLength(1)
+        expect(control.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark-16')
+        expect(control.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+      }
+      fireEvent.click(controls[1]!)
+      expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
+      expect(chips[0]!.onSelect).not.toHaveBeenCalled()
+      expect(chips[2]!.onSelect).not.toHaveBeenCalled()
+    } finally { astraCopy.name = 'nav.astra'; view.unmount() }
+  })
+
+  it.each(['idle', 'sending', 'offline', 'atLimit', 'recording', 'transcribing'] as const)(
+    'reserves send progress but mounts its animation only while sending: %s', state => {
+      const view = render(<Composer {...props({ state, value: 'Draft', limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
+      const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
+      const mark = send.querySelector('[data-asset="astra-mark"]')
+      expect(mark).toHaveAttribute('aria-hidden', 'true')
+      expect(send.querySelectorAll('svg')).toHaveLength(state === 'sending' ? 2 : 1)
+      expect(send.lastElementChild).toHaveAttribute('aria-hidden', 'true')
+      expect(send.lastElementChild).toHaveStyle({ visibility: state === 'sending' ? 'visible' : 'hidden' })
+      if (state === 'sending') expect(send).toHaveAttribute('aria-busy', 'true')
+      else expect(send).not.toHaveAttribute('aria-busy')
+      view.unmount()
+    },
+  )
+
   it('keeps live suggestions available near the daily limit', () => {
     render(<Composer {...props({ allowanceReason: 'Daily allowance used', renewalHint: 'Returns tonight', usageMessage: '3 of 5' })} />)
     expect(screen.getByRole('group', { name: words.suggestionsLabel })).toBeInTheDocument()
