@@ -71,7 +71,6 @@ function buildMenuItems(
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
-  depth: 0 | 1
   selectMode: boolean
   hasChildren: boolean
   childProgress?: { done: number; total: number }

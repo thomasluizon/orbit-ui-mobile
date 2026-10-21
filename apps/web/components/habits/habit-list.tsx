@@ -31,6 +31,7 @@ import {
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
 import { HabitRow, type HabitRowMetaToken } from './habit-row'
+import { useHabitInlineDepthLimit } from './use-habit-row-large-text'
 import {
   HabitListEmptyState,
   HabitListFrequencyEmptyState,
@@ -600,10 +601,16 @@ export function HabitList({
     }
   }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt, selectedDateStr])
 
+  const listContainerRef = useRef<HTMLDivElement>(null)
+  const { maxInlineDepth, measureRef } = useHabitInlineDepthLimit()
+  const setListContainerRef = useCallback((element: HTMLDivElement | null) => {
+    listContainerRef.current = element
+    return measureRef(element)
+  }, [measureRef])
   const dragItems = useMemo<DragItem[]>(() => {
     const ordered = view === 'all' ? buildHabitDateBuckets(habits, todayStr).flatMap((bucket) => bucket.habits) : habits
-    return buildDragItemsFlat(ordered, collapsedIds, visibility.getVisibleChildren, view)
-  }, [habits, collapsedIds, visibility, view, todayStr])
+    return buildDragItemsFlat(ordered, collapsedIds, visibility.getVisibleChildren, view, maxInlineDepth)
+  }, [habits, collapsedIds, visibility, view, todayStr, maxInlineDepth])
 
   const [isDragging, setIsDragging] = useAccountScopedState(false)
   const autoCollapsedOnDragRef = useRef<string | null>(null)
@@ -1194,8 +1201,6 @@ export function HabitList({
     settleBulkHabitResolutions,
   }))
 
-  const listContainerRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     const container = listContainerRef.current
     if (!container) return
@@ -1262,8 +1267,7 @@ export function HabitList({
     },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : undefined
-    const displayDepth: 0 | 1 = depth === 0 ? 0 : 1
-    const isChild = displayDepth === 1
+    const isChild = depth > 0
     const recentlyCompleted = recentlyCompletedIds.has(habit.id)
     const state = deriveRowState(habit, recentlyCompleted)
     const meta = buildMetaTokens(habit, progress)
@@ -1277,6 +1281,7 @@ export function HabitList({
         habit={habit}
         reorderInstructionsId={options?.reorderInstructionsId}
         structuralColumn
+        drillInsteadOfExpand={Boolean(options?.isDrillCard) || depth >= maxInlineDepth}
         state={state}
         meta={meta}
         canLog={canLog}
@@ -1284,12 +1289,12 @@ export function HabitList({
         completionReason={boundary === 'read-only' ? t('habits.todayBoundary.readOnly') : boundary === 'future' ? t('habits.todayBoundary.future') : undefined}
         streak={habit.currentStreak}
         child={isChild}
-        depth={displayDepth}
+        depth={depth}
         selectMode={isSelectMode}
         selected={selectedHabitIds?.has(habit.id) ?? false}
         hasChildren={hasChildren}
         hasSubHabits={hasSubHabits}
-        expanded={!collapsedIds.has(habit.id)}
+        expanded={!options?.isDrillCard && depth < maxInlineDepth && !collapsedIds.has(habit.id)}
         childPanelId={options?.childPanelId}
         childProgress={progress}
         showLinkedGoalDot={hasLinkedGoal}
@@ -1316,7 +1321,7 @@ export function HabitList({
           onDetail: () => openDetail(habit),
           onDrillInto: () => void drill.drillInto(habit.id),
           onAddSubHabit: () => startAddSubHabit(habit.id),
-          onToggleExpand: () => toggleExpand(habit.id),
+          onToggleExpand: () => options?.isDrillCard || depth >= maxInlineDepth ? void drill.drillInto(habit.id) : toggleExpand(habit.id),
           onToggleSelection: () => onToggleSelection?.(habit.id),
           onEnterSelectMode: () => onEnterSelectMode?.(habit.id),
         }}
@@ -1353,7 +1358,7 @@ export function HabitList({
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
 
   function renderHabitTree(item: DragItem, panel: DragItem[], sortable: boolean): React.ReactNode {
-    const childPanelId = item.hasChildren ? `${dndContextId}-habit-children-${item.id}` : undefined
+    const childPanelId = item.hasChildren && item.depth < maxInlineDepth ? `${dndContextId}-habit-children-${item.id}` : undefined
     const row = renderHabitCard(
       item.habit,
       item.depth,
@@ -1369,7 +1374,7 @@ export function HabitList({
     return (
       <Fragment key={item.id}>
         {sortable ? <SortableHabitItem id={item.id}>{row}</SortableHabitItem> : row}
-        {item.hasChildren ? (
+        {childPanelId ? (
           <div id={childPanelId} className="habit-row-group" hidden={collapsedIds.has(item.id)}>
             {panel.filter((child) => child.parentId === item.id).map((child) => renderHabitTree(child, panel, sortable))}
           </div>
@@ -1464,7 +1469,7 @@ export function HabitList({
 
   return (
     <div
-      ref={listContainerRef}
+      ref={setListContainerRef}
       data-habit-list=""
       tabIndex={-1}
       className="min-w-0 px-screen-gutter"
