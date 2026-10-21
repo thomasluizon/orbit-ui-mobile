@@ -98,7 +98,7 @@ for (const width of [320, 412, 1352]) {
             for (const scale of [1, 2]) {
               await setHabitTextScale(page, scale, [habit.title, branch.title])
               await expectSupportingHeadings(page, scale)
-              const rows = await assertHabitRows(page.locator('[data-testid="habit-row"]:visible'), width, [0, 1, 1, 1], scale)
+              const rows = await assertHabitRows(page.locator('[data-testid="habit-row"]:visible'), width, [0, 1, 1, 1], scale, selecting)
               for (const row of rows.slice(1)) {
                 expect(row.bounds.left).toBe(rows[0]!.bounds.left)
                 expect(row.well.left - rows[0]!.well.left).toBe(16)

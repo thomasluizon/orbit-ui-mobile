@@ -155,3 +155,12 @@ Visible native text controls use `TypedTextInput`, which applies `fg1` after cal
 ## Verification boundary
 
 Native composer styles and mounted Yoga geometry cover both directions and compact widths. Web Vitest Chromium measures placeholder and typed glyphs, padding focus and ten-word wrapping. The layout guard measures all visible fields on its swept pages against this inventory, locating each by its accessible name or stable attribute. Habit time coverage enters a start time before measuring the enabled end-time field, including its typed foreground. A temporary styled mirror exposes the input text to a first-character Range because native input text is not a selectable DOM text node. Actual device glyph rasterization, screen-reader interaction and layout workflow execution remain outside worker verification.
+
+## Habit type and date groups
+
+Both habit form owners place type radios before the title, then the date phrase Input and DateField
+before the details disclosure. Input retains its standard inline padding and persistent When label;
+DateField retains its own inset and separate calendar target. Proposed and validation states use
+the same owners. Native date text may wrap above the large-text threshold. The type group uses
+RadioRow and its existing first-line control alignment. `habit-form-surfaces.md` names the mode,
+request and retained-capability boundaries.

@@ -2,16 +2,15 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
-import { isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
+import { getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
-import { HabitRowContent, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
+import { HabitRowContent, HabitRowTypeLabel, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import { useHabitRowLargeText } from './use-habit-row-large-text'
@@ -159,7 +158,7 @@ export function HabitRow({
   const t = useTranslations()
   const largeText = useHabitRowLargeText()
   const descriptionId = useDescriptionId(habit.description)
-  const supportingMeta = largeText && !!childProgress
+  const supportingMeta = largeText
   const {
     onDetail,
     onToggleSelection,
@@ -210,6 +209,7 @@ export function HabitRow({
 
       <HabitRowContent expanded={selectMode && selected}
         descriptionId={descriptionId}
+        typeOnSupportingLine={supportingMeta}
         largeText={largeText}
         habit={habit}
         titleSize={titleSize}
@@ -221,7 +221,7 @@ export function HabitRow({
   const controls = (
     <>
       {structuralColumn && selectMode ? (
-        <button type="button" data-habit-row-control="selection" aria-label={habit.title}
+        <button type="button" data-habit-row-control="selection" aria-label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
           aria-pressed={selected} onClick={() => onToggleSelection?.()}
           className="flex min-h-[48px] w-[48px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96]">
           <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
@@ -262,18 +262,18 @@ export function HabitRow({
   const rowContents = (
     <>
       <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
-        descriptionId={descriptionId}
-        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={habit.title}
+        descriptionId={descriptionId} typeLabel={t(getHabitRowTypeLabelKey(habit))}
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
-      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : controls}
+      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : <div className="flex shrink-0 items-center gap-[4px]">{controls}</div>}
     </>
   )
 
   return (
-    <HabitRowLayout descriptionPresent={Boolean(descriptionId)} habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
-      largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}>
+    <HabitRowLayout habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
+      isChild={isChild} supportingMeta={supportingMeta}>
       {rowContents}
     </HabitRowLayout>
   )
@@ -284,11 +284,12 @@ function useDescriptionId(description: NormalizedHabit['description']) {
   return stripInlineMarkdown(description ?? '') ? id : undefined
 }
 
-function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children, independentText, label, descriptionId }: Readonly<{
+function HabitRowPrimaryButton({ onClick, supportingMeta, typeLabel, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children, independentText, label, descriptionId }: Readonly<{
   onClick: () => void
   independentText: boolean
   label: string
   descriptionId?: string
+  typeLabel: string
   supportingMeta: boolean
   largeText: boolean
   isChild: boolean
@@ -319,40 +320,45 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
             {children}
           </div>
         ) : children}
-        {supportingMeta ? (
-          <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingBlockEnd: SPACING.s8 }}>
-            <span className="w-[48px] shrink-0" aria-hidden="true" />
-            <div className="min-w-0 flex-1"><MetaStrip tokens={meta.filter((token) => typeof token === 'string' || token.kind !== 'future')} expanded /></div>
-          </div>
-        ) : null}
+        {supportingMeta ? <HabitRowSupportingFooter typeLabel={typeLabel} meta={meta} descriptionPresent={Boolean(descriptionId)} /> : null}
       </button>
   )
   return independentText ? <PersonalTextAction label={accessibleLabel} contentId={contentId} className={supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={paddingStyle} control={control} /> : control
 }
 
-function HabitRowLayout({ descriptionPresent, habitTitle, depth, state, selected, largeText, isChild, supportingMeta, children }: Readonly<{
+function HabitRowSupportingFooter({ typeLabel, meta, descriptionPresent }: Readonly<{
+  typeLabel: string
+  meta: HabitRowMetaToken[]
   descriptionPresent: boolean
+}>) {
+  const supportingTokens = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
+  return (
+    <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingInlineEnd: SPACING.s8, paddingBlockStart: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBlockEnd: SPACING.s8 }}>
+      <span className="w-[48px] shrink-0" aria-hidden="true" />
+      <div className="min-w-0 flex-1 flex flex-col" style={{ gap: 4 }}>
+        <HabitRowTypeLabel label={typeLabel} />
+        {supportingTokens.length > 0 ? <MetaStrip tokens={supportingTokens} expanded /> : null}
+      </div>
+    </div>
+  )
+}
+
+function HabitRowLayout({ habitTitle, depth, state, selected, isChild, supportingMeta, children }: Readonly<{
   habitTitle: string
   depth: 0 | 1
   state: HabitStatus
   selected: boolean
-  largeText: boolean
   isChild: boolean
   supportingMeta: boolean
   children: ReactNode
 }>) {
   const minHeight = isChild ? 52 : 68
-  const flexLayoutClass = largeText ? 'flex-col' : 'items-center gap-[4px]'
-  const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : flexLayoutClass
+  const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : 'items-center gap-0'
   return (
     <div data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
       className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
       style={{ minHeight }}>
-      {largeText && !supportingMeta ? (
-        <div className="flex w-full items-start gap-[4px]" style={{ minHeight, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8, paddingBlockEnd: descriptionPresent ? SPACING.s4 : undefined }}>
-          {children}
-        </div>
-      ) : children}
+      {children}
     </div>
   )
 }
@@ -376,5 +382,6 @@ function habitRowPadding(isChild: boolean, largeText: boolean): CSSProperties {
   return {
     paddingBlock: largeText ? SPACING.s0 : defaultPaddingBlock,
     paddingInlineStart: isChild ? SPACING.s24 : SPACING.s8,
+    paddingInlineEnd: largeText ? SPACING.s0 : SPACING.s4,
   }
 }

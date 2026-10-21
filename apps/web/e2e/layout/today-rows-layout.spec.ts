@@ -1,5 +1,5 @@
 import { openTodayListOptions } from './hydration-guard'
-import { setHabitTextScale } from './subhabit-indent-geometry'
+import { setHabitTextScale, settleHabitRows } from './subhabit-indent-geometry'
 import { writeFile } from 'node:fs/promises'
 import { expect, type Page, type Locator } from '@playwright/test'
 import { test } from './layout-test'
@@ -48,20 +48,63 @@ for (const mode of ['dark', 'light'] as const) {
       await page.evaluate(() => document.fonts.ready)
       const geometry = await panels.evaluateAll((elements) => elements.map((panel) => {
         const row = panel.querySelector('[data-testid="habit-row"]')!
-        const well = row.querySelector('[data-habit-row-body] > span')!
+        const body = row.querySelector('[data-habit-row-body]')!
+        const well = body.querySelector(':scope > span > span')!
+        const title = body.querySelector('[data-personal-text]')!
+        const type = body.querySelector('[data-habit-row-type]')!
+        const content = type.parentElement!
+        const text = [title, type, ...body.querySelectorAll('[data-habit-row-meta]')]
+        const check = row.querySelector('[data-habit-check]')!
+        const target = check.closest('[data-habit-row-control]')!
         const bounds = panel.getBoundingClientRect()
         const wellBounds = well.getBoundingClientRect()
+        const rowBounds = row.getBoundingClientRect()
+        const center = (element: Element) => {
+          const box = element.getBoundingClientRect()
+          return { x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height }
+        }
         const track = row.querySelector('[data-habit-row-control="check"][aria-label*="/"] [data-habit-check]')
         return {
           height: bounds.height, above: wellBounds.top - bounds.top, below: bounds.bottom - wellBounds.bottom,
+          row: center(row), well: center(well), check: center(check), target: center(target),
+          inset: wellBounds.left - rowBounds.left,
+          paddingTop: Number.parseFloat(getComputedStyle(body).paddingTop),
+          paddingBottom: Number.parseFloat(getComputedStyle(body).paddingBottom),
+          contentHeight: content.getBoundingClientRect().height,
+          gap: Number.parseFloat(getComputedStyle(content).rowGap),
+          type: { label: type.textContent, height: type.getBoundingClientRect().height, lineHeight: Number.parseFloat(getComputedStyle(type).lineHeight) },
+          text: text.map((element) => {
+            const box = element.getBoundingClientRect()
+            return { top: box.top, bottom: box.bottom, height: box.height }
+          }),
           track: track ? getComputedStyle(track).boxShadow.match(/rgba?\([^)]+\)/)?.[0] ?? null : null,
           card: getComputedStyle(row).backgroundColor,
           canvas: getComputedStyle(document.body).backgroundColor,
         }
       }))
       for (const panel of geometry) {
-        expect(panel.height).toBe(68)
+        expect(panel.height).toBeGreaterThanOrEqual(68)
+        expect(panel.row.height).toBeCloseTo(panel.height, 1)
+        expect(panel.inset).toBe(8)
+        expect(panel.paddingTop).toBe(8)
+        expect(panel.paddingBottom).toBe(8)
+        expect(panel.type.label).toBe(ptBr.habits.form.typeHabit)
+        expect(panel.type.height).toBeCloseTo(panel.type.lineHeight, 1)
+        expect(panel.gap).toBe(4)
+        for (let index = 1; index < panel.text.length; index++) {
+          expect(panel.text[index]!.top - panel.text[index - 1]!.bottom).toBeCloseTo(4, 1)
+        }
+        const textHeight = panel.text.reduce((height, text) => height + text.height, 0) + 4 * (panel.text.length - 1)
+        expect(panel.contentHeight).toBeCloseTo(textHeight, 1)
+        expect(panel.height).toBeCloseTo(Math.max(68, Math.max(panel.well.height, textHeight) + 16), 1)
         expect(panel.above).toBeCloseTo(panel.below, 1)
+        expect(panel.target.width).toBe(48)
+        expect(panel.target.height).toBeGreaterThanOrEqual(48)
+        expect(panel.check.width).toBe(28)
+        expect(panel.check.height).toBe(28)
+        expect(Math.abs(panel.target.y - panel.row.y)).toBeLessThanOrEqual(1)
+        expect(Math.abs(panel.check.x - panel.target.x)).toBeLessThanOrEqual(1)
+        expect(Math.abs(panel.check.y - panel.target.y)).toBeLessThanOrEqual(1)
       }
       const parentTrack = geometry.find((panel) => panel.track !== null)!
       expect(parentTrack.track).toBe(mode === 'dark' ? 'rgb(139, 139, 142)' : 'rgb(126, 126, 130)')
@@ -231,6 +274,7 @@ async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: ty
       await leaf.locator('[data-habit-row-body]').click()
       await expect(leaf.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
     }
+    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting)
     for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page)
   }
   await page.getByRole('button', { name: copy.common.cancel, exact: true }).click()
@@ -248,13 +292,32 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
     const check = element.querySelector('[data-habit-check]')!
     let target = check.parentElement!
     while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
-    return { row: bounds(element), depth: Number(element.getAttribute('data-depth')), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
+    const geometry = { row: bounds(element), depth: Number(element.getAttribute('data-depth')), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
       supporting: Boolean(element.querySelector('[data-habit-row-heading]')),
       parent: Boolean(element.querySelector('[data-habit-row-control="disclosure"]')),
       preview: preview && { ...bounds(preview), size: getComputedStyle(preview).fontSize, lineHeight: Number.parseFloat(getComputedStyle(preview).lineHeight) },
       textEdge, well: bounds(well), meta: meta && bounds(meta), check: bounds(check), target: bounds(target),
       glyph: check.querySelector('svg') ? bounds(check.querySelector('svg')!) : null,
       controls: Array.from(element.querySelectorAll('[data-habit-row-control]')).map(bounds) }
+    const controlChains = Array.from(element.querySelectorAll('[data-habit-row-control]')).map((control) => {
+      const chain = []
+      for (let node: Element | null = control; node && node !== element; node = node.parentElement) {
+        const style = getComputedStyle(node)
+        chain.push({
+          tag: node.tagName, className: node.className, inlineStyle: node.getAttribute('style'), rect: bounds(node),
+          display: style.display, position: style.position, top: style.top, transform: style.transform,
+          paddingBlockStart: style.paddingBlockStart, paddingTop: style.paddingTop, margin: style.margin,
+          alignItems: style.alignItems, alignSelf: style.alignSelf, gridRow: style.gridRow, gridColumn: style.gridColumn,
+          transitionProperty: style.transitionProperty, transitionDuration: style.transitionDuration,
+          animations: node.getAnimations().map((animation) => ({
+            property: animation instanceof CSSTransition ? animation.transitionProperty : null,
+            playState: animation.playState, currentTime: String(animation.currentTime),
+          })),
+        })
+      }
+      return { control: control.getAttribute('data-habit-row-control'), chain }
+    })
+    return { ...geometry, controlChains }
   })
   try {
     assertPreviewText()
@@ -287,7 +350,7 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
   function assertPreviewControls() {
     expect(geometry.titleSize).toBe(`${(geometry.depth ? 14 : 17) * scale}px`)
     expect(geometry.well.left - geometry.row.left).toBe(geometry.depth ? 24 : 8)
-    expect(geometry.supporting).toBe(scale === 2 && geometry.parent)
+    expect(geometry.supporting).toBe(scale === 2)
     expect(geometry.target.width).toBe(48)
     expect(geometry.target.height).toBeGreaterThanOrEqual(48)
     expect(geometry.check.width).toBe(28)
@@ -332,13 +395,16 @@ function observeHabitPreviewFailure(element: Element) {
       inlinePadding: { block: inline.paddingBlock, start: inline.paddingBlockStart, end: inline.paddingBlockEnd },
       rect: { left: box.left, right: box.right, top: box.top, bottom: box.bottom,
         x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height },
-      display: style.display, alignItems: style.alignItems, minHeight: style.minHeight,
+      display: style.display, position: style.position, top: style.top, margin: style.margin,
+      alignItems: style.alignItems, alignSelf: style.alignSelf, minHeight: style.minHeight,
+      gridRow: style.gridRow, gridColumn: style.gridColumn,
       paddingBlockStart: style.paddingBlockStart, paddingBlockEnd: style.paddingBlockEnd,
       lineHeight: style.lineHeight, fontSize: style.fontSize,
       transitionProperty: style.transitionProperty, transitionDuration: style.transitionDuration, transform: style.transform,
       transitions: node.getAnimations()
         .filter((animation): animation is CSSTransition => animation instanceof CSSTransition)
         .map((animation) => ({ property: animation.transitionProperty,
+          playState: animation.playState, currentTime: String(animation.currentTime),
           duration: animation.effect!.getTiming().duration, easing: animation.effect!.getTiming().easing })),
     }
   }
@@ -346,6 +412,11 @@ function observeHabitPreviewFailure(element: Element) {
   for (let node = element.querySelector('[data-personal-text]'); node && node !== element; node = node.parentElement) {
     titleChain.push(readStyle(node))
   }
+  const controlChains = Array.from(element.querySelectorAll('[data-habit-row-control]')).map((control) => {
+    const chain = []
+    for (let node: Element | null = control; node && node !== element; node = node.parentElement) chain.push(readStyle(node))
+    return { control: control.getAttribute('data-habit-row-control'), chain }
+  })
   const title = element.getAttribute('data-habit-title')
   return {
     habitTitle: ['Parent', 'Child parent', 'Grandchild', 'Child 1', 'Timed', 'Untimed'].includes(title ?? '') ? title : 'unexpected-fixture-row',
@@ -355,7 +426,7 @@ function observeHabitPreviewFailure(element: Element) {
     rootClass: document.documentElement.className,
     supporting: Boolean(element.querySelector('[data-habit-row-heading]')),
     selectedMode: Boolean(element.querySelector('[data-habit-row-control="selection"]')),
-    row: readStyle(element), body: readStyle(element.querySelector('[data-habit-row-body]')!), titleChain,
+    row: readStyle(element), body: readStyle(element.querySelector('[data-habit-row-body]')!), titleChain, controlChains,
   }
 }
 

@@ -2,7 +2,7 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { expectPressFill } from '../../support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
 import React from 'react'
-import { StyleSheet, Text } from 'react-native'
+import { Pressable, StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import {
@@ -29,6 +29,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { measureProfileRow } from '../../support/profile-row-geometry'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DescriptionViewer } from '@/components/habits/description-viewer'
+import type { HabitFormHelpers, HabitFormOptions } from '@/hooks/use-habit-form'
 
 vi.unmock('@/components/ui/sheet')
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true) }))
@@ -41,20 +42,15 @@ vi.mock('react-native-safe-area-context', () => ({
 
 const habitMocks = vi.hoisted(() => ({ validateAll: vi.fn(), createHabit: vi.fn() }))
 
-vi.mock('react-hook-form', () => ({
-  useWatch: ({ name }: { name: string }) => name === 'title' ? 'Test Habit' : name === 'scheduledReminders' ? [] : undefined,
-}))
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: habitMocks.createHabit, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
-vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
-  form: { control: {}, reset: vi.fn(), setValue: vi.fn(), getValues: vi.fn(), trigger: vi.fn().mockResolvedValue(true), formState: { isDirty: false } },
-  validateAll: habitMocks.validateAll,
-  clearBackendErrors: vi.fn(),
-  setGeneral: vi.fn(),
-}) }))
+vi.mock('@/hooks/use-habit-form', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-habit-form')>()
+  return { ...actual, useHabitForm: (options: HabitFormOptions) => ({ ...actual.useHabitForm(options), validateAll: habitMocks.validateAll }) }
+})
 vi.mock('@/hooks/use-tag-selection', () => ({ useTagSelection: () => ({ selectedTagIds: [], resetTags: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'sub_habits': { enabled: true, planRequirement: 'Pro' } } } }) }))
@@ -62,7 +58,10 @@ vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => true, useProfile:
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn(), showDiscardDialog: false }) }))
 vi.mock('@/components/ui/discard-changes-sheet', () => ({ DiscardChangesSheet: () => null }))
-vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: () => <Text>Habit fields</Text> }))
+vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: ({ formHelpers }: { formHelpers: HabitFormHelpers }) => <>
+  <Pressable accessibilityRole="radio" accessibilityLabel="habits.form.typeTask" accessibilityState={{ checked: formHelpers.form.watch('itemType') === 'task' }} onPress={() => formHelpers.chooseItemType('task')}><Text>habits.form.typeTask</Text></Pressable>
+  <Text>Habit fields</Text>
+</> }))
 vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubHabitEditor: () => null }))
 
 const { present, dismiss, didDismiss } = vi.hoisted(() => {
@@ -362,10 +361,11 @@ describe('Sheet (mobile)', () => {
     let tree: ReturnType<typeof TestRenderer.create>
 
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<CreateHabitModal open onClose={onClose} />)
+      tree = TestRenderer.create(<CreateHabitModal open initialTitle="Test Habit" onClose={onClose} />)
       await Promise.resolve()
     })
 
+    await TestRenderer.act(() => tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'habits.form.typeTask')!.props.onPress())
     const createButton = tree!.root.findAllByType(PillButton).at(-1)
     if (!createButton) throw new Error('Expected the create action')
     await TestRenderer.act(async () => {

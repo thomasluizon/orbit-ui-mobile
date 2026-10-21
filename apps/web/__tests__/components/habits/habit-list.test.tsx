@@ -1006,7 +1006,7 @@ describe('HabitList', () => {
     expect(bodies[0]).toHaveFocus()
   })
 
-  it('centres Hoje rows in 68px bodies with a contrasting parent track in both modes', async () => {
+  it('centres Hoje rows around their full content with a contrasting parent track in both modes', async () => {
     rowImplementation.actual = true
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY] })
@@ -1027,12 +1027,29 @@ describe('HabitList', () => {
         await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
         const panels = await page.locator('.habit-panel').evaluateAll((elements) => elements.map((panel) => {
           const row = panel.querySelector('[data-testid="habit-row"]')!
+          const body = row.querySelector('[data-habit-row-body]')!
           const well = row.querySelector('[data-habit-row-body] > span')!
           const bounds = panel.getBoundingClientRect()
           const wellBounds = well.getBoundingClientRect()
           const track = row.querySelector('[data-habit-check]')
+          const title = row.querySelector('[data-personal-text]')!
+          const type = row.querySelector('[data-habit-row-type]')!
+          const meta = row.querySelector('[data-habit-row-meta]')
+          const stack = [title, type, ...(meta ? [meta] : [])].map((node) => {
+            const bounds = node.getBoundingClientRect()
+            return { top: bounds.top, bottom: bounds.bottom, height: bounds.height, left: bounds.left }
+          })
+          const padding = getComputedStyle(body)
+          const target = row.querySelector('[data-habit-row-control="check"]')!.getBoundingClientRect()
+          const rowBounds = row.getBoundingClientRect()
           return {
             height: bounds.height,
+            minimumHeight: Number.parseFloat(getComputedStyle(row).minHeight),
+            padding: Number.parseFloat(padding.paddingTop) + Number.parseFloat(padding.paddingBottom),
+            contentHeight: type.parentElement!.getBoundingClientRect().height,
+            stack, type: type.textContent,
+            target: { width: target.width, height: target.height, centre: target.top + target.height / 2 },
+            centre: rowBounds.top + rowBounds.height / 2,
             top: wellBounds.top - bounds.top,
             bottom: bounds.bottom - wellBounds.bottom,
             track: track ? getComputedStyle(track).boxShadow.match(/rgba?\([^)]+\)/u)?.[0] : null,
@@ -1043,7 +1060,14 @@ describe('HabitList', () => {
         expect(panels).toHaveLength(2)
         expect(panels[0]?.track).toBe(mode === 'dark' ? 'rgb(139, 139, 142)' : 'rgb(126, 126, 130)')
         for (const panel of panels) {
-          expect(panel.height).toBe(68)
+          panel.stack.forEach((line) => expect(line.left).toBeCloseTo(panel.stack[0]!.left, 1))
+          panel.stack.slice(1).forEach((line, index) => expect(line.top - panel.stack[index]!.bottom).toBeCloseTo(4, 1))
+          expect(panel.type).toBe('habits.form.typeHabit')
+          expect(panel.contentHeight).toBeCloseTo(panel.stack.reduce((height, line) => height + line.height, 0) + 4 * (panel.stack.length - 1), 1)
+          expect(panel.height).toBeCloseTo(Math.max(panel.minimumHeight, panel.contentHeight + panel.padding, panel.target.height + panel.padding), 1)
+          expect(panel.target.width).toBe(48)
+          expect(panel.target.height).toBeGreaterThanOrEqual(48)
+          expect(Math.abs(panel.target.centre - panel.centre)).toBeLessThanOrEqual(1)
           expect(panel.top).toBeCloseTo(panel.bottom, 1)
           if (panel.track) expect(contrastOnSurface(panel.track, [panel.canvas, panel.card])).toBeGreaterThanOrEqual(3)
         }
@@ -1127,9 +1151,9 @@ describe('HabitList', () => {
     }
     expect(progress).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
     const body = row.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
-    const bodyName = [label, ['habits.rowProgress({"done":1,"total":2})', ...words].join('·')].join('')
+    const bodyName = `${label}, habits.form.typeHabit ${['habits.rowProgress({"done":1,"total":2})', ...words].join('·')}`
     expect(within(row).getByRole('button', {
-      name: (name) => name.replaceAll(' ', '') === bodyName.replaceAll(' ', ''),
+      name: bodyName,
     })).toBe(body)
     expect(within(row).getByRole('button', {
       name: `habits.statusDot.${status}, habits.${action}: ${label}, 1/2`,
@@ -1200,7 +1224,7 @@ describe('HabitList', () => {
     expect(within(document.getElementById(panelId)!).getByText(personalText(child.title))).toBeInTheDocument()
     expect(toggleSelectionSpy).not.toHaveBeenCalled()
     expect(selected).toEqual(new Set([parent.id]))
-    if (selectMode) expect(within(parentRow).getByRole('button', { name: parent.title, pressed: true })).toBeInTheDocument()
+    if (selectMode) expect(within(parentRow).getByRole('button', { name: `${parent.title}, habits.form.typeHabit`, pressed: true })).toBeInTheDocument()
   })
 
   it('gives nested parents and repeated lists distinct child panel relationships', () => {

@@ -2,7 +2,6 @@ import React from 'react'
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
-import { formatLocaleDayMonth } from '@orbit/shared/utils'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -26,6 +25,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => useMutation({ mutationFn: mutation }),
   useHabitDetail: () => ({ data: null, isPending: false, error: null }),
 }))
+vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
@@ -56,7 +56,7 @@ vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ Sli
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
 vi.mock('@/components/ui/date-field', () => ({ DateField: () => null }))
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: { date?: string }) => key === 'habits.form.startDateValue' ? `Starts on ${values?.date}` : key, useLocale: () => 'en' }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 
@@ -70,6 +70,7 @@ async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
   </QueryClientProvider>
   let view!: ReturnType<typeof render>
   await act(async () => { view = render(element(true)) })
+  if (mode === 'create') await act(async () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' })))
   return { onClose, setOpen: async (open: boolean) => { await act(async () => view.rerender(element(open))) }, title: screen.getByRole('textbox', { name: 'habits.form.describe' }), submit: screen.getByRole('button', { name: mode === 'create' ? 'habits.createHabit' : 'common.save' }) }
 }
 
@@ -143,13 +144,13 @@ describe('habit edit start date', () => {
   beforeEach(() => { vi.resetAllMocks() })
 
   it.each([
-    ['2026-01-01', 'Starts on January 1'],
-    ['2026-08-20', 'Starts on August 20'],
-    ['2026-08-28', 'Starts on August 28'],
-    [undefined, `Starts on ${formatLocaleDayMonth('2026-08-29T00:30:00Z', 'en')}`],
+    ['2026-01-01', '2026-01-01'],
+    ['2026-08-20', '2026-08-20'],
+    ['2026-08-28', '2026-08-28'],
+    [undefined, '2026-08-29'],
   ])('shows the API start date %s with legacy timestamp compatibility', async (startDate, expected) => {
     const selectedHabit = { ...habit, startDate, createdAtUtc: '2026-08-29T00:30:00Z' }
     await renderSheet('edit', selectedHabit)
-    expect(screen.getByText(expected)).toBeInTheDocument()
+    expect(currentForm.form.getValues('dueDate')).toBe(expected)
   })
 })

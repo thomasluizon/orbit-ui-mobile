@@ -32,7 +32,10 @@ describe('stored native habit row descriptions', () => {
     expect(line.props.accessibilityRole).toBeUndefined()
     expect(line.props.onPress).toBeUndefined()
     expect(texts.indexOf(line)).toBeGreaterThan(texts.findIndex((node: { props: { children: unknown } }) => node.props.children === habit.title))
-    expect(texts.indexOf(line)).toBeLessThan(texts.findIndex((node: { props: { children: unknown[] } }) => Array.isArray(node.props.children)))
+    const type = texts.find((node: { props: { testID?: string } }) => node.props.testID === 'habit-row-type')!
+    expect(type.props.children).toBe('habits.form.typeHabit')
+    expect(texts.indexOf(type)).toBeGreaterThan(texts.indexOf(line))
+    expect(texts.indexOf(type)).toBeLessThan(texts.findIndex((node: { props: { testID?: string } }) => node.props.testID === 'habit-row-meta'))
     expect(StyleSheet.flatten(line.props.style)).toMatchObject({ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21.7 })
     expect(habit.description).toBe(description)
     TestRenderer.act(() => tree.unmount())
@@ -59,6 +62,26 @@ describe('stored native habit row descriptions', () => {
     TestRenderer.act(() => body.props.onPress())
     expect(onDetail).toHaveBeenCalledOnce()
     expect(onLog).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([
+    [null, false, false, 'habits.rowTypeTask'],
+    ['Day', false, false, 'habits.form.typeHabit'],
+    ['Week', true, false, 'habits.form.typeHabit'],
+    [null, false, true, 'habits.form.typeHabit'],
+  ] as const)('keeps description and complete type for cadence %s, flexible=%s, general=%s', (frequencyUnit, isFlexible, isGeneral, expectedType) => {
+    const habit = createMockHabit({ title: 'Read ten minutes', description: 'Read two pages.', frequencyUnit, isFlexible, isGeneral, dueTime: '08:00' })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} />) })
+    const texts = tree!.root.findAllByType('Text')
+    const type = texts.find((node: { props: { testID?: string } }) => node.props.testID === 'habit-row-type')!
+    expect(type.props.children).toBe(expectedType)
+    expect(type.props.numberOfLines).toBeUndefined()
+    expect(texts.indexOf(type)).toBeGreaterThan(texts.findIndex((node: { props: { testID?: string } }) => node.props.testID === 'habit-row-description'))
+    const body = tree!.root.findAllByType('Pressable').find((node: { props: { delayLongPress?: number } }) => node.props.delayLongPress === 500)!
+    expect(body.props.accessibilityLabel).toContain(`${habit.title}, ${expectedType}`)
+    expect(body.props.accessibilityHint).toContain(habit.description)
     TestRenderer.act(() => tree.unmount())
   })
 })

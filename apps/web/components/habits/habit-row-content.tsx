@@ -1,7 +1,8 @@
+import { useTranslations } from 'next-intl'
+import { getHabitRowTypeLabelKey, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { stripInlineMarkdown } from '@orbit/shared/utils'
 
 /** Inline meta token rendered between dots in the row's meta strip.
  *  String tokens follow the row body's interaction color; tagged tokens get status color. */
@@ -18,6 +19,7 @@ interface HabitRowContentProps {
   expanded?: boolean
   descriptionId?: string
   largeText?: boolean
+  typeOnSupportingLine?: boolean
   meta: HabitRowMetaToken[]
 }
 
@@ -28,8 +30,10 @@ export function HabitRowContent({
   expanded = false,
   descriptionId,
   largeText = false,
+  typeOnSupportingLine = false,
   meta,
 }: Readonly<HabitRowContentProps>) {
+  const t = useTranslations()
   const description = stripInlineMarkdown(habit.description ?? '')
   const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
   const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
@@ -41,10 +45,15 @@ export function HabitRowContent({
         style={{ fontFamily: 'var(--font-sans)', fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
         {description}
       </span> : null}
+      {typeOnSupportingLine ? null : <HabitRowTypeLabel label={t(getHabitRowTypeLabelKey(habit))} />}
       {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
       {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>
   )
+}
+
+export function HabitRowTypeLabel({ label }: Readonly<{ label: string }>) {
+  return <span data-habit-row-type="" className="habit-row-meta min-w-0 self-start font-mono text-xs leading-[1.4]">{label}</span>
 }
 
 const TITLE_TEXT_STYLE_BASE = {

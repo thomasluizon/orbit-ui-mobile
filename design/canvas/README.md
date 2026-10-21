@@ -3,6 +3,32 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Habit form type and date amendment
+
+Create and edit place the two vertical type radios before the focal title. The editable account-date
+group precedes More details. Task uses its due date; a dated habit uses its persisted start anchor.
+General remains a distinct undated habit with a reachable schedule group. Local date parsing is
+free; explicit Astra dates remain Proposed until accepted or manually selected. Validation preserves
+the draft and focuses the required choice or unresolved date. Offline draft editing and manual
+picking remain available; each platform retains its existing save connectivity boundary.
+The executable Create and Hoje forms put manual cadence inside that disclosure and retain a manual
+emoji control for Task and General. Their date candidates use fg-3 inside the neutral dashed
+perimeter, with a trailing label-hugging Use date action; acceptance or manual selection restores
+normal ink. Detail's read-only DateRow states a date without claiming form dates are immutable.
+
+Habit Detail retains the full quiet type below the full-width title, matching the form choices.
+`habit-form-surfaces.md` and `habit-row-surfaces.md` name the paired owners, retained controls and
+verification boundaries.
+
+### Habit row type vocabulary amendment
+
+Shared rows use the complete nouns `Tarefa` / `Task` or `Hábito` / `Habit` as quiet type metadata
+beneath the full-width title. This supersedes the longer task caption in exported rows, including
+detail children. Form choices and detail headers retain `Tarefa única` / `One-time task` and
+`Hábito` / `Habit`. Row primary and selection accessible names match the short visible caption
+exactly once. Typography, insets, widths, status, counts, checks and menus retain their geometry;
+default controls stay row-centred and every row keeps its supporting footer above 130% text.
+
 ## The authority
 
 **Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records

@@ -71,6 +71,9 @@ for (const locale of ['pt-BR', 'en'] as const) {
                 await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
                 await expect(page).toHaveURL(/\/habits\/new\?/)
               }
+              const type = page.getByRole('radio', { name: messages.habits.form.typeHabit, exact: true })
+              await type.click()
+              await expect(type).toBeChecked()
               const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
               await field.fill(title)
               await page.getByRole('button', { name: messages.habits.createHabit, exact: true }).click()

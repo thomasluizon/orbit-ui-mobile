@@ -176,6 +176,9 @@ for (const width of [412, 1280] as const) {
       const screen = page.locator('[data-habit-create-screen]')
       await expect(screen).toBeVisible()
       const recurringTitleThatShowsEndDate = 'Beber água todo dia'
+      const habitType = screen.getByRole('radio', { name: ptBr.habits.form.typeHabit, exact: true })
+      await habitType.click()
+      await expect(habitType).toBeChecked()
       await screen.getByRole('textbox', { name: ptBr.habits.form.describe, exact: true }).fill(recurringTitleThatShowsEndDate)
       await screen.getByRole('button', { name: ptBr.habits.form.moreDetails }).click()
       const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
@@ -199,7 +202,7 @@ for (const width of [412, 1280] as const) {
       await disclosure.getByRole('spinbutton', { name: ptBr.habits.form.reminderCustomLabel }).fill('45')
       const customReminder = disclosure.getByRole('spinbutton', { name: ptBr.habits.form.reminderCustomLabel }).locator('..').locator('..')
       await expectFullTouchTarget(customReminder.getByRole('button', { name: ptBr.common.add, exact: true }), 'pill')
-      await disclosure.getByRole('button', { name: ptBr.common.selectDate, exact: true }).click()
+      await disclosure.getByRole('button', { name: `${ptBr.habits.form.endDate}, ${ptBr.common.selectDate}`, exact: true }).click()
       await expectFullTouchTarget(page.getByRole('dialog').last().getByRole('button', { name: ptBr.common.selectYear }), 8)
     })
 
