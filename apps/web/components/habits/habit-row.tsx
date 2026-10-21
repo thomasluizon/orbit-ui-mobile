@@ -74,7 +74,6 @@ interface HabitRowProps {
   childProgress?: { done: number; total: number }
   /** Whether to render the small linked-goal indicator (5px primary dot before the status). */
   showLinkedGoalDot?: boolean
-  hasProAccess?: boolean
   reorderInstructionsId?: string
   actions?: HabitRowActions
 }
@@ -151,7 +150,6 @@ export function HabitRow({
   expanded = false,
   childPanelId,
   childProgress,
-  hasProAccess = true,
   reorderInstructionsId,
   actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
@@ -251,7 +249,6 @@ export function HabitRow({
         canSelect={canSelect}
         canDrillInto={canDrillInto}
         actions={actions}
-        hasProAccess={hasProAccess}
         onToggleStatus={handleToggleStatus}
         completionReadOnly={completionReadOnly}
         completionReason={completionReason}

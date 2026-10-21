@@ -21,14 +21,20 @@ type UpgradeTranslations = ReturnType<typeof useTranslations>
 
 function planPrice(billing: BillingDetails, t: UpgradeTranslations) {
   if (!billing.currency) return null
+  if (billing.interval !== 'monthly' && billing.interval !== 'yearly') return null
   const price = formatPrice(billing.amountPerPeriod, billing.currency)
+  if (billing.billedAmountPerPeriod != null && billing.billedAmountPerPeriod !== billing.amountPerPeriod) {
+    const charge = formatPrice(billing.billedAmountPerPeriod, billing.currency)
+    return <>
+      <span className="text-[var(--fg-1)]">{t(billing.interval === 'yearly' ? 'upgrade.billing.plan.yearlyCharge' : 'upgrade.billing.plan.monthlyCharge', { price: charge })}</span>
+      {' · '}
+      <span className="text-[var(--fg-3)]">{t('upgrade.billing.plan.planReference', { price })}</span>
+    </>
+  }
   if (billing.interval === 'yearly') {
     return t('upgrade.billing.plan.yearlyPrice', { price })
   }
-  if (billing.interval === 'monthly') {
-    return t('upgrade.billing.plan.monthlyPrice', { price })
-  }
-  return null
+  return t('upgrade.billing.plan.monthlyPrice', { price })
 }
 
 function invoiceReason(reason: string, t: UpgradeTranslations): string {
@@ -66,7 +72,7 @@ function PlanSummary({ status, billing, locale, t }: Readonly<{
         {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
       </div>
       <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
-      {price || summary.renewal ? <div className="flex flex-col gap-1 font-mono text-xs leading-[1.4] text-[var(--fg-2)]">
+      {price || summary.renewal ? <div className="flex flex-col gap-1 font-mono text-xs tabular-nums leading-[1.4] text-[var(--fg-2)]">
         {price ? <p>{price}</p> : null}
         {summary.renewal ? <p>{t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) })}</p> : null}
       </div> : null}
@@ -154,7 +160,6 @@ export function BillingDashboard({
   status,
   locale,
   usagePercent,
-  usageUrgent,
   onOpenPortal,
   onRetryPortal,
   t,
@@ -164,7 +169,6 @@ export function BillingDashboard({
   status: SubscriptionStatus | null
   locale: string
   usagePercent: number
-  usageUrgent: boolean
   onOpenPortal: () => void
   onRetryPortal: () => void
   t: UpgradeTranslations
@@ -176,7 +180,7 @@ export function BillingDashboard({
       {!status.isLifetimePro ? <ProviderHandoff provider="stripe" state={state} onManage={state === 'portal-failed' ? onRetryPortal : onOpenPortal} t={t} /> : null}
       <PaymentMethodSection method={status.isLifetimePro ? null : billing?.paymentMethod} state={state} onOpenPortal={onOpenPortal} t={t} />
       <ProBenefits heading t={t} />
-      <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
+      <UsageStats usagePercent={usagePercent} profile={status} t={t} />
       <InvoiceHistory invoices={status.isLifetimePro ? undefined : billing?.recentInvoices} locale={locale} state={state} t={t} />
       {!status.isLifetimePro ? <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p> : null}
     </div>

@@ -257,12 +257,14 @@ describe('ShellWide', () => {
       const scroller = container.querySelector<HTMLElement>('[data-shell-scroller]')!
       const header = container.querySelector<HTMLElement>('[data-shell-header]')!
       const tabs = container.querySelector<HTMLElement>('[data-shell-tab-bar]')!
+      const bottom = container.querySelector<HTMLElement>('[data-shell-bottom-viewport]')!
+      bottom.style.minHeight = '64px'
       const observer = observers.find(observer => observer.targets.has(header))!
       const focusClearance = Number.parseFloat(getComputedStyle(scroller).scrollPaddingBottom)
       const destinationMinimum = () => Number.parseFloat(viewport.style.getPropertyValue('--shell-destination-min-height'))
       const initialMinimum = destinationMinimum()
       expect(focusClearance).toBe(SPACING.s96)
-      expect(observer.targets).toEqual(new Set([header, tabs]))
+      expect(observer.targets).toEqual(new Set([header, tabs, bottom]))
       expect.soft(initialMinimum - TOUCH_TARGET_MIN - TAB_BAR_MIN_HEIGHT - SPACING.s64 - focusClearance,
         'initial destination retains usable page space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
       const headerBounds = vi.spyOn(header, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 740, TOUCH_TARGET_MIN))
@@ -275,6 +277,10 @@ describe('ShellWide', () => {
       expect(destinationMinimum()).toBe(initialMinimum + SPACING.s64 - TOUCH_TARGET_MIN + SPACING.s96 - TAB_BAR_MIN_HEIGHT)
       expect.soft(destinationMinimum() - SPACING.s64 - SPACING.s96 - SPACING.s64 - focusClearance,
         'measured destination retains usable page space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
+      const measuredMinimum = destinationMinimum()
+      bottom.style.minHeight = '80px'
+      act(() => observer.callback())
+      expect(destinationMinimum(), 'larger input minimum joins the measured destination budget').toBe(measuredMinimum + 16)
     } finally { vi.stubGlobal('ResizeObserver', OriginalResizeObserver) }
   })
 

@@ -100,14 +100,11 @@ function useSubHabitRefusal(isOnline: boolean) {
   return { showCreateRefusal: visible && !isOnline, refuseSubHabitCreation: () => setVisible(true) }
 }
 
-function requestSubHabitCreation({ hasProAccess, isOnline, onUpgrade, onRefuse, onCreate }: Readonly<{
-  hasProAccess: boolean
+function requestSubHabitCreation({ isOnline, onRefuse, onCreate }: Readonly<{
   isOnline: boolean
-  onUpgrade: () => void
   onRefuse: () => void
   onCreate: () => void
 }>) {
-  if (!hasProAccess) { onUpgrade(); return }
   if (!isOnline) { onRefuse(); return }
   onCreate()
 }
@@ -664,9 +661,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 
   function openSubHabitCreation() {
     requestSubHabitCreation({
-      hasProAccess,
       isOnline,
-      onUpgrade: () => router.push('/upgrade'),
       onRefuse: refuseSubHabitCreation,
       onCreate: () => setCreateOpen(true),
     })
@@ -694,7 +689,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     ? childProgress.done / childProgress.total * 100
     : undefined
 
-  const subHabitCreation = <div className={showCreateRefusal ? 'flex flex-col gap-3' : undefined}><ListRow placement="column" icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div>
+  const subHabitCreation = <div className={showCreateRefusal ? 'flex flex-col gap-3' : undefined}><ListRow placement="column" icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div>
 
   return (
     <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>

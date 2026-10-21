@@ -87,8 +87,10 @@ These tests do not measure Android font rendering.
 
 ## Short windows
 
-Notices and composer share one bottom viewport. Its 64px minimum keeps a full one-line composer
-pill revealable. The floating target belongs to the page viewport, above the actual controls;
+Notices and composer share one bottom viewport. Its minimum is the larger of 64px and one input
+line plus the existing input and pill padding: 24px times text scale, plus 32px. At doubled text
+this gives 80px for the complete 72px input and its 8px pill inset. Both destination budgets
+include this growing minimum. The floating target belongs to the page viewport, above the actual controls;
 its overlay owns neither normal-flow height nor opaque free-space paint. The tab bar stays
 outside the bottom scroller. Content-size and viewport-size changes reveal the trailing
 composer controls without animation. With enough height, the floating target retains its normal
@@ -102,9 +104,15 @@ tab bars share their unchanged 80px minimum through `TAB_BAR_MIN_HEIGHT`.
 The floating page scroller retains 96px of usable space plus its 96px end focus clearance,
 giving a derived 192px physical minimum. The date title and numeric date, and a two-line
 habit-row control, fit in the usable region when scrolled to the centre. Initial and measured
-destination budgets include that same sum, the 64px bottom viewport and their header and tab
+destination budgets include that same sum, the bottom viewport minimum and their header and tab
 heights. The bottom viewport yields height before the page region, and the destination viewport
 scrolls when both minimums and the measured header and tabs exceed the window.
+Compact web anchors that recovery viewport at its trailing edge while retaining the measured
+destination budget. Android measures the recovery viewport and its content, then
+reveals the trailing controls without animation. Resizing follows those controls while the
+person remains at the end; scrolling back to the header preserves that position. Leaving the
+constrained composition restores the normal scroll origin. Every header and bottom control
+remains reachable through the same outer recovery owner, without reducing the page or controls.
 Android applies that minimum only while the floating target is present. Without it, the page
 keeps its 48px minimum and the pinned action or composer owns its bounded ScrollView, preserving
 the existing short-window budget. Only floating compositions enable shared bottom scrolling.
@@ -120,8 +128,9 @@ therefore fits short content without a scrollbar; long content still clears the 
 The root-header geometry suite checks the shared bell edge with both content lengths at 320,
 412, 600 and 840 and at default and doubled text size.
 
-Both centring suites mount the production composer, Fab and BottomTabBar at 840 x 240 and
-360 x 320, with a 48px header and both zero and 24px top/16px bottom insets. They check the minimum viewport, revealability of the input,
+Both centring suites mount the production composer, Fab and BottomTabBar at 840 x 240,
+360 x 320, 740 x 360 and 844 x 390, with the real 72px header row, zero and nonzero insets,
+and normal or doubled text with a tall notice. They check the minimum viewport, revealability of the named input,
 send and attachment controls, the floating target's containment within the page viewport,
 separation from actual pinned controls and the tab bar's window bounds. Android
 also drives the native layout and content-size callbacks to check the initial composer reveal.

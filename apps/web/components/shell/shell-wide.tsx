@@ -283,7 +283,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
     return () => observer.disconnect()
   }, [floating])
   return <div ref={viewportRef} data-shell-bottom-viewport=""
-    className={floating ? 'min-h-16 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
+    className={floating ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
     style={{ minHeight: minimumHeight }}>
     <div className={floating ? 'lg:contents' : 'contents'}><div className="relative flex min-h-0 flex-col">{children}</div></div>
   </div>
@@ -369,18 +369,21 @@ function ShellDestinationViewport({ floating, hasHeader, hasTabBar, children }: 
     if (!floating || !viewport) return
     const header = viewport.querySelector('[data-shell-header]')
     const tabs = viewport.querySelector('[data-shell-tab-bar]')
+    const bottom = viewport.querySelector('[data-shell-bottom-viewport]')
     const resize = () => {
-      const height = minimumPageHeight + SPACING.s64 + (header?.getBoundingClientRect().height ?? 0) + (tabs?.getBoundingClientRect().height ?? 0)
+      const bottomMinimum = bottom ? Math.max(SPACING.s64, Number.parseFloat(getComputedStyle(bottom).minHeight)) : SPACING.s64
+      const height = minimumPageHeight + bottomMinimum + (header?.getBoundingClientRect().height ?? 0) + (tabs?.getBoundingClientRect().height ?? 0)
       viewport.style.setProperty('--shell-destination-min-height', `${height}px`)
     }
     const observer = new ResizeObserver(resize)
     if (header) observer.observe(header)
     if (tabs) observer.observe(tabs)
+    if (bottom) observer.observe(bottom)
     return () => observer.disconnect()
   }, [floating, hasHeader, hasTabBar, minimumPageHeight])
   return <div className={floating ? 'min-h-0 flex-1 pb-[var(--safe-bottom)] lg:contents' : 'contents'}>
     <div ref={viewportRef} data-shell-destination-viewport=""
-      className={floating ? 'h-full overflow-y-auto overflow-x-hidden overscroll-contain [&>[data-shell-background]]:min-h-[var(--shell-destination-min-height)] lg:contents lg:overflow-visible lg:[&>[data-shell-background]]:min-h-0' : 'contents'}
+      className={floating ? 'flex h-full flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-contain [&>[data-shell-background]]:min-h-[var(--shell-destination-min-height)] lg:contents lg:overflow-visible lg:[&>[data-shell-background]]:min-h-0' : 'contents'}
       style={{ '--shell-destination-min-height': `${minimumHeight}px` } as CSSProperties}>
       {children}
     </div>

@@ -5,7 +5,8 @@ import { verificationValidationResponses } from '@orbit/shared/test-support/vali
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 const mutation = vi.hoisted(() => vi.fn())
 const showError = vi.hoisted(() => vi.fn())
@@ -152,5 +153,71 @@ describe('habit edit start date', () => {
     const selectedHabit = { ...habit, startDate, createdAtUtc: '2026-08-29T00:30:00Z' }
     await renderSheet('edit', selectedHabit)
     expect(currentForm.form.getValues('dueDate')).toBe(expected)
+  })
+})
+
+describe('mounted habit form identifiers', () => {
+  beforeEach(() => { vi.resetAllMocks() })
+
+  async function renderOwners(secondMode: 'create' | 'edit') {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    await act(async () => {
+      render(<QueryClientProvider client={client}>
+        <section aria-label="First owner"><CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} initialTitle={habit.title} /></section>
+        <section aria-label="Second owner">{secondMode === 'create'
+          ? <CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} initialTitle={habit.title} />
+          : <EditHabitModal open onOpenChange={vi.fn()} habit={habit} />}</section>
+      </QueryClientProvider>)
+    })
+    return [screen.getByRole('region', { name: 'First owner' }), screen.getByRole('region', { name: 'Second owner' })] as const
+  }
+
+  it.each(['create', 'edit'] as const)('keeps phrase labels and focus with their owner beside %s', async (secondMode) => {
+    const owners = await renderOwners(secondMode)
+    const user = userEvent.setup()
+    for (const owner of owners) {
+      const title = owner.querySelector<HTMLTextAreaElement>('textarea')!
+      const label = within(owner).getByText('habits.form.describe', { selector: 'label' }) as HTMLLabelElement
+      expect(label.control).toBe(title)
+      expect(title).toHaveAccessibleName('habits.form.describe')
+      await user.click(label)
+      expect(title).toHaveFocus()
+    }
+  })
+
+  it.each(['create', 'edit'] as const)('keeps phrase errors with their owner beside %s', async (secondMode) => {
+    const owners = await renderOwners(secondMode)
+    const user = userEvent.setup()
+    for (const owner of owners) {
+      const title = owner.querySelector<HTMLTextAreaElement>('textarea')!
+      await user.click(within(owner).getByRole('radio', { name: 'habits.form.typeTask' }))
+      await user.clear(title)
+      await user.click(within(owner).getByRole('button', { name: owner === owners[0] || secondMode === 'create' ? 'habits.createHabit' : 'common.save' }))
+      await waitFor(() => expect(title).toHaveAttribute('aria-invalid', 'true'))
+      const error = document.getElementById(title.getAttribute('aria-describedby') ?? '')
+      expect(error).toHaveTextContent('habits.form.titleRequired')
+      expect(owner).toContainElement(error)
+    }
+    expect(mutation).not.toHaveBeenCalled()
+  })
+
+  it('keeps simultaneous required-type errors attached as another owner recovers', async () => {
+    const owners = await renderOwners('create')
+    for (const owner of owners) {
+      await act(async () => fireEvent.click(within(owner).getByRole('button', { name: 'habits.createHabit' })))
+    }
+    const groups = owners.map((owner) => within(owner).getByRole('radiogroup'))
+    const errorIds = groups.map((group) => group.getAttribute('aria-describedby'))
+    for (const [index, group] of groups.entries()) {
+      expect(group).toHaveAttribute('aria-invalid', 'true')
+      const error = document.getElementById(errorIds[index] ?? '')
+      expect(error).toHaveTextContent('habits.form.typeRequired')
+      expect(owners[index]).toContainElement(error)
+    }
+    await act(async () => fireEvent.click(within(owners[0]).getByRole('radio', { name: 'habits.form.typeHabit' })))
+    expect(groups[0]).not.toHaveAttribute('aria-describedby')
+    expect(groups[1]).toHaveAttribute('aria-describedby', errorIds[1])
+    expect(document.getElementById(errorIds[1] ?? '')).toHaveTextContent('habits.form.typeRequired')
+    expect(mutation).not.toHaveBeenCalled()
   })
 })

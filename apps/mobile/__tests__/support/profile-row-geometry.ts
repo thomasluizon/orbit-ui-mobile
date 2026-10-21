@@ -137,8 +137,8 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
       const contentIndexes = children.flatMap((child, index) => child.props['data-slot'] === 'list-row-fill' ? [] : [index])
       controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel, contentIndexes })
     }
-    const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
     if (host.type === 'Text') {
+      const label = labelsOf(host).join('')
       texts.push({ node, label, style, limit: host.props.numberOfLines })
       node.setMeasureFunc((available, mode) => {
         const textScale = scaledPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17)

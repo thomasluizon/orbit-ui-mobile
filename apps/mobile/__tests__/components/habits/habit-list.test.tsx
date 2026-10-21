@@ -61,7 +61,7 @@ afterEach(() => {
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
-const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
+const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined, hasProAccess: true, push: vi.fn() }))
 const accountHabitCount = vi.hoisted(() => ({ count: 1, isLoaded: true }))
 const setFrequencyFilters = vi.hoisted(() => vi.fn())
 
@@ -321,7 +321,7 @@ vi.mock('react-i18next', async (importOriginal) => {
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: accountDate.push,
     replace: vi.fn(),
     back: vi.fn(),
   }),
@@ -367,7 +367,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
-    profile: { hasProAccess: true, timeZone: accountDate.timeZone },
+    profile: { hasProAccess: accountDate.hasProAccess, timeZone: accountDate.timeZone },
   }),
 }))
 
@@ -454,7 +454,7 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
 }))
 
 vi.mock('@/components/habits/create-habit-modal', () => ({
-  CreateHabitModal: () => null,
+  CreateHabitModal: ({ open }: { open: boolean }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit' }) : null,
 }))
 
 vi.mock('@/components/habits/reschedule-sheet', () => ({
@@ -658,6 +658,20 @@ describe('HabitList', () => {
     accountHabitCount.count = 1
     accountHabitCount.isLoaded = true
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('opens sub-habit creation for a free account from the habit list', () => {
+    accountDate.hasProAccess = false
+    try {
+      seedHabits([createMockHabit({ id: 'free-parent', title: 'Parent', scheduledDates: [TODAY] })])
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" showCompleted={false} onCreatePress={vi.fn()} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />) })
+      accountDate.push.mockClear()
+      const row = tree.root.findAllByType(HabitRow)[0]!
+      TestRenderer.act(() => { row.props.actions.onAddSubHabit() })
+      expect(tree.root.findAllByProps({ testID: 'create-sub-habit' }).length).toBeGreaterThan(0)
+      expect(accountDate.push).not.toHaveBeenCalled()
+    } finally { accountDate.hasProAccess = true }
   })
 
   it.each([false, true])('scopes Hoje search with appended general habits, matching descendant=%s', (matchesDescendant) => {

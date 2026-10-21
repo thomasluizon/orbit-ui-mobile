@@ -42,7 +42,6 @@ const configLimitsSchema = z.object({
   maxTagsPerHabit: z.number(),
   maxReferrals: z.number(),
   referralRewardDays: z.number(),
-  freeAiMessagesPerMonth: z.number(),
 })
 
 const storedConfigLimitsSchema = z.object({
@@ -55,7 +54,6 @@ const storedConfigLimitsSchema = z.object({
   maxTagsPerHabit: limits.MaxTagsPerHabit,
   maxReferrals: limits.MaxReferrals,
   referralRewardDays: limits.ReferralRewardDays,
-  freeAiMessagesPerMonth: 15,
 }))
 
 export const appConfigSchema = z.object({
@@ -81,12 +79,11 @@ export const DEFAULT_CONFIG: AppConfig = {
     maxTagsPerHabit: 5,
     maxReferrals: 10,
     referralRewardDays: 10,
-    freeAiMessagesPerMonth: 15,
   },
   features: {
     'analytics': { enabled: false, planRequirement: null },
     'habits.create': { enabled: true, planRequirement: null },
-    'sub_habits': { enabled: true, planRequirement: 'Pro' },
+    'sub_habits': { enabled: true, planRequirement: null },
     'habits.bulk': { enabled: true, planRequirement: null },
     'goals': { enabled: true, planRequirement: null },
     'chat': { enabled: true, planRequirement: null },

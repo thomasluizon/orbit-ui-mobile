@@ -38,7 +38,6 @@ vi.mock('@/components/goals/create-goal-sheet', () => ({ CreateGoalSheet: () => 
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({ BottomSheetAppTextInput: () => null }))
 vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'sub_habits': { enabled: true, planRequirement: 'Pro' } } } }) }))
 vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => false, useProfile: () => ({ profile: createMockProfile() }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -190,10 +189,11 @@ describe('canonical row geometry in Yoga', () => {
     const form = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitFormFields defaultExpanded formHelpers={createFormHelpers({ isBadHabit: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} /></View></QueryClientProvider>)
     try {
       const rows = form.root.findAll((node) => node.type === ListRow)
-      for (const title of ['moreDetails', 'upgrade', 'habitTypeAvoid', 'tags', 'goals', 'useTemplate']) {
-        const key = title === 'upgrade' ? 'common.upgrade' : `habits.form.${title}`
+      for (const title of ['moreDetails', 'habitTypeAvoid', 'tags', 'goals', 'useTemplate', 'slipAlert']) {
+        const key = `habits.form.${title}`
         expect(rows.some((row) => row.props.title === key), key).toBe(true)
       }
+      expect(rows.some((row) => row.props.title === 'common.upgrade')).toBe(false)
       const geometry = assertComposition(form.toJSON(), width, scale, 16)
       const leading = geometry.parts.filter((part) => part.slot === 'list-row-title')
       expect(leading.find((part) => part.left === 56)).toBeDefined()
