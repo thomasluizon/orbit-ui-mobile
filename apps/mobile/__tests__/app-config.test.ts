@@ -13,6 +13,7 @@ describe('Android app variant', () => {
     delete process.env.ORBIT_APP_VARIANT
     const expected = {
       ...appJson.expo,
+      updates: { ...appJson.expo.updates, enabled: false },
       android: { ...appJson.expo.android, allowBackup: false },
       plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus', './plugins/with-design-bundle-launch'],
     }
@@ -56,7 +57,13 @@ describe('Android app variant', () => {
     expect(application.$['android:allowBackup']).toBe('false')
   })
 
-  it('disables updates for the staging embedded bundle without changing production', () => {
+  it.each(['production', 'staging'])('ships only the embedded bundle in %s', (variant) => {
+    process.env.ORBIT_APP_VARIANT = variant
+    expect(createConfig().updates.enabled).toBe(false)
+    expect(createConfig().updates.checkAutomatically).toBe('NEVER')
+  })
+
+  it('keeps production configuration stable across staging resolution', () => {
     const production = JSON.stringify(createConfig())
     process.env.ORBIT_APP_VARIANT = 'staging'
     expect(createConfig().updates.enabled).toBe(false)

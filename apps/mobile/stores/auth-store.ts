@@ -191,6 +191,7 @@ async function clearSessionCredentials(
     } else if (!isCurrentCredentialObservation(authority)) {
       return null
     }
+    offlineQueue.discardLegacy()
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
     clearPendingNotificationDeletes()
     clearStepUpState()
@@ -452,6 +453,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
         await clearPendingGoogleAuthSessionForLogin()
         if (configCache.getSnapshot().accountId !== user.userId) configCache.setAccount(null)
+        offlineQueue.discardLegacy()
         await setToken(token)
         if (refreshToken) {
           await setRefreshToken(refreshToken)
@@ -569,6 +571,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!isCurrentSessionEpoch(ownership.epoch)) return false
     if (!token) {
       if (startingPhase === 'signed-out') {
+        offlineQueue.discardLegacy()
         set({ ...deriveSessionPhase('signed-out'), isLoading: false })
         return false
       }
@@ -605,6 +608,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (getAccountId() !== accountId) await startAccountScopedSession(accountId)
       if (!isCurrentSessionEpoch(ownership.epoch)) return false
       if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
+      if (accountId) offlineQueue.claimLegacyAccount(accountId)
       set((state) => ({
         ...deriveSessionPhase('signed-in'),
         user: state.user ?? getUserFromPayload(payload),

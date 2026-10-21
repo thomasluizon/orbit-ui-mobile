@@ -133,12 +133,12 @@ describe('Android day card geometry', () => {
     try { expect(StyleSheet.flatten(calendarTree.toJSON().props.style).minHeight).toBe(52) }
     finally { TestRenderer.act(() => calendarTree.unmount()) }
   })
-  it.each([320, 412, 840])('reserves the one-habit card while loading at %i', async (width) => {
-    await i18n.changeLanguage('pt-BR')
-    const entries = [{ habitId: 'habit-1', title: 'Ler', status: 'upcoming' as const, isBadHabit: false, dueTime: '08:00', isOneTime: false }]
+  it.each([320, 412, 840, 1352].flatMap((width) => [0, 1, 2, 4].flatMap((count) => ['en', 'pt-BR'].flatMap((locale) => [false, true].map((loggable) => ({ width, count, locale, loggable }))))))('reserves $count rows at $width in $locale with loggable=$loggable', async ({ width, count, locale, loggable }) => {
+    await i18n.changeLanguage(locale)
+    const entries = Array.from({ length: count }, (_, index) => ({ habitId: `habit-${index}`, title: index === 3 ? 'Caminhar pelo bairro depois do trabalho e conversar com amigos' : `Habit ${index}`, status: 'upcoming' as const, isBadHabit: false, dueTime: '08:00', isOneTime: false }))
     const card = (loading: boolean) => <CalendarDayDetail selectedDate="2026-09-12" title="Hoje, 12 de setembro"
-      loadingLabel={loading ? i18n.t('calendar.loading') : undefined} filteredEntries={loading ? [] : entries}
-      calendarEvents={[]} calendarEventsState="ready" loggable pendingEntryStates={new Map()} completedCount={0}
+      loadingLabel={loading ? i18n.t('calendar.loading') : undefined} filteredEntries={entries}
+      calendarEvents={[]} calendarEventsState="ready" loggable={loggable} pendingEntryStates={new Map()} completedCount={0}
       onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} onGoToDay={vi.fn()}
       displayTime={(time) => time} t={i18n.t} tokens={createTokensV2('purple', 'dark')} />
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -147,10 +147,10 @@ describe('Android day card geometry', () => {
       type Host = Parameters<typeof measureProfileRow>[0]
       const reserveHiddenLayout = (host: Host): Host => ({ ...host, props: { ...host.props, style: { ...StyleSheet.flatten(typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style), opacity: 1 } }, children: host.children?.map((child) => typeof child === 'string' ? child : reserveHiddenLayout(child)) ?? null })
       const loading = measureProfileRow(reserveHiddenLayout(tree.toJSON()), Math.min(width, 740) - 32, 1)
-      expect(loading.texts.some((text) => text.label === '00:00')).toBe(true)
-      expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
+      for (const entry of entries) expect(loading.texts.some((text) => text.label === entry.title)).toBe(true)
+      expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(Math.max(1, count))
       const sizingControls = tree.root.findByProps({ testID: 'calendar-day-skeleton' }).findAll((node: { type: unknown }) => node.type === 'Pressable')
-      expect(sizingControls).toHaveLength(2)
+      expect(sizingControls).toHaveLength(count * (loggable ? 2 : 1))
       for (const control of sizingControls) {
         expect(control.props.disabled).toBe(true)
         expect(control.props.focusable).toBe(false)
@@ -159,6 +159,23 @@ describe('Android day card geometry', () => {
       const ready = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, 1)
       expect(ready.height).toBeCloseTo(loading.height)
       expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+  it.each([320, 412, 840].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('keeps loading and empty events equal at $width in $locale', async ({ width, locale }) => {
+    await i18n.changeLanguage(locale)
+    const card = (pending: boolean) => <CalendarDayDetail selectedDate="2026-09-12" title="Hoje"
+      filteredEntries={[]} completedCount={0} calendarEvents={[]} calendarEventsState={pending ? 'loading' : 'ready'} loggable pendingEntryStates={new Map()}
+      onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} onGoToDay={vi.fn()}
+      displayTime={(time) => time} t={i18n.t} tokens={createTokensV2('orange', 'dark')} />
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(card(true)) })
+    type Host = Parameters<typeof measureProfileRow>[0]
+    const reserveHiddenLayout = (host: Host): Host => ({ ...host, props: { ...host.props, style: { ...StyleSheet.flatten(host.props.style), opacity: 1 } }, children: host.children?.map((child) => typeof child === 'string' ? child : reserveHiddenLayout(child)) ?? null })
+    try {
+      const pending = measureProfileRow(reserveHiddenLayout(tree.toJSON()), width - 32, 1)
+      expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
+      TestRenderer.act(() => { tree.update(card(false)) })
+      expect(measureProfileRow(tree.toJSON(), width - 32, 1).height).toBeCloseTo(pending.height)
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
   it.each([320, 360].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('fits titles at $width with loggable=$loggable in $locale using Android styles and fonts', async ({ width, loggable, locale }) => {

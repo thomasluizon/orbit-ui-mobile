@@ -1,15 +1,25 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
+import { useState } from 'react'
+import userEvent from '@testing-library/user-event'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+
+const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
+vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 const words = {
   placeholder: 'placeholder sentinel',
   send: 'send sentinel',
+  clear: 'clear sentinel',
+  paste: 'paste sentinel',
+  nothingToPaste: 'empty clipboard sentinel',
   actions: 'actions sentinel',
   suggestionsLabel: 'suggestions sentinel',
 }
@@ -47,16 +57,214 @@ function props(overrides: Record<string, unknown> = {}): ComposerProps {
   } as ComposerProps
 }
 
+describe('clipboard composer control', () => {
+  beforeEach(() => { authSession.isAuthenticated = true; authSession.user = { userId: 'account-a' } })
+  afterEach(() => { vi.unstubAllGlobals(); useAppToastStore.getState().dismissAllToasts() })
+
+  function clipboard(readText = vi.fn().mockResolvedValue('Pasted\nmessage')) {
+    vi.stubGlobal('navigator', { clipboard: { readText } })
+    return readText
+  }
+
+  it.each([en, ptBR])('pastes text, preserves attachments, swaps controls and focuses the end', async messages => {
+    const readText = clipboard()
+    const onChangeValue = vi.fn()
+    const onAttachRemove = vi.fn()
+    function ControlledComposer() {
+      const [value, setValue] = useState('')
+      return <Composer {...props({ value, words: messages.shell.composer,
+        onChangeValue: (next: string) => { onChangeValue(next); setValue(next) },
+        attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], attachWords, onAttachRemove })} />
+    }
+    render(<ControlledComposer />)
+    expect(readText).not.toHaveBeenCalled()
+    const paste = screen.getByRole('button', { name: messages.shell.composer.paste })
+    expect(paste.parentElement?.firstElementChild).toBe(paste)
+    expect(screen.queryByRole('button', { name: messages.shell.composer.clear })).not.toBeInTheDocument()
+    fireEvent.click(paste)
+    const input = screen.getByRole('textbox') as HTMLTextAreaElement
+    await waitFor(() => expect(input).toHaveValue('Pasted\nmessage'))
+    expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Pasted\nmessage')
+    await waitFor(() => expect(input).toHaveFocus())
+    expect(input.selectionStart).toBe(input.value.length)
+    expect(input.selectionEnd).toBe(input.value.length)
+    expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.clear }))
+    expect(screen.getByRole('button', { name: messages.shell.composer.paste })).toBeInTheDocument()
+    expect(input).toHaveValue('')
+    expect(onAttachRemove).not.toHaveBeenCalled()
+    expect(screen.getByText('walk.png')).toBeInTheDocument()
+  })
+
+  it.each([en, ptBR])('shows the localized information toast for an empty clipboard', async messages => {
+    clipboard(vi.fn().mockResolvedValue(''))
+    const onChangeValue = vi.fn()
+    render(<Composer {...props({ words: messages.shell.composer, onChangeValue })} />)
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.paste }))
+    await waitFor(() => expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({ kind: 'neutral', message: messages.shell.composer.nothingToPaste }))
+    expect(onChangeValue).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when clipboard reading is refused', async () => {
+    const readText = clipboard(vi.fn().mockRejectedValue(new Error('Permission denied')))
+    const onChangeValue = vi.fn()
+    render(<Composer {...props({ onChangeValue })} />)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: words.paste })))
+    expect(readText).toHaveBeenCalledOnce()
+    expect(onChangeValue).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+  })
+
+  it('allows a fresh paste after clearing a draft while an older read is pending', async () => {
+    let resolveFirst!: (text: string) => void
+    const readText = clipboard(vi.fn().mockImplementationOnce(() => new Promise<string>(resolve => { resolveFirst = resolve })).mockResolvedValue('New clipboard'))
+    function ControlledComposer() {
+      const [value, setValue] = useState('')
+      return <Composer {...props({ value, onChangeValue: setValue })} />
+    }
+    render(<ControlledComposer />)
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'New draft' } })
+    fireEvent.click(screen.getByRole('button', { name: words.clear }))
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    await waitFor(() => expect(input).toHaveValue('New clipboard'))
+    expect(readText).toHaveBeenCalledTimes(2)
+    await act(async () => { resolveFirst('Old clipboard'); await Promise.resolve() })
+    expect(input).toHaveValue('New clipboard')
+  })
+
+  it.each([{}, { clipboard: {} }])('omits paste when clipboard reading is unavailable', navigator => {
+    vi.stubGlobal('navigator', navigator)
+    render(<Composer {...props()} />)
+    expect(screen.queryByRole('button', { name: words.paste })).not.toBeInTheDocument()
+  })
+
+  it.each(['recording', 'transcribing', 'sending', 'offline', 'atLimit'])('omits paste while %s', state => {
+    clipboard()
+    render(<Composer {...props({ state, limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
+    expect(screen.queryByRole('button', { name: words.paste })).not.toBeInTheDocument()
+  })
+
+  it.each(['text', 'empty'])('discards a pending %s read across account transitions and permits a fresh paste', async result => {
+    let resolve!: (text: string) => void
+    const readText = clipboard(vi.fn().mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete })).mockResolvedValue('New account text'))
+    const onChangeValue = vi.fn()
+    render(<Composer {...props({ onChangeValue })} />)
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    act(() => { advanceAccountGeneration(); advanceAccountGeneration() })
+    await act(async () => resolve(result === 'text' ? 'Previous account text' : ''))
+    expect(onChangeValue).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    await waitFor(() => expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('New account text'))
+    expect(readText).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['signed-out', 'account-b'].flatMap(account => ['text', 'empty'].map(result => ({ account, result }))))(
+    'discards pending $result when auth becomes $account before account cleanup', async ({ account, result }) => {
+      let resolve!: (text: string) => void
+      clipboard(vi.fn(() => new Promise<string>(complete => { resolve = complete })))
+      const onChangeValue = vi.fn()
+      render(<Composer {...props({ onChangeValue })} />)
+      fireEvent.click(screen.getByRole('button', { name: words.paste }))
+      authSession.isAuthenticated = account !== 'signed-out'
+      authSession.user = { userId: account === 'signed-out' ? 'account-a' : account }
+      await act(async () => resolve(result === 'text' ? 'Previous account text' : ''))
+      expect(onChangeValue).not.toHaveBeenCalled()
+      expect(useAppToastStore.getState().currentToast).toBeNull()
+    },
+  )
+
+  it('keeps a pending paste through a credential refresh in the same account', async () => {
+    let resolve!: (text: string) => void
+    clipboard(vi.fn(() => new Promise<string>(complete => { resolve = complete })))
+    const onChangeValue = vi.fn()
+    render(<Composer {...props({ onChangeValue })} />)
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    act(() => advanceSessionEpoch())
+    await act(async () => resolve('Same account text'))
+    expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Same account text')
+  })
+
+  it('does not replace a newer draft with a pending clipboard read', async () => {
+    let resolve!: (text: string) => void
+    clipboard(vi.fn(() => new Promise<string>(complete => { resolve = complete })))
+    const onChangeValue = vi.fn()
+    const view = render(<Composer {...props({ onChangeValue })} />)
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    view.rerender(<Composer {...props({ value: 'new draft', onChangeValue })} />)
+    await act(async () => resolve('old clipboard'))
+    expect(onChangeValue).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox')).toHaveValue('new draft')
+  })
+})
+
 describe('Composer', () => {
+  it.each([{ messages: en, label: 'Clear message' }, { messages: ptBR, label: 'Limpar mensagem' }])('localizes the clear name to $label', ({ messages, label }) => {
+    render(<Composer {...props({ value: 'draft', words: messages.shell.composer })} />)
+    expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+  })
+
+  it.each(['oi', '   ', '\n'])('shows clear as the first trailing control for typed text %j', value => {
+    render(<Composer {...props({ value, onVoice: vi.fn(), voiceWords })} />)
+    const clear = screen.getByRole('button', { name: words.clear })
+    expect(clear.parentElement).toHaveAttribute('data-composer-trailing-controls')
+    expect(clear.parentElement?.firstElementChild).toBe(clear)
+  })
+
+  it.each(['idle', 'recording', 'transcribing', 'sending', 'offline', 'atLimit'])('hides clear when empty or unavailable in %s', state => {
+    render(<Composer {...props({ state, value: state === 'idle' ? '' : 'draft', onVoice: vi.fn(), voiceWords })} />)
+    expect(screen.queryByRole('button', { name: words.clear })).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('clears through value changes and restores focus with an attachment: %s', attached => {
+    const onChangeValue = vi.fn()
+    const onAttachRemove = vi.fn()
+    function ControlledComposer() {
+      const [value, setValue] = useState('')
+      return <Composer {...props({ value, onChangeValue: (next: string) => { onChangeValue(next); setValue(next) },
+        ...(attached ? { attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], attachWords, onAttachRemove } : {}) })} />
+    }
+    render(<ControlledComposer />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'First\nSecond' } })
+    expect(screen.getByRole('button', { name: words.send })).toBeEnabled()
+    const clear = screen.getByRole('button', { name: words.clear })
+    clear.focus()
+    fireEvent.click(clear)
+    expect(onChangeValue).toHaveBeenLastCalledWith('')
+    expect(input).toHaveValue('')
+    expect(input).toHaveFocus()
+    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: words.clear })).not.toBeInTheDocument()
+    expect(onAttachRemove).not.toHaveBeenCalled()
+    if (attached) expect(screen.getByText('walk.png')).toBeInTheDocument()
+  })
+
   it('opens and names its menu from the keyboard without changing the draft', async () => {
-    render(<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords })} />)
+    const user = userEvent.setup()
+    render(<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords, onAttachImage: vi.fn(), onAttachFile: vi.fn(), attachWords })} />)
     const trigger = screen.getByRole('button', { name: words.actions })
     const input = screen.getByRole('textbox')
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    act(() => trigger.focus())
+    await user.keyboard('{ArrowDown}')
     const menu = await screen.findByRole('menu')
     expect(trigger).toHaveAttribute('aria-controls', menu.id)
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
     expect(input).toHaveValue('Keep this draft')
+    const rows = within(menu).getAllByRole('menuitem')
+    expect(rows.map(row => row.textContent)).toEqual([attachWords.image, attachWords.file, voiceWords.start])
+    await waitFor(() => expect(rows[0]).toHaveFocus())
+    for (const row of rows.slice(1)) {
+      await user.keyboard('{ArrowDown}')
+      expect(row).toHaveFocus()
+    }
+    await user.keyboard('{Home}')
+    expect(rows[0]).toHaveFocus()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(trigger).toHaveFocus()
   })
 
   it('opens the full attachment name without removing it or changing the draft', async () => {
@@ -93,6 +301,17 @@ describe('Composer', () => {
     act(() => stop.focus())
     view.rerender(<Composer {...props({ ...capability, state: 'transcribing' })} autoFocus />)
     expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveFocus()
+  })
+
+  it.each(['', 'Draft'])('keeps the focused Add control mounted as recording starts with %j', value => {
+    const capability = { onVoice: vi.fn(), voiceWords, value }
+    const view = render(<Composer {...props(capability)} />)
+    const add = screen.getByRole('button', { name: words.actions })
+    act(() => add.focus())
+    view.rerender(<Composer {...props({ ...capability, state: 'recording' })} />)
+    const stop = screen.getByRole('button', { name: voiceWords.stop })
+    expect(stop).toBe(add)
+    expect(stop).toHaveFocus()
   })
 
   it('runs the recording clock, freezes it for transcription, and restores the transcript', async () => {

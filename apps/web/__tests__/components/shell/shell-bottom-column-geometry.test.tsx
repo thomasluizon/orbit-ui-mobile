@@ -172,7 +172,8 @@ describe('Shell bottom column geometry', () => {
           fab: { right: fab.right, top: fab.top, bottom: fab.bottom,
             hit: document.elementFromPoint(fab.x + fab.width / 2, fab.y + fab.height / 2)?.closest('button')?.getAttribute('aria-label'),
             topClearance: fab.top - fabClip.top, bottomClearance: fabClip.bottom - fab.bottom },
-          bottomTop: document.querySelector('[data-shell-bottom]')!.getBoundingClientRect().top,
+          noticeTop: document.querySelector('[data-shell-notice]')!.getBoundingClientRect().top,
+          scrollerBottom: document.querySelector('[data-shell-scroller]')!.getBoundingClientRect().bottom,
           tabs: { left: tabs.left, right: tabs.right },
           column: { left: column.left, right: column.right },
         }
@@ -187,7 +188,8 @@ describe('Shell bottom column geometry', () => {
           expect(fabPaint.clearance[side], `${side} FAB paint clearance`).toBeGreaterThanOrEqual(fabPaint.extent[side] - 0.5)
         }
         expect.soft(Math.abs(geometry.fab.right - geometry.reference), 'create target').toBeLessThanOrEqual(0.5)
-        expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.bottomTop - 16)
+        expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.noticeTop - 16)
+        expect(geometry.fab.top).toBeGreaterThanOrEqual(geometry.scrollerBottom)
         expect(geometry.fab.hit).toBe('Create')
         expect(geometry.fab.topClearance).toBeGreaterThanOrEqual(8)
         expect(geometry.fab.bottomClearance).toBeGreaterThanOrEqual(8)

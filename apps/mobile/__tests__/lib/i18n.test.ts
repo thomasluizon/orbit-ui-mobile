@@ -64,8 +64,8 @@ describe('mobile i18n interpolation', () => {
   })
 
   it('works with the plural helper for pipe-separated forms', () => {
-    expect(plural(i18n.t('streakDisplay.badge.tooltip', { count: 1 }), 1)).toBe('1 day streak')
-    expect(plural(i18n.t('streakDisplay.badge.tooltip', { count: 3 }), 3)).toBe('3 day streak')
+    expect(plural(i18n.t('streakDisplay.badge.tooltip', { count: 1 }), 1)).toBe('1-day streak')
+    expect(plural(i18n.t('streakDisplay.badge.tooltip', { count: 3 }), 3)).toBe('3-day streak')
   })
 
   it('matches web plural selection for scoped bulk and calendar copy', () => {

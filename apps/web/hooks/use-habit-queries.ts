@@ -53,12 +53,13 @@ function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
   return { ...filters, pageSize: 200 }
 }
 
-export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleItem[], options: { completeDay?: boolean; scheduleDate?: string } = {}) {
+export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleItem[], options: { completeDay?: boolean; scheduleDate?: string; enabled?: boolean } = {}) {
   const completeDay = options.completeDay ?? false
   const queryClient = useQueryClient()
   const scheduleDate = filters.dateFrom || filters.isGeneral ? undefined : options.scheduleDate
   const query = useQuery({
     queryKey: habitKeys.list(habitListQueryFilters(filters, completeDay, scheduleDate)),
+    enabled: options.enabled,
     queryFn: async (): Promise<HabitScheduleItem[]> => {
       const enrichSchedule = (items: HabitScheduleItem[]) => loadHabitListSchedule(items, scheduleDate,
         async (scheduleFilters) => habitPageSchema.parse(await fetchJson<unknown>(

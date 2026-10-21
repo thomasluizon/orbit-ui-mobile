@@ -1,3 +1,4 @@
+import { resolveToolResultMessage } from './tool-result-message'
 import type { ActionResult, ConflictWarning } from '../types/chat'
 
 interface ActionLabelKeys {
@@ -82,6 +83,34 @@ export interface ActionChipRow {
   entityName: string | null | undefined
   status: 'done' | 'failed' | undefined
   navigation: ActionChipNavigation
+  messageKey: ActionResult['messageKey']
+  params: ActionResult['params']
+  hasLegacyText: boolean
+}
+
+interface ActionChipTranslations {
+  translate: (key: string, params?: Record<string, string | number>) => string
+  has: (key: string) => boolean
+}
+
+export function resolveActionChipText(row: ActionChipRow, { translate, has }: ActionChipTranslations): { label: string; personal: boolean; wrapLabel: boolean } | undefined {
+  const message = resolveToolResultMessage(row, translate, has)
+  if (message) {
+    return {
+      label: message,
+      personal: Boolean(row.params?.entityName || row.params?.referralCode),
+      wrapLabel: true,
+    }
+  }
+  if (!row.hasLegacyText) return undefined
+  const entityName = row.entityName || undefined
+  return {
+    label: row.labelKey
+      ? translate(row.labelKey, entityName ? { name: entityName } : undefined)
+      : entityName ?? translate('chat.action.completed'),
+    personal: Boolean(entityName),
+    wrapLabel: Boolean(entityName),
+  }
 }
 
 export interface ActionChipConflict {
@@ -133,6 +162,9 @@ export function buildActionChipsModel(
           ? 'failed'
           : undefined,
       navigation: getActionChipNavigation(action, hasHandler),
+      messageKey: action.messageKey,
+      params: action.params,
+      hasLegacyText: Boolean(action.entityName || action.error),
     })),
     conflicts: visibleActions.flatMap((action, index) =>
       action.conflictWarning?.hasConflict

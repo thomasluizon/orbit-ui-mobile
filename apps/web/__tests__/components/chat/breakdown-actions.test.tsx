@@ -39,22 +39,26 @@ it.each([320, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({
     expect(menu.id).toBe(more.getAttribute('aria-controls'))
     const edit = within(menu).getByRole('menuitem', { name: messages.chat.preview.edit })
     const reject = within(menu).getByRole('menuitem', { name: messages.chat.preview.reject })
-    if (width < 900) {
-      await waitFor(() => expect(screen.getByRole('button', { name: messages.common.close })).toHaveFocus())
-      await user.tab()
-    }
     await waitFor(() => expect(edit).toHaveFocus())
+    if (width < 900) {
+      await user.tab({ shift: true })
+      expect(screen.getByRole('button', { name: messages.common.close })).toHaveFocus()
+      await user.tab()
+      expect(edit).toHaveFocus()
+    }
     await user.keyboard('{ArrowDown}')
     expect(reject).toHaveFocus()
     await user.keyboard('{Escape}')
     await waitFor(() => expect(more).toHaveFocus())
     await user.keyboard(' ')
     const reopenedEdit = await screen.findByRole('menuitem', { name: messages.chat.preview.edit })
-    if (width < 900) {
-      await waitFor(() => expect(screen.getByRole('button', { name: messages.common.close })).toHaveFocus())
-      await user.tab()
-    }
     await waitFor(() => expect(reopenedEdit).toHaveFocus())
+    if (width < 900) {
+      await user.tab({ shift: true })
+      expect(screen.getByRole('button', { name: messages.common.close })).toHaveFocus()
+      await user.tab()
+      expect(reopenedEdit).toHaveFocus()
+    }
     await user.keyboard('{Enter}')
     const input = await screen.findByRole('textbox')
     await waitFor(() => expect(input).toHaveFocus())

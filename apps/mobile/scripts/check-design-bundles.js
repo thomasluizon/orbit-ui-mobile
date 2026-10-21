@@ -45,6 +45,14 @@ function compareNativeVersions(legacyRoot, redesignRoot) {
 }
 
 function checkDesignBundles(legacyRoot, redesignRoot) {
+  const binaryConfig = require(resolve(legacyRoot, 'apps/mobile/app.config.js'))()
+  if (read(legacyRoot, 'apps/mobile/lib/design-bundle-identity.ts').includes("= 'redesign'")) {
+    if (binaryConfig.updates.enabled !== false) {
+      throw new Error('The promoted redesign must disable updates and ship its embedded bundle')
+    }
+    return 'The embedded redesign bundle is ready.'
+  }
+  if (!redesignRoot) throw new Error('A legacy binary requires a redesign source tree')
   compareNativeVersions(legacyRoot, redesignRoot)
   const modulesPath = 'apps/mobile/modules'
   const names = new Set([legacyRoot, redesignRoot].flatMap(root => readdirSync(resolve(root, modulesPath))))
@@ -97,21 +105,23 @@ function checkDesignBundles(legacyRoot, redesignRoot) {
   if (typeof legacyConfig.runtimeVersion !== 'string' || legacyConfig.runtimeVersion !== redesignConfig.runtimeVersion) {
     throw new Error('Both designs must use the same fixed runtimeVersion')
   }
-  if (!redesignConfig.updates.enabled || legacyConfig.updates.url !== redesignConfig.updates.url) {
-    throw new Error('Both designs must enable the same update server')
+  if (legacyConfig.updates.enabled !== redesignConfig.updates.enabled ||
+    legacyConfig.updates.url !== redesignConfig.updates.url) {
+    throw new Error('Both designs must use the same update configuration')
   }
+  return 'Both bundles match the Android native union.'
 }
 
 module.exports = { checkDesignBundles }
 
 if (require.main === module) {
-  if (process.argv.length !== 4) {
-    process.stderr.write('Usage: node check-design-bundles.js <legacy-root> <redesign-root>\n')
+  if (process.argv.length < 3 || process.argv.length > 4) {
+    process.stderr.write('Usage: node check-design-bundles.js <binary-root> [redesign-root]\n')
     process.exitCode = 2
   } else {
     try {
-      checkDesignBundles(resolve(process.argv[2]), resolve(process.argv[3]))
-      process.stdout.write('Both bundles match the Android native union.\n')
+      const result = checkDesignBundles(resolve(process.argv[2]), process.argv[3] ? resolve(process.argv[3]) : undefined)
+      process.stdout.write(`${result}\n`)
     } catch (error) {
       process.stderr.write(`${error.message}\n`)
       process.exitCode = 1

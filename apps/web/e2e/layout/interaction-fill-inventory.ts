@@ -2,9 +2,10 @@ import { expect, type Locator, type Page } from '@playwright/test'
 import { parse } from 'yaml'
 
 const INVENTORY_TIMEOUT_MS = 2000
+const INVENTORY_CAPTURE_ATTEMPTS = 3
 
 async function controlIdentity(control: Locator) {
-  const snapshot: unknown = parse(await control.ariaSnapshot({ timeout: INVENTORY_TIMEOUT_MS }))
+  const snapshot: unknown = parse(await control.ariaSnapshot({ mode: 'ai', timeout: INVENTORY_TIMEOUT_MS }))
   if (snapshot === null || Array.isArray(snapshot) && snapshot.length === 0) return 'none'
   if (!Array.isArray(snapshot)) throw new Error(`Unrecognized control accessibility snapshot: ${JSON.stringify(snapshot)}`)
   const first: unknown = snapshot[0]
@@ -15,21 +16,38 @@ async function controlIdentity(control: Locator) {
   return identity
 }
 
-export async function captureControlInventory(controls: Locator, context = 'interaction fill inventory') {
+async function readControlInventory(controls: Locator, context: string) {
+  const titles = await controls.evaluateAll(elements => elements.map(element => element.matches('.orbit-habit-rename')))
   const identities = new Map<string, number>()
   const inventory = []
-  for (const [index, control] of (await controls.all()).entries()) {
+  for (const [index, title] of titles.entries()) {
     try {
-      const identity = await controlIdentity(control)
+      const identity = await controlIdentity(controls.nth(index))
       const order = identities.get(identity) ?? 0
       identities.set(identity, order + 1)
-      const title = await control.evaluate(element => element.matches('.orbit-habit-rename'), undefined, { timeout: INVENTORY_TIMEOUT_MS })
       inventory.push({ index, identity, order, title })
     } catch (cause) {
       throw new Error(`${context}, control ${index}: cannot capture control identity`, { cause })
     }
   }
+  if (await controls.count() !== inventory.length) throw new Error(`${context}: control list changed during inventory capture`)
   return inventory
+}
+
+export async function captureControlInventory(controls: Locator, context = 'interaction fill inventory') {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const inventory = await readControlInventory(controls, context)
+      const confirmation = await readControlInventory(controls, context)
+      if (inventory.length !== confirmation.length || inventory.some((entry, index) =>
+        entry.identity !== confirmation[index]!.identity || entry.title !== confirmation[index]!.title)) {
+        throw new Error(`${context}: control list changed during inventory capture`)
+      }
+      return inventory
+    } catch (cause) {
+      if (attempt === INVENTORY_CAPTURE_ATTEMPTS) throw cause
+    }
+  }
 }
 
 export async function resolveCapturedControl(page: Page, controls: Locator,

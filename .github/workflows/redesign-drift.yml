@@ -17,6 +17,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: ./.github/workflows/contract-rebaseline.yml
+    uses: ./.github/workflows/contract-rebaseline-redesign.yml
     secrets:
       CONTRACT_REBASELINE_APP_PRIVATE_KEY: ${{ secrets.CONTRACT_REBASELINE_APP_PRIVATE_KEY }}

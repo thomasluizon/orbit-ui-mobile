@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { profileKeys } from '@orbit/shared/query'
-import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { holdAccount, replaceAccountWith, retireHeldAccount } from '@/__tests__/support/account-change'
 import { completeOnboardingOrQueue, useOnboardingCompletionQueue } from '@/hooks/use-onboarding-completion-queue'
 
 const mocks = vi.hoisted(() => ({ complete: vi.fn(), online: false, showError: vi.fn(), translate: (key: string) => key }))
@@ -34,6 +34,32 @@ describe('offline onboarding completion', () => {
     expect(mocks.complete).toHaveBeenCalledWith('account-1')
     expect(client.getQueryData(profileKeys.detail())).toMatchObject({ hasCompletedOnboarding: true })
     expect(localStorage.getItem('orbit_onboarding_completion_pending:account-1')).toBeNull()
+  })
+  it('replays only the held account marker across sign-out and a different login', async () => {
+    await completeOnboardingOrQueue('account-1')
+    localStorage.setItem('orbit_onboarding_completion_pending', '1')
+    await retireHeldAccount()
+    holdAccount('account-2')
+    mocks.online = true
+    const { result, rerender } = mount()
+    expect(result.current).toBe(false)
+    expect(mocks.complete).not.toHaveBeenCalled()
+
+    mocks.online = false; rerender()
+    await act(async () => { await completeOnboardingOrQueue('account-2') })
+    expect(result.current).toBe(true)
+    mocks.online = true; rerender()
+    await waitFor(() => expect(result.current).toBe(false))
+    expect(mocks.complete).toHaveBeenCalledExactlyOnceWith('account-2')
+    expect(localStorage.getItem('orbit_onboarding_completion_pending:account-1')).toBe('1')
+
+    await replaceAccountWith('account-1')
+    await waitFor(() => expect(mocks.complete).toHaveBeenLastCalledWith('account-1'))
+    await waitFor(() => expect(result.current).toBe(false))
+    expect(mocks.complete).toHaveBeenCalledTimes(2)
+    expect(localStorage.getItem('orbit_onboarding_completion_pending:account-1')).toBeNull()
+    expect(localStorage.getItem('orbit_onboarding_completion_pending:account-2')).toBeNull()
+    expect(localStorage.getItem('orbit_onboarding_completion_pending')).toBe('1')
   })
   it('keeps a failed queued completion available for the next reconnect', async () => {
     await completeOnboardingOrQueue('account-1')

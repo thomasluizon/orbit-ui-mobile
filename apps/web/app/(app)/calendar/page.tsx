@@ -360,6 +360,10 @@ function CalendarPageContent({
   )
 
   const rangeLoading = !profile || rangeQueryLoading
+  const rangeLoadingLabel = useMemo(
+    () => rangeLoading ? t('calendar.loading') : undefined,
+    [rangeLoading, t],
+  )
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd })
@@ -457,6 +461,11 @@ function CalendarPageContent({
     if (!selectedDay) return []
     return orderCalendarDayEntries(activeDayMap.get(selectedDay) ?? [])
   }, [selectedDay, activeDayMap])
+
+  const monthDayEntries = useMemo(
+    () => orderCalendarDayEntries(monthQuery.loadingDayMap?.get(selectedDay) ?? selectedEntries),
+    [monthQuery.loadingDayMap, selectedDay, selectedEntries],
+  )
 
   const selectedCalendarEvents = useMemo(
     () =>
@@ -654,7 +663,7 @@ function CalendarPageContent({
                         loadingLabel={calendarDayLoadingLabel(monthDisplayState, t('calendar.loading'))}
                         dateStr={selectedDay}
                         today={todayKey}
-                        entries={selectedEntries}
+                        entries={monthDayEntries}
                         calendarEvents={selectedCalendarEvents}
                         showEventSource={showEventSource}
                         calendarEventsState={calendarEventsState}
@@ -723,6 +732,7 @@ function CalendarPageContent({
         title={dayDetailTitle}
       >
         <CalendarDayDetail
+          loadingLabel={rangeLoadingLabel}
           dateStr={selectedDay}
           today={todayKey}
           showTitle={false}
