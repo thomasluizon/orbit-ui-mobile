@@ -44,6 +44,7 @@ describe('habit creation route', () => {
   })
   it('makes a direct link usable without history', () => {
     render(<><RouteContext /><HabitCreateRoute /></>)
+    expect(route.form?.initialDate).toBeNull()
     expect(document.title).toBe('habits.form.newHabit · Orbit')
     fireEvent.click(screen.getByRole('button', { name: 'back' }))
     expect(route.replace).toHaveBeenCalledWith('/')

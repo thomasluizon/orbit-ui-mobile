@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { openCurrentProactiveItem } from '@/lib/proactive-item'
 
-import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
+import { resolveComposerDockSuggestions, CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 
 import { useEffect, useCallback, useId, useState, useSyncExternalStore, useLayoutEffect, Suspense } from 'react'
 import dynamic from 'next/dynamic'
@@ -55,7 +55,6 @@ import {
   useOnboardingDraftStore,
 } from '@/stores/onboarding-draft-store'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
-import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 import { Composer } from '@/components/shell/composer'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useChatComposer } from '@/hooks/use-chat-composer'
@@ -70,7 +69,7 @@ import {
 } from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitDetailRouteDate, isShareableAchievement } from '@orbit/shared/utils'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { isPublicPath } from '@/lib/public-paths'
 import { useHasSessionCookie } from '@/lib/session-cookie-provider'
@@ -102,11 +101,6 @@ export default function AppLayout({
   )
 }
 
-function getSelectedDateFromParam(dateParam: string | null): string {
-  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam
-  return formatAPIDate(new Date())
-}
-
 function OpenAstraFromQuery({ pathname, onOpen }: Readonly<{
   pathname: string
   onOpen: (open: boolean) => void
@@ -135,13 +129,14 @@ function PushHabitCreateFromQuery({ pathname, activeView, onNavigated }: Readonl
   const router = useRouter()
   useEffect(() => {
     if (!useUIStore.getState().showCreateModal) return
-    const from = `${pathname}${searchParams.size ? `?${searchParams}` : ''}`
+    const queryString = searchParams.size ? `?${searchParams}` : ''
+    const from = `${pathname}${queryString}`
     const conversation = useUIStore.getState().astraConversationOpen
     useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
     onNavigated()
     useUIStore.getState().setAstraConversationOpen(false)
     setRouteTransitionIntent('forward')
-    router.push(buildHabitCreateHref({ from, conversation, date: activeView === 'today' && pathname === '/' ? getSelectedDateFromParam(searchParams.get('date')) : null }))
+    router.push(buildHabitCreateHref({ from, conversation, date: activeView === 'today' && pathname === '/' ? resolveHabitDetailRouteDate(searchParams.get('date')) : null }))
   }, [activeView, onNavigated, pathname, router, searchParams])
   return null
 }
