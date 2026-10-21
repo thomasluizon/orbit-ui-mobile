@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
@@ -19,6 +20,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
   test.describe(`Progress stat values in ${locale}`, () => {
     test.use({ appLocale: locale, subscriptionState: 'trial', layoutProfile: { canViewGamification: true } })
     const words = locale === 'pt-BR' ? ptBR : en
+    const t = createTranslator({ locale, messages: words })
 
     for (const width of [412, 500, 1352, 1440]) {
       test(`spaces streak groups and figure tiles by 16px at ${width}px`, async ({ page, context }) => {
@@ -42,10 +44,11 @@ for (const locale of ['en', 'pt-BR'] as const) {
           (route) => route.fulfill({ json: retrospective }),
         )
         await page.goto('/progress/streak')
-        const section = page.getByRole('region', { name: words.progressScreen.sections.streak })
-        const bank = section.locator('[data-component="freeze-bank"]')
+        await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }).click()
+        const details = page.getByRole('dialog', { name: words.progressScreen.streak.freezes, exact: true })
+        const bank = details.locator('[data-component="freeze-bank"]')
         await expect(bank).toHaveAttribute('data-protected-state', 'protected')
-        const gapCard = section.getByRole('button', { name: new RegExp(words.progressScreen.streak.repairAction.split('{')[0]!) }).locator('..')
+        const gapCard = details.getByRole('button', { name: new RegExp(words.progressScreen.streak.repairAction.split('{')[0]!) }).locator('..')
         await expect(gapCard).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         expect(await bank.evaluate((element) => {
