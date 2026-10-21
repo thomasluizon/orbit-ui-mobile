@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { isRecapShareEmpty, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
+import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { PillButton } from '@/components/ui/pill-button'
@@ -30,6 +31,7 @@ function ShareCardFeedback({ hasError, savedFileName }: Readonly<{ hasError: boo
 
 export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const t = useTranslations()
+  const invitation = useReferralInvitation()
   const { sheetRef, closeSheet } = useSheetHost()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
   const { recap, isLoading, isError, refetch } = useWrapped(period, { enabled: true })
@@ -40,7 +42,7 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const actions = <>
     <PillButton variant={canShareFiles ? 'ghost' : 'primary'} disabled={disabled} loading={isSharing} onClick={() => void download()} leadingIcon={<Download size={16} strokeWidth={2} aria-hidden="true" />}>{t('shareCard.download')}</PillButton>
     {canShareFiles ? <PillButton disabled={disabled} loading={isSharing} onClick={() => {
-      if (recap) void share({ shareTitle: t('shareCard.shareTitle'), shareText: t('shareCard.shareText'), url: recap.shareDeepLink })
+      if (recap) void share({ shareTitle: t('shareCard.shareTitle'), shareText: invitation, url: recap.shareDeepLink })
     }} leadingIcon={<Share2 size={16} strokeWidth={2} aria-hidden="true" />}>{t('shareCard.share')}</PillButton> : null}
   </>
 

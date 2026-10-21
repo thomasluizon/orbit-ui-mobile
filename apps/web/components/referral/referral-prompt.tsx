@@ -5,7 +5,8 @@ import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { referralKeys } from '@orbit/shared/query'
-import type { ReferralDashboard } from '@orbit/shared/types/referral'
+import { selectReferralReward } from '@orbit/shared/utils'
+import type { ReferralPresentationDashboard } from '@orbit/shared/types/referral'
 import {
   canPromptReferral,
   hasOpenPromptBlockingOverlay,
@@ -104,14 +105,12 @@ export function ReferralPrompt() {
   ])
 
   const milestone = visibleKey ? parseReferralMilestoneKey(visibleKey) : null
-  const cached = queryClient.getQueryData<ReferralDashboard>(referralKeys.all)
-  const discount = cached?.stats.discountPercent
+  const cached = queryClient.getQueryData<ReferralPresentationDashboard>(referralKeys.all)
+  const reward = selectReferralReward(cached?.stats)
   const title = milestone?.kind === 'level'
     ? t('referral.prompt.levelTitle', { level: milestone.value })
     : t('referral.prompt.streakTitle', { count: milestone?.value ?? 0 })
-  const body = discount == null
-    ? t('referral.prompt.bodyFallback')
-    : t('referral.prompt.body', { discount })
+  const body = t(`referral.reward.${reward.kind}`, reward.values)
 
   function openDrawer() {
     closeSheet(() => {

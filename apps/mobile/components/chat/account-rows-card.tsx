@@ -1,12 +1,13 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
+import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { Pressable, Share, Text, View } from 'react-native'
 import Animated, { Keyframe, ReduceMotion } from 'react-native-reanimated'
 import * as Clipboard from 'expo-clipboard'
 import type { AccountRowsCard as AccountRowsCardData } from '@orbit/shared/types/chat'
-import { accountRowLabelKey, formatAccountRowValue } from '@orbit/shared/chat'
+import { accountRowLabelKey, formatAccountRowValue, presentAccountRows } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { ListRow } from '@/components/ui/list-row'
@@ -19,13 +20,24 @@ const iconEnter = new Keyframe({ 0: { opacity: 0, transform: [{ scale: 0.25 }] }
 const iconExit = new Keyframe({ 0: { opacity: 1, transform: [{ scale: 1 }] }, 100: { opacity: 0, transform: [{ scale: 0.25 }] } }).duration(200).reduceMotion(ReduceMotion.System)
 
 export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: AccountRowsCardData }>) {
+  return accountRows.kind === 'referral'
+    ? <ReferralAccountRowsCard accountRows={accountRows} />
+    : <AccountRowsContent accountRows={accountRows} />
+}
+
+function ReferralAccountRowsCard({ accountRows }: Readonly<{ accountRows: AccountRowsCardData }>) {
+  const invitation = useReferralInvitation()
+  return <AccountRowsContent accountRows={accountRows} invitation={invitation} />
+}
+
+function AccountRowsContent({ accountRows, invitation }: Readonly<{ accountRows: AccountRowsCardData; invitation?: string }>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [copied, setCopied] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
-  const rows = accountRows.rows.flatMap((row) => {
+  const rows = presentAccountRows(accountRows).flatMap((row) => {
     const labelKey = accountRowLabelKey(row.key)
     return labelKey ? [<ListRow key={row.key} title={t(labelKey)} value={formatAccountRowValue(row, i18n.language, t)} wrapValue valueTextMode={row.key === 'name' || row.key === 'email' ? 'personal' : undefined} readOnly={row.key !== 'name' && row.key !== 'email'} chevron={false} />] : []
   })
@@ -44,7 +56,7 @@ export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: Account
   async function shareLink() {
     if (!accountRows.referralLink) return
     try {
-      await Share.share({ title: t('referral.share.title'), message: accountRows.referralLink })
+      await Share.share({ title: t('referral.share.title'), message: `${invitation} ${accountRows.referralLink}` })
       setFailure(null)
     } catch {
       setFailure(t('chat.account.shareError'))

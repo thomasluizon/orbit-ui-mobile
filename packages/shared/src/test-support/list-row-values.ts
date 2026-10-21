@@ -45,6 +45,5 @@ export function listRowValueCases(locale: string, t: Translate): ValueCase[] {
     { surface: 'API key gate', props: { title: t('profile.apiKeys.open'), value: t('profile.apiKeys.noKeys'), icon: 'key', compact: true, wrapTitle: true, wrapValue: true } },
     { surface: 'referral completed', props: { title: t('referral.drawer.completed'), value: '3 / 5', readOnly: true } },
     { surface: 'referral pending', props: { title: t('referral.drawer.pending'), value: String(3), readOnly: true } },
-    { surface: 'referral coupons', props: { title: t('referral.drawer.couponsEarned'), value: String(3), readOnly: true } },
   ]
 }

@@ -1,3 +1,8 @@
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-cases'
 import React from 'react'
 import * as ReactNative from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,6 +14,12 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const TestRenderer = require('react-test-renderer')
+const rewardState = vi.hoisted(() => ({ locale: '', stats: null as { rewardType?: string; proDaysPerReferral?: number; discountPercent?: number } | null, isError: false }))
+vi.mock('@/hooks/use-referral', () => ({ useReferral: () => rewardState }))
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({ resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } }, lng: 'en', fallbackLng: 'en', initAsync: false })
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => rewardState.locale ? testI18n.getFixedT(rewardState.locale)(key, params) : params ? `${key}:${JSON.stringify(params)}` : key, i18n: { language: rewardState.locale || 'en' } }) }))
 const mocks = vi.hoisted(() => ({
   wrapped: vi.fn(), share: vi.fn(), download: vi.fn(), resetFeedback: vi.fn(), refetch: vi.fn(),
   isLoading: false, isError: false, isEmpty: false, isSharing: false, hasError: false,
@@ -48,7 +59,7 @@ function feedbackTexts(tree: Tree) {
 
 describe('Share progress sheet', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks(); rewardState.locale = ''; rewardState.stats = null; rewardState.isError = false
     Object.assign(mocks, { isLoading: false, isError: false, isEmpty: false, isSharing: false, hasError: false, canShareFiles: true, savedFileName: null })
   })
 
@@ -106,7 +117,7 @@ describe('Share progress sheet', () => {
     const tree = renderEntry()
     openSheet(tree)
     TestRenderer.act(() => { (action(tree, 'shareCard.share').props.onClick as () => void)() })
-    expect(mocks.share).toHaveBeenCalledWith({ shareTitle: 'shareCard.shareTitle', shareText: 'shareCard.shareText', url: createMockRecap().shareDeepLink })
+    expect(mocks.share).toHaveBeenCalledWith({ shareTitle: 'shareCard.shareTitle', shareText: 'referral.share.neutral:{}', url: createMockRecap().shareDeepLink })
     TestRenderer.act(() => { (action(tree, 'shareCard.download').props.onClick as () => void)() })
     expect(mocks.download).toHaveBeenCalledOnce()
   })
@@ -166,4 +177,24 @@ describe('Share progress sheet', () => {
     expect(saved[0]!.props.children).toContain('shareCard.saved')
     expect(saved[0]!.props.children).toContain('orbit-recap.png')
   })
+  it.each(referralCopyCases)('sends the exact approved $locale invitation for $stats.rewardType', ({ locale, stats, invitation }) => {
+    rewardState.locale = locale
+    rewardState.stats = stats
+    const tree = renderEntry()
+    openSheet(tree)
+    expect(JSON.stringify(tree.toJSON())).not.toContain(invitation)
+    TestRenderer.act(() => { (action(tree, (locale === 'en' ? en : ptBR).shareCard.share).props.onClick as () => void)() })
+    expect(mocks.share).toHaveBeenLastCalledWith({ shareTitle: (locale === 'en' ? en : ptBR).shareCard.shareTitle, shareText: invitation, url: createMockRecap().shareDeepLink })
+  })
+
+  it.each([false, true])('shares a neutral invitation while optional reward data is unavailable, error %s', (isError) => {
+    rewardState.locale = 'en'
+    rewardState.isError = isError
+    const tree = renderEntry()
+    openSheet(tree)
+    TestRenderer.act(() => { (action(tree, en.shareCard.share).props.onClick as () => void)() })
+    expect(mocks.share).toHaveBeenLastCalledWith({ shareTitle: en.shareCard.shareTitle, shareText: 'Join me on Orbit.', url: createMockRecap().shareDeepLink })
+    expect(action(tree, en.shareCard.download).props.disabled).toBe(false)
+  })
+
 })

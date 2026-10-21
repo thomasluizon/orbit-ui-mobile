@@ -216,7 +216,6 @@ describe('i18n locale parity', () => {
       'chat.insight.overview',
       'privacy.intro.body',
       'onboarding.featureGuide.astraSection.cannotDoDesc',
-      'referral.drawer.disclaimer',
     ])
     for (const { catalog, locale, task, internal, general } of [
       { catalog: ptFlat, locale: 'pt-BR', task: 'Tarefa única', internal: /recorrente|flexíve(l|is)|tarefas? únicas?/i, general: /\bgera(l|is)\b/i },

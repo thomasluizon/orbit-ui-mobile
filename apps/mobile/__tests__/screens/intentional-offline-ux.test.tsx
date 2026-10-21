@@ -5,9 +5,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import UpgradeScreen from '@/app/upgrade'
 import SupportScreen from '@/app/support'
 
-vi.mock('@/components/referral/referral-card', () => ({
-  ReferralCard: () => null,
-}))
 vi.mock('@/components/referral/referral-drawer', () => ({
   ReferralDrawer: () => null,
 }))

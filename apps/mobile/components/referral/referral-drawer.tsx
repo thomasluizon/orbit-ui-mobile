@@ -12,7 +12,8 @@ import {
 import * as Clipboard from 'expo-clipboard'
 import { Check, Copy } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
-import type { ReferralStats } from '@orbit/shared/types/referral'
+import type { ReferralPresentationStats } from '@orbit/shared/types/referral'
+import { selectReferralReward } from '@orbit/shared/utils'
 import { useReferral } from '@/hooks/use-referral'
 import { captureError } from '@/lib/sentry'
 import { ErrorState } from '@/components/ui/error-state'
@@ -32,7 +33,7 @@ interface ReferralDrawerProps {
 }
 
 interface LoadedContentProps {
-  stats: ReferralStats | null
+  stats: ReferralPresentationStats | null
   referralUrl: string
   copied: boolean
   copyFailed: boolean
@@ -51,6 +52,7 @@ function LoadedContent({
   onCopy,
 }: Readonly<LoadedContentProps>) {
   const { t } = useTranslation()
+  const reward = selectReferralReward(stats)
   const progress = stats && stats.maxReferrals > 0
     ? stats.successfulReferrals / stats.maxReferrals
     : 0
@@ -103,13 +105,6 @@ function LoadedContent({
               readOnly
             />
           ) : null}
-          {stats.successfulReferrals > 0 ? (
-            <ListRow
-              title={t('referral.drawer.couponsEarned')}
-              value={String(stats.successfulReferrals)}
-              readOnly
-            />
-          ) : null}
           <View style={styles.progressBlock}>
             <ProgressBar
               value={progress}
@@ -127,15 +122,11 @@ function LoadedContent({
               {t('referral.drawer.howItWorks')}
             </Text>
             <Text style={styles.infoBody}>
-              {t('referral.drawer.explanation', {
-                discount: stats.discountPercent,
-              })}
+              {t(`referral.reward.${reward.kind}`, reward.values)}
             </Text>
           </InfoCard>
           <Text style={styles.disclaimer}>
-            {t('referral.drawer.disclaimer', {
-              discount: stats.discountPercent,
-            })}
+            {t('referral.reward.eligibility')}
           </Text>
         </>
       ) : null}
@@ -156,13 +147,12 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
   const [copied, setCopied] = useState(false)
   const [failedAction, setFailedAction] = useState<'copy' | 'share' | null>(null)
   const isLoaded = !isLoading && !isError
+  const reward = selectReferralReward(stats)
 
   const shareLink = useCallback(async () => {
     if (!referralUrl) return
     try {
-      const referralMessage = stats
-        ? t('referral.share.text', { discount: stats.discountPercent })
-        : t('referral.share.title')
+      const referralMessage = t(`referral.share.${reward.kind}`, reward.values)
       await Share.share({
         title: t('referral.share.title'),
         message: `${referralMessage} ${referralUrl}`,
@@ -171,7 +161,7 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
     } catch {
       setFailedAction('share')
     }
-  }, [referralUrl, stats, t])
+  }, [referralUrl, reward.kind, reward.values, t])
 
   const copyLink = useCallback(async () => {
     if (!referralUrl) return
