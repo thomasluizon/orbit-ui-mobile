@@ -514,7 +514,7 @@ function RootLayoutContent() {
 function AppCreateFab({ onCreate }: Readonly<{ onCreate: () => void }>) {
   const { t } = useTranslation()
   return (
-    <View>
+    <View pointerEvents="box-none">
       <Fab label={t('nav.createHabit')} onClick={onCreate}>
         <Plus size={24} strokeWidth={2} />
       </Fab>

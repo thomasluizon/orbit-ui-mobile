@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions, type HostInstance } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
@@ -10,7 +10,7 @@ import { ShellComposerSlotProvider, useShellComposerHost } from './shell-compose
 import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot'
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 import { ShellScrollToTopSlotProvider, useShellScrollToTopHost } from './shell-scroll-to-top-slot'
-import { ShellFocusTargetContext } from './shell-focus-target'
+import { ShellFocusTargetContext, ShellListFocusContext } from './shell-focus-target'
 import { RootScrollProvider } from './root-scroll-context'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
@@ -23,13 +23,13 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{
   const viewportSize = useRef({ height: 0, contentHeight: 0 })
   function revealBottomControls() {
     const { height, contentHeight } = viewportSize.current
-    viewportRef.current?.scrollTo({ y: floating ? Math.max(0, contentHeight - height - PADDING.screenGutter) : 0, animated: false })
+    viewportRef.current?.scrollTo({ y: floating ? Math.max(0, contentHeight - height) : 0, animated: false })
   }
   return <ScrollView
     ref={viewportRef}
     testID="shell-bottom-viewport"
     style={[floating ? styles.bottomViewport : styles.pinnedSlot, { minHeight: minimumHeight }]}
-    contentContainerStyle={floating ? styles.fabClearance : styles.plainBottomContent}
+    contentContainerStyle={floating ? undefined : styles.plainBottomContent}
     scrollEnabled={floating}
     keyboardShouldPersistTaps="handled"
     nestedScrollEnabled={floating}
@@ -48,6 +48,7 @@ function ShellBottomChrome({
   tabBar,
   backgroundColor,
   safeAreaBottom,
+  minimumViewportHeight,
   onTabBarHeight,
 }: Readonly<{
   visible: boolean
@@ -59,11 +60,12 @@ function ShellBottomChrome({
   tabBar: ReactNode
   backgroundColor: string
   safeAreaBottom: number
+  minimumViewportHeight: number
   onTabBarHeight: (height: number) => void
 }>) {
   if (!visible) return null
   const actionMinimum = !navigationEnabled && pinnedSlot !== undefined ? BUTTON_SIZES.md.height : 0
-  const minimumHeight = fab !== undefined ? SPACING.s64 : actionMinimum
+  const minimumHeight = fab !== undefined ? minimumViewportHeight : actionMinimum
 
   return (
     <View
@@ -83,11 +85,6 @@ function ShellBottomChrome({
                   keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
               </View>
             ) : null}
-            {fab !== undefined ? (
-              <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
-                <View testID="shell-fab" style={styles.fab}>{fab}</View>
-              </View>
-            ) : null}
         </ShellBottomViewport>
       </View>
       {navigationEnabled ? <View testID="shell-tab-bar" onLayout={event => onTabBarHeight(event.nativeEvent.layout.height)}>{tabBar}</View> : null}
@@ -95,18 +92,46 @@ function ShellBottomChrome({
   )
 }
 
-function FlowViewport({ enabled, constrained, minimumHeight, children }: Readonly<{
+function FlowViewport({ enabled, constrained, minimumHeight, revealEnd, children }: Readonly<{
   enabled: boolean
   constrained: boolean
   minimumHeight: number
+  revealEnd: boolean
   children: ReactNode
 }>) {
+  const viewportRef = useRef<ScrollView>(null)
+  const viewportSize = useRef({ height: 0, contentHeight: 0 })
+  const followingEnd = useRef(true)
+  const wasRecovering = useRef(false)
+  const recovering = enabled && constrained && revealEnd
+  const revealTrailingControls = useCallback(() => {
+    const { height, contentHeight } = viewportSize.current
+    if (!recovering || !followingEnd.current || height === 0 || contentHeight === 0) return
+    viewportRef.current?.scrollTo({ y: Math.max(0, contentHeight - height), animated: false })
+  }, [recovering])
+  useEffect(() => {
+    if (recovering) {
+      followingEnd.current = true
+      revealTrailingControls()
+    } else if (wasRecovering.current) {
+      viewportRef.current?.scrollTo({ y: 0, animated: false })
+    }
+    wasRecovering.current = recovering
+  }, [recovering, revealTrailingControls])
   return (
     <ScrollView
+      ref={viewportRef}
       testID="shell-flow-viewport"
       scrollEnabled={enabled && constrained}
       nestedScrollEnabled={enabled && constrained}
       keyboardShouldPersistTaps="handled"
+      onLayout={event => { viewportSize.current.height = event.nativeEvent.layout.height; revealTrailingControls() }}
+      onContentSizeChange={(_width, height) => { viewportSize.current.contentHeight = height; revealTrailingControls() }}
+      onScroll={event => {
+        const { height, contentHeight } = viewportSize.current
+        followingEnd.current = Math.ceil(event.nativeEvent.contentOffset.y) >= Math.max(0, contentHeight - height)
+      }}
+      scrollEventThrottle={16}
       style={styles.flowViewport}
       contentContainerStyle={enabled && constrained
         ? { flexGrow: 1, minHeight: minimumHeight + TOUCH_TARGET_MIN }
@@ -122,19 +147,20 @@ function ShellScrollToTopSlot({ visible, content }: Readonly<{ visible: boolean;
   return <View testID="shell-scroll-to-top" pointerEvents="box-none" style={styles.scrollToTop}>{content}</View>
 }
 
-function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, safeTop, safeBottom }: Readonly<{
+function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, safeTop, safeBottom, minimumBottomHeight }: Readonly<{
   navigationEnabled: boolean
   hasFab: boolean
   hasHeader: boolean
   hasTabBar: boolean
   safeTop: number
   safeBottom: number
+  minimumBottomHeight: number
 }>) {
   const [height, setHeight] = useState<number | null>(null)
   const [headerHeight, setHeaderHeight] = useState<number>(hasHeader ? TOUCH_TARGET_MIN : 0)
   const [tabBarHeight, setTabBarHeight] = useState<number>(hasTabBar ? TAB_BAR_MIN_HEIGHT : 0)
   const minimumFlowHeight = safeTop + TOUCH_TARGET_MIN + BUTTON_SIZES.md.height + safeBottom
-  const minimumDestinationHeight = headerHeight + SPACING.s96 + SPACING.s64 + tabBarHeight
+  const minimumDestinationHeight = headerHeight + SPACING.s96 + (hasFab ? SHELL_SCROLLER_CLEARANCE : 0) + minimumBottomHeight + tabBarHeight
   const constrainedFlow = !navigationEnabled && height !== null && height < minimumFlowHeight
   const constrainedDestination = navigationEnabled && hasFab && height !== null
     && height - safeTop - safeBottom < minimumDestinationHeight
@@ -173,14 +199,26 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     ? SHELL_SCROLLER_CLEARANCE
     : 32
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
+  function revealListFocus(target: HostInstance, scrollBy: (offset: number) => void) {
+    if (props.fab === undefined || conversationOpen) return
+    mainRef.current?.measureInWindow((_left, top, _width, height) => {
+      target.measureInWindow((_targetLeft, targetTop, _targetWidth, targetHeight) => {
+        if (focusElement.current !== target) return
+        const delta = targetTop < top ? targetTop - top
+          : Math.max(0, targetTop + targetHeight - (top + height - SHELL_SCROLLER_CLEARANCE))
+        if (delta !== 0) scrollBy(delta)
+      })
+    })
+  }
   const insets = useSafeAreaInsets()
-  const { width } = useWindowDimensions()
+  const { width, fontScale } = useWindowDimensions()
+  const minimumBottomHeight = Math.max(SPACING.s64, SPACING.s24 * fontScale + SPACING.s32)
   const safeTop = (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0
   const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const safeBottom = keyboardVisible ? 0 : insets.bottom
   const viewport = useShellViewport({ navigationEnabled, hasFab: props.fab !== undefined, hasHeader: header !== undefined,
-    hasTabBar: props.tabBar !== undefined, safeTop, safeBottom })
+    hasTabBar: props.tabBar !== undefined, safeTop, safeBottom, minimumBottomHeight })
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true))
     const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false))
@@ -202,7 +240,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
       onLayout={(event) => viewport.setHeight(event.nativeEvent.layout.height)}
       style={[styles.root, { backgroundColor: tokens.bg }, viewport.outerInsets]}
     >
-      <FlowViewport enabled={viewport.scrollable} constrained={viewport.constrained} minimumHeight={viewport.minimumHeight}>
+      <FlowViewport enabled={viewport.scrollable} constrained={viewport.constrained} minimumHeight={viewport.minimumHeight} revealEnd={navigationEnabled && props.fab !== undefined}>
         <View
           testID="shell-background"
           style={[styles.background, { width: columnWidth, paddingTop: viewport.innerInsets.top }]}
@@ -215,8 +253,13 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           ) : null}
 
           <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, props.fab !== undefined && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
-            {props.children}
+            <ShellListFocusContext.Provider value={revealListFocus}>{props.children}</ShellListFocusContext.Provider>
             <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
+            {props.fab !== undefined ? (
+              <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
+                <View testID="shell-fab" pointerEvents="box-none" style={styles.fab}>{props.fab}</View>
+              </View>
+            ) : null}
           </View>
 
           <ShellBottomChrome
@@ -229,6 +272,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
             tabBar={props.tabBar}
             backgroundColor={tokens.bg}
             safeAreaBottom={viewport.innerInsets.bottom}
+            minimumViewportHeight={minimumBottomHeight}
             onTabBarHeight={viewport.setTabBarHeight}
           />
 
@@ -290,7 +334,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: TOUCH_TARGET_MIN,
   },
-  floatingScroller: { minHeight: SPACING.s96 },
+  floatingScroller: { minHeight: SPACING.s96 + SHELL_SCROLLER_CLEARANCE },
   scrollToTop: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center', zIndex: zLayers.sticky },
   flowScroller: { minHeight: 0 },
   flowHeader: { minHeight: TOUCH_TARGET_MIN },
@@ -321,8 +365,7 @@ const styles = StyleSheet.create({
   bottomContent: { position: 'relative' },
   plainBottomContent: { flexShrink: 1 },
   bottomViewport: { flexGrow: 1, flexShrink: 1, minHeight: 0 },
-  fabClearance: { paddingTop: SHELL_SCROLLER_CLEARANCE },
-  fabBand: { position: 'absolute', top: 0, height: 0, left: 0, right: 0 },
+  fabBand: { position: 'absolute', bottom: 0, height: SHELL_SCROLLER_CLEARANCE, left: 0, right: 0, zIndex: zLayers.sticky },
   fab: { bottom: 16, position: 'absolute', right: 16 },
   conversation: {
     alignSelf: 'center',
