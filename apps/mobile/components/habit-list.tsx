@@ -460,23 +460,25 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const stateListRef = useRef<FlatList<string>>(null)
     const allListRef = useRef<FlatList<DragItem>>(null)
-    const listScrollOffset = useRef(0)
+    const listScrollOffsets = useRef(new WeakMap<object, number>())
     const revealListFocus = useShellListFocus((delta) => {
       const target = scrollContainerRef.current ?? allListRef.current ?? drillListRef.current ?? stateListRef.current
-      const offset = Math.max(0, listScrollOffset.current + delta)
-      listScrollOffset.current = offset
-      target?.scrollToOffset({ offset, animated: false })
+      if (!target) return
+      const offset = Math.max(0, (listScrollOffsets.current.get(target) ?? 0) + delta)
+      listScrollOffsets.current.set(target, offset)
+      target.scrollToOffset({ offset, animated: false })
     })
     const handleListScroll = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        listScrollOffset.current = e.nativeEvent.contentOffset.y
+        const target = allListRef.current ?? drillListRef.current ?? stateListRef.current
+        if (target) listScrollOffsets.current.set(target, e.nativeEvent.contentOffset.y)
         onScroll?.(e.nativeEvent.contentOffset.y)
       },
       [onScroll],
     )
     const handleMainListOffsetChange = useCallback(
       (offsetY: number) => {
-        listScrollOffset.current = offsetY
+        if (scrollContainerRef.current) listScrollOffsets.current.set(scrollContainerRef.current, offsetY)
         onScroll?.(offsetY)
       },
       [onScroll],
