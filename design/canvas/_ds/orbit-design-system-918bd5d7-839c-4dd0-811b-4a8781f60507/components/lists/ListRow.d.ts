@@ -6,6 +6,7 @@
  *  24 chevron in --fg-4. Draws NO rule of its own; separation is the container's job. The row body is one
  *  button; `action` (when present) and the chevron are its siblings, so a control never nests in a button. */
 export interface ListRowBase {
+    valueHidden?: boolean;
   /** Tabler icon name */
   icon?: string;
   title: string;

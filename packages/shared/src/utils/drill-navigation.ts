@@ -215,6 +215,7 @@ export function normalizeHabitDetailForDrill(
   parent.reminderTimes = detail.reminderTimes
   parent.scheduledReminders = detail.scheduledReminders
   parent.relativeReminders = detail.relativeReminders
+  parent.scheduledStartDate = detail.scheduledStartDate
   parent.linkedGoals = detail.linkedGoals ?? []
 
   const childrenByParent = new Map<string, NormalizedHabit[]>()
