@@ -178,7 +178,8 @@ carrying an `http(s)://` link to the upstream issue; no link means it is not san
 ### 7. Contract alignment and backward compatibility
 
 > Reference: CLAUDE.md "Security & contracts"; issue #206. **`Contract Drift` regenerates the Zod snapshot
-> from orbit-api `main`**, so it cannot see a paired in-flight API PR and it never makes the append-only
+> from the full pinned orbit-api commit and explicitly selected artifact (legacy v1 when absent)**,
+> so it cannot see a paired in-flight API PR and it never makes the append-only
 > judgement. Both are yours.
 
 Compare `packages/shared/src/types/*` and `packages/shared/src/api/endpoints.ts` against the orbit-api DTOs
