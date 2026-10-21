@@ -397,6 +397,7 @@ async function assertPreviewRow(row: Locator, page: Page, scale: number, describ
   const measured = await measurePreviewRow(row)
   assertContentStack(measured, scale, described, expectedType)
   expect(measured.titleSize).toBe(`${(measured.depth ? 14 : 17) * scale}px`)
+  expect(measured.title.width).toBeGreaterThanOrEqual(Number.parseFloat(measured.titleSize))
   expect(measured.preview !== null).toBe(described)
   if (measured.preview) {
     expect(measured.preview.size).toBe(`${14 * scale}px`)

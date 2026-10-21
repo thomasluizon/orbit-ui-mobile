@@ -2,7 +2,7 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-import { useId, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { useId, type CSSProperties, type KeyboardEvent, type ReactNode, type RefCallback } from 'react'
 import { getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { HabitRowContent, HabitRowTypeLabel, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
-import { useHabitRowLargeText, useHabitRowSupportingMeta } from './use-habit-row-large-text'
+import { useHabitRowSupportingMeta } from './use-habit-row-large-text'
 
 export type { HabitRowMetaToken }
 
@@ -160,9 +160,8 @@ export function HabitRow({
   actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
   const t = useTranslations()
-  const largeText = useHabitRowLargeText()
   const descriptionId = useDescriptionId(habit.description)
-  const supportingMeta = useHabitRowSupportingMeta(depth)
+  const { supportingMeta, measureRef, largeText } = useHabitRowSupportingMeta(depth)
   const {
     onDetail,
     onToggleSelection,
@@ -276,7 +275,7 @@ export function HabitRow({
   )
 
   return (
-    <HabitRowLayout habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
+    <HabitRowLayout measureRef={measureRef} habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
       isChild={isChild} supportingMeta={supportingMeta}>
       {rowContents}
     </HabitRowLayout>
@@ -347,7 +346,8 @@ function HabitRowSupportingFooter({ typeLabel, meta, descriptionPresent }: Reado
   )
 }
 
-function HabitRowLayout({ habitTitle, depth, state, selected, isChild, supportingMeta, children }: Readonly<{
+function HabitRowLayout({ measureRef, habitTitle, depth, state, selected, isChild, supportingMeta, children }: Readonly<{
+  measureRef: RefCallback<HTMLDivElement>
   habitTitle: string
   depth: number
   state: HabitStatus
@@ -359,7 +359,7 @@ function HabitRowLayout({ habitTitle, depth, state, selected, isChild, supportin
   const minHeight = isChild ? 52 : 68
   const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : 'items-center gap-0'
   return (
-    <div data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
+    <div ref={measureRef} data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
       className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
       style={{ minHeight }}>
       {children}

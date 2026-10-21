@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
   forwardRef,
@@ -18,6 +18,7 @@ import {
   Text,
   FlatList,
   RefreshControl,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native'
@@ -726,8 +727,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const dateGroups = useMemo(() => view === 'all' ? buildHabitDateBuckets(visibleHabits, todayStr) : [], [view, visibleHabits, todayStr])
     const groupHeadings = useMemo(() => new Map(dateGroups.map((bucket) => [bucket.habits[0]!.id, formatHabitDateBucketLabel(bucket.key, todayStr, i18n.language, t)])), [dateGroups, todayStr, i18n.language, t])
-    const { width: windowWidth } = useWindowDimensions()
-    const maxInlineDepth = getHabitInlineDepthLimit(windowWidth)
+    const { width: windowWidth, fontScale } = useWindowDimensions()
+    const [contentWidth, setContentWidth] = useState<number>()
+    const measureList = useCallback((event: LayoutChangeEvent) => {
+      setContentWidth(event.nativeEvent.layout.width - 2 * PADDING.screenGutter)
+    }, [])
+    const maxInlineDepth = getHabitInlineDepthLimit(windowWidth, fontScale, contentWidth)
     const flatItems = useMemo<DragItem[]>(
       () => buildFlatHabitItems(view === 'all' ? dateGroups.flatMap((bucket) => bucket.habits) : visibleHabits, collapsedIds, getVisibleChildren, maxInlineDepth),
       [view, dateGroups, visibleHabits, collapsedIds, getVisibleChildren, maxInlineDepth],
@@ -1774,6 +1779,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       <FlatList
         ref={allListRef}
         testID="habit-list-all"
+        onLayout={measureList}
         data={flatItems}
         keyExtractor={keyExtractor}
         renderItem={({ item, index }) => <>
@@ -1798,6 +1804,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       <>
         <DraggableFlatList
           ref={scrollContainerRef}
+          onLayout={measureList}
           data={activeDragItems}
           keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
           renderItem={renderItem}

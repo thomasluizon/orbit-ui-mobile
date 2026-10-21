@@ -1,4 +1,5 @@
 import { createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
@@ -676,26 +677,29 @@ describe('HabitList', () => {
     }
   })
 
-  function assertCascadeActions(container: HTMLElement, drilling: boolean, width: number) {
+  function assertCascadeActions(container: HTMLElement, drilling: boolean, width: number, textScale: number) {
     if (drilling) return
     const disclosure = container.querySelector<HTMLButtonElement>('[data-habit-title="Branch"] [data-habit-row-control="disclosure"]')!
-    fireEvent.click(disclosure)
-    expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeNull()
-    fireEvent.click(disclosure)
-    expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeInTheDocument()
+    if (width !== 320 || textScale === 1) {
+      fireEvent.click(disclosure)
+      expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeNull()
+      fireEvent.click(disclosure)
+      expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeInTheDocument()
+    }
     if (width !== 320) return
-    const boundary = container.querySelector('[data-habit-title="Nested parent"] [data-habit-row-control="disclosure"]')!
+    const boundaryTitle = textScale === 2 ? 'Branch' : 'Nested parent'
+    const boundary = container.querySelector(`[data-habit-title="${boundaryTitle}"] [data-habit-row-control="disclosure"]`)!
     expect(boundary).not.toHaveAttribute('aria-expanded')
     expect(boundary).not.toHaveAttribute('aria-controls')
     fireEvent.click(boundary)
-    expect(drillInto).toHaveBeenCalledWith('nested-parent')
+    expect(drillInto).toHaveBeenCalledWith(textScale === 2 ? 'branch' : 'nested-parent')
   }
 
-  function assertCascadeGeometry(geometry: { depth: number; titleWidth: number; metadataEdge: number; top: number; bottom: number; inset: number; textEdge: number; wellInset: number; targets: { left: number; right: number; width: number; height: number }[] }[], expectedDepths: number[], width: number, drilling: boolean) {
+  function assertCascadeGeometry(geometry: { depth: number; titleWidth: number; titleSize: number; metadataEdge: number; top: number; bottom: number; inset: number; textEdge: number; wellInset: number; targets: { left: number; right: number; width: number; height: number }[] }[], expectedDepths: number[], width: number, drilling: boolean) {
     for (const [index, row] of geometry.entries()) {
       expect(row.wellInset, `well at visible depth ${expectedDepths[index]}`).toBe(8 + 16 * expectedDepths[index]!)
       expect(row.textEdge, `text at visible depth ${expectedDepths[index]}`).toBe(84 + 16 * expectedDepths[index]!)
-      expect(row.titleWidth).toBeGreaterThan(0)
+      expect(row.titleWidth).toBeGreaterThanOrEqual(row.titleSize)
       expect(row.metadataEdge).toBe(row.textEdge)
       if (index && !drilling) expect(row.top - geometry[index - 1]!.bottom).toBe(expectedDepths[index] === 0 ? 12 : 4)
       expect(row.inset).toBe(16)
@@ -739,19 +743,42 @@ describe('HabitList', () => {
       const browser = await launch
       const cases = [320, 412, 1352].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].flatMap((selectMode) => (['light', 'dark'] as const).flatMap((mode) => (['en', 'pt-BR'] as const).map((locale) => ({ width, textScale, selectMode, mode, locale }))))))
       for (const { width, textScale, selectMode, mode, locale } of cases) {
+        const observations = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>()
+        vi.stubGlobal('ResizeObserver', class implements ResizeObserver {
+          constructor(private callback: ResizeObserverCallback) {}
+          observe(target: Element) { observations.set(target, { callback: this.callback, observer: this }) }
+          unobserve(target: Element) { observations.delete(target) }
+          disconnect() {
+            for (const [target, observation] of observations) if (observation.observer === this) observations.delete(target)
+          }
+        })
         dragLocale.english = locale === 'en'
         dragLocale.portuguese = locale === 'pt-BR'
         vi.stubGlobal('innerWidth', width)
         document.documentElement.style.fontSize = `${16 * textScale}px`
         const { container, unmount } = renderWithProviders(<HabitList view={view} isSelectMode={selectMode} selectedHabitIds={new Set([child.id])}
           filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
-        assertCascadeActions(container, drilling, width)
         const markup = container.innerHTML
-        unmount()
         const page = await browser.newPage({ viewport: { width, height: 915 } })
         try {
           const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-          await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style>${markup}`)
+          await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style><div style="max-width:740px;height:915px;overflow-y:auto;scrollbar-gutter:stable">${markup}</div>`)
+          const observed = await page.locator('[data-habit-list]').evaluate((element) => new Promise<{
+            contentRect: DOMRectInit; borderBoxSize: ResizeObserverSize[]; contentBoxSize: ResizeObserverSize[]; devicePixelContentBoxSize: ResizeObserverSize[]
+          }>((resolve) => {
+            const observer = new ResizeObserver(([entry]) => {
+              const sizes = (boxes: readonly ResizeObserverSize[]) => boxes.map(({ inlineSize, blockSize }) => ({ inlineSize, blockSize }))
+              resolve({ contentRect: entry!.contentRect.toJSON(), borderBoxSize: sizes(entry!.borderBoxSize), contentBoxSize: sizes(entry!.contentBoxSize), devicePixelContentBoxSize: sizes(entry!.devicePixelContentBoxSize) })
+              observer.disconnect()
+            })
+            observer.observe(element)
+          }))
+          const target = container.querySelector('[data-habit-list]')!
+          const observation = observations.get(target)!
+          act(() => observation.callback([{ ...observed, contentRect: DOMRectReadOnly.fromRect(observed.contentRect), target }], observation.observer))
+          assertCascadeActions(container, drilling, width, textScale)
+          await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style><div style="max-width:740px;height:915px;overflow-y:auto;scrollbar-gutter:stable">${container.innerHTML}</div>`)
+          await loadAppFonts(page)
           const geometry = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => rows.map((row) => {
             const body = row.querySelector('[data-habit-row-body]')!
             const content = row.querySelector('[data-personal-text-content]') ?? body
@@ -760,6 +787,7 @@ describe('HabitList', () => {
             return {
               depth: Number(row.getAttribute('data-depth')),
               titleWidth: title.getBoundingClientRect().width,
+              titleSize: Number.parseFloat(getComputedStyle(row.querySelector('[data-personal-text]')!).fontSize),
               metadataEdge: row.querySelector('[data-habit-row-type]')!.getBoundingClientRect().left,
               top: row.getBoundingClientRect().top,
               bottom: row.getBoundingClientRect().bottom,
@@ -772,13 +800,13 @@ describe('HabitList', () => {
               }),
             }
           }))
-          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: drilling ? 2 : width === 320 ? 5 : 6 }, () => 'Read two pages before breakfast.'))
-          const expectedDepths = drilling ? [0, 0] : width === 320 ? [0, 1, 1, 2, 2, 0] : [0, 1, 1, 2, 2, 3, 0]
+          const expectedDepths = drilling ? [0, 0] : width === 320 ? textScale === 2 ? [0, 1, 1, 0] : [0, 1, 1, 2, 2, 0] : [0, 1, 1, 2, 2, 3, 0]
+          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: expectedDepths.length - Number(!drilling) }, () => 'Read two pages before breakfast.'))
           expect(geometry).toHaveLength(expectedDepths.length)
           expect(await page.evaluate(() => window.innerWidth)).toBe(width)
           expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
           assertCascadeGeometry(geometry, expectedDepths, width, drilling)
-        } finally { await page.close() }
+        } finally { unmount(); await page.close() }
       }
     } finally {
       document.documentElement.style.removeProperty('font-size')

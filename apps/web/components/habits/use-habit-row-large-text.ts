@@ -1,10 +1,11 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import { getHabitInlineDepthLimit } from '@orbit/shared/utils'
 
-function hasLargeText() {
-  return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) > 16 * 1.3
+function textScale() {
+  const rootSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+  return rootSize > 16 ? rootSize / 16 : 1
 }
 
 function subscribe(onChange: () => void) {
@@ -17,18 +18,21 @@ function subscribe(onChange: () => void) {
   }
 }
 
-export function useHabitRowLargeText() {
-  return useSyncExternalStore(subscribe, hasLargeText, () => false)
-}
-
-function inlineDepthLimit() {
-  return getHabitInlineDepthLimit(window.innerWidth)
-}
-
 export function useHabitInlineDepthLimit() {
-  return useSyncExternalStore(subscribe, inlineDepthLimit, () => getHabitInlineDepthLimit(320))
+  const [contentWidth, setContentWidth] = useState<number>()
+  const measureRef = useCallback((element: HTMLDivElement | null) => {
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => setContentWidth(entry!.contentRect.width))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  const fontScale = useSyncExternalStore(subscribe, textScale, () => 1)
+  const windowWidth = typeof window === 'undefined' ? 320 : window.innerWidth
+  const maxInlineDepth = getHabitInlineDepthLimit(windowWidth, fontScale, contentWidth)
+  return { maxInlineDepth, measureRef, largeText: fontScale > 1.3 }
 }
 
 export function useHabitRowSupportingMeta(depth: number) {
-  return useSyncExternalStore(subscribe, () => hasLargeText() || depth > 0 && depth >= inlineDepthLimit(), () => depth > 0 && depth >= getHabitInlineDepthLimit(320))
+  const { maxInlineDepth, measureRef, largeText } = useHabitInlineDepthLimit()
+  return { supportingMeta: largeText || depth > 0 && depth >= maxInlineDepth, measureRef, largeText }
 }

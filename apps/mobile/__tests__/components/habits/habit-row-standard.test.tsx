@@ -241,6 +241,7 @@ it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap(
     expect(target.width).toBe(48)
     const title = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes('Read ten minutes') && part.style.opacity !== 0)!
     expect((title.style as import('react-native').TextStyle).fontSize).toBe(depth ? 14 : 17)
+    expect(title.width).toBeGreaterThanOrEqual(Number((title.style as import('react-native').TextStyle).fontSize) * fontScale)
     if (supportingMeta) expect(target.top).toBeCloseTo(title.top, 1)
     const preview = geometry.find((part) => part.host.props.testID === 'habit-row-description')
     expect(Boolean(preview)).toBe(described)

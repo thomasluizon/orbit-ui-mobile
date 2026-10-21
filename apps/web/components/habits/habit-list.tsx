@@ -601,7 +601,12 @@ export function HabitList({
     }
   }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt, selectedDateStr])
 
-  const maxInlineDepth = useHabitInlineDepthLimit()
+  const listContainerRef = useRef<HTMLDivElement>(null)
+  const { maxInlineDepth, measureRef } = useHabitInlineDepthLimit()
+  const setListContainerRef = useCallback((element: HTMLDivElement | null) => {
+    listContainerRef.current = element
+    return measureRef(element)
+  }, [measureRef])
   const dragItems = useMemo<DragItem[]>(() => {
     const ordered = view === 'all' ? buildHabitDateBuckets(habits, todayStr).flatMap((bucket) => bucket.habits) : habits
     return buildDragItemsFlat(ordered, collapsedIds, visibility.getVisibleChildren, view, maxInlineDepth)
@@ -1196,8 +1201,6 @@ export function HabitList({
     settleBulkHabitResolutions,
   }))
 
-  const listContainerRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     const container = listContainerRef.current
     if (!container) return
@@ -1466,7 +1469,7 @@ export function HabitList({
 
   return (
     <div
-      ref={listContainerRef}
+      ref={setListContainerRef}
       data-habit-list=""
       tabIndex={-1}
       className="min-w-0 px-screen-gutter"

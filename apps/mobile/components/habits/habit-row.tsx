@@ -1,7 +1,7 @@
 import { SPACING } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable, type InsetFocusPressableProps } from '@/components/ui/inset-focus-pressable'
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
-import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle, type LayoutChangeEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canLogHabitOnDate,
@@ -288,7 +288,9 @@ export const HabitRow = memo(function HabitRow({
   const locale = i18n.language
   const { width, fontScale } = useWindowDimensions()
   const largeText = fontScale > 1.3
-  const supportingMeta = largeText || depth > 0 && depth >= getHabitInlineDepthLimit(width)
+  const [contentWidth, setContentWidth] = useState<number>()
+  const measureRow = useCallback((event: LayoutChangeEvent) => setContentWidth(event.nativeEvent.layout.width), [])
+  const supportingMeta = largeText || depth > 0 && depth >= getHabitInlineDepthLimit(width, fontScale, contentWidth)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -465,7 +467,7 @@ export const HabitRow = memo(function HabitRow({
 
   return (
     <View style={habitRowSpacing(panelEnd)}>
-      <HabitRowLayout depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
+      <HabitRowLayout onLayout={measureRow} depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
         metaColor={bodyPressFeedback.metaColor} typeLabel={t(getHabitRowTypeLabelKey(habit))} tokens={tokens}>
         {rowContents}
@@ -490,7 +492,8 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, typeLabel, tokens, children }: Readonly<{
+function HabitRowLayout({ onLayout, depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, typeLabel, tokens, children }: Readonly<{
+  onLayout: (event: LayoutChangeEvent) => void
   depth: number
   descriptionPresent: boolean
   isChild: boolean
@@ -506,7 +509,7 @@ function HabitRowLayout({ depth, descriptionPresent, isChild, supportingMeta, ro
   children: ReactNode
 }>) {
   return (
-    <View testID="habit-row" style={[supportingMeta ? null : [styles.row, { gap: SPACING.s0 }], rowStyle]}>
+    <View testID="habit-row" onLayout={onLayout} style={[supportingMeta ? null : [styles.row, { gap: SPACING.s0 }], rowStyle]}>
       {supportingMeta ? primaryButton : null}
       {supportingMeta ? (
         <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8, paddingBottom: descriptionPresent ? SPACING.s4 : undefined }]}>

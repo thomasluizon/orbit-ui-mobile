@@ -252,29 +252,30 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
       await expect(page.getByTestId('habit-row')).toHaveCount(6)
       await expect(page.locator('[data-habit-row-description]')).toHaveCount(3)
       for (const scale of [1, 2]) {
-        await setHabitTextScale(page, scale, ['Parent', 'Child parent'])
+        const visibleTitles = width === 320 && scale === 2 ? ['Parent', 'Child parent'] : ['Parent', 'Child parent', 'Grandchild']
+        await setHabitTextScale(page, scale, visibleTitles, width === 320 ? ['Grandchild'] : [])
         await expect(parent.locator('[data-habit-row-description]')).toHaveCSS('font-size', `${14 * scale}px`)
         await expect(parent.locator('[data-habit-row-heading]')).toHaveCount(scale === 2 ? 1 : 0)
-        await assertPreviewSelectionModes(page, parent, copy, scale, mode)
+        await assertPreviewSelectionModes(page, parent, copy, scale, mode, width === 320 && scale === 2 ? 5 : 6)
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
       }
     })
   }
 }
 
-async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: typeof en | typeof ptBr, scale: number, mode: 'light' | 'dark') {
+async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: typeof en | typeof ptBr, scale: number, mode: 'light' | 'dark', rowCount: number) {
   for (const selecting of [false, true]) {
     if (selecting) {
       await openTodayListOptions(page, copy.habits.listOptions)
       await page.getByRole('menuitem', { name: copy.common.select, exact: true }).click()
-      await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(6)
+      await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(rowCount)
       await parent.locator('[data-habit-row-body]').click()
       await expect(parent.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
       const leaf = page.locator('[data-testid="habit-row"][data-habit-title="Timed"]')
       await leaf.locator('[data-habit-row-body]').click()
       await expect(leaf.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
     }
-    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting)
+    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting, page.viewportSize()!.width === 320 ? ['Grandchild'] : [])
     for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page)
   }
   await page.getByRole('button', { name: copy.common.cancel, exact: true }).click()
@@ -349,15 +350,15 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
   }
   function assertPreviewControls() {
     expect(geometry.titleSize).toBe(`${(geometry.depth ? 14 : 17) * scale}px`)
-    expect(geometry.well.left - geometry.row.left).toBe(geometry.depth ? 24 : 8)
-    expect(geometry.supporting).toBe(scale === 2)
+    expect(geometry.well.left - geometry.row.left).toBe(8 + 16 * geometry.depth)
+    expect(geometry.supporting).toBe(scale === 2 || page.viewportSize()!.width === 320 && geometry.depth === 2)
     expect(geometry.target.width).toBe(48)
     expect(geometry.target.height).toBeGreaterThanOrEqual(48)
     expect(geometry.check.width).toBe(28)
     expect(geometry.check.height).toBe(28)
     expect(Math.abs(geometry.check.x - geometry.target.x)).toBeLessThanOrEqual(1)
     expect(Math.abs(geometry.check.y - geometry.target.y)).toBeLessThanOrEqual(1)
-    if (scale === 1) expect(Math.abs(geometry.target.y - geometry.row.y)).toBeLessThanOrEqual(1)
+    if (!geometry.supporting) expect(Math.abs(geometry.target.y - geometry.row.y)).toBeLessThanOrEqual(1)
     else {
       expect(geometry.target.top - geometry.row.top).toBe(geometry.depth ? 4 : 8)
       expect(geometry.target.top).toBeCloseTo(geometry.title.top, 1)
