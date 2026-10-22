@@ -22,7 +22,7 @@ for (const width of [320, 412, 1352]) {
     test.describe(`Astra typed item trailing action at ${width} in ${locale}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
 
-      test('keeps the action beside the first line and discloses the full name', async ({ page, context }) => {
+      test('keeps the action beside the first line and reveals the full name in its editor', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` }))
         await page.goto('/')
         await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation, exact: true }).click()
@@ -62,11 +62,14 @@ for (const width of [320, 412, 1352]) {
         await labelControl.focus()
         await expect(labelControl).toBeFocused()
         await expectFillShape(labelControl, 'focus')
+        await expect(labelControl).not.toHaveAttribute('aria-expanded')
         await labelControl.click()
-        await expect(labelControl).toHaveAttribute('aria-expanded', 'true')
-        await expect(conversation.locator('[data-personal-text-expanded]').filter({ hasText: name })).toHaveText(name)
-        await labelControl.click()
-        await expect(labelControl).toHaveAttribute('aria-expanded', 'false')
+        const titleInput = conversation.getByRole('textbox', { name: messages.chat.operation.field.title, exact: true })
+        await expect(titleInput).toHaveValue(name)
+        await expect(titleInput).toBeFocused()
+        await titleInput.press('Escape')
+        await expect(labelControl).toBeFocused()
+        await expect(titleInput).toHaveCount(0)
         await expect(action).toBeVisible()
       })
     })

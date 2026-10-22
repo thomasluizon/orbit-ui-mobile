@@ -13,7 +13,7 @@ export interface PreviewItemTitleProps {
   title: string
   icon?: string
   proposed?: boolean
-  rename?: { label: string; disabled: boolean; onSave: (title: string) => Promise<boolean> }
+  rename?: { label: string; disabled: boolean; onSave: (title: string) => Promise<boolean>; onDraftChange?: (title: string | undefined) => void }
 }
 
 
@@ -83,7 +83,7 @@ interface PendingOperationFrameBase<Node> {
     editable?: boolean
     control?: Node
     icon?: string
-    rename?: { label: string; disabled: boolean; onSave: (title: string) => Promise<boolean> }
+    rename?: PreviewItemTitleProps['rename']
   }[]
   proposedLabel?: string
   irreversibleLabel: string
@@ -146,6 +146,8 @@ export interface PendingOperationCardActions {
     closeEdit: () => void
     startEdit: (itemId: string) => void
     saveEdit: () => Promise<boolean>
+    hasTitleDrafts?: boolean
+    setTitleDraft?: (itemId: string, title: string | undefined) => void
     renameItem?: (itemId: string, title: string) => Promise<boolean>
     rejectItem: (itemId: string) => Promise<boolean>
     rejectAll: () => Promise<boolean>
@@ -225,7 +227,7 @@ function pendingActions<Node>(
     message: labels.stepUpMessage,
     actionLabel: labels.stepUpAction,
     onAction: () => void card.startStepUp(),
-    busy: card.busy || revision?.busy === true,
+    busy: card.busy || revision?.busy === true || revision?.hasTitleDrafts === true,
   })
   if (action !== 'buttons') return undefined
   if (card.status === 'failed') return render.fragment(render.button({
@@ -243,7 +245,7 @@ function pendingActions<Node>(
   const approve = render.button({
     label: labels.approve(count),
     variant: 'primary',
-    disabled: card.busy || revision?.busy === true || (revision?.canRevise === true && revision.items.length === 0),
+    disabled: card.busy || revision?.busy === true || revision?.hasTitleDrafts === true || (revision?.canRevise === true && revision.items.length === 0),
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
   })
   if (!revision?.canRevise) return render.fragment(reject, approve)
@@ -285,7 +287,8 @@ function previewRows<Node>(
       rename: revision?.canRevise && revision.renameItem && card.status == null && !revision.stale
         && item.fields.some((field) => field.field === 'title' && isPendingOperationEditableField(field))
         ? { label: labels.fieldLabels.title!, disabled: card.busy || revision.busy,
-            onSave: (title: string) => revision.renameItem!(item.itemId, title) } : undefined,
+            onSave: (title: string) => revision.renameItem!(item.itemId, title),
+            onDraftChange: (title: string | undefined) => revision.setTitleDraft?.(item.itemId, title) } : undefined,
       meta: edited ? `${labels.edited} · ${summary}` : summary,
       status,
       irreversible: item.removesData === true && card.status == null,

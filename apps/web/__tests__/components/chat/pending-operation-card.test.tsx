@@ -973,13 +973,14 @@ it('renames a proposed title inline, cancels with Escape and retains the full ed
   fireEvent.keyDown(input, { key: 'Escape' })
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   expect(revise).not.toHaveBeenCalled()
+  expect.soft(screen.getByRole('button', { name: 'Habit 1' })).toHaveFocus()
   fireEvent.click(screen.getByRole('button', { name: 'Habit 1' }))
   input = screen.getByRole('textbox', { name: 'chat.operation.field.title' })
   expect(input).toHaveValue('Habit 1')
   fireEvent.change(input, { target: { value: 'Read books' } })
   fireEvent.keyDown(input, { key: 'Enter' })
   fireEvent.blur(input)
-  await screen.findByRole('button', { name: 'Read books' })
+  expect.soft(await screen.findByRole('button', { name: 'Read books' })).toHaveFocus()
   expect(revise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: 'create-preview', items: [{ itemId: '0', edits: { title: 'Read books' } }, { itemId: '1' }] })
   expect(confirm).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'chat.operation.edit' }))
@@ -989,7 +990,7 @@ it('renames a proposed title inline, cancels with Escape and retains the full ed
   await waitFor(() => expect(confirm).toHaveBeenCalledWith(operation.id))
 })
 
-it.each(['en', 'pt-BR'])('shows icons beside static titles without disclosure or icon instructions in %s', locale => {
+it.each(['en', 'pt-BR'])('shows icons beside readable titles without chevrons or icon instructions in %s', locale => {
   visibleLocale.language = locale
   visibleLocale.actual = true
   const operation = makeCreateHabitsPreview(1)
@@ -997,11 +998,13 @@ it.each(['en', 'pt-BR'])('shows icons beside static titles without disclosure or
   item.fields.push({ ...item.fields[0]!, field: 'emoji', newValue: '🩺', proposedValue: '🩺' })
   const { container } = render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
   expect(screen.getByText('🩺').parentElement).toHaveTextContent('Habit 1')
-  expect(container.querySelector('[aria-expanded]')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Habit 1' })).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.getByText('🩺').parentElement?.querySelector('svg')).toBeNull()
   expect(container.textContent).not.toMatch(/Usar 🩺|Use 🩺/)
 })
 
 it('submits a title revision on blur and preserves a failed draft for retry', async () => {
+  confirm.mockClear()
   visibleLocale.actual = false
   const operation = makeCreateHabitsPreview(1)
   const reviseTitle = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
@@ -1013,4 +1016,38 @@ it('submits a title revision on blur and preserves a failed draft for retry', as
   await waitFor(() => expect(reviseTitle).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: 'create-preview', items: [{ itemId: '0', edits: { title: 'Read books' } }] }))
   await waitFor(() => expect(input).toBeEnabled())
   expect(input).toHaveValue('Read books')
+  const approve = screen.getByRole('button', { name: 'chat.operation.approveCount.createHabits' })
+  expect(screen.getByText('chat.operation.invalid')).toBeInTheDocument()
+  expect(approve).toBeDisabled()
+  fireEvent.click(approve)
+  expect(confirm).not.toHaveBeenCalled()
+  fireEvent.change(input, { target: { value: 'Habit 1' } })
+  expect(approve).toBeEnabled()
+  fireEvent.change(input, { target: { value: 'Read books' } })
+  expect(approve).toBeDisabled()
+  const revised = makeCreateHabitsPreview(1)
+  revised.previewFingerprint = 'accepted-title'
+  revised.items![0]!.entityName = 'Read books'
+  revised.items![0]!.fields[0]!.newValue = 'Read books'
+  revised.items![0]!.fields[0]!.proposedValue = 'Read books'
+  reviseTitle.mockResolvedValue({ ok: true, result: { isSuccess: true, cancelled: false, pendingOperationId: operation.id, error: null, preview: revised } })
+  fireEvent.keyDown(input, { key: 'Enter' })
+  await screen.findByRole('button', { name: 'Read books' })
+  expect(approve).toBeEnabled()
+})
+
+it('reveals full deletion names without opening the rename editor', () => {
+  revise.mockClear()
+  const operation = makeDeleteHabitsPreview(2)
+  const names = ['Read every book about the places around the world before breakfast in the kitchen', 'Read every book about the places around the world before breakfast on the balcony']
+  operation.items!.forEach((item, index) => { item.entityName = names[index]! })
+  const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+  for (const name of names) {
+    const control = screen.getByRole('button', { name })
+    fireEvent.click(control)
+    expect(container.querySelector('[data-personal-text-expanded]')).toHaveTextContent(name)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(control)
+  }
+  expect(revise).not.toHaveBeenCalled()
 })

@@ -78,7 +78,7 @@ function getRowStyle(wrapLabel: boolean | undefined) {
   return [styles.row, wrapLabel && { alignItems: 'flex-start' as const }]
 }
 
-function FrameRow(props: FrameRowProps) {
+function FrameRowContent(props: FrameRowProps) {
   const { item, frameState, statusLabel, onEditItem, tokens } = props
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
@@ -118,11 +118,13 @@ function FrameRow(props: FrameRowProps) {
     </View>
   )
 
-  return (
-    <Proposed proposed={item.proposed === true} scope="row" label={props.proposedLabel ?? ''}>
-      {row}
-    </Proposed>
-  )
+  return row
+}
+
+function FrameRow(props: FrameRowProps) {
+  return <Proposed proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
+    <FrameRowContent {...props} />
+  </Proposed>
 }
 
 function LoadingBody({ rows, tokens, hasActions }: Readonly<{

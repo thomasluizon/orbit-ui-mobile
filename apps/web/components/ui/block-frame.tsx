@@ -50,7 +50,7 @@ function StatusView({ status, label }: StatusViewProps) {
   )
 }
 
-function FrameRow(props: ResolvedBlockFrameRow) {
+function FrameRowContent(props: ResolvedBlockFrameRow) {
   const { item, frameState, statusLabel, onEditItem } = props
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
@@ -61,7 +61,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
       data-status={status}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className={item.wrapLabel ? 'break-words text-sm font-medium' : 'truncate text-sm font-medium'}>{item.label}</div>
+        <div className={`${item.wrapLabel ? 'break-words' : 'truncate'} text-sm font-medium ${item.proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{item.label}</div>
         {item.meta ? <div className={`${item.wrapMeta ? 'break-words leading-[1.4]' : 'truncate'} text-xs text-[var(--fg-3)]`}>{item.meta}</div> : null}
         {item.irreversible && props.irreversibleLabel ? (
           <div className="flex items-center gap-1 text-xs text-[var(--fg-3)] uppercase">
@@ -87,11 +87,13 @@ function FrameRow(props: ResolvedBlockFrameRow) {
     </div>
   )
 
-  return (
-    <Proposed proposed={item.proposed === true} scope="row" label={props.proposedLabel ?? ''}>
-      {row}
-    </Proposed>
-  )
+  return row
+}
+
+function FrameRow(props: ResolvedBlockFrameRow) {
+  return <Proposed proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
+    <FrameRowContent {...props} />
+  </Proposed>
 }
 
 function LoadingBody({ rows, hasActions }: Readonly<{ rows: number; hasActions: boolean }>) {

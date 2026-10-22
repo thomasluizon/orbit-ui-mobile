@@ -27,6 +27,7 @@ export function usePendingOperationRevision(
   const draft = useMemo(() => editingItemId ? synchronized.drafts[editingItemId] ?? {} : {},
     [editingItemId, synchronized.drafts])
   const [busy, setBusy] = useState(false)
+  const [titleDrafts, setTitleDrafts] = useState<Record<string, string | undefined>>({})
   const [staleFingerprint, setStaleFingerprint] = useState<string | undefined>(savedState?.stale ? initialOperation.previewFingerprint ?? undefined : undefined)
   const [refreshUnavailableFingerprint, setRefreshUnavailableFingerprint] = useState<string | undefined>(savedState?.refreshUnavailable ? initialOperation.previewFingerprint ?? undefined : undefined)
   const [rejectedFingerprint, setRejectedFingerprint] = useState<string | undefined>(savedState?.rejected ? initialOperation.previewFingerprint ?? undefined : undefined)
@@ -125,6 +126,9 @@ export function usePendingOperationRevision(
   return {
     operation, items, canRevise, editingItem, draft, editedItemIds, authorizationVersion: synchronized.authorizationVersion,
     busy, stale, rejected, error, errorSource: currentError?.source,
+    hasTitleDrafts: items.some((item) => titleDrafts[item.itemId] !== undefined
+      && titleDrafts[item.itemId] !== item.fields.find((field) => field.field === 'title')?.newValue),
+    setTitleDraft: (itemId: string, title: string | undefined) => setTitleDrafts((current) => ({ ...current, [itemId]: title })),
     canRefresh: Boolean(onRefresh && !refreshUnavailable), refresh,
     markStale: () => {
       setRevisionError(undefined)

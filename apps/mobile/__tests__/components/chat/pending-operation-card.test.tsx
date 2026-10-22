@@ -5,7 +5,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native'
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { PendingOperationRevisionResponse, RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
 import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
@@ -1018,6 +1018,7 @@ describe('PendingOperationCard (mobile)', () => {
 })
 
 it('renames a proposed title inline, cancels with Escape and retains the full editor', async () => {
+  const accessibilityFocus = vi.spyOn(AccessibilityInfo, 'sendAccessibilityEvent')
   const operation = makeCreateHabitsPreview(2)
   const revised = makeCreateHabitsPreview(2)
   revised.previewFingerprint = 'renamed-preview'
@@ -1034,6 +1035,8 @@ it('renames a proposed title inline, cancels with Escape and retains the full ed
   TestRenderer.act(() => tree.root.findByProps({ testID: 'input-control' }).props.onKeyDown({ nativeEvent: { key: 'Escape' }, stopPropagation: vi.fn() }))
   expect(tree.root.findAllByType(TextInput)).toHaveLength(0)
   expect(revise).not.toHaveBeenCalled()
+  expect.soft(accessibilityFocus).toHaveBeenCalledWith(expect.objectContaining({ __nativeTag: title().findAll((node: ReactTestInstance) => typeof node.props.__nativeTag === 'number')[0]!.props.__nativeTag }), 'focus')
+  accessibilityFocus.mockClear()
   TestRenderer.act(() => title().props.onPress())
   input = tree.root.findByType(TextInput)
   expect(input.props.value).toBe('Habit 1')
@@ -1041,12 +1044,15 @@ it('renames a proposed title inline, cancels with Escape and retains the full ed
   await TestRenderer.act(() => { input.props.onSubmitEditing(); input.props.onBlur() })
   expect(revise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: 'create-preview', items: [{ itemId: '0', edits: { title: 'Read books' } }, { itemId: '1' }] })
   expect(renderedText(tree.root)).toContain('Read books')
+  const renamed = tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === 'Read books')!
+  expect.soft(accessibilityFocus).toHaveBeenCalledWith(expect.objectContaining({ __nativeTag: renamed.findAll((node: ReactTestInstance) => typeof node.props.__nativeTag === 'number')[0]!.props.__nativeTag }), 'focus')
+  accessibilityFocus.mockRestore()
   expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
   expect(tree.root.findByType(TextInput).props.value).toBe('Read books')
 })
 
-it.each(['en', 'pt-BR'])('shows icons beside static titles without disclosure or icon instructions in %s', locale => {
+it.each(['en', 'pt-BR'])('shows icons beside readable titles without chevrons or icon instructions in %s', locale => {
   visibleLocale.language = locale
   visibleLocale.actual = true
   const operation = makeCreateHabitsPreview(1)
@@ -1055,18 +1061,52 @@ it.each(['en', 'pt-BR'])('shows icons beside static titles without disclosure or
   const { tree } = renderCard(operation)
   expect(renderedText(tree.root)).toContain('🩺')
   expect(renderedText(tree.root)).toContain('Habit 1')
-  for (const node of tree.root.findAllByType(Pressable)) expect(node.props.accessibilityState ?? {}).not.toHaveProperty('expanded')
+  const title = tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === 'Habit 1')!
+  expect(title.props.accessibilityState.expanded).toBe(false)
+  expect(title.findAll((node: ReactTestInstance) => String(node.type) === 'ChevronDown')).toHaveLength(0)
   expect(renderedText(tree.root)).not.toMatch(/Usar 🩺|Use 🩺/)
 })
 
 it('submits a title revision on blur and preserves a failed draft for retry', async () => {
   const operation = makeCreateHabitsPreview(1)
   const reviseTitle = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
-  const { tree } = renderCard(operation, reviseTitle)
+  const { tree, handlers } = renderCard(operation, reviseTitle)
   TestRenderer.act(() => press(tree, 'Habit 1').props.onPress())
   const input = tree.root.findByType(TextInput)
   TestRenderer.act(() => input.props.onChangeText('Read books'))
   await TestRenderer.act(() => input.props.onBlur())
   expect(reviseTitle).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: 'create-preview', items: [{ itemId: '0', edits: { title: 'Read books' } }] })
   expect(tree.root.findByType(TextInput).props.value).toBe('Read books')
+  const approve = () => press(tree, 'chat.operation.approveCount.createHabits')
+  expect(renderedText(tree.root)).toContain('chat.operation.invalid')
+  expect(approve().props.disabled).toBe(true)
+  expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  TestRenderer.act(() => tree.root.findByType(TextInput).props.onChangeText('Habit 1'))
+  expect(approve().props.disabled).toBe(false)
+  TestRenderer.act(() => tree.root.findByType(TextInput).props.onChangeText('Read books'))
+  expect(approve().props.disabled).toBe(true)
+  const revised = makeCreateHabitsPreview(1)
+  revised.previewFingerprint = 'accepted-title'
+  revised.items![0]!.entityName = 'Read books'
+  revised.items![0]!.fields[0]!.newValue = 'Read books'
+  revised.items![0]!.fields[0]!.proposedValue = 'Read books'
+  reviseTitle.mockResolvedValue({ ok: true, result: { isSuccess: true, cancelled: false, pendingOperationId: operation.id, error: null, preview: revised } })
+  await TestRenderer.act(() => tree.root.findByType(TextInput).props.onSubmitEditing())
+  expect(tree.root.findAllByType(TextInput)).toHaveLength(0)
+  expect(approve().props.disabled).toBe(false)
+})
+
+it('reveals full deletion names without opening the rename editor', () => {
+  const operation = makeDeleteHabitsPreview(2)
+  const names = ['Read every book about the places around the world before breakfast in the kitchen', 'Read every book about the places around the world before breakfast on the balcony']
+  operation.items!.forEach((item, index) => { item.entityName = names[index]! })
+  const { tree } = renderCard(operation)
+  for (const name of names) {
+    const control = () => tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === name)!
+    TestRenderer.act(() => control().props.onPress())
+    expect(control().props.accessibilityState.expanded).toBe(true)
+    expect(renderedText(control())).toContain(name)
+    expect(tree.root.findAllByType(TextInput)).toHaveLength(0)
+    TestRenderer.act(() => control().props.onPress())
+  }
 })
