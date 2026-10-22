@@ -69,8 +69,8 @@ for (const width of [320, 412, 1352]) {
             (route) => route.fulfill({ json: habit }),
           )
           await page.goto(`/habits/${habit.id}`)
-          await page.getByRole('button', { name: messages.habits.detail.moreDetails }).click()
-          const disclosure = page.locator('#habit-detail-fields')
+          await page.getByRole('button', { name: messages.habits.editHabit }).click()
+          const disclosure = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
           const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
           const add = disclosure.getByRole('button', { name: messages.common.add, exact: true })
           await expect(disclosure.getByRole('textbox', { name: messages.habits.form.checklistItemLabel.replace('{n}', '1'), exact: true })).toHaveValue('Prepare coffee')

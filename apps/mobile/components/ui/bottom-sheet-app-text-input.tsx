@@ -18,13 +18,14 @@ type AppTokens = ReturnType<typeof createTokensV2>
 
 type BottomSheetAppTextInputProps = ComponentProps<typeof TextInput> & {
   focusBorder?: boolean
+  isChangeDisabled?: () => boolean
 }
 
 export const BottomSheetAppTextInput = forwardRef<
   TextInput,
   BottomSheetAppTextInputProps
 >(function BottomSheetAppTextInput(
-  { focusBorder = true, onBlur, onChangeText, onFocus, placeholderTextColor, style, value, ...props },
+  { focusBorder = true, isChangeDisabled, onBlur, onChangeText, onFocus, placeholderTextColor, style, value, ...props },
   ref,
 ) {
   const localRef = useRef<Parameters<typeof findNodeHandle>[0]>(null)
@@ -77,6 +78,7 @@ export const BottomSheetAppTextInput = forwardRef<
     NonNullable<BottomSheetAppTextInputProps['onBlur']>
   >(
     (event) => {
+      if (isChangeDisabled?.()) return
       setFocused(false)
       if (value !== draftValue) {
         setDraftValue(value)
@@ -84,16 +86,17 @@ export const BottomSheetAppTextInput = forwardRef<
       }
       onBlur?.(event)
     },
-    [draftValue, onBlur, value],
+    [draftValue, isChangeDisabled, onBlur, value],
   )
 
   const handleChangeText = useCallback(
     (nextValue: string) => {
+      if (isChangeDisabled?.()) return
       setDraftValue(nextValue)
       lastSyncedValueRef.current = nextValue
       onChangeText?.(nextValue)
     },
-    [onChangeText],
+    [isChangeDisabled, onChangeText],
   )
 
   return (

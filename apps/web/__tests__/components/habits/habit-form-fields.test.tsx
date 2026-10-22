@@ -80,7 +80,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
-  useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+  useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -1563,7 +1563,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
       : <EditHabitModal open onOpenChange={closed} habit={habit} />}</QueryClientProvider>
     const view = render(modal())
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read'))
-    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : 'habits.editHabit' })
+    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : type === 'habit' ? 'habits.editHabit' : 'habits.editTask' })
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'common.close' })).toHaveFocus())
     if (type) fireEvent.click(screen.getByRole('radio', { name: type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit' }))
     return { refresh: () => view.rerender(modal()) }
@@ -1767,12 +1767,17 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
-  it('keeps genuine save failures on the existing global error path', async () => {
+  it('retains failed saves with the owning create error or edit uncertainty', async () => {
     mutation().mockRejectedValueOnce(new Error('save failed'))
     await mount('task')
     await submit()
-    await waitFor(() => expect(modalFeedback.showError).toHaveBeenCalledOnce())
-    expect(modalFeedback.showError).toHaveBeenCalledWith(owner === 'create' ? 'errors.createHabit' : 'errors.updateHabit')
+    if (owner === 'create') {
+      await waitFor(() => expect(modalFeedback.showError).toHaveBeenCalledOnce())
+      expect(modalFeedback.showError).toHaveBeenCalledWith('errors.createHabit')
+    } else {
+      expect(await screen.findByText('habits.form.saveUncertain')).toBeVisible()
+      expect(modalFeedback.showError).not.toHaveBeenCalled()
+    }
     expect(mutation()).toHaveBeenCalledOnce()
     expect(closed).not.toHaveBeenCalled()
     expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')

@@ -137,7 +137,6 @@
       "m-overlay-habits-description-viewer",
       "m-overlay-habits-edit-habit-modal",
       "m-overlay-habits-goal-linking-field",
-      "m-overlay-habits-habit-detail-fields",
       "m-overlay-habits-habit-detail-screen",
       "m-overlay-habits-reschedule-sheet",
       "m-route-habits-id",
@@ -145,7 +144,6 @@
       "overlay-habits-description-viewer",
       "overlay-habits-edit-habit-modal",
       "overlay-habits-goal-linking-field",
-      "overlay-habits-habit-detail-fields",
       "overlay-habits-habit-detail-screen",
       "overlay-habits-reschedule-sheet",
       "route-habits-id"
@@ -403,6 +401,14 @@
     {
       "surfaceId": "block-chat-suggestion-chips",
       "decision": "The empty conversation shows one suggestion set, the composer's live-state chips (DESIGN.md Information architecture item 1), so ticket 1261 deleted the opener chips."
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-detail-fields",
+      "decision": "The detail pencil owns complete editing through edit-habit-modal; habit-detail-fields now renders read facts without an overlay."
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-fields",
+      "decision": "The detail pencil owns complete editing through edit-habit-modal; habit-detail-fields now renders read facts without an overlay."
     }
   ],
   "excluded": [

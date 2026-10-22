@@ -3,8 +3,14 @@
 import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, Copy } from '@/components/ui/icons'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 
 export function DescriptionCopyButton({ description }: Readonly<{ description: string }>) {
+  const accountGeneration = useAccountGeneration()
+  return <DescriptionCopyAction key={`${accountGeneration}:${description}`} description={description} />
+}
+
+function DescriptionCopyAction({ description }: Readonly<{ description: string }>) {
   const t = useTranslations()
   const errorId = useId()
   const [status, setStatus] = useState<'idle' | 'pending' | 'copied' | 'error'>('idle')
@@ -34,7 +40,7 @@ export function DescriptionCopyButton({ description }: Readonly<{ description: s
       >
         {status === 'copied' ? <Check size={20} strokeWidth={1.5} aria-hidden="true" /> : <Copy size={20} strokeWidth={1.5} aria-hidden="true" />}
       </button>
-      <p id={errorId} role="status" className={`max-w-prose text-sm ${status === 'error' ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>{status === 'error' ? t('habits.detail.copyFailed') : status === 'copied' ? t('habits.detail.descriptionCopied') : ''}</p>
+      <p id={errorId} role="status" className={status === 'error' ? 'max-w-prose text-sm text-[var(--status-bad-text)]' : 'sr-only'}>{status === 'error' ? t('habits.detail.copyFailed') : status === 'copied' ? t('habits.detail.descriptionCopied') : ''}</p>
     </div>
   )
 }

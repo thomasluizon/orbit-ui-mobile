@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 interface DiscardChangesSheetProps {
+  message?: string
   open: boolean
   onKeepEditing: () => void
   onKeepEditingStart?: () => void
@@ -13,6 +14,7 @@ interface DiscardChangesSheetProps {
 /** Guards an unsaved form: discarding the edit is the irreversible act here. */
 export function DiscardChangesSheet({
   open,
+  message,
   onKeepEditing,
   onKeepEditingStart,
   onDiscard,
@@ -24,7 +26,7 @@ export function DiscardChangesSheet({
       open={open}
       destructive
       title={t('common.discardChangesTitle')}
-      message={t('common.discardChangesDescription')}
+      message={message ?? t('common.discardChangesDescription')}
       cancelLabel={t('common.keepEditing')}
       confirmLabel={t('common.discardChangesAction')}
       onCancelStart={onKeepEditingStart}

@@ -152,7 +152,7 @@ try {
 
   const comparison = await runBounded(
     process.env.GH_BIN || "gh",
-    ["api", `repos/${repository}/compare/${live.baseRefOid}...${live.headRefOid}`],
+    ["api", `repos/${repository}/compare/${live.currentBaseSha}...${live.headRefOid}`],
     { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
   )
   if (comparison.timedOut) fail(`gh compare for PR ${prNumber} timed out after 45s; the complete child process tree was terminated`)
@@ -177,7 +177,7 @@ const receipt = {
   repositoryKey: repoKey,
   prNumber,
   baseBranch: live.baseRefName,
-  currentBaseSha: live.baseRefOid,
+  currentBaseSha: live.currentBaseSha,
   currentHeadSha: live.headRefOid,
   ci: {
     settled: ci.pending.length === 0 && liveCiGreen,

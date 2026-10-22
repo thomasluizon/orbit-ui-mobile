@@ -80,7 +80,7 @@ const review = (state, commitOid, { login = "pullfrog", typename = "Bot", submit
 const requiredFrom = (nodes) => nodes.map((node) => ({ context: node.name ?? node.context, app_id: node.checkSuite?.app?.databaseId ?? null }))
 
 const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
-  data: { repository: { nameWithOwner: "useorbitai/orbit-ui-mobile", pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid,
+  data: { repository: { nameWithOwner: "useorbitai/orbit-ui-mobile", pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", baseRef: { name: "main", target: { __typename: "Commit", oid: "base-sha" } }, headRefOid,
     headRefName: BRANCH, headRepository: { nameWithOwner: "useorbitai/orbit-ui-mobile" },
     commits: { nodes: [{ commit: { oid: headRefOid } }] },
     isDraft, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: reviews }, statusCheckRollup: { contexts: { nodes } } } } },
@@ -88,7 +88,7 @@ const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")
 
-const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [], runs, rerunCountFile, rerunExit = 0, rerunStderr = "", rerunHangPidFile, rerunOverflowBytes, ciReadMarker } = {}) => {
+const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [], runs, rerunCountFile, rerunExit = 0, rerunStderr = "", rerunHangPidFile, rerunOverflowBytes, ciReadMarker, currentBaseSha = "base-sha", comparisons } = {}) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -98,6 +98,7 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
   const required = requiredChecks ?? requiredFrom(nodes)
   const state = prState(nodes, headRefOid, false, reviews)
   state.data.repository.pullRequest.baseRefName = baseRefName
+  state.data.repository.pullRequest.baseRef = { name: baseRefName, target: { __typename: "Commit", oid: currentBaseSha } }
   try {
     const pullRequests = JSON.parse(stdout)
     if (Array.isArray(pullRequests)) stdout = JSON.stringify(pullRequests.map((pullRequest) => ({ ...pullRequest, baseRefName })))
@@ -117,7 +118,7 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     { match: "/activity?", stdout: JSON.stringify([{ activity_type: "push", actor: { login: "<actor>" }, after: headRefOid,
       before: "base-sha", id: 1, node_id: "<activity-id>", ref: `refs/heads/${BRANCH}`, timestamp: "2026-08-01T00:00:01Z" }]) },
     { match: `branches/${encodeURIComponent(baseRefName)}/protection/required_status_checks`, stdout: protectionResponse ?? JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }), exit: protectionExit },
-    { match: "api repos/", stdout: JSON.stringify(comparison) },
+    ...(comparisons ?? [{ match: "api repos/", stdout: JSON.stringify(comparison) }]),
     ...(runs ? [{ match: "run list --branch", stdout: JSON.stringify(runs) }] : []),
     ...(rerunCountFile ? [{ match: "run rerun", stdout: "", stdoutSequence: ["", ""], sequenceFile: rerunCountFile, exit: rerunExit, stderr: rerunStderr,
       hangTreePidFile: rerunHangPidFile, overflowStdoutBytes: rerunOverflowBytes }] : []),
@@ -353,6 +354,23 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 1 }) },
   )
   T(`${TOOL}: OUT_OF_DATE reports base SHA, head SHA, and behind count`, /"baseSha": "base-sha"[\s\S]*"headSha": "[^"\s]+"[\s\S]*"behindBy": 1/.test(outOfDate.stdout), outOfDate.stdout)
+
+  const actualBase = "d".repeat(40)
+  const comparedBaseArgv = stage("verify-delivery/current-base-compare.json", "[]")
+  const splitBaseDelivery = check(TOOL, "target-only base advancement keeps OUT_OF_DATE bound to the actual measured SHA",
+    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "OUT_OF_DATE"/ }, { path: testedToolPath,
+      env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 14 }, null, {
+        currentBaseSha: actualBase,
+        comparisons: [
+          { match: `api repos/useorbitai/orbit-ui-mobile/compare/main...${pushed.head}`, stdout: JSON.stringify({ behind_by: 14 }), argvFile: comparedBaseArgv },
+          { match: `api repos/useorbitai/orbit-ui-mobile/compare/${actualBase}...${pushed.head}`, stdout: JSON.stringify({ behind_by: 14 }), argvFile: comparedBaseArgv },
+        ],
+      }) })
+  const splitBaseChecks = JSON.parse(splitBaseDelivery.stdout).checks
+  T(`${TOOL}: comparison input and both delivery stamps name the same current Ref target`,
+    splitBaseChecks.pullRequestState.baseSha === actualBase && splitBaseChecks.upToDate.baseSha === actualBase &&
+    JSON.parse(readFileSync(comparedBaseArgv, "utf8")).includes(`repos/useorbitai/orbit-ui-mobile/compare/${actualBase}...${pushed.head}`), splitBaseDelivery.stdout)
 
   const delivered = check(
     TOOL,
@@ -721,6 +739,7 @@ if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
     const states = rollups.map((nodes) => {
       const state = prState(nodes, pushed.head)
       state.data.repository.pullRequest.baseRefName = "redesign/main"
+      state.data.repository.pullRequest.baseRef.name = "redesign/main"
       return state
     })
     return { sequenceFile, states }
@@ -751,9 +770,15 @@ if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
       { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*unchanged for 30s; requires 60s/ },
       onUnprotectedBase(first, undefined, sequenceOptions(label, [first, changed])))
   }
-  const movedBase = sequenceOptions("moved-base", [completeRollup, completeRollup])
-  movedBase.states[1].data.repository.pullRequest.baseRefOid = "new-base-sha"
+  const movedSnapshotAndBase = sequenceOptions("moved-snapshot-and-base", [completeRollup, completeRollup])
+  movedSnapshotAndBase.states[1].data.repository.pullRequest.baseRefOid = "new-base-sha"
+  movedSnapshotAndBase.states[1].data.repository.pullRequest.baseRef.target.oid = "new-base-sha"
   check(TOOL, "a base change restarts the observation window even if the rollup is unchanged", observedCiArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*unchanged for 30s; requires 60s/ },
+    onUnprotectedBase(completeRollup, undefined, movedSnapshotAndBase))
+  const movedBase = sequenceOptions("moved-base", [completeRollup, completeRollup])
+  movedBase.states[1].data.repository.pullRequest.baseRef.target.oid = "new-base-sha"
+  check(TOOL, "a Ref-target-only change restarts observation while the PR snapshot and rollup stay unchanged", observedCiArgv,
     { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*unchanged for 30s; requires 60s/ },
     onUnprotectedBase(completeRollup, undefined, movedBase))
   check(TOOL, "a non-required failure on an unprotected base still blocks delivery", ciArgv,

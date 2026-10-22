@@ -1,3 +1,4 @@
+import { useHabitFormInteraction } from './habit-form-interaction'
 import { PillButton } from '@/components/ui/pill-button'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
@@ -28,6 +29,7 @@ interface HabitEmojiSelectorProps {
 }
 
 function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError'>>) {
+  const { disabled } = useHabitFormInteraction()
   const { t } = useTranslation()
   return onSuggest ? (
     <PillButton
@@ -36,7 +38,7 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
       minimumHeight={TOUCH_TARGET_MIN}
       loading={isSuggesting}
       focusableWhenLoading
-      disabled={!isSuggesting && (!canSuggest || isDisabled)}
+      disabled={disabled || (!isSuggesting && (!canSuggest || isDisabled))}
       hint={[suggestionHint, suggestionError].filter(Boolean).join(' ') || undefined}
       onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
     >
@@ -58,6 +60,8 @@ export function HabitEmojiSelector({
   isDisabled = false,
   wellSize = TOUCH_TARGET_MIN,
 }: Readonly<HabitEmojiSelectorProps>) {
+  const { disabled, guard, isDisabled: isFormDisabled } = useHabitFormInteraction()
+  isDisabled = isDisabled || disabled
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
   const { sheetRef, closeSheet } = useSheetHost();
@@ -139,9 +143,11 @@ export function HabitEmojiSelector({
       >
         <View style={styles.emojiSheetContent}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <BottomSheetAppTextInput
+              <BottomSheetAppTextInput isChangeDisabled={isFormDisabled}
                 value={query}
-                onChangeText={setQuery}
+                editable={!isDisabled}
+                accessibilityState={{ disabled: isDisabled }}
+                onChangeText={guard(setQuery)}
                 placeholder={t("habits.form.emojiSearchPlaceholder")}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -167,7 +173,7 @@ export function HabitEmojiSelector({
               {HABIT_EMOJI_CATEGORIES.map((category) => {
                 const selected = selectedCategoryId === category.id;
                 return (
-                  <Pressable focusInset selectionRingWidth={1}
+                  <Pressable disabled={isDisabled} focusInset selectionRingWidth={1}
                     key={category.id}
                     style={({ pressed }) => [
                       styles.emojiCategoryTab,

@@ -2096,9 +2096,10 @@
     },
     "web:control:habits.detail.linkedGoal": {
       "targets": [
-        "web:control:habits.detail.linkedGoals"
+        "web:control:habits.form.goals",
+        "web:display:habits.form.goals"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "reason": "The legacy Linked goal section displayed associated goal names without an action. The full editor retains that association list and selection; current detail additionally opens each linked goal through its named read row."
     },
     "web:control:habits.form.addEndDate": {
       "targets": [
@@ -3314,6 +3315,57 @@
         "web:route:/progress"
       ],
       "reason": "Progresso owns achievements, streaks and goals."
+    },
+    "web:control:habits.checklistClearMessage": {
+      "targets": [
+        "web:control:habits.form.clearChecklist",
+        "web:control:common.save",
+        "web:control:common.cancel"
+      ],
+      "reason": "Structural clear is local in the full editor; its existing Save and Cancel boundary replaces immediate destructive confirmation. The immediate completion reset remains separate."
+    },
+    "web:control:habits.checklistClearTitle": {
+      "targets": [
+        "web:control:habits.form.clearChecklist",
+        "web:control:common.save",
+        "web:control:common.cancel"
+      ],
+      "reason": "Clear checklist moved into the controlled editor, where Save commits and Cancel discards the structural draft instead of immediately erasing persisted items."
+    },
+    "web:control:habits.editHabit": {
+      "targets": [
+        "web:content:habits.editHabit"
+      ],
+      "reason": "The same type-aware Edit habit name is now passed through the rendered pencil and full editor title instead of a literal control child."
+    },
+    "mobile:control:habits.checklistClearMessage": {
+      "targets": [
+        "mobile:control:habits.form.clearChecklist",
+        "mobile:control:common.save",
+        "mobile:control:common.cancel"
+      ],
+      "reason": "Structural clear is local in the full editor; its existing Save and Cancel boundary replaces immediate destructive confirmation. The immediate completion reset remains separate."
+    },
+    "mobile:control:habits.checklistClearTitle": {
+      "targets": [
+        "mobile:control:habits.form.clearChecklist",
+        "mobile:control:common.save",
+        "mobile:control:common.cancel"
+      ],
+      "reason": "Clear checklist moved into the controlled editor, where Save commits and Cancel discards the structural draft instead of immediately erasing persisted items."
+    },
+    "mobile:control:habits.editHabit": {
+      "targets": [
+        "mobile:content:habits.editHabit"
+      ],
+      "reason": "The same type-aware Edit habit name is now passed through the rendered pencil and full editor title instead of a literal control child."
+    },
+    "mobile:control:habits.detail.viewDescription": {
+      "targets": [
+        "mobile:content:habits.form.description",
+        "mobile:control:habits.detail.copyDescription"
+      ],
+      "reason": "Full source prose is directly visible beneath its rendered Description heading and retains exact-source Copy description; no expansion is required to reach the text."
     }
   },
   "removals": {

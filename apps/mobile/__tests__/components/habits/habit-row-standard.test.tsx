@@ -8,6 +8,7 @@ import { measureInteractionFills } from '@/__tests__/support/interaction-fill-ge
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
+vi.unmock('@/components/ui/icons')
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'light' | 'dark' } => ({ mode: 'dark' }))
 const rowLocale = vi.hoisted((): { value: 'en' | 'pt-BR' } => ({ value: 'en' }))
@@ -29,7 +30,7 @@ function assertParentProgressLabel(root: import('react-test-renderer').ReactTest
   expect(indicators.length).toBeGreaterThan(0)
 }
 
-function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills>, fontScale: number, depth: 0 | 1) {
+function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills>, fontScale: number, depth: number, supportingMeta: boolean) {
   const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
   const primary = geometry.find((part) => part.host.type === 'Pressable' && 'delayLongPress' in part.host.props && part.host.props.delayLongPress === 500)!
   const types = geometry.filter((part) => part.host.props.testID === 'habit-row-type')
@@ -42,7 +43,7 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
   expect(type.host.props.numberOfLines).toBeUndefined()
   const typeLabel = type.host.children!.filter((child) => typeof child === 'string').join('')
   expect(String(primary.host.props.accessibilityLabel).split(typeLabel)).toHaveLength(2)
-  if (fontScale === 1) {
+  if (!supportingMeta) {
     expect(type.ancestors).toContain(primary.slot)
     expect(primary.style.paddingRight).toBe(4)
     return
@@ -51,20 +52,58 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
   expect(type.ancestors).not.toContain(primary.slot)
   expect(metadata.ancestors).not.toContain(primary.slot)
   expect(geometry.some((part) => type.ancestors.includes(part.slot) && 'importantForAccessibility' in part.host.props && part.host.props.importantForAccessibility === 'no-hide-descendants')).toBe(true)
-  const footerContent = geometry.find((part) => part.slot === type.ancestors.at(-1))!
+  const footerContent = geometry.find((part) => part.slot === metadata.ancestors.at(-1))!
   expect(footerContent.right).toBe(row.right - 8)
-  expect(type.right).toBe(footerContent.right)
-  expect(footerContent.style).toMatchObject({ flex: 1, minWidth: 0, gap: 4 })
+  expect(metadata.right).toBe(footerContent.right)
+  expect(footerContent.style).toMatchObject({ flex: 1, minWidth: 0 })
   const heading = geometry.find((part) => title.ancestors.includes(part.slot) && part.style.minHeight === (depth ? 52 : 68) && part.style.paddingTop === (depth ? 4 : 8))!
   const description = geometry.find((part) => part.host.props.testID === 'habit-row-description')
   expect(type.top - heading.bottom).toBeCloseTo(description ? 0 : 4, 1)
   expect(type.top - (description ?? title).bottom).toBeGreaterThanOrEqual(4)
-  expect(metadata.top - type.bottom).toBeCloseTo(4, 1)
+  expect(type.top).toBeCloseTo(metadata.top, 1)
+  expect(type.bottom).toBeLessThanOrEqual(metadata.bottom)
   expect(row.bottom - metadata.bottom).toBeCloseTo(8, 1)
   expect(metadata.host.props.numberOfLines).toBeUndefined()
 }
 
 describe('habit row standard on Android', () => {
+  it('keeps measured checklist fit and recursive depth boundary as independent footer causes', () => {
+    __setWindowDimensions({ width: 320, height: 892, scale: 1, fontScale: 1 })
+    const habit = createMockHabit({ title: 'Read', checklistItems: Array.from({ length: 50 }, () => ({ text: 'Page', isChecked: true })) })
+    let tree: ReturnType<typeof TestRenderer.create>
+    for (const scenario of [
+      { depth: 1, parent: true, supporting: true, reason: 'metadata only' },
+      { depth: 2, parent: true, supporting: true, reason: 'both measurements' },
+      { depth: 2, parent: false, supporting: true, reason: 'depth boundary only' },
+      { depth: 1, parent: false, supporting: false, reason: 'neither measurement' },
+    ]) {
+      const element = <HabitRow habit={habit} depth={scenario.depth} structuralColumn hasChildren={scenario.parent}
+        childrenDone={scenario.parent ? 1 : 0} childrenTotal={scenario.parent ? 3 : 0}
+        actions={scenario.parent ? { onEdit: vi.fn(), onToggleExpand: vi.fn() } : {}} />
+      TestRenderer.act(() => { if (tree) tree.update(element); else tree = TestRenderer.create(element) })
+      const initial = measureInteractionFills(tree!.toJSON(), 284, false)
+      const row = initial.find((part) => part.host.props.testID === 'habit-row')!
+      const content = initial.find((part) => part.host.props.testID === 'habit-row-title-block')!
+      const tokenBounds = initial.filter((part) => part.host.props.testID === 'habit-row-meta-token')
+      const layoutEvent = (width: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width, height: 52 } } })
+      TestRenderer.act(() => {
+        tree!.root.findByProps({ testID: 'habit-row' }).props.onLayout(layoutEvent(row.width))
+        tree!.root.findByProps({ testID: 'habit-row-title-block' }).props.onLayout(layoutEvent(content.width))
+        tree!.root.findAllByType('View').filter((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-meta-token')
+          .forEach((node: import('react-test-renderer').ReactTestInstance, index: number) => (node.props.onLayout as (event: ReturnType<typeof layoutEvent>) => void)(layoutEvent(tokenBounds[index]!.width)))
+      })
+      const geometry = measureInteractionFills(tree!.toJSON(), 284, false)
+      const primary = geometry.find((part) => part.host.type === 'Pressable' && 'delayLongPress' in part.host.props)!
+      const strip = geometry.find((part) => part.host.props.testID === 'habit-row-meta')!
+      expect(!strip.ancestors.includes(primary.slot), scenario.reason).toBe(scenario.supporting)
+      expect(geometry.filter((part) => part.host.props.testID === 'habit-row-meta')).toHaveLength(1)
+      const count = tree!.root.findAllByType('View').find((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-checklist')!
+      expect(count.findByType('Text').props.children).toBe('50/50')
+      expect(count.findByType('Svg').props).toMatchObject({ width: 16, strokeWidth: 1.5 })
+    }
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each(([
     { locale: 'en', caption: 'Task' },
     { locale: 'pt-BR', caption: 'Tarefa' },
@@ -98,7 +137,7 @@ describe('habit row standard on Android', () => {
     const types = geometry.filter((part) => part.host.props.testID === 'habit-row-type')
     expect(types).toHaveLength(1)
     const type = types[0]!
-    expect(geometry.filter((part) => part.host.props.testID === 'habit-row-meta')).toHaveLength(0)
+    expect(geometry.filter((part) => part.host.props.testID === 'habit-row-meta')).toHaveLength(1)
     expect(type.host.children).toEqual([en.habits.form.typeHabit])
     expect(row.bottom - type.bottom).toBeCloseTo(8, 1)
     TestRenderer.act(() => tree.unmount())
@@ -145,7 +184,7 @@ describe('habit row standard on Android', () => {
     TestRenderer.act(() => tree.unmount())
   })
   it.each((['light', 'dark'] as const).flatMap((mode) => [320, 360, 384, 412, 1352].flatMap((width) =>
-    [1, 2].flatMap((fontScale) => [0, 1].map((depth) => ({ mode, width, fontScale, depth: depth as 0 | 1 }))),
+    [1, 2].flatMap((fontScale) => [0, 1, 2].map((depth) => ({ mode, width, fontScale, depth }))),
   )))('keeps bordered rows and checks in $mode at $width with $fontScale text and depth $depth', ({ mode, width, fontScale, depth }) => {
     theme.mode = mode
     __setWindowDimensions({ width, height: 892, scale: 1, fontScale })
@@ -159,8 +198,8 @@ describe('habit row standard on Android', () => {
     const tokens = createTokensV2('orange', mode)
     const row = tree!.root.findByProps({ testID: 'habit-row' })
     const geometry = measureInteractionFills(tree!.toJSON(), width, false, fontScale)
-    const well = geometry.find((part) => part.style.borderRadius === 12 && part.style.width === (depth === 1 ? 32 : 46))!
-    expect(well.left).toBe(depth === 1 ? 24 : 8)
+    const well = geometry.find((part) => part.style.borderRadius === 12 && part.style.width === (depth > 0 ? 32 : 46))!
+    expect(well.left).toBe(8 + 16 * depth)
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgCard })
     expect(StyleSheet.flatten(row.props.style).borderWidth ?? 0).toBe(0)
     const outline = tree!.root.findByProps({ testID: 'habit-row-outline' })
@@ -215,8 +254,8 @@ describe('habit row standard on Android', () => {
 })
 
 
-it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [0, 1].flatMap((depth) =>
-  [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) => ({ locale, width, fontScale, depth: depth as 0 | 1, parent, described, selected })))),
+it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [0, 1, 2].flatMap((depth) =>
+  [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) => ({ locale, width, fontScale, depth, parent, described, selected })))),
 )))))(
   'measures native feedback in $locale at $width/$fontScale, depth=$depth parent=$parent description=$described selected=$selected', ({ locale, width, fontScale, depth, parent, described, selected }) => {
     rowLocale.value = locale
@@ -229,18 +268,20 @@ it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap(
     const body = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith('Read ten minutes'))!
     const measure = () => measureInteractionFills(tree!.toJSON(), width, false, fontScale)
     const geometry = measure()
-    assertTypePlacement(geometry, fontScale, depth)
+    const supportingMeta = fontScale === 2 || width === 320 && depth === 2
+    assertTypePlacement(geometry, fontScale, depth, supportingMeta)
     const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
     const check = geometry.find((part) => part.host.props.testID === 'habit-check')!
     const target = geometry.find((part) => check.ancestors.includes(part.slot) && part.width === 48)!
     expect(Math.abs((check.left + check.right) / 2 - (target.left + target.right) / 2)).toBeLessThanOrEqual(1)
     expect(Math.abs((check.top + check.bottom) / 2 - (target.top + target.bottom) / 2)).toBeLessThanOrEqual(1)
-    if (fontScale === 1) expect(Math.abs((target.top + target.bottom) / 2 - (row.top + row.bottom) / 2)).toBeLessThanOrEqual(1)
+    if (!supportingMeta) expect(Math.abs((target.top + target.bottom) / 2 - (row.top + row.bottom) / 2)).toBeLessThanOrEqual(1)
     else expect(target.top - row.top).toBe(depth ? 4 : 8)
     expect(target.width).toBe(48)
     const title = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes('Read ten minutes') && part.style.opacity !== 0)!
     expect((title.style as import('react-native').TextStyle).fontSize).toBe(depth ? 14 : 17)
-    if (fontScale === 2) expect(target.top).toBeCloseTo(title.top, 1)
+    expect(title.width).toBeGreaterThanOrEqual(Number((title.style as import('react-native').TextStyle).fontSize) * fontScale)
+    if (supportingMeta) expect(target.top).toBeCloseTo(title.top, 1)
     const preview = geometry.find((part) => part.host.props.testID === 'habit-row-description')
     expect(Boolean(preview)).toBe(described)
     if (preview) {
