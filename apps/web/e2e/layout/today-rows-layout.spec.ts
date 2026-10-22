@@ -228,7 +228,7 @@ for (const width of [320, 600]) {
 
 for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'light'] as const) {
   for (const width of [320, 412, 1352]) {
-    const normalSupportingTitles = width === 320 ? ['Grandchild', ...(language === 'pt-BR' ? ['Child parent'] : [])] : []
+    const normalSupportingTitles = width === 320 ? ['Grandchild', 'Child parent'] : []
     test(`Habit previews and full-row feedback at ${width}px in ${mode} ${language}`, async ({ page, context }) => {
       await page.setViewportSize({ width, height: 1200 })
       const description = language === 'en' ? 'Read two pages before breakfast.' : 'Leia duas páginas antes do café.'

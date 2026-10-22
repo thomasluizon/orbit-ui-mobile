@@ -83,7 +83,7 @@ for (const width of [320, 412, 1352]) {
           const visibleCount = width === 320 ? scale === 2 ? 3 : 4 : familyItems.length
           return { items: familyItems.slice(0, visibleCount), depths: familyDepths.slice(0, visibleCount) }
         }
-        const normalSupportingTitles = width === 320 ? [grandchild.title, ...(locale === 'pt-BR' ? [branch.title] : [])] : []
+        const normalSupportingTitles = width === 320 ? [grandchild.title, branch.title] : []
         test.use({ viewport: { width, height: 915 } })
         test.beforeEach(async ({ context }) => {
           await setLayoutFixtureSession(context, [
