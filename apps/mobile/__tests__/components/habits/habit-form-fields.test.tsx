@@ -16,6 +16,7 @@ import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selecti
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
+import { HabitFormInteractionProvider } from '@/components/habits/habit-form-fields/habit-form-interaction'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -100,7 +101,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
-  useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+  useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -153,6 +154,58 @@ function createTags(): TagSelectionState {
 }
 
 describe('HabitFormFields mobile', () => {
+  it('keeps merged marked Astra actions guarded across the form freeze', async () => {
+    const helpers = createFormHelpers({ itemType: 'habit', title: 'Build a stronger routine', datePhrase: 'after my vacation' })
+    const setup = vi.fn(() => SETUP_PROPOSAL)
+    const emoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
+    const form = (disabled: boolean) => <HabitFormInteractionProvider disabled={disabled}>
+      <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={setup} onSuggestEmoji={emoji} />
+    </HabitFormInteractionProvider>
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(form(false)) })
+    const controls = tree.root.findAllByType(PillButton).filter((node: { props: Record<string, unknown> }) => node.props.children === 'habits.form.askAstra' || node.props.children === 'habits.form.askDate')
+    expect(controls).toHaveLength(3)
+    const hosts = controls.map((control: import('react-test-renderer').ReactTestInstance) => control.findAll((node) => String(node.type) === 'Pressable')[0]!)
+    for (const control of controls) expect(control.findAllByType(AstraGlyph)).toHaveLength(1)
+    const deliveredCallbacks = hosts.map((host: import('react-test-renderer').ReactTestInstance) => host.props.onPress as () => void)
+    await TestRenderer.act(() => tree.update(form(true)))
+    for (const host of hosts) expect(host.props.disabled).toBe(true)
+    await TestRenderer.act(() => { for (const callback of deliveredCallbacks) callback(); return Promise.resolve() })
+    expect(setup).not.toHaveBeenCalled()
+    expect(emoji).not.toHaveBeenCalled()
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.update(form(false)))
+    for (const host of hosts) expect(host.props.disabled).toBe(false)
+    dateRequests.request.mockRejectedValueOnce(new Error('Unavailable'))
+    await TestRenderer.act(() => { for (const host of hosts) host.props.onPress(); return Promise.resolve() })
+    expect(setup).toHaveBeenCalledOnce()
+    expect(emoji).toHaveBeenCalledOnce()
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it('focuses the single immediate description for backend validation', async () => {
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const helpers = createFormHelpers({ description: 'Keep the complete draft' })
+    helpers.backendFieldErrors = { description: 'Server description failure' }
+    helpers.backendFocusField = 'description'
+    helpers.backendFocusRequest = 1
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
+      const fields = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput')
+      const description = fields.filter((node: UnderstandingTestNode) => node.props.accessibilityLabel === 'habits.form.description')
+      expect(description).toHaveLength(1)
+      expect(description[0]).toBe(fields[1])
+      expect(description[0]!.props.value).toBe('Keep the complete draft')
+      expect(description[0]!.props.accessibilityHint).toBe('Server description failure')
+      expect(focus).toHaveBeenCalledOnce()
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+      __setFocusImpl(() => {})
+    }
+  })
+
   it.each(['en', 'pt-BR'])('keeps natural date guidance and a single selected date in %s', async (locale) => {
     formLocale.language = locale
     const messages = locale === 'en' ? en : ptBR
@@ -1794,12 +1847,17 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
-  it('keeps genuine save failures on the existing global error path', async () => {
+  it('retains failed saves with the owning create error or edit uncertainty', async () => {
     mutation().mockRejectedValueOnce(new Error('save failed'))
     await mount('task')
     await submit()
-    expect(modalFeedback.showError).toHaveBeenCalledOnce()
-    expect(modalFeedback.showError).toHaveBeenCalledWith(owner === 'create' ? 'errors.createHabit' : 'errors.updateHabit')
+    if (owner === 'create') {
+      expect(modalFeedback.showError).toHaveBeenCalledOnce()
+      expect(modalFeedback.showError).toHaveBeenCalledWith('errors.createHabit')
+    } else {
+      expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.saveUncertain')).toHaveLength(1)
+      expect(modalFeedback.showError).not.toHaveBeenCalled()
+    }
     expect(mutation()).toHaveBeenCalledOnce()
     expect(closed).not.toHaveBeenCalled()
     expect(input('habits.form.describe').props.value).toBe('Read')

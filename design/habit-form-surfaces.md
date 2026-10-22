@@ -111,3 +111,42 @@ The phrase placeholder is guidance only and never a default value. No external r
 model, budget, event, queue or transport changes are introduced. Historical spending decisions
 remain unchanged. Direct skill, agent, playbook and hook references contain no active superseded
 form-size or invocation rule requiring an edit; the owning contradictions are in DESIGN and canvas.
+
+## Detail read and draft ownership
+
+| Previous section or action | Final paired owner and boundary |
+|---|---|
+| Inline title rename and emoji picker | One named type-aware pencil opens `edit-habit-modal.tsx`; title/emoji are draft fields in `habit-form-fields.tsx` |
+| Task/Habit, fixed/count/General, weekdays, quantity, interval and tree constraints | Existing complete editor and shared mode drafts; no inline schedule writer |
+| Editable start/due date, local phrase, picker and explicit Astra proposal | Existing date editor; accepted proposals update the draft; Save owns persistence |
+| Exact/end time, relative offsets and absolute/scheduled reminders | Existing form reminder owners; local until Save |
+| End date and description clears | Full update carries clearEndDate and the explicit empty description |
+| Stored description read/copy | Detail header renders selectable source prose and Copy description without a collapsed preview |
+| Checklist completion, final-item log question and Uncheck all | One read checklist and existing immediate completion endpoint |
+| Checklist text/add/remove/duplicate/reorder/clear | Full editor's real checklist; local stable identity and checked state; one outer Save |
+| Checklist templates | Loading selects draft structure; explicit template saving remains independent management |
+| Goal/tag associations | Editor selection draft; optional tagIds joins the ordinary update, without a subsequent assignment write |
+| Tag create/edit/delete and new suggested tag | Existing explicit management; new suggestions open the tag editor before Add; Cancel only discards habit associations |
+| Independent goal/habit creation and sub-habit management | Existing explicit creation; sub-habits are available on every plan and created objects are independent of outer Cancel |
+| Avoidance and slip alert | Existing full form and actual plan/General constraints |
+| Activity strip, statistics, reminder readout, cadence/end/started facts and month history | Retained read owners; More details holds secondary facts and full month navigation |
+| Linked-goal navigation | Read facts open the existing goal detail owner; association editing uses the pencil |
+| Contextual Astra and rescue | Existing contextual entry and independently accepted proposal; no automatic new paid request |
+| Navigation and deletion | Existing detail header/back and confirmed deletion paths |
+| Loading/error/offline | Existing detail reads; editor validation and persistent error; native supported queue and persistent sync notice |
+
+The editor owns one isolated draft per account and habit. Unloaded untouched tags remain omitted;
+explicit empty selections clear. Confirmed Save closes through the sheet lifecycle and refreshes the
+read owner. Queued native Save closes as accepted work with Waiting to sync and the existing persistent
+queue notice, without invoking the confirmed-save callback. Uncertain writes retain the draft and
+request fresh readback without claiming rollback or confirmation. Repeated submission is blocked.
+The dirty body names only the habit or task draft; submitted uncertainty uses its own approved copy.
+
+Paired component tests mount detail, the actual full editor, form and checklist for the draft/write
+boundary. Shared request/schema guards cover explicit clears and optional UUID tags. Native tests
+retain focused text through moves and rollback, and preserve the existing queue/replay adapters.
+Removed inline autosave owners have no remaining runtime caller. Their obsolete writer assertions
+are replaced at the actual full editor boundary; form weekday focus and geometry remain with the
+existing form owners. Changed rendered layout, modal focus, both locales/themes, phone/wide and
+200% text require frozen-build verification. Native device/AT and real combined save/readback/refusal
+remain separate acceptance; source tests do not establish deployment or server persistence.

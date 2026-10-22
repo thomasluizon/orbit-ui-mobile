@@ -1,10 +1,13 @@
 import React from 'react'
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DescriptionCopyButton } from '@/components/habits/description-copy-button'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { AccessibilityInfo } from 'react-native'
+import { Check, Copy } from '@/components/ui/icons'
 
 const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn() }))
 vi.mock('expo-clipboard', () => ({ ...clipboard }))
@@ -45,6 +48,10 @@ describe('description copy action', () => {
     expect(clipboard.setStringAsync).toHaveBeenCalledWith(description)
     expect(clipboard.getStringAsync).toHaveBeenCalledTimes(1)
     expect(feedback().props.children).toBe('habits.detail.descriptionCopied')
+    expect(tree.root.findAll((node) => node.type === Text && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1)
+    expect(StyleSheet.flatten(feedback().props.style)).toMatchObject({ position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' })
+    expect(tree.root.findAll((node) => node.type === Check)).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === Copy)).toHaveLength(0)
   })
 
   it.each(['throw', 'rejection', 'mismatch'])('surfaces %s without claiming success and allows retry', async (failure) => {
@@ -55,6 +62,7 @@ describe('description copy action', () => {
     await act(async () => { press(); await Promise.resolve() })
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
     expect(feedback().props.children).toBe('habits.detail.copyFailed')
+    expect(StyleSheet.flatten(feedback().props.style)).not.toMatchObject({ position: 'absolute' })
     clipboard.setStringAsync.mockReset()
     clipboard.getStringAsync.mockResolvedValue(description)
     await act(async () => { press(); await Promise.resolve() })
@@ -83,5 +91,38 @@ describe('description copy action', () => {
     await act(async () => { finish(description); await Promise.resolve() })
     expect(button().props.disabled).toBe(false)
     expect(feedback().props.children).toBe('habits.detail.descriptionCopied')
+  })
+
+  it.each(['description', 'account'])('clears completed and late copy status when the %s changes', async (change) => {
+    await mount()
+    await act(async () => { press(); await Promise.resolve() })
+    expect(feedback().props.children).toBe('habits.detail.descriptionCopied')
+    if (change === 'description') await act(() => { tree.update(<DescriptionCopyButton description="Replacement" />) })
+    else await act(() => { advanceAccountGeneration() })
+    expect(feedback().props.children).toBe('')
+    let finish!: (text: string) => void
+    clipboard.getStringAsync.mockReturnValue(new Promise<string>((resolve) => { finish = resolve }))
+    await act(async () => { press(); await Promise.resolve() })
+    if (change === 'description') await act(() => { tree.update(<DescriptionCopyButton description="Third" />) })
+    else await act(() => { advanceAccountGeneration() })
+    await act(async () => { finish(description); await Promise.resolve() })
+    expect(feedback().props.children).toBe('')
+    expect(button().props.disabled).toBe(false)
+  })
+
+  it('empties one live region before a repeated copy without a second announcement API', async () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility')
+    await mount()
+    const region = tree.root.findAll((node) => node.type === Text)[0]
+    await act(async () => { press(); await Promise.resolve() })
+    let finish!: (text: string) => void
+    clipboard.getStringAsync.mockReturnValue(new Promise<string>((resolve) => { finish = resolve }))
+    await act(async () => { press(); await Promise.resolve() })
+    expect(tree.root.findAll((node) => node.type === Text)[0]).toBe(region)
+    expect(feedback().props.children).toBe('')
+    await act(async () => { finish(description); await Promise.resolve() })
+    expect(feedback().props.children).toBe('habits.detail.descriptionCopied')
+    expect(announce).not.toHaveBeenCalled()
+    announce.mockRestore()
   })
 })

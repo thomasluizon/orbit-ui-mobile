@@ -435,6 +435,12 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:habits.actions.reschedule": {
+      "targets": [
+        "mobile:control:habits.actions.rescheduleAstra"
+      ],
+      "reason": "#1607 identifies the existing overdue reschedule menu action with Astra while retaining onReschedule and completion guards."
+    },
     "mobile:control:habits.actions.unlog": {
       "targets": [
         "mobile:content:habits.actions.unlog"
@@ -483,6 +489,22 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:habits.checklistClearMessage": {
+      "targets": [
+        "mobile:control:habits.form.clearChecklist",
+        "mobile:control:common.save",
+        "mobile:control:common.cancel"
+      ],
+      "reason": "Structural clear is local in the full editor; its existing Save and Cancel boundary replaces immediate destructive confirmation. The immediate completion reset remains separate."
+    },
+    "mobile:control:habits.checklistClearTitle": {
+      "targets": [
+        "mobile:control:habits.form.clearChecklist",
+        "mobile:control:common.save",
+        "mobile:control:common.cancel"
+      ],
+      "reason": "Clear checklist moved into the controlled editor, where Save commits and Cancel discards the structural draft instead of immediately erasing persisted items."
+    },
     "mobile:control:habits.closeSearch": {
       "targets": [
         "mobile:control:common.back"
@@ -500,6 +522,67 @@
         "mobile:control:habits.detail.askAstra"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.detail.linkedGoals": {
+      "targets": [
+        "mobile:control:habits.form.goals"
+      ],
+      "reason": "Goal association selection moved from inline detail to the full editor goal picker; linked-goal read rows retain their independent detail navigation."
+    },
+    "mobile:control:habits.detail.noValue": {
+      "targets": [
+        "mobile:control:habits.form.goals",
+        "mobile:control:habits.form.selectedCount"
+      ],
+      "reason": "The goal picker exposes the current selection count, including zero, instead of the old inline Not set value; association changes remain local until Save."
+    },
+    "mobile:control:habits.detail.proGate": {
+      "targets": [
+        "mobile:control:habits.form.slipAlert",
+        "mobile:control:common.proBadge"
+      ],
+      "reason": "The same plan-gated slip control and Pro badge remain in the full editor, with the existing upgrade action and plan constraints."
+    },
+    "mobile:control:habits.detail.rename": {
+      "targets": [
+        "mobile:content:habits.editHabit",
+        "mobile:content:habits.form.describe"
+      ],
+      "reason": "The named pencil opens the full editor and its existing title input; renaming is staged until the outer Save."
+    },
+    "mobile:control:habits.detail.schedule": {
+      "targets": [
+        "mobile:display:habits.detail.schedule",
+        "mobile:control:habits.form.frequency",
+        "mobile:control:habits.form.timesPerUnit",
+        "mobile:control:habits.form.noSchedule"
+      ],
+      "reason": "Detail retains its cadence readout; fixed, count-based and General schedule editing moved to the existing full editor without inline persistence."
+    },
+    "mobile:control:habits.detail.slipAlert": {
+      "targets": [
+        "mobile:control:habits.form.slipAlert"
+      ],
+      "reason": "The existing slip-alert control moved into the full editor with unchanged plan and General constraints."
+    },
+    "mobile:control:habits.detail.slipAlertDescription": {
+      "targets": [
+        "mobile:control:habits.form.slipAlertDescription"
+      ],
+      "reason": "The full editor slip-alert control retains its explanatory description and plan-gated or toggle action."
+    },
+    "mobile:control:habits.detail.viewDescription": {
+      "targets": [
+        "mobile:content:habits.form.description",
+        "mobile:control:habits.detail.copyDescription"
+      ],
+      "reason": "Full source prose is directly visible beneath its rendered Description heading and retains exact-source Copy description; no expansion is required to reach the text."
+    },
+    "mobile:control:habits.editHabit": {
+      "targets": [
+        "mobile:content:habits.editHabit"
+      ],
+      "reason": "The same type-aware Edit habit name is now passed through the rendered pencil and full editor title instead of a literal control child."
     },
     "mobile:control:habits.form.addEndDate": {
       "targets": [
@@ -548,6 +631,15 @@
         "mobile:control:habits.form.reminderCustom"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.suggestTags": {
+      "targets": [
+        "mobile:control:habits.form.askDate"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx"
+      ],
+      "reason": "#1607 identifies the existing suggestions.suggest action with Ask Astra in Tags; ordinary tag picking and proposal acceptance remain separate."
     },
     "mobile:control:habits.form.templates": {
       "targets": [
@@ -605,6 +697,15 @@
         "mobile:content:habits.overdue"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:habits.reschedule.retry": {
+      "targets": [
+        "mobile:control:habits.form.askDate"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/reschedule-sheet.tsx"
+      ],
+      "reason": "#1607 identifies the error-branch retry with Ask Astra while retaining its refetch callback, eligibility and capacity branches."
     },
     "mobile:control:habits.reschedule.title": {
       "targets": [
@@ -1140,6 +1241,12 @@
       ],
       "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
+    "mobile:display:common.selectedDate": {
+      "targets": [
+        "mobile:content:common.selectedDate"
+      ],
+      "reason": "#1607 grants one selected-date readback in DateField: its formatted value and rendered trigger accessibility label replace the duplicate ordinary form sentence."
+    },
     "mobile:display:common.yes": {
       "targets": [
         "mobile:display:orbitMcp.permReadOnly"
@@ -1265,6 +1372,12 @@
         "mobile:control:habits.detail.monthlyRate"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.form.dateProposed": {
+      "targets": [
+        "mobile:content:habits.form.dateProposed"
+      ],
+      "reason": "#1607 retains the candidate Proposed label and conditional status beside the actual editable DateField, with deterministic acceptance and manual recovery."
     },
     "mobile:display:habits.form.dueTime": {
       "targets": [
@@ -1564,7 +1677,7 @@
       "targets": [
         "mobile:content:profile.calendarSync.title"
       ],
-      "reason": "The Calendários sheet replaces the standalone route."
+      "reason": "The Calend\u00e1rios sheet replaces the standalone route."
     },
     "mobile:route:/streak": {
       "targets": [
@@ -2028,6 +2141,12 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:habits.actions.reschedule": {
+      "targets": [
+        "web:control:habits.actions.rescheduleAstra"
+      ],
+      "reason": "#1607 identifies the existing overdue reschedule menu action with Astra while retaining onReschedule and completion guards."
+    },
     "web:control:habits.actions.unlog": {
       "targets": [
         "web:content:habits.actions.unlog"
@@ -2070,6 +2189,22 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:habits.checklistClearMessage": {
+      "targets": [
+        "web:control:habits.form.clearChecklist",
+        "web:control:common.save",
+        "web:control:common.cancel"
+      ],
+      "reason": "Structural clear is local in the full editor; its existing Save and Cancel boundary replaces immediate destructive confirmation. The immediate completion reset remains separate."
+    },
+    "web:control:habits.checklistClearTitle": {
+      "targets": [
+        "web:control:habits.form.clearChecklist",
+        "web:control:common.save",
+        "web:control:common.cancel"
+      ],
+      "reason": "Clear checklist moved into the controlled editor, where Save commits and Cancel discards the structural draft instead of immediately erasing persisted items."
+    },
     "web:control:habits.closeSearch": {
       "targets": [
         "web:control:common.back"
@@ -2096,9 +2231,71 @@
     },
     "web:control:habits.detail.linkedGoal": {
       "targets": [
-        "web:control:habits.detail.linkedGoals"
+        "web:control:habits.form.goals",
+        "web:display:habits.form.goals"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "reason": "The legacy Linked goal section displayed associated goal names without an action. The full editor retains that association list and selection; current detail additionally opens each linked goal through its named read row."
+    },
+    "web:control:habits.detail.linkedGoals": {
+      "targets": [
+        "web:control:habits.form.goals"
+      ],
+      "reason": "Goal association selection moved from inline detail to the full editor goal picker; linked-goal read rows retain their independent detail navigation."
+    },
+    "web:control:habits.detail.noValue": {
+      "targets": [
+        "web:control:habits.form.goals",
+        "web:control:habits.form.selectedCount"
+      ],
+      "reason": "The goal picker exposes the current selection count, including zero, instead of the old inline Not set value; association changes remain local until Save."
+    },
+    "web:control:habits.detail.proGate": {
+      "targets": [
+        "web:control:habits.form.slipAlert",
+        "web:control:common.proBadge"
+      ],
+      "reason": "The same plan-gated slip control and Pro badge remain in the full editor, with the existing upgrade action and plan constraints."
+    },
+    "web:control:habits.detail.rename": {
+      "targets": [
+        "web:content:habits.editHabit",
+        "web:content:habits.form.describe"
+      ],
+      "reason": "The named pencil opens the full editor and its existing title input; renaming is staged until the outer Save."
+    },
+    "web:control:habits.detail.schedule": {
+      "targets": [
+        "web:display:habits.detail.schedule",
+        "web:control:habits.form.frequency",
+        "web:control:habits.form.timesPerUnit",
+        "web:control:habits.form.noSchedule"
+      ],
+      "reason": "Detail retains its cadence readout; fixed, count-based and General schedule editing moved to the existing full editor without inline persistence."
+    },
+    "web:control:habits.detail.slipAlert": {
+      "targets": [
+        "web:control:habits.form.slipAlert"
+      ],
+      "reason": "The existing slip-alert control moved into the full editor with unchanged plan and General constraints."
+    },
+    "web:control:habits.detail.slipAlertDescription": {
+      "targets": [
+        "web:control:habits.form.slipAlertDescription"
+      ],
+      "reason": "The full editor slip-alert control retains its explanatory description and plan-gated or toggle action."
+    },
+    "web:control:habits.detail.viewDescription": {
+      "targets": [
+        "web:content:habits.form.description",
+        "web:control:habits.detail.copyDescription"
+      ],
+      "reason": "Full source prose is directly visible beneath its rendered Description heading and retains exact-source Copy description; no expansion is required to reach the text."
+    },
+    "web:control:habits.editHabit": {
+      "targets": [
+        "web:content:habits.editHabit"
+      ],
+      "reason": "The same type-aware Edit habit name is now passed through the rendered pencil and full editor title instead of a literal control child."
     },
     "web:control:habits.form.addEndDate": {
       "targets": [
@@ -2181,6 +2378,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:habits.form.suggestTags": {
+      "targets": [
+        "web:control:habits.form.askDate"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
+      ],
+      "reason": "#1607 identifies the existing suggestions.suggest action with Ask Astra in Tags; ordinary tag picking and proposal acceptance remain separate."
+    },
     "web:control:habits.form.templates": {
       "targets": [
         "web:content:habits.form.templates"
@@ -2219,6 +2425,15 @@
         "web:control:habits.moveParent.confirm"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.reschedule.retry": {
+      "targets": [
+        "web:control:habits.form.askDate"
+      ],
+      "owners": [
+        "apps/web/components/habits/reschedule-sheet.tsx"
+      ],
+      "reason": "#1607 identifies the error-branch retry with Ask Astra while retaining its refetch callback, eligibility and capacity branches."
     },
     "web:control:habits.searchPlaceholder": {
       "targets": [
@@ -2844,6 +3059,12 @@
       ],
       "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
+    "web:display:common.selectedDate": {
+      "targets": [
+        "web:content:common.selectedDate"
+      ],
+      "reason": "#1607 grants one selected-date readback in DateField: its formatted value and rendered trigger accessibility label replace the duplicate ordinary form sentence."
+    },
     "web:display:common.yes": {
       "targets": [
         "web:display:orbitMcp.permReadOnly"
@@ -3000,6 +3221,12 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "web:display:habits.form.dateProposed": {
+      "targets": [
+        "web:content:habits.form.dateProposed"
+      ],
+      "reason": "#1607 retains the candidate Proposed label and conditional status beside the actual editable DateField, with deterministic acceptance and manual recovery."
+    },
     "web:display:habits.form.dueTime": {
       "targets": [
         "web:control:habits.form.exactTime"
@@ -3041,6 +3268,16 @@
         "web:control:habits.form.scheduledReminderSameDay"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.form.suggestTags": {
+      "targets": [
+        "web:control:habits.form.askDate",
+        "web:control:habits.form.suggestingTags"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
+      ],
+      "reason": "#1607 retains tag-generation context in the actual Ask Astra action and its pending hint; a duplicate heading, ordinary picker or independent status cannot retain that action."
     },
     "web:display:habits.form.timesPerUnit": {
       "targets": [
@@ -3298,7 +3535,7 @@
       "targets": [
         "web:content:profile.calendarSync.title"
       ],
-      "reason": "The Calendários sheet replaces the standalone route."
+      "reason": "The Calend\u00e1rios sheet replaces the standalone route."
     },
     "web:route:/explore": {
       "targets": [
@@ -3311,88 +3548,6 @@
         "web:route:/progress"
       ],
       "reason": "Progresso owns achievements, streaks and goals."
-    },
-    "web:control:habits.actions.reschedule": {
-      "targets": [
-        "web:control:habits.actions.rescheduleAstra"
-      ],
-      "reason": "#1607 identifies the existing overdue reschedule menu action with Astra while retaining onReschedule and completion guards."
-    },
-    "web:control:habits.form.suggestTags": {
-      "targets": [
-        "web:control:habits.form.askDate"
-      ],
-      "owners": [
-        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
-      ],
-      "reason": "#1607 identifies the existing suggestions.suggest action with Ask Astra in Tags; ordinary tag picking and proposal acceptance remain separate."
-    },
-    "web:control:habits.reschedule.retry": {
-      "targets": [
-        "web:control:habits.form.askDate"
-      ],
-      "owners": [
-        "apps/web/components/habits/reschedule-sheet.tsx"
-      ],
-      "reason": "#1607 identifies the error-branch retry with Ask Astra while retaining its refetch callback, eligibility and capacity branches."
-    },
-    "web:display:common.selectedDate": {
-      "targets": [
-        "web:content:common.selectedDate"
-      ],
-      "reason": "#1607 grants one selected-date readback in DateField: its formatted value and rendered trigger accessibility label replace the duplicate ordinary form sentence."
-    },
-    "web:display:habits.form.dateProposed": {
-      "targets": [
-        "web:content:habits.form.dateProposed"
-      ],
-      "reason": "#1607 retains the candidate Proposed label and conditional status beside the actual editable DateField, with deterministic acceptance and manual recovery."
-    },
-    "mobile:control:habits.actions.reschedule": {
-      "targets": [
-        "mobile:control:habits.actions.rescheduleAstra"
-      ],
-      "reason": "#1607 identifies the existing overdue reschedule menu action with Astra while retaining onReschedule and completion guards."
-    },
-    "mobile:control:habits.form.suggestTags": {
-      "targets": [
-        "mobile:control:habits.form.askDate"
-      ],
-      "owners": [
-        "apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx"
-      ],
-      "reason": "#1607 identifies the existing suggestions.suggest action with Ask Astra in Tags; ordinary tag picking and proposal acceptance remain separate."
-    },
-    "mobile:control:habits.reschedule.retry": {
-      "targets": [
-        "mobile:control:habits.form.askDate"
-      ],
-      "owners": [
-        "apps/mobile/components/habits/reschedule-sheet.tsx"
-      ],
-      "reason": "#1607 identifies the error-branch retry with Ask Astra while retaining its refetch callback, eligibility and capacity branches."
-    },
-    "mobile:display:common.selectedDate": {
-      "targets": [
-        "mobile:content:common.selectedDate"
-      ],
-      "reason": "#1607 grants one selected-date readback in DateField: its formatted value and rendered trigger accessibility label replace the duplicate ordinary form sentence."
-    },
-    "mobile:display:habits.form.dateProposed": {
-      "targets": [
-        "mobile:content:habits.form.dateProposed"
-      ],
-      "reason": "#1607 retains the candidate Proposed label and conditional status beside the actual editable DateField, with deterministic acceptance and manual recovery."
-    },
-    "web:display:habits.form.suggestTags": {
-      "targets": [
-        "web:control:habits.form.askDate",
-        "web:control:habits.form.suggestingTags"
-      ],
-      "owners": [
-        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
-      ],
-      "reason": "#1607 retains tag-generation context in the actual Ask Astra action and its pending hint; a duplicate heading, ordinary picker or independent status cannot retain that action."
     }
   },
   "removals": {
@@ -3743,17 +3898,17 @@
     },
     "mobile:route:/advanced": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/ai-settings": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/preferences": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/retrospective": {
@@ -4246,12 +4401,12 @@
     },
     "web:route:/advanced": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/ai-settings": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/insights": {
@@ -4262,7 +4417,7 @@
     },
     "web:route:/preferences": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/retrospective": {
@@ -4270,6 +4425,11 @@
       "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
       "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:display:common.collapse": {
+      "citation": "DESIGN.md",
+      "rule": "The full detail description stays directly\nvisible without an expand or collapse control.",
+      "reason": "The owner requires the full description to remain directly visible. Only its obsolete collapse label is retired; full source access, safe links and exact-source copy remain."
     }
   },
   "tickets": {
@@ -4417,7 +4577,7 @@
     },
     "duplicate-settings-pages": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
       "reason": "Perfil sub-menus replace duplicate pages; their individual settings remain in the audit."
     },
     "old-floating-back-to-top": {

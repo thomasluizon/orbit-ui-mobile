@@ -1,4 +1,5 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
+import { useHabitFormInteraction } from './habit-form-interaction'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useMemo, useState, type ReactNode, type Ref } from 'react'
@@ -61,6 +62,7 @@ export function HabitUnderstanding({
   onQuantityChange,
   labels,
 }: Readonly<HabitUnderstandingWithDisabledEmojiProps>) {
+  const { disabled, guard } = useHabitFormInteraction()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -85,7 +87,7 @@ export function HabitUnderstanding({
         onSuggest={requestEmoji}
         canSuggest={canSuggestEmoji}
         isSuggesting={isEmojiSuggesting}
-        isDisabled={isSuggestionDisabled || isEmojiSuggesting}
+        isDisabled={disabled || isSuggestionDisabled || isEmojiSuggesting}
         suggestionHint={emojiSuggestionHint}
         suggestionError={emojiSuggestionError}
       />
@@ -116,12 +118,13 @@ export function HabitUnderstanding({
             spellCheck={false}
             accessibilityLabel={labels.field}
             accessibilityHint={error}
-            accessibilityState={{ disabled: false }}
+            editable={!disabled}
+            accessibilityState={{ disabled }}
             placeholder={labels.placeholder}
             placeholderTextColor={tokens.fg3}
             selectionColor={tokens.primary}
             style={styles.input}
-            onChangeText={onValueChange}
+            onChangeText={guard(onValueChange)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
           />
@@ -259,6 +262,8 @@ interface ScheduleCorrectionProps extends Pick<HabitUnderstandingProps, 'days' |
 }
 
 function ScheduleCorrections({ hidden = false, proposed = false, days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels, tokens, styles }: Readonly<ScheduleCorrectionProps>) {
+  const { disabled } = useHabitFormInteraction()
+  scheduleLocked = scheduleLocked || disabled
   if (hidden) return null
   return (
     <>
@@ -289,6 +294,8 @@ function ScheduleCorrections({ hidden = false, proposed = false, days, daily = f
 }
 
 export function HabitRepeatInterval({ visible, intervalWeeks, scheduleLocked = false, onIntervalWeeksChange, labels }: Readonly<HabitRepeatIntervalProps>) {
+  const { disabled } = useHabitFormInteraction()
+  scheduleLocked = scheduleLocked || disabled
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const styles = useMemo(() => createStyles(tokens), [tokens])

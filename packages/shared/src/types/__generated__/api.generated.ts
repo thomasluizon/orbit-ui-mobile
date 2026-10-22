@@ -2201,7 +2201,8 @@ export const PutApiHabitsIdBody = zod.object({
   "when": zod.union([zod.null(),zod.union([zod.enum(['SameDay', 'DayBefore']),zod.int().min(putApiHabitsIdBodyRelativeRemindersItemWhenTwoTwoMin).max(putApiHabitsIdBodyRelativeRemindersItemWhenTwoTwoMax),zod.string().regex(putApiHabitsIdBodyRelativeRemindersItemWhenTwoThreeRegExp)]).describe('MVC accepts case-insensitive names, surrounding whitespace, comma-separated names and signed 32-bit integers as numbers or numeric strings. Binding does not bypass habit validation.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "tagIds": zod.array(zod.uuid()).nullish()
 })
 
 export const PutApiHabitsIdResponse = zod.void()

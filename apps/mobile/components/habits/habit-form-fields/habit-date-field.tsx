@@ -1,3 +1,4 @@
+import { useHabitFormInteraction } from './habit-form-interaction'
 import { useWatch } from 'react-hook-form'
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import { HabitDateEditor, isPayGateError, extractBackendErrorCode, getAccountDay, getFriendlyErrorMessage, isHabitAstraLimitReached, resolveHabitFormMode } from '@orbit/shared/utils'
@@ -32,6 +33,7 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { profile } = useProfile()
+  const { disabled, guard } = useHabitFormInteraction()
   const { isOnline } = useOffline()
   if (snapshot.candidate) return null
   const atLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, profile?.aiMessagesLimit ?? 5)
@@ -41,7 +43,7 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
     {canAsk ? <View style={{ alignItems: 'flex-start', gap: 16 }}>
       {atLimit ? <CapacityNotice message={t('habits.form.aiSuggestLimitReached')} /> : null}
       {!isOnline ? <CapacityNotice message={t('shell.composer.offline.reason')} /> : null}
-      <PillButton minimumHeight={48} retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} accessibleName={t('habits.form.askDate')} variant="ghost" disabled={!isOnline || atLimit || snapshot.pending || snapshot.capacity} loading={snapshot.pending} onClick={() => void editor.ask(isOnline, atLimit)}>{t('habits.form.askDate')}</PillButton>
+      <PillButton minimumHeight={48} retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} accessibleName={t('habits.form.askDate')} variant="ghost" disabled={disabled || !isOnline || atLimit || snapshot.pending || snapshot.capacity} loading={snapshot.pending} onClick={guard(() => void editor.ask(isOnline, atLimit))}>{t('habits.form.askDate')}</PillButton>
       <Text style={{ color: tokens.fg3, fontSize: 12, fontFamily: 'Geist_400Regular' }}>{t('habits.form.askAstraCost', { allowance: profile?.aiMessagesLimit ?? 5 })}</Text>
     </View> : null}
     <Text accessibilityLiveRegion="polite" style={{ color: tokens.statusBadText, fontSize: 14, fontFamily: 'Geist_400Regular', ...(!snapshot.failure || snapshot.capacity ? { display: 'none' as const } : {}) }}>{snapshot.capacity ? '' : snapshot.failure ?? ''}</Text>
@@ -49,6 +51,7 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
 }
 
 function DatedHabitField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpers }>) {
+  const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
@@ -72,6 +75,7 @@ function DatedHabitField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpe
   }
   const adapter = { context,
     write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => {
+      if (isDisabled()) return
       form.setValue(field, value, { shouldDirty: true })
       form.clearErrors('datePhrase')
     },
@@ -83,7 +87,7 @@ function DatedHabitField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpe
   const snapshot = useSyncExternalStore(editor.subscribe, editor.getSnapshot, editor.getSnapshot)
   useLayoutEffect(() => { editor.configure(adapter); editor.sync() })
   useLayoutEffect(() => registerDateValidation(() => editor.validate()), [editor, registerDateValidation])
-  useEffect(() => { editor.open(); return () => editor.close() }, [editor])
+  useEffect(() => { if (!disabled) editor.open(); else editor.close(); return () => editor.close() }, [disabled, editor])
   useEffect(() => {
     if (!formHelpers.isGeneral && !date && timeZone !== undefined) {
       form.register('dueDate')
@@ -96,15 +100,15 @@ function DatedHabitField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpe
   const accept = () => { editor.accept(); setDateFocusRequest((request) => request + 1) }
   if (formHelpers.isGeneral) return null
   return <View style={{ minWidth: 0, gap: 16 }}>
-    <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} hint={t(type === 'habit' ? 'habits.form.habitDateQuestion' : 'habits.form.taskDateQuestion')} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} />
+    <Input disabled={disabled} label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} hint={t(type === 'habit' ? 'habits.form.habitDateQuestion' : 'habits.form.taskDateQuestion')} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError ? formHelpers.validationFocusRequest : undefined} onChange={guard((value) => editor.setPhrase(value))} />
     <View style={{ minWidth: 0, gap: 8 }}>
       <Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{dateLabel}</Text>
       <Proposed keepMounted inset proposed={Boolean(snapshot.candidate)} scope="field" label={t('habits.form.dateProposed')}>
-        <DateField appearance={snapshot.candidate ? 'proposed' : 'normal'} label={dateLabel} value={snapshot.candidate ?? date} onChange={(value) => editor.selectDate(value)} focusRequest={dateFocusRequest} />
+        <DateField disabled={disabled} appearance={snapshot.candidate ? 'proposed' : 'normal'} label={dateLabel} value={snapshot.candidate ?? date} onChange={guard((value) => editor.selectDate(value))} focusRequest={dateFocusRequest} />
       </Proposed>
       {snapshot.candidate ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg3, fontSize: 14, fontFamily: 'Geist_400Regular', lineHeight: 21 }}>{t('habits.form.dateProposed')}</Text> : null}
     </View>
-    {snapshot.candidate ? <ActionRow><PillButton variant="ghost" onClick={accept}>{t('habits.form.acceptDate')}</PillButton></ActionRow> : null}
+    {snapshot.candidate ? <ActionRow><PillButton variant="ghost" disabled={disabled} onClick={guard(accept)}>{t('habits.form.acceptDate')}</PillButton></ActionRow> : null}
     <DateConsultation editor={editor} snapshot={snapshot} />
   </View>
 }

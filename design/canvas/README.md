@@ -35,6 +35,26 @@ This amendment supersedes the glyph-removal inventory below only for invocation/
 static headings, attribution, plan facts and deterministic acceptance keep their current treatment.
 Paired callback dispositions and verification boundaries are in `design/habit-form-surfaces.md`.
 
+### Habit detail read and draft amendment
+
+`Orbit Habit Detail.dc.html` replaces inline rename/settings with one type-aware pencil opening the
+complete editor at compact and wide widths. Its read title and emoji are static. Plain Task/Habit
+type, readable source description and one immediate completion checklist precede secondary facts.
+Readable checklist labels have no disclosure arrow. Uncheck all remains immediate; structural clear,
+text, duplicate, remove and reorder are staged in the editor. Save and Cancel own that habit draft.
+Shared-object management remains independently committed. Pending, rejected, uncertain and native
+queued outcomes follow `DESIGN.md` and the paired habit-form surface inventory. The drawing's editor
+transition reuses its existing field composition; production uses `EditHabitModal` and `HabitFormFields`.
+Frozen rendering and native device acceptance remain separate from source and unit evidence.
+
+The detail description stays fully visible and selectable with exact source line breaks. Only
+validated absolute HTTP/HTTPS spans become independently reachable underlined links; long URLs
+remain readable at enlarged text. Web opens a new tab with `noopener noreferrer`; native opening
+failure retains the source and offers Retry. Copy description copies the original source, shows
+one Check on success and announces it once through visually hidden localized feedback. Copy errors
+and manual-selection guidance remain visible. Account or description replacement clears feedback.
+This amendment does not make row previews interactive or add a Markdown renderer.
+
 ### Email sign-in entry amendment
 
 `Orbit Entrar` uses the existing verifying presentation for a valid incoming email link.
@@ -67,8 +87,8 @@ verification boundaries.
 
 Shared rows use the complete nouns `Tarefa` / `Task` or `Hábito` / `Habit` as quiet type metadata
 beneath the full-width title. This supersedes the longer task caption in exported rows, including
-detail children. Form choices and detail headers retain `Tarefa única` / `One-time task` and
-`Hábito` / `Habit`. Row primary and selection accessible names match the short visible caption
+detail children. Form choices retain `Tarefa única` / `One-time task` and `Hábito` / `Habit`.
+Detail headers use the same plain nouns as rows. Row primary and selection accessible names match the short visible caption
 exactly once. Typography, insets, widths, status, counts, checks and menus retain their geometry;
 default controls stay row-centred and every row keeps its supporting footer above 130% text.
 

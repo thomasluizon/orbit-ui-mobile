@@ -227,7 +227,7 @@ export function buildUpdateHabitRequest(
     isGeneral: data.isGeneral,
     isFlexible: data.isFlexible,
   }
-  if (data.description) request.description = data.description
+  request.description = data.description
   request.emoji = normalizeHabitEmoji(data.emoji)
 
   if (!data.isGeneral) {

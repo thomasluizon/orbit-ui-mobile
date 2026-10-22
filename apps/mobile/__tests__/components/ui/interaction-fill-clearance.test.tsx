@@ -24,6 +24,7 @@ import type { GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
 vi.unmock('@/components/ui/icons')
+vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: () => null }))
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn().mockResolvedValue('') }))
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
@@ -197,22 +198,23 @@ describe('Android interaction fill clearance', () => {
   })
 
   it.each([320, 412, 600, 1024, 1352].flatMap((width) => (['pressed', 'focused'] as const).flatMap((state) => [false, true].map((summary) => ({ width, state, summary })))))(
-    'clears the title neighbours at $width while $state, summary=$summary', async ({ width, state, summary: hasSummary }) => {
+    'clears the pencil and reading title neighbours at $width while $state, summary=$summary', async ({ width, state, summary: hasSummary }) => {
     detailFixture.summary = hasSummary
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree!: GeometryTree
     await act(() => { tree = create(<HabitDetailScreen habitId="habit-1" />) as GeometryTree })
     try {
-      await setInteraction(tree, makeHabitDetail().title, state)
+      await setInteraction(tree, hasSummary ? 'habits.editHabit' : 'habits.editTask', state)
       const header = findHost(tree.toJSON(), 'habit-detail-header-row')!
       const parts = measureInteractionFills({ type: 'View', props: { style: { paddingHorizontal: 16 } }, children: [header] }, Math.min(width, 740), state === 'pressed')
-      const title = parts.find((part) => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === makeHabitDetail().title)!
-      const fill = fillBox(parts, title)
+      const title = parts.find((part) => part.host.type === 'Text' && part.host.children?.includes(makeHabitDetail().title))!
+      const pencil = parts.find((part) => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === (hasSummary ? 'habits.editHabit' : 'habits.editTask'))!
+      const fill = fillBox(parts, pencil)
       const actions = parts.find((part) => part.ancestors.length === 2)!
       const type = parts.find((part) => part.host.props.testID === 'habit-detail-type')!
       const summary = parts.find((part) => part.host.type === 'Text' && part.top >= type.bottom && !part.ancestors.includes(title.slot))
       const metadata = [type, ...(summary ? [summary] : [])]
-      expect(type.host.children).toContain(hasSummary ? 'habits.form.typeHabit' : 'habits.form.typeTask')
+      expect(type.host.children).toContain(hasSummary ? 'habits.form.typeHabit' : 'habits.rowTypeTask')
       expect(type.host.props.numberOfLines).toBeUndefined()
       expect(type.width).toBeGreaterThan(0)
       expect(type.bottom - type.top).toBeGreaterThan(0)
@@ -221,7 +223,7 @@ describe('Android interaction fill clearance', () => {
       expect(type.top - title.bottom, 'title to type gap').toBe(8)
       if (summary) expect(summary.top - type.bottom, 'type to frequency summary gap').toBeCloseTo(8, 5)
       expect(parts[1]!.bottom - parts[1]!.top, 'drawn header height').toBeCloseTo(actions.bottom - actions.top + 8 + title.bottom - title.top + metadata.reduce((height, line) => height + line.bottom - line.top + 8, 0))
-      expect(fill.top - actions.bottom, 'emoji row to title fill').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+      expect(title.top - fill.bottom, 'pencil fill to reading title').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       for (const line of metadata) expect(line.top - fill.bottom, 'title fill to metadata').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       expect(fill.left, 'leading page clearance').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       expect(Math.min(width, 740) - fill.right, 'trailing page clearance').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)

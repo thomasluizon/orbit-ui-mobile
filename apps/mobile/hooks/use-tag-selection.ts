@@ -5,6 +5,7 @@ import {
   TAG_COLORS,
   type EditableTag,
   type TagSelectionCoreState,
+  type ApplyTagSelectionState,
   acceptSuggestedTagFlow,
   cancelTagEdit,
   createAndSelectTagFlow,
@@ -59,12 +60,20 @@ export interface TagSelectionState {
 export function useTagSelection(
   initialTagIds: string[] = [],
   maxTags = MAX_TAGS_PER_HABIT,
+  getDraftRevision?: () => number,
 ): TagSelectionState {
   const [state, setState] = useState<TagSelectionCoreState>(() =>
     createInitialTagSelectionState(initialTagIds),
   )
 
   const atTagLimit = useMemo(() => isTagSelectionAtLimit(state, maxTags), [state, maxTags])
+  const captureManagementState = useCallback((): ApplyTagSelectionState => {
+    const revision = getDraftRevision?.()
+    return (update) => setState((previous) => {
+      const next = update(previous)
+      return revision === getDraftRevision?.() ? next : { ...next, selectedTagIds: previous.selectedTagIds }
+    })
+  }, [getDraftRevision])
 
   const toggleTag = useCallback((tagId: string) => {
     setState((previous) => toggleTagSelection(previous, tagId))
@@ -104,28 +113,28 @@ export function useTagSelection(
 
   const createAndSelectTag = useCallback(
     (createTag: (name: string, color: string) => Promise<string | null>) =>
-      createAndSelectTagFlow(state, maxTags, createTag, setState),
-    [maxTags, state],
+      createAndSelectTagFlow(state, maxTags, createTag, captureManagementState()),
+    [captureManagementState, maxTags, state],
   )
 
   const acceptSuggestedTag = useCallback(
     (
       suggestion: SuggestedTag,
       createTag: (name: string, color: string) => Promise<string | null>,
-    ) => acceptSuggestedTagFlow(state, maxTags, suggestion, createTag, setState),
-    [maxTags, state],
+    ) => acceptSuggestedTagFlow(state, maxTags, suggestion, createTag, captureManagementState()),
+    [captureManagementState, maxTags, state],
   )
 
   const saveEditTag = useCallback(
     (updateTag: (id: string, name: string, color: string) => Promise<void>) =>
-      saveEditTagFlow(state, updateTag, setState),
-    [state],
+      saveEditTagFlow(state, updateTag, captureManagementState()),
+    [captureManagementState, state],
   )
 
   const deleteTag = useCallback(
     (tagId: string, deleteTagFn: (id: string) => Promise<void>) =>
-      deleteTagFlow(state, tagId, deleteTagFn, setState),
-    [state],
+      deleteTagFlow(state, tagId, deleteTagFn, captureManagementState()),
+    [captureManagementState, state],
   )
 
   return {
