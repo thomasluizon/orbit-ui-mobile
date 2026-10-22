@@ -1267,12 +1267,21 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList view="today" showCompleted
       filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
     const row = screen.getAllByTestId('habit-row')[0]!
-    const progress = within(row).getByText(/habits\.rowProgress/)
-    expect(progress).toHaveTextContent(['habits.rowProgress({"done":1,"total":2})', ...words].join('·'))
+    const meta = row.querySelector<HTMLElement>('[data-habit-row-meta]')!
+    expect(meta).toBeInTheDocument()
+    const progress = within(meta).getByText(/habits\.rowProgress/)
+    expect(progress.textContent).toBe(`habits.rowProgress({"done":1,"total":2})${words.length ? '·' : ''}`)
+    const labels = ['habits.form.typeHabit', 'habits.rowProgress({"done":1,"total":2})', ...words]
+    const tokens = meta.querySelectorAll('[data-habit-row-meta-token]')
+    expect(Array.from(tokens, (token) => token.textContent)).toEqual(labels.map((label, index) =>
+      `${label}${index < labels.length - 1 ? '·' : ''}`))
+    expect(progress).toBe(tokens[1])
+    expect(meta.textContent).toBe(labels.join('·'))
     for (const word of ['habits.overdue', 'habits.statusDot.bad']) {
-      if (!words.includes(word)) expect(progress).not.toHaveTextContent(word)
+      expect(within(meta).queryAllByText(word, { exact: true })).toHaveLength(words.includes(word) ? 1 : 0)
+      if (!words.includes(word)) expect(meta).not.toHaveTextContent(word)
     }
-    expect(progress).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
+    expect(meta).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
     const body = row.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
     const bodyName = `${label}, habits.form.typeHabit ${['habits.rowProgress({"done":1,"total":2})', ...words].join('·')}`
     expect(within(row).getByRole('button', {
