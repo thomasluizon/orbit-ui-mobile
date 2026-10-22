@@ -823,3 +823,4 @@ export { getHabitRowTypeLabelKey, getHabitTypeLabelKey } from './habit-card-help
 export { readTypedHabitPhrase } from './habit-phrase-parser'
 
 export * from './move-parent'
+export { getHabitInlineDepthLimit } from './habit-row-layout'

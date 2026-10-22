@@ -402,3 +402,126 @@ it('clears a picker search after successful confirmation before reopening', asyn
   expect(onClose).toHaveBeenCalledOnce()
   expect(search).toHaveValue('')
 })
+
+
+describe('disabled destination reason geometry', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  let pickerScript: string
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    pickerScript = bundleGeometry(`
+      import React, { useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { NextIntlClientProvider, useTranslations } from 'next-intl';
+      import en from '../../packages/shared/src/i18n/en.json';
+      import ptBR from '../../packages/shared/src/i18n/pt-BR.json';
+      import { MoveParentOverlay } from './components/habits/habit-list/move-parent-overlay';
+      const root = document.getElementById('root');
+      const locale = root.dataset.locale;
+      function Picker() {
+        const t = useTranslations();
+        const [selected, setSelected] = useState('current');
+        const options = [
+          { id: null, label: t('habits.moveParent.toRoot'), emoji: null, depth: 0, childCount: 0, disabled: false, reason: null },
+          { id: 'current', label: 'Current place for evening tasks', emoji: null, depth: 2, childCount: 12,
+            disabled: true, reason: t('habits.moveParent.invalidCurrentParentMany') },
+          { id: 'other', label: 'Another destination', emoji: null, depth: 0, childCount: 0, disabled: false, reason: null }
+        ];
+        return <MoveParentOverlay t={t} open isMoving={false} movingHabitTitle={null} movingHabitCount={12}
+          movingHabitParentId="current" selectedMoveParentId={selected} options={options} canSubmit={selected !== 'current'}
+          onClose={() => {}} onConfirm={async () => false} onSelectOption={setSelected} />;
+      }
+      createRoot(root).render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Picker /></NextIntlClientProvider>);
+    `, {
+      '@/components/ui/update-available-banner': 'export const UpdateAvailableBanner = () => null;',
+      '@/components/ui/app-toast-host': 'export const AppToastHost = () => null;',
+    })
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  const cases = (['dark', 'light'] as const).flatMap((mode) =>
+    (['en', 'pt-BR'] as const).map((locale) => ({ mode, locale, scale: 2 })),
+  )
+  it.each([...cases, { mode: 'dark' as const, locale: 'en' as const, scale: 1 }])(
+    'keeps the complete $locale current-parent reason clear at 320/$scale in $mode', async ({ mode, locale, scale }) => {
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 }, reducedMotion: 'reduce' })
+      try {
+        const declarations = Object.entries(resolveWebThemeVariables('orange', mode))
+          .map(([key, value]) => `${key}:${value};`).join('')
+        await page.setContent(`<style>${stylesheet}:root{${declarations}}</style><div id="root" data-locale="${locale}"></div>`)
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await page.addScriptTag({ content: pickerScript })
+        await (await import('@/__tests__/support/app-fonts')).loadAppFonts(page)
+        const dialog = page.getByRole('dialog')
+        await dialog.waitFor({ state: 'visible' })
+        const words = locale === 'en' ? en : ptBR
+        const reasonText = words.habits.moveParent.invalidCurrentParentMany
+        const current = page.locator('[data-current-parent="true"]')
+        const disclosure = current.getByRole('button', { name: 'Current place for evening tasks', exact: true })
+        for (const expanded of [false, true]) {
+          expect(await disclosure.getAttribute('aria-expanded')).toBe(String(expanded))
+          const measured = await current.evaluate((row, reasonText) => {
+            const rect = (element: Element) => {
+              const { left, right, top, bottom, width, height } = element.getBoundingClientRect()
+              return { left, right, top, bottom, width, height }
+            }
+            const reason = [...row.querySelectorAll('span')].find((span) => span.children.length === 0 && span.textContent === reasonText)!
+            const title = row.querySelector<HTMLElement>('[data-personal-text]')!
+            const count = [...row.querySelectorAll('span')].find((span) => span.textContent === '12')!
+            const tag = [...row.querySelectorAll('span')].find((span) => span.classList.contains('uppercase'))!
+            const glyph = row.querySelector('[data-slot="list-row-trailing"]')!
+            const control = row.querySelector('button')!
+            const range = document.createRange()
+            range.selectNodeContents(reason)
+            const fragments = [...range.getClientRects()].map(({ left, right, top, bottom, width, height }) => ({ left, right, top, bottom, width, height }))
+            const center = rect(control)
+            const inset = 4
+            const hitPoints = [[center.left + inset, center.top + inset], [center.right - inset, center.top + inset],
+              [center.left + inset, center.bottom - inset], [center.right - inset, center.bottom - inset]]
+            return { reason: rect(reason), title: rect(title), fragments, content: reason.textContent, titleContent: title.textContent, expanded: title.hasAttribute('data-personal-text-expanded'),
+              obstacles: [count, tag, glyph, control].map(rect), control: center,
+              hits: hitPoints.map(([x, y]) => control.contains(document.elementFromPoint(x!, y!))),
+              fontSize: parseFloat(getComputedStyle(title).fontSize), rootFontSize: getComputedStyle(document.documentElement).fontSize,
+              row: rect(row), overflow: row.scrollWidth - row.clientWidth }
+          }, reasonText)
+          expect(measured.rootFontSize).toBe(`${16 * scale}px`)
+          expect(measured.content).toBe(reasonText)
+          expect(measured.titleContent).toBe('Current place for evening tasks')
+          expect(measured.expanded).toBe(expanded)
+          expect(measured.fragments.length).toBeGreaterThan(0)
+          const collisions = measured.fragments.flatMap((fragment) => measured.obstacles.map((obstacle) =>
+            fragment.left < obstacle.right && fragment.right > obstacle.left && fragment.top < obstacle.bottom && fragment.bottom > obstacle.top))
+          expect(collisions, 'Reason text must clear count, current tag, radio and name disclosure').not.toContain(true)
+          for (const fragment of measured.fragments) {
+            expect(fragment.left).toBeGreaterThanOrEqual(measured.reason.left)
+            expect(fragment.right).toBeLessThanOrEqual(measured.reason.right)
+            expect(fragment.top).toBeGreaterThanOrEqual(measured.reason.top)
+            expect(fragment.bottom).toBeLessThanOrEqual(measured.reason.bottom)
+          }
+          expect(measured.title.width).toBeGreaterThanOrEqual(Math.max(24, measured.fontSize))
+          expect(measured.title.height).toBeGreaterThanOrEqual(measured.fontSize)
+          expect(measured.reason.width).toBeGreaterThan(measured.title.width)
+          expect(measured.overflow).toBeLessThanOrEqual(1)
+          expect(measured.reason.top).toBeGreaterThanOrEqual(Math.max(...measured.obstacles.map((obstacle) => obstacle.bottom)))
+          for (const target of [measured.control]) {
+            expect(target.width).toBeGreaterThanOrEqual(48)
+            expect(target.height).toBeGreaterThanOrEqual(48)
+            expect(target.left).toBeGreaterThanOrEqual(0)
+            expect(target.right).toBeLessThanOrEqual(320)
+            expect(target.top).toBeGreaterThanOrEqual(0)
+            expect(target.bottom).toBeLessThanOrEqual(915)
+          }
+          expect(measured.hits).toEqual([true, true, true, true])
+          expect(await current.getByRole('radio').getAttribute('aria-disabled')).toBe('true')
+          if (!expanded) await disclosure.click()
+        }
+        await dialog.getByRole('radio', { name: 'Another destination', exact: true }).click()
+        expect(await dialog.getByRole('radio', { name: 'Another destination', exact: true }).getAttribute('aria-checked')).toBe('true')
+      } finally { await page.close() }
+    },
+  )
+})

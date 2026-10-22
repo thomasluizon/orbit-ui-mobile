@@ -103,6 +103,18 @@ describe('select-check RadioRow group', () => {
       : `${label}, Details, 3, Current`)
   })
 
+  it.each([false, true])('keeps group-disabled reasons at the group when personal=%s', (personal) => {
+    const label = 'A title written by a person'
+    const { container } = render(<RadioRow label={label} textMode={personal ? 'personal' : undefined}
+      meta="3" tag="Current" disabled reasonScope="group" />)
+    expect(screen.getByRole('radio')).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio').tabIndex).toBe(-1)
+    expect(screen.queryAllByRole('button')).toHaveLength(personal ? 1 : 0)
+    expect(container.querySelectorAll('[data-slot="list-row-title"]')).toHaveLength(1)
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('Current')).toBeInTheDocument()
+  })
+
   it('uses the selected row tint and the empty track ring', () => {
     render(<RadioRows onChange={vi.fn()} />)
     const selected = screen.getByRole('radio', { name: 'First' })

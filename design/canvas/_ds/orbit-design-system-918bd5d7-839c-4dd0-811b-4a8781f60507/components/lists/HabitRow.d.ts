@@ -1,5 +1,5 @@
 /** Supporting meta uses 12; typed titles own the headline, wrap to two lines, then ellipsize with full text one tap away. */
-/** The canonical habit row. depth 0 is the top-level row (46px well, 17 title, 30 StatusRing) on its OWN panel; depth 1 is the sub-habit row (indented, 32px well, --fs-sm title in --fg-2, 24 StatusRing, compact height) - zero connector or tree lines; a family is one panel carrying the parent row and its sub rows. The body button's hit area is the well and the text ONLY: the trailing node (ring, control or caller node) is a SIBLING of the body button, never a child of it - a caller can never nest a control inside a button. The row suppresses its own hover while the pointer is on the log or menu button, so two surfaces never light at once. Log and menu keep 44px targets at every depth. */
+/** The canonical habit row owns its radius-20 body, card fill and inset hairline. Root depth uses a 46px well and 17px title; every positive depth uses a 32px well and small fg-2 title. Each visible ancestor adds one 16px leading step after the 8px root inset, including supporting metadata. Drill resets local depth to 0 and detail children use depth 1. The body and trailing controls remain siblings with independent feedback and distinct 48px targets. No connector lines. */
 export interface HabitRowBase {
   /** user-chosen emoji shown in the well (--bg-well, radius 12). OPTIONAL: when absent the component
    *  derives the fallback itself - the first letter of `title`, uppercased, in --fg-3 at 500 - so the
@@ -10,8 +10,8 @@ export interface HabitRowBase {
   meta?: string;
   /** see StatusRing. A freeze marks one calendar day, never a habit, so there is no 'frozen' here - and no 'skip'. */
   status?: 'empty' | 'done' | 'overdue' | 'bad';
-  /** 0 = top-level habit (default, unchanged); 1 = sub-habit row */
-  depth?: 0 | 1;
+  /** Visible depth relative to the current context: 0 is root; each ancestor adds 16px after the 8px root inset. Positive depths use child anatomy. Drill resets to 0; detail children use 1. */
+  depth?: number;
   /** 52px row without the well, for plain lists (depth 0 only) */
   compact?: boolean;
   /** opens the habit. The body is one button; the ring and the menu are their own. */
