@@ -47,6 +47,8 @@ const fetchBoundary = vi.fn<typeof fetch>()
 const originalLocks = Object.getOwnPropertyDescriptor(navigator, 'locks')
 let releaseVerification: (response: Response) => void
 let verificationSignal: AbortSignal | null | undefined
+let sessionAccepted = false
+let refuseInitialVerification = false
 
 function OwningRoutes({ initialUrl }: Readonly<{ initialUrl: string }>) {
   const [url, setUrl] = useState(initialUrl)
@@ -102,12 +104,21 @@ beforeEach(async () => {
   controls.online = true
   controls.destinations.length = 0
   verificationSignal = undefined
+  sessionAccepted = false
+  refuseInitialVerification = false
   const pending = new Promise<Response>((resolve) => { releaseVerification = resolve })
   fetchBoundary.mockReset().mockImplementation((input, options) => {
     if (input === '/api/auth/verify-code') {
+      if (refuseInitialVerification) {
+        refuseInitialVerification = false
+        return Promise.resolve(Response.json({ error: 'Invalid verification code' }, { status: 400 }))
+      }
       verificationSignal = options?.signal
       return pending
     }
+    if (input === '/api/auth/session') return Promise.resolve(sessionAccepted
+      ? Response.json({ expiresAt: Date.now() + 3600000, userId: success.userId, refreshFailed: false })
+      : Response.json({ expiresAt: null, userId: null, refreshFailed: true }, { status: 401 }))
     if (input === '/api/auth/send-code') return Promise.resolve(new Response(null, { status: 204 }))
     return Promise.resolve(new Response(null, { status: 503 }))
   })
@@ -126,6 +137,51 @@ afterEach(async () => {
 })
 
 describe('email-link admission through the real auth layout and login page', () => {
+  it.each([
+    ['automatic link', false],
+    ['automatic link', true],
+    ['explicit Verify', false],
+    ['explicit Verify', true],
+  ] as const)('completes %s with prior refresh rejection %s through its owning session and referral continuation', async (entry, refreshRejected) => {
+    if (refreshRejected) {
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+      expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+    }
+    const epoch = getSessionEpoch()
+    refuseInitialVerification = entry === 'explicit Verify'
+    render(<OwningRoutes initialUrl={link} />)
+    await expectCleanCodeOwner()
+    if (entry === 'explicit Verify') {
+      const verify = await screen.findByRole('button', { name: 'auth.verify' })
+      await waitFor(() => expect(verify).toBeEnabled())
+      expect(requestsTo('/api/auth/verify-code')).toHaveLength(1)
+      fireEvent.click(verify)
+    }
+    const verificationCount = entry === 'explicit Verify' ? 2 : 1
+    await waitFor(() => expect(requestsTo('/api/auth/verify-code')).toHaveLength(verificationCount))
+    expect(verificationSignal?.aborted).toBe(false)
+    expect(getSessionEpoch()).toBe(epoch)
+    expect(document.cookie.includes('referral_code=')).toBe(true)
+
+    await act(async () => {
+      sessionAccepted = true
+      releaseVerification(Response.json(success))
+    })
+
+    await waitFor(() => expect(useAuthStore.getState().user?.userId === success.userId).toBe(true))
+    expect(useAuthStore.getState().user).toEqual({ userId: success.userId, name: success.name, email: success.email })
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(useAuthStore.getState().sessionRefreshFailed).toBe(false)
+    expect(verificationSignal?.aborted).toBe(false)
+    expect(getSessionEpoch()).toBe(epoch + 1)
+    expect(screen.getByLabelText('Current URL').textContent).toBe('/calendar')
+    expect(controls.destinations).toEqual(['/calendar'])
+    expect(document.cookie.includes('referral_code=')).toBe(false)
+    expect(requestsTo('/api/profile')).toHaveLength(1)
+    expect(requestsTo('/api/auth/verify-code')).toHaveLength(verificationCount)
+    expect(requestsTo('/api/auth/send-code')).toHaveLength(0)
+  })
+
   it('keeps the cleaned anonymous code owner mounted until verification publishes its session and safe return', async () => {
     const epoch = getSessionEpoch()
     render(<OwningRoutes initialUrl={link} />)

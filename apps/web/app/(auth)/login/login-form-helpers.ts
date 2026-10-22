@@ -1,4 +1,7 @@
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
+import { applySessionRefreshFailure, fetchWithUpgradeGuidance } from '@/lib/api-fetch'
+import { getAccountEventOrigin } from '@/lib/account-event-origin'
+import { useThrottleStore } from '@/stores/throttle-store'
 import type { useRouter } from 'next/navigation'
 import type { useTranslations } from 'next-intl'
 import {
@@ -82,6 +85,19 @@ interface AuthRequestAttempt {
   onSuccess: (response: unknown) => Promise<void>
 }
 
+async function fetchCodeVerification(init: RequestInit): Promise<Response> {
+  const headers = new Headers(init.headers)
+  const origin = getAccountEventOrigin()
+  if (origin) headers.set('X-Orbit-Event-Origin', origin)
+  const response = await fetchWithUpgradeGuidance('/api/auth/verify-code', { ...init, headers })
+  if (!response.ok) await applySessionRefreshFailure(response)
+  if (response.status === 429) {
+    const payload: unknown = await response.clone().json().catch(() => null)
+    useThrottleStore.getState().show(response.status, payload)
+  }
+  return response
+}
+
 export async function fetchAuthEndpoint(
   url: string,
   body: Record<string, unknown>,
@@ -89,12 +105,15 @@ export async function fetchAuthEndpoint(
 ): Promise<unknown> {
   const request = async () => {
     if (attempt && !attempt.isCurrent()) throw new Error('Authentication attempt changed')
-    const response = await fetchWithThrottle(url, {
+    const init: RequestInit = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept-Language': typeof body.language === 'string' ? body.language : 'en' },
       body: JSON.stringify(body),
       ...(attempt ? { signal: attempt.signal } : {}),
-    })
+    }
+    const response = url === '/api/auth/verify-code'
+      ? await fetchCodeVerification(init)
+      : await fetchWithThrottle(url, init)
     const payload: unknown = await response.json().catch(() => null)
     if (attempt && (!attempt.isCurrent() || attempt.signal.aborted)) throw new Error('Authentication attempt changed')
     if (!response.ok) throw new AuthFetchError(response.status, mergeRequestIdIntoBody(payload, response.headers.get('x-orbit-request-id')))
