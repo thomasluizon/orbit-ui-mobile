@@ -11,44 +11,14 @@ import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-c
 import { expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
+import { composerPlaceholderFits } from './composer-column-paint'
 
 const title = 'Caminhar pelo bairro e cuidar da rotina com todos os detalhes '.repeat(3)
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title, children: [], checklistItems: [] })
 
 async function expectPlaceholderFit(field: Locator, placeholder: string, fontScale: number) {
   await expect(field).toHaveAttribute('placeholder', placeholder)
-  await expect.poll(async () => field.evaluate((element, scale) => {
-    const input = element as HTMLTextAreaElement
-    const style = getComputedStyle(input)
-    const singleLineHeight = parseFloat(style.lineHeight) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
-    const contentWidth = input.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
-    const contentHeight = input.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
-    const placeholderStyle = getComputedStyle(input, '::placeholder')
-    const mirror = document.createElement('div')
-    Object.assign(mirror.style, { position: 'fixed', top: '0', left: '0', width: `${contentWidth}px`,
-      font: style.font, lineHeight: style.lineHeight, letterSpacing: style.letterSpacing,
-      whiteSpace: placeholderStyle.whiteSpace, overflowWrap: placeholderStyle.overflowWrap, pointerEvents: 'none', opacity: '0' })
-    mirror.textContent = input.placeholder
-    document.body.append(mirror)
-    const range = document.createRange()
-    range.selectNodeContents(mirror)
-    const contentBox = mirror.getBoundingClientRect()
-    const lines = [...range.getClientRects()].filter(line => line.width > 0)
-    const placeholderFits = input.placeholder.length > 0 && lines.length > 0
-      && lines.every(line => line.left >= contentBox.left - 1 && line.right <= contentBox.right + 1
-        && line.top >= contentBox.top - 1 && line.bottom <= contentBox.top + contentHeight + 1)
-      && (scale !== 1 || contentBox.height <= parseFloat(style.lineHeight) + 1)
-    mirror.remove()
-    const pill = input.parentElement!.getBoundingClientRect()
-    const controls = [...input.parentElement!.querySelectorAll('button')].map(button => button.getBoundingClientRect())
-    return Math.abs(parseFloat(style.fontSize) - 16 * scale) < 0.5 && placeholderFits && input.scrollWidth <= input.clientWidth && input.scrollHeight <= input.clientHeight
-      && (scale !== 1 || Math.abs(input.clientHeight - singleLineHeight) <= 1)
-      && pill.height >= 56 && pill.height >= input.clientHeight + 8
-      && controls.every((control, index) => control.width >= 48 && control.height >= 48
-        && control.left >= pill.left && control.right <= pill.right
-        && Math.abs(control.bottom - pill.bottom + 4) <= 1
-        && (index === 0 || control.left >= controls[index - 1]!.right))
-  }, fontScale)).toBe(true)
+  await expect.poll(() => field.evaluate(composerPlaceholderFits, fontScale)).toBe(true)
 }
 
 for (const width of [320, 360, 384, 412]) {

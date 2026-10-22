@@ -204,6 +204,12 @@ conversation. Habit detail's own composer glyph remains an entry at every width.
 their own rules. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
 shared row anatomy without repeating Astra's glyph.
 
+The composer's text composition reserves one inert text-action slot across inline and Add-menu
+routing, clipboard availability and allowance states. Its persistent input label has an intrinsic
+sizing owner with matching input metrics, present in web server markup and the first client
+layout. Actual visual lines bottom-align their own input and controls; the last line retains the
+4px field inset. The 56px field minimum allows named controls to wrap (#1607).
+
 **Avisos is reachable from every destination.** In the compact shell (Android at every width,
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
 The Avisos bell is the last control at the trailing edge, with a hit area at the touch floor and

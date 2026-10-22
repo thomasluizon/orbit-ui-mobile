@@ -3,6 +3,7 @@ import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 import { useState } from 'react'
+import { renderToString } from 'react-dom/server'
 import userEvent from '@testing-library/user-event'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
@@ -202,6 +203,30 @@ describe('clipboard composer control', () => {
 })
 
 describe('Composer', () => {
+  it.each([en, ptBR].flatMap(messages => (['idle', 'atLimit', 'offline', 'sending'] as const).map(state => ({ messages, state }))))(
+    'owns the persistent input minimum and inert action reservation before effects while $state', ({ messages, state }) => {
+      const configuration = props({ suggestions: [], words: { ...messages.shell.composer,
+        placeholder: state === 'atLimit' ? messages.shell.composer.limit.placeholder : messages.shell.composer.placeholder },
+        state, limitReason: 'reason', onAttachFile: vi.fn(), attachWords })
+      const initial = document.createElement('div')
+      initial.innerHTML = renderToString(<Composer {...configuration} />)
+      const minimum = initial.querySelector('[data-composer-input-minimum]')!
+      expect(minimum).not.toBeNull()
+      expect(minimum).toHaveTextContent(messages.shell.composer.inputLabel)
+      expect(minimum).toHaveAttribute('aria-hidden', 'true')
+      expect(minimum).not.toHaveAttribute('tabindex')
+      expect(initial.querySelector('[data-composer-text-action-slot]')).toBeEmptyDOMElement()
+      const view = render(<Composer {...configuration} />)
+      try {
+        const mounted = view.container.querySelector('[data-composer-input-minimum]')!
+        expect(mounted.outerHTML).toBe(minimum.outerHTML)
+        expect(screen.getAllByRole('textbox')).toHaveLength(1)
+        expect(screen.getByRole('textbox')).toHaveAttribute('aria-label', messages.shell.composer.inputLabel)
+        expect(view.container.querySelectorAll('[data-composer-text-action-slot]')).toHaveLength(1)
+      } finally { view.unmount() }
+    },
+  )
+
   it.each([en, ptBR].flatMap(messages => (['idle', 'atLimit'] as const).map(initialState => ({ messages, initialState }))))('measures the prompt and reserved actions from $initialState through mounted allowance changes', async ({ messages, initialState }) => {
     const readText = vi.fn().mockResolvedValue('Pasted message')
     vi.stubGlobal('navigator', { clipboard: { readText } })
@@ -216,7 +241,7 @@ describe('Composer', () => {
     }
     const view = render(<Mounted configuration={configuration} />)
     const field = screen.getByRole('textbox') as HTMLTextAreaElement
-    const row = field.parentElement!
+    const row = field.closest<HTMLElement>('[data-composer-input-row]')!
     const trailing = row.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
     const textControls = trailing.firstElementChild!
     let width = 380
@@ -233,6 +258,7 @@ describe('Composer', () => {
     const inputWidth = vi.spyOn(field, 'clientWidth', 'get').mockReturnValue(96)
     const rectangles = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       if (this === row) return new DOMRect(16, 17, width, 80)
+      if (this.hasAttribute('data-composer-input-minimum')) return new DOMRect(0, 0, promptWidth + 16, 48)
       if (this.hasAttribute('data-open-conversation')) return new DOMRect(20, 21, 77.984375, 48)
       if (this === trailing.lastElementChild) return new DOMRect(220, 45, messages === en ? 133.984375 : 171.609375, 48)
       if (this === textControls) return new DOMRect(120, 45, textControls.children.length === 2 ? 100 : 48, 48)
@@ -241,19 +267,22 @@ describe('Composer', () => {
     try {
       const measure = () => act(() => document.fonts.dispatchEvent(new Event('loadingdone')))
       await measure()
-      expect(field.style.minWidth).toBe(`min(100%, ${Math.ceil(promptWidth) + 16}px)`)
-      expect(field.style.flexBasis).toBe(`${Math.ceil(promptWidth) + 16}px`)
+      const reservedSlot = textControls.querySelector('[data-composer-text-action-slot]')!
+      expect(reservedSlot).not.toBeNull()
+      expect(reservedSlot).toBeEmptyDOMElement()
+      expect(row.querySelector('[data-composer-input-minimum]')).toHaveTextContent(messages.shell.composer.inputLabel)
       expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
-      const measuredMinimum = field.style.minWidth
       for (const state of ['atLimit', 'idle', 'sending', 'idle'] as const) {
         view.rerender(<Mounted configuration={props({ ...configuration, state, limitReason: 'reason',
           words: { ...messages.shell.composer, placeholder: state === 'atLimit' ? messages.shell.composer.limit.placeholder : messages.shell.composer.placeholder } })} />)
         await measure()
-        expect(field.style.minWidth).toBe(measuredMinimum)
+        expect(textControls.querySelector('[data-composer-text-action-slot]')).toBe(reservedSlot)
+        expect(reservedSlot).toBeEmptyDOMElement()
         expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
       }
       width = 568
       await measure()
+      expect(textControls.querySelector('[data-composer-text-action-slot]')).toBe(reservedSlot)
       expect(screen.getAllByRole('button', { name: messages.shell.composer.paste })).toHaveLength(1)
       width = 380
       await measure()
@@ -548,8 +577,8 @@ describe('Composer', () => {
     field.focus()
 
     expect(field).toHaveFocus()
-    expect(field.parentElement?.className.split(' ')).toContain('has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)]')
-    expect(field.parentElement?.className.split(' ')).not.toContain('focus-within:outline-2')
+    expect(field.closest('[data-composer-input-row]')?.className.split(' ')).toContain('has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)]')
+    expect(field.closest('[data-composer-input-row]')?.className.split(' ')).not.toContain('focus-within:outline-2')
     expect(field).toHaveClass('focus-visible:outline-0')
     expect(field.className.split(' ')).not.toContain('focus-visible:outline-2')
   })
@@ -560,7 +589,7 @@ describe('Composer', () => {
     control.focus()
     expect(control).toHaveFocus()
     expect(control).toHaveClass('rounded-full')
-    expect(control.closest('[data-composer-input-row]')).toBe(screen.getByRole('textbox').parentElement)
+    expect(control.closest('[data-composer-input-row]')).toBe(screen.getByRole('textbox').closest('[data-composer-input-row]'))
   })
 
   it.each(['', '   '])('does not send a blank value %j', (value) => {

@@ -18,14 +18,14 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { __getFocusedInputSelection, __getFocusedNativeTag, __setFocusImpl, __setWindowDimensions } from '@/test-mocks/react-native'
-import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
+import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
-const astraCopy = vi.hoisted(() => ({ name: 'nav.astra' }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? astraCopy.name : key, i18n: { language: 'en' } }) }))
+const astraCopy = vi.hoisted(() => ({ name: 'nav.astra', request: 'habits.form.askDate' }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? astraCopy.name : key === 'habits.form.askDate' ? astraCopy.request : key, i18n: { language: 'en' } }) }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
 const clipboard = vi.hoisted(() => ({ getStringAsync: vi.fn().mockResolvedValue(''), hasStringAsync: vi.fn().mockResolvedValue(true) }))
@@ -153,45 +153,89 @@ describe('clipboard composer control', () => {
   beforeEach(() => { authSession.isAuthenticated = true; authSession.user = { userId: 'account-a' } })
   afterEach(() => { clipboard.hasStringAsync.mockReset().mockResolvedValue(true); clipboard.getStringAsync.mockReset().mockResolvedValue(''); useAppToastStore.getState().dismissAllToasts() })
 
+  it.each([en, ptBR])('keeps the actual input minimum and action reservation through fit and availability changes', async messages => {
+    clipboard.hasStringAsync.mockResolvedValue(false)
+    const configuration = props({ suggestions: [], words: messages.shell.composer, onAttachFile: vi.fn(), attachWords })
+    const tree = renderComposer(configuration)
+    try {
+      await TestRenderer.act(async () => { await Promise.resolve() })
+      const slot = tree.root.findByProps({ testID: 'composer-text-action-slot' })
+      expect(slot.findAllByType('Pressable')).toHaveLength(1)
+      for (const fontScale of [1, 1.5, 2, 1]) {
+        __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale })
+        for (const state of ['idle', 'atLimit', 'sending', 'idle'] as const) {
+          await TestRenderer.act(() => tree.update(<Composer {...props({ ...configuration, state, limitReason: 'reason', value: state === 'sending' ? 'Draft' : '' })} />))
+          expect(tree.root.findByProps({ testID: 'composer-text-action-slot' })).toBe(slot)
+          const minimum = tree.root.findByProps({ testID: 'composer-input-minimum' })
+          expect(minimum.props.children).toBe(messages.shell.composer.inputLabel)
+          expect(minimum.props.accessible).toBe(false)
+          expect(minimum.props.importantForAccessibility).toBe('no-hide-descendants')
+          const parts = measureInteractionFills(tree.toJSON(), 412, false, fontScale)
+          const textSlot = parts.find(part => part.host.props.testID === 'composer-text-slot')!
+          const intrinsic = measureProfileRow({ type: 'View', props: { style: { alignItems: 'flex-start' } }, children: [
+            { type: 'Text', props: { style: StyleSheet.flatten(minimum.props.style) }, children: [messages.shell.composer.inputLabel] },
+          ] }, 412, fontScale).texts[0]!
+          expect(textSlot.width).toBeGreaterThanOrEqual(intrinsic.width)
+          expect(parts.find(part => part.host.props.testID === 'composer-text-action-slot')!.width).toBe(48)
+        }
+        const measurement = tree.root.findByProps({ testID: 'composer-paste-measure' })
+        const line = { x: 0, y: 0, width: 40, height: 24, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: messages.shell.composer.placeholder }
+        for (const lines of [[line, { ...line, y: 24 }], [line]]) {
+          await TestRenderer.act(() => measurement.props.onTextLayout({ nativeEvent: { lines } }))
+          expect(tree.root.findByProps({ testID: 'composer-text-action-slot' })).toBe(slot)
+          expect(StyleSheet.flatten(measurement.props.style).end).toBe(8)
+          expect(slot.findAllByType('Pressable')).toHaveLength(lines.length > 1 ? 0 : 1)
+        }
+      }
+    } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+  })
+
   it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
     'moves text actions only when the whole placeholder needs their slot at $width', ({ width, messages }) => {
+      astraCopy.name = messages.nav.astra
+      astraCopy.request = messages.habits.form.askDate
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       const configuration = props({ suggestions: [], words: messages.shell.composer,
         onAttachFile: vi.fn(), attachWords, onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation })
       const tree = renderComposer(configuration)
-      const config = Yoga.Config.create()
       let layoutWidth = width
       function measure() {
-        const nodes = new Map<string, YogaNode>()
-        const layout = composerLayout(tree.toJSON(), config, nodes, 1)
-        layout.calculateLayout(layoutWidth, undefined)
-        const slot = nodes.get('composer-text-slot')!
-        const field = nodes.get('composer-field')!
-        const result = { contentWidth: slot.getComputedWidth() - 16, height: field.getComputedHeight() }
-        layout.freeRecursive()
-        return result
+        const parts = measureInteractionFills(tree.toJSON(), layoutWidth, false)
+        const slot = parts.find(part => part.host.props.testID === 'composer-text-slot')!
+        const field = parts.find(part => part.host.props.testID === 'composer-field')!
+        return { contentWidth: slot.width - 16, height: field.height, parts }
+      }
+      function reportWidths() {
+        for (const part of measure().parts) {
+          const onLayout = 'onLayout' in part.host.props ? part.host.props.onLayout : undefined
+          if (typeof onLayout === 'function') TestRenderer.act(() => onLayout({ nativeEvent: {
+            layout: { x: part.left, y: part.top, width: part.width, height: part.height },
+          } }))
+        }
       }
       try {
         const placeholderStyle: TextStyle = { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 }
         const measurePlaceholder = (available: number) => measureProfileRow({ type: 'Text', props: {
           style: placeholderStyle,
         }, children: [messages.shell.composer.placeholder] }, available, 1).texts[0]!
-        for (layoutWidth of [width, width === 320 ? 412 : 320, width]) {
+        for (layoutWidth of [width, 600, width]) {
           __setWindowDimensions({ width: layoutWidth, height: 915, scale: 1, fontScale: 1 })
           TestRenderer.act(() => tree.update(<Composer {...configuration} />))
           for (let replay = 0; replay < 2; replay++) {
+            reportWidths()
             const measurement = tree.root.findByProps({ testID: 'composer-paste-measure' })
             const inset = StyleSheet.flatten(measurement.props.style)
-            const candidate = measurePlaceholder(measure().contentWidth - (inset.end - inset.start))
+            const candidate = measurePlaceholder(inset.width)
             const line = { x: 0, y: 0, width: candidate.width, height: 24, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: messages.shell.composer.placeholder }
             TestRenderer.act(() => measurement.props.onTextLayout({ nativeEvent: { lines: Array.from({ length: candidate.lines }, () => line) } }))
-            expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(layoutWidth === 320 ? 0 : 1)
+            expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(layoutWidth < 600 ? 0 : 1)
           }
           const menu = tree.root.findByType(Menu)
-          expect(menu.props.items.some((item: { id: string }) => item.id === 'paste')).toBe(layoutWidth === 320)
-          if (layoutWidth === 320) expect(menu.props.items[0]).toMatchObject({ id: 'paste', label: messages.shell.composer.paste, icon: 'clipboard' })
+          expect(menu.props.items.some((item: { id: string }) => item.id === 'paste')).toBe(layoutWidth < 600)
+          if (layoutWidth < 600) expect(menu.props.items[0]).toMatchObject({ id: 'paste', label: messages.shell.composer.paste, icon: 'clipboard' })
           const empty = measure()
-          expect(empty.height).toBe(56)
+          expect(empty.height).toBeGreaterThanOrEqual(56)
+          if (layoutWidth === 600) expect(empty.height).toBe(56)
           expect(measurePlaceholder(empty.contentWidth).lines).toBe(1)
           const placeholder = tree.root.findByProps({ testID: 'composer-placeholder' })
           expect(placeholder.props.children).toBe(messages.shell.composer.placeholder)
@@ -199,18 +243,18 @@ describe('clipboard composer control', () => {
           TestRenderer.act(() => tree.update(<Composer {...configuration} value="Draft" />))
           const typed = measure()
           expect(typed.contentWidth).toBe(empty.contentWidth)
-          expect(byLabel(tree.root, messages.shell.composer.clear)).toHaveLength(layoutWidth === 320 ? 0 : 1)
+          expect(byLabel(tree.root, messages.shell.composer.clear)).toHaveLength(layoutWidth < 600 ? 0 : 1)
           const typedMenu = tree.root.findByType(Menu)
-          expect(typedMenu.props.items.some((item: { id: string }) => item.id === 'clear')).toBe(layoutWidth === 320)
-          if (layoutWidth === 320) expect(typedMenu.props.items[0]).toMatchObject({ id: 'clear', label: messages.shell.composer.clear, icon: 'x' })
+          expect(typedMenu.props.items.some((item: { id: string }) => item.id === 'clear')).toBe(layoutWidth < 600)
+          if (layoutWidth < 600) expect(typedMenu.props.items[0]).toMatchObject({ id: 'clear', label: messages.shell.composer.clear, icon: 'x' })
           const measurement = tree.root.findByProps({ testID: 'composer-paste-measure' })
           const inset = StyleSheet.flatten(measurement.props.style)
-          const candidate = measurePlaceholder(typed.contentWidth - (inset.end - inset.start))
+          const candidate = measurePlaceholder(inset.width)
           const line = { x: 0, y: 0, width: candidate.width, height: 24, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: messages.shell.composer.placeholder }
           TestRenderer.act(() => measurement.props.onTextLayout({ nativeEvent: { lines: Array.from({ length: candidate.lines }, () => line) } }))
           expect(measure().contentWidth).toBe(empty.contentWidth)
         }
-      } finally { TestRenderer.act(() => tree.unmount()); config.free(); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+      } finally { TestRenderer.act(() => tree.unmount()); astraCopy.name = 'nav.astra'; astraCopy.request = 'habits.form.askDate'; __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
     },
   )
 
@@ -473,12 +517,6 @@ function menuItem(tree: ReturnType<typeof TestRenderer.create>, label: string) {
   )
 }
 
-interface ComposerHost {
-  type: string
-  props: Record<string, unknown>
-  children: (ComposerHost | string)[] | null
-}
-
 function applyComposerLayoutStyle(node: YogaNode, style: Record<string, unknown>) {
   const dimensions = ['Width', 'Height', 'MinWidth', 'MinHeight', 'MaxWidth', 'MaxHeight', 'Flex', 'FlexGrow', 'FlexShrink', 'FlexBasis'] as const
   for (const dimension of dimensions) {
@@ -508,26 +546,6 @@ function applyComposerLayoutInsets(node: YogaNode, style: Record<string, unknown
     }
   }
 }
-
-function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, YogaNode>, lineCount: number): YogaNode {
-  const node = Yoga.Node.create(config)
-  const style = (StyleSheet.flatten(host.props.style as never) as Record<string, unknown> | undefined) ?? {}
-  if (typeof host.props.testID === 'string') nodes.set(host.props.testID, node)
-  applyComposerLayoutStyle(node, style)
-  applyComposerLayoutInsets(node, style)
-  if (host.type === 'TextInput') {
-    nodes.set('input', node)
-    node.setMeasureFunc(() => ({ width: 80, height: 24 * lineCount }))
-  } else if (host.type === 'Text') {
-    node.setMeasureFunc(() => ({ width: 80, height: 24 }))
-  } else if (host.type !== 'Pressable') {
-    const children = (host.children ?? []).filter((child): child is ComposerHost => typeof child !== 'string')
-    children.forEach((child, index) => node.insertChild(composerLayout(child, config, nodes, lineCount), index))
-  }
-  return node
-}
-
-
 
 describe('Composer (mobile)', () => {
   it.each([

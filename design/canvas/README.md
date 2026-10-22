@@ -21,9 +21,12 @@ The composer reserves its text-action target when allowance disables that action
 paste and clear move into the attachment menu. Near-limit and exhausted states keep the same
 frame and input position before and after text measurement; the real status slot retains its
 96px minimum and grows with its content. Unavailable actions add no hidden focus target.
-Web reserves the measured persistent input label, which matches the idle prompt, plus its inline
-padding before wrapping named controls. Menu fit measures the reserved action slot in every state,
-including after font and width changes. Disabled state prompts retain their separate fit check.
+Both platforms give the persistent input label, which matches the idle prompt, an intrinsic sizing
+owner with the input's font and inline padding before wrapping named controls. Web carries this
+owner in server markup and its first client layout. Controls bottom-align on their actual visual
+line; the last line keeps the field's 4px bottom inset. Menu fit measures the physical reserved
+action slot once in every state, including after font and width changes. Disabled state prompts
+retain their separate fit check.
 Live chip action text and Astra attribution share one wrapping text flow beside the canonical
 mark, retaining the complete default action line and first-line alignment at enlarged text.
 The send progress slot stays reserved; its spinner runs only while sending.

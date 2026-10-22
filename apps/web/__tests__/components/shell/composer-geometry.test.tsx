@@ -3,6 +3,7 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createRef, useState } from 'react'
+import { renderToString } from 'react-dom/server'
 import postcss from 'postcss'
 import { execFileSync } from 'node:child_process'
 import tailwind from '@tailwindcss/postcss'
@@ -24,6 +25,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 import { Menu } from '@/components/ui/menu'
 import { measureFieldInset } from '@/e2e/layout/field-inset-geometry'
 import { inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
+import { composerPlaceholderFits } from '@/e2e/layout/composer-column-paint'
 
 let translationMessages = en
 
@@ -72,22 +74,22 @@ interface PillGeometry {
 async function readTextActionLayout(page: import('@playwright/test').Page) {
   return page.locator('[data-composer-input]').evaluate(element => {
     const style = getComputedStyle(element)
-    const row = element.parentElement!
+    const row = element.closest<HTMLElement>('[data-composer-input-row]')!
     const rowStyle = getComputedStyle(row)
     const trailing = row.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
     const controls = trailing.querySelector<HTMLElement>('[data-composer-text-controls]')!
     const controlsStyle = getComputedStyle(controls)
     const slotWidth = parseFloat(controlsStyle.minWidth)
     const gap = parseFloat(controlsStyle.columnGap)
-    const slot = controls.querySelector('[data-composer-text-action-slot]')
-    const inlineWidth = controls.getBoundingClientRect().width + (slot ? 0 : slotWidth + gap)
+    const inlineWidth = controls.getBoundingClientRect().width
+    const minimumWidth = row.querySelector('[data-composer-input-minimum]')!.getBoundingClientRect().width
     const entryWidth = row.querySelector('[data-open-conversation]')?.getBoundingClientRect().width ?? 0
     const sendWidth = trailing.lastElementChild!.getBoundingClientRect().width
     const context = document.createElement('canvas').getContext('2d')!
     context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
     context.letterSpacing = style.letterSpacing
     const metrics = context.measureText(element.getAttribute('placeholder')!)
-    return { clientWidth: element.clientWidth, rowWidth: row.clientWidth, entryWidth, sendWidth, inlineWidth, slotWidth, gap,
+    return { clientWidth: element.clientWidth, rowWidth: row.clientWidth, entryWidth, sendWidth, inlineWidth, slotWidth, gap, minimumWidth,
       menuItems: JSON.parse(controls.querySelector('[data-composer-menu-items]')?.getAttribute('data-composer-menu-items') ?? '[]') as { id: string; label: string }[],
       rowPaddingStart: rowStyle.paddingInlineStart, rowPaddingEnd: rowStyle.paddingInlineEnd,
       trailingGap: getComputedStyle(trailing).columnGap,
@@ -110,7 +112,7 @@ async function expectNarrowMenuPaste(page: import('@playwright/test').Page, mess
   Object.assign(field.style, { font: measured.font, fontSize: measured.fontSize, fontStyle: measured.fontStyle,
     fontWeight: measured.fontWeight, fontFamily: measured.fontFamily, letterSpacing: measured.letterSpacing,
     paddingInlineStart: measured.paddingInlineStart, paddingInlineEnd: measured.paddingInlineEnd })
-  const row = field.parentElement!
+  const row = field.closest<HTMLElement>('[data-composer-input-row]')!
   Object.assign(row.style, { paddingInlineStart: measured.rowPaddingStart, paddingInlineEnd: measured.rowPaddingEnd })
   const trailing = row.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
   const controls = trailing.querySelector<HTMLElement>('[data-composer-text-controls]')!
@@ -119,7 +121,8 @@ async function expectNarrowMenuPaste(page: import('@playwright/test').Page, mess
   const rowWidth = vi.spyOn(row, 'clientWidth', 'get').mockReturnValue(measured.rowWidth)
   const inputWidth = vi.spyOn(field, 'clientWidth', 'get').mockReturnValue(measured.clientWidth)
   const rectangles = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    const width = this === controls ? controls.querySelector('[data-composer-text-action-slot]') ? measured.inlineWidth : measured.slotWidth
+    const width = this === controls ? measured.inlineWidth
+      : this.hasAttribute('data-composer-input-minimum') ? measured.minimumWidth
       : this.hasAttribute('data-open-conversation') ? measured.entryWidth : this === trailing.lastElementChild ? measured.sendWidth : measured.slotWidth
     return new DOMRect(0, 0, width, 48)
   })
@@ -373,6 +376,74 @@ describe('Composer compact geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([en, ptBR])('retains initial label and physical reservation geometry when text actions move into Add', async messages => {
+    translationMessages = messages
+    const configuration = { ...geometryProps('idle', messages, true), clipboardText: 'Clipboard text' }
+    const markup = renderToString(<Composer {...configuration} />)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root">${markup}</div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+      await loadAppFonts(page)
+      const row = page.locator('[data-composer-input-row]')
+      const measure = () => row.evaluate(element => ({
+        row: element.getBoundingClientRect().toJSON(),
+        input: element.querySelector('[data-composer-input]')!.getBoundingClientRect().toJSON(),
+        label: element.querySelector('[data-composer-input-minimum]')!.getBoundingClientRect().toJSON(),
+        slot: element.querySelector('[data-composer-text-action-slot]')!.getBoundingClientRect().toJSON(),
+        controls: element.querySelector('[data-composer-text-controls]')!.getBoundingClientRect().toJSON(),
+      }))
+      const first = await measure()
+      expect(first.slot.width).toBe(48)
+      expect(first.controls.width).toBe(100)
+      await page.addScriptTag({ content: composerScript })
+      await page.locator('#root[data-composer-test-ready]').waitFor()
+      await expect.poll(measure).toEqual(first)
+      expect(await page.locator('[data-composer-text-action-slot] button').count()).toBe(0)
+      expect(await page.locator('[data-composer-input]').evaluate(composerPlaceholderFits, 1)).toBe(true)
+    } finally { translationMessages = en; await page.close() }
+  })
+
+  it.each([{ width: 600, scale: 1 }, { width: 412, scale: 1.5 }])(
+    'calibrates visual-line geometry against the actual composer at $width and $scale text', async ({ width, scale }) => {
+      const configuration = geometryProps('idle', en, true)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}html{font-size:${16 * scale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+        await page.addScriptTag({ content: composerScript })
+        await loadAppFonts(page)
+        const input = page.locator('[data-composer-input]')
+        await expect.poll(() => input.evaluate(composerPlaceholderFits, scale)).toBe(true)
+        const row = page.locator('[data-composer-input-row]')
+        const arrangement = await row.evaluate(element => ({
+          entry: element.querySelector('[data-open-conversation]')!.getBoundingClientRect().top,
+          send: element.querySelector('[data-composer-trailing-controls]')!.lastElementChild!.getBoundingClientRect().top,
+        }))
+        expect(arrangement.send > arrangement.entry).toBe(scale > 1)
+        const faults = [
+          { selector: '[data-composer-controls] button', style: { width: '47px', minWidth: '47px', maxWidth: '47px' } },
+          { selector: '[data-composer-controls] button', style: { height: '47px', minHeight: '47px', maxHeight: '47px' } },
+          { selector: '[data-composer-trailing-controls] > button', style: { marginInlineStart: '-8px' } },
+          { selector: '[data-composer-trailing-controls]', style: { flexDirection: 'row-reverse' } },
+          { selector: '[data-open-conversation]', style: { position: 'relative', top: '2px' } },
+          { selector: '[data-composer-input-row]', style: { paddingBottom: '8px' } },
+          { selector: '[data-composer-input]', style: { width: '20px', minWidth: '20px' } },
+          { selector: '[data-composer-trailing-controls] > button', style: { position: 'relative', left: '400px' } },
+        ]
+        for (const fault of faults) {
+          const target = page.locator(fault.selector)
+          const previous = await target.getAttribute('style')
+          try {
+            await target.evaluate((element, style) => Object.assign((element as HTMLElement).style, style), fault.style)
+            expect(await input.evaluate(composerPlaceholderFits, scale), JSON.stringify(fault)).toBe(false)
+          } finally {
+            await target.evaluate((element, previous) => previous === null ? element.removeAttribute('style') : element.setAttribute('style', previous), previous)
+          }
+          expect(await input.evaluate(composerPlaceholderFits, scale)).toBe(true)
+        }
+      } finally { await page.close() }
+    },
+  )
+
   it('keeps the compact composer inset when no daily allowance hint is supplied', async () => {
     const view = render(<Composer {...geometryProps('idle', en, false)} />)
     const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
@@ -436,7 +507,7 @@ describe('Composer compact geometry in Chromium', () => {
           await expect.poll(() => root.getAttribute('data-state')).toBe(next.state)
           const geometry = await root.evaluate(readAllowanceGeometry)
           const snapshot = await page.locator('[data-composer-input]').evaluate(input => {
-            const row = input.parentElement!
+            const row = input.closest<HTMLElement>('[data-composer-input-row]')!
             const style = getComputedStyle(input)
             return { input: { top: input.getBoundingClientRect().top, width: input.clientWidth, height: input.clientHeight,
               minimum: style.minWidth, font: style.font, placeholder: (input as HTMLTextAreaElement).placeholder },
@@ -581,12 +652,12 @@ describe('Composer compact geometry in Chromium', () => {
         for (const value of [prompt, Array.from({ length: 8 }, () => prompt).join('\n'), 'Ler']) {
           if (value !== prompt) await input.fill(value)
           const geometry = await input.evaluate(element => {
-            const field = element.parentElement!
+            const field = element.closest<HTMLElement>('[data-composer-input-row]')!
             const pill = field.getBoundingClientRect()
             const text = element.getBoundingClientRect()
             const style = getComputedStyle(element)
             const fullInput = element.cloneNode(true) as HTMLTextAreaElement
-            Object.assign(fullInput.style, { position: 'fixed', visibility: 'hidden', width: `${text.width}px`, maxHeight: 'none', height: 'auto' })
+            Object.assign(fullInput.style, { position: 'fixed', visibility: 'hidden', width: `${text.width}px`, minWidth: '0', maxWidth: 'none', maxHeight: 'none', height: 'auto' })
             fullInput.value = (element as HTMLTextAreaElement).value
             document.body.append(fullInput)
             const naturalHeight = fullInput.scrollHeight
@@ -651,8 +722,8 @@ describe('Composer compact geometry in Chromium', () => {
       expect.soft(placeholder.inset).toBe(8)
       const leading = await field.evaluate(element => {
         const input = element.getBoundingClientRect()
-        const pill = element.parentElement!.getBoundingClientRect()
-        const entry = element.parentElement!.querySelector('[data-open-conversation]')?.getBoundingClientRect()
+        const pill = element.closest('[data-composer-input-row]')!.getBoundingClientRect()
+        const entry = element.closest('[data-composer-input-row]')!.querySelector('[data-open-conversation]')?.getBoundingClientRect()
         const sameLine = entry && entry.top < input.bottom && entry.bottom > input.top
         return { entryWidth: sameLine ? entry!.width : 0, pillLeft: pill.left, pillRight: pill.right, inputLeft: input.left, inputRight: input.right }
       })
@@ -758,7 +829,7 @@ describe('Composer compact geometry in Chromium', () => {
               singleLineHeight: parseFloat(style.lineHeight) + padding,
               textWidth: canvas.measureText(input.placeholder).width,
               contentWidth: input.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd),
-              pillHeight: input.parentElement!.getBoundingClientRect().height }
+              pillHeight: input.closest('[data-composer-input-row]')!.getBoundingClientRect().height }
           })
           const evidence = JSON.stringify({ scenario, withOpener, fontScale, measured })
           expect(measured.scrollWidth, evidence).toBeLessThanOrEqual(measured.width)

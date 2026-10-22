@@ -268,7 +268,7 @@ function ComposerTextControls({ props, inMenu, onPasteText, onClear }: Readonly<
     } finally { scope.pending = false }
   }
   return <div data-composer-text-controls className="flex min-w-12 min-h-12 shrink-0 items-end gap-[4px]">
-  {!inMenu ? <div data-composer-text-action-slot className="w-12 min-h-12 shrink-0">
+  {props.state !== 'recording' && props.state !== 'transcribing' ? <div data-composer-text-action-slot className="w-12 min-h-12 shrink-0">
     <ComposerTextAction words={props.words} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
   </div> : null}
   <ComposerControls props={props} onPaste={canPaste && inMenu ? () => void pasteMessage() : undefined}
@@ -276,32 +276,24 @@ function ComposerTextControls({ props, inMenu, onPasteText, onClear }: Readonly<
   </div>
 }
 
-function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>, placeholder: string, state: ComposerProps['state']) {
-  const [layout, setLayout] = useState({ inMenu: false, minimumWidth: 0 })
+function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>, inputLabel: string, state: ComposerProps['state']) {
+  const [inMenu, setInMenu] = useState(false)
   useEffect(() => {
     const input = inputRef.current
     if (!input) return
-    const row = input.parentElement!
+    const row = input.closest<HTMLElement>('[data-composer-input-row]')!
     function measure() {
       if (row.clientWidth <= 0) return
-      const style = getComputedStyle(input!)
       const trailing = row.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
       const textControls = trailing.querySelector<HTMLElement>('[data-composer-text-controls]')!
-      const controlsStyle = getComputedStyle(textControls)
-      const reservedSlot = textControls.querySelector('[data-composer-text-action-slot]')
       const inlineControlsWidth = textControls.getBoundingClientRect().width
-        + (reservedSlot ? 0 : parseFloat(controlsStyle.minWidth) + parseFloat(controlsStyle.columnGap))
       const sendWidth = trailing.lastElementChild!.getBoundingClientRect().width
       const entryWidth = row.querySelector('[data-open-conversation]')?.getBoundingClientRect().width ?? 0
       const rowStyle = getComputedStyle(row)
       const available = row.clientWidth - parseFloat(rowStyle.paddingInlineStart) - parseFloat(rowStyle.paddingInlineEnd)
-      const context = document.createElement('canvas').getContext('2d')!
-      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
-      context.letterSpacing = style.letterSpacing
-      const minimumWidth = Math.max(3 * parseFloat(style.fontSize), Math.ceil(context.measureText(placeholder).width)
-        + parseFloat(style.paddingInlineStart) + parseFloat(style.paddingInlineEnd))
+      const minimumWidth = row.querySelector('[data-composer-input-minimum]')!.getBoundingClientRect().width
       const inMenu = entryWidth + minimumWidth + inlineControlsWidth + sendWidth + parseFloat(getComputedStyle(trailing).columnGap) > available
-      setLayout(previous => previous.inMenu === inMenu && previous.minimumWidth === minimumWidth ? previous : { inMenu, minimumWidth })
+      setInMenu(inMenu)
     }
     const observer = new ResizeObserver(measure)
     observer.observe(row)
@@ -309,14 +301,17 @@ function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>
     document.fonts.addEventListener('loadingdone', measure)
     measure()
     return () => { observer.disconnect(); document.fonts.removeEventListener('loadingdone', measure) }
-  }, [inputRef, placeholder, state])
-  return layout
+  }, [inputRef, inputLabel, state])
+  return inMenu
 }
+
+const composerInputMetrics = 'px-2 py-3 text-base'
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const t = useTranslations()
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const inputLayout = useTextActionMenu(inputRef, props.words.inputLabel ?? props.words.placeholder, props.state)
+  const inputLabel = props.words.inputLabel ?? props.words.placeholder
+  const textActionInMenu = useTextActionMenu(inputRef, inputLabel, props.state)
   const pasteFocus = useRef<string | null>(null)
   useEffect(() => {
     if (pasteFocus.current === null || props.value !== pasteFocus.current || props.state !== 'idle') return
@@ -374,12 +369,14 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         </button>
       ) : null}
 
-        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <TypedTextarea
+        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <div data-composer-input-slot className="grid min-w-min max-w-full basis-[min-content] flex-1">
+        <span data-composer-input-minimum aria-hidden="true" className={`pointer-events-none invisible col-start-1 row-start-1 w-max max-w-full whitespace-pre ${composerInputMetrics}`}>{inputLabel}</span>
+        <TypedTextarea
           ref={inputRef}
           id={props.inputId}
           rows={1}
           data-composer-input
-          aria-label={props.words.inputLabel ?? props.words.placeholder}
+          aria-label={inputLabel}
           disabled={inputDisabled}
           placeholder={props.words.placeholder}
           value={props.value}
@@ -387,12 +384,11 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
           onFocus={props.onOpenConversation}
-          style={inputLayout.minimumWidth > 0 ? { minWidth: `min(100%, ${inputLayout.minimumWidth}px)`, flexBasis: inputLayout.minimumWidth } : undefined}
-          className="max-h-[calc(5lh+24px)] max-w-full min-h-[48px] min-w-[3em] basis-[3em] flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]"
-        />}
+          className={`col-start-1 row-start-1 w-0 min-w-full max-h-[calc(5lh+24px)] min-h-[48px] resize-none appearance-none border-0 bg-transparent ${composerInputMetrics} text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]`}
+        /></div>}
 
       <div data-composer-trailing-controls className="flex max-w-full flex-wrap justify-end shrink-0 items-end gap-[4px]">
-        <ComposerTextControls props={props} inMenu={inputLayout.inMenu} onClear={clearMessage} onPasteText={text => {
+        <ComposerTextControls props={props} inMenu={textActionInMenu} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
         }} />
