@@ -5,6 +5,10 @@ import { Composer } from '@/components/shell/composer'
 import { useChatStore } from '@/stores/chat-store'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { Fab } from '@/components/ui/fab'
+import { Toast } from '@/components/ui/toast'
+import en from '@orbit/shared/i18n/en.json'
+import { SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 const media = vi.hoisted(() => ({ width: 1023 }))
 
@@ -134,17 +138,17 @@ describe('ShellWide', () => {
     expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
   })
 
-  it('centres compact notice, dock, and FAB inside the full-width bottom chrome', () => {
+  it('centres pinned controls and the floating overlay within the shell column', () => {
     media.width = 900
     const { container } = render(
       <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" notice={<div>Notice</div>} composer={<div>Composer</div>} fab={<button type="button">Create</button>} tabBar={<nav>Tabs</nav>} />,
     )
-    const bottom = container.querySelector('[data-shell-bottom]')
+    const bottom = container.querySelector<HTMLElement>('[data-shell-bottom]')
     const pinnedSlot = container.querySelector('[data-shell-pinned-slot]')
     const column = pinnedSlot?.closest<HTMLElement>('[data-shell-bottom] > div') ?? null
     expect(column).toHaveStyle({ maxWidth: '740px' })
     expect(column).toContainElement(container.querySelector('[data-shell-notice]'))
-    expect(column).toContainElement(container.querySelector('[data-shell-fab]'))
+    expect(container.querySelector('[data-shell-page]')).toContainElement(container.querySelector('[data-shell-fab]'))
     expect(bottom).toContainElement(column)
     expect(bottom).not.toHaveClass('max-w-[740px]')
     expect(container.querySelector('[data-shell-destination-viewport]')?.parentElement).toHaveClass('pb-[var(--safe-bottom)]')
@@ -161,14 +165,14 @@ describe('ShellWide', () => {
         onAttachFile={vi.fn()} attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }} />
     }
     const composer = <DraftComposer />
-    const shell = (floating: boolean) => <ShellWide astraRow={{ label: 'Astra', onOpen: vi.fn() }} items={items} activeId="hoje" navLabel="Main navigation"
+    const shell = (floating: boolean, notice?: ReactNode) => <ShellWide notice={notice} astraRow={{ label: 'Astra', onOpen: vi.fn() }} items={items} activeId="hoje" navLabel="Main navigation"
       composer={composer} tabBar={<nav>Tabs</nav>}
       fab={floating ? <button type="button">Create</button> : undefined} />
     const { rerender } = render(shell(true))
     const input = screen.getByRole('textbox')
     act(() => input.focus())
-    for (const floating of [false, true]) {
-      rerender(shell(floating))
+    for (const [floating, notice] of [[false, undefined], [true, <></>], [true, <div key="tall" style={{ height: 160 }}>Saved</div>], [true, undefined]] as const) {
+      rerender(shell(floating, notice))
       expect(screen.getByRole('textbox')).toBe(input)
       expect(input).toHaveValue('Keep this draft')
       expect(input).toHaveFocus()
@@ -185,8 +189,8 @@ describe('ShellWide', () => {
     const item = within(menu).getByRole('menuitem', { name: 'Document' })
     act(() => item.focus())
     expect(item).toHaveFocus()
-    for (const floating of [false, true]) {
-      rerender(shell(floating))
+    for (const [floating, notice] of [[false, undefined], [true, <></>], [true, <div key="tall" style={{ height: 160 }}>Saved</div>], [true, undefined]] as const) {
+      rerender(shell(floating, notice))
       expect(screen.getByRole('textbox', { hidden: true })).toBe(input)
       expect(screen.getByRole('menu', { name: 'Attach' })).toBe(menu)
       expect(input.closest('[data-composer-root]')).toContainElement(trigger)
@@ -205,12 +209,108 @@ describe('ShellWide', () => {
 
   it('floats the compact FAB without its own band or separator', () => {
     const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} fab={<button type="button">Create</button>}><h1>Today</h1></ShellWide>)
-    const bottom = container.querySelector('[data-shell-bottom]')
+    const bottom = container.querySelector<HTMLElement>('[data-shell-bottom]')
     expect(bottom).not.toHaveClass('shadow-[inset_0_1px_0_var(--hairline)]')
     const fab = container.querySelector<HTMLElement>('[data-shell-fab]')
     expect(fab).toContainElement(screen.getByRole('button', { name: 'Create' }))
     expect(container.querySelector('[data-shell-scroller]')).not.toContainElement(fab)
-    expect(bottom).toContainElement(fab)
+    expect(bottom).not.toContainElement(fab)
+    expect(container.querySelector('[data-shell-page]')).toContainElement(fab)
+    expect(fab).toHaveClass('pointer-events-none')
+    expect(fab?.parentElement).toHaveClass('pointer-events-none')
+  })
+
+  it.each([320, 412, 1352])('keeps browser focus reveal clear of the floating action at %ipx', (width) => {
+    media.width = width
+    const shell = (floating: boolean, notice?: ReactNode) => <ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      notice={notice} composer={<div>Composer</div>} fab={floating ? <Fab label="Create" onClick={vi.fn()}>+</Fab> : undefined}>
+      <button type="button">Complete habit</button><button type="button">Habit options</button>
+    </ShellWide>
+    const { container, rerender } = render(shell(true))
+    const scroller = container.querySelector<HTMLElement>('[data-shell-scroller]')!
+    for (const notice of [undefined, <></>, <Toast key="notice" kind="neutral" message="Saved" />]) {
+      rerender(shell(true, notice))
+      expect(getComputedStyle(scroller).scrollPaddingBottom).toBe(width < 1024 ? '96px' : 'auto')
+      expect(scroller).toBe(container.querySelector('[data-shell-scroller]'))
+    }
+    rerender(shell(false))
+    expect(getComputedStyle(scroller).scrollPaddingBottom).toBe('auto')
+  })
+
+  it('retains usable page space in the initial and measured floating destination budgets', () => {
+    media.width = 740
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    const observers: { callback: () => void; targets: Set<Element> }[] = []
+    vi.stubGlobal('ResizeObserver', class {
+      readonly targets = new Set<Element>()
+      constructor(callback: () => void) { observers.push({ callback, targets: this.targets }) }
+      observe(target: Element) { this.targets.add(target) }
+      disconnect() {}
+    })
+    try {
+      const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+        header={<button type="button">Header</button>} tabBar={<nav>Tabs</nav>}
+        composer={<div>Composer</div>} fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>}>
+        <button type="button">Complete habit</button>
+      </ShellWide>)
+      const viewport = container.querySelector<HTMLElement>('[data-shell-destination-viewport]')!
+      const scroller = container.querySelector<HTMLElement>('[data-shell-scroller]')!
+      const header = container.querySelector<HTMLElement>('[data-shell-header]')!
+      const tabs = container.querySelector<HTMLElement>('[data-shell-tab-bar]')!
+      const bottom = container.querySelector<HTMLElement>('[data-shell-bottom-viewport]')!
+      bottom.style.minHeight = '64px'
+      const observer = observers.find(observer => observer.targets.has(header))!
+      const focusClearance = Number.parseFloat(getComputedStyle(scroller).scrollPaddingBottom)
+      const destinationMinimum = () => Number.parseFloat(viewport.style.getPropertyValue('--shell-destination-min-height'))
+      const initialMinimum = destinationMinimum()
+      expect(focusClearance).toBe(SPACING.s96)
+      expect(observer.targets).toEqual(new Set([header, tabs, bottom]))
+      expect.soft(initialMinimum - TOUCH_TARGET_MIN - TAB_BAR_MIN_HEIGHT - SPACING.s64 - focusClearance,
+        'initial destination retains usable page space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
+      const headerBounds = vi.spyOn(header, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 740, TOUCH_TARGET_MIN))
+      const tabBounds = vi.spyOn(tabs, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 740, TAB_BAR_MIN_HEIGHT))
+      act(() => observer.callback())
+      expect(destinationMinimum(), 'matching measurements retain the initial budget').toBe(initialMinimum)
+      headerBounds.mockReturnValue(new DOMRect(0, 0, 740, SPACING.s64))
+      tabBounds.mockReturnValue(new DOMRect(0, 0, 740, SPACING.s96))
+      act(() => observer.callback())
+      expect(destinationMinimum()).toBe(initialMinimum + SPACING.s64 - TOUCH_TARGET_MIN + SPACING.s96 - TAB_BAR_MIN_HEIGHT)
+      expect.soft(destinationMinimum() - SPACING.s64 - SPACING.s96 - SPACING.s64 - focusClearance,
+        'measured destination retains usable page space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
+      const measuredMinimum = destinationMinimum()
+      bottom.style.minHeight = '80px'
+      act(() => observer.callback())
+      expect(destinationMinimum(), 'larger input minimum joins the measured destination budget').toBe(measuredMinimum + 16)
+    } finally { vi.stubGlobal('ResizeObserver', OriginalResizeObserver) }
+  })
+
+  it.each(['absent', 'empty', 'notice', 'tall'] as const)('keeps the floating action independent of page and pinned controls with %s notice', (state) => {
+    media.width = 412
+    const create = vi.fn()
+    const openRow = vi.fn()
+    const notice = state === 'absent' ? undefined : state === 'empty' ? <></>
+      : <div style={{ minHeight: state === 'tall' ? 160 : undefined }}><Toast kind="neutral" message="Saved" /></div>
+    const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      notice={notice} tabBar={<nav>Tabs</nav>}
+      composer={<Composer state="idle" value="Draft" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />}
+      fab={<Fab label="Create" onClick={create}>+</Fab>}>
+      <button type="button" onClick={openRow}>Habit</button>
+    </ShellWide>)
+    const page = container.querySelector<HTMLElement>('[data-shell-page]')!
+    const scroller = container.querySelector<HTMLElement>('[data-shell-scroller]')!
+    const bottom = container.querySelector<HTMLElement>('[data-shell-bottom]')!
+    const overlay = container.querySelector<HTMLElement>('[data-shell-fab-clip]')!
+    expect(page).toContainElement(scroller)
+    expect(page).toContainElement(overlay)
+    expect(bottom).not.toContainElement(overlay)
+    expect(scroller).not.toContainElement(overlay)
+    expect(overlay).toHaveClass('pointer-events-none')
+    expect(container.querySelector('[data-shell-fab]')).toHaveClass('pointer-events-none')
+    fireEvent.click(screen.getByRole('button', { name: 'Habit' }))
+    expect(openRow).toHaveBeenCalledTimes(1)
+    expect(create).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(create).toHaveBeenCalledTimes(1)
   })
 
   it('owns the 232px navigation, 740px canvas, notice, and pinned composer', () => {

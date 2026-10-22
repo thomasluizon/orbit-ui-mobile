@@ -32,27 +32,56 @@ describe('integrated row metadata', () => {
     }
   })
 
-  it('moves an oversized whole token to the existing footer and restores ordinary layout when it fits', () => {
+  it.each([false, true])('keeps measured metadata fit and depth boundary independent across selection=%s', (selectMode) => {
     let available = 48
-    const callbacks: (() => void)[] = []
-    vi.stubGlobal('ResizeObserver', class {
-      constructor(callback: () => void) { callbacks.push(callback) }
-      observe() {}
-      disconnect() {}
+    let rowWidth = 380
+    const observations = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>()
+    vi.stubGlobal('ResizeObserver', class implements ResizeObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe(target: Element) { observations.set(target, { callback: this.callback, observer: this }) }
+      unobserve(target: Element) { observations.delete(target) }
+      disconnect() {
+        for (const [target, observation] of observations) if (observation.observer === this) observations.delete(target)
+      }
     })
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       return new DOMRect(0, 0, this.hasAttribute('data-habit-row-title-block') ? available : this.querySelector('[data-habit-row-checklist]') ? 60 : 40, 20)
     })
-    const { container } = render(<HabitRow habit={createMockHabit({ title: 'Read', checklistItems: [{ text: 'Page', isChecked: true }] })} />)
-    act(() => { callbacks.forEach((callback) => callback()) })
-    expect(container.querySelector('[data-habit-row-heading]')).not.toBeNull()
-    expect(container.querySelectorAll('[data-habit-row-meta]')).toHaveLength(1)
-    expect(container.querySelector('[data-habit-row-heading] [data-habit-row-meta]')).toBeNull()
-    expect(container.querySelector('svg.tabler-icon-list-check')).toHaveAttribute('width', '16')
-    available = 200
-    act(() => { callbacks.forEach((callback) => callback()) })
-    expect(container.querySelector('[data-habit-row-heading]')).toBeNull()
-    expect(container.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
+    const habit = createMockHabit({ title: 'Read', checklistItems: Array.from({ length: 50 }, () => ({ text: 'Page', isChecked: true })) })
+    const { container, unmount } = render(<HabitRow habit={habit} depth={2} selectMode={selectMode} selected={selectMode} />)
+    const row = container.querySelector('[data-testid="habit-row"]')!
+    const resize = () => act(() => {
+      for (const [target, observation] of [...observations]) {
+        const width = target === row ? rowWidth : target.getBoundingClientRect().width
+        const size = { inlineSize: width, blockSize: 52 }
+        observation.callback([{
+          target, contentRect: new DOMRectReadOnly(0, 0, width, 52),
+          borderBoxSize: [size], contentBoxSize: [size], devicePixelContentBoxSize: [size],
+        }], observation.observer)
+      }
+    })
+    for (const scenario of [
+      { rowWidth: 380, available: 48, supporting: true, reason: 'metadata only' },
+      { rowWidth: 284, available: 48, supporting: true, reason: 'both measurements' },
+      { rowWidth: 284, available: 200, supporting: true, reason: 'depth boundary only' },
+      { rowWidth: 380, available: 200, supporting: false, reason: 'neither measurement' },
+      { rowWidth: 380, available: 48, supporting: true, reason: 'metadata after footer replacement' },
+    ]) {
+      rowWidth = scenario.rowWidth
+      available = scenario.available
+      resize()
+      expect(Boolean(row.querySelector('[data-habit-row-heading]')), scenario.reason).toBe(scenario.supporting)
+      expect(row.querySelectorAll('[data-habit-row-meta]')).toHaveLength(1)
+      expect(row.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
+      expect(row.querySelector('[data-habit-row-checklist]')?.textContent).toBe('50/50')
+      expect(row.querySelector('svg.tabler-icon-list-check')).toHaveAttribute('width', '16')
+      expect(observations.has(row)).toBe(true)
+      expect(observations.has(row.querySelector('[data-habit-row-title-block]')!)).toBe(true)
+      expect([...observations.keys()].every((target) => target.isConnected)).toBe(true)
+      if (scenario.supporting) expect(row.querySelector('[data-habit-row-heading] [data-habit-row-meta]')).toBeNull()
+    }
+    unmount()
+    expect(observations.size).toBe(0)
   })
 
   it.each(['en', 'pt-BR'].flatMap((language) => [1, 2, 2.5].map((scale) => ({ language, scale }))))(

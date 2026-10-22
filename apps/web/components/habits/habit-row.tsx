@@ -2,18 +2,18 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-import { useId, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { useId, type CSSProperties, type KeyboardEvent, type ReactNode, type RefCallback } from 'react'
 import { getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
-import type { HabitStatus } from '@orbit/shared/contracts/lists'
+import type { HabitRowBase, HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
 import { buildHabitRowMetaTokens, HabitRowContent, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
-import { useHabitRowLargeText, useHabitRowMetadataFit } from './use-habit-row-large-text'
+import { useHabitRowSupportingMeta, useHabitRowMetadataFit } from './use-habit-row-large-text'
 
 export type { HabitRowMetaToken }
 
@@ -40,7 +40,7 @@ export interface HabitRowActions {
   onReorder?: (direction: -1 | 1) => void
 }
 
-/** Canonical two-level habit row. List grouping owns its surrounding panel. */
+/** Canonical habit row. List grouping owns its surrounding panel. */
 interface HabitRowProps {
   habit: NormalizedHabit
   /** Derived display state (computed by caller from instances/logs). */
@@ -58,8 +58,9 @@ interface HabitRowProps {
   streak?: number
   /** True when this row is rendered under a parent. Renders with smaller text. */
   child?: boolean
-  /** Two inline display levels. Deeper data descendants are clamped to level 1 by the list. */
-  depth?: 0 | 1
+  /** Visible depth relative to the current list context; each ancestor adds one spacing step. */
+  depth?: HabitRowBase['depth']
+  drillInsteadOfExpand?: boolean
   structuralColumn?: boolean
   selectMode?: boolean
   selected?: boolean
@@ -98,18 +99,22 @@ function hasHabitMenuActions(
 
 function HabitRowStructuralColumn({
   hasChildren,
+  drillInsteadOfExpand,
   expanded,
   childPanelId,
   onToggleExpand,
   collapseLabel,
   expandLabel,
+  drillLabel,
 }: Readonly<{
   hasChildren: boolean
+  drillInsteadOfExpand: boolean
   expanded: boolean
   childPanelId?: string
   onToggleExpand?: () => void
   collapseLabel: string
   expandLabel: string
+  drillLabel: string
 }>) {
   if (!hasChildren) return null
   return (
@@ -117,9 +122,9 @@ function HabitRowStructuralColumn({
       type="button"
       onClick={() => onToggleExpand?.()}
       data-habit-row-control="disclosure"
-      aria-label={expanded ? collapseLabel : expandLabel}
-      aria-expanded={expanded}
-      aria-controls={childPanelId}
+      aria-label={drillInsteadOfExpand ? drillLabel : expanded ? collapseLabel : expandLabel}
+      aria-expanded={drillInsteadOfExpand ? undefined : expanded}
+      aria-controls={drillInsteadOfExpand ? undefined : childPanelId}
       className="flex min-h-[48px] w-[48px] shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer active:scale-[0.96]"
     >
       <ChevronDown
@@ -142,6 +147,7 @@ export function HabitRow({
   completionStatusUnavailable = false,
   child = false,
   depth = 0,
+  drillInsteadOfExpand = false,
   structuralColumn = false,
   selectMode = false,
   selected = false,
@@ -155,7 +161,7 @@ export function HabitRow({
 }: Readonly<HabitRowProps>) {
   const t = useTranslations()
   const meta = buildHabitRowMetaTokens(habit, supplementalMeta, t)
-  const largeText = useHabitRowLargeText()
+  const { supportingMeta: depthSupportingMeta, measureRef, largeText } = useHabitRowSupportingMeta(depth)
   const descriptionId = useDescriptionId(habit.description)
   const {
     onDetail,
@@ -169,18 +175,18 @@ export function HabitRow({
   const canSelect = !selectMode && !!onEnterSelectMode
   const canDrillInto = hasSubHabits && !!onDrillInto
   const hasMenuActions = hasHabitMenuActions(actions, canSelect, canDrillInto)
-  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, selectMode, selected, structuralColumn, hasChildren, hasMenuActions, child, depth]), largeText)
-  const supportingMeta = largeText || narrow
+  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, selectMode, selected, structuralColumn, hasChildren, hasMenuActions, child, depth, depthSupportingMeta]), largeText, measureRef)
+  const supportingMeta = depthSupportingMeta || narrow
 
   const isDone = state === 'done' || isHabitDoneForRange(habit)
   const graphicState = habit.isBadHabit ? 'bad' : state
-  const isChild = child || depth === 1
+  const isChild = child || depth > 0
   const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 22
   const wellSize = isChild ? 32 : 46
   const wellRadius = 12
 
-  const rowPadding = habitRowPadding(isChild, supportingMeta)
+  const rowPadding = habitRowPadding(depth, isChild, supportingMeta)
   const rowPrimaryAction = selectMode ? onToggleSelection : onDetail
 
   function handleRowClick() {
@@ -230,6 +236,8 @@ export function HabitRow({
       {structuralColumn ? (
         <HabitRowStructuralColumn
           hasChildren={hasChildren}
+          drillInsteadOfExpand={drillInsteadOfExpand}
+          drillLabel={t('habits.actions.openSubHabits')}
           expanded={expanded}
           childPanelId={childPanelId}
           onToggleExpand={onToggleExpand}
@@ -243,7 +251,6 @@ export function HabitRow({
         selectMode={selectMode}
         hasChildren={hasChildren}
         childProgress={childProgress}
-        depth={depth}
         state={graphicState}
         isDone={isDone}
         canLog={canLog}
@@ -271,7 +278,7 @@ export function HabitRow({
   )
 
   return (
-    <HabitRowLayout rowRef={rowRef} habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
+    <HabitRowLayout measureRef={rowRef} habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
       isChild={isChild} supportingMeta={supportingMeta}>
       {rowContents}
     </HabitRowLayout>
@@ -338,10 +345,10 @@ function HabitRowSupportingFooter({ meta, largeText, descriptionPresent }: Reado
   )
 }
 
-function HabitRowLayout({ rowRef, habitTitle, depth, state, selected, isChild, supportingMeta, children }: Readonly<{
-  rowRef: RefObject<HTMLDivElement | null>
+function HabitRowLayout({ measureRef, habitTitle, depth, state, selected, isChild, supportingMeta, children }: Readonly<{
+  measureRef: RefCallback<HTMLDivElement>
   habitTitle: string
-  depth: 0 | 1
+  depth: number
   state: HabitStatus
   selected: boolean
   isChild: boolean
@@ -351,7 +358,7 @@ function HabitRowLayout({ rowRef, habitTitle, depth, state, selected, isChild, s
   const minHeight = isChild ? 52 : 68
   const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : 'items-center gap-0'
   return (
-    <div ref={rowRef} data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
+    <div ref={measureRef} data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
       className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
       style={{ minHeight }}>
       {children}
@@ -373,11 +380,11 @@ function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefin
   }
 }
 
-function habitRowPadding(isChild: boolean, largeText: boolean): CSSProperties {
+function habitRowPadding(depth: number, isChild: boolean, supportingMeta: boolean): CSSProperties {
   const defaultPaddingBlock = isChild ? SPACING.s4 : SPACING.s8
   return {
-    paddingBlock: largeText ? SPACING.s0 : defaultPaddingBlock,
-    paddingInlineStart: isChild ? SPACING.s24 : SPACING.s8,
-    paddingInlineEnd: largeText ? SPACING.s0 : SPACING.s4,
+    paddingBlock: supportingMeta ? SPACING.s0 : defaultPaddingBlock,
+    paddingInlineStart: SPACING.s8 + (depth || Number(isChild)) * SPACING.s16,
+    paddingInlineEnd: supportingMeta ? SPACING.s0 : SPACING.s4,
   }
 }

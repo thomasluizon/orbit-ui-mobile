@@ -157,11 +157,17 @@ for (const inset of [0, 44]) {
     test('shell content, pinned controls and the focused skip link respect both inline edges', async ({ page, context }) => {
       await installLongToday(context)
       await page.goto('/')
+      await expect(page.locator('[data-shell-fab] button')).toBeVisible()
+      await expectSafeBounds(page.locator('[data-shell-tab-bar]'))
       await revealTodayControls(page)
+      const needsRecovery = await page.locator('[data-shell-destination-viewport]').evaluate(element => element.scrollHeight > element.clientHeight)
       for (const selector of ['[data-shell-header] button', '[data-shell-pinned-slot] button', '[data-shell-pinned-slot] textarea', '[data-shell-tab-bar] :is(a[href], button)', '[data-shell-fab] button', '[data-shell-scroll-to-top] button']) {
         const controls = page.locator(selector).filter({ visible: true })
         expect(await controls.count(), selector).toBeGreaterThan(0)
-        for (const control of await controls.all()) await expectSafeBounds(control)
+        for (const control of await controls.all()) {
+          if (needsRecovery) await control.evaluate(element => element.scrollIntoView({ block: 'nearest', behavior: 'instant' }))
+          await expectSafeBounds(control)
+        }
       }
       const column = (await page.locator('[data-shell-column]').boundingBox())!
       expect(column.x).toBeGreaterThanOrEqual(insets.left)

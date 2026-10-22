@@ -6,7 +6,7 @@ export interface HabitRowBase {
   title: string
   meta?: string
   status?: HabitStatus
-  depth?: 0 | 1
+  depth?: number
   compact?: boolean
   onClick?: () => void
 }

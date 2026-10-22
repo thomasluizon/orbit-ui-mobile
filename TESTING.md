@@ -60,7 +60,7 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Stryker mutation | `packages/shared` | `npm run mutation -w @orbit/shared` (`stryker run`) | that the shared unit tests actually kill mutants (effectiveness, not coverage percent) |
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (run `npm ci` first) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
-| Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with three attempts per case and a pass^3 launch report; tool evidence remains incomplete until the opt-in trace is verified |
+| Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with three attempts per case and request-bound tool evidence in a pass^3 launch report |
 | Astra harness unit and behavior | `evals/astra` | `npm test --prefix evals/astra` | Vitest drives the real promptfoo CLI with offline providers, intercepts HTTP without a server, and proves that deliberately wrong tool arguments fail |
 
 **The prod-E2E suite and the post-deploy smoke suite are one and the same.** The `smoke` project's `*.spec.ts` require `SMOKE_BASE_URL` and execute against the live production deployment, never localhost. It is the only sanctioned E2E against prod. Orbit has no screenshot requirement, and nothing in this repository takes one any more (#422).
@@ -142,13 +142,16 @@ Workers compile these specs and run the repository's Vitest suites, including th
 `evals/astra` is a standalone npm package outside the app workspaces and `dotnet test`.
 It pins promptfoo, uses its maintained HTTP provider, and sends multipart `message` and empty
 `history` fields to `POST /api/chat`. The server selects Astra's model. The superseded model
-comparison is absent; this harness cannot override that selection.
+comparison is absent; this harness cannot override that selection. D147 selects `gpt-6-luna`
+at low effort with the existing per-user daily ceiling. Do not increase quotas or backstops
+to finish an eval run.
 
 Install with `npm ci --prefix evals/astra --workspaces=false`. From `evals/astra`, run
 `npx promptfoo eval` after preparing the environment below. The `.github/workflows/astra-eval.yml`
 Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
-Runs make real mutations and incur endpoint and rubric-grader charges. Use disposable eval
-accounts. The work-order estimate is USD 1 to 3 per full run, not an enforced spending cap.
+Runs consume real message and spend allowance and incur endpoint and rubric-grader charges.
+Use disposable eval accounts. The one-message corpus requires held previews for writes;
+it does not approve them or prove persisted changes.
 
 ### Environment and reproducible fixtures
 
@@ -156,7 +159,7 @@ accounts. The work-order estimate is USD 1 to 3 per full run, not an enforced sp
 |---|---|
 | `ORBIT_EVAL_BASE_URL` | HTTPS origin of the real Astra API, without a trailing slash or path |
 | `ORBIT_EVAL_TOKEN` | Bearer token for the disposable Pro fixture account |
-| `ORBIT_EVAL_FREE_TOKEN` | Bearer token for a separate Free account at its configured habit limit |
+| `ORBIT_EVAL_FREE_TOKEN` | Bearer token for a separate Free account at the configured root habit capacity |
 | `ORBIT_EVAL_BUDGET_TOKEN` | Bearer token for a separate account at its daily Astra message cap |
 | `ORBIT_EVAL_GRADER` | Promptfoo provider ID for the final-answer rubric grader |
 | `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the Orbit bearer token |
@@ -171,8 +174,12 @@ the IDs above. A zero exit status means the fixture is ready; other outcomes sto
 before the request. Output is suppressed, and execution has a one-minute timeout. Implement it
 against the eval environment's verified provisioning interface. No provisioning API is assumed
 by this package. Do not use it against personal accounts. Serial execution and a reset before
-every attempt prevent toggle tools, created habits, quotas, and earlier cases from contaminating
-the three trials. Run no other job against these accounts concurrently.
+every attempt isolate business state across the three trials. Never reset message counters or
+spend, raise a ceiling, or rotate through unapproved accounts. If allowance runs out, report a
+partial result and resume within the next valid window. Run no other job against these accounts
+concurrently. Enable the existing `astra_eval_trace` flag only for these fixture accounts via
+the repository `/flag` procedure and restore its previous state after the run. Header alone
+or flag alone cannot enable tracing; ordinary app requests remain default-off.
 
 | Fixture | State the reset executable must establish |
 |---|---|
@@ -183,7 +190,7 @@ the three trials. Run no other job against these accounts concurrently.
 | `empty` | No habits or logs |
 | `overdue` | Water pending on `ORBIT_EVAL_OVERDUE_DATE`, with today's occurrence still pending |
 | `skipped` | Walk skipped today, with no completion today |
-| `free-at-limit` | Free access with the configured maximum active habits, sufficient Astra message quota |
+| `free-at-limit` | Free access with the configured root habit capacity reached, sufficient Astra message allowance; capacity applies to every plan |
 | `budget-exhausted` | Astra daily message allowance exhausted before the request |
 
 For the Action, set repository secrets in GitHub **Settings > Secrets and variables > Actions**
@@ -191,22 +198,23 @@ with the names in the table, except `ORBIT_EVAL_RESET_SCRIPT`. Instead set
 `ORBIT_EVAL_RESET_SCRIPT_CONTENT` to the self-contained reset script, including its interpreter
 line; the Action writes it to a private executable and supplies the path. Successful fixture
 resets followed by a complete `reports/summary.md` prove the configuration is usable. Missing
-configuration fails before chat requests. A manual dispatch is still a paid, mutating run.
+configuration fails before chat requests. A manual dispatch still consumes paid allowance and must use isolated fixtures.
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and a nonempty `aiMessage`.
 Authentication errors, unrelated refusals, throttling, and transport failures cannot pass as a
 budget refusal. The corpus does not infer a successful mutation from a plausible answer.
 
-### Assertions, trace dependency, and the launch decision
+### Assertions, trace evidence, and the launch decision
 
 Every case runs three times with caching and HTTP retries disabled. A case passes `pass^3`
-only when all three attempts pass all available assertions and none skips tool evidence.
+only when all three attempts pass all assertions with complete required evidence.
 `reports/summary.json` and `reports/summary.md` contain only case IDs and counts. The Action
 publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set
 `PROMPTFOO_DISABLE_TELEMETRY=1`, `PROMPTFOO_DISABLE_SHARING=1`, and point
-`PROMPTFOO_CONFIG_DIR` at a private temporary directory; delete it afterward.
+`PROMPTFOO_CONFIG_DIR` at a private temporary directory; delete it afterward. Do not enable
+promptfoo debug logging or publish raw output, arguments, results, traces or its local state.
 
 The structural wrapper delegates nonempty calls to promptfoo's
 `is-valid-openai-tools-call`. A genuine zero-call trace passes structural validation. The next
@@ -217,7 +225,8 @@ bulk calls and loops over single-entity tools. Each catalog entry declares `writ
 write must match a `required` operation's tool name and arguments, including its target.
 Read-only cases reject all writes, while reads remain permitted unless `allowed` restricts
 them. `permittedMutations` declares optional writes with the same argument matching, such as
-the free-limit case's Stretch create attempt; allowing a tool name alone never authorizes a write.
+the capacity case's Stretch proposal; allowing a tool name alone never authorizes a write. Each
+declared operation permits one call; duplicate writes fail even without a `counts` entry.
 `argumentsAnyOf` accepts verified alternative argument forms, such as the bulk tools'
 `habit_ids` and `filter.habit_ids` inputs. Their catalog schemas require exactly one non-null
 selector. Top-level `habit_ids` requires an omitted `filter`; an explicit `filter: null` is
@@ -227,35 +236,40 @@ such as `date` remain permitted.
 The `llm-rubric` assertion receives only `answer`, never tool arguments,
 results, or the raw response. Missing natural-language text fails rather than grading card JSON.
 
-**Tool evidence is pending [orbit-tickets#1573](https://github.com/thomasluizon/orbit-tickets/issues/1573).**
-The verified API response has no trace, and the ticket specifies its contents without field
-names or a definitive opt-in header. `response.mjs:extractTrace` therefore returns an explicit
-skip instead of reading an invented field. Both tool assertions record that skip. A run with
-skips is `incomplete`, exits nonzero, and cannot approve launch even if every answer sounds
-correct. ORB-20 stays open until trace integration and a green live run are complete.
+`beforeEach` generates a new UUID after the fixture reset. The HTTP provider sends it as
+`X-Orbit-Request-Id`, alongside `X-Orbit-Eval-Trace: 1`. The response adapter reads the
+verified JSON `evalTrace` field and HTTP request-ID response header. Both tool assertions
+compare those identities with the independent `vars.evalRequestId`; the response transform
+receives HTTP metadata only, so it never invents `context.vars`.
 
-After the API capability ships, confirm its complete response shape and header from a real
-response or the response-producing source. Update only the adapter and request header to map
-the proven fields into this harness-owned envelope:
+The adapter exposes `available`, `unavailable`, `mismatched` and `refused` evidence states.
+Missing or malformed traces, unknown statuses, mismatched identities, withheld results or
+arguments, and duplicate call IDs cannot pass. Required fields removed or marked
+`[redacted]` by the API sanitizer cannot satisfy argument/result expectations. The adapter
+retains sanitized evidence without claiming that every sensitive field is present.
+Unavailable evidence makes the summary incomplete and exits nonzero. A real behavior or
+final-answer failure remains a failure even when evidence is also unavailable. Legacy skipped
+evidence can never approve the gate.
 
-```js
-{
-  state: 'available',
-  requestId: '<identity sent with the request>',
-  responseRequestId: '<identity bound to the returned trace>',
-  calls: [{
-    name: '<tool name>',
-    arguments: { /* full parsed arguments */ },
-    resultStatus: '<verified API status>',
-    result: { /* complete result payload */ },
-  }],
-}
-```
+Successful reads require `Succeeded` and `result.success: true`. Current write cases require
+`PendingConfirmation`, `result.success: true` and `result.payload.status: awaiting_confirmation`.
+This proves proposal behavior only. An unapproved `Succeeded` write fails these cases.
+`resultStatus` can explicitly require `Succeeded` when a future approved-write scenario is
+added, but persisted state still needs independent readback. `Failed`, `Denied`,
+`UnsupportedByPolicy` and `NotExecuted` do not satisfy successful tool requirements.
+Structural validation remains separate from execution outcomes and final-answer grading.
 
-This is an internal assertion contract, not an API schema. Identity must be tied to the actual
-request; do not copy the returned identity into both fields. Preserve call order in the adapter,
-but never assert the exact sequence. A malformed or mismatched trace must fail. Re-run the
-offline tests with fixtures derived from the verified producer, then request a live run.
+The verified HTTP 403 `PAY_GATE` refusal has no `evalTrace` because the producer attaches traces
+only to successful chat responses. It passes only a scenario expecting that HTTP outcome,
+an empty allowed-tool set, no required calls, and the independently bound response header.
+It claims refusal evidence, not tool execution. The existing budget case covers the daily
+message allowance; the separate monetary safety backstop remains a coverage gap.
+
+ORB-20 remains open through genuine live acceptance after all carrying Astra code is deployed
+to staging. The 19-case starter corpus does not cover every tool, the all-habits icon request,
+interactive approval/edit/reject journeys, persisted readback, actual audio/image input,
+rendered phone/desktop UI or installed Android acceptance. Text shaped like speech tests only
+transcript interpretation. Source and offline tests cannot establish any of those live outcomes.
 
 ### Add a scenario
 
@@ -272,8 +286,8 @@ offline tests with fixtures derived from the verified producer, then request a l
    only by the validator. It never changes the tools exposed by the Astra server.
 4. Run `npm test --prefix evals/astra`. Its Vitest tests execute the actual promptfoo CLI with
    local providers: a correct case passes all three trials, a deliberately wrong ID fails all
-   three, and the rubric grader rejects leaked trace content. HTTP wiring tests replace fetch
-   at the boundary; no server or live endpoint is started. A workflow test enforces manual-only
+   three, missing evidence is incomplete, and the rubric grader rejects leaked trace content.
+   HTTP wiring tests replace fetch at the boundary; no server or live endpoint is started. A workflow test enforces manual-only
    triggering. Live endpoint spot checks remain a separate, explicitly requested run.
 
 ### Interface evidence
@@ -291,7 +305,23 @@ The chat request, final text, refusal fields, and catalog arguments come from or
 `src/Orbit.Application/Chat/Commands/ProcessUserChatCommand.cs`,
 `src/Orbit.Api/Middleware/ErrorResponse.cs`, `src/Orbit.Domain/Common/Result.cs`, and
 `src/Orbit.Application/Chat/Tools/Implementations/*Tool.cs`, `HabitToolHelpers.cs`, and
-`BulkHabitToolArguments.cs`. No new trace response field is assumed.
+`BulkHabitToolArguments.cs`. Trace wiring is additionally derived from orbit-api revision
+`d0bed4eb114723d8b8a5c3940ecfa6fa10e9fc55`: `ChatController.cs`,
+`ProcessUserChatCommand.cs`, `ProcessUserChatCommand.EvalTrace.cs`,
+`ProcessUserChatCommand.Tools.cs`, `ProcessUserChatCommand.ToolResults.cs`,
+`ChatEvalTrace.cs`, `ChatStreamEvent.cs`, `AiToolModels.cs`, `AgentContracts.cs`,
+`RequestCorrelationMiddleware.cs`, `HttpContextExtensions.cs`, `FeatureFlagKeys.cs`,
+and their eval-trace tests. `PayGateService.cs` supplies neutral root capacity and the
+pre-model daily message refusal. The create schema includes `OneTime` in addition to the
+recurring units. Re-derive immutable sources with `git show <revision>:<repository-relative-file>`.
+
+In the pinned promptfoo package, `providers-Bn5yoNPJ.js` constructs header templates from
+provider `context.vars`, then calls the response transform with only
+`{response: {data, status, statusText, headers, cached, latencyMs}}`. `index.js` runs the
+`beforeEach` extension before constructing the provider and assertion variable contexts.
+`cache-rHaLG5Fo.js` serializes response headers into a lowercase string map. The regression
+suite drives these installed interfaces with fetch interception and source-derived response
+fixtures; no server or live model is used.
 
 ## orbit-api
 

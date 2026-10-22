@@ -1,4 +1,5 @@
 import { createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
@@ -703,6 +704,42 @@ describe('HabitList', () => {
       }
     },
   )
+  function assertCascadeActions(container: HTMLElement, drilling: boolean, width: number, textScale: number) {
+    if (drilling) return
+    const disclosure = container.querySelector<HTMLButtonElement>('[data-habit-title="Branch"] [data-habit-row-control="disclosure"]')!
+    if (width !== 320 || textScale === 1) {
+      fireEvent.click(disclosure)
+      expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeNull()
+      fireEvent.click(disclosure)
+      expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeInTheDocument()
+    }
+    if (width !== 320) return
+    const boundaryTitle = textScale === 2 ? 'Branch' : 'Nested parent'
+    const boundary = container.querySelector(`[data-habit-title="${boundaryTitle}"] [data-habit-row-control="disclosure"]`)!
+    expect(boundary).not.toHaveAttribute('aria-expanded')
+    expect(boundary).not.toHaveAttribute('aria-controls')
+    fireEvent.click(boundary)
+    expect(drillInto).toHaveBeenCalledWith(textScale === 2 ? 'branch' : 'nested-parent')
+  }
+
+  function assertCascadeGeometry(geometry: { depth: number; titleWidth: number; titleSize: number; metadataEdge: number; top: number; bottom: number; inset: number; textEdge: number; wellInset: number; targets: { left: number; right: number; width: number; height: number }[] }[], expectedDepths: number[], width: number, drilling: boolean) {
+    for (const [index, row] of geometry.entries()) {
+      expect(row.wellInset, `well at visible depth ${expectedDepths[index]}`).toBe(8 + 16 * expectedDepths[index]!)
+      expect(row.textEdge, `text at visible depth ${expectedDepths[index]}`).toBe(84 + 16 * expectedDepths[index]!)
+      expect(row.titleWidth).toBeGreaterThanOrEqual(row.titleSize)
+      expect(row.metadataEdge).toBe(row.textEdge)
+      if (index && !drilling) expect(row.top - geometry[index - 1]!.bottom).toBe(expectedDepths[index] === 0 ? 12 : 4)
+      expect(row.inset).toBe(16)
+      expect(row.textEdge).toBe(84 + 16 * row.depth)
+      expect(row.wellInset).toBe(8 + 16 * row.depth)
+      for (const target of row.targets) {
+        expect(target.left).toBeGreaterThanOrEqual(16)
+        expect(target.right).toBeLessThanOrEqual(width - 16)
+        expect(target.width).toBeGreaterThanOrEqual(48)
+        expect(target.height).toBeGreaterThanOrEqual(48)
+      }
+    }
+  }
 
   it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].map((drilling) => ({ view, drilling }))))(
     'keeps the list inset and content edges per depth in $view, drilling=$drilling', async ({ view, drilling }) => {
@@ -711,8 +748,13 @@ describe('HabitList', () => {
     const child = createMockHabit({ id: 'child', title: 'Child', description: '**Read** two pages before breakfast.', parentId: parent.id, scheduledDates: [TODAY], isGeneral: parent.isGeneral })
     const branch = createMockHabit({ ...child, id: 'branch', title: 'Branch', hasSubHabits: true })
     const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', scheduledDates: [TODAY], isGeneral: parent.isGeneral })
-    for (const habit of [parent, child, branch, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
+    const grandchild = createMockHabit({ ...child, id: 'grandchild', title: 'Grandchild', parentId: branch.id })
+    const nestedParent = createMockHabit({ ...grandchild, id: 'nested-parent', title: 'Nested parent', hasSubHabits: true })
+    const deeper = createMockHabit({ ...grandchild, id: 'deeper', title: 'Deeper', parentId: nestedParent.id })
+    for (const habit of [parent, child, branch, grandchild, nestedParent, deeper, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
     mockHabitsData.childrenByParent.set(parent.id, [child.id, branch.id])
+    mockHabitsData.childrenByParent.set(branch.id, [grandchild.id, nestedParent.id])
+    mockHabitsData.childrenByParent.set(nestedParent.id, [deeper.id])
     mockHabitsData.topLevelHabits = [parent, leaf]
     if (drilling) {
       mockDrillState.currentParent = parent
@@ -726,16 +768,44 @@ describe('HabitList', () => {
     const launch = launchChrome()
     try {
       const browser = await launch
-      const cases = [320, 412, 1352].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode }))))
-      for (const { width, textScale, selectMode } of cases) {
+      const cases = [320, 412, 1352].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].flatMap((selectMode) => (['light', 'dark'] as const).flatMap((mode) => (['en', 'pt-BR'] as const).map((locale) => ({ width, textScale, selectMode, mode, locale }))))))
+      for (const { width, textScale, selectMode, mode, locale } of cases) {
+        const observations = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>()
+        vi.stubGlobal('ResizeObserver', class implements ResizeObserver {
+          constructor(private callback: ResizeObserverCallback) {}
+          observe(target: Element) { observations.set(target, { callback: this.callback, observer: this }) }
+          unobserve(target: Element) { observations.delete(target) }
+          disconnect() {
+            for (const [target, observation] of observations) if (observation.observer === this) observations.delete(target)
+          }
+        })
+        dragLocale.english = locale === 'en'
+        dragLocale.portuguese = locale === 'pt-BR'
+        vi.stubGlobal('innerWidth', width)
         document.documentElement.style.fontSize = `${16 * textScale}px`
         const { container, unmount } = renderWithProviders(<HabitList view={view} isSelectMode={selectMode} selectedHabitIds={new Set([child.id])}
           filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
         const markup = container.innerHTML
-        unmount()
         const page = await browser.newPage({ viewport: { width, height: 915 } })
         try {
-          await page.setContent(`<style>${stylesheet.css}:root{font-size:${16 * textScale}px}</style>${markup}`)
+          const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+          await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style><div style="max-width:740px;height:915px;overflow-y:auto;scrollbar-gutter:stable">${markup}</div>`)
+          const observed = await page.locator('[data-habit-list]').evaluate((element) => new Promise<{
+            contentRect: DOMRectInit; borderBoxSize: ResizeObserverSize[]; contentBoxSize: ResizeObserverSize[]; devicePixelContentBoxSize: ResizeObserverSize[]
+          }>((resolve) => {
+            const observer = new ResizeObserver(([entry]) => {
+              const sizes = (boxes: readonly ResizeObserverSize[]) => boxes.map(({ inlineSize, blockSize }) => ({ inlineSize, blockSize }))
+              resolve({ contentRect: entry!.contentRect.toJSON(), borderBoxSize: sizes(entry!.borderBoxSize), contentBoxSize: sizes(entry!.contentBoxSize), devicePixelContentBoxSize: sizes(entry!.devicePixelContentBoxSize) })
+              observer.disconnect()
+            })
+            observer.observe(element)
+          }))
+          const target = container.querySelector('[data-habit-list]')!
+          const observation = observations.get(target)!
+          act(() => observation.callback([{ ...observed, contentRect: DOMRectReadOnly.fromRect(observed.contentRect), target }], observation.observer))
+          assertCascadeActions(container, drilling, width, textScale)
+          await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style><div style="max-width:740px;height:915px;overflow-y:auto;scrollbar-gutter:stable">${container.innerHTML}</div>`)
+          await loadAppFonts(page)
           const geometry = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => rows.map((row) => {
             const body = row.querySelector('[data-habit-row-body]')!
             const content = row.querySelector('[data-personal-text-content]') ?? body
@@ -743,6 +813,11 @@ describe('HabitList', () => {
             const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
             return {
               depth: Number(row.getAttribute('data-depth')),
+              titleWidth: title.getBoundingClientRect().width,
+              titleSize: Number.parseFloat(getComputedStyle(row.querySelector('[data-personal-text]')!).fontSize),
+              metadataEdge: row.querySelector('[data-habit-row-type]')!.getBoundingClientRect().left,
+              top: row.getBoundingClientRect().top,
+              bottom: row.getBoundingClientRect().bottom,
               inset: row.getBoundingClientRect().left,
               textEdge: title.getBoundingClientRect().left,
               wellInset: well.getBoundingClientRect().left - body.getBoundingClientRect().left,
@@ -752,23 +827,17 @@ describe('HabitList', () => {
               }),
             }
           }))
-          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: drilling ? 2 : 3 }, () => 'Read two pages before breakfast.'))
-          expect(geometry).toHaveLength(drilling ? 2 : 4)
-          for (const row of geometry) {
-            expect(row.inset).toBe(16)
-            expect(row.textEdge).toBe(84 + 16 * row.depth)
-            expect(row.wellInset).toBe(8 + 16 * row.depth)
-            for (const target of row.targets) {
-              expect(target.left).toBeGreaterThanOrEqual(16)
-              expect(target.right).toBeLessThanOrEqual(width - 16)
-              expect(target.width).toBeGreaterThanOrEqual(48)
-              expect(target.height).toBeGreaterThanOrEqual(48)
-            }
-          }
-        } finally { await page.close() }
+          const expectedDepths = drilling ? [0, 0] : width === 320 ? textScale === 2 ? [0, 1, 1, 0] : [0, 1, 1, 2, 2, 0] : [0, 1, 1, 2, 2, 3, 0]
+          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: expectedDepths.length - Number(!drilling) }, () => 'Read two pages before breakfast.'))
+          expect(geometry).toHaveLength(expectedDepths.length)
+          expect(await page.evaluate(() => window.innerWidth)).toBe(width)
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+          assertCascadeGeometry(geometry, expectedDepths, width, drilling)
+        } finally { unmount(); await page.close() }
       }
     } finally {
       document.documentElement.style.removeProperty('font-size')
+      vi.unstubAllGlobals()
       await closeChrome(launch)
     }
   }, 45_000)
@@ -873,6 +942,31 @@ describe('HabitList', () => {
     expect(container).toHaveTextContent(boundary)
     expect(body).toHaveFocus()
     expect(reorderHabitsMutate).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'pt-BR'])('retains grandchild depth through keyboard reorder and completion in %s', async (locale) => {
+    rowImplementation.actual = true
+    dragLocale.english = locale === 'en'
+    dragLocale.portuguese = locale === 'pt-BR'
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', scheduledDates: [TODAY] })
+    const branch = createMockHabit({ id: 'branch', title: 'Branch', parentId: parent.id, scheduledDates: [TODAY] })
+    const first = createMockHabit({ id: 'first', title: 'First', parentId: branch.id, position: 0, scheduledDates: [TODAY] })
+    const second = createMockHabit({ ...first, id: 'second', title: 'Second', position: 1 })
+    for (const habit of [parent, branch, first, second]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [branch.id])
+    mockHabitsData.childrenByParent.set(branch.id, [first.id, second.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const { container } = renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted />)
+    const row = container.querySelector('[data-habit-title="First"]')!
+    expect(row).toHaveAttribute('data-depth', '2')
+    const body = row.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+    body.focus()
+    fireEvent.keyDown(body, { key: 'ArrowDown', altKey: true })
+    expect(reorderHabitsMutate).toHaveBeenCalledWith({ positions: [{ habitId: second.id, position: 0 }, { habitId: first.id, position: 1 }] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    await act(async () => { fireEvent.click(row.querySelector('[data-habit-row-control="check"]')!) })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ habitId: first.id }))
+    expect(row).toHaveAttribute('data-depth', '2')
+    expect(body).toHaveFocus()
   })
 
   function renderVisibleSiblingKeyboardList(
@@ -1419,6 +1513,88 @@ describe('HabitList', () => {
       expect(consoleError).not.toHaveBeenCalled()
       result.unmount()
     } finally {
+      consoleError.mockRestore()
+    }
+  })
+
+  it.each((['today', 'all', 'general'] as const).flatMap((view) => [320, 412, 1352].map((width) => ({ view, width }))))(
+    'hydrates an expanded recursive $view tree at $width before content measurement', async ({ view, width }) => {
+    rowImplementation.actual = true
+    useActualHabitVisibility = true
+    const shared = { dueDate: TODAY, scheduledDates: [TODAY], isGeneral: view === 'general' }
+    const greatGrandchild = createMockHabitScheduleChild({ ...shared, id: 'hydration-great-grandchild', title: 'Great grandchild' })
+    const grandchild = createMockHabitScheduleChild({ ...shared, id: 'hydration-grandchild', title: 'Grandchild', hasSubHabits: true, children: [greatGrandchild] })
+    const child = createMockHabitScheduleChild({ ...shared, id: 'hydration-child', title: 'Child', hasSubHabits: true, children: [grandchild] })
+    const parent = createMockHabitScheduleItem({ ...shared, id: 'hydration-parent', title: 'Parent', hasSubHabits: true, children: [child] })
+    Object.assign(mockHabitsData, normalizeHabitQueryData([habitScheduleItemSchema.parse(parent)]))
+    const observations = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>()
+    vi.stubGlobal('ResizeObserver', class implements ResizeObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe(target: Element) { observations.set(target, { callback: this.callback, observer: this }) }
+      unobserve(target: Element) { observations.delete(target) }
+      disconnect() {
+        for (const [target, observation] of observations) if (observation.observer === this) observations.delete(target)
+      }
+    })
+    document.documentElement.style.fontSize = '16px'
+    const createTree = () => <QueryClientProvider client={new QueryClient()}>
+      <HabitList view={view} filters={view === 'general' ? { isGeneral: true } : { dateFrom: TODAY, dateTo: TODAY }} />
+    </QueryClientProvider>
+    const browserWindow = window
+    let serverHtml: string
+    vi.stubGlobal('window', undefined)
+    try { serverHtml = renderToString(createTree()) } finally { vi.stubGlobal('window', browserWindow) }
+    vi.stubGlobal('innerWidth', width)
+    const container = document.createElement('div')
+    container.innerHTML = serverHtml
+    document.body.append(container)
+    const rows = Array.from(container.querySelectorAll<HTMLDivElement>('[data-testid="habit-row"]'))
+    expect(rows.map((row) => row.getAttribute('data-depth'))).toEqual(['0', '1', '2'])
+    expect(rows[2]!.querySelector('[data-habit-row-heading]')).toHaveTextContent('Grandchild')
+    const disclosures = rows.map((row) => row.querySelector('[data-habit-row-control="disclosure"]')!)
+    const panelIds = disclosures.map((disclosure) => disclosure.getAttribute('aria-controls'))
+    for (const [index, disclosure] of disclosures.entries()) {
+      expect(disclosure).toHaveAttribute('aria-label', index === 2 ? 'habits.actions.openSubHabits' : 'common.collapse')
+      expect(disclosure.getAttribute('aria-expanded')).toBe(index === 2 ? null : 'true')
+      if (index < 2) expect(container.querySelector(`[id="${panelIds[index]}"]`)).toContainElement(rows[index + 1]!)
+      else expect(panelIds[index]).toBeNull()
+    }
+    const serverDescriptions = getSortableDescriptions(container)
+    const recoverable = vi.fn()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let unmount: (() => void) | undefined
+    try {
+      const rendered = render(createTree(), { container, hydrate: true, onRecoverableError: recoverable })
+      unmount = rendered.unmount
+      expect(recoverable).not.toHaveBeenCalled()
+      expect(consoleError).not.toHaveBeenCalled()
+      container.querySelectorAll('[data-testid="habit-row"]').forEach((row, index) => expect(row).toBe(rows[index]))
+      expect(disclosures.map((disclosure) => disclosure.getAttribute('aria-controls'))).toEqual(panelIds)
+      expect(disclosures.map((disclosure) => disclosure.getAttribute('aria-expanded'))).toEqual(['true', 'true', null])
+      expect(getSortableDescriptions(container)).toEqual(serverDescriptions)
+      for (const descriptionId of serverDescriptions) expect(container.querySelector(`[id="${descriptionId}"]`)).toBeInTheDocument()
+      const contentWidth = width === 320 ? 284 : Math.min(width, 740) - 32
+      function resize(target: Element) {
+        const observation = observations.get(target)!
+        const size = { inlineSize: contentWidth, blockSize: 52 }
+        observation.callback([{
+          target, contentRect: new DOMRectReadOnly(0, 0, contentWidth, 52),
+          borderBoxSize: [size], contentBoxSize: [size], devicePixelContentBoxSize: [size],
+        }], observation.observer)
+      }
+      await act(async () => resize(container.querySelector('[data-habit-list]')!))
+      await act(async () => { for (const row of container.querySelectorAll('[data-testid="habit-row"]')) resize(row) })
+      expect(Array.from(container.querySelectorAll('[data-testid="habit-row"]')).map((row) => row.getAttribute('data-depth'))).toEqual(width === 320 ? ['0', '1', '2'] : ['0', '1', '2', '3'])
+      expect(disclosures[2]!.getAttribute('aria-expanded')).toBe(width === 320 ? null : 'true')
+      if (width > 320) expect(container.querySelector(`[id="${disclosures[2]!.getAttribute('aria-controls')}"]`)).toHaveTextContent('Great grandchild')
+      expect(Array.from(container.querySelectorAll('[data-testid="habit-row"]')).slice(0, 3)).toEqual(rows)
+      expect(recoverable).not.toHaveBeenCalled()
+      expect(consoleError).not.toHaveBeenCalled()
+    } finally {
+      unmount?.()
+      container.remove()
+      document.documentElement.style.removeProperty('font-size')
+      vi.unstubAllGlobals()
       consoleError.mockRestore()
     }
   })

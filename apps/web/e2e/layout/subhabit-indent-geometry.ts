@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { settleAnimations } from './settle-animations'
 
-export async function setHabitTextScale(page: Page, scale: number, supportingTitles: readonly string[] = [], narrowSupportingTitles: readonly string[] = []) {
+export async function setHabitTextScale(page: Page, scale: number, supportingTitles: readonly string[] = [], normalSupportingTitles: readonly string[] = []) {
   const identities = await page.evaluateHandle(() => {
     const nodes = [document.documentElement, ...document.querySelectorAll('[data-testid="habit-row"]')]
     return { root: document.documentElement, nodes: new Map(nodes.map((node, index) => [node, index + 1])) }
@@ -41,15 +41,15 @@ export async function setHabitTextScale(page: Page, scale: number, supportingTit
       receipt = actual
       return { rootFont: actual.root.computedFont, rows: actual.rows.map(({ title, headings }) => ({ title, headings })) }
     }, { message: 'Habit text scale and supporting phases must settle together' }).toEqual({
-      rootFont: `${16 * scale}px`, rows: supportingTitles.map((title) => ({ title, headings: scale > 1.3 || narrowSupportingTitles.includes(title) ? 1 : 0 })),
+      rootFont: `${16 * scale}px`, rows: supportingTitles.map((title) => ({ title, headings: scale > 1.3 || normalSupportingTitles.includes(title) ? 1 : 0 })),
     })
-    await settleHabitRows(page.getByTestId('habit-row'), scale)
+    await settleHabitRows(page.getByTestId('habit-row'), scale, undefined, normalSupportingTitles)
   } catch (cause) {
     throw new Error(`Habit text scale ${scale} did not settle: ${JSON.stringify(receipt)}`, { cause })
   } finally { await identities.dispose() }
 }
 
-function readHabitRowPhase(rows: Element[], { scale, selecting }: { scale: number; selecting?: boolean }) {
+function readHabitRowPhase(rows: Element[], { scale, selecting, normalSupportingTitles }: { scale: number; selecting?: boolean; normalSupportingTitles: readonly string[] }) {
   const animations = rows.flatMap((row) => row.getAnimations({ subtree: true }))
     .filter((animation) => animation.pending || animation.playState === 'running' || animation.playState === 'paused')
     .map((animation) => {
@@ -61,7 +61,7 @@ function readHabitRowPhase(rows: Element[], { scale, selecting }: { scale: numbe
     matching: getComputedStyle(document.documentElement).fontSize === `${16 * scale}px` && rows.every((row) => {
       const selections = row.querySelectorAll('[data-habit-row-control="selection"]').length
       const visualContents = row.querySelectorAll('[data-personal-text-content]').length
-      return row.isConnected && row.querySelectorAll('[data-habit-row-heading]').length === (scale > 1.3 ? 1 : 0)
+      return row.isConnected && row.querySelectorAll('[data-habit-row-heading]').length === (scale > 1.3 || normalSupportingTitles.includes(row.getAttribute('data-habit-title') ?? '') ? 1 : 0)
         && row.querySelectorAll('[data-personal-text]').length === 1
         && (selecting === undefined || selections === Number(selecting) && visualContents === Number(selecting))
     }),
@@ -69,13 +69,13 @@ function readHabitRowPhase(rows: Element[], { scale, selecting }: { scale: numbe
   }
 }
 
-export async function settleHabitRows(rows: Locator, scale: number, selecting?: boolean) {
+export async function settleHabitRows(rows: Locator, scale: number, selecting?: boolean, normalSupportingTitles: readonly string[] = []) {
   await expect.poll(async () => {
-    const before = await rows.evaluateAll(readHabitRowPhase, { scale, selecting })
+    const before = await rows.evaluateAll(readHabitRowPhase, { scale, selecting, normalSupportingTitles })
     if (!before.matching) return before
     if (before.animations.length > 0) await Promise.all((await rows.all()).map((row) => row.evaluate(settleAnimations)))
     await rows.page().evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
-    return rows.evaluateAll(readHabitRowPhase, { scale, selecting })
+    return rows.evaluateAll(readHabitRowPhase, { scale, selecting, normalSupportingTitles })
   }, { message: 'Habit row topology and owned layout animations must settle before geometry' })
     .toEqual({ matching: true, animations: [] })
 }
@@ -187,9 +187,9 @@ function assertReadableHabit(row: ReturnType<typeof readHabitGeometry>, width: n
   }
 }
 
-export async function assertHabitRows(rows: Locator, width: number, depths: number[], scale: number, selecting?: boolean) {
+export async function assertHabitRows(rows: Locator, width: number, depths: number[], scale: number, selecting?: boolean, normalSupportingTitles: readonly string[] = []) {
   await expect(rows).toHaveCount(depths.length)
-  await settleHabitRows(rows, scale, selecting)
+  await settleHabitRows(rows, scale, selecting, normalSupportingTitles)
   const geometry = await Promise.all((await rows.all()).map((row) => row.evaluate(readHabitGeometry)))
   expect(geometry.map((row) => row.depth)).toEqual(depths)
   for (const row of geometry) {

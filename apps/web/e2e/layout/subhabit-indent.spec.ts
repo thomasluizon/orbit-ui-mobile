@@ -16,17 +16,20 @@ const date = '2026-09-04'
 const child = { ...makeHabitScheduleItem().children[0]!,
   title: 'Leaf child with a long title about reading a chapter and writing down the ideas to discuss with the group before breakfast',
   dueTime: '08:00:00', dueDate: date, scheduledDates: [date] }
+const deepest = { ...child, id: 'great-grandchild', title: 'Deepest child' }
+const grandchild = { ...child, id: 'grandchild', title: 'Deeper child',
+  hasSubHabits: true, children: [deepest] }
 const branch = { ...child, id: 'branch',
   title: 'Branch child with a long title about preparing the room and collecting every book and notebook for the next reading session',
   dueTime: null, hasSubHabits: true,
-  children: [{ ...child, id: 'grandchild', title: 'Deeper child' }] }
+  children: [grandchild] }
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
   title: 'Parent', dueDate: date, scheduledDates: [date], tags: [], children: [child, branch],
 }))
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   items: [habit], page: 1, pageSize: 200, totalCount: 1, totalPages: 1,
 })
-const details = [habit, child, branch].map((item) => habitDetailSchema.parse({ ...makeHabitDetail(), ...item }))
+const details = [habit, child, branch, grandchild, deepest].map((item) => habitDetailSchema.parse({ ...makeHabitDetail(), ...item }))
 const metrics = habitMetricsSchema.parse({
   currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100,
   totalCompletions: 1, lastCompletedDate: null,
@@ -56,9 +59,9 @@ async function openFamily(page: Page) {
   await expect(habitRow(page, branch.title)).toBeVisible()
 }
 
-async function expectSupportingHeadings(page: Page, scale: number, narrowSupportingTitles: readonly string[] = []) {
-  for (const item of [habit, branch]) {
-    await expect(habitRow(page, item.title).locator('[data-habit-row-heading]')).toHaveCount(scale > 1.3 || narrowSupportingTitles.includes(item.title) ? 1 : 0)
+async function expectSupportingHeadings(page: Page, scale: number, titles: readonly string[], normalSupportingTitles: readonly string[]) {
+  for (const title of titles) {
+    await expect(habitRow(page, title).locator('[data-habit-row-heading]')).toHaveCount(scale === 2 || normalSupportingTitles.includes(title) ? 1 : 0)
   }
 }
 
@@ -74,7 +77,13 @@ for (const width of [320, 412, 1352]) {
     for (const theme of ['light', 'dark'] as const) {
       test.describe(`sub-habit indentation at ${width} in ${locale}, ${theme}`, () => {
         const words = locale === 'en' ? en : ptBR
-        const narrowSupportingTitles = width === 320 && locale === 'pt-BR' ? [branch.title] : []
+        const familyItems = [habit, child, branch, grandchild, deepest]
+        const familyDepths = [0, 1, 1, 2, 3]
+        const familyAtScale = (scale: number) => {
+          const visibleCount = width === 320 ? scale === 2 ? 3 : 4 : familyItems.length
+          return { items: familyItems.slice(0, visibleCount), depths: familyDepths.slice(0, visibleCount) }
+        }
+        const normalSupportingTitles = width === 320 ? [grandchild.title, ...(locale === 'pt-BR' ? [branch.title] : [])] : []
         test.use({ viewport: { width, height: 915 } })
         test.beforeEach(async ({ context }) => {
           await setLayoutFixtureSession(context, [
@@ -97,12 +106,13 @@ for (const width of [320, 412, 1352]) {
               await expect(habitRow(page, child.title).locator('[data-habit-row-control="selection"]')).toBeVisible()
             }
             for (const scale of [1, 2]) {
-              await setHabitTextScale(page, scale, [habit.title, branch.title], narrowSupportingTitles)
-              await expectSupportingHeadings(page, scale, narrowSupportingTitles)
-              const rows = await assertHabitRows(page.locator('[data-testid="habit-row"]:visible'), width, [0, 1, 1, 1], scale, selecting)
+              const { items: familyItems, depths: familyDepths } = familyAtScale(scale)
+              await setHabitTextScale(page, scale, familyItems.map((item) => item.title), normalSupportingTitles)
+              await expectSupportingHeadings(page, scale, familyItems.map((item) => item.title), normalSupportingTitles)
+              const rows = await assertHabitRows(page.locator('[data-testid="habit-row"]:visible'), width, familyDepths, scale, selecting, normalSupportingTitles)
               for (const row of rows.slice(1)) {
                 expect(row.bounds.left).toBe(rows[0]!.bounds.left)
-                expect(row.well.left - rows[0]!.well.left).toBe(16)
+                expect(row.well.left - rows[0]!.well.left).toBe(16 * row.depth)
                 expect(row.metadata).not.toBeNull()
               }
               if (scale === 2) expect(rows[2]!.supporting).toBe(true)
@@ -111,6 +121,37 @@ for (const width of [320, 412, 1352]) {
         })
 
         if (width !== 320) return
+
+        test('opens the width boundary disclosure and preserves selection after drill and back', async ({ page }) => {
+          await openFamily(page)
+          const rows = page.locator('[data-testid="habit-row"]:visible')
+          for (const scale of [1, 2]) {
+            const { items: familyItems, depths: familyDepths } = familyAtScale(scale)
+            await setHabitTextScale(page, scale, familyItems.map((item) => item.title), normalSupportingTitles)
+            await openTodayListOptions(page, words.habits.listOptions)
+            await page.getByRole('menuitem', { name: words.common.select, exact: true }).click()
+            const selectedLeaf = habitRow(page, child.title).locator('[data-habit-row-control="selection"]')
+            await selectedLeaf.click()
+            await expect(selectedLeaf).toHaveAttribute('aria-pressed', 'true')
+            await assertHabitRows(rows, width, familyDepths, scale, true, normalSupportingTitles)
+            const boundaryHabit = scale === 2 ? branch : grandchild
+            const drilledChild = scale === 2 ? grandchild : deepest
+            const boundary = habitRow(page, boundaryHabit.title).locator('[data-habit-row-control="disclosure"]')
+            await expect(boundary).toHaveAccessibleName(words.habits.actions.openSubHabits)
+            await expect(boundary).not.toHaveAttribute('aria-expanded')
+            await expect(boundary).not.toHaveAttribute('aria-controls')
+            await boundary.click()
+            await expect(page.getByRole('heading', { name: boundaryHabit.title, level: 2, exact: true })).toBeVisible()
+            await expect(habitRow(page, drilledChild.title)).toBeVisible()
+            await assertHabitRows(rows, width, [0], scale, true)
+            await expect(habitRow(page, drilledChild.title).locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'false')
+            await page.getByRole('button', { name: words.common.back, exact: true }).click()
+            await assertHabitRows(rows, width, familyDepths, scale, true, normalSupportingTitles)
+            await expect(selectedLeaf).toHaveAttribute('aria-pressed', 'true')
+            await page.getByRole('button', { name: words.common.cancel, exact: true }).click()
+            await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(0)
+          }
+        })
 
         test('opens the full long child titles through their existing detail action at 200% text', async ({ page }) => {
           for (const item of [child, branch]) {
@@ -150,7 +191,7 @@ for (const width of [320, 412, 1352]) {
           await page.getByRole('button', { name: words.common.back, exact: true }).click()
           await assertHabitRows(rows, width, [0, 0], 2)
           await page.getByRole('button', { name: words.common.back, exact: true }).click()
-          await assertHabitRows(rows, width, [0, 1, 1, 1], 2)
+          await assertHabitRows(rows, width, familyAtScale(2).depths, 2, undefined, normalSupportingTitles)
         })
 
         test('keeps one inset and the existing gap in the detail child composition at 200% text', async ({ page }) => {
