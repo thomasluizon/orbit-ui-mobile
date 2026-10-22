@@ -99,6 +99,71 @@ describe('real BFF refresh coordination', () => {
     },
   )
 
+  it.each(['server read', 'server mutation', 'proxy', 'session route'])(
+    'shares a BFF rotation with a separately loaded %s', async (caller) => {
+      const { GET } = await import('@/app/api/[...path]/route')
+      vi.resetModules()
+      const rotation = deferred<void>()
+      const freshToken = jwt(3600)
+      mocks.fetch.mockImplementation(async (url: string) => {
+        if (url.endsWith(API.auth.refresh)) {
+          await rotation.promise
+          return Response.json({ token: freshToken, refreshToken: 'rotated-refresh' })
+        }
+        return Response.json({ accepted: true })
+      })
+      const first = requestContext.run({ cookies: requestCookies() }, () => GET(
+        new NextRequest('https://app.example.com/api/config'),
+        { params: Promise.resolve({ path: ['config'] }) },
+      ))
+      await vi.waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(1))
+      const second = requestContext.run({ cookies: requestCookies() }, async () => {
+        if (caller === 'session route') {
+          return (await import('@/app/api/auth/session/route')).GET()
+        }
+        if (caller === 'proxy') {
+          const { proxy } = await import('@/proxy')
+          return proxy(new NextRequest('https://app.example.com/', {
+            headers: { cookie: `auth_token=${jwt(-60)}; refresh_token=shared-refresh` },
+          }))
+        }
+        const { serverAuthFetch, serverAuthMutate } = await import('@/lib/server-fetch')
+        return caller === 'server read'
+          ? serverAuthFetch(API.config.get)
+          : serverAuthMutate(API.habits.create, { method: 'POST', body: '{}' }, null)
+      })
+      rotation.resolve()
+      const [response, sibling] = await Promise.all([first, second])
+
+      expect(response.status).toBe(200)
+      if (sibling instanceof Response) expect(sibling.status).toBe(200)
+      else expect(sibling).toEqual({ accepted: true })
+      expect(mocks.fetch.mock.calls.filter(([url]) => url.endsWith(API.auth.refresh))).toHaveLength(1)
+    },
+  )
+
+  it('does not rotate an expired cookie during a server component read', async () => {
+    const { serverRenderFetch } = await import('@/lib/server-fetch')
+
+    const response = await requestContext.run({ cookies: requestCookies() }, () => serverRenderFetch(API.config.get))
+
+    expect(response).toBeNull()
+    expect(mocks.fetch).not.toHaveBeenCalled()
+  })
+
+  it('allows another refresh after a transient failure', async () => {
+    const { GET } = await import('@/app/api/auth/session/route')
+    const freshToken = jwt(3600)
+    mocks.fetch
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ token: freshToken, refreshToken: 'rotated-refresh' }))
+    const invoke = () => requestContext.run({ cookies: requestCookies() }, GET)
+
+    expect((await invoke()).status).toBe(401)
+    expect((await invoke()).status).toBe(200)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+  })
+
   it('rejects a consumed token again after the overlap window', async () => {
     vi.useFakeTimers()
     const { GET } = await import('@/app/api/[...path]/route')

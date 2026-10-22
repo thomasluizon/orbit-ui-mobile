@@ -7,10 +7,11 @@ import { API } from '@orbit/shared/api'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { configCache } from '@/lib/config-cache'
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
+import { createApiClientError } from '@orbit/shared/utils'
 
 async function fetchConfig(): Promise<unknown> {
   const response = await fetchWithThrottle(API.config.get)
-  if (!response.ok) throw new Error(`Config request failed: ${response.status}`)
+  if (!response.ok) throw createApiClientError(response.status, null, `Config request failed: ${response.status}`)
   return response.json()
 }
 
