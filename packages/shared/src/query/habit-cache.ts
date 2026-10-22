@@ -337,7 +337,7 @@ function findDetailChild(habit: HabitDetailChild, id: string): HabitDetailChild 
   return undefined
 }
 
-function findCachedHabitDetail(queryClient: QueryClient, id: string): HabitDetailChild | undefined {
+export function findCachedHabitDetail(queryClient: QueryClient, id: string): HabitDetailChild | undefined {
   const details = queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() }).flatMap(([, detail]) => detail ? [detail] : [])
   const fullDetails = queryClient.getQueriesData<HabitFullDetail>({ queryKey: habitKeys.fullDetails() }).flatMap(([, detail]) => detail ? [detail.habit] : [])
   for (const detail of [...details, ...fullDetails]) {

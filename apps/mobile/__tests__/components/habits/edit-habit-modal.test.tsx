@@ -1,4 +1,5 @@
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
@@ -9,6 +10,11 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
+
+function TestEditor(props: React.ComponentProps<typeof EditHabitModal>) {
+  const [client] = React.useState(() => new QueryClient())
+  return <QueryClientProvider client={client}><EditHabitModal {...props} /></QueryClientProvider>
+}
 
 const useWatchMock = vi.fn()
 const mockFormReset = vi.fn()
@@ -170,7 +176,7 @@ async function renderModal(relationshipFieldsLoaded = true, onClose = vi.fn()) {
   let tree: any
   await TestRenderer.act(() => {
     tree = TestRenderer.create(
-      <EditHabitModal open onClose={onClose} habit={habit} relationshipFieldsLoaded={relationshipFieldsLoaded} />,
+      <TestEditor open onClose={onClose} habit={habit} relationshipFieldsLoaded={relationshipFieldsLoaded} />,
     )
   })
   return tree
@@ -267,7 +273,7 @@ describe('EditHabitModal (mobile)', () => {
     const habit = createMockHabit({ startDate, createdAtUtc: '2026-08-29T00:30:00Z' })
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<EditHabitModal open onClose={vi.fn()} habit={habit} />)
+      tree = TestRenderer.create(<TestEditor open onClose={vi.fn()} habit={habit} />)
     })
 
     expect(findFormFields(tree).props.startDate).toBe(expected)
@@ -318,7 +324,7 @@ describe('EditHabitModal (mobile)', () => {
     let tree: any
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <EditHabitModal
+        <TestEditor
           open
           onClose={vi.fn()}
           habit={initialHabit}
@@ -331,7 +337,7 @@ describe('EditHabitModal (mobile)', () => {
     })
     await TestRenderer.act(() => {
       tree.update(
-        <EditHabitModal
+        <TestEditor
           open
           onClose={vi.fn()}
           habit={createMockHabit({
@@ -642,10 +648,10 @@ it('ignores the result of a Save after its habit draft has been replaced', async
   const onClose = vi.fn()
   const first = createMockHabit({ id: 'first', frequencyUnit: 'Day' })
   let tree!: import('react-test-renderer').ReactTestRenderer
-  await TestRenderer.act(() => { tree = TestRenderer.create(<EditHabitModal open habit={first} onClose={onClose} onSaved={onSaved} />) })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<TestEditor open habit={first} onClose={onClose} onSaved={onSaved} />) })
   await TestRenderer.act(async () => { findSaveButton(tree)?.props.onClick(); await Promise.resolve() })
   expect(finish).toBeDefined()
-  await TestRenderer.act(() => tree.update(<EditHabitModal open habit={{ ...first, id: 'second' }} onClose={onClose} onSaved={onSaved} />))
+  await TestRenderer.act(() => tree.update(<TestEditor open habit={{ ...first, id: 'second' }} onClose={onClose} onSaved={onSaved} />))
   await TestRenderer.act(() => { finish() })
   expect(onClose).not.toHaveBeenCalled()
   expect(onSaved).not.toHaveBeenCalled()

@@ -29,6 +29,7 @@ export {
   restoreCachedHabitDetails,
   updateCachedHabitDetails,
   invalidateHabitParentDetails,
+  findCachedHabitDetail,
   applyCachedHabitSkip,
   updateHabitListsForDate,
   updateCachedHabitLists,

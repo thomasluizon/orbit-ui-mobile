@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { findCachedHabitDetail } from '@orbit/shared/query'
 import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildEditorParentChange, buildMoveParentOptions, getMoveParentInventory, validateEditorParent } from '@orbit/shared/utils'
 import { useHabits } from './use-habit-queries'
@@ -10,12 +12,15 @@ export function useEditorParent(habit: NormalizedHabit | null, detail: HabitDeta
   const [open, setOpen] = useState(false)
   const [requested, setRequested] = useState(false)
   const [chosen, setChosen] = useState<{ id: string | null; label: string; isGeneral: boolean | null } | undefined>(undefined)
-  const scheduled = useHabits({}, undefined, { enabled: requested })
-  const general = useHabits({ isGeneral: true }, undefined, { enabled: requested })
-  const inventory = getMoveParentInventory(scheduled, general)
-  const { config } = useConfig()
+  const queryClient = useQueryClient()
   const baseline = habit?.id.startsWith('offline-habit-') ? habit.parentId : detail?.parentId
   const selected = chosen === undefined ? baseline : chosen.id
+  const cachedParent = selected ? findCachedHabitDetail(queryClient, selected) : undefined
+  const enabled = requested || (typeof selected === 'string' && !cachedParent && !chosen)
+  const scheduled = useHabits({}, undefined, { enabled })
+  const general = useHabits({ isGeneral: true }, undefined, { enabled })
+  const inventory = getMoveParentInventory(scheduled, general)
+  const { config } = useConfig()
   const change = buildEditorParentChange(baseline, chosen?.id)
   const dirty = Object.keys(change).length > 0
   const state = inventory.state ?? (baseline === undefined || !habit || !inventory.habitsById.has(habit.id) ? 'error' : undefined)
@@ -25,7 +30,7 @@ export function useEditorParent(habit: NormalizedHabit | null, detail: HabitDeta
   const parentGeneral = selected ? inventory.habitsById.get(selected)?.isGeneral ?? chosen?.isGeneral : null
   const lockedGeneral = detail?.children[0]?.isGeneral ?? parentGeneral ?? (chosen === undefined && baseline !== null ? previousConstraint : null)
   const value = selected === undefined ? t('common.unknown') : selected === null ? t('habits.moveParent.toRoot')
-    : inventory.habitsById.get(selected)?.title ?? chosen?.label ?? t('habits.moveParent.currentParent')
+    : inventory.habitsById.get(selected)?.title ?? cachedParent?.title ?? chosen?.label ?? t('habits.moveParent.currentParent')
   return {
     open, selected, baseline, options, state, value, dirty, change, lockedGeneral,
     show: () => { setRequested(true); setOpen(true) },

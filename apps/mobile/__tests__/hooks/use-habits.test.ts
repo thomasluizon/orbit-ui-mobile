@@ -1775,6 +1775,36 @@ describe('mobile habit hooks', () => {
     })
   })
 
+  it('keeps queued parent edits optimistic without refetching parent details before replay', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    mocks.useRealQueryHooks = true
+    const child = makeChild({ id: 'habit-1', title: 'Read' })
+    const oldParent = makeDetail({ id: 'old-parent', children: [child] })
+    client.setQueryData(habitKeys.detail('old-parent'), oldParent)
+    client.setQueryData(habitKeys.detail('offline-habit-parent'), makeDetail({ id: 'offline-habit-parent', children: [] }))
+    const refetch = vi.fn(() => Promise.resolve(oldParent))
+    const observer = new QueryObserver(client, { queryKey: habitKeys.detail('old-parent'), queryFn: refetch, staleTime: Infinity })
+    const unsubscribe = observer.subscribe(() => {})
+    let mutation!: ReturnType<typeof useUpdateHabit>
+    function Probe() { mutation = useUpdateHabit(); return null }
+    let renderer: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe))) })
+      await TestRenderer.act(async () => {
+        const result = await mutation.mutateAsync({ habitId: 'habit-1', data: { title: 'Read together', isBadHabit: false, parentId: 'offline-habit-parent' } })
+        expect(result).toMatchObject({ queued: true })
+      })
+      expect(refetch).not.toHaveBeenCalled()
+      expect(client.getQueryData(habitKeys.detail('old-parent'))).toMatchObject({ children: [] })
+      expect(client.getQueryData(habitKeys.detail('offline-habit-parent'))).toMatchObject({ children: [expect.objectContaining({ id: 'habit-1', title: 'Read together' })] })
+    } finally {
+      await TestRenderer.act(() => { renderer?.unmount() })
+      unsubscribe()
+      mocks.useRealQueryHooks = false
+      client.clear()
+    }
+  })
+
   it('optimistically moves a habit under a new parent and restores the tree on failure', async () => {
     seedHabitState([
       makeHabit({ id: 'offline-parent-1', title: 'Parent', children: [], hasSubHabits: false, position: 0 }),

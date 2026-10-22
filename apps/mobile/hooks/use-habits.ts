@@ -749,7 +749,7 @@ export function useUpdateHabit() {
 
     onSettled: (data, error, { habitId, account, data: request }, context) => {
       if (account && !account.stillCurrent()) return
-      if (!error && (request.parentId != null || request.clearParent === true)) invalidateHabitParentDetails(queryClient, context?.previousDetails, habitId)
+      if (!error && !isQueuedResult(data) && (request.parentId != null || request.clearParent === true)) invalidateHabitParentDetails(queryClient, context?.previousDetails, habitId)
       return finalizeHabitMutation(queryClient, data, error, { habitId, includeProfile: true, includeCount: true })
     },
   })

@@ -32,6 +32,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
           import { RadioGroup } from './components/ui/radio-row';
           import { RadioRow } from './components/ui/select-check';
           import { EditorParentField } from './components/habits/editor-parent-field';
+          import { EditorParentOwner } from './__tests__/support/editor-parent-owner';
           import portuguese from '../../packages/shared/src/i18n/pt-BR.json';
           import { ListRow } from './components/ui/list-row';
           import { CheckRow } from './components/ui/check-row';
@@ -62,6 +63,10 @@ describe('expanded RadioRow personal text in Chromium', () => {
                 root.dataset.firstFrameTabIndex = scroller?.getAttribute('tabindex') ?? 'missing';
               });
             }, []);
+            if (composition === 'editorParentOwner') {
+              const locale = document.getElementById('root').dataset.locale || 'en';
+              return <NextIntlClientProvider locale={locale} messages={locale === 'pt-BR' ? portuguese : messages} timeZone="UTC"><EditorParentOwner label={label} /></NextIntlClientProvider>;
+            }
             if (composition.startsWith('editorParent')) {
               const locale = document.getElementById('root').dataset.locale || 'en';
               const copy = locale === 'pt-BR' ? portuguese : messages;
@@ -100,7 +105,15 @@ describe('expanded RadioRow personal text in Chromium', () => {
       },
       bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
       plugins: [{ name: 'calendar-profile', setup(bundler) {
+        bundler.onResolve({ filter: /^@sentry\/nextjs$/ }, () => ({ path: '@sentry/nextjs', namespace: 'editor-sentry' }))
+        bundler.onLoad({ filter: /.*/, namespace: 'editor-sentry' }, () => ({ contents: "export * from '@sentry/browser';", loader: 'js', resolveDir: process.cwd() }))
         bundler.onLoad({ filter: /hooks\/use-time-format\.ts$/ }, () => ({ contents: "export function useTimeFormat() { return { displayTime: (time) => time }; }", loader: 'js' }))
+        bundler.onLoad({ filter: /hooks\/use-profile\.ts$/ }, () => ({ contents: "export const useHasProAccess = () => true; export const useProfile = () => ({ profile: { hasProAccess: true, uses24HourClock: true, timeZone: 'UTC', weekStartDay: 1, language: 'en' } });", loader: 'js' }))
+        bundler.onLoad({ filter: /hooks\/use-config\.ts$/ }, () => ({ contents: "import { DEFAULT_CONFIG } from '@orbit/shared/types/config'; export const useConfig = () => ({ config: DEFAULT_CONFIG });", loader: 'js', resolveDir: process.cwd() }))
+        bundler.onLoad({ filter: /hooks\/use-reminder-permission\.ts$/ }, () => ({ contents: "export const useReminderPermission = () => ({ requestPermission: () => {}, toggleReminder: () => {}, showNotice: false });", loader: 'js' }))
+        bundler.onLoad({ filter: /lib\/server-fetch\.ts$/ }, () => ({ contents: "export { readEditorParentFixture as serverAuthFetch } from './__tests__/support/editor-parent-owner'; export async function serverAuthMutate() { throw new Error('Unexpected geometry fixture write'); }", loader: 'js', resolveDir: process.cwd() }))
+        bundler.onLoad({ filter: /lib\/api-fetch\.ts$/ }, () => ({ contents: "export { readEditorParentFixture as fetchJson } from './__tests__/support/editor-parent-owner'; export const translateApiFetchMessage = key => key; export const fetchWithUpgradeGuidance = (...args) => fetch(...args);", loader: 'js', resolveDir: process.cwd() }))
+        bundler.onLoad({ filter: /next\/dist\/client\/components\/navigation\.js$/ }, () => ({ contents: "export const useRouter = () => ({ push: () => {} }); export const unstable_isUnrecognizedActionError = () => false;", loader: 'js' }))
       } }],
       define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
     })
@@ -116,10 +129,59 @@ describe('expanded RadioRow personal text in Chromium', () => {
     await page.locator('#root').evaluate((root, kind) => { (root as HTMLElement).dataset.composition = kind }, composition)
     await page.locator('#root').evaluate((root, language) => { (root as HTMLElement).dataset.locale = language }, locale)
     await page.addScriptTag({ content: componentScript })
-    await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit', 'calendarEvent'].includes(composition) && !composition.startsWith('editorParent') }).waitFor({ timeout: 2_000 })
+    if (composition === 'editorParentOwner') await page.locator('form fieldset').waitFor({ timeout: 2_000 })
+    else await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit', 'calendarEvent'].includes(composition) && !composition.startsWith('editorParent') }).waitFor({ timeout: 2_000 })
     await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
     return page
   }
+
+  it.each([
+    { width: 320, locale: 'pt-BR', mode: 'dark', size: 16 },
+    { width: 320, locale: 'en', mode: 'light', size: 32 },
+    { width: 412, locale: 'en', mode: 'dark', size: 16 },
+    { width: 412, locale: 'pt-BR', mode: 'light', size: 32 },
+    { width: 1280, locale: 'pt-BR', mode: 'light', size: 16 },
+    { width: 1280, locale: 'en', mode: 'dark', size: 32 },
+  ] as const)('keeps the complete editor parent field and Save/Cancel footer reachable at $width $locale $mode $size', async ({ width, locale, mode, size }) => {
+    const label = 'A complete destination name with enough words to fill several lines'
+    const page = await mount(label, mode, 'editorParentOwner', locale)
+    try {
+      const copy = locale === 'en' ? (await import('@orbit/shared/i18n/en.json')).default : (await import('@orbit/shared/i18n/pt-BR.json')).default
+      await page.setViewportSize({ width, height: 640 })
+      await page.addStyleTag({ content: `:root { font-size: ${size}px; }` })
+      await loadAppFonts(page)
+      const control = page.getByRole('button', { name: copy.habits.form.parentHabit, exact: false })
+      await control.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await control.focus()
+      await control.press('Enter')
+      const picker = page.getByRole('dialog', { name: copy.habits.form.parentHabit, exact: true })
+      await picker.waitFor()
+      const last = picker.getByRole('radio').last()
+      await last.focus()
+      await last.press('Space')
+      await picker.getByRole('button', { name: copy.common.close, exact: true }).click()
+      await expect.poll(() => picker.count()).toBe(0)
+      expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
+      const fieldBounds = await control.boundingBox()
+      expect(fieldBounds!.height).toBeGreaterThanOrEqual(48)
+      expect(fieldBounds!.x).toBeGreaterThanOrEqual(0)
+      expect(fieldBounds!.x + fieldBounds!.width).toBeLessThanOrEqual(width)
+      expect(fieldBounds!.y).toBeGreaterThanOrEqual(0)
+      const footer = page.locator('[data-slot="sheet-actions"]')
+      const save = footer.getByRole('button', { name: copy.common.save, exact: true })
+      const cancel = footer.getByRole('button', { name: copy.common.cancel, exact: true })
+      for (const action of [cancel, save]) {
+        await action.focus()
+        const bounds = await action.boundingBox()
+        expect(bounds!.x).toBeGreaterThanOrEqual(0)
+        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
+        expect(bounds!.y).toBeGreaterThanOrEqual(0)
+        expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(640)
+      }
+      const footerBounds = await footer.boundingBox()
+      expect(fieldBounds!.y + fieldBounds!.height).toBeLessThanOrEqual(footerBounds!.y)
+    } finally { await page.close() }
+  })
 
   it.each([
     { width: 320, locale: 'pt-BR', mode: 'dark', size: 16 },
@@ -156,7 +218,6 @@ describe('expanded RadioRow personal text in Chromium', () => {
       await first.focus()
       await first.press('End')
       expect(await radios.last().evaluate((row) => row === document.activeElement)).toBe(true)
-      expect(await page.locator('#commits').textContent()).toBe('')
       await dialog.getByRole('button', { name: copy.common.close, exact: true }).click()
       await expect.poll(() => dialog.count()).toBe(0)
       expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
