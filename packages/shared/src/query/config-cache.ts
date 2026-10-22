@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { appConfigSchema, DEFAULT_CONFIG, type AppConfig } from '../types/config'
+import { extractBackendStatus } from '../utils/error-utils'
 
 interface ConfigStorage {
   read: () => Promise<string | null>
@@ -88,7 +89,7 @@ export function createConfigCache(reportError: (error: unknown) => void, storage
         }
         return config
       } catch (error) {
-        reportError(error)
+        if (extractBackendStatus(error) !== 401) reportError(error)
         throw error
       }
     },
