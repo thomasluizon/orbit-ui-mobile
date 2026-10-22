@@ -15,7 +15,8 @@ process.stdout.write(renderToStaticMarkup(
   <AppRouterContext.Provider value={router}>
     <NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC">
       <StreakBadge streak={3} />
-      <HabitChecklist items={[{ text: 'Beber água', isChecked: true }]} interactive onReset={() => {}} onClear={() => {}} />
+      <HabitChecklist items={[{ text: 'Beber água', isChecked: true }]} interactive onReset={() => {}} />
+      <HabitChecklist items={[{ text: 'Beber água', isChecked: true }]} editable onItemsChange={() => {}} />
       <HabitListEmptyState variant="secondary" title={ptBr.habits.loadError} description="" actionLabel={ptBr.common.retry} onAction={() => {}} />
     </NextIntlClientProvider>
   </AppRouterContext.Provider>,

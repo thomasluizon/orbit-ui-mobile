@@ -304,7 +304,8 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   }
 
   if (response.status === 401 && effectiveOptions.skipAuthRecovery) {
-    throw toUnauthorizedError(requestId)
+    const refusal = (await response.json().catch(() => null)) as ApiErrorPayload | null
+    throw createApiClientError(401, attachRequestIdToPayload(refusal ?? { error: 'Unauthorized' }, requestId), 'Unauthorized')
   }
 
   if (response.status === 401 && tokenUsed === null) {

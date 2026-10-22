@@ -1,3 +1,4 @@
+import { useHabitFormInteraction } from './habit-form-interaction'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PickerRow } from '@/components/ui/picker-row'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -35,6 +36,8 @@ function TagPreview({ tags, moreLabel, styles }: Readonly<{ tags: HabitTag[]; mo
 }
 
 export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
+  const { disabled: formDisabled, guard, isDisabled } = useHabitFormInteraction()
+  disabled = disabled || formDisabled
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -48,17 +51,17 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, s
     return <PickerRow name={tag.name} selected={selected} disabled={disabled || (!selected && atLimit)} onToggle={() => onToggle(tag.id)} value={selected ? '✓' : ''} valueStyle={styles.rowValue} valueHidden><Pressable focusInset accessibilityRole="button" accessibilityLabel={`${editLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onEdit(tag)}><Pencil size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable><Pressable focusInset accessibilityRole="button" accessibilityLabel={`${deleteLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onDelete(tag.id)}><Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable></PickerRow>
   }
   const trailingControls = <>
-    {tags.length > 0 && !editor ? <Pressable focusInset accessibilityRole="button" style={styles.action} onPress={onCreate}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable> : null}
+    {tags.length > 0 && !editor ? <Pressable focusInset accessibilityRole="button" disabled={disabled} style={styles.action} onPress={guard(onCreate)}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable> : null}
     {editor}
     {suggestions}
   </>
   return <>
-    <ListRow title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="column" onClick={() => setOpen(true)} />
+    <ListRow disabled={disabled} title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="column" onClick={() => setOpen(true)} />
     <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} styles={styles} />
     {open ? <Sheet open title={t('habits.form.tags')} virtualizedBody={tags.length >= 21} onClose={() => { setOpen(false); setQuery('') }}><View style={styles.list}>
       {tags.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: tags.length })}</Text> : null}
-      {tags.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} accessibilityLabel={t('habits.form.searchTags')} placeholder={t('habits.form.searchTags')} style={styles.search} /> : null}
-      {tags.length === 0 && !editor ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noTags')}</Text><Pressable focusInset accessibilityRole="button" style={styles.action} onPress={onCreate}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable></View> : null}
+      {tags.length >= 21 ? <BottomSheetAppTextInput isChangeDisabled={isDisabled} editable={!disabled} accessibilityState={{ disabled }} value={query} onChangeText={guard(setQuery)} accessibilityLabel={t('habits.form.searchTags')} placeholder={t('habits.form.searchTags')} style={styles.search} /> : null}
+      {tags.length === 0 && !editor ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noTags')}</Text><Pressable focusInset accessibilityRole="button" disabled={disabled} style={styles.action} onPress={guard(onCreate)}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable></View> : null}
       {tags.length >= 21 ? <KeyboardAwareFlatList key={query} data={filtered} renderItem={renderTag} keyExtractor={(tag) => tag.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" ListFooterComponent={trailingControls} /> : <>{filtered.map((tag) => <View key={tag.id}>{renderTag({ item: tag })}</View>)}{trailingControls}</>}
     </View></Sheet> : null}
   </>

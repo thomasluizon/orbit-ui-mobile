@@ -49,3 +49,16 @@ it('publishes consumed state immediately after receiving a token', () => {
   expect(controller.take('site-key')).toBeNull()
   expect(published.at(-1)?.token).toBeNull()
 })
+
+it('rejects callbacks from a replaced widget without consuming its successor token', () => {
+  let state = createTurnstileTokenState()
+  const controller = new TurnstileTokenController((next) => { state = next })
+  const stale = controller.view(state, 'site-key')
+  stale.resetToken()
+  const current = controller.view(state, 'site-key')
+  expect(stale.onToken('stale-token')).toBe(false)
+  expect(current.takeToken()).toBeNull()
+  expect(current.onToken('fresh-token')).toBe(true)
+  expect(current.takeToken()).toEqual({ turnstileToken: 'fresh-token' })
+  expect(current.onToken('replayed-token')).toBe(false)
+})

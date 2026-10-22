@@ -123,6 +123,7 @@ export {
 } from './error-utils'
 export { isFeatureEnabled, resolveFlag } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
+export { splitDescriptionLinks } from './description-links'
 export {
   resolveShellDestination,
   resolveShellChrome,

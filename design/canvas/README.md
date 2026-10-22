@@ -3,6 +3,37 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Habit detail read and draft amendment
+
+`Orbit Habit Detail.dc.html` replaces inline rename/settings with one type-aware pencil opening the
+complete editor at compact and wide widths. Its read title and emoji are static. Plain Task/Habit
+type, readable source description and one immediate completion checklist precede secondary facts.
+Readable checklist labels have no disclosure arrow. Uncheck all remains immediate; structural clear,
+text, duplicate, remove and reorder are staged in the editor. Save and Cancel own that habit draft.
+Shared-object management remains independently committed. Pending, rejected, uncertain and native
+queued outcomes follow `DESIGN.md` and the paired habit-form surface inventory. The drawing's editor
+transition reuses its existing field composition; production uses `EditHabitModal` and `HabitFormFields`.
+Frozen rendering and native device acceptance remain separate from source and unit evidence.
+
+The detail description stays fully visible and selectable with exact source line breaks. Only
+validated absolute HTTP/HTTPS spans become independently reachable underlined links; long URLs
+remain readable at enlarged text. Web opens a new tab with `noopener noreferrer`; native opening
+failure retains the source and offers Retry. Copy description copies the original source, shows
+one Check on success and announces it once through visually hidden localized feedback. Copy errors
+and manual-selection guidance remain visible. Account or description replacement clears feedback.
+This amendment does not make row previews interactive or add a Markdown renderer.
+
+### Email sign-in entry amendment
+
+`Orbit Entrar` uses the existing verifying presentation for a valid incoming email link.
+The captured address and code complete once through the ordinary login owner when connectivity,
+fresh bot protection and session ownership permit it. Refused or unavailable attempts retain
+manual entry, explicit Verify and permitted resend. Android opts into the installed email-code
+hint; iOS keeps its one-time-code hint and web keeps its single one-time-code input.
+Hints depend on the configured provider and keyboard; they do not read an inbox or notifications.
+Unit guards cover request, session, input and generated manifest boundaries. Received-message,
+installed App Link verification, browser fallback and provider suggestions require device evidence.
+
 ### Habit form type and date amendment
 
 Create and edit place the two vertical type radios before the focal title. The editable account-date
@@ -24,8 +55,8 @@ verification boundaries.
 
 Shared rows use the complete nouns `Tarefa` / `Task` or `Hábito` / `Habit` as quiet type metadata
 beneath the full-width title. This supersedes the longer task caption in exported rows, including
-detail children. Form choices and detail headers retain `Tarefa única` / `One-time task` and
-`Hábito` / `Habit`. Row primary and selection accessible names match the short visible caption
+detail children. Form choices retain `Tarefa única` / `One-time task` and `Hábito` / `Habit`.
+Detail headers use the same plain nouns as rows. Row primary and selection accessible names match the short visible caption
 exactly once. Type is the first token in one quiet 12px Geist Mono metadata flow below title and
 optional description. Existing time, status and child progress precede the actual checklist's
 ListChecks glyph and checked/total count. Empty checklists add nothing. Whole tokens wrap without

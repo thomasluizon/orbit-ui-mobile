@@ -560,10 +560,19 @@ describe('mobile apiClient', () => {
     expect(routerReplaceMock).not.toHaveBeenCalled()
   })
 
+  it('preserves wrong-code refusal details while auth recovery is disabled', async () => {
+    const refusal = { error: 'Invalid verification code', errorCode: 'INVALID_VERIFICATION_CODE' }
+    getTokenMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(refusal), { status: 401 }))
+    await expect(apiClient(API.auth.verifyCode, { method: 'POST', skipAuthRecovery: true })).rejects.toMatchObject({ status: 401, data: refusal })
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+  })
+
   it('skips auth recovery for an anonymous logout revocation', async () => {
     getTokenMock.mockResolvedValue('replacement-token')
     refreshSessionMock.mockResolvedValue({ status: 'unauthorized' })
-    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+    fetchMock.mockResolvedValue(new Response(null, { status: 401 }))
 
     await expect(apiClient(API.auth.logout, {
       method: 'POST',

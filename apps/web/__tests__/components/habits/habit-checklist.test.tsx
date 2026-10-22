@@ -48,8 +48,14 @@ describe('HabitChecklist', () => {
 
   describe('rendering', () => {
     it('renders without crashing with empty items', () => {
-      render(<HabitChecklist items={[]} />)
+      const { container } = render(<HabitChecklist items={[]} />)
       expect(screen.queryByRole('progressbar')).toBeNull()
+      expect(container).toBeEmptyDOMElement()
+    })
+
+    it('retains the add control in an empty editor', () => {
+      render(<HabitChecklist items={[]} editable />)
+      expect(screen.getByRole('textbox', { name: 'habits.form.checklistPlaceholder' })).toBeVisible()
     })
 
     it('renders all checklist item texts', () => {
@@ -90,16 +96,17 @@ describe('HabitChecklist', () => {
       render(<HabitChecklist items={items} interactive onToggle={onToggle} />)
       const checkboxes = screen.getAllByRole('checkbox')
       fireEvent.click(checkboxes[0]!)
-      expect(onToggle).toHaveBeenCalledWith(0)
+      expect(onToggle).toHaveBeenCalledExactlyOnceWith(0)
     })
 
-    it('discloses the full label without changing its checked state', () => {
+    it('checks the actual item body exactly once without a disclosure for readable text', () => {
       const onToggle = vi.fn()
-      const items = makeItems()
-      render(<HabitChecklist items={items} interactive onToggle={onToggle} />)
+      const onItemsChange = vi.fn()
+      render(<HabitChecklist items={makeItems()} interactive onToggle={onToggle} onItemsChange={onItemsChange} />)
       fireEvent.click(screen.getByRole('button', { name: 'Step 3' }))
-      expect(screen.getByRole('button', { name: 'Step 3' })).toHaveAttribute('aria-expanded', 'true')
-      expect(onToggle).not.toHaveBeenCalled()
+      expect(onToggle).toHaveBeenCalledExactlyOnceWith(2)
+      expect(onItemsChange).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: 'Step 3' })).not.toHaveAttribute('aria-expanded')
     })
 
     it('shows reset button when at least one item is checked', () => {
@@ -116,18 +123,9 @@ describe('HabitChecklist', () => {
       expect(onReset).toHaveBeenCalledOnce()
     })
 
-    it('shows clear button in interactive mode', () => {
-      const items = makeItems()
-      render(<HabitChecklist items={items} interactive />)
-      expect(screen.getByLabelText('habits.form.clearChecklist')).toBeDefined()
-    })
-
-    it('calls onClear when clear button is clicked', () => {
-      const onClear = vi.fn()
-      const items = makeItems()
-      render(<HabitChecklist items={items} interactive onClear={onClear} />)
-      fireEvent.click(screen.getByLabelText('habits.form.clearChecklist'))
-      expect(onClear).toHaveBeenCalledOnce()
+    it('keeps structural clear in the editor', () => {
+      render(<HabitChecklist items={makeItems()} interactive />)
+      expect(screen.queryByLabelText('habits.form.clearChecklist')).toBeNull()
     })
 
     it('does not show reset when no items are checked', () => {
@@ -139,12 +137,13 @@ describe('HabitChecklist', () => {
       expect(screen.queryByLabelText('habits.form.resetChecklist')).toBeNull()
     })
 
-    it('dims checked items without striking their labels', () => {
+    it('keeps checked items readable without striking their labels', () => {
       const items = [{ text: 'Done task', isChecked: true }]
       render(<HabitChecklist items={items} interactive />)
       const span = screen.getByText(personalText('Done task'))
-      expect(span).toHaveStyle({ color: 'var(--fg-3)' })
-      expect(span.className).not.toContain('line-through')
+      expect(span).toBeVisible()
+      expect(screen.getByRole('checkbox', { name: 'Done task' })).toBeChecked()
+      expect(getComputedStyle(span).textDecorationLine).not.toBe('line-through')
     })
 
     it('shows complete progress when all items are checked', () => {

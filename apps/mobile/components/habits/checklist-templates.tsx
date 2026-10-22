@@ -1,3 +1,4 @@
+import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
@@ -41,11 +42,12 @@ interface ChecklistTemplatesEmptyStateProps {
 }
 
 function ChecklistTemplatesEmptyState({ canSave, onSave, styles, translate }: Readonly<ChecklistTemplatesEmptyStateProps>) {
+  const { disabled } = useHabitFormInteraction()
   return (
     <View style={styles.emptyState}>
       <Text numberOfLines={1} style={styles.emptyTitle}>{translate('habits.form.noTemplates')}</Text>
       <Text style={styles.emptyDescription}>{translate('habits.form.noTemplatesDescription')}</Text>
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !canSave }} disabled={!canSave} style={[styles.emptyAction, !canSave ? styles.saveButtonDisabled : null]} onPress={onSave}>
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || !canSave }} disabled={disabled || !canSave} style={[styles.emptyAction, !canSave ? styles.saveButtonDisabled : null]} onPress={onSave}>
         <Text numberOfLines={1} style={styles.emptyActionText}>{translate('habits.form.saveCurrentList')}</Text>
       </Pressable>
       {!canSave ? <Text style={styles.emptyReason}>{translate('habits.form.saveCurrentListDisabled')}</Text> : null}
@@ -57,6 +59,7 @@ export function ChecklistTemplates({
   items,
   onLoad,
 }: Readonly<ChecklistTemplatesProps>) {
+  const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -76,7 +79,7 @@ export function ChecklistTemplates({
 
   const handleSave = useCallback(() => {
     const name = templateName.trim()
-    if (!name || items.length === 0 || createTemplate.isPending) return
+    if (isDisabled() || !name || items.length === 0 || createTemplate.isPending) return
 
     createTemplate.mutate(
       { name, items: items.map((item) => item.text) },
@@ -90,29 +93,31 @@ export function ChecklistTemplates({
         },
       },
     )
-  }, [createTemplate, items, showError, t, templateName])
+  }, [createTemplate, isDisabled, items, showError, t, templateName])
 
   const handleLoad = useCallback((id: string) => {
     const template = templates.find((entry) => entry.id === id)
-    if (!template) return
+    if (isDisabled() || !template) return
     closeSheet(() => {
       setOpen(false)
       onLoad(applyChecklistTemplate(template))
     })
-  }, [closeSheet, onLoad, templates])
+  }, [closeSheet, isDisabled, onLoad, templates])
 
   const handleDelete = useCallback((id: string) => {
+    if (isDisabled()) return
     deleteTemplate.mutate(id, {
       onError: () => {
         showError(t('habits.form.deleteTemplateError'))
       },
     })
-  }, [deleteTemplate, showError, t])
+  }, [deleteTemplate, isDisabled, showError, t])
 
   return (
     <>
       <View style={styles.formRow}>
         <ListRow
+          disabled={disabled}
           icon="template"
           title={t('habits.form.useTemplate')}
           compact
@@ -125,6 +130,7 @@ export function ChecklistTemplates({
           <View style={styles.container}>
             {templates.length > 0 && items.length > 0 && !showSave ? (
               <ListRow
+          disabled={disabled}
                 icon="device-floppy"
                 title={t('habits.form.saveAsTemplate')}
                 chevron={false}
@@ -133,13 +139,15 @@ export function ChecklistTemplates({
             ) : null}
             {showSave ? (
               <View style={styles.saveRow}>
-          <BottomSheetAppTextInput
+          <BottomSheetAppTextInput isChangeDisabled={isDisabled}
+            editable={!disabled}
+            accessibilityState={{ disabled }}
             value={templateName}
             placeholder={t('habits.form.templateNamePlaceholder')}
             style={styles.input}
             accessibilityLabel={t('habits.form.templateNamePlaceholder')}
             accessibilityHint={t('habits.form.saveAsTemplate')}
-            onChangeText={setTemplateName}
+            onChangeText={guard(setTemplateName)}
             onSubmitEditing={handleSave}
             returnKeyType="done"
           />
@@ -150,14 +158,15 @@ export function ChecklistTemplates({
               pressed ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
             ]}
             onPress={handleSave}
-            disabled={!templateName.trim() || createTemplate.isPending}
+            disabled={disabled || !templateName.trim() || createTemplate.isPending}
             accessibilityRole="button"
             accessibilityLabel={t('common.save')}
-            accessibilityState={{ disabled: !templateName.trim() || createTemplate.isPending }}
+            accessibilityState={{ disabled: disabled || !templateName.trim() || createTemplate.isPending }}
           >
             <Text style={styles.saveButtonText}>{t('common.save')}</Text>
           </Pressable>
           <Pressable
+            disabled={disabled}
             style={({ pressed }) => [
               styles.closeButton,
               pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
@@ -175,14 +184,14 @@ export function ChecklistTemplates({
             ) : null}
             {templates.map((template) => (
               <View key={template.id} style={styles.templateRow}>
-                <Pressable accessibilityRole="button" accessibilityLabel={template.name} focusInset style={({ pressed }) => [styles.templateLoad, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleLoad(template.id)}>
+                <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={template.name} focusInset style={({ pressed }) => [styles.templateLoad, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleLoad(template.id)}>
                   <PersonalText style={styles.templateName}>{template.name}</PersonalText>
                 </Pressable>
                 <View style={styles.templateActions}>
                   <Icon name="template" size={20} color={tokens.fg3} />
                   <Text style={styles.templateCount}>{t('habits.form.templateItemCount', { count: template.items.length })}</Text>
                   <PersonalTextDetails iconOnly>{template.name}</PersonalTextDetails>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`${t('common.delete')}: ${template.name}`} focusInset style={({ pressed }) => [styles.templateDelete, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleDelete(template.id)}>
+                  <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={`${t('common.delete')}: ${template.name}`} focusInset style={({ pressed }) => [styles.templateDelete, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleDelete(template.id)}>
                     <Icon name="trash" size={20} color={tokens.statusBad} />
                   </Pressable>
                 </View>

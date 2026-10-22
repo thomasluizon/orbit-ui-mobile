@@ -24,8 +24,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))
         await page.goto('/habits/habit-1')
         const messages = locale === 'en' ? en : ptBr
-        await page.getByRole('button', { name: messages.habits.detail.moreDetails }).click()
-        const fields = page.locator('#habit-detail-fields')
+        await page.getByRole('button', { name: messages.habits.editHabit }).click()
+        const fields = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
         const notice = fields.getByRole('status').filter({ hasText: messages.habits.form.reminderPermissionNeeded })
         await expect(notice).toBeVisible()
         const control = notice.getByRole('link', { name: messages.habits.form.reminderPermissionNeeded, exact: true })

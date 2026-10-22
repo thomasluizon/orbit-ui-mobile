@@ -129,3 +129,15 @@ describe('beforeSendEvent', () => {
     expect(result?.request?.data).toBeUndefined()
   })
 })
+
+
+it('removes incoming auth secrets from request URLs and navigation breadcrumbs', () => {
+  const link = 'https://app.example.test/login?email=entry%40example.invalid&code=427169'
+  const event = makeEvent()
+  event.request = { url: link, query_string: 'email=entry%40example.invalid&code=427169' }
+  event.breadcrumbs = [{ category: 'navigation', data: { from: link, to: '/login?email=entry%40example.invalid&code=427169' } }]
+  const serialized = JSON.stringify(scrubEvent(event))
+  expect(serialized.includes('427169')).toBe(false)
+  expect(serialized.includes('entry%40example.invalid')).toBe(false)
+  expect(serialized.includes('/login')).toBe(true)
+})
