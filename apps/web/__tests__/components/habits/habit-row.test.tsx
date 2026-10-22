@@ -226,7 +226,7 @@ describe('HabitRow neutral metadata contrast', () => {
             foreground: getComputedStyle(metadata).color,
             expectedForeground: colorOf(interactive ? '--fg-2' : '--fg-3'),
             separators: Array.from(metadata.querySelectorAll('span')).filter((span) => span.textContent === '·').map((span) => getComputedStyle(span).color),
-            stateWords: Array.from(metadata.querySelectorAll('span')).filter((span) => span.textContent !== '·').map((span) => getComputedStyle(span).color),
+            stateWords: Array.from(metadata.querySelectorAll('[data-habit-row-meta-state]')).map((span) => getComputedStyle(span).color),
             expectedStateWords: [colorOf('--status-overdue-text'), colorOf('--status-bad-text')],
             bodyFill: getComputedStyle(body).backgroundColor,
             expectedBodyFill: 'rgba(0, 0, 0, 0)',
@@ -594,8 +594,8 @@ describe('HabitRow large text placement', () => {
     expect(container.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
     const type = container.querySelector('[data-habit-row-type]')!
     expect(type.closest('[data-habit-row-heading]')).toBeNull()
-    expect(type.parentElement!.children).toHaveLength(1)
-    expect(container.querySelector('[data-habit-row-meta]')).toBeNull()
+    expect(type.closest('[data-habit-row-meta]')).not.toBeNull()
+    expect(container.querySelectorAll('[data-habit-row-meta]')).toHaveLength(1)
     expect(container.querySelector('[data-habit-row-body]')).toHaveAccessibleName('Leaf, habits.form.typeHabit')
   })
 

@@ -1708,6 +1708,19 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('button', { name: 'habits.detail.rescheduleAccept' })).toBeInTheDocument()
   })
 
+  it('composes integrated metadata from the detail child list records', () => {
+    mocks.realChildRows = true
+    const checklistItems = [{ text: 'Page', isChecked: true }, { text: 'Page', isChecked: false }]
+    mocks.detail = { ...makeDetail(), children: makeDetail().children.map((child) => ({ ...child, checklistItems })) }
+    mocks.scopedHabits.set('child-1', { ...makeScopedChild('2026-08-28'), checklistItems })
+    const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+    const row = container.querySelector('[data-testid="detail-children"] [data-testid="habit-row"]')!
+    const meta = row.querySelector('[data-habit-row-meta]')!
+    expect(meta.firstElementChild?.querySelector('[data-habit-row-type]')).not.toBeNull()
+    expect(meta.querySelector('[data-habit-row-checklist]')?.textContent).toBe('1/2')
+    expect(row.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
+  })
+
   describe('drawn detail geometry', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser

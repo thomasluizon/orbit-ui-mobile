@@ -124,10 +124,20 @@ it.each([320, 412, 1352])('hydrates the depth-2 heading and footer before measur
     expect(grandchild.querySelector('[data-habit-row-heading]')).toBe(heading)
     expect(heading.nextElementSibling).toBe(footer)
     expect(phase(container)).toEqual({ rootFont: '16px', headings: [0, 0, 1] })
-    expect(observations.size).toBe(3)
+    expect(observations.size).toBe(12)
+    const assertObservedOwners = () => {
+      for (const row of rows) {
+        expect(observations.has(row)).toBe(true)
+        expect(observations.has(row.querySelector('[data-habit-row-title-block]')!)).toBe(true)
+        for (const token of row.querySelectorAll('[data-habit-row-meta] > span')) expect(observations.has(token)).toBe(true)
+      }
+      expect([...observations.keys()].every((target) => target.isConnected)).toBe(true)
+    }
+    assertObservedOwners()
     for (const [contentWidth, headings] of [[380, [0, 0, 0]], [284, [0, 0, 1]], [708, [0, 0, 0]]] as const) {
       await act(async () => resize(contentWidth))
       expect(phase(container)).toEqual({ rootFont: '16px', headings })
+      assertObservedOwners()
       expect(Array.from(container.querySelectorAll('[data-testid="habit-row"]'))).toEqual(rows)
     }
     await act(async () => { document.documentElement.style.fontSize = '32px' })

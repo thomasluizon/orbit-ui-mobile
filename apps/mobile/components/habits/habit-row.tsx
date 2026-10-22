@@ -10,7 +10,6 @@ import {
   getTodayBoundary,
   isHabitDoneForRange,
   resolveHabitAccessibleStatus,
-  getHabitRowTypeLabelKey,
   getHabitInlineDepthLimit,
   stripInlineMarkdown,
   type TodayBoundary,
@@ -24,7 +23,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { Menu, useAnchoredMenu } from '@/components/ui/menu'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
-import { HabitRowContent, HabitRowMetaStrip, HabitRowTypeLabel } from './habit-row-content'
+import { habitRowMetaPartKey, HabitRowContent, HabitRowMetaStrip, type HabitRowMetaPart } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import {
@@ -263,6 +262,17 @@ function habitRowSpacing(panelEnd: boolean): ViewStyle {
   return { paddingBottom: panelEnd ? SPACING.s12 : SPACING.s4 }
 }
 
+function useHabitRowMetadataFit(metaParts: HabitRowMetaPart[]) {
+  const [measurements, setMeasurements] = useState<{ contentWidth: number; widths: Record<string, number> }>({ contentWidth: Infinity, widths: {} })
+  const keys = metaParts.filter((part) => typeof part === 'string' || part.kind !== 'future').map((part, index) => habitRowMetaPartKey(part, index))
+  const onContentWidth = (contentWidth: number) => setMeasurements((previous) => previous.contentWidth === contentWidth ? previous : { ...previous, contentWidth })
+  const onTokenWidth = (key: string, width: number) => setMeasurements((previous) => previous.widths[key] === width ? previous : {
+    ...previous,
+    widths: Object.fromEntries(keys.map((current) => [current, current === key ? width : previous.widths[current] ?? 0])),
+  })
+  return { onContentWidth, onTokenWidth, narrow: keys.some((key) => (measurements.widths[key] ?? 0) > measurements.contentWidth) }
+}
+
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitRow = memo(function HabitRow({
   habit,
@@ -290,7 +300,7 @@ export const HabitRow = memo(function HabitRow({
   const largeText = fontScale > 1.3
   const [contentWidth, setContentWidth] = useState<number>()
   const measureRow = useCallback((event: LayoutChangeEvent) => setContentWidth(event.nativeEvent.layout.width), [])
-  const supportingMeta = largeText || depth > 0 && depth >= getHabitInlineDepthLimit(width, fontScale, contentWidth)
+  const depthBoundary = depth > 0 && depth >= getHabitInlineDepthLimit(width, fontScale, contentWidth)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -324,6 +334,8 @@ export const HabitRow = memo(function HabitRow({
     t,
     locale,
   })
+  const { onContentWidth, onTokenWidth, narrow } = useHabitRowMetadataFit(metaParts)
+  const supportingMeta = largeText || depthBoundary || narrow
 
   const description = stripInlineMarkdown(habit.description ?? '')
   const futureHint = metaParts.find((part): part is { kind: 'future'; label: string } => typeof part !== 'string' && part.kind === 'future')
@@ -374,15 +386,15 @@ export const HabitRow = memo(function HabitRow({
   })
 
   const knownRowAccessibilityLabel = buildHabitRowAccessibilityLabel({
-    title: `${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`,
-    dotState: resolveHabitAccessibleStatus(dotState, isDoneForRange),
+    title: habit.title,
+    dotState: completionStatusUnavailable ? undefined : resolveHabitAccessibleStatus(dotState, isDoneForRange),
     metaParts,
     linkedGoal: false,
     showStreak: false,
     streak: 0,
     t,
   })
-  const rowAccessibilityLabel = completionStatusUnavailable ? `${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}` : knownRowAccessibilityLabel
+  const selectionLabel = [habit.title, ...metaParts.flatMap((part) => typeof part !== 'string' && (part.kind === 'type' || part.kind === 'checklist') ? [part.label] : [])].join(', ')
 
   const primaryContent = (
     <>
@@ -397,6 +409,7 @@ export const HabitRow = memo(function HabitRow({
       />
 
       <HabitRowContent expanded={isSelectMode && isSelected}
+        onContentWidth={onContentWidth} onTokenWidth={onTokenWidth}
         largeText={largeText}
         habit={habit}
         titleSize={titleSize}
@@ -417,7 +430,7 @@ export const HabitRow = memo(function HabitRow({
     onLongPress: isSelectMode ? undefined : actions.onLongPressCard,
     delayLongPress: 500,
     accessibilityRole: 'button',
-    accessibilityLabel: rowAccessibilityLabel,
+    accessibilityLabel: knownRowAccessibilityLabel,
     accessibilityHint: [description, futureHint?.label].filter(Boolean).join(' ') || undefined,
     supportingMeta,
     bodyLayout,
@@ -426,7 +439,7 @@ export const HabitRow = memo(function HabitRow({
   const rowContents = (
     <>
         {structuralColumn && isSelectMode ? (
-          <HabitRowSelection title={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`} selected={isSelected}
+          <HabitRowSelection title={selectionLabel} selected={isSelected}
             onToggleSelection={actions.onToggleSelection} tokens={tokens} />
         ) : null}
         {structuralColumn ? (
@@ -469,7 +482,7 @@ export const HabitRow = memo(function HabitRow({
     <View style={habitRowSpacing(panelEnd)}>
       <HabitRowLayout onLayout={measureRow} depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
-        metaColor={bodyPressFeedback.metaColor} typeLabel={t(getHabitRowTypeLabelKey(habit))} tokens={tokens}>
+        metaColor={bodyPressFeedback.metaColor} largeText={largeText} onTokenWidth={onTokenWidth} tokens={tokens}>
         {rowContents}
       </HabitRowLayout>
 
@@ -492,7 +505,7 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ onLayout, depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, typeLabel, tokens, children }: Readonly<{
+function HabitRowLayout({ onLayout, depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, largeText, onTokenWidth, tokens, children }: Readonly<{
   onLayout: (event: LayoutChangeEvent) => void
   depth: number
   descriptionPresent: boolean
@@ -504,7 +517,8 @@ function HabitRowLayout({ onLayout, depth, descriptionPresent, isChild, supporti
   primaryContent: ReactNode
   metaParts: Parameters<typeof HabitRowContent>[0]['metaParts']
   metaColor: string
-  typeLabel: string
+  largeText: boolean
+  onTokenWidth: (key: string, width: number) => void
   tokens: ReturnType<typeof createTokensV2>
   children: ReactNode
 }>) {
@@ -524,9 +538,8 @@ function HabitRowLayout({ onLayout, depth, descriptionPresent, isChild, supporti
         <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
           style={{ flexDirection: 'row', gap: 12, paddingLeft: SPACING.s8 + depth * SPACING.s16, paddingRight: SPACING.s8, paddingTop: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBottom: SPACING.s8 }}>
           <View style={{ width: 48, flexShrink: 0 }} />
-          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-            <HabitRowTypeLabel label={typeLabel} color={metaColor} />
-            <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} expanded />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} largeText={largeText} onTokenWidth={onTokenWidth} />
           </View>
         </View>
       ) : null}

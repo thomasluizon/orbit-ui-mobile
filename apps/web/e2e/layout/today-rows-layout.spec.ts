@@ -52,8 +52,8 @@ for (const mode of ['dark', 'light'] as const) {
         const well = body.querySelector(':scope > span > span')!
         const title = body.querySelector('[data-personal-text]')!
         const type = body.querySelector('[data-habit-row-type]')!
-        const content = type.parentElement!
-        const text = [title, type, ...body.querySelectorAll('[data-habit-row-meta]')]
+        const content = title.closest('[data-habit-row-title-block]')!
+        const text = [title, ...body.querySelectorAll('[data-habit-row-meta]')]
         const check = row.querySelector('[data-habit-check]')!
         const target = check.closest('[data-habit-row-control]')!
         const bounds = panel.getBoundingClientRect()
@@ -228,6 +228,7 @@ for (const width of [320, 600]) {
 
 for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'light'] as const) {
   for (const width of [320, 412, 1352]) {
+    const normalSupportingTitles = width === 320 ? ['Grandchild', 'Child parent'] : []
     test(`Habit previews and full-row feedback at ${width}px in ${mode} ${language}`, async ({ page, context }) => {
       await page.setViewportSize({ width, height: 1200 })
       const description = language === 'en' ? 'Read two pages before breakfast.' : 'Leia duas páginas antes do café.'
@@ -253,17 +254,17 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
       await expect(page.locator('[data-habit-row-description]')).toHaveCount(3)
       for (const scale of [1, 2]) {
         const visibleTitles = width === 320 && scale === 2 ? ['Parent', 'Child parent'] : ['Parent', 'Child parent', 'Grandchild']
-        await setHabitTextScale(page, scale, visibleTitles, width === 320 ? ['Grandchild'] : [])
+        await setHabitTextScale(page, scale, visibleTitles, normalSupportingTitles)
         await expect(parent.locator('[data-habit-row-description]')).toHaveCSS('font-size', `${14 * scale}px`)
         await expect(parent.locator('[data-habit-row-heading]')).toHaveCount(scale === 2 ? 1 : 0)
-        await assertPreviewSelectionModes(page, parent, copy, scale, mode, width === 320 && scale === 2 ? 5 : 6)
+        await assertPreviewSelectionModes(page, parent, copy, scale, mode, width === 320 && scale === 2 ? 5 : 6, normalSupportingTitles)
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
       }
     })
   }
 }
 
-async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: typeof en | typeof ptBr, scale: number, mode: 'light' | 'dark', rowCount: number) {
+async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: typeof en | typeof ptBr, scale: number, mode: 'light' | 'dark', rowCount: number, normalSupportingTitles: readonly string[]) {
   for (const selecting of [false, true]) {
     if (selecting) {
       await openTodayListOptions(page, copy.habits.listOptions)
@@ -275,14 +276,14 @@ async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: ty
       await leaf.locator('[data-habit-row-body]').click()
       await expect(leaf.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
     }
-    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting, page.viewportSize()!.width === 320 ? ['Grandchild'] : [])
-    for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page)
+    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting, normalSupportingTitles)
+    for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page, scale > 1.3 || normalSupportingTitles.includes((await row.getAttribute('data-habit-title'))!))
   }
   await page.getByRole('button', { name: copy.common.cancel, exact: true }).click()
   await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(0)
 }
 
-async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' | 'dark', page: Page) {
+async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' | 'dark', page: Page, supporting: boolean) {
   const geometry = await row.evaluate((element) => {
     const bounds = (node: Element) => { const box = node.getBoundingClientRect(); return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height } }
     const title = element.querySelector('[data-personal-text]')!
@@ -351,14 +352,14 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
   function assertPreviewControls() {
     expect(geometry.titleSize).toBe(`${(geometry.depth ? 14 : 17) * scale}px`)
     expect(geometry.well.left - geometry.row.left).toBe(8 + 16 * geometry.depth)
-    expect(geometry.supporting).toBe(scale === 2 || page.viewportSize()!.width === 320 && geometry.depth === 2)
+    expect(geometry.supporting).toBe(supporting)
     expect(geometry.target.width).toBe(48)
     expect(geometry.target.height).toBeGreaterThanOrEqual(48)
     expect(geometry.check.width).toBe(28)
     expect(geometry.check.height).toBe(28)
     expect(Math.abs(geometry.check.x - geometry.target.x)).toBeLessThanOrEqual(1)
     expect(Math.abs(geometry.check.y - geometry.target.y)).toBeLessThanOrEqual(1)
-    if (!geometry.supporting) expect(Math.abs(geometry.target.y - geometry.row.y)).toBeLessThanOrEqual(1)
+    if (!supporting) expect(Math.abs(geometry.target.y - geometry.row.y)).toBeLessThanOrEqual(1)
     else {
       expect(geometry.target.top - geometry.row.top).toBe(geometry.depth ? 4 : 8)
       expect(geometry.target.top).toBeCloseTo(geometry.title.top, 1)
