@@ -12,6 +12,7 @@ export const ACCOUNT_ID_HEADER = 'x-account-id'
 
 const ACCESS_TOKEN_REFRESH_THRESHOLD_MS = 60_000
 const REFRESH_TRANSPORT_TIMEOUT_MS = 60_000
+const REFRESH_RESULT_RETENTION_MS = 5_000
 const DEFAULT_ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
@@ -53,7 +54,11 @@ type RefreshSessionResult =
   | { outcome: 'rejected' }
   | { outcome: 'retryable' }
 
-const refreshRequests = new Map<string, Promise<RefreshSessionResult>>()
+const refreshRuntime = globalThis as typeof globalThis & {
+  orbitSessionRefreshRequests?: Map<string, Promise<RefreshSessionResult>>
+}
+// WHY: Separate server bundles and requests with old cookie snapshots must share a rotation. https://github.com/thomasluizon/orbit-tickets/issues/1629
+const refreshRequests = refreshRuntime.orbitSessionRefreshRequests ??= new Map<string, Promise<RefreshSessionResult>>()
 
 function getCookieValue(source: CookieValueReader, name: string): string | null {
   return source.get(name)?.value ?? null
@@ -224,13 +229,15 @@ export async function refreshSessionTokens(
 
   refreshRequests.set(refreshToken, request)
 
-  try {
-    return await request
-  } finally {
+  const result = await request
+  const forgetRequest = () => {
     if (refreshRequests.get(refreshToken) === request) {
       refreshRequests.delete(refreshToken)
     }
   }
+  if (result.outcome === 'retryable') forgetRequest()
+  else setTimeout(forgetRequest, REFRESH_RESULT_RETENTION_MS)
+  return result
 }
 
 /**
