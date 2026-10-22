@@ -6,8 +6,9 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Input } from '@/components/ui/input'
+import { Loader2 } from '@/components/ui/icons'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { inspectControlAccentRings, inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
+import { expectOneFieldIndicator, inspectControlAccentRings, inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators, settleFocusAnimations } from '@/e2e/layout/focus-indicators'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
 describe('field indicator readers in Chromium', () => {
@@ -77,6 +78,48 @@ describe('field indicator readers in Chromium', () => {
       expect(await readFieldIndicators(field, '[data-input-root]')).toEqual(['div::after:shadow'])
       await page.emulateMedia({ forcedColors: 'active' })
       expect(await readFieldIndicators(field, '[data-input-root]', { forcedColors: true })).toEqual(['div:border'])
+    } finally {
+      await page.close()
+    }
+  })
+
+  it('inspects the real Input and quiet heading while an unrelated loader keeps running', async () => {
+    const { container } = render(<>
+      <h1 tabIndex={-1}>New habit</h1>
+      <Input label="Description" value="" onChange={() => {}} />
+      <Loader2 className="animate-spin orbit-essential-loading" aria-hidden="true" />
+    </>)
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}
+        :root { ${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([property, value]) => `${property}: ${value};`).join(' ')} }
+      </style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const loader = page.locator('.orbit-essential-loading')
+      await page.evaluate(() => document.fonts.ready)
+      expect(await loader.evaluate(element => element.getAnimations().map(animation => animation.effect!.getComputedTiming().endTime))).toEqual([Infinity])
+      const field = page.getByRole('textbox', { name: 'Description', exact: true })
+      await expectOneFieldIndicator(page, field, '[data-input-root]', 'Description')
+      expect((await inspectFocusedRing(page))?.indicators).toEqual(['div::after:shadow'])
+      await page.addStyleTag({ content: '[data-focus-perimeter]:focus-within { outline: 2px solid var(--primary); outline-offset: -2px; }' })
+      await expect(expectOneFieldIndicator(page, field, '[data-input-root]', 'duplicate Input perimeter')).rejects.toThrow('duplicate Input perimeter drew')
+      const heading = page.getByRole('heading', { name: 'New habit', exact: true })
+      await heading.focus()
+      expect(await readFieldIndicators(heading, 'h1')).toEqual([])
+      await page.addStyleTag({ content: 'h1:focus-visible { outline: 2px solid var(--primary); }' })
+      expect(await readFieldIndicators(heading, 'h1')).toEqual(['h1:outline'])
+      expect(await loader.evaluate(element => element.getAnimations().map(animation => animation.playState))).toEqual(['running'])
+    } finally {
+      await page.close()
+    }
+  })
+
+  it('rejects an infinite animation on the measured focus geometry owner', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent('<button>Action</button>')
+      await page.locator('button').evaluate(element => { element.animate([{ width: '48px' }, { width: '96px' }], { duration: 1000, iterations: Infinity }) })
+      await expect(settleFocusAnimations(page.getByRole('button', { name: 'Action', exact: true }))).rejects.toThrow('Focus geometry owner has an animation without a finite end')
     } finally {
       await page.close()
     }

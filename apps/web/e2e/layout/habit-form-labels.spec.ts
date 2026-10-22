@@ -9,10 +9,11 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 
-async function assertFieldEdges(disclosure: Locator) {
+async function assertFieldEdges(disclosure: Locator, descriptionOwner: Locator = disclosure) {
   const timeLabel = disclosure.locator('label').filter({ hasText: messages.habits.form.exactTime }).first()
-  const descriptionLabel = disclosure.locator('label').filter({ hasText: messages.habits.form.description }).first()
+  const descriptionLabel = descriptionOwner.locator('label').filter({ hasText: messages.habits.form.description })
   await expect(timeLabel).toBeVisible()
+  await expect(descriptionLabel).toHaveCount(1)
   await expect(descriptionLabel).toBeVisible()
   const edge = await timeLabel.evaluate((element) => element.getBoundingClientRect().left)
   const color = await timeLabel.evaluate((element) => getComputedStyle(element).color)
@@ -39,6 +40,26 @@ async function assertFieldEdges(disclosure: Locator) {
   for (const start of rows) expect(start).toBeCloseTo(edge, 1)
 }
 
+async function assertCreateDescriptionOrder(screen: Locator) {
+  const description = screen.getByRole('textbox', { name: messages.habits.form.description, exact: true })
+  await expect(description).toHaveCount(1)
+  await expect(description).toBeVisible()
+  await expect(description).toHaveAttribute('maxlength', '10000')
+  const descriptionOwner = description.locator('xpath=ancestor::div[@data-input-root]')
+  await expect(descriptionOwner).toHaveCount(1)
+  expect(await descriptionOwner.evaluate((element, moreDetails) => {
+    const screen = element.closest('[data-habit-create-screen]')!
+    const title = screen.querySelector('[data-habit-phrase-field]')!
+    const date = screen.querySelector('[data-habit-date-field]')!
+    const disclosure = [...screen.querySelectorAll('button')].find((button) => button.textContent.trim() === moreDetails)!
+    return element.previousElementSibling?.contains(title)
+      && Boolean(element.compareDocumentPosition(date) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && Boolean(date.compareDocumentPosition(disclosure) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && !disclosure.contains(element)
+  }, messages.habits.form.moreDetails)).toBe(true)
+  return descriptionOwner
+}
+
 const metrics = habitMetricsSchema.parse({
   currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100,
   monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null,
@@ -56,15 +77,17 @@ for (const width of [412, 1352]) {
     test('aligns create labels and controls with and without an exact time', async ({ page }) => {
       await page.goto('/habits/new')
       const screen = page.locator('[data-habit-create-screen]')
+      const descriptionOwner = await assertCreateDescriptionOrder(screen)
       await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
       const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
       await disclosure.getByRole('switch', { name: messages.habits.form.habitTypeAvoid }).click()
       await page.evaluate(() => document.fonts.ready)
       await expect(disclosure.getByRole('heading', { name: messages.habits.form.slipAlert })).toBeVisible()
       await expect(disclosure.getByRole('heading', { name: messages.habits.form.subHabits })).toBeVisible()
-      await assertFieldEdges(disclosure)
+      await assertFieldEdges(disclosure, descriptionOwner)
+      await assertCreateDescriptionOrder(screen)
       await disclosure.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true }).fill('08:00')
-      await assertFieldEdges(disclosure)
+      await assertFieldEdges(disclosure, descriptionOwner)
     })
 
     for (const dueTime of [null, '08:00:00']) {
