@@ -1264,6 +1264,27 @@
     }
   },
   "chat": {
+    "readBlock": {
+      "dayTitle": "Resumo",
+      "nothingDue": "Nenhum hábito agendado.",
+      "actionsUnavailable": "Algumas ações estão indisponíveis.",
+      "less": "Ver menos",
+      "stale": "Os registros mudaram. Atualize esta consulta.",
+      "partial": "Alguns registros estão indisponíveis.",
+      "error": "Não foi possível atualizar. Tente de novo.",
+      "expired": "Faça a pergunta original de novo.",
+      "delta": "Variação",
+      "metric": {
+        "positiveLogRecords": "Registros positivos",
+        "distinctLoggedDates": "Dias com registros",
+        "metScheduledDates": "Dias cumpridos",
+        "scheduledDates": "Dias agendados"
+      },
+      "unit": {
+        "records": "{count, plural, one {registro} other {registros}}",
+        "days": "{count, plural, one {dia} other {dias}}"
+      }
+    },
     "choice": {
       "submit": "Enviar",
       "review": "Revisar",
@@ -1649,7 +1670,7 @@
       "pageAnnounce": "Página {n} de {total}: {title}",
       "previous": "Anterior",
       "next": "Próximo",
-      "progressLink": "Ver no Progresso"
+      "progressLink": "Progresso"
     },
     "goalList": {
       "title": "Suas metas",
@@ -1694,7 +1715,7 @@
       "makeHabit": "Criar hábito a partir de {title}"
     },
     "recordList": {
-      "title": { "notifications": "Avisos", "tags": "Tags", "templates": "Modelos de checklist", "keys": "Chaves de API" },
+      "title": { "habitHistory": "Histórico", "notifications": "Avisos", "tags": "Tags", "templates": "Modelos de checklist", "keys": "Chaves de API" },
       "count": "{shown} de {total}",
       "empty": "Nada por aqui ainda.",
       "unread": "Não lido",

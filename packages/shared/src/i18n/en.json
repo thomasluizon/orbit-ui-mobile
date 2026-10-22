@@ -1264,6 +1264,27 @@
     }
   },
   "chat": {
+    "readBlock": {
+      "dayTitle": "Summary",
+      "nothingDue": "Nothing scheduled.",
+      "actionsUnavailable": "Some actions are unavailable.",
+      "less": "Show less",
+      "stale": "These records changed. Refresh this query.",
+      "partial": "Some records are unavailable.",
+      "error": "Could not refresh this query. Try again.",
+      "expired": "Ask the original question again.",
+      "delta": "Change",
+      "metric": {
+        "positiveLogRecords": "Positive log records",
+        "distinctLoggedDates": "Days with logs",
+        "metScheduledDates": "Scheduled days met",
+        "scheduledDates": "Scheduled days"
+      },
+      "unit": {
+        "records": "{count, plural, one {record} other {records}}",
+        "days": "{count, plural, one {day} other {days}}"
+      }
+    },
     "choice": {
       "submit": "Send",
       "review": "Review",
@@ -1649,7 +1670,7 @@
       "pageAnnounce": "Page {n} of {total}: {title}",
       "previous": "Previous",
       "next": "Next",
-      "progressLink": "See it on Progress"
+      "progressLink": "Progress"
     },
     "goalList": {
       "title": "Your goals",
@@ -1694,7 +1715,7 @@
       "makeHabit": "Make a habit from {title}"
     },
     "recordList": {
-      "title": { "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
+      "title": { "habitHistory": "Habit history", "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
       "count": "{shown} of {total}",
       "empty": "Nothing here yet.",
       "unread": "Unread",

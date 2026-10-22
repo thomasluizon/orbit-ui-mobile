@@ -31,40 +31,31 @@ beforeEach(() => {
 })
 
 describe('period insight card on web', () => {
-  it('shows figures, chart, four pages and routes to Progress', () => {
+  it('starts with scoped figures and reveals all useful detail deliberately', () => {
     const { container } = render(<PeriodInsightCard periodInsight={insight} />)
     expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(7)
     expect(screen.getByText('chat.insight.completionRate')).toBeInTheDocument()
+    expect(screen.getByText('Sep 1, 2026 - Sep 7, 2026')).toBeInTheDocument()
+    expect(screen.queryByText('Walked')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.more' }))
+    for (const text of ['Walked', 'Mornings', 'Start small', 'Reading']) expect(screen.getByText(text)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.insight.needsAttention: Read' })).toBeInTheDocument()
-    expect(container.querySelectorAll('ol li')).toHaveLength(4)
-    expect(container.querySelector('ol li[aria-current="step"]')).toBe(container.querySelector('ol li:first-child'))
-    fireEvent.click(screen.getByRole('button', { name: 'chat.insight.next' }))
-    expect(screen.getByText('Walked')).toBeInTheDocument()
-    expect(container.querySelector('ol li[aria-current="step"]')).toBe(container.querySelector('ol li:nth-child(2)'))
-    fireEvent.click(screen.getByRole('button', { name: 'chat.insight.next' }))
-    expect(screen.getByText('Mornings')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chat.insight.next' }))
-    expect(screen.getByText('Start small')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.readBlock.less' }))
     expect(screen.queryByText('Reading')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'chat.insight.progressLink' })).toHaveAttribute('href', '/progress')
   })
 
-  it('keeps Missed when it is the only narrative page', () => {
-    const { container } = render(<PeriodInsightCard periodInsight={{ ...insight, narrative: { highlights: '', trends: '', suggestion: '', missed: 'Reading' } }} />)
-    expect(container.querySelectorAll('ol li')).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.insight.next' }))
-    expect(screen.getByText('Reading')).toBeInTheDocument()
-  })
-
-  it('keeps one page with empty narrative and omits a missing chart', () => {
+  it('omits a missing chart and retains empty narrative defaults', () => {
     const { container } = render(<PeriodInsightCard periodInsight={{ ...insight, series: null, narrative: { highlights: '', trends: '', suggestion: '', missed: '' } }} />)
-    expect(container.querySelectorAll('ol li')).toHaveLength(1)
     expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.more' }))
+    expect(screen.queryByText('chat.insight.highlights')).not.toBeInTheDocument()
   })
 
   it('keeps the full habit name available in the insight row', () => {
     const name = 'A very long walking habit name that needs multiple lines to remain readable'
     render(<PeriodInsightCard periodInsight={{ ...insight, needsAttention: [{ ...insight.needsAttention[0]!, name }] }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.more' }))
     const disclosure = screen.getByRole('button', { name: `chat.insight.needsAttention: ${name}` })
     expect(disclosure).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(disclosure)

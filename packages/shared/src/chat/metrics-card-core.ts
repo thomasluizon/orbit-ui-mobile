@@ -8,6 +8,14 @@ export type MetricsRow = Readonly<{
 
 export function getMetricsRows(card: MetricsCard): readonly MetricsRow[] {
   if (!card.hasData) return []
+  if (card.periodMetrics) {
+    const period = card.periodMetrics
+    return [
+      { id: 'periodRate', labelKey: 'progressScreen.window.completionRate', value: period.completionRate == null ? null : `${Math.round(period.completionRate)}%` },
+      { id: 'loggedDates', labelKey: 'chat.readBlock.metric.distinctLoggedDates', value: String(period.distinctLoggedDates) },
+      { id: 'records', labelKey: 'chat.readBlock.metric.positiveLogRecords', value: String(period.positiveLogRecords) },
+    ]
+  }
   if (card.habitId) {
     return [
       { id: 'currentStreak', labelKey: 'chat.metrics.currentStreak', value: String(card.currentStreak) },

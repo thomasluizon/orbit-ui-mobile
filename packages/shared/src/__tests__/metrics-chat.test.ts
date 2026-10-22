@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { chatClientContextSchema, chatResponseSchema } from '../types/chat'
+import { focusedPeriodMetricsFixture } from '../test-support/chat-fixtures'
 import { getMetricsRows, metricsFigureLabelKey } from '../chat/metrics-card-core'
 
 const series = { granularity: 'day', points: [{
@@ -56,4 +57,9 @@ it('uses the Progresso vocabulary for figures while retaining each other label',
     ['monthlyRate', 'chat.metrics.monthlyRate'],
   ]
   for (const [id, expected] of rows) expect(metricsFigureLabelKey(id!, 'chat.metrics.monthlyRate')).toBe(expected)
+})
+
+it('shows period measures without substituting lifetime streaks or a null rate', () => {
+  const card = { period: 'habit', completionRate: 0, totalCompletions: 99, totalScheduled: 0, activeDays: 99, currentStreak: 99, bestStreak: 99, hasData: true, surfaceId: 'habit', periodMetrics: { ...focusedPeriodMetricsFixture, completionRate: null } }
+  expect(getMetricsRows(card).map(row => row.value)).toEqual([null, '9', '12'])
 })

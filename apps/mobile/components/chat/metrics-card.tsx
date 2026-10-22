@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { Text, View, useWindowDimensions } from 'react-native'
+import { formatReadWindow } from '@orbit/shared/chat/read-block-core'
 import { metricsFigureLabelKey } from '@orbit/shared/chat/metrics-card-core'
 import { StatTile } from '@/components/ui/stat-tile'
 import { getMetricsRows } from '@orbit/shared/chat'
@@ -8,7 +9,7 @@ import type { MetricsCard as MetricsCardData } from '@orbit/shared/types/chat'
 import { mapCompletionSeries } from '@orbit/shared/utils'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { BarChart } from '@/components/ui/bar-chart'
-import { BlockFrame } from '@/components/ui/block-frame'
+import { BlockFrame } from './read-block-frame'
 import { Button } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -49,7 +50,7 @@ export function MetricsCard({ metricsCard: snapshot }: Readonly<{ metricsCard: M
         titleMode={habitId && habitTitle ? 'typed' : 'label'}
         count={null}
         items={rows}
-        body={<View style={{ gap: 16 }}>{chart}<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>{figures.map((figure) => <View key={figure.id} style={{ flexBasis: 192 * fontScale, flexGrow: 1, flexShrink: 1, minWidth: 0 }}>{figure.value == null ? <StatTile key={figure.id} state="empty" label={t(metricsFigureLabelKey(figure.id, figure.labelKey))} emptyLabel={t('chat.metrics.noFigure')} /> : <StatTile key={figure.id} value={figure.value} label={t(metricsFigureLabelKey(figure.id, figure.labelKey))} />}</View>)}</View></View>}
+        body={<View style={{ gap: 16 }}>{!metricsCard.read && metricsCard.periodMetrics ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow(metricsCard.periodMetrics.window, i18n.language)}</Text> : null}{chart}<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>{figures.map((figure) => <View key={figure.id} style={{ flexBasis: 192 * fontScale, flexGrow: 1, flexShrink: 1, minWidth: 0 }}>{figure.value == null ? <StatTile key={figure.id} state="empty" label={t(metricsFigureLabelKey(figure.id, figure.labelKey))} emptyLabel={t('chat.metrics.noFigure')} /> : <StatTile key={figure.id} value={figure.value} label={t(metricsFigureLabelKey(figure.id, figure.labelKey))} />}</View>)}</View></View>}
         actions={<><Button variant="ghost" size="sm" accessibilityRole="link" onClick={() => { if (habitId) navigate({ pathname: '/habits/[id]', params: { id: habitId } }); else navigate('/progress') }}>{t(habitId ? 'chat.metrics.habitLink' : 'chat.metrics.progressLink')}</Button></>}
       />
     </View>

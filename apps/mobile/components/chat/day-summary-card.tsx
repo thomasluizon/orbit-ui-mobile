@@ -1,8 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { daySummaryLogControl } from '@orbit/shared/chat/day-summary-core'
+import { daySummaryLogControl, habitReadStatusKey } from '@orbit/shared/chat/day-summary-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
-import { BlockFrame } from '@/components/ui/block-frame'
+import { getAccountDay } from '@orbit/shared/utils'
+import { BlockFrame, useReadActionScope } from './read-block-frame'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -36,18 +37,20 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   const tokens = createTokensV2(currentScheme, currentTheme)
   const occurrences = useHabits({ dateFrom: daySummary.date, dateTo: daySummary.date, includeGeneral: true, includeOverdue: true }, { completeDay: true })
   const logHabit = useLogHabit()
+  const readScope = useReadActionScope()
   const pending = useRef(false)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [failedId, setFailedId] = useState<string | null>(null)
   const payloadRows = daySummary.rows ?? []
-  const visibleRows = payloadRows.slice(0, 20)
+  const [shownCount, setShownCount] = useState(20)
+  const visibleRows = payloadRows.slice(0, shownCount)
   const totalRows = daySummary.totalRows ?? payloadRows.length
   const missing = occurrences.data != null && visibleRows.some((item) => !occurrences.data.habitsById.has(item.id))
-  const unavailable = missing
+  const unavailable = missing || (daySummary.dateTo != null && daySummary.dateTo !== daySummary.date)
   const frameState = liveBlockState(occurrences, { acting: pendingId !== null, failed: failedId !== null, stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void occurrences.refetch() } })
   const toggle = (habitId: string) => {
-    const control = daySummaryLogControl(occurrences.data?.habitsById.get(habitId))
-    if (pending.current || unavailable || control.undoUnavailable) return
+    const control = daySummaryLogControl(occurrences.data?.habitsById.get(habitId), false, readScope ? { ...readScope, date: daySummary.date, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
+    if (pending.current || unavailable || control.undoUnavailable || !control.writeAllowed) return
     pending.current = true
     setPendingId(habitId)
     setFailedId(null)
@@ -60,22 +63,23 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   const completionRate = daySummary.completionRate ?? 0
   const rows = visibleRows.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
+    const snapshotStatusKey = habitReadStatusKey(item.status, item.isBadHabit)
     const title = item.title
-    const control = daySummaryLogControl(occurrence, item.status === 'overdue')
+    const control = daySummaryLogControl(occurrence, item.status === 'overdue', readScope ? { ...readScope, date: daySummary.date, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
     const actionLabel = control.undoUnavailable ? `${title}: ${t(control.statusKey)}` : t(control.actionKey, { name: title })
-    return { id: item.id, wrapLabel: true, label: <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: title })} onPress={() => navigate({ pathname: '/habits/[id]', params: { id: item.id } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{item.emoji ?? '•'}</Text></View><View style={{ flex: 1, minWidth: 0 }}><PersonalText style={{ color: tokens.fg1, fontSize: 14 }}>{title}</PersonalText></View></InsetFocusPressable>,
-      meta: control.status === 'bad' ? t('habits.statusDot.bad') : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
+    return { id: item.id, wrapLabel: true, label: <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: title })} onPress={() => navigate({ pathname: '/habits/[id]', params: { id: item.id, date: daySummary.date } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{item.emoji ?? '•'}</Text></View><View style={{ flex: 1, minWidth: 0 }}><PersonalText style={{ color: tokens.fg1, fontSize: 14 }}>{title}</PersonalText></View></InsetFocusPressable>,
+      meta: daySummary.read ? snapshotStatusKey ? t(snapshotStatusKey) : undefined : control.status === 'bad' ? t('habits.statusDot.bad') : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
       ...(failedId === item.id ? { status: 'failed' as const } : {}),
-      control: occurrence ? <DaySummaryControl readOnly={control.undoUnavailable} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
+      control: occurrence && !unavailable ? <DaySummaryControl readOnly={control.undoUnavailable || !control.writeAllowed} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
     }
   })
   return <View style={{ width: '100%' }}>
-    <BlockFrame {...frameState} title={t('chat.daySummary.title')} count={null} items={[
+    <BlockFrame {...frameState} title={t(daySummary.read ? 'chat.readBlock.dayTitle' : 'chat.daySummary.title')} count={null} items={[
       ...rows,
       { id: 'overdue', wrapLabel: true, label: t('chat.daySummary.overdue'), control: <Text style={{ color: tokens.fg1, fontSize: 16, fontVariant: ['tabular-nums'] }}>{daySummary.overdueCount}</Text> },
-      { id: 'streak', wrapLabel: true, label: t('chat.daySummary.streak'), control: <Text style={{ color: tokens.fg1, fontSize: 16, fontVariant: ['tabular-nums'] }}>{daySummary.currentStreak}</Text> },
+      ...(!daySummary.read ? [{ id: 'streak', wrapLabel: true, label: t('chat.daySummary.streak'), control: <Text style={{ color: tokens.fg1, fontSize: 16, fontVariant: ['tabular-nums'] }}>{daySummary.currentStreak}</Text> }] : []),
     ]}
-      body={<>{daySummary.due > 0 && daySummary.completionRate != null ? <ProgressRing value={completionRate} label={t('chat.daySummary.ring', { done, due: daySummary.due })} /> : null}<Text style={{ color: tokens.fg3, fontSize: 14 }}>{daySummary.due === 0 ? t('chat.daySummary.nothingDue') : t('chat.daySummary.doneOfDue', { done, due: daySummary.due })}</Text>{totalRows > 20 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.daySummary.rowCount', { shown: visibleRows.length, total: totalRows })}</Text> : null}</>}
-      actions={<>{occurrences.isError || failedId !== null ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}<Button variant="ghost" size="sm" onClick={() => navigate('/')}>{t('chat.daySummary.open')}</Button></>} />
+      body={<>{daySummary.due > 0 && daySummary.completionRate != null ? <ProgressRing value={completionRate} label={t(daySummary.read ? 'chat.daySummary.doneOfDue' : 'chat.daySummary.ring', { done, due: daySummary.due })} /> : null}<Text style={{ color: tokens.fg3, fontSize: 14 }}>{daySummary.due === 0 ? t(daySummary.read ? 'chat.readBlock.nothingDue' : 'chat.daySummary.nothingDue') : t('chat.daySummary.doneOfDue', { done, due: daySummary.due })}</Text>{totalRows > 20 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.daySummary.rowCount', { shown: visibleRows.length, total: totalRows })}</Text> : null}</>}
+      actions={<>{visibleRows.length < payloadRows.length ? <Button variant="ghost" size="sm" onClick={() => setShownCount(count => count + 20)}>{t('chat.recordList.more')}</Button> : null}{occurrences.isError || failedId !== null ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}<Button variant="ghost" size="sm" onClick={() => navigate(daySummary.read ? `/?date=${daySummary.date}` : '/')}>{t('chat.daySummary.open')}</Button></>} />
   </View>
 }

@@ -1,10 +1,11 @@
 'use client'
 
 import { useRef, useState, type ReactNode } from 'react'
-import { daySummaryLogControl } from '@orbit/shared/chat/day-summary-core'
+import { daySummaryLogControl, habitReadStatusKey } from '@orbit/shared/chat/day-summary-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
-import { BlockFrame } from '@/components/ui/block-frame'
+import { getAccountDay } from '@orbit/shared/utils'
+import { BlockFrame, useReadActionScope } from './read-block-frame'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -29,18 +30,20 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   const navigate = useChatNavigation()
   const occurrences = useHabits({ dateFrom: daySummary.date, dateTo: daySummary.date, includeGeneral: true, includeOverdue: true }, undefined, { completeDay: true })
   const logHabit = useLogHabit()
+  const readScope = useReadActionScope()
   const pending = useRef(false)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [failedId, setFailedId] = useState<string | null>(null)
   const payloadRows = daySummary.rows ?? []
-  const visibleRows = payloadRows.slice(0, 20)
+  const [shownCount, setShownCount] = useState(20)
+  const visibleRows = payloadRows.slice(0, shownCount)
   const totalRows = daySummary.totalRows ?? payloadRows.length
   const missing = occurrences.data != null && visibleRows.some((item) => !occurrences.data.habitsById.has(item.id))
-  const unavailable = missing
+  const unavailable = missing || (daySummary.dateTo != null && daySummary.dateTo !== daySummary.date)
   const frameState = liveBlockState(occurrences, { acting: pendingId !== null, failed: failedId !== null, stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void occurrences.refetch() } })
   const toggle = (habitId: string) => {
-    const control = daySummaryLogControl(occurrences.data?.habitsById.get(habitId))
-    if (pending.current || unavailable || control.undoUnavailable) return
+    const control = daySummaryLogControl(occurrences.data?.habitsById.get(habitId), false, readScope ? { ...readScope, date: daySummary.date, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
+    if (pending.current || unavailable || control.undoUnavailable || !control.writeAllowed) return
     pending.current = true
     setPendingId(habitId)
     setFailedId(null)
@@ -53,22 +56,23 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   const completionRate = daySummary.completionRate ?? 0
   const rows = visibleRows.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
+    const snapshotStatusKey = habitReadStatusKey(item.status, item.isBadHabit)
     const title = item.title
-    const control = daySummaryLogControl(occurrence, item.status === 'overdue')
+    const control = daySummaryLogControl(occurrence, item.status === 'overdue', readScope ? { ...readScope, date: daySummary.date, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
     const actionLabel = control.undoUnavailable ? `${title}: ${t(control.statusKey)}` : t(control.actionKey, { name: title })
-    return { id: item.id, wrapLabel: true, label: <button type="button" aria-label={t('chat.habitList.open', { name: title })} onClick={() => navigate(`/habits/${item.id}`)} className="flex min-h-[var(--touch-min)] w-full min-w-0 items-center gap-3 rounded-[12px] border-0 bg-transparent px-2 py-1 text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)]">{item.emoji ?? '•'}</span><PersonalText className="flex-1">{title}</PersonalText></button>,
-      meta: control.status === 'bad' ? t('habits.statusDot.bad') : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
+    return { id: item.id, wrapLabel: true, label: <button type="button" aria-label={t('chat.habitList.open', { name: title })} onClick={() => navigate(`/habits/${item.id}?date=${daySummary.date}`)} className="flex min-h-[var(--touch-min)] w-full min-w-0 items-center gap-3 rounded-[12px] border-0 bg-transparent px-2 py-1 text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)]">{item.emoji ?? '•'}</span><PersonalText className="flex-1">{title}</PersonalText></button>,
+      meta: daySummary.read ? snapshotStatusKey ? t(snapshotStatusKey) : undefined : control.status === 'bad' ? t('habits.statusDot.bad') : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
       ...(failedId === item.id ? { status: 'failed' as const } : {}),
-      control: occurrence ? <DaySummaryControl readOnly={control.undoUnavailable} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
+      control: occurrence && !unavailable ? <DaySummaryControl readOnly={control.undoUnavailable || !control.writeAllowed} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
     }
   })
   return <div className="w-full">
-    <BlockFrame {...frameState} title={t('chat.daySummary.title')} count={null} items={[
+    <BlockFrame {...frameState} title={t(daySummary.read ? 'chat.readBlock.dayTitle' : 'chat.daySummary.title')} count={null} items={[
       ...rows,
       { id: 'overdue', wrapLabel: true, label: t('chat.daySummary.overdue'), control: <span className="tabular-nums">{daySummary.overdueCount}</span> },
-      { id: 'streak', wrapLabel: true, label: t('chat.daySummary.streak'), control: <span className="tabular-nums">{daySummary.currentStreak}</span> },
+      ...(!daySummary.read ? [{ id: 'streak', wrapLabel: true, label: t('chat.daySummary.streak'), control: <span className="tabular-nums">{daySummary.currentStreak}</span> }] : []),
     ]}
-      body={<>{daySummary.due > 0 && daySummary.completionRate != null ? <ProgressRing value={completionRate} label={t('chat.daySummary.ring', { done, due: daySummary.due })} /> : null}<p className="text-sm text-[var(--fg-3)]">{daySummary.due === 0 ? t('chat.daySummary.nothingDue') : t('chat.daySummary.doneOfDue', { done, due: daySummary.due })}</p>{totalRows > 20 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.daySummary.rowCount', { shown: visibleRows.length, total: totalRows })}</p> : null}</>}
-      actions={<>{occurrences.isError || failedId !== null ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}<Button variant="ghost" size="sm" onClick={() => navigate('/')}>{t('chat.daySummary.open')}</Button></>} />
+      body={<>{daySummary.due > 0 && daySummary.completionRate != null ? <ProgressRing value={completionRate} label={t(daySummary.read ? 'chat.daySummary.doneOfDue' : 'chat.daySummary.ring', { done, due: daySummary.due })} /> : null}<p className="text-sm text-[var(--fg-3)]">{daySummary.due === 0 ? t(daySummary.read ? 'chat.readBlock.nothingDue' : 'chat.daySummary.nothingDue') : t('chat.daySummary.doneOfDue', { done, due: daySummary.due })}</p>{totalRows > 20 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.daySummary.rowCount', { shown: visibleRows.length, total: totalRows })}</p> : null}</>}
+      actions={<>{visibleRows.length < payloadRows.length ? <Button variant="ghost" size="sm" onClick={() => setShownCount(count => count + 20)}>{t('chat.recordList.more')}</Button> : null}{occurrences.isError || failedId !== null ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}<Button variant="ghost" size="sm" onClick={() => navigate(daySummary.read ? `/?date=${daySummary.date}` : '/')}>{t('chat.daySummary.open')}</Button></>} />
   </div>
 }
