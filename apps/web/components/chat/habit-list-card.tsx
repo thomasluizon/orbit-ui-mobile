@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
 import type { HabitListCard as HabitListCardData } from '@orbit/shared/types/chat'
-import { daySummaryLogControl, habitReadStatusKey } from '@orbit/shared/chat/day-summary-core'
-import { formatAPIDate, getAccountDay } from '@orbit/shared/utils'
+import { habitListOccurrenceFilters, habitListReadControl, habitListRowState } from '@orbit/shared/chat/habit-list-core'
+import { formatAPIDate } from '@orbit/shared/utils'
 import { BlockFrame, useReadActionScope } from './read-block-frame'
 import { StatusRing } from '@/components/ui/status-ring'
 import { Button } from '@/components/ui/pill-button'
@@ -21,20 +21,12 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   const readScope = useReadActionScope()
   const [today] = useState(() => formatAPIDate(new Date()))
   const occurrenceDate = habitList.date ?? today
-  const occurrences = useHabits({
-    dateFrom: occurrenceDate,
-    dateTo: occurrenceDate,
-    includeGeneral: true,
-    includeOverdue: true,
-  })
+  const occurrences = useHabits(habitListOccurrenceFilters(occurrenceDate))
   const [shownCount, setShownCount] = useState(PAGE_SIZE)
   const visibleItems = habitList.items.slice(0, shownCount)
   const rows = visibleItems.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
-    const snapshotStatusKey = habitReadStatusKey(item.status, item.isBadHabit)
-    const control = daySummaryLogControl(occurrence, item.status === 'overdue', readScope ? { ...readScope, date: occurrenceDate, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
-    const logged = control.logged
-    const unavailable = logHabit.isPending || control.undoUnavailable || !control.writeAllowed
+    const { control, logged, unavailable, snapshotStatusKey } = habitListRowState(item, occurrence, Boolean(habitList.read), occurrenceDate, logHabit.isPending, readScope)
     return {
       id: item.id,
       label: (
@@ -43,10 +35,10 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
           <PersonalText className="flex-1">{item.title}</PersonalText>
         </button>
       ),
-      meta: habitList.read && snapshotStatusKey ? t(snapshotStatusKey) : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
+      meta: snapshotStatusKey ? t(snapshotStatusKey) : undefined,
       control: occurrence ? (
         <button disabled={unavailable} aria-label={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: item.title })} className="grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => {
-          if (unavailable || !daySummaryLogControl(occurrence, false, readScope ? { ...readScope, date: occurrenceDate, today: getAccountDay(new Date(), readScope.timeZone) } : undefined).writeAllowed) return
+          if (unavailable || !habitListReadControl(occurrence, item.status, occurrenceDate, readScope).writeAllowed) return
           logHabit.mutate({ habitId: item.id, date: occurrenceDate, intent: logged ? 'unlog' : 'log' })
         }} type="button">
           <StatusRing status={control.status} size={24} label={t(control.statusKey)} />
