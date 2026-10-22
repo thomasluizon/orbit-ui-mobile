@@ -35,7 +35,8 @@ describe('stored native habit row descriptions', () => {
     const type = texts.find((node: { props: { testID?: string } }) => node.props.testID === 'habit-row-type')!
     expect(type.props.children).toBe('habits.form.typeHabit')
     expect(texts.indexOf(type)).toBeGreaterThan(texts.indexOf(line))
-    expect(texts.indexOf(type)).toBeLessThan(texts.findIndex((node: { props: { testID?: string } }) => node.props.testID === 'habit-row-meta'))
+    const meta = tree!.root.findAllByType('View').find((node: { props: { testID?: string } }) => node.props.testID === 'habit-row-meta')!
+    expect(meta.findAllByType('Text')[0]).toBe(type)
     expect(StyleSheet.flatten(line.props.style)).toMatchObject({ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21.7 })
     expect(habit.description).toBe(description)
     TestRenderer.act(() => tree.unmount())

@@ -66,6 +66,7 @@ export {
   IconBulb as Lightbulb,
   IconLink as Link,
   IconList as List,
+  IconListCheck as ListChecks,
   IconListTree as ListTree,
   IconSubtask as Subtask,
   IconLock as Lock,

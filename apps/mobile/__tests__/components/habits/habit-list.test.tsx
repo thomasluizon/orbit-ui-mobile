@@ -1048,6 +1048,15 @@ describe('HabitList', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  function assertNativeCascadeMetadata(rows: import('react-test-renderer').ReactTestInstance[]) {
+    for (const row of rows) {
+      const meta = row.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-row-meta')[0]!
+      expect(meta.findAll((node) => String(node.type) === 'Text')[0]!.props.testID).toBe('habit-row-type')
+      const checklist = meta.findAll((node) => node.props.testID === 'habit-row-checklist')[0]!
+      expect(checklist.findAll((node) => String(node.type) === 'Text')[0]!.props.children).toBe('1/2')
+    }
+  }
+
   function assertNativeCascadeActions(tree: ReturnType<typeof TestRenderer.create>, expectedDepths: number[], width: number, fontScale: number) {
     const findRow = (id: string) => tree.root.findAllByType(HabitRow).find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === id)!
     const branchDisclosure = () => findRow('branch').findAllByType('Pressable').find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'common.collapse' || node.props.accessibilityLabel === 'common.expand')!
@@ -1072,8 +1081,8 @@ describe('HabitList', () => {
     [false, true].flatMap((selectMode) => [316, 320, 412, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ view, drilling, selectMode, width, fontScale })))),
   )))('applies display depth once in $view, drilling=$drilling, selecting=$selectMode at $width/$fontScale', ({ view, drilling, selectMode, width, fontScale }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
-    const parent = createMockHabit({ id: 'parent', title: 'Parent', description: '**Read** two pages before breakfast.', hasSubHabits: true, isGeneral: view === 'general', scheduledDates: [TODAY] })
-    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', description: '**Read** two pages before breakfast.', parentId: parent.id, isGeneral: parent.isGeneral, scheduledDates: [TODAY] })
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', description: '**Read** two pages before breakfast.', checklistItems: [{ text: 'Page', isChecked: true }, { text: 'Page', isChecked: false }], hasSubHabits: true, isGeneral: view === 'general', scheduledDates: [TODAY] })
+    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', description: '**Read** two pages before breakfast.', checklistItems: [{ text: 'Page', isChecked: true }, { text: 'Page', isChecked: false }], parentId: parent.id, isGeneral: parent.isGeneral, scheduledDates: [TODAY] })
     const branch = createMockHabit({ ...leaf, id: 'branch', title: 'Branch', hasSubHabits: true })
     const grandchild = createMockHabit({ ...leaf, id: 'grandchild', title: 'Grandchild', parentId: branch.id })
     const nestedParent = createMockHabit({ ...grandchild, id: 'nested-parent', title: 'Nested parent', hasSubHabits: true })
@@ -1100,6 +1109,7 @@ describe('HabitList', () => {
       TestRenderer.act(() => list.props.onLayout({ nativeEvent: { layout: { width: listWidth, height: 915, x: 0, y: 0 } } }))
     }
     const rows = composition.root.findAllByType(HabitRow)
+    assertNativeCascadeMetadata(rows)
     const expectedDepths = drilling ? [0, 0] : width <= 320 ? fontScale === 2 ? [0, 1, 1] : [0, 1, 1, 2, 2] : [0, 1, 1, 2, 2, 3]
     const list = tree.root.findAllByType(view === 'all' || drilling ? 'FlatList' : 'DraggableFlatList')[0]!
     let measuredRows!: ReturnType<typeof TestRenderer.create>

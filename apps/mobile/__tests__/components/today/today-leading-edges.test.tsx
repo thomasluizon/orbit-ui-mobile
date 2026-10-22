@@ -41,6 +41,7 @@ interface Host {
     accessibilityRole?: string
     pointerEvents?: string
     onPress?: () => void
+    onLayout?: (event: { nativeEvent: { layout: { width: number } } }) => void
   }
   children: (Host | string)[] | null
 }
@@ -90,6 +91,16 @@ function applyPositions(node: YogaNode, style: ViewStyle) {
   }
 }
 
+function applyFlexLayout(node: YogaNode, style: ViewStyle) {
+  if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
+  if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
+  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
+  if (style.alignSelf === 'flex-start') node.setAlignSelf(Yoga.ALIGN_FLEX_START)
+  if (style.alignSelf === 'stretch') node.setAlignSelf(Yoga.ALIGN_STRETCH)
+}
+
 function layoutHost(element: Host, fontScale: number, nodes: Map<Host, YogaNode>): YogaNode {
   const node = Yoga.Node.create()
   nodes.set(element, node)
@@ -99,12 +110,7 @@ function layoutHost(element: Host, fontScale: number, nodes: Map<Host, YogaNode>
   if (style.width === '100%') node.setWidthPercent(100)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
   applyPositions(node, style)
-  if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
-  if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
-  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
-  if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
-  if (style.alignSelf === 'flex-start') node.setAlignSelf(Yoga.ALIGN_FLEX_START)
-  if (style.alignSelf === 'stretch') node.setAlignSelf(Yoga.ALIGN_STRETCH)
+  applyFlexLayout(node, style)
   for (const [key, apply] of [
     ['width', (value: number) => node.setWidth(value)], ['height', (value: number) => node.setHeight(value)],
     ['minHeight', (value: number) => node.setMinHeight(value)], ['minWidth', (value: number) => node.setMinWidth(value)],
@@ -230,6 +236,51 @@ function habitTextEdge(label: string) {
   return label.startsWith('Child') ? 100 : 84
 }
 
+function measureMetadataFit(renderer: { toJSON: () => Host }, width: number, fontScale: number) {
+  const nodes = new Map<Host, YogaNode>()
+  const layout = layoutHost(renderer.toJSON(), fontScale, nodes)
+  try {
+    layout.setWidth(width)
+    layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
+    void act(() => {
+      for (const [element, node] of nodes) {
+        if (['habit-row', 'habit-row-title-block', 'habit-row-meta-token'].includes(element.props.testID ?? '')) {
+          element.props.onLayout?.({ nativeEvent: { layout: { width: node.getComputedWidth() } } })
+        }
+      }
+    })
+  } finally { layout.freeRecursive() }
+}
+
+function assertParentMetadata(nodes: Map<Host, YogaNode>, [stripHost, stripNode]: [Host, YogaNode], title: YogaNode, fontScale: number) {
+  const tokens = (stripHost.children ?? []).filter((child): child is Host => typeof child !== 'string' && child.props.testID === 'habit-row-meta-token')
+  expect(tokens.map(textContent)).toEqual(['Hábito·', '0 de 2'])
+  const type = [...nodes].filter(([element]) => containsHost(tokens[0]!, element) && element.type === 'Text' && element.props.testID === 'habit-row-type')
+  expect(type).toHaveLength(1)
+  expect(textContent(type[0]![0])).toBe('Hábito')
+  const progress = [...nodes].filter(([element]) => containsHost(tokens[1]!, element) && element.type === 'Text' && textContent(element) === '0 de 2')
+  expect(progress).toHaveLength(1)
+  const [progressHost, progressNode] = progress[0]!
+  const measured = measureText(progressHost, StyleSheet.flatten(progressHost.props.style as StyleProp<TextStyle>), fontScale)
+  expect(progressNode.getComputedWidth()).toBeGreaterThanOrEqual(measured.width)
+  expect(topPosition(progressNode)).toBeGreaterThanOrEqual(topPosition(title) + title.getComputedHeight())
+  const typeNode = type[0]![1]
+  expect(topPosition(progressNode)).toBeGreaterThanOrEqual(topPosition(typeNode))
+  if (topPosition(progressNode) === topPosition(typeNode)) {
+    expect(leadingPosition(progressNode)).toBeGreaterThanOrEqual(leadingPosition(typeNode) + typeNode.getComputedWidth())
+  } else {
+    expect(topPosition(progressNode)).toBeGreaterThanOrEqual(topPosition(typeNode) + typeNode.getComputedHeight())
+  }
+  for (const token of tokens) {
+    const node = nodes.get(token)!
+    expect(leadingPosition(node)).toBeGreaterThanOrEqual(leadingPosition(stripNode))
+    expect(leadingPosition(node) + node.getComputedWidth()).toBeLessThanOrEqual(leadingPosition(stripNode) + stripNode.getComputedWidth())
+    expect(topPosition(node)).toBeGreaterThanOrEqual(topPosition(stripNode))
+    expect(topPosition(node) + node.getComputedHeight()).toBeLessThanOrEqual(topPosition(stripNode) + stripNode.getComputedHeight())
+  }
+  return progress[0]!
+}
+
 describe('Hoje leading edges on Android', () => {
   it.each([320, 384, 600].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].map((selectMode) => ({ width, fontScale, selectMode })))))(
     'shares edges per depth at $width dp and $fontScale text scale, selecting=$selectMode', ({ width, fontScale, selectMode }) => {
@@ -248,6 +299,7 @@ describe('Hoje leading edges on Android', () => {
             childrenTotal={parent ? 2 : 0} actions={{ onToggleExpand: noop, onToggleSelection, onDetail, onEdit: noop }} />)}
         </View>) as typeof renderer
       })
+      measureMetadataFit(renderer!, width, fontScale)
       const hosts = renderer!.toJSON()
       const nodes = new Map<Host, YogaNode>()
       const layout = layoutHost(hosts, fontScale, nodes)
@@ -269,9 +321,15 @@ describe('Hoje leading edges on Android', () => {
           expect(leadingPosition(node)).toBe(16)
           expect(node.getComputedHeight()).toBeGreaterThanOrEqual(48)
         }
-        const progress = [...nodes].find(([element]) => element.type === 'Text' && textContent(element) === '0 de 2')!
-        const progressEdges = [...nodes].filter(([element]) => element.type === 'Text' && textContent(element) === '0 de 2')
-        expect(progressEdges.map(([, node]) => leadingPosition(node))).toEqual([84, 100, 116])
+        const parentRows = [rows[1]!, rows[3]!, rows[5]!]
+        const metadata = parentRows.map(([rowHost]) => {
+          const strips = [...nodes].filter(([element]) => containsHost(rowHost, element) && element.type === 'View' && element.props.testID === 'habit-row-meta')
+          expect(strips).toHaveLength(1)
+          return strips[0]!
+        })
+        expect(metadata.map(([, node]) => leadingPosition(node))).toEqual([84, 100, 116])
+        const progress = metadata.map((strip, index) => assertParentMetadata(nodes, strip,
+          textEdges.find(([element]) => containsHost(parentRows[index]![0], element))![1], fontScale))[0]!
         expect(progress, JSON.stringify([...nodes].filter(([element]) => element.type === 'Text').map(([element]) => textContent(element)))).toBeDefined()
         const [progressHost, progressNode] = progress
         const measuredProgress = measureText(progressHost, StyleSheet.flatten(progressHost.props.style as StyleProp<TextStyle>), fontScale)
