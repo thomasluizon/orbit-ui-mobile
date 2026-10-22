@@ -66,8 +66,13 @@ export function HabitRowContent({
   )
 }
 
+function habitRowMetaPartName(part: HabitRowMetaPart): string {
+  if (typeof part === 'string') return part
+  return 'label' in part ? part.label : part.kind
+}
+
 export function habitRowMetaPartKey(part: HabitRowMetaPart, index: number): string {
-  return `${index}:${typeof part === 'string' ? part : 'label' in part ? part.label : part.kind}`
+  return `${index}:${habitRowMetaPartName(part)}`
 }
 
 export function HabitRowMetaStrip({ metaParts, metaColor, tokens, largeText = false, onTokenWidth }: Readonly<{
@@ -78,7 +83,7 @@ export function HabitRowMetaStrip({ metaParts, metaColor, tokens, largeText = fa
   onTokenWidth?: (key: string, width: number) => void
 }>) {
   const visibleMeta = metaParts.filter((part) => typeof part === 'string' || part.kind !== 'future')
-  const metaKeys = visibleMeta.map(habitRowMetaPartKey)
+  const metaKeys = visibleMeta.map((part, index) => habitRowMetaPartKey(part, index))
   if (visibleMeta.length === 0) return null
   return (
     <View testID="habit-row-meta" accessible={false} importantForAccessibility="no-hide-descendants"
@@ -105,7 +110,8 @@ function HabitRowMetaToken({ part, metaColor, tokens, largeText }: Readonly<{
     </View>
   )
   const kind = typeof part === 'string' ? undefined : part.kind
-  const label = typeof part === 'string' ? part : 'label' in part ? part.label : t(part.kind === 'overdue' ? 'habits.overdue' : 'habits.statusDot.bad')
+  const stateLabel = kind === 'overdue' ? t('habits.overdue') : t('habits.statusDot.bad')
+  const label = typeof part === 'string' || 'label' in part ? habitRowMetaPartName(part) : stateLabel
   const stateColor = kind === 'overdue' ? tokens.statusOverdueText : tokens.statusBadText
   return <Text testID={kind === 'type' ? 'habit-row-type' : undefined}
     style={[styles.meta, { color: metaColor }, kind === 'overdue' || kind === 'bad' ? { color: stateColor, fontFamily: 'Geist_500Medium' } : null]}>{label}</Text>

@@ -264,7 +264,7 @@ function habitRowSpacing(panelEnd: boolean): ViewStyle {
 
 function useHabitRowMetadataFit(metaParts: HabitRowMetaPart[]) {
   const [measurements, setMeasurements] = useState<{ contentWidth: number; widths: Record<string, number> }>({ contentWidth: Infinity, widths: {} })
-  const keys = metaParts.filter((part) => typeof part === 'string' || part.kind !== 'future').map(habitRowMetaPartKey)
+  const keys = metaParts.filter((part) => typeof part === 'string' || part.kind !== 'future').map((part, index) => habitRowMetaPartKey(part, index))
   const onContentWidth = (contentWidth: number) => setMeasurements((previous) => previous.contentWidth === contentWidth ? previous : { ...previous, contentWidth })
   const onTokenWidth = (key: string, width: number) => setMeasurements((previous) => previous.widths[key] === width ? previous : {
     ...previous,
