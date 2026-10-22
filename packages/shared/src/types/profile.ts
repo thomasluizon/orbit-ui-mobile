@@ -93,7 +93,7 @@ export const profileSchema = z.object({
     showLevel: z.boolean(),
     showAchievements: z.boolean(),
     showTopHabits: z.boolean(),
-  }).optional(),
+  }).nullable().optional(),
   proactiveAstraEnabled: z.boolean().optional(),
   marketingEmailConsent: z.boolean().nullable().optional(),
   lapseReason: subscriptionLapseReasonSchema.nullable().optional(),
