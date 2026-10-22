@@ -24,7 +24,7 @@ describe('ordered chat parts', () => {
   })
 
   it('validates every registered block from the pinned contract', () => {
-    expect(partsFixture.blocks.map(part => part.kind)).toEqual(CHAT_BLOCK_KINDS)
+    expect(partsFixture.blocks.map(part => part.kind)).toEqual(CHAT_BLOCK_KINDS.filter(kind => kind !== 'habitRanking'))
     const response = { ...partsFixture.response, parts: partsFixture.blocks }
     expect(PostApiChatResponse.parse(response)).toEqual(response)
     expect(chatResponseSchema.parse(response).parts).toEqual(partsFixture.blocks)

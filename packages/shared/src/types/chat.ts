@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { habitRankingCardSchema } from './habit-ranking'
+export { habitRankingCardSchema, habitRankingResponseSchema, type HabitRankingCard, type HabitRankingResponse } from './habit-ranking'
 import { proactiveItemSchema } from './proactive'
 import type { ChatBlockKind } from '../chat/block-kinds'
 import { frequencyUnitSchema } from './habit'
@@ -387,6 +389,7 @@ export type PickListBlock = z.infer<typeof pickListBlockSchema>
 export type BlockAnswer = z.infer<typeof blockAnswerSchema>
 
 const chatBlockSchemas = {
+  habitRanking: habitRankingCardSchema,
   habitList: habitListCardSchema,
   goalList: goalListCardSchema,
   metrics: metricsCardSchema,
@@ -407,6 +410,7 @@ function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
 export const chatPartSchema = z.union([
   z.object({ type: z.literal('text'), text: z.string() }),
   z.discriminatedUnion('kind', [
+    blockPartSchema('habitRanking'),
     blockPartSchema('habitList'),
     blockPartSchema('goalList'),
     blockPartSchema('metrics'),

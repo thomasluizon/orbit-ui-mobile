@@ -232,3 +232,4 @@ export const apiStatusCardsFinalFixture = {
 }
 
 export { choiceBlockFixture, pickListBlockFixture } from './choice-fixtures'
+export { habitRankingCardFixture, habitRankingNextPageFixture } from './habit-ranking-fixtures'
