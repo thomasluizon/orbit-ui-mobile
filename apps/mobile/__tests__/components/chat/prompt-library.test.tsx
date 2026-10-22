@@ -1,4 +1,7 @@
 import React from 'react'
+import { createRequire, Module } from 'node:module'
+import type { GestureStateChangeEvent, HoverGesture } from 'react-native-gesture-handler'
+import * as ReactNative from 'react-native'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AccessibilityInfo, Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
@@ -8,13 +11,18 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PROMPT_TEMPLATES, PROMPT_PRESENTATION } from '@orbit/shared/chat/prompt-library'
 import { findPromptSlot } from '@orbit/shared/chat/composer-controls'
 import { CatalogIdea, PromptIdea } from '@/components/chat/prompt-idea'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { PromptLibrary } from '@/components/chat/prompt-library'
 import { AstraConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { i18n } from '@/lib/i18n'
-import { __getFocusedInputSelection, __getFocusedNativeTag, __resetTestHostConfig } from '@/test-mocks/react-native'
+import { createTokensV2, shadows } from '@/lib/theme'
+import { __focusHost, __getFocusedInputSelection, __getFocusedNativeTag, __resetTestHostConfig, __setTouchMode } from '@/test-mocks/react-native'
+
+const appearance = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({ currentScheme: 'orange', currentTheme: 'dark' }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ ...appearance, shadows }) }))
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
@@ -28,20 +36,25 @@ const overlay = vi.hoisted(() => ({ back: () => {} }))
 vi.mock('@/hooks/use-overlay-back', () => ({ useOverlayBack: (_active: boolean, back: () => void) => { overlay.back = back } }))
 
 type HostProps = {
+  children?: React.ReactNode
   accessibilityRole?: string
   accessibilityLabel?: string
   accessibilityHint?: string
   accessibilityState: { disabled: boolean }
   onPress?: () => void
   onPressIn?: () => void
+  onPressOut?: () => void
   onChangeText: (value: string) => void
+  style?: StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
+  collapsable?: boolean
+  gesture?: HoverGesture
   __nativeTag?: number
   testID?: string
   horizontal?: boolean
   contentContainerStyle?: StyleProp<ViewStyle>
   'data-slot'?: string
 }
-type ReactTestInstance = { type: unknown; props: HostProps; children: (string | ReactTestInstance)[]; findAll: (predicate: (node: ReactTestInstance) => boolean) => ReactTestInstance[] }
+type ReactTestInstance = { type: unknown; props: HostProps; parent: ReactTestInstance | null; children: (string | ReactTestInstance)[]; findAll: (predicate: (node: ReactTestInstance) => boolean) => ReactTestInstance[] }
 type ReactTestRenderer = { toJSON: () => Parameters<typeof measureProfileRow>[0]; root: ReactTestInstance; unmount: () => void; update: (element: React.ReactElement) => void }
 const { act, create } = require('react-test-renderer') as {
   act: { (callback: () => Promise<void>): Promise<void>; (callback: () => void): void }
@@ -51,6 +64,7 @@ let tree: ReactTestRenderer
 let animationDelay = 0
 beforeEach(async () => {
   animationDelay = 0
+  appearance.currentTheme = 'dark'
   __resetTestHostConfig()
   vi.spyOn(Animated, 'timing').mockImplementation(() => {
     let frame: ReturnType<typeof setTimeout> | undefined
@@ -70,6 +84,7 @@ afterEach(async () => {
 })
 
 function hosts() { return tree.root.findAll(node => typeof node.type === 'string') }
+function ideaActions() { return hosts().filter(node => node.props.testID === 'prompt-live-idea' || node.props.testID?.startsWith('prompt-idea:')) }
 function button(label: string) { return hosts().find(node => node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === label || text(node).includes(label)))! }
 function text(node: ReactTestInstance): string { return node.children.map(child => typeof child === 'string' ? child : text(child)).join('') }
 function press(label: string) { act(() => { const target = button(label); (target.props.onPress ?? target.props.onPressIn)!() }) }
@@ -77,6 +92,224 @@ function search(query: string) { act(() => hosts().find(node => node.props.acces
 function library(options: Partial<Parameters<typeof PromptLibrary>[0]> = {}) {
   act(() => { tree = create(<PromptLibrary onBack={vi.fn()} onSelect={vi.fn()} suggestions={[]} hasProAccess hasGoogleConnection {...options} />) })
 }
+
+const loadGestureModule = createRequire(import.meta.url)
+const { HoverGesture: InstalledHoverGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/hoverGesture') as { HoverGesture: new () => HoverGesture }
+const { findHandler } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/handlersRegistry') as { findHandler: (tag: number) => HoverGesture | undefined }
+const { State } = loadGestureModule('react-native-gesture-handler/lib/commonjs/State') as typeof import('react-native-gesture-handler/lib/typescript/State')
+const { PointerType } = loadGestureModule('react-native-gesture-handler/lib/commonjs/PointerType') as typeof import('react-native-gesture-handler/lib/typescript/PointerType')
+
+function loadInstalledReceiver() {
+  const nativePath = loadGestureModule.resolve('react-native')
+  const previous = loadGestureModule.cache[nativePath]
+  const nativeModule = new Module(nativePath)
+  nativeModule.exports = ReactNative
+  loadGestureModule.cache[nativePath] = nativeModule
+  try {
+    return loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/eventReceiver') as {
+      onGestureHandlerEvent: (event: GestureStateChangeEvent) => void
+    }
+  } finally {
+    if (previous) loadGestureModule.cache[nativePath] = previous
+    else delete loadGestureModule.cache[nativePath]
+  }
+}
+const { onGestureHandlerEvent } = loadInstalledReceiver()
+
+function attachedIdeaHover(target: ReactTestInstance): HoverGesture {
+  let detector = target.parent
+  while (detector && typeof detector.type !== 'string') detector = detector.parent
+  expect(detector?.type, 'the native hover detector must wrap the full Ideas action').toBe('GestureDetector')
+  const child = React.Children.only(detector!.props.children) as React.ReactElement<{ testID?: string; collapsable?: boolean }>
+  expect(child.type, 'hover must attach to the existing focus and press owner').toBe(InsetFocusPressable)
+  expect(child.props.testID).toBe(target.props.testID)
+  expect(child.props.collapsable).toBe(false)
+  expect(target.props.collapsable).toBe(false)
+  const gesture = detector!.props.gesture!
+  expect(gesture).toBeInstanceOf(InstalledHoverGesture)
+  expect(gesture.handlerName).toBe('HoverGestureHandler')
+  expect(gesture.config).toEqual({ manualActivation: true, cancelsTouchesInView: false, runOnJS: true, enabled: !target.props.accessibilityState.disabled })
+  expect(gesture.handlerTag).toBeGreaterThan(0)
+  expect(findHandler(gesture.handlerTag)).toBe(gesture)
+  expect(gesture.shouldUseReanimated).toBe(false)
+  return gesture
+}
+
+function deliverHover(gesture: HoverGesture, state: typeof State[keyof typeof State], oldState: typeof State[keyof typeof State]) {
+  act(() => onGestureHandlerEvent({
+    handlerTag: gesture.handlerTag, numberOfPointers: 1, pointerType: PointerType.MOUSE,
+    x: 24, y: 16, absoluteX: 72, absoluteY: 32, state, oldState,
+  }))
+}
+
+function actionStyle(target: ReactTestInstance, pressed = false) {
+  if (!target.props.style) return {}
+  return StyleSheet.flatten(typeof target.props.style === 'function' ? target.props.style({ pressed }) : target.props.style)
+}
+
+function focusAction(target: ReactTestInstance) {
+  act(() => { __setTouchMode(false); __focusHost(target.props.__nativeTag!) })
+}
+
+function focusRings(target: ReactTestInstance) {
+  return target.findAll(node => typeof node.type === 'string' && actionStyle(node).outlineWidth === 2)
+}
+
+function liveSuggestions(onSelect: () => void) {
+  const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0, profile: createMockProfile() })
+  return toComposerSuggestions(chips.map(chip => ({ id: chip.id, label: i18n.t(chip.key), onSelect })))
+}
+
+const hoverAppearances = [['en', 'dark'], ['en', 'light'], ['pt-BR', 'dark'], ['pt-BR', 'light']] as const
+
+it.each(hoverAppearances)('attaches native hover to every full Ideas action in %s %s', async (locale, mode) => {
+  await i18n.changeLanguage(locale)
+  appearance.currentTheme = mode
+  const onSelect = vi.fn()
+  const onBack = vi.fn()
+  library({ suggestions: liveSuggestions(onSelect), onSelect, onBack })
+  const actions = ideaActions()
+  const gestures = actions.map(attachedIdeaHover)
+  expect(new Set(gestures.map(gesture => gesture.handlerTag)).size).toBe(actions.length)
+  expect(hosts().filter(node => node.type === 'GestureDetector')).toHaveLength(actions.length)
+  const resting = actions.map(target => actionStyle(target))
+  for (const [index, target] of actions.entries()) {
+    expect(resting[index]).toMatchObject({ minHeight: 48, padding: 16, borderRadius: 20, overflow: 'hidden', gap: 12 })
+    for (const finalState of [State.END, State.FAILED, State.CANCELLED]) {
+      deliverHover(gestures[index]!, State.BEGAN, State.UNDETERMINED)
+      expect(actionStyle(target), 'native receiver entry must paint the full action').toEqual({ ...resting[index], backgroundColor: createTokensV2('orange', mode).bgHover })
+      expect(attachedIdeaHover(target)).toBe(gestures[index])
+      expect(focusRings(target)).toHaveLength(0)
+      actions.forEach((other, otherIndex) => { if (other !== target) expect(actionStyle(other)).toEqual(resting[otherIndex]) })
+      deliverHover(gestures[index]!, finalState, State.BEGAN)
+      expect(actionStyle(target), 'every native hover finalization must clear the fill').toEqual(resting[index])
+    }
+  }
+  expect(onSelect).not.toHaveBeenCalled()
+  expect(onBack).not.toHaveBeenCalled()
+})
+
+function expectIndependentFeedback(target: ReactTestInstance, back: ReactTestInstance, hoverFill: string) {
+  const gesture = attachedIdeaHover(target)
+  const resting = actionStyle(target)
+  const feedback = { ...resting, backgroundColor: hoverFill }
+  focusAction(target)
+  expect(focusRings(target)).toHaveLength(1)
+  expect(actionStyle(focusRings(target)[0]!)).toMatchObject({ borderRadius: 20, outlineOffset: -4, outlineWidth: 2 })
+  deliverHover(gesture, State.BEGAN, State.UNDETERMINED)
+  act(() => target.props.onPressIn!())
+  deliverHover(gesture, State.END, State.BEGAN)
+  expect(actionStyle(target, true)).toEqual(feedback)
+  expect(focusRings(target)).toHaveLength(1)
+  act(() => target.props.onPressOut!())
+  expect(actionStyle(target)).toEqual(feedback)
+  focusAction(back)
+  expect(actionStyle(target)).toEqual(resting)
+  expect(focusRings(target)).toHaveLength(0)
+  deliverHover(gesture, State.BEGAN, State.UNDETERMINED)
+  focusAction(target)
+  focusAction(back)
+  act(() => target.props.onPressIn!())
+  act(() => target.props.onPressOut!())
+  expect(actionStyle(target)).toEqual(feedback)
+  expect(focusRings(target)).toHaveLength(0)
+  deliverHover(gesture, State.CANCELLED, State.BEGAN)
+  expect(actionStyle(target)).toEqual(resting)
+  act(() => target.props.onPressIn!())
+  deliverHover(gesture, State.BEGAN, State.UNDETERMINED)
+  deliverHover(gesture, State.FAILED, State.BEGAN)
+  expect(actionStyle(target, true)).toEqual(feedback)
+  act(() => target.props.onPressOut!())
+  expect(actionStyle(target)).toEqual(resting)
+}
+
+it.each(hoverAppearances)('keeps native hover independent of press and focus in %s %s', async (locale, mode) => {
+  await i18n.changeLanguage(locale)
+  appearance.currentTheme = mode
+  const onSelect = vi.fn()
+  const onBack = vi.fn()
+  library({ suggestions: liveSuggestions(onSelect), onSelect, onBack })
+  const back = button(i18n.t('chat.templates.back'))
+  const actions = ideaActions()
+  for (const target of [actions[0]!, actions.at(-1)!]) {
+    expectIndependentFeedback(target, back, createTokensV2('orange', mode).bgHover)
+  }
+  expect(onSelect).not.toHaveBeenCalled()
+  expect(onBack).not.toHaveBeenCalled()
+})
+
+it.each(hoverAppearances)('clears native hover across disabled Ideas transitions in %s %s', async (locale, mode) => {
+  await i18n.changeLanguage(locale)
+  appearance.currentTheme = mode
+  const onSelect = vi.fn()
+  const onBack = vi.fn()
+  const suggestions = liveSuggestions(onSelect)
+  const view = (disabled: boolean) => <PromptLibrary suggestions={suggestions} onSelect={onSelect} onBack={onBack} disabledReason={disabled ? i18n.t('shell.composer.offline.reason') : undefined} hasProAccess hasGoogleConnection />
+  act(() => { tree = create(view(false)) })
+  const resting = ideaActions().map(target => actionStyle(target))
+  const enabledGestures = ideaActions().map(attachedIdeaHover)
+  for (const gesture of enabledGestures) deliverHover(gesture, State.BEGAN, State.UNDETERMINED)
+  act(() => tree.update(view(true)))
+  for (const gesture of enabledGestures) expect(findHandler(gesture.handlerTag)).toBeUndefined()
+  const disabledGestures = ideaActions().map(attachedIdeaHover)
+  ideaActions().forEach((target, index) => {
+    deliverHover(disabledGestures[index]!, State.BEGAN, State.UNDETERMINED)
+    focusAction(target)
+    expect(actionStyle(target)).toEqual({ ...resting[index], opacity: 0.5 })
+    expect(focusRings(target)).toHaveLength(0)
+    act(() => target.props.onPress!())
+  })
+  act(() => tree.update(view(false)))
+  for (const gesture of disabledGestures) {
+    expect(findHandler(gesture.handlerTag)).toBeUndefined()
+    deliverHover(gesture, State.CANCELLED, State.BEGAN)
+  }
+  ideaActions().forEach((target, index) => {
+    expect(actionStyle(target), 'reenabling must not restore an old hover').toEqual(resting[index])
+    const gesture = attachedIdeaHover(target)
+    deliverHover(gesture, State.BEGAN, State.UNDETERMINED)
+    expect(actionStyle(target).backgroundColor).toBe(createTokensV2('orange', mode).bgHover)
+    deliverHover(gesture, State.FAILED, State.BEGAN)
+    expect(actionStyle(target)).toEqual(resting[index])
+  })
+  expect(onSelect).not.toHaveBeenCalled()
+  expect(onBack).not.toHaveBeenCalled()
+})
+
+it.each(hoverAppearances)('unregisters native Ideas hover before remount in %s %s', async (locale, mode) => {
+  await i18n.changeLanguage(locale)
+  appearance.currentTheme = mode
+  const onSelect = vi.fn()
+  const onBack = vi.fn()
+  const view = <PromptLibrary suggestions={liveSuggestions(onSelect)} onSelect={onSelect} onBack={onBack} hasProAccess hasGoogleConnection />
+  act(() => { tree = create(view) })
+  const originalGestures = ideaActions().map(attachedIdeaHover)
+  for (const gesture of originalGestures) deliverHover(gesture, State.BEGAN, State.UNDETERMINED)
+  act(() => tree.update(<View />))
+  expect(ideaActions()).toHaveLength(0)
+  for (const gesture of originalGestures) {
+    expect(findHandler(gesture.handlerTag)).toBeUndefined()
+    deliverHover(gesture, State.BEGAN, State.UNDETERMINED)
+  }
+  act(() => tree.update(view))
+  const actions = ideaActions()
+  const currentGestures = actions.map(attachedIdeaHover)
+  expect(currentGestures).toHaveLength(originalGestures.length)
+  for (const [index, target] of actions.entries()) {
+    const gesture = currentGestures[index]!
+    expect(originalGestures.map(original => original.handlerTag)).not.toContain(gesture.handlerTag)
+    const resting = actionStyle(target)
+    deliverHover(originalGestures[index]!, State.BEGAN, State.UNDETERMINED)
+    expect(actionStyle(target)).toEqual(resting)
+    deliverHover(gesture, State.BEGAN, State.UNDETERMINED)
+    deliverHover(originalGestures[index]!, State.END, State.BEGAN)
+    expect(actionStyle(target)).toEqual({ ...resting, backgroundColor: createTokensV2('orange', mode).bgHover })
+    deliverHover(gesture, State.END, State.BEGAN)
+    expect(actionStyle(target)).toEqual(resting)
+  }
+  expect(onSelect).not.toHaveBeenCalled()
+  expect(onBack).not.toHaveBeenCalled()
+})
 
 it('shows one category, searches across categories in Portuguese and clears a miss', () => {
   library()
@@ -239,6 +472,7 @@ it.each(['en', 'pt-BR'] as const)('keeps all approved native examples, single ta
     const label = i18n.t(template.labelKey)
     const prompt = i18n.t(template.promptKey)
     const target = button(label)
+    attachedIdeaHover(target)
     const example = target.findAll(node => node.props.testID === 'prompt-example')[0]
     expect(example ? text(example) : undefined).toBe(PROMPT_PRESENTATION[template.id].example ? prompt : undefined)
     const description = PROMPT_PRESENTATION[template.id].example ? prompt : undefined

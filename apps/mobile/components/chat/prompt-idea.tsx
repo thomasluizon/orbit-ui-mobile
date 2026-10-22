@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { useTranslation } from 'react-i18next'
 import { findPromptSlot } from '@orbit/shared/chat/composer-controls'
 import { PROMPT_PRESENTATION, promptExampleParts, type PromptTemplate } from '@orbit/shared/chat/prompt-library'
@@ -29,9 +30,17 @@ export function PromptIdea({ label, icon, example, invokesAstra = true, catalogI
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [focused, setFocused] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const hoverGesture = useMemo(() => Gesture.Hover()
+    .manualActivation(true)
+    .cancelsTouchesInView(false)
+    .runOnJS(true)
+    .enabled(!disabled)
+    .onBegin(() => setHovered(!disabled))
+    .onFinalize(() => setHovered(false)), [disabled])
+  if (disabled && hovered) setHovered(false)
   const accessibilityHint = [example, invokesAstra ? t('chat.title') : undefined].filter(Boolean).join(' ') || undefined
-  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={accessibilityHint} accessibilityState={{ disabled }} disabled={disabled}
-    testID={catalogId ? `prompt-idea:${catalogId}` : 'prompt-live-idea'} onPress={() => { if (!disabled) onSelect() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+  return <GestureDetector gesture={hoverGesture}><InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={accessibilityHint} accessibilityState={{ disabled }} disabled={disabled}
+    testID={catalogId ? `prompt-idea:${catalogId}` : 'prompt-live-idea'} onPress={() => { if (!disabled) onSelect() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
     style={({ pressed }) => [styles.action, { backgroundColor: !disabled && (pressed || hovered || focused) ? tokens.bgHover : catalogId ? tokens.bgCard : 'transparent', opacity: disabled ? 0.5 : 1 }]}>
     <View style={styles.content}>
       <View testID="prompt-intent" accessible={false} importantForAccessibility="no-hide-descendants" style={styles.icon}>{icon ?? <Lightbulb size={24} strokeWidth={1.5} color={tokens.fg1} />}</View>
@@ -41,7 +50,7 @@ export function PromptIdea({ label, icon, example, invokesAstra = true, catalogI
       </View>
     </View>
     {invokesAstra ? <View testID="prompt-attribution" style={styles.attribution}><AstraGlyph size={20} color={tokens.fg2} /><Text style={[styles.example, { color: tokens.fg2 }]}>{t('chat.title')}</Text></View> : null}
-  </InsetFocusPressable>
+  </InsetFocusPressable></GestureDetector>
 }
 
 export function CatalogIdea({ template, disabled, onSelect }: Readonly<{ template: PromptTemplate; disabled: boolean; onSelect: (id: string, label: string, prompt: string) => void }>) {
