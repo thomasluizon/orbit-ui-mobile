@@ -504,7 +504,7 @@ function EditHabitDraft({
         <div role="status" aria-live="polite">{saveError ? <p className="text-sm text-[var(--status-bad-text)]">{saveError}</p> : null}</div>
 
           <fieldset
-            disabled={detailFieldsPending || saving || !isOnline}
+            disabled={detailFieldsPending || saving}
             aria-busy={detailFieldsPending || saving || undefined}
             className={`m-0 min-w-0 border-0 p-0 transition-opacity duration-[var(--dur-base)] ${
               detailFieldsPending ? 'pointer-events-none opacity-60' : ''

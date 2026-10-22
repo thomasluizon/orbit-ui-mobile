@@ -1,6 +1,6 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -79,11 +79,9 @@ vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ Remin
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => null }))
 vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => null }))
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
-vi.mock('@/components/ui/date-field', () => ({ DateField: () => null }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 
 async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
   const onClose = vi.fn()
@@ -99,6 +97,78 @@ async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
   if (mode === 'create') await act(async () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' })))
   return { onSaved, onClose, setOpen: async (open: boolean) => { await act(async () => view.rerender(element(open))) }, title: screen.getByRole('textbox', { name: 'habits.form.describe' }), submit: screen.getByRole('button', { name: mode === 'create' ? 'habits.createHabit' : 'common.save' }) }
 }
+
+describe('offline habit editor', () => {
+  beforeEach(() => { vi.resetAllMocks() })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    act(() => { globalThis.dispatchEvent(new Event('online')) })
+  })
+
+  it.each([true, false])('keeps the loaded draft editable offline and saves once after reconnecting (initially online: %s)', async (initiallyOnline) => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(initiallyOnline)
+    mutation.mockResolvedValue(undefined)
+    const selectedHabit = createMockHabit({
+      frequencyUnit: 'Day', startDate: '2026-08-20', description: 'Before editing',
+      checklistItems: [{ text: 'Pack a bag', isChecked: true }, { text: 'Read a chapter', isChecked: false }],
+    })
+    const { title, submit, onClose, onSaved } = await renderSheet('edit', selectedHabit)
+    act(() => {
+      online.mockReturnValue(false)
+      globalThis.dispatchEvent(new Event('offline'))
+    })
+    const description = screen.getByRole('textbox', { name: 'habits.form.description' })
+    const checklist = screen.getAllByRole('textbox', { name: 'habits.form.checklistItemLabel' })[0]!
+    const datePicker = screen.getByRole('button', { name: 'habits.form.habitStartDate, common.selectedDate' })
+    expect(submit).toBeDisabled()
+    expect(title.closest('fieldset')).not.toBeDisabled()
+    for (const control of [title, description, checklist, datePicker]) expect(control).toBeEnabled()
+
+    const user = userEvent.setup()
+    await user.clear(title)
+    await user.type(title, 'Offline title')
+    await user.clear(description)
+    await user.type(description, 'Offline description')
+    await user.clear(checklist)
+    await user.type(checklist, 'Pack the blue bag')
+    await user.click(datePicker)
+    const calendar = screen.getByRole('dialog', { name: 'common.selectDate' })
+    const day = calendar.querySelector<HTMLButtonElement>('button[data-day="2026-08-21"]')!
+    expect(day).toBeEnabled()
+    await user.click(day)
+    expect(screen.queryByRole('dialog', { name: 'common.selectDate' })).not.toBeInTheDocument()
+    expect(currentForm.form.getValues('dueDate')).toBe('2026-08-21')
+
+    await user.click(submit)
+    await act(async () => fireEvent.submit(title.closest('form')!))
+    expect(mutation).not.toHaveBeenCalled()
+    expect(completion).not.toHaveBeenCalled()
+    for (const write of Object.values(tagManagement)) expect(write).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onSaved).not.toHaveBeenCalled()
+
+    act(() => {
+      online.mockReturnValue(true)
+      globalThis.dispatchEvent(new Event('online'))
+    })
+    expect(title).toHaveValue('Offline title')
+    expect(description).toHaveValue('Offline description')
+    expect(checklist).toHaveValue('Pack the blue bag')
+    expect(currentForm.form.getValues('dueDate')).toBe('2026-08-21')
+    expect(submit).toBeEnabled()
+    await user.click(submit)
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
+    expect(onClose).toHaveBeenCalledExactlyOnceWith(false)
+    expect(mutation).toHaveBeenCalledOnce()
+    expect(mutation.mock.calls[0]![0]).toMatchObject({
+      habitId: selectedHabit.id,
+      data: {
+        title: 'Offline title', description: 'Offline description', startDate: '2026-08-21',
+        checklistItems: [{ text: 'Pack the blue bag', isChecked: true }, { text: 'Read a chapter', isChecked: false }],
+      },
+    })
+  })
+})
 
 describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
   beforeEach(() => { vi.resetAllMocks() })
