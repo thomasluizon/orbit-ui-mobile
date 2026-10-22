@@ -1071,6 +1071,16 @@ function LoginContext() {
 
 function LoginEntry({ initialUrl }: Readonly<{ initialUrl: string }>) {
   const [url, setUrl] = React.useState(initialUrl)
+  React.useLayoutEffect(() => {
+    const previousUrl = window.location.href
+    const replaceState = window.history.replaceState.bind(window.history)
+    replaceState(null, '', initialUrl)
+    const replacement = vi.spyOn(window.history, 'replaceState').mockImplementation((...arguments_) => {
+      replaceState(...arguments_)
+      if (arguments_[2]) React.startTransition(() => setUrl(window.location.pathname + window.location.search + window.location.hash))
+    })
+    return () => { replacement.mockRestore(); replaceState(null, '', previousUrl) }
+  }, [initialUrl])
   const navigation = React.useMemo(() => ({ url, navigate: setUrl }), [url])
   const pathname = new URL(url, 'https://orbit.test').pathname
   return <NavigationContext.Provider value={navigation}><output aria-label="Current URL">{url}</output>{pathname === '/onboarding'
@@ -1125,7 +1135,10 @@ describe('login context through the owning onboarding layouts', () => {
   ])('opens an in-progress sign-in directly: %s', async (query, state) => {
     render(<LoginEntry initialUrl={`/login?${query}`} />)
     expect(await screen.findByText(new RegExp(`Entrar.*${state}`))).toBeInTheDocument()
-    expect(screen.getByLabelText('Current URL')).toHaveTextContent(`/login?${query}`)
+    const clean = new URLSearchParams(query)
+    clean.delete('email')
+    clean.delete('code')
+    expect(screen.getByLabelText('Current URL').textContent).toBe(`/login?${clean.toString()}`)
     expect(mocks.navigate).not.toHaveBeenCalled()
   })
 })

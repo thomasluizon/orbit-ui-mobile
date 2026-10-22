@@ -8,6 +8,8 @@ import { useVersionGateStore } from '@/stores/version-gate-store'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getErrorSurface } from '@orbit/shared/utils'
+import { setAccountEventOrigin } from '@/lib/account-event-origin'
+import { installWebLocks } from '@/__tests__/helpers/web-locks'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({
@@ -20,15 +22,23 @@ const payload = {
   error: 'Rate limited', requestId: 'request-reference', limit: 1, count: 2,
   retryAfterUtc: '2026-09-06T12:00:00Z',
 }
+const originalLocks = Object.getOwnPropertyDescriptor(navigator, 'locks')
 
 describe('client response throttle adapter', () => {
   beforeEach(async () => {
+    installWebLocks()
     useOnboardingDraftStore.getState().markOnboardingLocallyDone()
     await useOnboardingDraftStore.persist.rehydrate()
     useThrottleStore.getState().clear()
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setAccountEventOrigin(null)
   })
-  afterEach(() => { vi.unstubAllGlobals() })
+  afterEach(() => {
+    setAccountEventOrigin(null)
+    vi.unstubAllGlobals()
+    if (originalLocks) Object.defineProperty(navigator, 'locks', originalLocks)
+    else Reflect.deleteProperty(navigator, 'locks')
+  })
 
   it('records an auth upgrade refusal without consuming or replaying the response', async () => {
     const refused = new Response('Upgrade required', { status: 426 })
@@ -41,11 +51,11 @@ describe('client response throttle adapter', () => {
     expect(useVersionGateStore.getState().upgradeRequired).toBe(true)
   })
 
-  it('keeps upgrade guidance and Refresh in the owning auth layout after Send code fails', async () => {
+  it.each(['/api/auth/send-code', '/api/auth/verify-code'])('keeps upgrade guidance and Refresh in the owning auth layout after %s fails', async (endpoint) => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 426 })))
     render(createElement(AuthLayout, null, createElement('button', {
       type: 'button', onClick: () => {
-        void fetchAuthEndpoint('/api/auth/send-code', { email: 'person@example.test' }).catch(() => {})
+        void fetchAuthEndpoint(endpoint, { email: 'person@example.test' }).catch(() => {})
       },
     }, 'Send code')))
     await act(async () => {})
@@ -72,12 +82,45 @@ describe('client response throttle adapter', () => {
     expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get('Accept-Language')).toBe('en')
   })
 
-  it('publishes auth refusals while preserving the login error contract', async () => {
+  it.each(['/api/auth/send-code', '/api/auth/verify-code'])('publishes %s refusals while preserving the login error contract', async (endpoint) => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json(payload, { status: 429 })))
-    await expect(fetchAuthEndpoint('/api/auth/send-code', { email: 'user@example.test' })).rejects.toMatchObject({
+    await expect(fetchAuthEndpoint(endpoint, { email: 'user@example.test' })).rejects.toMatchObject({
       status: 429, body: payload,
     })
     expect(getErrorSurface(useThrottleStore.getState().error).retryAt).toBe(Date.parse(payload.retryAfterUtc))
+  })
+
+  it('preserves verification language, version, event origin, cancellation and refusal request id', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ error: 'Invalid verification code' }, {
+      status: 401, headers: { 'x-orbit-request-id': 'verification-reference' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    setAccountEventOrigin('synthetic-origin')
+    const controller = new AbortController()
+    const onSuccess = vi.fn(async () => {})
+    await expect(fetchAuthEndpoint('/api/auth/verify-code', { language: 'pt-BR' }, {
+      signal: controller.signal, isCurrent: () => true, onSuccess,
+    })).rejects.toMatchObject({ status: 401, body: { error: 'Invalid verification code', requestId: 'verification-reference' } })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    const request = fetchMock.mock.calls[0]?.[1]
+    const headers = new Headers(request?.headers)
+    expect(headers.get('Accept-Language')).toBe('pt-BR')
+    expect(headers.get('api-version')).toBe('2.0')
+    expect(headers.get('X-Orbit-Event-Origin')).toBe('synthetic-origin')
+    expect(headers.get('Content-Type')).toBe('application/json')
+    expect(request?.signal).toBe(controller.signal)
+    expect(request?.method).toBe('POST')
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('retains the upstream-starting verification refusal without replaying the exchange', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ error: 'Upstream service is starting', errorCode: 'UPSTREAM_STARTING' }, {
+      status: 503, headers: { 'Retry-After': '5' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(fetchAuthEndpoint('/api/auth/verify-code', {})).rejects.toMatchObject({ status: 503, retryAfter: '5' })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(useThrottleStore.getState().error).toBeNull()
   })
 
   it.each([

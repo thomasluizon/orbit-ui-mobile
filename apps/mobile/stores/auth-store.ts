@@ -96,7 +96,7 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   expiresAt: number | null
-  login: (token: string, refreshToken: string | null, user: User, expectedEpoch?: number) => Promise<(() => boolean) | null>
+  login: (token: string, refreshToken: string | null, user: User, expectedEpoch?: number, isAttemptCurrent?: () => boolean, onSessionCommitted?: (epoch: number) => void) => Promise<(() => boolean) | null>
   logout: (observedCredential?: SessionSnapshot) => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
@@ -174,6 +174,36 @@ async function withCredentialMutationLock<T>(mutation: () => Promise<T>): Promis
   } finally {
     releaseMutation()
   }
+}
+
+async function commitLoginCredentials(
+  token: string,
+  refreshToken: string | null,
+  ownsLogin: () => boolean,
+  rollbackOnCancellation: boolean,
+  publishSession: () => SessionSnapshot,
+): Promise<SessionSnapshot | null> {
+  const previousCredentials = rollbackOnCancellation
+    ? { token: await getToken(), refreshToken: await getRefreshToken() }
+    : null
+  if (!ownsLogin()) return null
+  await setToken(token)
+  if (ownsLogin()) {
+    if (refreshToken) await setRefreshToken(refreshToken)
+    else await clearRefreshToken()
+  }
+  if (ownsLogin()) await saveWidgetToken(token).catch(() => {})
+  if (ownsLogin()) return publishSession()
+
+  if (previousCredentials) {
+    await clearAllTokens()
+    if (previousCredentials.token) await setToken(previousCredentials.token)
+    if (previousCredentials.refreshToken) await setRefreshToken(previousCredentials.refreshToken)
+    await (previousCredentials.token
+      ? saveWidgetToken(previousCredentials.token)
+      : clearWidgetToken()).catch(() => {})
+  }
+  return null
 }
 
 type SessionTeardownResult = {
@@ -442,37 +472,46 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   expiresAt: null,
 
-  login: async (token, refreshToken, user, expectedEpoch) => {
-    if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
+  login: async (token, refreshToken, user, expectedEpoch, isAttemptCurrent, onSessionCommitted) => {
+    const ownsLogin = () => matchesExpectedSessionEpoch(expectedEpoch) && (isAttemptCurrent?.() ?? true)
+    if (!ownsLogin()) return null
     const previousAccountId = get().user?.userId ?? null
     let ownership = getSessionGeneration()
-    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
-    set(deriveSessionPhase('establishing'))
+    const establishLogin = () => {
+      useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+      set(deriveSessionPhase('establishing'))
+    }
+    if (!isAttemptCurrent) establishLogin()
     try {
       const loginSession = await withCredentialMutationLock(async () => {
-        if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
+        if (!ownsLogin()) return null
         await clearPendingGoogleAuthSessionForLogin()
-        if (configCache.getSnapshot().accountId !== user.userId) configCache.setAccount(null)
-        offlineQueue.discardLegacy()
-        await setToken(token)
-        if (refreshToken) {
-          await setRefreshToken(refreshToken)
-        } else {
-          await clearRefreshToken()
-        }
-        await saveWidgetToken(token).catch(() => {})
-        bindStepUpStateToAccount(user.userId)
-        clearPendingNotificationDeletes()
-        advanceSessionEpoch()
-        credentialVersion += 1
-        configCache.setAccount(user.userId)
-        set({
-          ...deriveSessionPhase('establishing'),
-          user,
-          isLoading: false,
-          expiresAt: getExpiresAt(token),
+        if (!ownsLogin()) return null
+        const previousPhase = get().sessionPhase
+        if (isAttemptCurrent) set(deriveSessionPhase('establishing'))
+        const committed = await commitLoginCredentials(token, refreshToken, ownsLogin, Boolean(isAttemptCurrent), () => {
+          if (isAttemptCurrent) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+          if (configCache.getSnapshot().accountId !== user.userId) configCache.setAccount(null)
+          offlineQueue.discardLegacy()
+          bindStepUpStateToAccount(user.userId)
+          clearPendingNotificationDeletes()
+          advanceSessionEpoch()
+          credentialVersion += 1
+          configCache.setAccount(user.userId)
+          onSessionCommitted?.(getSessionEpoch())
+          set({
+            ...deriveSessionPhase('establishing'),
+            user,
+            isLoading: false,
+            expiresAt: getExpiresAt(token),
+          })
+          return getSessionGeneration()
         })
-        return getSessionGeneration()
+        if (!committed) {
+          if (isAttemptCurrent) set(deriveSessionPhase(previousPhase))
+          return null
+        }
+        return committed
       })
       if (!loginSession) return null
       ownership = loginSession
