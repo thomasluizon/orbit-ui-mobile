@@ -88,9 +88,7 @@ let searchParamValues: Record<string, string | null> = {
   code: '123456',
   returnUrl: '/',
 }
-const mockSearchParams = {
-  get: (key: string) => searchParamValues[key] ?? null,
-}
+const mockSearchParams = () => new URLSearchParams(Object.entries(searchParamValues).flatMap(([key, value]) => value === null ? [] : [[key, value]]))
 vi.mock('next/navigation', () => ({
   useRouter: () => {
     const { navigate } = useContext(NavigationContext)
@@ -99,15 +97,21 @@ vi.mock('next/navigation', () => ({
   usePathname: () => new URL(useContext(NavigationContext).path, 'https://example.test').pathname,
   useSearchParams: () => {
     const { navigate, path } = useContext(NavigationContext)
-    return navigate === mockPush ? mockSearchParams : new URL(path, 'https://example.test').searchParams
+    return navigate === mockPush ? mockSearchParams() : new URL(path, 'https://example.test').searchParams
   },
 }))
 
-vi.mock('@/stores/auth-store', async (importActual) => ({
-  ...(await importActual<typeof import('@/stores/auth-store')>()),
-  useAuthStore: (selector?: (state: { isAuthenticated: boolean; sessionInactive: boolean }) => unknown) => selector
-    ? selector({ isAuthenticated: false, sessionInactive: false }) : { setAuth: vi.fn() },
-}))
+vi.mock('@/stores/auth-store', async (importActual) => {
+  const actual = await importActual<typeof import('@/stores/auth-store')>()
+  return {
+    ...actual,
+    useAuthStore: Object.assign((selector?: (state: { isAuthenticated: boolean; sessionInactive: boolean }) => unknown) => selector
+      ? selector({ isAuthenticated: false, sessionInactive: false }) : { setAuth: vi.fn() }, {
+      getState: actual.useAuthStore.getState,
+      subscribe: actual.useAuthStore.subscribe,
+    }),
+  }
+})
 
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => children }))
 
@@ -389,7 +393,7 @@ describe('production smoke helper against LoginPage', () => {
 
     expect(authRequests.mock.calls).toEqual([
       ['/api/auth/send-code', { email: 'smoke@example.test', language: locale }],
-      ['/api/auth/verify-code', { email: 'smoke@example.test', code: '123456', language: locale }],
+      ['/api/auth/verify-code', { email: 'smoke@example.test', code: '123456', language: locale }, expect.objectContaining({ isCurrent: expect.any(Function), signal: expect.any(AbortSignal), onSuccess: expect.any(Function) })],
     ])
     const label = (locale === 'en' ? en : ptBR).auth.verificationCode
     const input = screen.getByRole('textbox', { name: label })
@@ -410,7 +414,7 @@ describe('production smoke helper against LoginPage', () => {
     expect(page.visits).toEqual(['/onboarding', '/login'])
     expect(authRequests.mock.calls).toEqual([
       ['/api/auth/send-code', { email: 'smoke@example.test', language: locale }],
-      ['/api/auth/verify-code', { email: 'smoke@example.test', code: '123456', language: locale }],
+      ['/api/auth/verify-code', { email: 'smoke@example.test', code: '123456', language: locale }, expect.objectContaining({ isCurrent: expect.any(Function), signal: expect.any(AbortSignal), onSuccess: expect.any(Function) })],
     ])
     authRequests.mockClear()
     page.visits.length = 0

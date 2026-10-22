@@ -20,7 +20,7 @@ import {
   getTodayHabitListAfterRefetch,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
+import { createHabitRequestSchema, extractBackendErrorCode, validateApiRequest } from '@orbit/shared'
 import {
   applyLinkedGoalUpdates,
   appendHabitDetailChild,
@@ -73,6 +73,7 @@ import {
   OfflineMutationPreflightError,
   type QueuedMarker,
 } from '@/lib/offline-mutations'
+import { queuedHabitUpdateRequestSchema } from '@/lib/habit-update-request'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
   optimisticInsertHabit,
@@ -494,13 +495,13 @@ export function useLogHabit() {
   })
 }
 
-function captureSkipAccount() {
+function captureHabitAccount() {
   const accountId = getAccountId()
   const generation = getAccountGeneration()
   return { stillCurrent: () => accountId === getAccountId() && generation === getAccountGeneration() }
 }
 
-type SkipHabitInput = { habitId: string; date?: string; onUndo?: () => void; account?: ReturnType<typeof captureSkipAccount> }
+type SkipHabitInput = { habitId: string; date?: string; onUndo?: () => void; account?: ReturnType<typeof captureHabitAccount> }
 type UndoSkipInput = {
   habitId: string
   skipId: string
@@ -508,7 +509,7 @@ type UndoSkipInput = {
   occurrence: { date: string; postponed: boolean }
   queuedMutationId?: string
   onUndo?: () => void
-  account?: ReturnType<typeof captureSkipAccount>
+  account?: ReturnType<typeof captureHabitAccount>
 }
 
 function useUndoSkipHabit() {
@@ -517,7 +518,7 @@ function useUndoSkipHabit() {
   const showUndoToast = useUndoToast()
   const undoSkip = useMutation<void | QueuedMarker, Error, UndoSkipInput>({
     mutationFn: async (input) => {
-      input.account ??= captureSkipAccount()
+      input.account ??= captureHabitAccount()
       if (!input.account.stillCurrent()) throw new Error('Account changed')
       if (input.queuedMutationId) {
         const outcome = await cancelQueuedSkipForUndo(input.queuedMutationId)
@@ -561,7 +562,7 @@ export function useSkipHabit() {
   const undoSkip = useUndoSkipHabit()
   const mutation = useMutation({
     mutationFn: async (input: SkipHabitInput) => {
-      input.account ??= captureSkipAccount()
+      input.account ??= captureHabitAccount()
       if (!input.account.stillCurrent()) throw new Error('Account changed')
       const skipId = randomUUID()
       const outcome = await performQueuedApiMutation<void>({
@@ -572,7 +573,7 @@ export function useSkipHabit() {
       return { skipId, outcome }
     },
     onMutate: async (input) => {
-      input.account ??= captureSkipAccount()
+      input.account ??= captureHabitAccount()
       const account = input.account
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
       if (!account.stillCurrent()) throw new Error('Account changed')
@@ -609,7 +610,7 @@ export function useSkipHabit() {
     },
   })
   const scopeOptions = (
-    options: Parameters<typeof mutation.mutate>[1], account: ReturnType<typeof captureSkipAccount>,
+    options: Parameters<typeof mutation.mutate>[1], account: ReturnType<typeof captureHabitAccount>,
   ): Parameters<typeof mutation.mutate>[1] => options ? {
     ...options,
     onSuccess: (...arguments_) => { if (account.stillCurrent()) options.onSuccess?.(...arguments_) },
@@ -619,11 +620,11 @@ export function useSkipHabit() {
   return {
     ...mutation,
     mutate: (input: SkipHabitInput, options?: Parameters<typeof mutation.mutate>[1]) => {
-      const account = captureSkipAccount()
+      const account = captureHabitAccount()
       mutation.mutate({ ...input, account }, scopeOptions(options, account))
     },
     mutateAsync: async (input: SkipHabitInput, options?: Parameters<typeof mutation.mutateAsync>[1]) => {
-      const account = captureSkipAccount()
+      const account = captureHabitAccount()
       const result = await mutation.mutateAsync({ ...input, account }, scopeOptions(options, account))
       if (!account.stillCurrent()) throw new Error('Account changed')
       return result
@@ -692,15 +693,19 @@ export function useCreateHabit() {
 export function useUpdateHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation<
+  const mutation = useMutation<
     void | QueuedMarker,
     Error,
-    { habitId: string; data: UpdateHabitRequest; dependsOn?: string[] },
-    { previousLists: HabitListSnapshots; previousDetails: HabitDetailUpdates }
+    { habitId: string; data: UpdateHabitRequest; dependsOn?: string[]; account?: ReturnType<typeof captureHabitAccount> },
+    { previousLists: HabitListSnapshots; previousDetails: HabitDetailUpdates; account: ReturnType<typeof captureHabitAccount> }
   >({
-    mutationFn: async ({ habitId, data, dependsOn }) => {
-      const request = validateApiRequest(data, updateHabitRequestSchema)
+    mutationFn: async (input) => {
+      input.account ??= captureHabitAccount()
+      if (!input.account.stillCurrent()) throw new Error('Account changed')
+      const { habitId, data, dependsOn, account } = input
+      const request = validateApiRequest(data, queuedHabitUpdateRequestSchema)
       return performQueuedApiMutation<void>({
+        isCurrent: account.stillCurrent,
         type: 'updateHabit',
         scope: 'habits',
         endpoint: API.habits.update(habitId),
@@ -712,13 +717,16 @@ export function useUpdateHabit() {
       })
     },
 
-    onMutate: async ({ habitId, data }) => {
+    onMutate: async (input) => {
+      input.account ??= captureHabitAccount()
+      const { habitId, data, account } = input
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
         queryClient.cancelQueries({ queryKey: habitKeys.details() }),
         queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
       ])
 
+      if (!account.stillCurrent()) throw new Error('Account changed')
       const previousLists = snapshotHabitLists(queryClient)
       const patch = buildOptimisticHabitPatch(queryClient, data)
       updateHabitLists(queryClient, (items) =>
@@ -726,19 +734,32 @@ export function useUpdateHabit() {
       )
       const previousDetails = updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? patch : {})
 
-      return { previousLists, previousDetails }
+      return { previousLists, previousDetails, account }
     },
 
     onError: (_err, _variables, context) => {
+      if (context && !context.account.stillCurrent()) return
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
       if (context?.previousDetails) restoreCachedHabitDetails(queryClient, context.previousDetails)
     },
 
-    onSettled: (data, error, { habitId }) =>
-      finalizeHabitMutation(queryClient, data, error, { habitId, includeProfile: true }),
+    onSettled: (data, error, { habitId, account }) => {
+      if (account && !account.stillCurrent()) return
+      return finalizeHabitMutation(queryClient, data, error, { habitId, includeProfile: true })
+    },
   })
+  return {
+    ...mutation,
+    mutate: (input: { habitId: string; data: UpdateHabitRequest; dependsOn?: string[] }) => mutation.mutate({ ...input, account: captureHabitAccount() }),
+    mutateAsync: async (input: { habitId: string; data: UpdateHabitRequest; dependsOn?: string[] }) => {
+      const account = captureHabitAccount()
+      const result = await mutation.mutateAsync({ ...input, account })
+      if (!account.stillCurrent()) throw new Error('Account changed')
+      return result
+    },
+  }
 }
 
 export function useRestoreHabit() {
@@ -1354,7 +1375,7 @@ export function useBulkLogHabits() {
     BulkLogMutationOutcome,
     Error,
     BulkLogItemRequest[],
-    { previousLists: HabitListSnapshots; occurrenceDate: string; account: ReturnType<typeof captureSkipAccount> }
+    { previousLists: HabitListSnapshots; occurrenceDate: string; account: ReturnType<typeof captureHabitAccount> }
   >({
     mutationFn: async (items) => {
       const results: BulkLogResult['results'] = []
@@ -1405,7 +1426,7 @@ export function useBulkLogHabits() {
 
     onMutate: async (items) => {
       const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
-      const account = captureSkipAccount()
+      const account = captureHabitAccount()
 
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 

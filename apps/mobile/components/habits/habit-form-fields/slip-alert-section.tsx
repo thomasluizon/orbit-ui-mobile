@@ -1,3 +1,4 @@
+import { useHabitFormInteraction } from './habit-form-interaction'
 import { ListRow } from '@/components/ui/list-row'
 import { useMemo } from "react";
 import { View } from "react-native";
@@ -22,13 +23,14 @@ export function SlipAlertSection({
   onToggle,
   onUpgrade,
 }: Readonly<SlipAlertSectionProps>) {
+  const { disabled } = useHabitFormInteraction()
   const { t } = useTranslation();
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
 
   return (
     <View style={inline ? { gap: 12 } : sectionStyles.container}>
       {/* eslint-disable-next-line local/max-button-words -- Orbit Habit Create draws the slip-alert boundary label. */}
-      <ListRow textMode="label" placement={inline ? "column" : undefined} icon="shield-alert" title={t('habits.form.slipAlert')} description={t('habits.form.slipAlertDescription')}
+      <ListRow disabled={disabled} textMode="label" placement={inline ? "column" : undefined} icon="shield-alert" title={t('habits.form.slipAlert')} description={t('habits.form.slipAlertDescription')}
         toggle={hasProAccess ? { checked: slipAlertEnabled, onChange: onToggle } : undefined}
         trailing={!hasProAccess ? <Badge>{t('common.proBadge')}</Badge> : undefined} chevron={!hasProAccess}
         onClick={!hasProAccess ? onUpgrade : undefined} />

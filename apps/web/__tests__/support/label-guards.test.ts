@@ -246,7 +246,7 @@ describe('label and interaction fill guards in Chromium', () => {
       })))
       try {
         await page.setContent(`<style>${stylesheet}
-          [data-habit-row-meta] { ${clipped ? 'width: 10px;' : ''} }
+          [data-habit-row-meta-token] { ${clipped ? 'width: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;' : ''} }
         </style><main style="padding: 0 16px"><button data-habit-row-body style="display: flex; width: 100%; text-align: left">
           ${content}<span>Description<br>continues<br>as prose</span></button><button>Edit</button></main>`)
         await loadAppFonts(page)

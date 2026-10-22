@@ -29,9 +29,29 @@ describe('Android app variant', () => {
     expect(config.android.package).toBe('org.useorbit.app.staging')
     expect(config.android.playStoreUrl).toBe('https://play.google.com/store/apps/details?id=org.useorbit.app.staging')
     expect(config.android.intentFilters.flatMap((filter) => filter.data.map((entry) => entry.host)))
-      .toEqual(['app-staging.useorbit.org', 'app-staging.useorbit.org'])
+      .toEqual(['app-staging.useorbit.org', 'app-staging.useorbit.org', 'app-staging.useorbit.org'])
     expect(config.extra.router.origin).toBe('https://app-staging.useorbit.org')
     expect(appJson.expo.android.package).toBe('org.useorbit.app')
+  })
+
+  it.each(['production', 'staging'])('generates a verified exact login path for %s without broadening callback or referral routing', async (variant) => {
+    process.env.ORBIT_APP_VARIANT = variant
+    const config = createConfig()
+    const configured = AndroidConfig.IntentFilters.withAndroidIntentFilters({
+      name: config.name, slug: config.slug, android: config.android,
+    })
+    let manifest!: AndroidConfig.Manifest.AndroidManifest
+    const observed = withAndroidManifest(configured, (mod) => { manifest = mod.modResults; return mod })
+    await compileModsAsync(observed, { projectRoot: process.cwd(), platforms: ['android'], introspect: true })
+    const activity = AndroidConfig.Manifest.getMainActivityOrThrow(manifest)
+    const filters = activity['intent-filter'] ?? []
+    const verified = filters.filter((filter) => filter.$?.['android:autoVerify'] === 'true')
+    const host = variant === 'staging' ? 'app-staging.useorbit.org' : 'app.useorbit.org'
+    expect(verified.flatMap((filter) => filter.data?.map((entry) => entry.$))).toEqual([
+      { 'android:scheme': 'https', 'android:host': host, 'android:path': '/login' },
+      { 'android:scheme': 'https', 'android:host': host, 'android:pathPrefix': '/auth-callback' },
+      { 'android:scheme': 'https', 'android:host': host, 'android:pathPrefix': '/r/' },
+    ])
   })
 
   it.each(['production', 'staging'])('disables Android backup in the %s config', (variant) => {

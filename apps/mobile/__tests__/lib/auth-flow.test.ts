@@ -47,6 +47,8 @@ describe('mobile auth flow helpers', () => {
   it('accepts only safe return URLs', () => {
     expect(isSafeReturnUrl('/profile')).toBe(true)
     expect(isSafeReturnUrl('//evil.com')).toBe(false)
+    expect(isSafeReturnUrl('/\\evil.com')).toBe(false)
+    expect(isSafeReturnUrl('/\t/evil.com')).toBe(false)
     expect(getSafeReturnUrl('//evil.com', '/login')).toBe('/login')
   })
 

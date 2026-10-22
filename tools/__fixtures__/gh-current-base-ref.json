@@ -1,0 +1,31 @@
+{
+  "producer": "gh api graphql -F n=1930 -f 'query=query($n:Int!){repository(owner:\"thomasluizon\",name:\"orbit-ui-mobile\"){nameWithOwner ref(qualifiedName:\"refs/heads/main\"){name target{__typename oid}} pullRequest(number:$n){number state headRefOid baseRefName baseRefOid baseRef{name target{__typename oid}}}}}'",
+  "response": {
+    "data": {
+      "repository": {
+        "nameWithOwner": "thomasluizon/orbit-ui-mobile",
+        "ref": {
+          "name": "main",
+          "target": {
+            "__typename": "Commit",
+            "oid": "cb67585ae5f444d87c446af2285b1c036cbfa7fa"
+          }
+        },
+        "pullRequest": {
+          "number": 1930,
+          "state": "OPEN",
+          "headRefOid": "e3a51cc8a56722882007629bdbf28f72bb50f724",
+          "baseRefName": "main",
+          "baseRefOid": "656c7e31379123320c2fedb6a6742d55cb29c584",
+          "baseRef": {
+            "name": "main",
+            "target": {
+              "__typename": "Commit",
+              "oid": "cb67585ae5f444d87c446af2285b1c036cbfa7fa"
+            }
+          }
+        }
+      }
+    }
+  }
+}

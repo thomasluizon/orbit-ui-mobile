@@ -2133,7 +2133,8 @@ export const GetApiHabitsIdResponse = zod.object({
   "color": zod.string()
 })).nullish(),
   "scheduledStartDate": zod.iso.date().nullish(),
-  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseOriginalDayOfMonthRegExpTwo)]).nullish()
+  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseOriginalDayOfMonthRegExpTwo)]).nullish(),
+  "parentId": zod.uuid().nullish()
 })
 
 
@@ -2201,7 +2202,10 @@ export const PutApiHabitsIdBody = zod.object({
   "when": zod.union([zod.null(),zod.union([zod.enum(['SameDay', 'DayBefore']),zod.int().min(putApiHabitsIdBodyRelativeRemindersItemWhenTwoTwoMin).max(putApiHabitsIdBodyRelativeRemindersItemWhenTwoTwoMax),zod.string().regex(putApiHabitsIdBodyRelativeRemindersItemWhenTwoThreeRegExp)]).describe('MVC accepts case-insensitive names, surrounding whitespace, comma-separated names and signed 32-bit integers as numbers or numeric strings. Binding does not bypass habit validation.')]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "tagIds": zod.array(zod.uuid()).nullish(),
+  "parentId": zod.uuid().nullish(),
+  "clearParent": zod.boolean().nullish()
 })
 
 export const PutApiHabitsIdResponse = zod.void()
@@ -2362,7 +2366,8 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "color": zod.string()
 })).nullish(),
   "scheduledStartDate": zod.iso.date().nullish(),
-  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitOriginalDayOfMonthRegExpTwo)]).nullish()
+  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitOriginalDayOfMonthRegExpTwo)]).nullish(),
+  "parentId": zod.uuid().nullish()
 }),
   "metrics": zod.object({
   "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo)]),

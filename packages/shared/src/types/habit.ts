@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { MAX_BULK_OPERATION_SIZE } from '../api/constants'
 import { habitLogSchema } from './calendar'
-import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
+import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH, MAX_TAGS_PER_HABIT } from '../validation/constants'
 
 export const habitScheduleSchema = z.enum(['OneTime', 'Recurring', 'Flexible', 'General'])
 export type HabitSchedule = z.infer<typeof habitScheduleSchema>
@@ -368,6 +368,7 @@ export const updateHabitRequestSchema = z.object({
   slipAlertEnabled: z.boolean().optional(),
   checklistItems: z.array(checklistItemSchema).optional(),
   goalIds: z.array(z.string()).optional(),
+  tagIds: z.array(z.uuid()).max(MAX_TAGS_PER_HABIT).nullish(),
   endDate: z.string().nullable().optional(),
   clearEndDate: z.boolean().optional(),
 })

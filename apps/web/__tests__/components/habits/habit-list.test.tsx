@@ -1052,6 +1052,33 @@ describe('HabitList', () => {
     }
   })
 
+  it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].flatMap((drilling) => [false, true].map((selectMode) => ({ view, drilling, selectMode })))))(
+    'composes type and own checklist for every list consumer in $view, drill=$drilling selection=$selectMode', ({ view, drilling, selectMode }) => {
+      rowImplementation.actual = true
+      const checklistItems = [{ text: 'Page', isChecked: true }, { text: 'Page', isChecked: false }]
+      const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY], isGeneral: view === 'general', checklistItems })
+      const child = createMockHabit({ ...parent, id: 'child', title: 'Child', hasSubHabits: false, parentId: parent.id })
+      const branch = createMockHabit({ ...child, id: 'branch', title: 'Branch', hasSubHabits: true })
+      for (const habit of [parent, child, branch]) mockHabitsData.habitsById.set(habit.id, habit)
+      mockHabitsData.childrenByParent.set(parent.id, [child.id, branch.id])
+      mockHabitsData.topLevelHabits = [parent]
+      if (drilling) {
+        mockDrillState.currentParent = parent
+        mockDrillState.currentParentId = parent.id
+        mockDrillState.drillStack = [parent.id]
+        mockDrillState.drillChildren = [child, branch]
+      }
+      const { container } = renderWithProviders(<HabitList view={view} isSelectMode={selectMode} selectedHabitIds={new Set([child.id])} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+      const rows = container.querySelectorAll('[data-testid="habit-row"]')
+      expect(rows).toHaveLength(drilling ? 2 : 3)
+      for (const row of rows) {
+        const meta = row.querySelector('[data-habit-row-meta]')!
+        expect(meta.firstElementChild?.querySelector('[data-habit-row-type]')).not.toBeNull()
+        expect(meta.querySelector('[data-habit-row-checklist]')?.textContent).toBe('1/2')
+        expect(row.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
+      }
+    },
+  )
   function assertCascadeActions(container: HTMLElement, drilling: boolean, width: number, textScale: number) {
     if (drilling) return
     const disclosure = container.querySelector<HTMLButtonElement>('[data-habit-title="Branch"] [data-habit-row-control="disclosure"]')!
@@ -1505,7 +1532,7 @@ describe('HabitList', () => {
           const title = row.querySelector('[data-personal-text]')!
           const type = row.querySelector('[data-habit-row-type]')!
           const meta = row.querySelector('[data-habit-row-meta]')
-          const stack = [title, type, ...(meta ? [meta] : [])].map((node) => {
+          const stack = [title, ...(meta ? [meta] : [])].map((node) => {
             const bounds = node.getBoundingClientRect()
             return { top: bounds.top, bottom: bounds.bottom, height: bounds.height, left: bounds.left }
           })
@@ -1516,7 +1543,7 @@ describe('HabitList', () => {
             height: bounds.height,
             minimumHeight: Number.parseFloat(getComputedStyle(row).minHeight),
             padding: Number.parseFloat(padding.paddingTop) + Number.parseFloat(padding.paddingBottom),
-            contentHeight: type.parentElement!.getBoundingClientRect().height,
+            contentHeight: title.closest('[data-habit-row-title-block]')!.getBoundingClientRect().height,
             stack, type: type.textContent,
             target: { width: target.width, height: target.height, centre: target.top + target.height / 2 },
             centre: rowBounds.top + rowBounds.height / 2,
@@ -1556,7 +1583,7 @@ describe('HabitList', () => {
     }
   }, 45_000)
 
-  it('shows only the time on timed rows and no routine meta on untimed rows', () => {
+  it('keeps time and actual checklist counts without routine frequency text', () => {
     rowImplementation.actual = true
     const habits = [
       createMockHabit({ id: 'timed', title: 'Timed', dueTime: '21:00', scheduledDates: [TODAY] }),
@@ -1569,10 +1596,11 @@ describe('HabitList', () => {
     const [timed, untimed] = screen.getAllByTestId('habit-row')
     expect(timed).toHaveTextContent(/21:00|9:00/)
     expect(timed).not.toHaveTextContent('habits.frequency')
-    expect(untimed).not.toHaveTextContent(/habits.frequency|1\/1/)
+    expect(untimed).not.toHaveTextContent('habits.frequency')
+    expect(untimed).toHaveTextContent('1/1')
   })
 
-  it('shows the derived child count instead of a parent schedule or checklist', () => {
+  it('shows the derived child count instead of a parent schedule', () => {
     rowImplementation.actual = true
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true,
       dueTime: '21:00', scheduledDates: [TODAY] })
@@ -1614,12 +1642,21 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList view="today" showCompleted
       filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
     const row = screen.getAllByTestId('habit-row')[0]!
-    const progress = within(row).getByText(/habits\.rowProgress/)
-    expect(progress).toHaveTextContent(['habits.rowProgress({"done":1,"total":2})', ...words].join('·'))
+    const meta = row.querySelector<HTMLElement>('[data-habit-row-meta]')!
+    expect(meta).toBeInTheDocument()
+    const progress = within(meta).getByText(/habits\.rowProgress/)
+    expect(progress.textContent).toBe(`habits.rowProgress({"done":1,"total":2})${words.length ? '·' : ''}`)
+    const labels = ['habits.form.typeHabit', 'habits.rowProgress({"done":1,"total":2})', ...words]
+    const tokens = meta.querySelectorAll('[data-habit-row-meta-token]')
+    expect(Array.from(tokens, (token) => token.textContent)).toEqual(labels.map((label, index) =>
+      `${label}${index < labels.length - 1 ? '·' : ''}`))
+    expect(progress).toBe(tokens[1])
+    expect(meta.textContent).toBe(labels.join('·'))
     for (const word of ['habits.overdue', 'habits.statusDot.bad']) {
-      if (!words.includes(word)) expect(progress).not.toHaveTextContent(word)
+      expect(within(meta).queryAllByText(word, { exact: true })).toHaveLength(words.includes(word) ? 1 : 0)
+      if (!words.includes(word)) expect(meta).not.toHaveTextContent(word)
     }
-    expect(progress).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
+    expect(meta).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
     const body = row.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
     const bodyName = `${label}, habits.form.typeHabit ${['habits.rowProgress({"done":1,"total":2})', ...words].join('·')}`
     expect(within(row).getByRole('button', {
