@@ -190,6 +190,16 @@ These are the gates every later batch runs through. Re-read each ticket against 
 
 The Astra block-first overhaul leads this batch (owner order): every Astra answer to any prompt leads with one interactive data block and the least text possible. API first, then the paired UI.
 
+- `#1629` Make session refresh single-flight so concurrent requests stop signing people out (Sentry `ORBIT-WEB-10`; web and Android, API reuse handling if it revokes the family). Owner report; first.
+- `#1630` Fix the production profile response that fails the web schema (Sentry `ORBIT-WEB-V`, escalating since go-live); log the failing Zod path.
+- `#1621` Take the patched Next.js and `@sentry/nextjs`, plus the `dompurify` advisory and the Expo SDK 57 patch set folded in by ticket comment, so `Guards` passes on every UI pull request (`ui#1954`, approved at `b5cca475`, needs the folded round). Production web release follows.
+- `#1627` Make Astra the expert on Orbit's own habit model: one-time Tasks for dated events, bounded preparation items, avoid form versus commitment form chosen from intent and never mixed, corrections keep unchanged fields, one batch preview, and the root cause of the failed batch item (owner report; ticket comments carry the bar). Coordinate composition with `#1617`.
+- `#1628` Astra preview items: drop the chevron that collapses nothing, rename the title in place, keep Editar for the rest, natural icon label (web and Android).
+- `#1622` MCP connector and OAuth page icons: merged as `orbit-api` `5d6c05d1` and live on staging; production release, then a Search Console recrawl of `useorbit.org` and `api.useorbit.org`, then re-check the Google favicon cache and the connector list.
+- `#1623` Frame the Google Play screenshots like the old set, in the redesign, in both locales, including tablet frames and a pt-BR feature graphic (owner order, previously carried without a ticket).
+- `#1624` Replace or delete every old-design brand asset and write the next social drafts (owner order).
+- `#1625` Make Gmail show Copy code on the sign-in code email.
+- `#1626` Settle the `redesign` flag after the production go-live (runbook step 7).
 - `#1615` Return complete completion-count rankings as negotiated blocks (`orbit-api`; blocks `#1617` and `#1618`).
 - `#1616` Bind dated reads, totals, comparisons and refresh to the actual query (`orbit-api`; blocks `#1617` and `#1619`).
 - `#1617` Enforce block-first composition across every Astra answer family (`orbit-api`; blocked by `#1615` and `#1616`; the legacy text FORMAT rule stays for clients without parts support).
@@ -540,7 +550,7 @@ Current operational rules above take precedence when a record conflicts.
 - A Linux replay of a Chromium test runs in Docker on the `mcr.microsoft.com/playwright` image with its bundled Chromium (Google Chrome stable does not install on Linux arm64); it reproduced a Linux-only raster red exactly.
 ## Current state
 
-Latest handoff: a relay with the chain open. The board has 78 open tickets, each placed once, and no open owner questions. Live builds: production web `c16cfe71667d437c7395740a0a4c0acce2915b1b` (UI `main` now also carries the merged `#1588` row metadata, not yet released), production and staging API `fdc5f13969dbdc6da4b9fd18d351a88e7bce1a47` (the `#1612` continuation-outcome fix), Android `1.3.90` (`149`) submitted to Open with availability unverified. The Astra block-first overhaul is filed as `#1615` to `#1620`: `#1615` is published as API849 and `#1616` as API848 (four more commits after a ceiling stop, CHANGES_REQUESTED). Root-proven local work: `#1609` (63 of 63 Chromium), `#222` and `#1564` carried to `main`. `#1607` carry has a red layout lane and `#418` mutation results need review.
+Latest handoff: a relay with the chain open. The board has 88 open tickets, each placed once. Live builds: production API `5b9dd63f` (`#1615` rankings), staging API `5d6c05d1` (`#1622` icons); api `main` is `316877ab` with `#1616` merged and unreleased. Production web is still `c16cfe71` (UI `main` carries `#1588`, unreleased, waiting to ship with `#1621`). Android `1.3.90` (`149`) on Open, availability unverified. Every UI pull request is red on `Guards` until `#1621`'s folded round lands. New owner reports this cycle are `#1621` to `#1630`, placed at the top of Batch 0c. An owner order gets its ticket in the session it arrives; a Current state line is never its only record.
 
 ### Resume state and source ownership
 
@@ -603,6 +613,8 @@ There are many historical local branches with no open PR: UI1263, API441, landin
 Full local/ignored inventories, failed and successful receipts, source reports, screenshots, the exact question dispositions and timed decision log live in the durable scratchpad. They are private evidence, not files to add to a PR. Redact secrets from any finished worker log before retaining or quoting it. Use the immutable source identities and raw receipts in each prepared packet; do not infer a pass from a worker summary. The current owner-phone steps are update if offered, inspect installed version under Perfil > Sobre, and tap the completed-habit menu. They do not halt the remaining engineering work or introduce a new redesign approval gate.
 
 ## Open questions
+
+- Open, owner: convert his two daily exam-preparation habits (`Não tomar multivitamínico até o exame`, `Não ir ao Muay Thai antes do exame`, created by Astra as open-ended `1x/Day`) into one-time tasks on 27/10 and 29/10 in his production account? Blocks only that data cleanup; `#1627` fixes the cause.
 
 - Answered: the current Orbit Sentry organization is `https://orbit-ai-habit-tracker.sentry.io/settings/organization/`. The native target/credential repair, same-token diagnostic and fatal upload are complete; no owner token, account, scope or grant action is pending. Actual Open availability remains separate release acceptance.
 
