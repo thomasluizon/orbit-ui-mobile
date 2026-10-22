@@ -2138,7 +2138,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     const { result } = renderHook(() => useChatComposer())
-    const suggestion = result.current.composerProps.suggestions[0]!
+    const suggestion = result.current.composerProps.suggestions.find(chip => chip.id === 'today.startOneHabit')!
 
     act(() => suggestion.onSelect())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
@@ -2147,6 +2147,32 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe(suggestion.label)
+  })
+
+  it.each([
+    ['en', 'Build a morning routine', 'Build a morning routine'],
+    ['pt-BR', 'Montar rotina matinal', 'Montar uma rotina matinal'],
+  ] as const)('sends the original morning prompt once from the compact chip in %s', async (locale, label, prompt) => {
+    mocks.locale = locale
+    mocks.translate = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer({ pathname: '/', totalHabitCount: 0 }))
+    const suggestion = result.current.composerProps.suggestions[0]!
+    expect(suggestion.id).toBe('today.buildMorningRoutine')
+    expect(suggestion.label).toBe(label)
+    expect(mocks.fetch).not.toHaveBeenCalled()
+
+    act(() => suggestion.onSelect())
+    await waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    expect(requestBody).toBeInstanceOf(FormData)
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe(prompt)
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual([prompt])
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
   it.each(['moveOverdue', 'logHabit', 'trimHabit', 'keepOnlyHabit', 'reviewHabit', 'createGoal'])('sends the complete habit title behind the short %s label', async action => {

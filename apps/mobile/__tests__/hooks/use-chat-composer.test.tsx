@@ -2271,7 +2271,7 @@ describe('mobile useChatComposer', () => {
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     const composer = await renderComposer()
-    const suggestion = composer.current.composerProps.suggestions[0]!
+    const suggestion = composer.current.composerProps.suggestions.find(chip => chip.id === 'today.startOneHabit')!
 
     TestRenderer.act(() => suggestion.onSelect())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
@@ -2279,6 +2279,32 @@ describe('mobile useChatComposer', () => {
 
     expect(appendFormPart).toHaveBeenCalledWith('message', suggestion.label)
     appendFormPart.mockRestore()
+  })
+
+  it.each([
+    ['en', 'Build a morning routine', 'Build a morning routine'],
+    ['pt-BR', 'Montar rotina matinal', 'Montar uma rotina matinal'],
+  ] as const)('sends the original morning prompt once from the compact chip in %s', async (locale, label, prompt) => {
+    mocks.locale = locale
+    await i18n.changeLanguage(locale)
+    mocks.translate = i18n.t.bind(i18n)
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    onTestFinished(() => appendFormPart.mockRestore())
+    const composer = await renderComposer({ pathname: '/' })
+    const suggestion = composer.current.composerProps.suggestions[0]!
+    expect(suggestion.id).toBe('today.buildMorningRoutine')
+    expect(suggestion.label).toBe(label)
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => suggestion.onSelect())
+    await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+    expect(appendFormPart.mock.calls.filter(([name]) => name === 'message')).toEqual([['message', prompt]])
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual([prompt])
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
   it.each(['moveOverdue', 'logHabit', 'trimHabit', 'keepOnlyHabit', 'reviewHabit', 'createGoal'])('sends the complete habit title behind the short %s label', async action => {

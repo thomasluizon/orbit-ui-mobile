@@ -1030,10 +1030,29 @@ describe('Composer compact geometry in Chromium', () => {
               const range = document.createRange()
               range.selectNodeContents(text)
               const lines = [...range.getClientRects()]
+              const walker = document.createTreeWalker(text.parentElement!, NodeFilter.SHOW_TEXT)
+              const fragments: DOMRect[] = []
+              while (walker.nextNode()) {
+                if (!walker.currentNode.textContent?.trim()) continue
+                const fragmentRange = document.createRange()
+                fragmentRange.selectNodeContents(walker.currentNode)
+                fragments.push(...[...fragmentRange.getClientRects()].filter(fragment => fragment.width > 0))
+              }
+              const combinedLines: DOMRect[] = []
+              for (const fragment of fragments.sort((first, second) => first.top - second.top)) {
+                const center = (fragment.top + fragment.bottom) / 2
+                const sharesLine = combinedLines.some(line => {
+                  const lineCenter = (line.top + line.bottom) / 2
+                  return center >= line.top && center <= line.bottom
+                    && lineCenter >= fragment.top && lineCenter <= fragment.bottom
+                })
+                if (!sharesLine) combinedLines.push(fragment)
+              }
               const attribution = [...button.querySelectorAll<HTMLElement>('[translate="no"]')]
               const marks = [...button.querySelectorAll<SVGElement>('[data-asset="astra-mark-16"]')]
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
                 label: text.textContent, accessibleName: button.getAttribute('aria-label'), lines: lines.length, textOverflow: style.textOverflow,
+                combinedText: text.parentElement!.textContent, combinedLines: combinedLines.length,
                 textFits: lines.every(line => line.left >= bounds.left && line.right <= bounds.right && line.bottom <= bounds.bottom),
                 attribution: attribution.map(element => element.textContent),
                 attributionFits: attribution.every(element => {
@@ -1057,6 +1076,9 @@ describe('Composer compact geometry in Chromium', () => {
             expect(measured.hidden, evidence).toBeGreaterThanOrEqual(16)
             expect(measured.controls[0]!.right - measured.controls[0]!.left, evidence).toBeLessThan(measured.viewport)
           } else expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
+          if (scenario === 'empty' && width === 320 && fontScale === 1) {
+            expect(measured.controls.map(control => control.combinedLines), evidence).toEqual(suggestions.map(() => 1))
+          }
           for (const control of measured.controls) {
             expect(control.textFits, evidence).toBe(true)
             expect(control.accessibleName, evidence).toBe(`${control.label}, ${messages.nav.astra}`)

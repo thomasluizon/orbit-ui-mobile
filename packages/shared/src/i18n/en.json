@@ -310,7 +310,8 @@
           "logHabit": "Log \"{title}\"",
           "trimHabit": "Simplify \"{title}\"",
           "keepOnlyHabit": "Keep only \"{title}\"",
-          "reviewHabit": "Review \"{title}\""
+          "reviewHabit": "Review \"{title}\"",
+          "buildMorningRoutine": "Build a morning routine"
         },
         "progress": {
           "createGoal": "Create a goal for {title}"
