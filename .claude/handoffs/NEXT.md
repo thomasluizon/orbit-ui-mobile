@@ -16,23 +16,23 @@ Finish the spec: every requested production fix, the Astra overhaul, deferred as
 
 | Item | Disposition |
 | --- | --- |
-| Astra block-first overhaul | FIRST. Owner order: every Astra answer to ANY prompt leads with one interactive data block and the least text possible, leaner than the Pierre reference. Six tickets are drafted in `draft-astra-tickets.md` (scratchpad). Check the split, every-prompt coverage and the D7 corrections, file them with `tools/create-ticket.mjs` (milestone `562 Astra`, API blocking UI), post the reconciliation comments, place each once at the top of Batch 0c, and start Codex workers. |
+| Astra block-first overhaul | FIRST. Owner order: every Astra answer to ANY prompt leads with one interactive data block and the least text possible, leaner than the Pierre reference. Filed as `#1615` to `#1620` (milestone `562 Astra`, API blocking UI) and placed at the top of Batch 0c; the reconciliation comments are on `#24` and `#26`. Start Codex workers in dependency order. |
 | UI1951 | This handoff's docs PR. Drive review and merge. |
-| API847 `#1612` | Published `fd0cb4de`. CI waiter armed at relay. Drive review, merge, API release, then real staging acceptance. |
-| API846 | Pullfrog workflow without the Claude fallback, `bd9acae4`. CI waiter armed. Drive review and merge. |
-| UI1949 `#1588` | Published `2f7f5f87` with root web proof in the body. CI waiter armed. Needs a fresh exact-head review, merge, production web and Android Open release. |
+| API847 `#1612` | Published `fd0cb4de`. Re-arm its CI waiter, then drive review, merge, API release, then real staging acceptance. |
+| API846 | Pullfrog workflow without the Claude fallback, `bd9acae4`. Re-arm its CI waiter, then drive review and merge. |
+| UI1949 `#1588` | Published `2f7f5f87` with root web proof in the body. Re-arm its CI waiter. Needs a fresh exact-head review, merge, production web and Android Open release. |
 | `#1607` UI1946 | Local `598eb870`, focus fixture proven. Next: main carry with the prepared single-file resolution, parity check, both harnesses, the 11 unrun layout files against the dc995 frozen build, one publication. Details in the spec source packet. |
 | `#1609` | Local `57184919`, review findings fixed. Root Chromium commands in `report-1609-review-fixes.md`, then one publication as a new PR. |
 | `#418` | Local `b17b97b0` on `thomasluizon/ticket-418-recovery-proof`. Stryker changed-owner acceptance pending (`418-root-mutation-packet/`), then one push and a new API PR. |
 | `#181` UI1903 | Combined build `f9db8d38` passed; ownership proof passed with a scratchpad check only. Add a committed emitted-ownership guard, prepare and run the stage 3 flows lane, publish once. |
 | `#1611` UI1944, `#1613`, UI1896 `#222`, UI1897 `#1564`, UI1938, Dependabot UI1915/UI1916/UI1930/UI1932 | Unchanged from the spec source packets; drive each through the normal bar after the rows above. |
 | Play, brand and code-email scope; landing `#272`; runbook 7 and 12; phone checks | Unchanged; see `### Remaining PRs, assets and delivery`. |
-| Workers, waiters, session chain | No worker running at relay. CI waiters for API846, API847 and UI1949 stay live. The chain stays open. |
+| Workers, waiters, session chain | No worker running at relay. The relay tool stops the predecessor's CI waiters (`stopCiWaiters` in `tools/relay-session.mjs`), so inspect API846, API847 and UI1949 and re-arm a waiter for each pending one. The chain stays open. |
 
 ## Then, in this order
 
 1. Answer any owner message first, in his language.
-2. File and start the Astra overhaul tickets.
+2. Start the Astra overhaul tickets in dependency order.
 3. Drive the in-flight rows above, keeping independently releasable fixes moving.
 4. Follow `## The order` from Batch 0c onward, preserving one bullet per open ticket.
 5. Run the full real-call Astra staging sweep only after the current Astra work is deployed, and judge every answer against the block-first rule.
