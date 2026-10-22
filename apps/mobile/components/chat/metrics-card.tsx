@@ -1,11 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { Text, View, useWindowDimensions } from 'react-native'
-import { z } from 'zod'
-import { useHabitMetrics } from '@/hooks/use-habits'
-import { useProgressRecap } from '@/hooks/use-recap'
-import { liveMetricsCard, metricsFigureLabelKey } from '@orbit/shared/chat/metrics-card-core'
-import { liveBlockState } from '@orbit/shared/chat/live-block-state'
+import { metricsFigureLabelKey } from '@orbit/shared/chat/metrics-card-core'
 import { StatTile } from '@/components/ui/stat-tile'
 import { getMetricsRows } from '@orbit/shared/chat'
 import type { MetricsCard as MetricsCardData } from '@orbit/shared/types/chat'
@@ -29,13 +25,7 @@ export function MetricsCard({ metricsCard: snapshot }: Readonly<{ metricsCard: M
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { fontScale } = useWindowDimensions()
-  const period = z.enum(['week', 'month', 'quarter', 'semester', 'year']).safeParse(snapshot.period)
-  const recap = useProgressRecap(period.success ? period.data : 'month', period.success && !snapshot.habitId)
-  const habit = useHabitMetrics(snapshot.habitId ?? null)
-  const query = snapshot.habitId ? habit : recap
-  const queryState = snapshot.habitId || period.success ? query : { isPending: false, isError: false, isRefetchError: false }
-  const frameState = liveBlockState(queryState, { staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void query.refetch() } })
-  const metricsCard = liveMetricsCard(snapshot, habit.data, period.success ? recap.data : undefined)
+  const metricsCard = snapshot
   const habitId = metricsCard.habitId
   const habitTitle = metricsCard.habitTitle?.trim()
   const points = metricsCard.series ? mapCompletionSeries(metricsCard.series, i18n.language) : []
@@ -54,13 +44,13 @@ export function MetricsCard({ metricsCard: snapshot }: Readonly<{ metricsCard: M
   return (
     <View style={{ width: '100%' }}>
       <BlockFrame
-        {...frameState}
+        state="resting"
         title={habitId && habitTitle ? t('chat.metrics.habitTitle', { name: habitTitle }) : t('chat.metrics.title')}
         titleMode={habitId && habitTitle ? 'typed' : 'label'}
         count={null}
         items={rows}
         body={<View style={{ gap: 16 }}>{chart}<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>{figures.map((figure) => <View key={figure.id} style={{ flexBasis: 192 * fontScale, flexGrow: 1, flexShrink: 1, minWidth: 0 }}>{figure.value == null ? <StatTile key={figure.id} state="empty" label={t(metricsFigureLabelKey(figure.id, figure.labelKey))} emptyLabel={t('chat.metrics.noFigure')} /> : <StatTile key={figure.id} value={figure.value} label={t(metricsFigureLabelKey(figure.id, figure.labelKey))} />}</View>)}</View></View>}
-        actions={<>{query.isError ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}<Button variant="ghost" size="sm" accessibilityRole="link" onClick={() => { if (habitId) navigate({ pathname: '/habits/[id]', params: { id: habitId } }); else navigate('/progress') }}>{t(habitId ? 'chat.metrics.habitLink' : 'chat.metrics.progressLink')}</Button></>}
+        actions={<><Button variant="ghost" size="sm" accessibilityRole="link" onClick={() => { if (habitId) navigate({ pathname: '/habits/[id]', params: { id: habitId } }); else navigate('/progress') }}>{t(habitId ? 'chat.metrics.habitLink' : 'chat.metrics.progressLink')}</Button></>}
       />
     </View>
   )

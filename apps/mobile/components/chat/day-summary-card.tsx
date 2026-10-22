@@ -2,7 +2,6 @@ import { useRef, useState, type ReactNode } from 'react'
 import { daySummaryLogControl } from '@orbit/shared/chat/day-summary-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
-import { isHabitDoneForRange } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { HabitCheck } from '@/components/habits/habit-check'
@@ -57,18 +56,14 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
       onSettled: () => { pending.current = false; setPendingId(null) },
     })
   }
-  const done = Math.max(0, Math.min(daySummary.due, daySummary.done + payloadRows.reduce((delta, item) => {
-    if (item.depth !== 0 || item.isBadHabit) return delta
-    const occurrence = occurrences.data?.habitsById.get(item.id)
-    return delta + (occurrence ? Number(isHabitDoneForRange(occurrence)) - Number(item.status === 'done') : 0)
-  }, 0)))
-  const completionRate = daySummary.due > 0 ? Math.round(done / daySummary.due * 100) : 0
+  const done = daySummary.done
+  const completionRate = daySummary.completionRate ?? 0
   const rows = visibleRows.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
-    const title = occurrence?.title ?? item.title
+    const title = item.title
     const control = daySummaryLogControl(occurrence, item.status === 'overdue')
     const actionLabel = control.undoUnavailable ? `${title}: ${t(control.statusKey)}` : t(control.actionKey, { name: title })
-    return { id: item.id, wrapLabel: true, label: <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: title })} onPress={() => navigate({ pathname: '/habits/[id]', params: { id: item.id } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{occurrence?.emoji ?? item.emoji ?? '•'}</Text></View><View style={{ flex: 1, minWidth: 0 }}><PersonalText style={{ color: tokens.fg1, fontSize: 14 }}>{title}</PersonalText></View></InsetFocusPressable>,
+    return { id: item.id, wrapLabel: true, label: <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: title })} onPress={() => navigate({ pathname: '/habits/[id]', params: { id: item.id } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{item.emoji ?? '•'}</Text></View><View style={{ flex: 1, minWidth: 0 }}><PersonalText style={{ color: tokens.fg1, fontSize: 14 }}>{title}</PersonalText></View></InsetFocusPressable>,
       meta: control.status === 'bad' ? t('habits.statusDot.bad') : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
       ...(failedId === item.id ? { status: 'failed' as const } : {}),
       control: occurrence ? <DaySummaryControl readOnly={control.undoUnavailable} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
