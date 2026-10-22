@@ -42,7 +42,7 @@ function RadioRowContent({ label, selection, hideMeta, wrapLabel, textMode, desc
   const personalColor = proposed ? 'var(--radio-row-secondary,var(--fg-3))' : 'var(--fg-1)'
   const selectionColor = selection && !selected ? 'var(--fg-2)' : 'var(--fg-1)'
   const optionColor = proposed ? 'var(--radio-row-secondary,var(--fg-3))' : selectionColor
-  const content = (
+  return (
     <>
       {leading ? <span data-slot="list-row-icon" className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col justify-center" style={radioTextBlockStyle(wrapLabel)}>
@@ -57,21 +57,21 @@ function RadioRowContent({ label, selection, hideMeta, wrapLabel, textMode, desc
       </span> : <RadioGlyph selected={selected} size={24} proposed={proposed} />}
     </>
   )
-  return wrapRadioContent(content, wrapLabel)
 }
 
 function radioTextBlockStyle(wrapLabel: boolean | undefined): CSSProperties {
   return { gap: SPACING.s4, minHeight: wrapLabel ? 24 : undefined }
 }
 
-function wrapRadioContent(content: ReactNode, wrapLabel: boolean | undefined) {
-  return wrapLabel ? <span className="flex w-full min-w-0 items-start" style={{ gap: SPACING.s12 }}>{content}</span> : content
-}
-
-function radioRowStyle(depth: number, selected: boolean, disabled: boolean, proposed = false): CSSProperties {
+function radioRowStyle(depth: number, selected: boolean, disabled: boolean, proposed: boolean, wrapLabel: boolean | undefined, leading: ReactNode): CSSProperties {
   return {
     gap: 12,
-    alignItems: 'center',
+    display: wrapLabel ? 'grid' : undefined,
+    gridTemplateColumns: wrapLabel ? `${leading ? 'auto ' : ''}minmax(0, 1fr)` : undefined,
+    gridAutoFlow: wrapLabel ? 'column' : undefined,
+    gridAutoColumns: wrapLabel ? 'auto' : undefined,
+    alignContent: 'center',
+    alignItems: wrapLabel ? 'start' : 'center',
     minHeight: 52,
     paddingBlock: SPACING.s8,
     paddingInlineStart: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
@@ -94,7 +94,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
   const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
   const secondaryColor = selected ? 'var(--fg-2)' : 'var(--radio-row-secondary,var(--fg-3))'
   const content = <RadioRowContent label={label} selection={selection} hideMeta={hideMeta} wrapLabel={wrapLabel} textMode={textMode} description={description} selected={selected} leading={leading} meta={meta} tag={tag} disabled={disabled} reason={reason} secondaryColor={secondaryColor} contentId={contentId} disclosed={disclosed} proposed={proposed} />
-  const style = radioRowStyle(depth, selected, disabled, proposed)
+  const style = radioRowStyle(depth, selected, disabled, proposed, wrapLabel, leading)
   const accessibilityLabel = textMode === 'personal' || hideMeta
     ? [label, description, meta, tag, disabled ? reason : null].filter(Boolean).join(', ')
     : undefined

@@ -191,6 +191,7 @@ function assertAllowanceNodes(nodes: Map<string, YogaNode>, nearLimit: boolean, 
 }
 
 it.each(allowanceCases)('keeps Hoje stable near $limit messages at $width with chips $withSuggestions and scale $fontScale', async ({ width, messages, limit, withSuggestions, fontScale }) => {
+  translation.words = { 'shell.composer.limit.placeholder': messages.shell.composer.limit.placeholder }
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
   const measured: { height: number; inputTop: number }[] = []
   for (const used of [limit - 3, limit - 2, limit - 1, limit]) {
@@ -199,7 +200,7 @@ it.each(allowanceCases)('keeps Hoje stable near $limit messages at $width with c
     let tree!: Tree
     await renderer.act(() => {
       tree = renderer.create(<Composer value="" suggestions={withSuggestions && used < limit ? dailySuggestions(messages) : []}
-        words={messages.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()}
+        words={used === limit ? { ...messages.shell.composer, placeholder: messages.shell.composer.limit.placeholder } : messages.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()}
         usageMessage={nearLimit && used < limit ? messages.shell.composer.usage.replace('{used}', String(used)).replace('{limit}', String(limit)) : undefined}
         allowanceReason={nearLimit ? reason : undefined}
         renewalHint={nearLimit ? messages.shell.composer.limit.renewal : undefined}
@@ -222,6 +223,7 @@ it.each(allowanceCases)('keeps Hoje stable near $limit messages at $width with c
   expect(measured[0]!.height).toBeLessThan(measured[1]!.height)
   expect(measured[1]).toEqual(measured[2])
   expect(measured[2]).toEqual(measured[3])
+  translation.words = {}
   __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
 })
 
@@ -271,7 +273,7 @@ function assertMountedActions(tree: Tree, messages: typeof en, state: 'idle' | '
 }
 
 async function replayTextMeasurements(tree: Tree, width: number, fontScale: number) {
-  for (const id of ['composer-paste-measure', 'composer-placeholder-measure', 'composer-placeholder']) {
+  for (const id of ['composer-paste-measure', 'composer-placeholder-measure', 'composer-allowance-placeholder-measure', 'composer-placeholder']) {
     const element = tree.root.findAll(node => node.props.testID === id)[0]
     if (!element) continue
     const nodes = new Map<string, YogaNode>()
@@ -282,7 +284,7 @@ async function replayTextMeasurements(tree: Tree, width: number, fontScale: numb
       const fontStyle: TextStyle = { fontFamily, fontSize, lineHeight, letterSpacing }
       const measured = measureProfileRow({ type: 'Text', props: { style: fontStyle },
         children: [element.props.children as string] }, nodes.get(id)!.getComputedWidth(), fontScale).texts[0]!
-      if (id === 'composer-placeholder') {
+      if (id === 'composer-placeholder' || id === 'composer-allowance-placeholder-measure') {
         const onLayout = element.props.onLayout as (event: { nativeEvent: Pick<LayoutChangeEvent['nativeEvent'], 'layout'> }) => void
         await renderer.act(() => onLayout({ nativeEvent: { layout: {
           x: 0, y: 12, width: measured.width, height: measured.height,
@@ -300,7 +302,8 @@ async function replayTextMeasurements(tree: Tree, width: number, fontScale: numb
 }
 
 it.each(allowanceCases)('retains the measured frame through allowance transitions at $width with $limit chips $withSuggestions and scale $fontScale', async ({ width, messages, limit, withSuggestions, fontScale }) => {
-  translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.askDate': messages.habits.form.askDate }
+  translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.askDate': messages.habits.form.askDate,
+    'shell.composer.limit.placeholder': messages.shell.composer.limit.placeholder }
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
   const reason = messages.shell.composer.limit.reason.replace('{allowance}', String(limit))
   const onSend = vi.fn()
@@ -310,6 +313,7 @@ it.each(allowanceCases)('retains the measured frame through allowance transition
     onAttachFile: vi.fn(), attachWords: { ...messages.shell.composer.attach, remove: (name: string) => name },
     onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation }
   const renderState = (state: 'idle' | 'atLimit') => <Composer {...configuration}
+    words={state === 'atLimit' ? { ...messages.shell.composer, placeholder: messages.shell.composer.limit.placeholder } : messages.shell.composer}
     suggestions={withSuggestions && state === 'idle' ? dailySuggestions(messages) : []}
     {...state === 'idle' ? { state, usageMessage: messages.shell.composer.usage.replace('{used}', String(limit - 1)).replace('{limit}', String(limit)) }
       : { state, limitReason: reason }} />

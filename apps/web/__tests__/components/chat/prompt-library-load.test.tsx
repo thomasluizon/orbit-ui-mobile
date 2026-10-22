@@ -91,7 +91,7 @@ it('imports again after reconnecting and renders the library on the second open'
   expect(screen.getByRole('button', { name: 'Back to conversation' })).toBeEnabled()
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus())
   await act(async () => { finishImport() })
-  expect(await screen.findByRole('button', { name: 'Plan my morning' })).toBeEnabled()
+  expect(await screen.findByRole('button', { name: `Plan my morning, ${en.nav.astra}` })).toBeEnabled()
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus())
   expect(importAttempt).toHaveBeenCalledTimes(2)
   expect(screen.queryByRole('alert')).toBeNull()

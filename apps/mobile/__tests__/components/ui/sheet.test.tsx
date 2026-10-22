@@ -244,7 +244,7 @@ describe('Sheet (mobile)', () => {
       onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
       onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }
     const labels = ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
-      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'habits.actions.rescheduleAstra', 'common.edit', 'habits.actions.duplicate',
       'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete']
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {

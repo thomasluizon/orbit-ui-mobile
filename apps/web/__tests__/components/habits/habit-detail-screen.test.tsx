@@ -613,7 +613,7 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleError')
     expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
@@ -646,7 +646,7 @@ describe('HabitDetailScreen', () => {
     if (requestState === 'retry') mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     const view = render(<HabitDetailScreen habitId="habit-1" />)
     if (requestState === 'retry') {
-      fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
       expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
       mocks.rescheduleError = null
       view.rerender(<HabitDetailScreen habitId="habit-1" />)

@@ -272,6 +272,17 @@ function PasteFitMeasure({ props, pasteInMenu, onPasteFit }: Readonly<{
   </Text>
 }
 
+type PlaceholderMeasurement = { fontScale: number; height: number }
+
+function composerEmptyHeight(fontScale: number, placeholder: PlaceholderMeasurement | null, allowance: PlaceholderMeasurement | null, reserveAllowance: boolean) {
+  const minimumHeight = 24 * fontScale + 24
+  if (fontScale <= 1.3) return minimumHeight
+  return Math.max(minimumHeight,
+    placeholder?.fontScale === fontScale ? placeholder.height + 24 : minimumHeight,
+    reserveAllowance && allowance?.fontScale === fontScale ? allowance.height + 24 : minimumHeight,
+  )
+}
+
 function ComposerTextInput({ props, tokens, inputRef, onFocusChange, pasteInMenu, onPasteFit }: Readonly<{
   props: MobileComposerProps
   tokens: AppTokensV2
@@ -280,17 +291,19 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, pasteInMenu
   pasteInMenu: boolean
   onPasteFit: (fits: boolean) => void
 }>) {
+  const { t } = useTranslation()
   const { fontScale } = useWindowDimensions()
   const [contentHeight, setContentHeight] = useState(48)
-  const [placeholderHeight, setPlaceholderHeight] = useState<{ fontScale: number; height: number } | null>(null)
+  const [placeholderHeight, setPlaceholderHeight] = useState<PlaceholderMeasurement | null>(null)
+  const [allowancePlaceholderHeight, setAllowancePlaceholderHeight] = useState<PlaceholderMeasurement | null>(null)
   const [placeholderLayout, setPlaceholderLayout] = useState<{ text: string; fontScale: number; fits: boolean } | null>(null)
   const largeText = fontScale > 1.3
   const measurePlaceholder = props.state === 'offline' || props.state === 'atLimit'
-  const placeholderFits = largeText || !measurePlaceholder || placeholderLayout?.text !== props.words.placeholder || placeholderLayout.fontScale !== fontScale || placeholderLayout.fits
+  const placeholderFits = largeText || !measurePlaceholder || (!placeholderHeight && !placeholderLayout)
+    || (placeholderLayout?.text === props.words.placeholder && placeholderLayout.fontScale === fontScale && placeholderLayout.fits)
   const minimumHeight = 24 * fontScale + 24
   const maximumHeight = 5 * 24 * fontScale + 24
-  const emptyHeight = largeText && placeholderHeight?.fontScale === fontScale
-    ? Math.max(minimumHeight, placeholderHeight.height + 24) : minimumHeight
+  const emptyHeight = composerEmptyHeight(fontScale, placeholderHeight, allowancePlaceholderHeight, Boolean(props.allowanceReason))
   const inputHeight = props.value.length === 0 ? emptyHeight : Math.min(maximumHeight, Math.max(minimumHeight, contentHeight))
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
@@ -329,6 +342,14 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, pasteInMenu
           onTextLayout={event => setPlaceholderLayout({ text: props.words.placeholder, fontScale, fits: event.nativeEvent.lines.length <= 1 })}
           style={[styles.placeholder, { opacity: 0 }]}
         >{props.words.placeholder}</Text> : null}
+        {props.value.length === 0 && largeText && props.allowanceReason ? <Text
+          testID="composer-allowance-placeholder-measure"
+          pointerEvents="none"
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          onLayout={event => setAllowancePlaceholderHeight({ fontScale, height: event.nativeEvent.layout.height })}
+          style={[styles.placeholder, { opacity: 0 }]}
+        >{t('shell.composer.limit.placeholder')}</Text> : null}
         {props.value.length === 0 && placeholderFits ? <Text
           key={`${fontScale}:${props.words.placeholder}`}
           testID="composer-placeholder"
@@ -369,7 +390,7 @@ function OpenConversationControl({ props, tokens }: Readonly<{ props: MobileComp
       onPress={() => { returnFocusPending.current = true; props.onOpenConversation?.() }}
       onPressIn={() => animate(mobileMotion.orbital.press.scale)} onPressOut={() => animate(1)}
       style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-      <Animated.View style={{ transform: [{ scale }] }}><AstraGlyph size={20} color={tokens.fg3} /></Animated.View><Text style={{ color: tokens.fg3, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('nav.astra')}</Text>
+      <Animated.View style={{ transform: [{ scale }] }}><AstraGlyph size={20} color={tokens.fg3} /></Animated.View><Text style={{ color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('nav.astra')}</Text>
     </InsetFocusPressable>
 }
 
