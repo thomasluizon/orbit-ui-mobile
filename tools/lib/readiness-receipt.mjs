@@ -40,6 +40,7 @@ const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name:
       number
       baseRefName
       baseRefOid
+      baseRef { name target { __typename oid } }
       headRefOid
       headRefName
       headRepository { nameWithOwner }
@@ -259,11 +260,21 @@ export const resolveReviewVerdict = async (state, fetchOlderPage) => {
   return { verdict: null, complete: !truncated, pagesRead }
 }
 
+/** The PR snapshot can lag its branch; only the associated Ref target is the current base. */
+export const currentBaseShaOf = (pullRequest) => {
+  const ref = pullRequest?.baseRef
+  if (typeof pullRequest?.baseRefName !== "string" || pullRequest.baseRefName.length === 0 || ref?.name !== pullRequest.baseRefName) return null
+  const target = ref?.target
+  return target?.__typename === "Commit" && typeof target.oid === "string" && target.oid.trim() !== "" ? target.oid : null
+}
+
 export const pullRequestStateFromGraphQl = (payload) => {
   const pullRequest = payload?.data?.repository?.pullRequest
   if (!pullRequest) return null
   const { number, baseRefName, baseRefOid, headRefOid, headRefName, isDraft } = pullRequest
   if (!Number.isInteger(number) || typeof baseRefName !== "string" || typeof baseRefOid !== "string" || typeof headRefOid !== "string" || typeof headRefName !== "string" || typeof isDraft !== "boolean") return null
+  const currentBaseSha = currentBaseShaOf(pullRequest)
+  if (currentBaseSha === null) return null
   const headCommit = pullRequest.commits?.nodes?.[0]?.commit
   if (headCommit?.oid !== headRefOid) return null
   const nodes = pullRequest.statusCheckRollup === null ? [] : pullRequest.statusCheckRollup?.contexts?.nodes
@@ -287,7 +298,7 @@ export const pullRequestStateFromGraphQl = (payload) => {
   const reviewsTruncated = reviewsConnection === null || reviewsConnection === undefined ? false : truncationOf(reviewsConnection)
   if (reviewsTruncated === null) return null
   const reviewsStartCursor = typeof reviewsConnection?.pageInfo?.startCursor === "string" ? reviewsConnection.pageInfo.startCursor : null
-  return { number, baseRefName, baseRefOid, headRefOid, headRefName, repositoryName: payload.data.repository.nameWithOwner ?? null, headRepository: pullRequest.headRepository?.nameWithOwner ?? null, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
+  return { number, baseRefName, baseRefOid, currentBaseSha, headRefOid, headRefName, repositoryName: payload.data.repository.nameWithOwner ?? null, headRepository: pullRequest.headRepository?.nameWithOwner ?? null, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
 }
 
 export const requiredChecksOf = (payload) => {
@@ -332,7 +343,7 @@ export const newestChecks = (rollup) => {
 }
 
 export const registrationFingerprint = (state, newestByCheck) => JSON.stringify([
-  state.headRefOid, state.baseRefOid, state.baseRefName,
+  state.headRefOid, state.currentBaseSha, state.baseRefName,
   [...newestByCheck].sort(([left], [right]) => left.localeCompare(right)),
 ])
 
