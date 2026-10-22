@@ -190,6 +190,26 @@ describe('real BFF refresh coordination', () => {
     expect(mocks.fetch.mock.calls.filter(([url]) => url.endsWith(API.auth.refresh))).toHaveLength(2)
   })
 
+  it('does not restore an intermediate refresh cookie after a second rotation', async () => {
+    const { resolveSessionTokens } = await import('@/lib/auth-api')
+    const freshToken = jwt(3600)
+    let rotations = 0
+    mocks.fetch.mockImplementation(async () => Response.json({
+      token: freshToken, refreshToken: `rotation-${++rotations}`,
+    }))
+    const persist = vi.fn()
+    const resolve = (refreshToken: string) => resolveSessionTokens({
+      authToken: jwt(-60), refreshToken, persistSession: persist, language: 'en',
+    })
+
+    await resolve('shared-refresh')
+    await resolve('rotation-1')
+    await resolve('shared-refresh')
+
+    expect(persist).toHaveBeenLastCalledWith({ token: freshToken, refreshToken: 'rotation-2' })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps different sessions independent', async () => {
     const { GET } = await import('@/app/api/[...path]/route')
     const freshToken = jwt(3600)

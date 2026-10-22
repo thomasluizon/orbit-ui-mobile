@@ -196,7 +196,13 @@ export async function refreshSessionTokens(
 ): Promise<RefreshSessionResult> {
   const inFlight = refreshRequests.get(refreshToken)
   if (inFlight) {
-    return inFlight
+    const result = await inFlight
+    if (result.outcome === 'refreshed'
+      && result.tokens.refreshToken !== refreshToken
+      && refreshRequests.has(result.tokens.refreshToken)) {
+      return refreshSessionTokens(result.tokens.refreshToken, language)
+    }
+    return result
   }
 
   const apiBase = process.env.API_BASE ?? 'http://localhost:5000'
