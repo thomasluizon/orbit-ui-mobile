@@ -34,8 +34,10 @@ for (const width of [412, 1280]) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
 
         await page.goto(`/habits/${habit.id}`)
-        await page.getByRole('button', { name: messages.habits.detail.moreDetails, exact: true }).click()
-        await page.getByRole('button', { name: `${messages.habits.form.exactTime}: ${messages.common.selectTime}`, exact: true }).click()
+        await page.getByRole('button', { name: messages.habits.editHabit, exact: true }).click()
+        const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
+        await expect(editor).toBeVisible()
+        await editor.getByRole('button', { name: `${messages.habits.form.exactTime}: ${messages.common.selectTime}`, exact: true }).click()
         const sheet = page.getByRole('dialog', { name: messages.common.selectTime, exact: true })
         await expect(sheet).toBeVisible()
         const hours = sheet.getByRole('radiogroup', { name: messages.common.hours })

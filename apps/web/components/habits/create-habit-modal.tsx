@@ -4,6 +4,9 @@ import { useState, useCallback, useEffect, useId, useLayoutEffect, useRef } from
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { completeHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
+import { ActionRow } from '@/components/ui/action-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { HabitCreateActions } from './habit-create-actions'
 import { HabitCreateFrame } from './habit-create-frame'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -23,8 +26,6 @@ import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
-import { useConfig } from '@/hooks/use-config'
-import { useHasProAccess } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useAccountGeneration, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -42,7 +43,6 @@ import {
   getFriendlyErrorMessage,
   getHabitPhraseTitle,
   hasHabitFormProposal,
-  isFeatureEnabled,
   resolveAutoManagedReminderEnabled,
   resolveSupportedLocale,
   toggleSelectedId,
@@ -52,10 +52,26 @@ import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildSubHabitRequest, buildCreateHabitRequest } from '@/lib/habit-request-builders'
 import {
+  MAX_ACTIVE_HABITS,
   MAX_GOALS_PER_HABIT,
   habitFormSchema,
 } from '@orbit/shared/validation'
 import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
+
+function CreateBoundaryNotice({ boundary, onUpgrade }: Readonly<{ boundary: 'habit' | 'pro' | null; onUpgrade: () => void }>) {
+  const t = useTranslations()
+  if (!boundary) return null
+  if (boundary === 'pro') return <CapacityNotice
+    message={t('habits.form.proRequired')}
+    action={<ActionRow><PillButton size="sm" variant="ghost" onClick={onUpgrade}>{t('common.upgrade')}</PillButton></ActionRow>}
+  />
+  return (
+    <CapacityNotice
+      message={t('habits.form.capacityTitle')}
+      body={t('habits.form.capacityBody', { limit: MAX_ACTIVE_HABITS })}
+    />
+  )
+}
 
 function createSubHabitEntry(value = ''): SubHabitEntry {
   return { id: crypto.randomUUID(), value }
@@ -111,7 +127,6 @@ export function CreateHabitModal({
     setOpenedAccountGeneration(accountGeneration)
   }
   const t = useTranslations()
-  const router = useRouter()
   const translate = useCallback(
     (key: string, values?: Record<string, string | number | Date>) =>
       t(key, values),
@@ -122,14 +137,12 @@ export function CreateHabitModal({
   const createSubHabit = useCreateSubHabit()
   const suggestion = useHabitSuggestion()
   const [isEmojiSuggesting, setIsEmojiSuggesting] = useState(false)
+  const [createBoundary, setCreateBoundary] = useState<'habit' | 'pro' | null>(null)
   const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean } | null>(null)
-  const { config } = useConfig()
-  const hasProAccess = useHasProAccess()
   const { isOnline } = useOffline()
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const activeView = useUIStore((s) => s.activeView)
-  const canUseSubHabits = isFeatureEnabled(config, 'sub_habits', hasProAccess ? 'pro' : 'free')
 
   const { requestPermission: requestReminderPermission } = useReminderPermission(false, () => {})
   const formHelpers = useHabitForm({
@@ -182,6 +195,7 @@ export function CreateHabitModal({
   )
   const { sheetRef, closeSheet } = useSheetHost()
   const [leaveAction, setLeaveAction] = useState<(() => void) | null>(null)
+  const router = useRouter()
   const pendingNavigation = useRef<(() => void) | null>(null)
   useEffect(() => { if (leaveAction) completeHabitCreateNavigation(leaveAction) }, [leaveAction])
   const finishClose = useCallback((action: () => void) => {
@@ -192,6 +206,13 @@ export function CreateHabitModal({
     isDirty,
     onDismiss: () => finishClose(pendingNavigation.current ?? (() => onOpenChange(false))),
   })
+  const navigateToUpgrade = useCallback(() => {
+    pendingNavigation.current = () => {
+      if (presentation === 'sheet') onOpenChange(false)
+      router.push('/upgrade')
+    }
+    dismissGuard.requestDismiss()
+  }, [dismissGuard, onOpenChange, presentation, router])
   const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
   const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
   const suggestionSessionId = open ? (parentHabit?.id ?? 'root') : null
@@ -205,17 +226,6 @@ export function CreateHabitModal({
     () => () => suggestionRequests.updateContext(null, ''),
     [suggestionRequests],
   )
-  const navigateToUpgrade = useCallback(() => {
-    if (presentation === 'screen') {
-      pendingNavigation.current = () => router.push('/upgrade')
-      dismissGuard.requestDismiss()
-      return
-    }
-    finishClose(() => {
-      onOpenChange(false)
-      router.push('/upgrade')
-    })
-  }, [dismissGuard, finishClose, onOpenChange, presentation, router])
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -243,6 +253,7 @@ export function CreateHabitModal({
       const fallbackDate = initialDate ?? ''
 
       setEmojiFailure(null)
+      setCreateBoundary(null)
       setReminderWasManuallyToggled(false)
       setExpandAdvancedSignal(0)
       formHelpers.clearBackendErrors()
@@ -311,6 +322,11 @@ export function CreateHabitModal({
   const createErrorEntity = isSubHabitMode ? 'subHabit' : 'habit'
 
   const reportCreateFailure = useCallback((error: unknown) => {
+    const code = extractBackendErrorCode(error)
+    if (code === 'HABIT_LIMIT_REACHED' || code === 'PAY_GATE') {
+      setCreateBoundary(code === 'HABIT_LIMIT_REACHED' ? 'habit' : 'pro')
+      return
+    }
     if (formHelpers.reportBackendErrors(error)) return
     showError(getFriendlyErrorMessage(error, translate, createErrorKey, createErrorEntity))
   }, [formHelpers, showError, translate, createErrorKey, createErrorEntity])
@@ -321,12 +337,7 @@ export function CreateHabitModal({
       e.stopPropagation()
       const submittingAccount = getAccountGeneration()
 
-      if (isSubHabitMode && !canUseSubHabits) {
-        navigateToUpgrade()
-        return
-      }
-
-      const subHabitValues = canUseSubHabits ? subHabits.map((entry) => entry.value) : []
+      const subHabitValues = subHabits.map((entry) => entry.value)
       const missingType = !formHelpers.form.getValues('itemType')
       if (missingType) { formHelpers.validateAll(); return }
       if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
@@ -363,7 +374,7 @@ export function CreateHabitModal({
         reportCreateFailure(error)
       }
     },
-    [reportCreateFailure, requestReminderPermission, canUseSubHabits, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags],
+    [reportCreateFailure, requestReminderPermission, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags],
   )
 
   const handleSuggestEmoji = useCallback(async () => {
@@ -430,7 +441,6 @@ export function CreateHabitModal({
         const suggestedSubHabitTitles = selectSuggestedSubHabitTitles(
           filledSubHabits.map((entry) => entry.value),
           patch.subHabitTitles,
-          canUseSubHabits,
         )
         const appliedSubHabits = suggestedSubHabitTitles.length > 0
         if (appliedSubHabits) {
@@ -473,7 +483,7 @@ export function CreateHabitModal({
         suggestionRequests.finish()
       }
     },
-    [canUseSubHabits, formHelpers, locale, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t],
+    [formHelpers, locale, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t],
   )
 
 
@@ -504,7 +514,7 @@ export function CreateHabitModal({
         presentation={presentation}
         fromConversation={fromConversation}
         leaving={leaveAction !== null}
-        actionRefreshKey={`${isPending}:${isOnline}:${watchedTitle.trim().length === 0}`}
+        actionRefreshKey={`${isPending}:${isOnline}:${watchedTitle.trim().length === 0}:${createBoundary}`}
         onReturn={() => onOpenChange(false)}
         onNavigate={(action) => {
           pendingNavigation.current = action
@@ -515,9 +525,14 @@ export function CreateHabitModal({
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.form.newHabit')}
-        actions={<HabitCreateActions presentation={presentation} pending={isPending}
-          empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
-          onCancel={dismissGuard.requestDismiss} online={isOnline} formId={formId} />}
+        actions={<>
+          <div role="status" className={createBoundary ? 'pb-3' : undefined}>
+            <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
+          </div>
+          <HabitCreateActions presentation={presentation} pending={isPending}
+            empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
+            onCancel={dismissGuard.requestDismiss} online={isOnline} formId={formId} />
+        </>}
 
       >
         <form id={formId} onSubmit={(event) => void handleSubmit(event)}>

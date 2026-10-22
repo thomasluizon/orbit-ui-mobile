@@ -8,7 +8,7 @@
 | Progresso with an empty Metas section | `progress-content`, section invitation | Opens the shared create sheet; save replaces the invitation with the goal |
 | Progresso with goals | `progress-content`, Metas action | Opens the same sheet; new goals remain visible through the all-goals filter |
 | Habit create and edit | `goal-linking-field` | Empty and populated goal pickers open the same sheet; creation selects the new goal |
-| Habit detail | `habit-detail-fields`, `goal-linking-field` | Uses the same entry with the current habit preselected |
+| Habit detail | `habit-detail-screen`, `edit-habit-modal`, `goal-linking-field` | The pencil opens the full editor, whose goal picker seeds the current habit; read facts open linked goals |
 | Create goal sheet | `goals/create-goal-sheet` | Title, type, target, unit, optional deadline, linked habits; validation, pending, failed save, dismissal and discard |
 | Linked habit picker | `goals/goal-habits-field` | Loading, failure and retry, habit creation and return with the goal draft retained, selection, capacity, long lists and search |
 

@@ -1,7 +1,7 @@
 import { SPACING } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable, type InsetFocusPressableProps } from '@/components/ui/inset-focus-pressable'
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
-import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle, type LayoutChangeEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canLogHabitOnDate,
@@ -11,10 +11,12 @@ import {
   isHabitDoneForRange,
   resolveHabitAccessibleStatus,
   getHabitRowTypeLabelKey,
+  getHabitInlineDepthLimit,
   stripInlineMarkdown,
   type TodayBoundary,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitRowBase } from '@orbit/shared/contracts/lists'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
@@ -60,13 +62,12 @@ function buildMenuItems(
   actions: HabitRowActions,
   isSelectMode: boolean,
   completionReadOnly: boolean,
-  hasProAccess: boolean,
   isOverdue: boolean,
   hasSubHabits: boolean,
   t: (key: string) => string,
 ): MenuItem[] {
   const items: MenuItem[] = []
-  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask', badge: hasProAccess ? undefined : 'Pro' })
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
   if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
   if (actions.onReschedule && isOverdue && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule'), icon: 'calendar-time' })
@@ -101,8 +102,9 @@ export interface HabitRowProps {
   habit: NormalizedHabit
   selectedDate?: Date
   today?: string
-  /** Two inline display levels. Deeper data descendants are clamped to level 1 by the list. */
-  depth?: 0 | 1
+  /** Visible depth relative to the current list context; each ancestor adds one spacing step. */
+  depth?: HabitRowBase['depth']
+  drillInsteadOfExpand?: boolean
   structuralColumn?: boolean
   isSelectMode?: boolean
   isSelected?: boolean
@@ -116,23 +118,26 @@ export interface HabitRowProps {
   actions?: HabitRowActions
   style?: StyleProp<ViewStyle>
   panelEnd?: boolean
-  hasProAccess?: boolean
 }
 
 function HabitRowStructuralColumn({
   hasChildren,
+  drillInsteadOfExpand,
   expanded,
   actions,
   tokens,
   collapseLabel,
   expandLabel,
+  drillLabel,
 }: Readonly<{
   hasChildren: boolean
+  drillInsteadOfExpand: boolean
   expanded: boolean
   actions: HabitRowActions
   tokens: ReturnType<typeof createTokensV2>
   collapseLabel: string
   expandLabel: string
+  drillLabel: string
 }>) {
   const [hovered, setHovered] = useState(false)
   if (!hasChildren) return null
@@ -142,8 +147,8 @@ function HabitRowStructuralColumn({
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       accessibilityRole="button"
-      accessibilityLabel={expanded ? collapseLabel : expandLabel}
-      accessibilityState={{ expanded }}
+      accessibilityLabel={drillInsteadOfExpand ? drillLabel : expanded ? collapseLabel : expandLabel}
+      accessibilityState={drillInsteadOfExpand ? undefined : { expanded }}
       style={({ pressed }) => [
         styles.structuralColumn,
         hovered ? { backgroundColor: tokens.bgHover } : null,
@@ -264,6 +269,7 @@ export const HabitRow = memo(function HabitRow({
   selectedDate,
   today,
   depth = 0,
+  drillInsteadOfExpand = false,
   structuralColumn = false,
   isSelectMode = false,
   isSelected = false,
@@ -277,13 +283,14 @@ export const HabitRow = memo(function HabitRow({
   actions = EMPTY_HABIT_ROW_ACTIONS,
   style,
   panelEnd = true,
-  hasProAccess = true,
 }: Readonly<HabitRowProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
-  const { fontScale } = useWindowDimensions()
+  const { width, fontScale } = useWindowDimensions()
   const largeText = fontScale > 1.3
-  const supportingMeta = largeText
+  const [contentWidth, setContentWidth] = useState<number>()
+  const measureRow = useCallback((event: LayoutChangeEvent) => setContentWidth(event.nativeEvent.layout.width), [])
+  const supportingMeta = largeText || depth > 0 && depth >= getHabitInlineDepthLimit(width, fontScale, contentWidth)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -291,7 +298,7 @@ export const HabitRow = memo(function HabitRow({
   )
   const { displayTime } = useTimeFormat()
 
-  const isChild = depth === 1
+  const isChild = depth > 0
   const todayStr = today ?? formatAPIDate(new Date())
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
 
@@ -333,8 +340,8 @@ export const HabitRow = memo(function HabitRow({
   } = useAnchoredMenu()
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
   const menuItems = useMemo(
-    () => buildMenuItems(actions, isSelectMode, completionReadOnly, hasProAccess, isOverdue, habit.hasSubHabits, t),
-    [actions, completionReadOnly, habit.hasSubHabits, hasProAccess, isOverdue, isSelectMode, t],
+    () => buildMenuItems(actions, isSelectMode, completionReadOnly, isOverdue, habit.hasSubHabits, t),
+    [actions, completionReadOnly, habit.hasSubHabits, isOverdue, isSelectMode, t],
   )
 
   const openMenu = useCallback(() => {
@@ -352,7 +359,7 @@ export const HabitRow = memo(function HabitRow({
     if (!completionReadOnly) toggleStatusAction?.()
   }
 
-  const bodyLayout = habitRowBodyLayout(isChild, largeText)
+  const bodyLayout = habitRowBodyLayout(depth, supportingMeta)
   const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 22
   const wellSize = isChild ? 32 : 46
@@ -425,6 +432,8 @@ export const HabitRow = memo(function HabitRow({
         {structuralColumn ? (
           <HabitRowStructuralColumn
             hasChildren={hasChildren}
+            drillInsteadOfExpand={drillInsteadOfExpand}
+            drillLabel={t('habits.actions.openSubHabits')}
             expanded={isExpanded}
             actions={actions}
             tokens={tokens}
@@ -435,8 +444,7 @@ export const HabitRow = memo(function HabitRow({
 
         <HabitRowTrailing
             habit={habit}
-          depth={depth}
-          isSelectMode={isSelectMode}
+            isSelectMode={isSelectMode}
           hasChildren={hasChildren}
           childrenDone={childrenDone}
           childrenTotal={childrenTotal}
@@ -459,7 +467,7 @@ export const HabitRow = memo(function HabitRow({
 
   return (
     <View style={habitRowSpacing(panelEnd)}>
-      <HabitRowLayout descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
+      <HabitRowLayout onLayout={measureRow} depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
         metaColor={bodyPressFeedback.metaColor} typeLabel={t(getHabitRowTypeLabelKey(habit))} tokens={tokens}>
         {rowContents}
@@ -484,7 +492,9 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, typeLabel, tokens, children }: Readonly<{
+function HabitRowLayout({ onLayout, depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, typeLabel, tokens, children }: Readonly<{
+  onLayout: (event: LayoutChangeEvent) => void
+  depth: number
   descriptionPresent: boolean
   isChild: boolean
   supportingMeta: boolean
@@ -499,12 +509,12 @@ function HabitRowLayout({ descriptionPresent, isChild, supportingMeta, rowStyle,
   children: ReactNode
 }>) {
   return (
-    <View testID="habit-row" style={[supportingMeta ? null : [styles.row, { gap: SPACING.s0 }], rowStyle]}>
+    <View testID="habit-row" onLayout={onLayout} style={[supportingMeta ? null : [styles.row, { gap: SPACING.s0 }], rowStyle]}>
       {supportingMeta ? primaryButton : null}
       {supportingMeta ? (
         <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8, paddingBottom: descriptionPresent ? SPACING.s4 : undefined }]}>
           <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-            style={[styles.bodyButton, habitRowBodyLayout(isChild, supportingMeta)]}>
+            style={[styles.bodyButton, habitRowBodyLayout(depth, supportingMeta)]}>
             {primaryContent}
           </View>
           {children}
@@ -512,7 +522,7 @@ function HabitRowLayout({ descriptionPresent, isChild, supportingMeta, rowStyle,
       ) : <>{primaryButton}<View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0, gap: SPACING.s4 }}>{children}</View></>}
       {supportingMeta ? (
         <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-          style={{ flexDirection: 'row', gap: 12, paddingLeft: isChild ? SPACING.s24 : SPACING.s8, paddingRight: SPACING.s8, paddingTop: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBottom: SPACING.s8 }}>
+          style={{ flexDirection: 'row', gap: 12, paddingLeft: SPACING.s8 + depth * SPACING.s16, paddingRight: SPACING.s8, paddingTop: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBottom: SPACING.s8 }}>
           <View style={{ width: 48, flexShrink: 0 }} />
           <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
             <HabitRowTypeLabel label={typeLabel} color={metaColor} />
@@ -526,12 +536,12 @@ function HabitRowLayout({ descriptionPresent, isChild, supportingMeta, rowStyle,
   )
 }
 
-function habitRowBodyLayout(isChild: boolean, largeText: boolean): ViewStyle {
-  const defaultPaddingVertical = isChild ? SPACING.s4 : SPACING.s8
+function habitRowBodyLayout(depth: number, supportingMeta: boolean): ViewStyle {
+  const defaultPaddingVertical = depth > 0 ? SPACING.s4 : SPACING.s8
   return {
-    paddingVertical: largeText ? SPACING.s0 : defaultPaddingVertical,
-    paddingLeft: isChild ? SPACING.s24 : SPACING.s8,
-    paddingRight: largeText ? SPACING.s0 : SPACING.s4,
-    alignItems: largeText ? 'flex-start' : 'center',
+    paddingVertical: supportingMeta ? SPACING.s0 : defaultPaddingVertical,
+    paddingLeft: SPACING.s8 + depth * SPACING.s16,
+    paddingRight: supportingMeta ? SPACING.s0 : SPACING.s4,
+    alignItems: supportingMeta ? 'flex-start' : 'center',
   }
 }

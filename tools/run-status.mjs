@@ -10,7 +10,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { newestChecks, readinessReport, PASSING_CONCLUSIONS } from "./lib/readiness-receipt.mjs"
+import { currentBaseShaOf, newestChecks, readinessReport, PASSING_CONCLUSIONS } from "./lib/readiness-receipt.mjs"
 import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: run-status.mjs --session <id>
@@ -32,6 +32,7 @@ export const statusQuery = (numbers) => `query RunStatus($owner: String!, $name:
     pullRequests(states: OPEN, first: 100) { totalCount nodes { headRefName } }
     ${numbers.map((number) => `pr${number}: pullRequest(number: ${number}) {
       number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus
+      baseRef { name target { __typename oid } }
       statusCheckRollup { contexts(first: 100) { pageInfo { hasNextPage } nodes {
         __typename
         ... on CheckRun { name status conclusion startedAt checkSuite { app { databaseId } } }
@@ -83,6 +84,7 @@ const checkCounts = (rollup) => {
 const validPull = (pull, number) => pull?.number === number &&
   ["OPEN", "CLOSED", "MERGED"].includes(pull.state) && typeof pull.isDraft === "boolean" &&
   ["headRefName", "headRefOid", "baseRefName", "baseRefOid", "mergeStateStatus"].every((key) => typeof pull[key] === "string") &&
+  (pull.state !== "OPEN" || currentBaseShaOf(pull) !== null) &&
   Array.isArray(pull.reviews?.nodes) && pull.reviews.nodes.every((review) => review && typeof review.state === "string" && typeof review.submittedAt === "string") && typeof pull.reviews.pageInfo?.hasPreviousPage === "boolean" &&
   Array.isArray(pull.reviewThreads?.nodes) && typeof pull.reviewThreads.pageInfo?.hasNextPage === "boolean" &&
   pull.reviewThreads.nodes.every((thread) => thread && typeof thread.isResolved === "boolean" && Array.isArray(thread.comments?.nodes)) &&
@@ -93,7 +95,7 @@ const deliveryIsCurrent = (row, pull, rejectedFingerprint) => {
   const state = delivery?.checks?.pullRequestState
   const ci = delivery?.checks?.ci
   return delivery?.checks?.prCount?.number === row.prNumber && state?.headSha === pull.headRefOid &&
-    state?.baseSha === pull.baseRefOid && state?.baseBranch === pull.baseRefName &&
+    state?.baseSha === currentBaseShaOf(pull) && state?.baseBranch === pull.baseRefName &&
     ci?.pass === true && Array.isArray(ci.pending) && ci.pending.length === 0 &&
     Array.isArray(ci.failing) && ci.failing.length === 0 && typeof ci.registrationFingerprint === "string" &&
     ci.registrationFingerprint !== rejectedFingerprint
@@ -102,6 +104,7 @@ const deliveryIsCurrent = (row, pull, rejectedFingerprint) => {
 const observePull = (row, pull, launches, wakes) => {
   const identity = { repositoryKey: row.repositoryKey, prNumber: row.prNumber }
   if (!validPull(pull, row.prNumber)) return { observation: { ...identity, status: "UNREADABLE" }, actions: [] }
+  const currentBaseSha = currentBaseShaOf(pull)
   const receipt = readJson(row.receiptPath)
   const launch = launches.filter((entry) => entry.repositoryKey === row.repositoryKey && entry.branch === pull.headRefName).at(-1)
   const checks = checkCounts(pull.statusCheckRollup)
@@ -114,13 +117,13 @@ const observePull = (row, pull, launches, wakes) => {
     (review !== undefined || !pull.reviews.pageInfo.hasPreviousPage)
   const receiptStatus = !receipt || typeof receipt.ci !== "object" || typeof receipt.ticket !== "object" || !Number.isInteger(receipt.behindBy) || typeof receipt.draft !== "boolean" || receipt.repositoryKey !== row.repositoryKey || receipt.prNumber !== row.prNumber ||
     typeof receipt.currentHeadSha !== "string" || typeof receipt.currentBaseSha !== "string" ? "MISSING_OR_CORRUPT"
-    : receipt.currentHeadSha !== pull.headRefOid || receipt.currentBaseSha !== pull.baseRefOid ? "RECEIPT_STALE" : "CURRENT"
+    : receipt.currentHeadSha !== pull.headRefOid || receipt.currentBaseSha !== currentBaseSha ? "RECEIPT_STALE" : "CURRENT"
   const receiptVerdict = receipt ? readinessReport(receipt).verdict : null
   const receiptCiCurrent = receiptStatus === "CURRENT" && !readinessReport(receipt).verdicts.includes("CI_STALE")
   // A CI_STALE receipt rejects the artifact it evaluated; refreshed evidence can still advance.
   const rejectedFingerprint = receiptStatus === "CURRENT" && !receiptCiCurrent ? receipt.ci?.checks?.registrationFingerprint : null
   const currentDelivery = deliveryIsCurrent(row, pull, rejectedFingerprint)
-  const observation = { ...identity, status: pull.state, draft: pull.isDraft, head: pull.headRefOid, base: pull.baseRefOid,
+  const observation = { ...identity, status: pull.state, draft: pull.isDraft, head: pull.headRefOid, base: currentBaseSha,
     baseBranch: pull.baseRefName, mergeStateStatus: pull.mergeStateStatus, checks,
     review: review ? { state: review.state, submittedAt: review.submittedAt } : null,
     unresolved: pull.reviewThreads.pageInfo.hasNextPage ? null : unresolved, ...(complete ? {} : { complete: false }), receipt: receiptStatus, ...(receiptStatus === "MISSING_OR_CORRUPT" ? {} : { receiptVerdict }) }

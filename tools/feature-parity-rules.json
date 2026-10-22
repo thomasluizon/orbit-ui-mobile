@@ -1,4 +1,7 @@
 {
+  "provenance": {
+    "legacyProduction": "75f00d37e18a4192dd2b0e8de872220c036f3f0a"
+  },
   "mappings": {
     "mobile:control:advancedSettings.title": {
       "targets": [
@@ -245,6 +248,18 @@
         "mobile:control:todayAstra.openConversation"
       ],
       "reason": "thomasluizon/orbit-tickets#1541 relocates reading the whole daily summary and asking Astra about it to Hoje's single slot press, which opens the full summary in the conversation."
+    },
+    "mobile:control:common.selectDate": {
+      "targets": [
+        "mobile:content:common.selectDate"
+      ],
+      "reason": "DateField binds this label to its rendered date-selection trigger and picker after the habit form relocation."
+    },
+    "mobile:control:common.selectedDate": {
+      "targets": [
+        "mobile:content:common.selectedDate"
+      ],
+      "reason": "DateField binds the formatted selected date to its rendered trigger accessibility label after the habit form relocation."
     },
     "mobile:control:common.selectedTime": {
       "targets": [
@@ -1121,15 +1136,15 @@
     },
     "mobile:display:common.no": {
       "targets": [
-        "mobile:content:common.no"
+        "mobile:display:orbitMcp.permReadWrite"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
     "mobile:display:common.yes": {
       "targets": [
-        "mobile:content:common.yes"
+        "mobile:display:orbitMcp.permReadOnly"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
     "mobile:display:gamification.carrot.toNextLevel": {
       "targets": [
@@ -1346,6 +1361,12 @@
         "mobile:control:profile.apiKeys.create"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:orbitMcp.replaceKey": {
+      "targets": [
+        "mobile:content:orbitMcp.replaceKey"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
     },
     "mobile:display:orbitMcp.revealHeading": {
       "targets": [
@@ -2075,9 +2096,10 @@
     },
     "web:control:habits.detail.linkedGoal": {
       "targets": [
-        "web:control:habits.detail.linkedGoals"
+        "web:control:habits.form.goals",
+        "web:display:habits.form.goals"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "reason": "The legacy Linked goal section displayed associated goal names without an action. The full editor retains that association list and selection; current detail additionally opens each linked goal through its named read row."
     },
     "web:control:habits.form.addEndDate": {
       "targets": [
@@ -2120,6 +2142,18 @@
         "web:control:habits.detail.screenTitle"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.emojiSuggest": {
+      "targets": [
+        "web:content:habits.form.emojiSuggest"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
+    "web:control:habits.form.emojiSuggesting": {
+      "targets": [
+        "web:content:habits.form.emojiSuggesting"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
     },
     "web:control:habits.form.habitTypeBuild": {
       "targets": [
@@ -2328,6 +2362,12 @@
       ],
       "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
     },
+    "web:control:orbitMcp.configInstructions": {
+      "targets": [
+        "web:content:orbitMcp.configInstructions"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
     "web:control:orbitMcp.confirm": {
       "targets": [
         "web:control:stepUp.confirm"
@@ -2345,6 +2385,12 @@
         "web:control:profile.apiKeys.create"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:orbitMcp.replaceKey": {
+      "targets": [
+        "web:content:orbitMcp.replaceKey"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
     },
     "web:control:orbitMcp.revokeConfirm": {
       "targets": [
@@ -2549,6 +2595,18 @@
         "web:control:profile.settingsRows.weekStart"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:shell.collapseSidebar": {
+      "targets": [
+        "web:content:shell.collapseSidebar"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
+    "web:control:shell.expandSidebar": {
+      "targets": [
+        "web:content:shell.expandSidebar"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
     },
     "web:control:shell.openPalette": {
       "targets": [
@@ -2780,15 +2838,15 @@
     },
     "web:display:common.no": {
       "targets": [
-        "web:content:common.no"
+        "web:display:orbitMcp.permReadWrite"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
     "web:display:common.yes": {
       "targets": [
-        "web:content:common.yes"
+        "web:display:orbitMcp.permReadOnly"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The API key permission readout spells out read-only or read-write instead of a boolean."
     },
     "web:display:errors.api.accountChanged": {
       "targets": [
@@ -3030,6 +3088,18 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:display:orbitMcp.created": {
+      "targets": [
+        "web:content:orbitMcp.created"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
+    "web:display:orbitMcp.lastUsed": {
+      "targets": [
+        "web:content:orbitMcp.lastUsed"
+      ],
+      "reason": "The restored label reaches rendered output through its component or bound control."
+    },
     "web:display:profile.deleteAccount.deactivated": {
       "targets": [
         "web:content:stepUp.successBody"
@@ -3239,6 +3309,57 @@
         "web:route:/progress"
       ],
       "reason": "Progresso owns achievements, streaks and goals."
+    },
+    "web:control:habits.checklistClearMessage": {
+      "targets": [
+        "web:control:habits.form.clearChecklist",
+        "web:control:common.save",
+        "web:control:common.cancel"
+      ],
+      "reason": "Structural clear is local in the full editor; its existing Save and Cancel boundary replaces immediate destructive confirmation. The immediate completion reset remains separate."
+    },
+    "web:control:habits.checklistClearTitle": {
+      "targets": [
+        "web:control:habits.form.clearChecklist",
+        "web:control:common.save",
+        "web:control:common.cancel"
+      ],
+      "reason": "Clear checklist moved into the controlled editor, where Save commits and Cancel discards the structural draft instead of immediately erasing persisted items."
+    },
+    "web:control:habits.editHabit": {
+      "targets": [
+        "web:content:habits.editHabit"
+      ],
+      "reason": "The same type-aware Edit habit name is now passed through the rendered pencil and full editor title instead of a literal control child."
+    },
+    "mobile:control:habits.checklistClearMessage": {
+      "targets": [
+        "mobile:control:habits.form.clearChecklist",
+        "mobile:control:common.save",
+        "mobile:control:common.cancel"
+      ],
+      "reason": "Structural clear is local in the full editor; its existing Save and Cancel boundary replaces immediate destructive confirmation. The immediate completion reset remains separate."
+    },
+    "mobile:control:habits.checklistClearTitle": {
+      "targets": [
+        "mobile:control:habits.form.clearChecklist",
+        "mobile:control:common.save",
+        "mobile:control:common.cancel"
+      ],
+      "reason": "Clear checklist moved into the controlled editor, where Save commits and Cancel discards the structural draft instead of immediately erasing persisted items."
+    },
+    "mobile:control:habits.editHabit": {
+      "targets": [
+        "mobile:content:habits.editHabit"
+      ],
+      "reason": "The same type-aware Edit habit name is now passed through the rendered pencil and full editor title instead of a literal control child."
+    },
+    "mobile:control:habits.detail.viewDescription": {
+      "targets": [
+        "mobile:content:habits.form.description",
+        "mobile:control:habits.detail.copyDescription"
+      ],
+      "reason": "Full source prose is directly visible beneath its rendered Description heading and retains exact-source Copy description; no expansion is required to reach the text."
     }
   },
   "removals": {
@@ -4165,7 +4286,7 @@
     "mobile:control:summary.retry": "#1443",
     "mobile:control:summary.upgrade": "#1443",
     "mobile:control:today.setupChecklist.dismiss": "#1444",
-    "mobile:display:common.never": "#1437",
+    "mobile:display:common.never": "#1600",
     "mobile:display:goals.metrics.projectedCompletion": "#1429",
     "mobile:display:habits.form.every": "#1450",
     "mobile:display:habits.form.flexibleDescription": "#1450",

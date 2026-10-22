@@ -41,6 +41,10 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: '/login',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      },
+      {
         source: '/sw.js',
         headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
       },

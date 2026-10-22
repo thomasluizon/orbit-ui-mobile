@@ -43,6 +43,36 @@ function pressableHeight(tree: any): number | undefined {
 }
 
 describe('PillButton (mobile)', () => {
+  it.each(['dark', 'light'] as const)('replaces the ghost resting stroke only while focused in %s', (mode) => {
+    theme.mode = mode
+    const tokens = createTokensV2('purple', mode)
+    const onFocus = vi.fn()
+    const onBlur = vi.fn()
+    const tree = renderPill(<PillButton variant="ghost" iconOnly minimumHeight={48} label="Edit habit" onFocus={onFocus} onBlur={onBlur}><span /></PillButton>)
+    try {
+      const button = tree.root.findByType('Pressable')
+      const paint = (pressed = false) => flattenStyle(button.props.style({ pressed }))
+      const resting = paint()
+      expect(resting).toMatchObject({ borderWidth: 1.5, borderColor: tokens.hairlineStrong, borderRadius: radius.full, height: 48, width: 48 })
+      expect(button.props.hitSlop).toBeUndefined()
+      TestRenderer.act(() => button.props.onFocus())
+      const focused = paint()
+      expect(focused).toEqual({ ...resting, borderColor: 'transparent', outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: 2 })
+      expect(onFocus).toHaveBeenCalledOnce()
+      TestRenderer.act(() => button.props.onHoverIn())
+      expect(paint()).toEqual({ ...focused, backgroundColor: tokens.bgHover })
+      expect(paint(true)).toEqual({ ...focused, backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
+      TestRenderer.act(() => button.props.onHoverOut())
+      expect(paint()).toEqual(focused)
+      TestRenderer.act(() => button.props.onBlur())
+      expect(paint()).toEqual(resting)
+      expect(onBlur).toHaveBeenCalledOnce()
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+      theme.mode = 'dark'
+    }
+  })
+
   it.each(['dark', 'light'] as const)('paints the secondary fill and preserves its label in %s', (mode) => {
     theme.mode = mode
     const tokens = createTokensV2('purple', mode)

@@ -33,8 +33,11 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 }))
 
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: { login: () => Promise<void> }) => unknown) =>
-    selector({ login: vi.fn() }),
+  useAuthStore: Object.assign((selector: (state: { login: unknown; isLoading: boolean }) => unknown) => selector({ login: vi.fn(), isLoading: false }), {
+    getState: () => ({ isAuthenticated: false, isLoading: false }),
+    subscribe: () => () => {},
+  }),
+  getSessionGeneration: () => ({ epoch: 0, credentialVersion: 0 }),
 }))
 
 vi.mock('@/hooks/use-offline', () => ({

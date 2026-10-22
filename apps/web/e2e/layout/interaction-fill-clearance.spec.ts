@@ -62,7 +62,17 @@ for (const width of [320, 412, 600, 1024, 1352]) {
           await page.evaluate(() => document.fonts.ready)
           if (hasControls) await expect(page.locator('h1:visible').first()).toBeVisible()
           if (route === '/chat') await expect(page.getByRole('button', { name: (locale === 'en' ? en : ptBR).common.closeConversation })).toBeVisible()
-          if (route === '/habits/habit-1') await expect(page.locator('.orbit-habit-rename')).toBeVisible()
+          if (route === '/habits/habit-1') {
+            const detail = page.locator('[data-habit-detail-content]')
+            const words = locale === 'en' ? en : ptBR
+            await expect(detail.getByRole('heading', { level: 1 })).not.toBeEmpty()
+            const type = detail.locator('[data-habit-detail-type]')
+            await expect(type).toHaveText(new RegExp(`^(${words.habits.form.typeTask}|${words.habits.form.typeHabit})$`))
+            const label = await type.textContent() === words.habits.form.typeTask ? words.habits.editTask : words.habits.editHabit
+            const pencil = detail.getByRole('button', { name: label, exact: true })
+            await expect(pencil).toHaveCount(1)
+            await expect(pencil).toBeVisible()
+          }
           const controls = page.locator(':is(button, a[href], input, textarea, select, summary, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex="0"]):visible:not(:disabled):not([aria-disabled="true"])')
           const count = await controls.count()
           if (hasControls) expect(count, `${route} control inventory`).toBeGreaterThan(0)

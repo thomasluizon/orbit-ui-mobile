@@ -15,7 +15,6 @@ import { styles } from './habit-row-styles'
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
-  depth: 0 | 1
   isSelectMode: boolean
   hasChildren: boolean
   childrenDone: number

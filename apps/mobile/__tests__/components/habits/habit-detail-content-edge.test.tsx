@@ -31,8 +31,7 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({ useRescheduleSuggestion: (
 vi.mock('@/app/(tabs)/use-today-date', () => ({ useCurrentDate: () => '2026-08-28' }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: { screen: { backgroundColor: '#111111' } } }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
-vi.mock('@/components/habits/habit-detail-fields', () => ({ HabitDetailFields: () => null, HabitDetailSchedule: () => null }))
-vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
+vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: (_props: React.ComponentProps<typeof import('@/components/habits/edit-habit-modal').EditHabitModal>) => null }))
 
 function applyColumnStyle(node: YogaNode, style: ViewStyle) {
   if (style.width === '100%' || typeof style.width === 'number') node.setWidth(style.width)

@@ -130,7 +130,7 @@ describe('Sheet', () => {
     stylesheet.textContent = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
     document.head.append(stylesheet)
     const { unmount } = render(<HabitRow habit={createMockHabit({ title, isOverdue: true })} state="overdue"
-      hasSubHabits hasProAccess actions={actions} />)
+      hasSubHabits actions={actions} />)
     try {
       fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
       const dialog = await screen.findByRole('dialog', { name: title })

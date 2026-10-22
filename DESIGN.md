@@ -286,8 +286,12 @@ Each figure answers one question. There are at most four figures, including the 
 The root never opens with a large streak numeral or repeats the detail below its entries.
 
 Three icon-led rows follow, using the Perfil sub-menu pattern. Sequência opens
-`/progress/streak` and owns the current and longest streak, day strip, tier, legend,
-freeze bank, next freeze, protected days and repair. Metas opens `/progress/goals`
+`/progress/streak` with a stable summary: current streak, day strip and one Freezes row.
+Its trailing value uses the bank’s count / capacity format in the secondary foreground.
+The row opens a sheet holding longest streak, tier, legend, freeze bank, next freeze,
+protected days and repair. The count stays visible in repair states; existing repair
+labels do not fit the single-line summary at every compact width in both locales.
+Metas opens `/progress/goals`
 and owns creation, filters, reordering and the existing goal detail actions.
 Conquistas opens `/progress/achievements` and owns the level and XP row followed by the
 achievement categories. Its supporting line names level and XP so that home is findable.
@@ -488,6 +492,42 @@ primitive elsewhere; editable form dates use DateField.
 Rows and detail place the complete, quiet type vocabulary beneath the full-width title, with no
 badge or ellipsis on type. Existing status words and parent counts remain. Rows grow with text.
 The paired owners and capability audit are in `design/habit-form-surfaces.md`.
+
+### Habit detail and controlled editing
+
+Habit detail opens as a concise read and completion surface: full title, plain Task/Habit type,
+useful schedule and due facts, selectable stored description, one interactive checklist and existing
+sub-habits. One 48px type-aware pencil, Edit habit or Edit task, opens the existing complete editor.
+The reading title and emoji have no separate edit action. Description preserves its source and line
+breaks, remains selectable and keeps Copy description. The full detail description stays directly
+visible without an expand or collapse control. Checklist labels wrap in full without a line
+limit; no readable label carries a disclosure arrow. The body and its separate checkbox perform the
+same immediate completion action exactly once. Uncheck all remains immediate, with the existing
+last-item log question. Clear checklist is a structural draft action in the editor.
+
+The existing full form owns every setting, checklist structure and reorder, and goal/tag selection.
+Typing, blur, mode changes, reorder, remove, duplicate and clear stay local until Save. Native text
+is published to that local draft as it is typed, so moving or saving a focused row cannot lose it.
+Stable local keys keep its text, checked state and focus together without adding a wire ID. Web
+retains keyboard drag; Android retains named Move up/down controls with disabled boundary actions.
+
+Save sends one ordinary update with requested core fields, ordered checked-state checklist and
+optional goal/tag associations. Unloaded untouched relationships remain omitted; an explicit empty
+selection clears them. Pending Save retains its label and prevents repeated submissions or dismissal.
+A rejection retains the draft and persistent error. An uncertain submission retains the draft and
+states uncertainty while requesting fresh supported readback; optimistic content is not persistence
+proof. Android accepts the existing queue result as waiting to sync, with the persistent queue notice,
+and calls the confirmed-save callback only for a confirmed result. Account or habit replacement
+invalidates the draft and late completion callbacks. Cancel and dirty dismissal discard only the
+habit draft; an uncertain result never uses the categorical unsaved body.
+
+Shared tag creation, editing and deletion, template saving and separately intentional object creation
+remain explicit independent management. A new suggested tag opens its editor and requires Add;
+selection does not silently create it. Habit Cancel does not reverse independently committed objects.
+The More details read disclosure retains statistics, reminders, linked-goal navigation, cadence and
+end-date facts, and month history with its loading/error/navigation behavior. The activity strip,
+contextual Astra, explicit rescue proposal, sub-habit actions, navigation and delete retain their own
+owners. The paired surface and preservation ledger is in `design/habit-form-surfaces.md`.
 
 ### Surfaces that no longer exist
 
@@ -997,7 +1037,7 @@ price response does not shift the layout.
 - `text-wrap: balance` on headings, `text-wrap: pretty` on body and description copy. Skip both in long-form. **Never hand-break with `<br>`.**
 - **App-authored headings stay on one line at the default text size.** Test both locales at every compact width; shorten copy, restructure the layout or move secondary content to disclosure. Never shrink the text to make it fit. Large accessibility text follows the large-text rule in **Voice**.
 - **Ration eyebrows: at most one per three sections, hero included.** An eyebrow labels a section, it never enumerates one. Numbered meta-labels are banned outright.
-- **Person-typed and Google-provided text gets the full row width first**: habit names, event titles and emails own the headline, with time, source and other metadata beneath. If the headline still does not fit, wrap only between words to at most two lines, then use an ellipsis. An unbroken token (an email, a URL, a code or a word longer than the row) never breaks inside itself: it stays on its line and ends in an ellipsis. Keep the full text one tap away in the row's destination or expanded state and in its accessible name. Habit detail rename headings remain unclamped: words wrap and oversized tokens ellipsize without scrolling, with the full title in the rename input. Running prose, such as a paragraph or a sentence in a message, keeps `overflow-wrap: anywhere` as its last resort. App-authored labels never truncate.
+- **Person-typed and Google-provided text gets the full row width first**: habit names, event titles and emails own the headline, with time, source and other metadata beneath. If the headline still does not fit, wrap only between words to at most two lines, then use an ellipsis. An unbroken token (an email, a URL, a code or a word longer than the row) never breaks inside itself: it stays on its line and ends in an ellipsis. Keep the full text one tap away in the row's destination or expanded state and in its accessible name. Habit detail reading headings remain unclamped: words wrap and oversized tokens ellipsize without scrolling, with the full title in the pencil editor input. Running prose, such as a paragraph or a sentence in a message, keeps `overflow-wrap: anywhere` as its last resort. App-authored labels never truncate.
 - **Text aligns to the start edge.** Hoje's date pager centres its day title and date within the content column. Numbers in a table align to the trailing edge. Justified text does not exist in this interface.
 - **Underlines take their metrics from the font**: `text-underline-position: from-font` and `text-decoration-thickness: from-font`, with `text-decoration-skip-ink: auto`. Only colour animates reliably on a real underline; build any other animated underline as its own element.
 
@@ -1227,7 +1267,7 @@ The painted row owns its background and inset-outline hover transition, using th
 - **Every habit row owns its bordered body:** current `--bg-card` surface fill plus an inset 1px `--hairline` border, radius 20, including parent and inline child rows. Family grouping adds no second fill or border. Keep 4px between rows inside a Hoje family and 12px between families; habit detail child rows use 12px. The owner standard is “esse e o novo padrao dos habitos” on landing Figma rows `7:72` and `7:84`, file `aLwwyaY3Dtw1NVesAWsNO7`.
 - **Panel row height matches across kinds.** A single-row panel is sized to the same row height as a family's parent row.
 - The panel is the quietest step so the `--bg-well` emoji squares inside it read as the lighter elevation.
-- **Two levels inline, then drill in.** One fg-3 chevron column expands a top-level parent in place and opens the drill anywhere else. The drill head carries a round back button, the parent's name and a mono done count; deeper than one level, a home row returns to all habits.
+- **Visible levels cascade, then drill for space.** Every visible descendant carries its actual local depth, with one 16px leading step per ancestor after the root's 8px padding. Wells, titles, descriptions, type and supporting metadata share that depth edge once. Positive depths keep the smaller well and dimmer text. The paired lists bound expansion by measured content width and text scale, preserving distinct 48px controls and at least one scaled child-title em of title space, with a 24px minimum. At 320 with 284px of row content, normal text retains depths 0 through 2; 200% text stops at depth 1. The boundary parent's fg-3 disclosure opens the existing drill. Wider contexts may expose further levels within the existing data depth limit. Drill direct children reset to local depth 0; detail children keep depth 1. At the narrow inline boundary, type and metadata use the existing full-width supporting footer, with controls beside the first title line even at normal text size. The drill head carries a round back button, the parent's name and a mono done count; deeper than one level, a home row returns to all habits.
 - **Sub-habit rows:** indent, smaller well, dimmer text. **Zero connector or tree lines.**
 - **The per-row overflow menu stays.**
 - **Habit emoji render in full colour.**
@@ -1560,7 +1600,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 - **Measure the pair that actually renders**, not the page background, and remeasure in both modes. A pair that passes in light can fail in dark.
 - **Honour `prefers-reduced-transparency`** (raise surface opacity toward solid) and **`prefers-contrast: more`** (see derivation rule 9). The whole dark ladder is white-alpha translucency, so reduced-transparency is directly load-bearing.
 - **Never ship a full-viewport moving background, a slow oscillation near 0.2 Hz, or an abrupt light/dark brightness jump.**
-- **Person-typed and Google-provided text gets the full row width first**: habit names, event titles and emails own the headline, with time, source and other metadata beneath. If the headline still does not fit, wrap only between words to at most two lines, then use an ellipsis. An unbroken token (an email, a URL, a code or a word longer than the row) never breaks inside itself: it stays on its line and ends in an ellipsis. Keep the full text one tap away in the row's destination or expanded state and in its accessible name. Habit detail rename headings remain unclamped: words wrap and oversized tokens ellipsize without scrolling, with the full title in the rename input. Running prose, such as a paragraph or a sentence in a message, keeps `overflow-wrap: anywhere` as its last resort. App-authored labels never truncate.
+- **Person-typed and Google-provided text gets the full row width first**: habit names, event titles and emails own the headline, with time, source and other metadata beneath. If the headline still does not fit, wrap only between words to at most two lines, then use an ellipsis. An unbroken token (an email, a URL, a code or a word longer than the row) never breaks inside itself: it stays on its line and ends in an ellipsis. Keep the full text one tap away in the row's destination or expanded state and in its accessible name. Habit detail reading headings remain unclamped: words wrap and oversized tokens ellipsize without scrolling, with the full title in the pencil editor input. Running prose, such as a paragraph or a sentence in a message, keeps `overflow-wrap: anywhere` as its last resort. App-authored labels never truncate.
 
 ### Keyboard and focus
 
@@ -1614,6 +1654,15 @@ Work down this list and stop at the first match: focus already moves there, so n
 - **If audio feedback is ever added:** sound never replaces visual feedback, ships behind an explicit off toggle, defaults subtle, and is suppressed under `prefers-reduced-motion`.
 
 ## Special surfaces
+
+**Email sign-in links.** The login code step captures the incoming address and code together,
+removes the secret from navigable history and completes through the same guarded owner as manual
+entry. Waiting for connectivity or fresh bot protection retains the existing code step. Verification
+uses its existing busy presentation. Refusal preserves manual editing, explicit Verify and permitted
+resend, without an automatic replacement email or retry loop. A changed address, link or session
+invalidates pending work. Existing accounts and explicit reactivation keep their session owners.
+Android uses the installed email-OTP hint, iOS its one-time-code content type and web one-time-code
+autocomplete, with one accessible editable field. Provider suggestions remain opportunistic.
 
 **Paywall.** At most 3 plans. Mark exactly one recommended and style it with the composed TierCard selected treatment. Write bullets as outcomes, not feature names, 3 to 6 visible per plan. Keep the CTA verb identical across every tier. Pair the monthly/annual toggle with an explicit savings callout: the arithmetic is visible, never implied.
 

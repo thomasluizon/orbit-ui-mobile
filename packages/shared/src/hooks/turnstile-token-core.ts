@@ -9,8 +9,9 @@ interface TokenRequest {
 }
 
 export interface TurnstileTokenView extends TurnstileTokenState {
-  onToken: (token: string | null) => void
+  onToken: (token: string | null) => boolean
   takeToken: () => TokenRequest['protection']
+  resetToken: () => void
 }
 
 export function createTurnstileTokenState(): TurnstileTokenState {
@@ -45,7 +46,11 @@ export class TurnstileTokenController {
   }
 
   clear = (): void => {
-    this.state = clearTurnstileToken(this.state)
+    this.reset()
+  }
+
+  reset = (): void => {
+    this.state = { token: null, resetKey: this.state.resetKey + 1 }
     this.publish(this.state)
   }
 
@@ -61,8 +66,13 @@ export class TurnstileTokenController {
   view(state: TurnstileTokenState, siteKey: string | undefined): TurnstileTokenView {
     return {
       ...state,
-      onToken: this.receive,
+      onToken: (token) => {
+        if (state.resetKey !== this.state.resetKey) return false
+        this.receive(token)
+        return true
+      },
       takeToken: () => this.take(siteKey),
+      resetToken: this.reset,
     }
   }
 }

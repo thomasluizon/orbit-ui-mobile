@@ -3,7 +3,7 @@ import { completeInstallOnboarding } from './install-onboarding'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
-import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { SHELL_CONTENT_MAX_WIDTH, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
@@ -112,12 +112,8 @@ for (const { width, height } of windows) {
         await page.goto(name === 'Hoje' ? `/?date=${fixtureDate}` : path)
         await loadAppFonts(page)
         if (name === 'Hoje') {
-          await openTodayListOptions(page, en.habits.listOptions)
-          await page.getByRole('menu', { name: en.habits.listOptions })
-            .getByRole('menuitem', { name: en.habits.refresh }).click()
           await expect(page.locator('[data-habit-title]')).toHaveCount(habits.items.length)
           await expect(page.locator('[data-habit-title]').first()).toHaveAttribute('data-habit-title', habits.items[0]!.title)
-          await expect(page.getByRole('menu', { name: en.habits.listOptions })).toHaveCount(0)
         }
         if (name === 'Calendário') {
           await expect(page.getByRole('radio', { name: en.calendar.view.month, exact: true })).toBeChecked()
@@ -135,7 +131,36 @@ for (const { width, height } of windows) {
         const hasComposer = name === 'Habit detail' || (name === 'Hoje' && width < 1024)
         await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(hasComposer ? 1 : 0)
         await assertColumnGeometry(page, width, hasComposer)
+        if (name === 'Hoje') {
+          await openTodayListOptions(page, en.habits.listOptions)
+          await page.getByRole('menu', { name: en.habits.listOptions })
+            .getByRole('menuitem', { name: en.habits.refresh }).click()
+          await expect(page.locator('[data-habit-title]')).toHaveCount(habits.items.length)
+          await expect(page.locator('[data-habit-title]').first()).toHaveAttribute('data-habit-title', habits.items[0]!.title)
+          await expect(page.getByRole('menu', { name: en.habits.listOptions })).toHaveCount(0)
+          const listOptions = page.locator('[data-shell-header] [data-today-header-actions]')
+            .getByRole('button', { name: en.habits.listOptions, exact: true })
+          await expect(listOptions).toBeFocused()
+          await expect(listOptions).toBeInViewport({ ratio: 1 })
+          const target = (await listOptions.boundingBox())!
+          const safeViewport = await listOptions.evaluate((element) => {
+            const style = getComputedStyle(element)
+            return {
+              left: Number.parseFloat(style.getPropertyValue('--safe-left')),
+              right: window.innerWidth - Number.parseFloat(style.getPropertyValue('--safe-right')),
+              top: Number.parseFloat(style.getPropertyValue('--safe-top')),
+              bottom: window.innerHeight - Number.parseFloat(style.getPropertyValue('--safe-bottom')),
+            }
+          })
+          expect(target.width).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
+          expect(target.height).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
+          expect(target.x).toBeGreaterThanOrEqual(safeViewport.left)
+          expect(target.x + target.width).toBeLessThanOrEqual(safeViewport.right)
+          expect(target.y).toBeGreaterThanOrEqual(safeViewport.top)
+          expect(target.y + target.height).toBeLessThanOrEqual(safeViewport.bottom)
+        }
         await assertReachableControls(page.locator('[data-shell-column]').last())
+        if (name === 'Hoje') await assertColumnGeometry(page, width, hasComposer)
       })
     }
   })

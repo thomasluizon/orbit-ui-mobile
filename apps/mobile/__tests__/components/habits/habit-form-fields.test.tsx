@@ -99,7 +99,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
-  useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+  useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -152,7 +152,7 @@ function createTags(): TagSelectionState {
 }
 
 describe('HabitFormFields mobile', () => {
-  it.each([false, true])('uses the API sub-habit flag for Pro access %s', async (hasProAccess) => {
+  it.each([false, true])('keeps the sub-habit editor available with Pro access %s', async (hasProAccess) => {
     mockProfileState.hasProAccess = hasProAccess
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
@@ -162,9 +162,9 @@ describe('HabitFormFields mobile', () => {
         </HabitFormFields>,
       )
     })
-    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'sub-habit-editor')).toHaveLength(hasProAccess ? 1 : 0)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'sub-habit-editor')).toHaveLength(1)
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'goal-linking')).toHaveLength(1)
-    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === ListRow && node.props.title === 'common.upgrade')).toHaveLength(hasProAccess ? 0 : 1)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === ListRow && node.props.title === 'common.upgrade')).toHaveLength(0)
     await TestRenderer.act(() => { tree.unmount() })
   })
 
@@ -255,7 +255,7 @@ describe('HabitFormFields mobile', () => {
   it('renders disclosure headings with the field label role and no additional start inset', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ isBadHabit: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ isBadHabit: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded><Text>Sub-habit editor</Text></HabitFormFields>)
     })
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = createTokensV2(currentScheme, currentTheme)
@@ -670,7 +670,7 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.form.getValues('dueEndTime')).toBe('09:00')
   })
 
-  it('routes the free sub-habit row to upgrade', async () => {
+  it('shows no upgrade row for free sub-habits', async () => {
     const onUpgrade = vi.fn()
     let tree: any
     await TestRenderer.act(async () => {
@@ -679,8 +679,9 @@ describe('HabitFormFields mobile', () => {
     })
 
     const subHabitRow = tree.root.findAll((node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'common.upgrade').length > 0)[0]
-    TestRenderer.act(() => subHabitRow.props.onPress())
-    expect(onUpgrade).toHaveBeenCalledOnce()
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.subHabits')).toHaveLength(0)
+    expect(subHabitRow).toBeUndefined()
+    expect(onUpgrade).not.toHaveBeenCalled()
   })
 
   it('keeps local corrections and details live at the Astra ceiling', async () => {
@@ -1766,12 +1767,17 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
-  it('keeps genuine save failures on the existing global error path', async () => {
+  it('retains failed saves with the owning create error or edit uncertainty', async () => {
     mutation().mockRejectedValueOnce(new Error('save failed'))
     await mount('task')
     await submit()
-    expect(modalFeedback.showError).toHaveBeenCalledOnce()
-    expect(modalFeedback.showError).toHaveBeenCalledWith(owner === 'create' ? 'errors.createHabit' : 'errors.updateHabit')
+    if (owner === 'create') {
+      expect(modalFeedback.showError).toHaveBeenCalledOnce()
+      expect(modalFeedback.showError).toHaveBeenCalledWith('errors.createHabit')
+    } else {
+      expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.saveUncertain')).toHaveLength(1)
+      expect(modalFeedback.showError).not.toHaveBeenCalled()
+    }
     expect(mutation()).toHaveBeenCalledOnce()
     expect(closed).not.toHaveBeenCalled()
     expect(input('habits.form.describe').props.value).toBe('Read')

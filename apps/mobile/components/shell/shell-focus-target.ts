@@ -1,4 +1,4 @@
-import type { HostInstance } from 'react-native'
+import type { FocusEvent, HostInstance } from 'react-native'
 import { createContext, useContext } from 'react'
 
 export const ShellFocusTargetContext = createContext<{
@@ -9,4 +9,11 @@ export const ShellFocusTargetContext = createContext<{
 
 export function useShellFocusTarget() {
   return useContext(ShellFocusTargetContext)
+}
+
+export const ShellListFocusContext = createContext<((target: HostInstance, scrollBy: (offset: number) => void) => void) | null>(null)
+
+export function useShellListFocus(scrollBy: (offset: number) => void) {
+  const reveal = useContext(ShellListFocusContext)
+  return (event: FocusEvent) => reveal?.(event.target, scrollBy)
 }

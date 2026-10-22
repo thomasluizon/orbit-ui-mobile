@@ -23,7 +23,7 @@ describe('login code entry', () => {
     await act(async () => unmount())
   })
 
-  it('accepts a complete paste and leaves prefilled links ready for manual submission', async () => {
+  it('accepts a complete paste through completion after digit hydration', async () => {
     const complete = vi.fn()
     const { result, unmount } = await renderEntry(complete)
     await act(async () => result.current.setCodeDigits('654321'.split('')))
@@ -34,6 +34,16 @@ describe('login code entry', () => {
     expect(complete).toHaveBeenCalledExactlyOnceWith('123456')
     await act(async () => result.current.onCodeChange(''))
     expect(result.current.codeDigits).toEqual(['', '', '', '', '', ''])
+    await act(async () => unmount())
+  })
+
+  it('completes matching digits once for a newly captured attempt', async () => {
+    const complete = vi.fn()
+    const { result, unmount } = await renderEntry(complete)
+    await act(async () => result.current.onCodeChange('123456'))
+    await act(async () => result.current.onCodeChange('123456', true))
+    await act(async () => result.current.onCodeChange('123456'))
+    expect(complete).toHaveBeenCalledTimes(2)
     await act(async () => unmount())
   })
 

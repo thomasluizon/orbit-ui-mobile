@@ -114,7 +114,6 @@ export {
   getGoalMetricsStatusPresentation,
   appendTag,
   getCurrentPlan,
-  getIsYearlyPro,
   getTrialDaysLeft,
   getTrialExpired,
   getTrialUrgent,

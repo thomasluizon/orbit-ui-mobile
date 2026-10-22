@@ -30,7 +30,8 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void) {
     setCodeDigits(createVerificationCodeDigits())
   }, [])
 
-  function onCodeChange(value: string) {
+  function onCodeChange(value: string, newAttempt = false) {
+    if (newAttempt) submittedCode.current = null
     const code = normalizeVerificationCodeInput(value).slice(0, VERIFICATION_CODE_LENGTH)
     setCodeDigits(Array.from({ length: VERIFICATION_CODE_LENGTH }, (_, index) => code[index] ?? ''))
     if (code.length !== VERIFICATION_CODE_LENGTH) {

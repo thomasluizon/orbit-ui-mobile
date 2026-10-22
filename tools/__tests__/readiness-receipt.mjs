@@ -1,6 +1,7 @@
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 
-import { T, stageRepo } from "./_harness.mjs"
+import { T, stageRepo, TOOLS_DIR } from "./_harness.mjs"
 import {
   REVIEW_APP_AUTHOR_FILTER,
   headActivityArgv,
@@ -14,6 +15,7 @@ import {
   readinessCiIsGreen,
   readinessReceiptPath,
   readinessReport,
+  registrationFingerprint,
   requiredCheckSatisfied,
   requiredChecksFromResponse,
   requiredChecksOf,
@@ -198,6 +200,7 @@ export const cases = async () => {
       number: 716,
       baseRefName: "main",
       baseRefOid: "c733116446eb5eb8b113b7ca992c833feb90e2a2",
+      baseRef: { name: "main", target: { __typename: "Commit", oid: "c733116446eb5eb8b113b7ca992c833feb90e2a2" } },
       headRefOid: "d9390ad0ce4a7d6b7cb3b2451a28f71693a1406e", headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" },
       commits: { nodes: [{ commit: { oid: "d9390ad0ce4a7d6b7cb3b2451a28f71693a1406e" } }] },
       isDraft: false,
@@ -212,6 +215,50 @@ export const cases = async () => {
       ] },
     } } },
   }
+  const capturedBase = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-current-base-ref.json"), "utf8")).response.data.repository
+  const splitBaseEnvelope = structuredClone(liveEnvelope)
+  Object.assign(splitBaseEnvelope.data.repository.pullRequest, {
+    baseRefName: capturedBase.pullRequest.baseRefName,
+    baseRefOid: capturedBase.pullRequest.baseRefOid,
+    baseRef: capturedBase.pullRequest.baseRef,
+  })
+  const splitBase = pullRequestStateFromGraphQl(splitBaseEnvelope)
+  T(`${TOOL}: the real Ref target is distinct from the preserved historical PR snapshot`,
+    splitBase?.currentBaseSha === capturedBase.ref.target.oid && splitBase.baseRefOid === capturedBase.pullRequest.baseRefOid &&
+    splitBase.currentBaseSha !== splitBase.baseRefOid, JSON.stringify(splitBase))
+  T(`${TOOL}: the canonical query selects the current base Ref target`,
+    /baseRef\s*\{\s*name\s+target\s*\{\s*__typename\s+oid\s*\}/.test(pullRequestStateArgv("owner/repo", 716).at(-1)))
+
+  const unchangedBaseEnvelope = structuredClone(splitBaseEnvelope)
+  unchangedBaseEnvelope.data.repository.pullRequest.baseRef.target.oid = capturedBase.pullRequest.baseRefOid
+  const unchangedBase = pullRequestStateFromGraphQl(unchangedBaseEnvelope)
+  T(`${TOOL}: a Ref-only advance changes registration while the snapshot and checks stay fixed`,
+    registrationFingerprint(splitBase, newestChecks(splitBase.statusCheckRollup)) !==
+    registrationFingerprint(unchangedBase, newestChecks(unchangedBase.statusCheckRollup)))
+  for (const [label, ref] of [
+    ["missing Ref", undefined], ["null Ref", null], ["missing target", { name: "main" }],
+    ["null target", { name: "main", target: null }],
+    ...["Blob", "Tag", "Tree", "Unknown"].map((kind) => [kind, { name: "main", target: { __typename: kind, oid: BASE_A } }]),
+    ["missing OID", { name: "main", target: { __typename: "Commit" } }],
+    ["empty OID", { name: "main", target: { __typename: "Commit", oid: " " } }],
+    ["numeric OID", { name: "main", target: { __typename: "Commit", oid: 1 } }],
+    ["different branch", { name: "other", target: { __typename: "Commit", oid: BASE_A } }],
+  ]) {
+    const invalidBaseEnvelope = structuredClone(splitBaseEnvelope)
+    invalidBaseEnvelope.data.repository.pullRequest.baseRef = ref
+    T(`${TOOL}: ${label} cannot fall back to the historical PR snapshot`, pullRequestStateFromGraphQl(invalidBaseEnvelope) === null)
+  }
+  const forkBaseEnvelope = structuredClone(splitBaseEnvelope)
+  const forkPull = forkBaseEnvelope.data.repository.pullRequest
+  forkPull.baseRefName = "release/candidate"
+  forkPull.baseRef.name = forkPull.baseRefName
+  forkPull.headRepository.nameWithOwner = "fork/repo"
+  const forkBase = pullRequestStateFromGraphQl(forkBaseEnvelope)
+  T(`${TOOL}: a slash-containing base stays on its own Ref when the head belongs to a fork`,
+    forkBase?.currentBaseSha === capturedBase.ref.target.oid && forkBase.baseRefName === "release/candidate" && forkBase.headRepository === "fork/repo")
+  T(`${TOOL}: selecting the fork PR base does not relax head-activity review trust`,
+    headActivityBoundary([], forkBase.headRefOid, forkBase.headRefName, forkBase.repositoryName, forkBase.headRepository).time === null)
+
   const liveState = pullRequestStateFromGraphQl(liveEnvelope)
   T(`${TOOL}: the state query selects the head branch and repository without check suites`,
     pullRequestStateArgv("owner/repo", 716).at(-1).includes("headRepository { nameWithOwner }") &&
@@ -234,25 +281,25 @@ export const cases = async () => {
     readinessCiIsGreen(liveState.statusCheckRollup, [{ context: "Unit Tests", appId: 15368 }, { context: "pullfrog-approval", appId: 1768019 }]) === false,
   )
   /** An empty rollup cannot satisfy a required check. */
-  const emptyState = pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: null } } } })
+  const emptyState = pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: null } } } })
   T(`${TOOL}: a head commit with no check at all reads as an empty rollup`, Array.isArray(emptyState?.statusCheckRollup) && emptyState.statusCheckRollup.length === 0, JSON.stringify(emptyState))
   T(`${TOOL}: an empty rollup is not green while a check is required`, readinessCiIsGreen(emptyState.statusCheckRollup, [requiredApproval]) === false)
   T(`${TOOL}: a response missing the pull request is refused`, pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "owner/repo", pullRequest: null } } }) === null)
   T(
     `${TOOL}: a rollup node of an unknown type is refused rather than read as passing`,
-    pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [{ __typename: "SomethingNew" }] } } } } } }) === null,
+    pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [{ __typename: "SomethingNew" }] } } } } } }) === null,
   )
 
   const nullReviews = pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: null, statusCheckRollup: null } } },
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: null, statusCheckRollup: null } } },
   })
   T(`${TOOL}: a null reviews connection reads as an empty list, not a broken read`, Array.isArray(nullReviews?.reviews) && nullReviews.reviews.length === 0, JSON.stringify(nullReviews))
   const nullNodeList = pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: null }, statusCheckRollup: null } } },
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: null }, statusCheckRollup: null } } },
   })
   T(`${TOOL}: a null nodes LIST reads as an empty list, because the schema does not make it non-null`, Array.isArray(nullNodeList?.reviews) && nullNodeList.reviews.length === 0, JSON.stringify(nullNodeList))
   const nullElement = pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [null, { state: "APPROVED", submittedAt: "2026-09-08T10:00:00Z", author: { __typename: "Bot", login: "pullfrog" }, commit: { oid: HEAD_A } }] }, statusCheckRollup: null } } },
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [null, { state: "APPROVED", submittedAt: "2026-09-08T10:00:00Z", author: { __typename: "Bot", login: "pullfrog" }, commit: { oid: HEAD_A } }] }, statusCheckRollup: null } } },
   })
   T(
     `${TOOL}: a null review ELEMENT is skipped, and the real review beside it still counts`,
@@ -262,12 +309,12 @@ export const cases = async () => {
   T(
     `${TOOL}: a reviews object with a non-array nodes is still refused`,
     pullRequestStateFromGraphQl({
-      data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: "nope" }, statusCheckRollup: null } } },
+      data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: "nope" }, statusCheckRollup: null } } },
     }) === null,
   )
 
   const reviewsAtHead = (nodes) => pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "redesign/main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes }, statusCheckRollup: null } } },
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "redesign/main", baseRefOid: BASE_A, baseRef: { name: "redesign/main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes }, statusCheckRollup: null } } },
   }).reviews
   const botReview = (state, submittedAt, oid) => ({ state, submittedAt, author: { __typename: "Bot", login: "pullfrog" }, commit: { oid } })
   /** Keep real activity and review shapes for the repointed-commit case. */
@@ -278,7 +325,7 @@ export const cases = async () => {
   const repointedReview = botReview("APPROVED", "2026-09-25T21:50:13Z", repointedHead)
   const reviewAfterMerge = botReview("APPROVED", "2026-09-26T02:59:43Z", repointedHead)
   const parsedRepointed = pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "owner/repo", pullRequest: {
-    number: 1107, baseRefName: "redesign/main", baseRefOid: BASE_A, headRefOid: repointedHead, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, isDraft: false,
+    number: 1107, baseRefName: "redesign/main", baseRefOid: BASE_A, baseRef: { name: "redesign/main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: repointedHead, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, isDraft: false,
     commits: { nodes: [{ commit: { oid: repointedHead } }] },
     reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [repointedReview] },
     statusCheckRollup: null,
@@ -362,18 +409,18 @@ export const cases = async () => {
    * green and only the approval check's presence changes.
    */
   const greenRollupWithoutApproval = pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [
       { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:00:00Z", completedAt: "2026-09-06T07:10:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
     ] } } } } },
   }).statusCheckRollup
   const greenRollupWithApproval = pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [
       { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:00:00Z", completedAt: "2026-09-06T07:10:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
       { __typename: "CheckRun", name: "pullfrog-approval", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:05:00Z", completedAt: "2026-09-06T07:05:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 1768019 }, workflowRun: null } },
     ] } } } } },
   }).statusCheckRollup
   const redApprovalRollup = pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [
       { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:00:00Z", completedAt: "2026-09-06T07:10:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
       { __typename: "CheckRun", name: "pullfrog-approval", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-09-06T07:05:00Z", completedAt: "2026-09-06T07:05:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 1768019 }, workflowRun: null } },
     ] } } } } },
@@ -413,7 +460,7 @@ export const cases = async () => {
    * excuse therefore asks whether the CONTEXT is absent entirely, under any producer.
    */
   const wrongAppApprovalRollup = pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [
       { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:00:00Z", completedAt: "2026-09-06T07:10:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
       { __typename: "CheckRun", name: "pullfrog-approval", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:05:00Z", completedAt: "2026-09-06T07:05:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
     ] } } } } },
@@ -485,7 +532,7 @@ export const cases = async () => {
   }
   crowdedNodes.push({ state: "APPROVED", submittedAt: "2026-09-08T23:00:00Z", author: { __typename: "Bot", login: "pullfrog" }, commit: { oid: HEAD_A } })
   const crowded = pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: crowdedNodes }, statusCheckRollup: null } } },
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: crowdedNodes }, statusCheckRollup: null } } },
   })
   T(
     `${TOOL}: an exact-head approval survives fifty later reviews by other authors`,
@@ -494,7 +541,7 @@ export const cases = async () => {
   T(
     `${TOOL}: a truncated review window is reported rather than passed off as complete`,
     pullRequestStateFromGraphQl({
-      data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: true }, nodes: [] }, statusCheckRollup: null } } },
+      data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: true }, nodes: [] }, statusCheckRollup: null } } },
     })?.reviewsTruncated === true && crowded.reviewsTruncated === false,
   )
 
@@ -505,7 +552,7 @@ export const cases = async () => {
     ...pullRequestStateFromGraphQl({
       data: {
         repository: { nameWithOwner: "owner/repo",
-          pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { totalCount: nodes.length, pageInfo, nodes }, statusCheckRollup: null },
+          pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { totalCount: nodes.length, pageInfo, nodes }, statusCheckRollup: null },
         },
       },
     }),
@@ -592,7 +639,7 @@ export const cases = async () => {
       pullRequestStateFromGraphQl({
         data: {
           repository: { nameWithOwner: "owner/repo",
-            pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { totalCount: 0, pageInfo, nodes: [] }, statusCheckRollup: null },
+            pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, baseRef: { name: "main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { totalCount: 0, pageInfo, nodes: [] }, statusCheckRollup: null },
           },
         },
       }) === null,

@@ -1,160 +1,21 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
-
-import { ActionRow } from '@/components/ui/action-row'
-
-import { useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { useProfile } from '@/hooks/use-profile'
-import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
-import type { HabitDetailPatch, ReminderChanges } from '@orbit/shared/hooks'
-import { toTime24,
-  buildHabitDaysList,
-  type HabitDayOption,
-  buildHabitDetailSchedulePatch,
-  buildHabitDetailTimePatch,
-  canInlineEditHabitSchedule,
-  formatHabitReminderLabel,
-  HABIT_DETAIL_FREQUENCY_UNITS,
-  HABIT_DETAIL_WEEKDAYS,
-  toggleHabitDaySelection,
-} from '@orbit/shared/utils'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useLocale, useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { formatLocaleDate, parseAPIDate } from '@orbit/shared/utils'
+import { DateRow } from '@/components/ui/date-row'
 import { ListRow } from '@/components/ui/list-row'
-import { PillButton } from '@/components/ui/pill-button'
-import { TimeField } from '@/components/ui/time-field'
-import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
-import { useAppToast } from '@/hooks/use-app-toast'
-import { Input } from '@/components/ui/input'
-import { X } from '@/components/ui/icons'
-import { DateField } from '@/components/ui/date-field'
-import { HabitChecklist } from './habit-checklist'
-import { ChecklistTemplates } from './checklist-templates'
-import { HabitDetailTags } from './habit-detail-tags'
-import { GoalLinkingField } from './goal-linking-field'
-import { FormSectionLabel } from './habit-form-fields/form-section-label'
-import { ReminderSection } from './habit-form-fields/reminder-section'
-import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
+import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 
-interface HabitDetailFieldsProps {
-  open?: boolean
-  habit: NormalizedHabit
-  hasProAccess: boolean
-  relationshipControlsAvailable: boolean
-  onItemsChange: (items: NormalizedHabit['checklistItems']) => void
-  onPatch: (patch: HabitDetailPatch) => Promise<boolean>
-  onUpgrade: () => void
-}
-
-function FieldActions({ onCancel, onSave }: Readonly<{ onCancel: () => void; onSave: () => void }>) {
+export function HabitDetailFields({ habit, summary }: Readonly<{ habit: NormalizedHabit; summary?: string | null }>) {
   const t = useTranslations()
-  return <div className="flex justify-end gap-2"><ActionRow><PillButton variant="ghost" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton variant="secondary" size="sm" onClick={onSave}>{t('common.save')}</PillButton></ActionRow></div>
-}
-
-function FieldWell({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <div className="flex flex-col gap-3" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}>{children}</div>
-}
-
-function FrequencyUnitOption({ label, selected, onSelect }: Readonly<{ label: string; selected: boolean; onSelect: () => void }>) {
-  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect, selected })
-  return <button ref={elementRef} type="button" role="radio" aria-checked={selected} tabIndex={tabIndex} className={`chip focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${selected ? 'chip-active' : ''}`} onClick={onActivate} onKeyDown={onKeyDown}>{label}</button>
-}
-
-function ScheduleEditor({ habit, daysList, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; daysList: HabitDayOption[]; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
-  const t = useTranslations()
-  const { showError } = useAppToast()
-  const [unit, setUnit] = useState<(typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]>(habit.frequencyUnit ?? 'Day')
-  const [quantity, setQuantity] = useState(habit.frequencyQuantity ?? 1)
-  const [days, setDays] = useState(habit.days)
-  return (
-    <FieldWell>
-      <div className="flex gap-2">
-        <input min={1} type="number" value={quantity} data-focus-perimeter="" aria-label={t('habits.form.frequencyRequired')} className="w-20 rounded-[var(--r-well)] border-0 bg-[var(--bg)] px-3 py-3 text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" onChange={(event) => setQuantity(Math.max(1, Number(event.target.value)))} />
-        <RadioGroup aria-label={t('habits.detail.schedule')} className="flex min-w-0 flex-1 flex-wrap gap-2">
-          {HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <FrequencyUnitOption key={value} label={t(`habits.form.unit${value}`)} selected={unit === value} onSelect={() => setUnit(value)} />)}
-        </RadioGroup>
-      </div>
-      {unit === 'Day' && quantity === 1 ? <div className="flex flex-wrap gap-1">{daysList.map(({ value: day, label, accessibleLabel }) => { const selected = days.length === 0 || days.includes(day); return <button key={day} type="button" aria-label={accessibleLabel} aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => toggleHabitDaySelection(current, day, HABIT_DETAIL_WEEKDAYS, current.length === 0))}>{label.charAt(0)}</button> })}</div> : null}
-      <FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailSchedulePatch(unit, quantity, days); if (patch) onSave(patch); else showError(t('habits.form.frequencyRequired')) }} />
-    </FieldWell>
-  )
-}
-
-export function HabitDetailSchedule({ habit, summary, open, onToggle, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; summary: string; open: boolean; onToggle: () => void; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
-  const t = useTranslations()
-  const { profile } = useProfile()
-  const daysList = buildHabitDaysList({
-    monday: t('dates.daysShort.monday'),
-    tuesday: t('dates.daysShort.tuesday'),
-    wednesday: t('dates.daysShort.wednesday'),
-    thursday: t('dates.daysShort.thursday'),
-    friday: t('dates.daysShort.friday'),
-    saturday: t('dates.daysShort.saturday'),
-    sunday: t('dates.daysShort.sunday'),
-    mondayLong: t('dates.daysLong.monday'),
-    tuesdayLong: t('dates.daysLong.tuesday'),
-    wednesdayLong: t('dates.daysLong.wednesday'),
-    thursdayLong: t('dates.daysLong.thursday'),
-    fridayLong: t('dates.daysLong.friday'),
-    saturdayLong: t('dates.daysLong.saturday'),
-    sundayLong: t('dates.daysLong.sunday'),
-    unitDay: t('habits.form.unitDay'),
-    unitWeek: t('habits.form.unitWeek'),
-    unitMonth: t('habits.form.unitMonth'),
-    unitYear: t('habits.form.unitYear'),
-  }, profile?.weekStartDay)
-  const editable = canInlineEditHabitSchedule(habit)
-  if (!editable && !summary) return null
-  const dailyPills = !open && editable && habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 1 ? <section className="flex flex-col gap-2"><div className="flex flex-wrap gap-1">{daysList.map(({ value: day, label, accessibleLabel }) => { const selected = habit.days.length === 0 || habit.days.includes(day); return <button key={day} type="button" aria-label={accessibleLabel} aria-pressed={selected} className={`orbit-selection-ring orbit-selection-ring-thin ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)]'} size-[var(--touch-min)] shrink-0 rounded-full text-sm font-medium transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]`} style={{ boxShadow: selected ? undefined : 'inset 0 0 0 1px var(--hairline)' }} onClick={() => { const patch = buildHabitDetailSchedulePatch('Day', 1, toggleHabitDaySelection(habit.days, day, HABIT_DETAIL_WEEKDAYS, habit.days.length === 0)); if (patch) onSave(patch) }}>{label.charAt(0)}</button> })}</div></section> : null
-  return <><ListRow placement="column" title={t('habits.detail.schedule')} expanded={editable ? open : undefined} controls={editable ? 'habit-detail-schedule-editor' : undefined} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{dailyPills}<div id="habit-detail-schedule-editor" hidden={!open}>{open ? <ScheduleEditor habit={habit} daysList={daysList} onCancel={onCancel} onSave={onSave} /> : null}</div></>
-}
-
-function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ habit: NormalizedHabit; hasProAccess: boolean; onPatch: HabitDetailFieldsProps['onPatch']; onUpgrade: () => void }>) {
-  const t = useTranslations()
-  if (!habit.isBadHabit) return null
-  return <ListRow textMode="label" placement="column" title={t('habits.detail.slipAlert')} description={t('habits.detail.slipAlertDescription')} trailing={!hasProAccess ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} toggle={hasProAccess ? { checked: habit.slipAlertEnabled, onChange: (slipAlertEnabled) => { void onPatch({ slipAlertEnabled }) } } : undefined} chevron={!hasProAccess} onClick={!hasProAccess ? onUpgrade : undefined} />
-}
-
-
-export function HabitDetailFields({ open = true, habit, hasProAccess, relationshipControlsAvailable, onItemsChange, onPatch, onUpgrade }: Readonly<HabitDetailFieldsProps>) {
-  const t = useTranslations()
-  const { showError } = useAppToast()
-  const { goalIds, openField, reminderHabit, toggleField, goalLinking, updateReminders, description, setDescription } = useHabitDetailFieldsState(habit, onPatch)
-
-  if (!open) return null
-
-  const changeReminders = (changes: ReminderChanges) => {
-    const validationError = updateReminders(changes)
-    if (validationError) showError(t(validationError))
-  }
-  return (
-    <div className="flex flex-col gap-6">
-      <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={toTime24(habit.dueTime)} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
-      <section className="flex flex-col gap-2">
-        {!habit.dueTime ? <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel> : null}
-        {habit.dueTime ? <ReminderSection inline reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => changeReminders({ offsets })} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError} t={t}>
-          <ScheduledReminderSection inline reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => changeReminders({ scheduled })} onValidationError={showError} offsetReminderCount={reminderHabit.reminderTimes.length} nested t={t} />
-        </ReminderSection> : <ScheduledReminderSection inline reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => changeReminders({ scheduled })} onValidationError={showError} t={t} />}
-      </section>
-      <section className="flex flex-col gap-2">
-        <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
-        <HabitChecklist items={habit.checklistItems} editable onItemsChange={onItemsChange} />
-        <ChecklistTemplates items={habit.checklistItems} onLoad={onItemsChange} />
-      </section>
-      {!habit.isGeneral ? <section>
-        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Create fBad controls this label under D42. */}
-        <ListRow placement="column" title={t('habits.form.habitTypeAvoid')} description={t('habits.form.habitTypeAvoidHint')} toggle={{ checked: habit.isBadHabit, onChange: (isBadHabit) => { void onPatch({ isBadHabit }) } }} />
-      </section> : null}
-      {relationshipControlsAvailable ? <SlipAlertRow habit={habit} hasProAccess={hasProAccess} onPatch={onPatch} onUpgrade={onUpgrade} /> : null}
-      {relationshipControlsAvailable ? <HabitDetailTags habit={habit} /> : null}
-      {relationshipControlsAvailable ? <><ListRow placement="column" title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField {...goalLinking} /></FieldWell> : null}</> : null}
-      <section className="flex flex-col gap-2">
-        <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
-        <DateField label={t('habits.form.endDate')} value={habit.endDate ?? ''} placeholder={t('habits.form.endDatePlaceholder')} onChange={(endDate) => { void onPatch({ endDate: endDate || null }) }} />
-        {habit.endDate ? <PillButton variant="ghost" size="sm" iconOnly label={t('habits.form.removeEndDate')} onClick={() => { void onPatch({ endDate: null }) }}><X size={20} /></PillButton> : null}
-      </section>
-      <Input label={t('habits.form.description')} value={description} onChange={setDescription} onBlur={() => { if (description.trim() !== (habit.description ?? '')) void onPatch({ description: description.trim() }) }} multiline rows={3} maxLength={10000} />
-    </div>
-  )
+  const locale = useLocale()
+  const [goalId, setGoalId] = useAccountScopedState<string | null>(null)
+  return <section className="flex flex-col gap-3">
+    {summary ? <ListRow placement="column" title={t('habits.detail.schedule')} value={summary} readOnly /> : null}
+    {habit.endDate ? <DateRow label={t('habits.form.endDate')} value={formatLocaleDate(parseAPIDate(habit.endDate), locale, { dateStyle: 'medium' })} /> : null}
+    {(habit.linkedGoals ?? []).map((goal) => <ListRow key={goal.id} placement="column" title={goal.title} onClick={() => setGoalId(goal.id)} />)}
+    {goalId ? <GoalDetailDrawer open goalId={goalId} onOpenChange={(open) => { if (!open) setGoalId(null) }} /> : null}
+  </section>
 }

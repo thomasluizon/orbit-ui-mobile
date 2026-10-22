@@ -1,0 +1,53 @@
+name: Android Sentry Diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: Approved main commit, exactly 40 lowercase hexadecimal characters
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-design-release-production
+  cancel-in-progress: false
+
+jobs:
+  reject-source:
+    if: github.ref != 'refs/heads/main' || inputs.expected_source_sha != github.sha
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Refuse unapproved source
+        run: |
+          echo '::error::Diagnostic requires the approved main source.'
+          exit 1
+  diagnose:
+    if: github.ref == 'refs/heads/main' && inputs.expected_source_sha == github.sha
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: production
+      deployment: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install locked native CLI
+        run: npm ci
+      - name: Probe native upload and resource routing
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          set +x
+          set -euo pipefail
+          node tools/android-sentry-diagnostic.mjs

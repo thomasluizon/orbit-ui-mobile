@@ -3,6 +3,37 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Habit detail read and draft amendment
+
+`Orbit Habit Detail.dc.html` replaces inline rename/settings with one type-aware pencil opening the
+complete editor at compact and wide widths. Its read title and emoji are static. Plain Task/Habit
+type, readable source description and one immediate completion checklist precede secondary facts.
+Readable checklist labels have no disclosure arrow. Uncheck all remains immediate; structural clear,
+text, duplicate, remove and reorder are staged in the editor. Save and Cancel own that habit draft.
+Shared-object management remains independently committed. Pending, rejected, uncertain and native
+queued outcomes follow `DESIGN.md` and the paired habit-form surface inventory. The drawing's editor
+transition reuses its existing field composition; production uses `EditHabitModal` and `HabitFormFields`.
+Frozen rendering and native device acceptance remain separate from source and unit evidence.
+
+The detail description stays fully visible and selectable with exact source line breaks. Only
+validated absolute HTTP/HTTPS spans become independently reachable underlined links; long URLs
+remain readable at enlarged text. Web opens a new tab with `noopener noreferrer`; native opening
+failure retains the source and offers Retry. Copy description copies the original source, shows
+one Check on success and announces it once through visually hidden localized feedback. Copy errors
+and manual-selection guidance remain visible. Account or description replacement clears feedback.
+This amendment does not make row previews interactive or add a Markdown renderer.
+
+### Email sign-in entry amendment
+
+`Orbit Entrar` uses the existing verifying presentation for a valid incoming email link.
+The captured address and code complete once through the ordinary login owner when connectivity,
+fresh bot protection and session ownership permit it. Refused or unavailable attempts retain
+manual entry, explicit Verify and permitted resend. Android opts into the installed email-code
+hint; iOS keeps its one-time-code hint and web keeps its single one-time-code input.
+Hints depend on the configured provider and keyboard; they do not read an inbox or notifications.
+Unit guards cover request, session, input and generated manifest boundaries. Received-message,
+installed App Link verification, browser fallback and provider suggestions require device evidence.
+
 ### Habit form type and date amendment
 
 Create and edit place the two vertical type radios before the focal title. The editable account-date
@@ -24,8 +55,8 @@ verification boundaries.
 
 Shared rows use the complete nouns `Tarefa` / `Task` or `Hábito` / `Habit` as quiet type metadata
 beneath the full-width title. This supersedes the longer task caption in exported rows, including
-detail children. Form choices and detail headers retain `Tarefa única` / `One-time task` and
-`Hábito` / `Habit`. Row primary and selection accessible names match the short visible caption
+detail children. Form choices retain `Tarefa única` / `One-time task` and `Hábito` / `Habit`.
+Detail headers use the same plain nouns as rows. Row primary and selection accessible names match the short visible caption
 exactly once. Typography, insets, widths, status, counts, checks and menus retain their geometry;
 default controls stay row-centred and every row keeps its supporting footer above 130% text.
 
@@ -41,6 +72,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1587 | Hoje rows carry actual visible depth with one 16px step per ancestor after the 8px root inset. Well, title and supporting metadata cascade together. Measured content width and scaled title space determine the narrow boundary, accounting for shell scrollbars and safe-area gutters. Boundary rows use the full-width supporting metadata footer with first-title-line controls, and the existing drill; drill resets local depth and detail children use depth 1 once | Expanded grandchildren must remain visibly subordinate to their parents without shrinking controls or flattening adjacent levels. |
 | #1588 | Hoje canonical rows restore stored plain text description previews below the title and before metadata, at Geist Sans 14/400 and line height 1.55 with a 4px stack gap. Normal text uses one naturally ellipsized line; above 130% text, up to two lines grow the row. Empty normalized text adds no line. Body feedback replaces the complete radius-20 row fill; sibling actions including selection paint independently and the check centres on the resulting normal row. The painted web row owns reversible 380ms background/outline hover feedback, with a strong hairline and immediate press/reduced-motion feedback | The explicitly requested preview restores stored content through the existing detail path without a new action or request. The active drawing amendment preserves 17/14 titles, the single depth inset and large-text supporting metadata. |
 | Astra blocks in place | `Orbit Astra Conversation` combines the day ring with up to 20 live habit rows and in-place logging; calendar EventRow actions open Calendários with one event selected for import review; streak keeps DayStrip and a read-only FreezeBank linking to Sequência; goals use ProgressBar, tracking badges and named derived sources; metrics keeps BarChart with at most three StatTile figures. The pt-BR stale line reads `A manhã mudou desde que a Astra montou este bloco.` | Blocks reuse their app actions and live state. This supersedes the drawing's goal rings, metrics note excluding a chart, and masculine reference to Astra in the stale line. |
 | #1471 | `Orbit Progresso` and `Orbit Astra Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Astra metrics. |
@@ -53,6 +85,7 @@ that disagrees with production is a trap rather than an authority.
 | #1321 | Calendário's any-time gutter uses `Sem horário` in pt-BR and retains `No set time` in en, at 12 with 1.4 line height and 8 padding inside a gutter of at least 96; the label stays whole on one line at default text size and its cell grows when accessibility text wraps | The prior pt-BR label wrapped inside the drawn gutter, contrary to `DESIGN.md` Bans. Agenda values and entry details share the same no-time wording. |
 | Astra full screen | One conversation layout at every width, with NavHeader, a shared thread, one live chip set and a composer with 16 padding; wide web keeps its sidebar with an Astra row above Hoje and drops the resting Hoje shell composer while retaining the active selection tray in the pinned bottom slot; habit detail keeps its own composer | Astra opens as a layer with no route or Android tab. Compact shells cover the tab bar; wide web replaces the destination column from every Astra entry, including proactive and empty-state actions. The empty disclosure uses `--fg-3` and the close control is 48. App implementation follows in #1295. |
 | 2026-10-04 | Dark `--primary-text` uses `#ED773E` and dark `--track-empty` uses `#8B8B8E`, with their widget mirrors | Each is the first rounded byte at constant source OKLCH hue and chroma with higher lightness. Accent text clears 4.518:1 on card-child hover; the empty track clears 3.001:1 on the calendar card and hover inside a sheet. The immediately preceding bytes measure 4.497:1 and 2.993:1. |
+| Sequência freeze details | The current streak, fourteen-day strip and one Freezes or Congelamentos row form a stable summary at both widths. The row keeps the bank’s count / capacity format as a single-line trailing value in the secondary foreground, including repair states. Loading hides the value while reserving its space and keeps its disabled chevron above the non-text contrast floor. The labelled row opens a sheet holding the longest streak, tier, legend, bank, earning bar, protected dates and all freeze and repair notices. Loading reserves the same summary blocks and disables the entry | Variable lists, full banks and notices cannot move content after the summary. The shared sheet keeps long details scrollable and retains repair confirmation and recovery. |
 | Progresso overview | The root contains the 30-day chart, completion rate, active days, best weekday and most consistent habit, then Sequência, Metas and Conquistas sub-menu rows. Sequência owns its freezes and protected days. Metas retains every goal action. Conquistas retains the drawn level and XP row before the achievement categories. Each opens its own route with a visible back control | Supersedes the inline detail stack in `Orbit Progresso.dc.html`; the detail drawings remain the reference. Three entries keep level and achievements together. Navigation stays available during loading, empty, locked and error states on both platforms, in a centred column capped at 740px. |
 | Native mobile rule | Hoje, Habit Detail and Astra Conversation use the attach menu composer; Hoje uses a whole-row proactive action, date paging at the content edges and top-centre back-to-top; Calendário moves repeat, Google Calendar and legends to disclosure and restructures day rows and figures; Progresso moves its legend to a sheet and long figures to rows; Perfil uses icon-led sub-menu rows; Avisos uses an options menu and root/sidebar bell examples. Habit Detail puts the emoji well, rename and header ring on a controls row above the full-width wrapping title and summary, with 12px metadata gaps and 24px to the strip. Every Progresso tab glyph is layout-dashboard. `native-mobile.js` renders the amended drawing primitives alongside the mirrored export. Composer, Shell412, TabBar, Menu, StatTile, ListRow, SegmentedControl, NavHeader, Badge and HabitRow contracts carry the matching rules | Product labels remain whole, typed text gets full width then two lines, rows grow at 200% text, and secondary content preserves selection in disclosure. Progresso and Perfil bell-only rows scroll. The touch floor follows the shared touch target amendment. |
 | Touch targets | `--touch-min` is 48px on web and 48 logical pixels on Android, from shared `TOUCH_TARGET_MIN`; small pills retain their visible geometry and reserve the expanded hit area; month-grid cells use their full column width and at least 44px | Controls stay usable with distinct, non-overlapping targets at compact widths. |

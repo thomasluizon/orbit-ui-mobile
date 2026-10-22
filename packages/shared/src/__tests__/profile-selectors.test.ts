@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   getCurrentPlan,
-  getIsYearlyPro,
   getTrialDaysLeft,
   getTrialExpired,
   getTrialUrgent,
@@ -37,27 +36,4 @@ describe('profile-selectors', () => {
     ).toBe(false)
   })
 
-  it('detects yearly or lifetime pro access', () => {
-    expect(
-      getIsYearlyPro({
-        hasProAccess: true,
-        isLifetimePro: false,
-        subscriptionInterval: 'yearly',
-      }),
-    ).toBe(true)
-    expect(
-      getIsYearlyPro({
-        hasProAccess: true,
-        isLifetimePro: true,
-        subscriptionInterval: null,
-      }),
-    ).toBe(true)
-    expect(
-      getIsYearlyPro({
-        hasProAccess: false,
-        isLifetimePro: false,
-        subscriptionInterval: 'yearly',
-      }),
-    ).toBe(false)
-  })
 })

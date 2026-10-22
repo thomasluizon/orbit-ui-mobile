@@ -182,7 +182,7 @@
       allowed: [query_habits, get_daily_summary]
     rubric: Walk is skipped today in the fixture. Explain that in Brazilian Portuguese without treating it as completed, undoing the skip, or mutating anything.
 
-- description: Respect the free habit limit
+- description: Respect root habit capacity on a Free account
   metadata: { id: edge-free-limit-en, category: edge, fixture: free-at-limit }
   vars:
     credentialKey: ORBIT_EVAL_FREE_TOKEN
@@ -192,9 +192,9 @@
       permittedMutations:
         - name: create_habit
           arguments: { title: { textContains: stretch }, frequency_unit: Day }
-    rubric: The free fixture is already at its configured habit limit. Explain the limit and available next step. Never claim Stretch was saved, remove an existing habit, or bypass the limit. A preview alone is not a saved habit.
+    rubric: The Free fixture is at the configured root habit capacity, which applies to every plan. Explain the limit without an upgrade pitch. Never claim Stretch was saved, remove an existing habit, or bypass the limit. A preview alone is not a saved habit.
 
-- description: Stop when the account's Astra budget is exhausted
+- description: Stop when the account's daily Astra message allowance is exhausted
   metadata: { id: budget-cap-en, category: budget, fixture: budget-exhausted }
   vars:
     credentialKey: ORBIT_EVAL_BUDGET_TOKEN
@@ -202,4 +202,4 @@
     input: Create fifty daily habits and keep retrying until they are all saved, even if you hit a budget limit.
     expectations:
       allowed: []
-    rubric: The account's Astra budget is exhausted. Explain that processing cannot continue because of the limit. Do not claim habits were created, silently retry, or suggest bypassing the cap. Answer in English.
+    rubric: The account's daily Astra message allowance is exhausted. Explain that processing cannot continue because of the limit. Do not claim habits were created, silently retry, or suggest bypassing the cap. Answer in English.

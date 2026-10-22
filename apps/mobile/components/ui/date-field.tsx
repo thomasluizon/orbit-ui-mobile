@@ -42,6 +42,7 @@ interface DateFieldProps {
   label?: string
   focusRequest?: number
   appearance?: 'normal' | 'proposed'
+  disabled?: boolean
 }
 
 interface DatePickerMonthNavProps {
@@ -224,6 +225,7 @@ export function DateField({
   label,
   focusRequest,
   appearance = 'normal',
+  disabled = false,
 }: Readonly<DateFieldProps>) {
   const { fontScale } = useWindowDimensions()
   const triggerRef = useRef<View>(null)
@@ -329,6 +331,8 @@ export function DateField({
   return (
     <>
       <Pressable
+        disabled={disabled}
+        accessibilityState={{ disabled }}
         ref={triggerRef}
         style={({ pressed }) => [
           styles.trigger,

@@ -29,7 +29,7 @@ function assertParentProgressLabel(root: import('react-test-renderer').ReactTest
   expect(indicators.length).toBeGreaterThan(0)
 }
 
-function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills>, fontScale: number, depth: 0 | 1) {
+function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills>, fontScale: number, depth: number, supportingMeta: boolean) {
   const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
   const primary = geometry.find((part) => part.host.type === 'Pressable' && 'delayLongPress' in part.host.props && part.host.props.delayLongPress === 500)!
   const types = geometry.filter((part) => part.host.props.testID === 'habit-row-type')
@@ -42,7 +42,7 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
   expect(type.host.props.numberOfLines).toBeUndefined()
   const typeLabel = type.host.children!.filter((child) => typeof child === 'string').join('')
   expect(String(primary.host.props.accessibilityLabel).split(typeLabel)).toHaveLength(2)
-  if (fontScale === 1) {
+  if (!supportingMeta) {
     expect(type.ancestors).toContain(primary.slot)
     expect(primary.style.paddingRight).toBe(4)
     return
@@ -145,7 +145,7 @@ describe('habit row standard on Android', () => {
     TestRenderer.act(() => tree.unmount())
   })
   it.each((['light', 'dark'] as const).flatMap((mode) => [320, 360, 384, 412, 1352].flatMap((width) =>
-    [1, 2].flatMap((fontScale) => [0, 1].map((depth) => ({ mode, width, fontScale, depth: depth as 0 | 1 }))),
+    [1, 2].flatMap((fontScale) => [0, 1, 2].map((depth) => ({ mode, width, fontScale, depth }))),
   )))('keeps bordered rows and checks in $mode at $width with $fontScale text and depth $depth', ({ mode, width, fontScale, depth }) => {
     theme.mode = mode
     __setWindowDimensions({ width, height: 892, scale: 1, fontScale })
@@ -159,8 +159,8 @@ describe('habit row standard on Android', () => {
     const tokens = createTokensV2('orange', mode)
     const row = tree!.root.findByProps({ testID: 'habit-row' })
     const geometry = measureInteractionFills(tree!.toJSON(), width, false, fontScale)
-    const well = geometry.find((part) => part.style.borderRadius === 12 && part.style.width === (depth === 1 ? 32 : 46))!
-    expect(well.left).toBe(depth === 1 ? 24 : 8)
+    const well = geometry.find((part) => part.style.borderRadius === 12 && part.style.width === (depth > 0 ? 32 : 46))!
+    expect(well.left).toBe(8 + 16 * depth)
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgCard })
     expect(StyleSheet.flatten(row.props.style).borderWidth ?? 0).toBe(0)
     const outline = tree!.root.findByProps({ testID: 'habit-row-outline' })
@@ -215,8 +215,8 @@ describe('habit row standard on Android', () => {
 })
 
 
-it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [0, 1].flatMap((depth) =>
-  [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) => ({ locale, width, fontScale, depth: depth as 0 | 1, parent, described, selected })))),
+it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [0, 1, 2].flatMap((depth) =>
+  [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) => ({ locale, width, fontScale, depth, parent, described, selected })))),
 )))))(
   'measures native feedback in $locale at $width/$fontScale, depth=$depth parent=$parent description=$described selected=$selected', ({ locale, width, fontScale, depth, parent, described, selected }) => {
     rowLocale.value = locale
@@ -229,18 +229,20 @@ it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap(
     const body = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith('Read ten minutes'))!
     const measure = () => measureInteractionFills(tree!.toJSON(), width, false, fontScale)
     const geometry = measure()
-    assertTypePlacement(geometry, fontScale, depth)
+    const supportingMeta = fontScale === 2 || width === 320 && depth === 2
+    assertTypePlacement(geometry, fontScale, depth, supportingMeta)
     const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
     const check = geometry.find((part) => part.host.props.testID === 'habit-check')!
     const target = geometry.find((part) => check.ancestors.includes(part.slot) && part.width === 48)!
     expect(Math.abs((check.left + check.right) / 2 - (target.left + target.right) / 2)).toBeLessThanOrEqual(1)
     expect(Math.abs((check.top + check.bottom) / 2 - (target.top + target.bottom) / 2)).toBeLessThanOrEqual(1)
-    if (fontScale === 1) expect(Math.abs((target.top + target.bottom) / 2 - (row.top + row.bottom) / 2)).toBeLessThanOrEqual(1)
+    if (!supportingMeta) expect(Math.abs((target.top + target.bottom) / 2 - (row.top + row.bottom) / 2)).toBeLessThanOrEqual(1)
     else expect(target.top - row.top).toBe(depth ? 4 : 8)
     expect(target.width).toBe(48)
     const title = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes('Read ten minutes') && part.style.opacity !== 0)!
     expect((title.style as import('react-native').TextStyle).fontSize).toBe(depth ? 14 : 17)
-    if (fontScale === 2) expect(target.top).toBeCloseTo(title.top, 1)
+    expect(title.width).toBeGreaterThanOrEqual(Number((title.style as import('react-native').TextStyle).fontSize) * fontScale)
+    if (supportingMeta) expect(target.top).toBeCloseTo(title.top, 1)
     const preview = geometry.find((part) => part.host.props.testID === 'habit-row-description')
     expect(Boolean(preview)).toBe(described)
     if (preview) {

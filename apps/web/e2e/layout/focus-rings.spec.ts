@@ -115,7 +115,7 @@ for (const width of [412, 1280] as const) {
 
     test('create habit form has one ring at each Tab stop', async ({ page }) => {
       await openCreateForm(page)
-      const phrase = page.locator('[data-habit-create-screen] [data-habit-phrase-field] textarea')
+      const phrase = page.locator('[data-habit-phrase-field] textarea')
       await expect(phrase).toBeVisible()
       await phrase.focus()
       await page.keyboard.press('Shift+Tab')
@@ -149,7 +149,7 @@ for (const width of [412, 1280] as const) {
       })
       await setLayoutProfileSession(context, profile)
       await openCreateForm(page)
-      await expect(page.locator('[data-habit-create-screen] [data-habit-phrase-field] textarea')).toBeVisible()
+      await expect(page.locator('[data-habit-phrase-field] textarea')).toBeVisible()
       await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
       const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
       await expect(disclosure).toBeVisible()
@@ -185,7 +185,7 @@ for (const width of [412, 1280] as const) {
       await expectOneFieldIndicator(page, message, '[data-input-root]', `support forced colors ${width}px`, { forcedColors: true })
 
       await openCreateForm(page)
-      const phrase = page.locator('[data-habit-create-screen] [data-habit-phrase-field] textarea')
+      const phrase = page.locator('[data-habit-phrase-field] textarea')
       await expect(phrase).toBeVisible()
       await expectOneFieldIndicator(page, phrase, '[data-habit-phrase-field]', `create phrase forced colors ${width}px`, { forcedColors: true, includeDescendants: true })
       await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()

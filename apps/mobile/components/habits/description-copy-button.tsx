@@ -8,8 +8,14 @@ import { Check, Copy } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { captureError } from '@/lib/sentry'
 import { createTokensV2 } from '@/lib/theme'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 
 export function DescriptionCopyButton({ description }: Readonly<{ description: string }>) {
+  const accountGeneration = useAccountGeneration()
+  return <DescriptionCopyAction key={`${accountGeneration}:${description}`} description={description} />
+}
+
+function DescriptionCopyAction({ description }: Readonly<{ description: string }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -44,7 +50,7 @@ export function DescriptionCopyButton({ description }: Readonly<{ description: s
       >
         {status === 'copied' ? <Check accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} /> : <Copy accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} />}
       </InsetFocusPressable>
-      <Text accessibilityLiveRegion="polite" style={[styles.feedback, { color: status === 'error' ? tokens.statusBadText : tokens.fg2 }]}>{status === 'error' ? t('habits.detail.copyFailed') : status === 'copied' ? t('habits.detail.descriptionCopied') : ''}</Text>
+      <Text accessibilityLiveRegion="polite" style={status === 'error' ? [styles.feedback, { color: tokens.statusBadText }] : styles.announcement}>{status === 'error' ? t('habits.detail.copyFailed') : status === 'copied' ? t('habits.detail.descriptionCopied') : ''}</Text>
     </View>
   )
 }
@@ -53,4 +59,5 @@ const styles = StyleSheet.create({
   copyRow: { minWidth: 0, alignItems: 'flex-end', gap: 8 },
   copyButton: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   feedback: { maxWidth: '100%', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  announcement: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
 })

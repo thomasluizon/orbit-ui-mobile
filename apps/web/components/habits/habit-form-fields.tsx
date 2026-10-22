@@ -1,15 +1,12 @@
 'use client'
 
 import { X } from '@/components/ui/icons'
-import { Badge } from '@/components/ui/badge'
 
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
-import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 
 import { useCallback, useEffect, useState, useId, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
 import { useController } from 'react-hook-form'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import type { HabitFormCommonProps } from '@orbit/shared/utils'
@@ -25,9 +22,7 @@ import { toTime24,
   coalesceFormText,
   formatHabitReminderLabel,
   getFriendlyErrorMessage,
-  habitFeaturePlan,
   isHabitDailySchedule,
-  isFeatureEnabled,
   isHabitAstraLimitReached,
   readTypedHabitPhrase,
   resolveSupportedLocale,
@@ -35,7 +30,6 @@ import { toTime24,
 } from '@orbit/shared/utils'
 import { validateTagForm, validateEndTime } from '@orbit/shared/validation'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
@@ -143,9 +137,7 @@ interface ReminderEditorsProps {
 }
 
 interface SubHabitSectionProps {
-  canUseSubHabits: boolean
   proposed: boolean
-  onUpgrade: () => void
   children?: ReactNode
   t: ReturnType<typeof useTranslations>
 }
@@ -199,22 +191,17 @@ function SlipAlertEditor({
 }
 
 function SubHabitSection({
-  canUseSubHabits,
   proposed,
-  onUpgrade,
   children,
   t,
 }: Readonly<SubHabitSectionProps>) {
+  if (!children) return null
   return (
     <section className="flex flex-col gap-2">
       <FormSectionLabel>{t('habits.form.subHabits')}</FormSectionLabel>
-      {canUseSubHabits ? (
-        <Proposed proposed={proposed && !!children} scope="field" label={t('habits.detail.proposed')}>
-          {children}
-        </Proposed>
-      ) : (
-        <ListRow title={t('common.upgrade')} trailing={<Badge>{t('common.proBadge')}</Badge>} placement="column" onClick={onUpgrade} />
-      )}
+      <Proposed proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
+        {children}
+      </Proposed>
     </section>
   )
 }
@@ -325,7 +312,6 @@ export function HabitFormFields({
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
-  const router = useRouter()
   const language = useLocale()
   const locale = resolveSupportedLocale(language)
   const translate = useCallback(
@@ -334,7 +320,6 @@ export function HabitFormFields({
   )
   const { showError } = useAppToast()
   const hasProAccess = useHasProAccess()
-  const { config } = useConfig()
   const { profile } = useProfile()
   const { form, daysList, showEndDate, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
   const { watch, setValue, formState: { errors } } = form
@@ -352,7 +337,6 @@ export function HabitFormFields({
   const endDate = watch('endDate') ?? ''
   const description = watch('description') ?? ''
   const checklistItems = watch('checklistItems') ?? []
-  const canUseSubHabits = isFeatureEnabled(config, 'sub_habits', habitFeaturePlan(hasProAccess))
   const detailsId = useId()
   const [detailsOpen, setDetailsOpen] = useAccountScopedState(defaultExpanded)
   const [detailsPresented, setDetailsPresented] = useAccountScopedState(defaultExpanded)
@@ -583,7 +567,7 @@ export function HabitFormFields({
               />
             </section>
 
-            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits && !rendersGranularSubHabits} onUpgrade={() => requestHabitCreateNavigation(() => router.push('/upgrade'))} t={t}>
+            <SubHabitSection proposed={proposal.subHabits && !rendersGranularSubHabits} t={t}>
               {subHabitChildren}
             </SubHabitSection>
 

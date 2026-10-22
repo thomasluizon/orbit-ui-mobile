@@ -7,6 +7,8 @@ import { resolve } from 'node:path'
 import { parse, stringify } from 'yaml'
 import { loadApiProvider } from 'promptfoo'
 import { beforeAll, beforeEach } from '../hooks.mjs'
+import { behavior } from '../assertions.mjs'
+import { chatResponse, toolCall } from './fixtures/producer.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const configuration = parse(readFileSync(resolve(root, 'promptfooconfig.yaml'), 'utf8'))
@@ -35,11 +37,11 @@ describe('real promptfoo CLI with an offline provider', () => {
         input: 'Mark Water done', broken, noTrace, rubric: 'Describe Water only.',
         expectations: { required: [{ name: 'log_habit', arguments: { habit_id: 'water' } }] },
       } }],
-      extensions: [`file://${root}/hooks.mjs:afterAll`],
+      extensions: [`file://${root}/hooks.mjs:beforeEach`, `file://${root}/hooks.mjs:afterAll`],
     }))
     const run = spawnSync(process.execPath, [cli, 'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table'], {
       cwd: directory, encoding: 'utf8', timeout: 45000,
-      env: { ...process.env, PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'),
+      env: { ...process.env, ORBIT_EVAL_RESET_SCRIPT: '/usr/bin/true', PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'),
         PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
     })
     const summaryPath = resolve(directory, 'reports/summary.json')
@@ -48,7 +50,7 @@ describe('real promptfoo CLI with an offline provider', () => {
     if (status !== 'pass') expect(run.status, run.stdout + run.stderr).not.toBe(0)
     else expect(run.status, run.stdout + run.stderr).toBe(0)
     expect(summary.status).toBe(status)
-    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken ? 0 : 3, skipped: noTrace ? 3 : 0 })
+    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace ? 0 : 3, skipped: 0, unavailable: noTrace ? 3 : 0 })
     expect(readFileSync(summaryPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
   })
 })
@@ -65,20 +67,28 @@ describe('HTTP provider wiring without a server', () => {
       const request = new Request(url, options)
       expect(request.url).toBe('https://astra.invalid/api/chat')
       expect(request.headers.get('authorization')).toBe('Bearer offline-token')
+      expect(request.headers.get('x-orbit-eval-trace')).toBe('1')
+      expect(request.headers.get('x-orbit-request-id')).toBe(test.vars.evalRequestId)
       const form = await request.formData()
       expect(form.get('message')).toBe('Water & Walk? á')
       expect(form.get('history')).toBe('[]')
-      return Response.json(status === 200 ? { aiMessage: 'Water is pending.' }
-        : { error: 'Daily AI message limit reached.', errorCode: 'PAY_GATE' }, { status })
+      return Response.json(status === 200 ? chatResponse(test.vars.evalRequestId, [toolCall('query_habits', { date: 'today' })])
+        : { error: 'Daily AI message limit reached.', errorCode: 'PAY_GATE' }, { status, headers: { 'X-Orbit-Request-Id': test.vars.evalRequestId } })
     })
     const provider = await loadApiProvider('http', { options: { config: {
         ...configuration.providers[0].config,
         url: 'https://astra.invalid/api/chat',
         transformResponse: `file://${root}/response.mjs`,
     } } })
-    const response = await provider.callApi('Water & Walk? á', { vars: { credentialKey } })
-    expect(response.output).toMatchObject({ answer: status === 200 ? 'Water is pending.' : 'Daily AI message limit reached.',
-      httpStatus: status, trace: { state: 'skipped' } })
+    vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
+    const { test } = beforeEach({ test: { metadata: { id: 'offline-http' }, vars: { credentialKey,
+      expectedHttpStatus: status, expectations: status === 403 ? { allowed: [] }
+        : { required: [{ name: 'query_habits', arguments: { date: 'today' } }] },
+    } } })
+    const response = await provider.callApi('Water & Walk? á', { vars: test.vars })
+    expect(response.output).toMatchObject({ answer: status === 200 ? 'Water is ready.' : 'Daily AI message limit reached.',
+      httpStatus: status, trace: { state: status === 403 ? 'refused' : 'available' } })
+    expect(behavior(response.output, { vars: test.vars }).pass).toBe(true)
     expect(requests).toBe(1)
   })
 })

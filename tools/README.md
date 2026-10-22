@@ -64,6 +64,18 @@ name or git status. Read `CONVENTIONS.md` before adding one.
 | `lib/performance-measurement.mjs` | Canonical implementation of the performance workflow's normalization contract. It parses measured SQL conservatively, ranks query statistics, applies mapped execution contexts, and makes unknown SQL or unavailable measurement non-signaling with an explicit reason. | imported by the tools harness and generated into the audit workflow |
 | `generate-performance-workflow.mjs` | Generates the measured-performance block in the sandboxed audit workflow from `lib/performance-measurement.mjs`, or fails when the committed block drifted. | `node tools/generate-performance-workflow.mjs (--check \| --write)` |
 
+## Android release diagnostics
+
+Android release diagnosis: `node tools/android-sentry-diagnostic.mjs` runs only in trusted-main
+Actions with the existing production token. It performs up to three fixed bounded GETs: fresh
+authentication index, configured current organization options and configured project releases.
+Existing auth, complete-envelope and GET-scope evidence gates candidate reads. Native selection
+and configuration agreement remain separate from route access. Previous embedded bindings fail;
+genuine configured defaults resolve to the current target unless a native override conflicts.
+Upload stays unverified. It emits only fixed classifications and recognized complete type-only receipts. Use
+`android-sentry-diagnostic.yml`; see the Android release procedure
+for source selection, evidence limits and Open recovery.
+
 ## Product gates
 
 These back required CI checks. They fail a merge.
@@ -74,7 +86,7 @@ These back required CI checks. They fail a merge.
 | `check-calibration.mjs` | Reports stale agent, skill, worker and ticket classifier model or prompt calibration. The classifier stamp carries its model, prompt digest, verdict and date. | `node tools/check-calibration.mjs` |
 | `check-dashes.mjs` | Fails on an em dash or en dash in a changed file, a PR title, or a PR body. Backs `Dash Ban`. Its baseline may only shrink and cannot name missing files. | `node tools/check-dashes.mjs --files <path>... \| --check-baseline \| --write-baseline \| --text "<string>"` |
 | `check-timeless.mjs` | Rejects machine paths, owner attributions, dated anecdotes and long code comments. Backs `Timeless Text`; reviewed exceptions live in `tools/timeless-allowlist.json`. | `node tools/check-timeless.mjs --all \| --base <ref> \| --staged \| --hook` |
-| `check-feature-parity.mjs` | Derives production routes, controls, displayed values, shortcuts and Android widget bindings, follows the exports each app uses, and resolves mapped words through their rendered consumers. CI blocks new losses against its base while ticketed base gaps remain advisory. | `git fetch origin main && node tools/check-feature-parity.mjs --write` (`--ci --base <ref>` for progressive enforcement) |
+| `check-feature-parity.mjs` | Derives the union of legacy and active production routes, controls, displayed values, shortcuts and Android widget bindings, follows the exports each app uses, and resolves mapped words through their rendered consumers. CI blocks new losses against its base while ticketed base gaps remain advisory. | `git fetch origin main && node tools/check-feature-parity.mjs --write` (`--ci --base <ref>` for progressive enforcement) |
 | `check-gate-charter.mjs` | Enforces the closed gate registry, declared pull request scopes, snapshot regeneration commands and sourced constants. Backs `Gate Charter`. | `node tools/check-gate-charter.mjs` |
 | `check-hermetic-web-build.mjs` | Rejects production or staging API hosts in every file under `apps/web/.next/static` before hermetic layout and perf runs. Refuses missing or empty client output. | `node tools/check-hermetic-web-build.mjs [--build-dir <path>]` |
 | `check-gradients.mjs` | Fails on decorative gradients in web or mobile source while allowing the named functional masks, calendar lines, loading indicator, and SVG mock. Backs `Design Token Guard`. | `node tools/check-gradients.mjs` |
@@ -175,9 +187,14 @@ Complete agreement also writes `__fixtures__/ticket-classifier-calibration.json`
 ## Production feature parity
 
 The production feature parity inventory is generated locally and never committed. The guard regenerates it from
-`origin/main` and the checked-out source on every pull request to `redesign/main`; each run uploads
-its evidence. `tools/feature-parity-rules.json` carries exact relocations, cited owner removals and
-restoration tickets. A ticket exempts only a gap already present on the pull request base. Once
+`tools/feature-parity-rules.json` provenance and active production against the checked-out source
+on every pull request to `main` and `redesign/main`; each run uploads its evidence. The immutable
+`provenance.legacyProduction` commit preserves the rules' original source obligations. Its
+capabilities are deduplicated with active production, protecting controls added after that snapshot.
+Main pull requests select the queued merge's `HEAD^1` for both active production and debt comparison;
+redesign pull requests select `origin/main` for production and `HEAD^1` for debt. Later main changes
+cannot turn a queued main comparison into a false loss. The inventory records both source revisions
+and the comparison base. The rules carry exact relocations, cited owner removals and restoration tickets. A ticket exempts only a gap already present on the pull request base. Once
 that capability is restored, deleting it blocks even while its ticket remains in the rules.
 
 The scanner follows named imports, local references, re-exports and dynamic imports, and ignores

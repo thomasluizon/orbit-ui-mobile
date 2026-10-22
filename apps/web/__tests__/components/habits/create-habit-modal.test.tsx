@@ -14,6 +14,7 @@ import { within } from '@testing-library/react'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import HabitCreateRoute from '@/app/(app)/habits/new/page'
 import { createMockConfigResponse, createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
@@ -38,6 +39,7 @@ const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
 const mockPush = vi.fn()
+const mockReplace = vi.fn()
 const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
@@ -78,10 +80,11 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/habits/new',
+  useSearchParams: () => new URLSearchParams('from=%2Fprogress'),
   useParams: () => ({}),
   useRouter: () => ({
     push: mockPush,
-    replace: vi.fn(),
+    replace: mockReplace,
     back: vi.fn(),
     refresh: vi.fn(),
   }),
@@ -819,7 +822,7 @@ describe('CreateHabitModal', () => {
 
     const draft = screen.getByRole('textbox', { name: 'draft' })
     fireEvent.change(draft, { target: { value: 'Keep this draft' } })
-    const offlineStatus = screen.getByRole('status')
+    const offlineStatus = screen.getAllByRole('status')[1]!
     Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true })
     act(() => { globalThis.dispatchEvent(new Event('offline')) })
     fireEvent.submit(screen.getByTestId('sheet').querySelector('form')!)
@@ -879,7 +882,72 @@ describe('CreateHabitModal', () => {
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: phrase })
   })
 
-  it('omits nested sub-habits from a Free create request', async () => {
+  it.each(['HABIT_LIMIT_REACHED', 'PAY_GATE'])('keeps the draft and submit enabled with an inline %s notice', async (errorCode) => {
+    const legacySubHabit = errorCode === 'PAY_GATE'
+    const create = legacySubHabit ? mockCreateSubMutateAsync : mockCreateMutateAsync
+    create.mockRejectedValueOnce(new ApiClientError(legacySubHabit ? 403 : 400, 'Boundary', { code: errorCode, data: { error: 'Boundary', errorCode } }))
+    const close = vi.fn()
+    renderWithProviders(<CreateHabitModal open onOpenChange={close} parentHabit={legacySubHabit ? createMockHabit({ id: 'parent-1' }) : undefined} />)
+    await waitFor(() => expect(mockFormReset).toHaveBeenCalled())
+    mockFormReset.mockClear()
+    const draft = screen.getByRole('textbox', { name: 'draft' })
+    fireEvent.change(draft, { target: { value: 'Keep this draft' } })
+    const submit = screen.getByRole('button', { name: legacySubHabit ? 'common.create' : 'habits.createHabit' })
+    fireEvent.click(submit)
+    await waitFor(() => expect(document.querySelector('[data-capacity-notice]')).toBeTruthy())
+    expect(draft).toHaveValue('Keep this draft')
+    expect(mockShowError).not.toHaveBeenCalled()
+    expect(mockFormReset).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(close).not.toHaveBeenCalled()
+    expect(submit).not.toBeDisabled()
+    expect(screen.getByText(legacySubHabit ? 'habits.form.proRequired' : 'habits.form.capacityBody({"limit":1000})')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'common.upgrade' }) !== null).toBe(legacySubHabit)
+    fireEvent.click(submit)
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+  })
+
+  it.each([false, true])('opens Upgrade from a real Pro boundary after guarded sheet dismissal (dirty=%s)', async (dirty) => {
+    mockFormStatus.dirty = dirty
+    mockCreateMutateAsync.mockRejectedValueOnce(new ApiClientError(403, 'Boundary', { code: 'PAY_GATE' }))
+    const close = vi.fn()
+    renderWithProviders(<CreateHabitModal open onOpenChange={close} />)
+    await waitFor(() => expect(mockFormReset).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    const upgrade = await screen.findByRole('button', { name: 'common.upgrade' })
+    sheetTestControls.defer(true)
+    fireEvent.click(upgrade)
+    if (dirty) {
+      expect(sheetTestControls.isDismissPending).toBe(false)
+      expect(mockPush).not.toHaveBeenCalled()
+      fireEvent.click(await screen.findByRole('button', { name: 'common.discardChangesAction' }))
+      act(() => sheetTestControls.completeDismissal())
+    }
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(close).not.toHaveBeenCalled()
+    act(() => sheetTestControls.completeDismissal())
+    await waitFor(() => expect(mockPush).toHaveBeenCalledExactlyOnceWith('/upgrade'))
+    expect(close).toHaveBeenCalledWith(false)
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('navigates only to Upgrade from the create route (dirty=%s)', async (dirty) => {
+    mockFormStatus.dirty = dirty
+    mockCreateMutateAsync.mockRejectedValueOnce(new ApiClientError(403, 'Boundary', { code: 'PAY_GATE' }))
+    renderWithProviders(<HabitCreateRoute />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'common.upgrade' }))
+    if (dirty) {
+      expect(mockPush).not.toHaveBeenCalled()
+      fireEvent.click(await screen.findByRole('button', { name: 'common.discardChangesAction' }))
+    }
+    await waitFor(() => expect(mockPush).toHaveBeenCalledExactlyOnceWith('/upgrade'))
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('preserves nested sub-habits in a Free create request', async () => {
     mockProfileState.hasProAccess = false
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
 
@@ -891,10 +959,10 @@ describe('CreateHabitModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
-    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual(['Warm up'])
   })
 
-  it('routes a Free standalone sub-habit attempt to upgrade without calling the API', async () => {
+  it('creates a Free standalone sub-habit without an upgrade redirect', async () => {
     mockProfileState.hasProAccess = false
     const onOpenChange = vi.fn()
     renderWithProviders(
@@ -907,8 +975,8 @@ describe('CreateHabitModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/upgrade'))
-    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+    await waitFor(() => expect(mockCreateSubMutateAsync).toHaveBeenCalled())
+    expect(mockPush).not.toHaveBeenCalled()
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
@@ -974,8 +1042,6 @@ describe('CreateHabitModal', () => {
     [400, 'VALIDATION_ERROR', en.habits.form.titleTooLong, 'habits.form.titleTooLong'],
     [429, 'RATE_LIMITED', 'Rate limited', 'toast.errors.tooManyRequests'],
     [500, 'INTERNAL_SERVER_ERROR', 'Server failed', 'toast.errors.server'],
-    [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!', 'errors.api.calendarPro'],
-    [400, 'HABIT_LIMIT_REACHED', "You've reached the 1000 habit limit.", 'errors.api.habitLimit'],
   ])('shows the classified create error for %i %s', async (status, code, message, expected) => {
     mockCreateMutateAsync.mockRejectedValue(new ApiClientError(status, message, { code }))
     renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)

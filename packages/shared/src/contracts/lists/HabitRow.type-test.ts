@@ -27,7 +27,7 @@ type ExpectedBase = {
   title: string
   meta?: string
   status?: ExpectedHabitStatus
-  depth?: 0 | 1
+  depth?: number
   compact?: boolean
   onClick?: () => void
 }
@@ -130,7 +130,6 @@ type Skipped = Accepts<{
   status: 'skip'
   statusLabel: 'skipped'
 }, HabitRowProps>
-// @ts-expect-error only two inline display depths are representable
 type Deep = Accepts<{ title: 'Walk'; depth: 2; statusLabel: 'pending' }, HabitRowProps>
 
 export type HabitRowTypeAssertionsWidthAssertions = [
@@ -144,7 +143,7 @@ export type HabitRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<HabitRowProps['title'], string>>,
   Assert<IsExactWidth<HabitRowProps['meta'], string | undefined>>,
   Assert<IsExactWidth<HabitRowProps['status'], ExpectedHabitStatus | undefined>>,
-  Assert<IsExactWidth<HabitRowProps['depth'], 0 | 1 | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['depth'], number | undefined>>,
   Assert<IsExactWidth<HabitRowProps['compact'], boolean | undefined>>,
   Assert<IsExactWidth<HabitRowProps['onClick'], (() => void) | undefined>>,
   Assert<IsExactWidth<HabitRowProps['trailing'], React.ReactNode>>,
