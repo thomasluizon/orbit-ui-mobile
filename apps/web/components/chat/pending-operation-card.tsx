@@ -2,7 +2,7 @@
 
 import { toTime24 } from '@orbit/shared/utils'
 
-import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { PreviewItemTitle } from './preview-item-title'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { TimeField } from '@/components/ui/time-field'
@@ -170,7 +170,7 @@ function StepUpVerificationSheet({
 }
 
 const pendingOperationRenderers = {
-  blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PersonalTextDetails outset proposed={item.proposed}>{item.label}</PersonalTextDetails> : item.label }))} />,
+  blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PreviewItemTitle key={item.id} title={item.label} icon={item.icon} rename={item.rename} proposed={item.proposed} /> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
   stepUp: (props) => <div className="basis-full min-w-0"><StepUp {...props} /></div>,

@@ -134,6 +134,7 @@ export function usePendingOperationRevision(
     closeEdit: () => setRevision((current) => ({ ...current, editingItemId: undefined })),
     startEdit,
     saveEdit,
+    renameItem: (itemId: string, title: string) => revise(items, { itemId, values: { title } }),
     rejectItem: (itemId: string) => revise(items.filter((item) => item.itemId !== itemId)),
     rejectAll: () => revise([]),
   }

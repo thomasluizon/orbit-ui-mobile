@@ -10,6 +10,8 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Wide preview actions | Secondary action named from `actionKey` with the target count, ghost Edit, a spacer and ghost Reject; whole controls reflow when the panel cannot fit them. |
 | Breakdown draft footer | Add habit, More actions and Approve are the three visible actions. Approve is primary with rows; Add habit is primary in an empty draft. More actions opens the shared compact sheet or wide anchored menu with Edit and Reject, keeping their accessible names. |
 | Breakdown recovery footer | Pending disables editing and disclosure. Capacity feedback stays neutral, adding is disabled at the limit, no-write failures retain the draft, and partial failure keeps only Retry. Completed and rejected previews retain their terminal status. |
+| Inline item title | A pending item with an editable title opens an in-place Input on title activation. Enter or blur revises the held preview; Escape discards the draft. Unchanged drafts leave the proposal intact; edited values use the existing revision validation. Busy, stale and terminal rows cannot rename. No item title carries a disclosure chevron. |
+| Proposed icon | The proposed icon sits beside the title in both locales, without a verb or redundant metadata label. Icon removal retains its summary. |
 | Item editing sheet | Existing typed editing, per-item removal and batch revision remain available. |
 | Irreversible confirmation and identity verification | Reversible previews approve directly; deletion confirmation names the deletion count and act, including in a mixed preview. Existing identity verification remains available. |
 | Revised preview | Removal and editing update the action count, irreversible marks and deletion count from the returned items. |
@@ -39,3 +41,14 @@ Vitest covers each recovery and presentation path on both platforms. Chromium me
 pending, completed, failed and stale previews at 390, 840 and 1352 in both locales and
 appearances. Android Yoga cases measure the same frame inset and absent-description gap.
 Native text rendering and TalkBack remain device-verification boundaries.
+
+Preview title owners are `components/chat/preview-item-title.tsx` on both platforms.
+They use Input, PersonalText and the native inset focus primitive with the existing
+48px target, field perimeter and neutral tokens. Full Edit continues to open the
+typed sheet for every other field. Inline title revisions use the current preview
+fingerprint and invalidate prior authorization through the existing revision path.
+Android hardware Escape uses the native key-down event enabled by the application
+feature-flag adapter; the legacy TextInput soft-key event cannot deliver it.
+The focused suites cover cancellation, submission deduplication, updated names,
+retained full editing and approval. Staging rendering, persisted habit readback and
+native keyboard delivery remain rollout verification boundaries.

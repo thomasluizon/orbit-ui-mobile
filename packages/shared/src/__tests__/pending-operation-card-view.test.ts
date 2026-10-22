@@ -197,7 +197,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
   it.each([
     ['interval_weeks', '2', 2, 'Every 2 weeks', 'A cada 2 semanas'],
     ['description', null, null, 'Remove the description', 'Remover a descrição'],
-    ['emoji', '📚', '📚', 'Use 📚', 'Usar 📚'],
+    ['emoji', '📚', '📚', '', ''],
     ['emoji', null, null, 'Remove the icon', 'Remover o ícone'],
     ['end_date', null, null, 'Remove the end date', 'Remover a data final'],
     ['sub_habits', '[]', [], 'Remove the habits inside', 'Remover os sub-hábitos'],

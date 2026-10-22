@@ -1016,3 +1016,57 @@ describe('PendingOperationCard (mobile)', () => {
     expect(renderedText(tree.toJSON())).not.toContain('status.done')
   })
 })
+
+it('renames a proposed title inline, cancels with Escape and retains the full editor', async () => {
+  const operation = makeCreateHabitsPreview(2)
+  const revised = makeCreateHabitsPreview(2)
+  revised.previewFingerprint = 'renamed-preview'
+  revised.items![0]!.entityName = 'Read books'
+  revised.items![0]!.fields[0]!.newValue = 'Read books'
+  revised.items![0]!.fields[0]!.proposedValue = 'Read books'
+  const revise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, cancelled: false, pendingOperationId: operation.id, error: null, preview: revised } })
+  const { tree, handlers } = renderCard(operation, revise)
+  const title = () => tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === 'Habit 1')!
+  expect(title().props.accessibilityState?.expanded).toBeUndefined()
+  TestRenderer.act(() => title().props.onPress())
+  let input = tree.root.findByType(TextInput)
+  TestRenderer.act(() => input.props.onChangeText('Discard me'))
+  TestRenderer.act(() => tree.root.findByProps({ testID: 'input-control' }).props.onKeyDown({ nativeEvent: { key: 'Escape' }, stopPropagation: vi.fn() }))
+  expect(tree.root.findAllByType(TextInput)).toHaveLength(0)
+  expect(revise).not.toHaveBeenCalled()
+  TestRenderer.act(() => title().props.onPress())
+  input = tree.root.findByType(TextInput)
+  expect(input.props.value).toBe('Habit 1')
+  TestRenderer.act(() => input.props.onChangeText('Read books'))
+  await TestRenderer.act(() => { input.props.onSubmitEditing(); input.props.onBlur() })
+  expect(revise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: 'create-preview', items: [{ itemId: '0', edits: { title: 'Read books' } }, { itemId: '1' }] })
+  expect(renderedText(tree.root)).toContain('Read books')
+  expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+  expect(tree.root.findByType(TextInput).props.value).toBe('Read books')
+})
+
+it.each(['en', 'pt-BR'])('shows icons beside static titles without disclosure or icon instructions in %s', locale => {
+  visibleLocale.language = locale
+  visibleLocale.actual = true
+  const operation = makeCreateHabitsPreview(1)
+  const item = operation.items![0]!
+  item.fields.push({ ...item.fields[0]!, field: 'emoji', newValue: '🩺', proposedValue: '🩺' })
+  const { tree } = renderCard(operation)
+  expect(renderedText(tree.root)).toContain('🩺')
+  expect(renderedText(tree.root)).toContain('Habit 1')
+  for (const node of tree.root.findAllByType(Pressable)) expect(node.props.accessibilityState ?? {}).not.toHaveProperty('expanded')
+  expect(renderedText(tree.root)).not.toMatch(/Usar 🩺|Use 🩺/)
+})
+
+it('submits a title revision on blur and preserves a failed draft for retry', async () => {
+  const operation = makeCreateHabitsPreview(1)
+  const reviseTitle = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+  const { tree } = renderCard(operation, reviseTitle)
+  TestRenderer.act(() => press(tree, 'Habit 1').props.onPress())
+  const input = tree.root.findByType(TextInput)
+  TestRenderer.act(() => input.props.onChangeText('Read books'))
+  await TestRenderer.act(() => input.props.onBlur())
+  expect(reviseTitle).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: 'create-preview', items: [{ itemId: '0', edits: { title: 'Read books' } }] })
+  expect(tree.root.findByType(TextInput).props.value).toBe('Read books')
+})

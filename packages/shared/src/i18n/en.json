@@ -1844,7 +1844,6 @@
         "anyDay": "Choose any day",
         "fixedDays": "Keep fixed days",
         "removeDescription": "Remove the description",
-        "useIcon": "Use {emoji}",
         "removeIcon": "Remove the icon",
         "repeatInDays": "Use days for repetition",
         "repeatInWeeks": "Use weeks for repetition",

@@ -154,7 +154,9 @@ describe('Pending preview geometry in Chromium', () => {
       fireEvent.click(container.querySelector('button[data-variant="primary"]')!)
       await waitFor(() => expect(screen.getAllByText(messages.blockFrame.status[state as 'done' | 'acting' | 'failed']).length).toBeGreaterThan(0))
     }
-    expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    if (state === 'pending') expect(screen.getByRole('button', { name })).not.toHaveAttribute('aria-expanded')
+    else if (state === 'acting') expect(screen.getByRole('button', { name })).toBeDisabled()
+    else expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}\nhtml { font-size: ${16 * textScale}px; }</style><div class="dark">${container.innerHTML}</div>`)
@@ -165,7 +167,8 @@ describe('Pending preview geometry in Chromium', () => {
         let row = label.parentElement!
         while (!row.contains(action)) row = row.parentElement!
         const labelBounds = label.getBoundingClientRect()
-        const disclosureBounds = [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === name)!.getBoundingClientRect()
+        const titleControl = [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === name)
+        const disclosureBounds = (titleControl ?? label.parentElement!).getBoundingClientRect()
         const actionBounds = action.getBoundingClientRect()
         const rowBounds = row.getBoundingClientRect()
         const metaBounds = row.firstElementChild!.children[1]!.getBoundingClientRect()
@@ -192,7 +195,7 @@ describe('Pending preview geometry in Chromium', () => {
       expect(geometry.trailingBottom).toBeLessThanOrEqual(geometry.rowBottom)
       expect(geometry.statusOverflow).toBeLessThanOrEqual(1)
       expect(geometry.statusRight).toBeLessThanOrEqual(geometry.trailingRight + 0.5)
-      await expectInteractionGeometry(page, name, geometry.metaLeft)
+      if (state === 'pending') await expectInteractionGeometry(page, name, geometry.metaLeft)
     } finally { await page.close() }
   })
 
