@@ -2,9 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { uuid } from 'expo-modules-core'
 import {
   isValidReferralCode as isValidReferralCodeShared,
-  isSafeAuthReturnUrl,
   isValidVerificationCode as isValidVerificationCodeShared,
 } from '@orbit/shared/utils'
+import { isSafeAuthReturnUrl } from '@orbit/shared/utils/login-attempt'
 
 const REFERRAL_CODE_KEY = 'referral_code'
 const AUTH_RETURN_URL_KEY = 'auth_return_url'

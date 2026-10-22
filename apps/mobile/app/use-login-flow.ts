@@ -5,8 +5,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { ApiClientError, extractAuthBackendMessage, isValidEmail, resolveAuthLoginErrorKey,
-  LoginAttemptScope, readLoginEmailLink, type LoginAttempt, type LoginEmailLink,
   deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
+import { LoginAttemptScope, readLoginEmailLink, type LoginAttempt, type LoginEmailLink } from '@orbit/shared/utils/login-attempt'
 import { useAuthStore, getSessionGeneration } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'

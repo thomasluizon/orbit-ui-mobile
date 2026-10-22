@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
 import { isValidEmail, isValidReferralCode, isValidVerificationCode,
-  LoginAttemptScope, readLoginEmailLink, isSafeAuthReturnUrl, type LoginAttempt, type LoginEmailLink,
   getNotificationDestination, deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
+import { LoginAttemptScope, readLoginEmailLink, isSafeAuthReturnUrl, type LoginAttempt, type LoginEmailLink } from '@orbit/shared/utils/login-attempt'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useTurnstileToken } from '@/hooks/use-turnstile-token'
