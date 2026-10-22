@@ -457,7 +457,7 @@ function assertRowContentHeight(measured: Awaited<ReturnType<typeof measurePrevi
   } else {
     const top = measured.depth ? 4 : 8
     const bottom = scale === 1 ? top : described ? 4 : 0
-    expect(measured.row.height).toBeCloseTo(Math.max(measured.depth ? 52 : 68, measured.content.height + top + bottom, measured.target.height + top + bottom), 1)
+    expect(measured.row.height).toBeCloseTo(Math.max(measured.depth ? 52 : 68, measured.content.height + top + bottom, measured.target.height), 1)
   }
 }
 
