@@ -108,14 +108,20 @@ function HabitCreation() {
 
 function Logging({ page, success = true }: { page: SmokeDomPage; success?: boolean }) {
   const [done, setDone] = useState(false)
-  return <HabitRow habit={createMockHabit({ title: 'Smoke log' })} state={done ? 'done' : 'empty'}
+  const t = useTranslations()
+  const [optionsOpen, setOptionsOpen] = useState(false)
+  return <>
+    <button onClick={() => setOptionsOpen(true)}>{t('habits.listOptions')}</button>
+    {optionsOpen ? <button role="menuitem" onClick={() => setOptionsOpen(false)}>{t('habits.showCompletedMenu')}</button> : null}
+    <HabitRow habit={createMockHabit({ title: 'Smoke log' })} state={done ? 'done' : 'empty'}
     actions={{ onLog: () => {
       setDone(true)
       page.respond?.({
-        request: () => ({ method: () => 'POST', headers: () => ({ 'next-action': '<action-id>' }) }),
+        request: () => ({ method: () => 'POST', headers: () => ({ 'next-action': '<action-id>' }), postData: () => JSON.stringify(['habit-1', { date: '2026-09-04' }, 'smoke-unit-account']) }),
         ok: () => success,
       } as unknown as Response)
     } }} />
+  </>
 }
 
 function mount(children: ReactNode, locale: 'en' | 'pt-BR') {
@@ -245,8 +251,13 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
   })
 
   it('respects the real logging control disabled reason', async () => {
-    mount(<HabitRow habit={createMockHabit({ title: 'Smoke log' })}
-      completionReadOnly completionReason="Logging unavailable" />, locale)
+    const messages = locale === 'en' ? en : ptBR
+    mount(<>
+      <button>{messages.habits.listOptions}</button>
+      <button role="menuitem">{messages.habits.showCompletedMenu}</button>
+      <HabitRow habit={createMockHabit({ title: 'Smoke log' })}
+        completionReadOnly completionReason="Logging unavailable" />
+    </>, locale)
     await expect(logSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke log')).rejects.toThrow(/aria-disabled/)
   })
 })

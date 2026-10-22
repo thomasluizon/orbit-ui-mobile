@@ -37,13 +37,17 @@ export async function createSmokeHabit(page: Page, title: string): Promise<void>
 }
 
 export async function logSmokeHabit(page: Page, title: string): Promise<void> {
+  await localizedRole(page, 'button', en.habits.listOptions, ptBR.habits.listOptions).click()
+  await localizedRole(page, 'menuitem', en.habits.showCompletedMenu, ptBR.habits.showCompletedMenu).click()
   const row = page.locator(`[data-habit-title="${title}"]`)
   const toggle = row.getByTestId('habit-status-toggle')
   await expect(toggle).toBeEnabled()
   await expect(row).toHaveAttribute('data-status', 'empty')
   const initialState = await toggle.getAttribute('aria-label')
   const logged = page.waitForResponse(
-    (response) => response.request().method() === 'POST' && 'next-action' in response.request().headers(),
+    (response) => response.request().method() === 'POST' &&
+      'next-action' in response.request().headers() &&
+      /^\["[^"]+",\{"date":"\d{4}-\d{2}-\d{2}"\},/.test(response.request().postData() ?? ''),
     { timeout: 30_000 },
   )
   await toggle.click()
