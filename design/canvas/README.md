@@ -9,6 +9,7 @@ Type stays first. Short RadioRow content centres within the existing 52px minimu
 labels grow with first-line glyph alignment. The growing name starts at the standard 54px field
 minimum, with identical mirror/input metrics. One Description field follows immediately, before
 emoji, understanding, proposals and More details, retaining its full value and validation owner.
+Description shares the name field's leading edge; disclosure labels retain their own inset.
 When / Quando retains its question and manual picker, with In your own words / Escreva do seu jeito
 as the phrase placeholder. The picker owns its selected value without a second ordinary readback.
 
@@ -27,6 +28,9 @@ owner in server markup and its first client layout. Controls bottom-align on the
 line; the last line keeps the field's 4px bottom inset. Menu fit measures the physical reserved
 action slot once in every state, including after font and width changes. Disabled state prompts
 retain their separate fit check.
+When the entry shares the input's visual line, the text start keeps the 4px pill inset plus the
+measured entry width plus 8px input padding, in both empty and populated fields. Without an entry
+on that line, the text start is 12px from the pill edge.
 Live chip action text and Astra attribution share one wrapping text flow beside the canonical
 mark, retaining the complete default action line and first-line alignment at enlarged text.
 The send progress slot stays reserved; its spinner runs only while sending.

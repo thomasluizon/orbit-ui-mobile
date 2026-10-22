@@ -1,6 +1,6 @@
 export function inspectInteractionFill(control: Element, clearance: number) {
   function paintOwner(control: Element) {
-    return control.matches('[data-composer-input-row] > textarea[data-composer-input]') ? control.parentElement! : control
+    return control.matches('[data-composer-input-row] textarea[data-composer-input]') ? control.closest('[data-composer-input-row]')! : control
   }
   const element = paintOwner(control)
   const pixels = (value: string) => Number.parseFloat(value) || 0
