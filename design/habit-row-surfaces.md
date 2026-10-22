@@ -24,9 +24,15 @@ Web Vitest measures the production row with compiled CSS at 320, 412 and 1352, i
 
 ## Item type metadata
 
-The shared row content owners render `Tarefa` / `Task` or `Hábito` / `Habit` on
-its own quiet line beneath the full-width title. Type never ellipsizes or becomes a badge. The
-existing time, status and parent counts remain beneath it. The same content reaches Hoje, Todos,
+The shared row owners render `Tarefa` / `Task` or `Hábito` / `Habit` once as the first
+12px Geist Mono token in one wrapping metadata flow below the title and optional stored description.
+Type never ellipsizes or becomes a badge. Existing time, status and parent counts retain their order.
+A nonempty checklist appends one decorative ListChecks glyph and the actual checked/total count,
+including zero and complete counts. Duplicate item texts remain separate entries; child-habit progress
+is independent. The glyph is 16px normally and 24px above 130% text, at stroke width 1.5 in the
+metadata foreground. Empty checklists add no token, separator or gap. Checklist completion changes
+neither the habit's logged state nor its actions. The primary and selection naming paths reuse
+Checklist and the localized row-progress phrase once; visual metadata is hidden from accessibility. The same content reaches Hoje, Todos,
 Geral, search, inline children, drill lists, detail children and Astra-owned shared rows. Detail
 headers retain `Tarefa única` / `One-time task` or `Hábito` / `Habit` beneath their full-width
 rename heading, matching the full form choices. The row selector derives from the same schedule
@@ -40,15 +46,19 @@ Its sibling control group retains 4px gaps with no outer gap. The clipping and f
 through that space while text columns, control positions and whole-row centring remain unchanged.
 
 Above 130% text, every row uses a full-row primary action and a supporting footer. The heading
-keeps the title, optional description and independent first-line controls. Exactly one complete
-type label leads the footer, followed by existing metadata with a 4px gap. The footer shares the
+keeps the title, optional description and independent first-line controls. Exactly one metadata
+flow leads with the complete type and includes existing metadata and any checklist count. The footer shares the
 title's leading edge through the existing 48px spacer, keeps an 8px trailing and bottom inset,
-and adds 4px above type only when the description heading supplies no bottom padding. Default
-text keeps its existing composition. Native visual heading and footer content stay hidden from
+and adds 4px above type only when the description heading supplies no bottom padding. At default
+text, either the measured inline depth boundary or a token wider than the heading's available text column uses the same footer. Web observes
+the actual column and whole-token bounds; native receives their layout widths. The normal
+320px child-parent maximum-count case demonstrates the insufficient column. Footer placement
+reverses when both width constraints fit again and preserves first-title-line controls; ordinary normal
+rows retain whole-row centring. Whole tokens wrap with natural row growth and no ellipsis. Native visual heading and footer content stay hidden from
 accessibility because the primary action already names the type and metadata.
 
 Stored description rendering is owned by its separate row amendment. When carried together, its
-order is title, description, type and existing metadata. This amendment adds no description copy,
+order is title, description and one metadata flow beginning with type. This amendment adds no description copy,
 hover redesign or row inset change.
 
 ## Description and feedback composition
@@ -83,4 +93,12 @@ checks the corresponding layout and row-owned press/hover bounds. Native font ra
 real assistive technology remain device-verification boundaries. The hermetic layout lane owns
 whole-page evidence and independent rendered review precedes pushing.
 
-At the narrow inline boundary, supporting type and metadata use the existing full-width footer even at normal text size. This keeps complete type words clear of the trailing controls. Boundary rows align controls with the first title line; other normal rows retain whole-row centring.
+Paired metadata regressions mount real rows, list builders and detail child consumers. They cover
+empty, zero, partial, complete and maximum checklists, duplicate entries, received-data replacement,
+parent progress, selection and meaningful naming. Native Yoga exercises actual glyphs at 320, 412
+and 1352 in both locales and themes at normal, 200% and 250% text, delivering measured layout events
+to the fit owner. The Chromium Vitest fixture mounts the live React row and exercises measured
+footer entry, selection replacement and return. Markup-only geometry does not prove that observer
+path; frozen production rendering and physical Android acceptance remain separate requirements.
+
+At the narrow inline boundary, supporting type and metadata use the existing full-width footer even at normal text size. This keeps complete type words clear of the trailing controls. Boundary rows and rows with actual intrinsic metadata overflow align controls with the first title line; other normal rows retain whole-row centring.

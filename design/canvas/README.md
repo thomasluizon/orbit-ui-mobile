@@ -57,8 +57,13 @@ Shared rows use the complete nouns `Tarefa` / `Task` or `Hábito` / `Habit` as q
 beneath the full-width title. This supersedes the longer task caption in exported rows, including
 detail children. Form choices retain `Tarefa única` / `One-time task` and `Hábito` / `Habit`.
 Detail headers use the same plain nouns as rows. Row primary and selection accessible names match the short visible caption
-exactly once. Typography, insets, widths, status, counts, checks and menus retain their geometry;
-default controls stay row-centred and every row keeps its supporting footer above 130% text.
+exactly once. Type is the first token in one quiet 12px Geist Mono metadata flow below title and
+optional description. Existing time, status and child progress precede the actual checklist's
+ListChecks glyph and checked/total count. Empty checklists add nothing. Whole tokens wrap without
+ellipsis. The glyph uses stroke 1.5, at 16px normally and 24px above 130% text. The same full-width
+supporting footer serves enlarged text, the measured inline depth boundary and measured token overflow in a narrow heading column,
+with first-title-line controls; ordinary default rows retain whole-row centring. This production
+composition amendment adds no unused drawing prop or checklist action.
 
 ## The authority
 
