@@ -448,7 +448,7 @@ const COMPOSER_STATES = ['recording', 'transcribing', 'attachments', 'offline'];
 
 class Component extends DCLogic {
   state = { mode: 'dark', width: '412', st: 'preview', loc: 'pt-BR', plan: 'free',
-    page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
+    page: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
     voicePhase: null, atts: [], draft: '' };
 
   componentDidMount() {
@@ -465,7 +465,7 @@ class Component extends DCLogic {
     const t = T[next.locale] || T['pt-BR'];
     this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
       plan: next.plan || 'free',
-      page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
+      page: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
       acting: next.state === 'preview acting',
       voicePhase: next.state === 'recording' ? 'recording' : next.state === 'transcribing' ? 'transcribing' : null,
       draft: '',
@@ -558,7 +558,7 @@ class Component extends DCLogic {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
       stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'goals', 'goals empty',
-        'clarification', 'metrics', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
+        'clarification', 'metrics', 'periodTotal', 'periodComparison', 'history', 'read stale', 'read partial', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
         'op denied', 'op policy', 'op done', 'streaming', 'busy', 'recording', 'transcribing',
         'attachments', 'offline', 'at limit', 'model error', 'copy', 'loading'],
       planAxis: ['free', 'Pro'],
@@ -715,6 +715,38 @@ class Component extends DCLogic {
       H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)', textAlign: 'center',
         maxWidth: '65ch' } }, t.disclosure));
 
+    const readWords = s.loc === 'pt-BR'
+      ? { metric: 'Registros positivos', records: 'registros', delta: 'Variação', history: 'Histórico', more: 'Ver mais', refresh: 'Atualizar', stale: 'Os registros mudaram. Atualize esta consulta.', partial: 'Alguns registros estão indisponíveis.' }
+      : { metric: 'Positive log records', records: 'records', delta: 'Change', history: 'Habit history', more: 'Show more', refresh: 'Refresh', stale: 'These records changed. Refresh this query.', partial: 'Some records are unavailable.' };
+    const readDate = (value) => new Intl.DateTimeFormat(s.loc, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(value + 'T00:00:00Z'));
+    const readWindow = (from, to) => readDate(from) + ' - ' + readDate(to);
+    const readNumber = (value) => H('span', { 'data-mock': '', style: { fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--fg-1)' } }, new Intl.NumberFormat(s.loc).format(value));
+    const refreshRead = H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ readRefreshed: true, st: 'periodTotal' }) }, readWords.refresh);
+    const totalRead = (state) => this.block({
+      title: readWords.metric, state,
+      ...(state === 'stale' ? { staleMessage: readWords.stale } : {}),
+      items: [{ label: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 } },
+        readNumber(s.readRefreshed ? 18 : 12),
+        H('span', { style: { fontSize: 14, color: 'var(--fg-2)' } }, readWords.records),
+        H('span', { 'data-mock': '', style: { fontSize: 14, color: 'var(--fg-3)' } }, readWindow('2026-09-01', '2026-09-30'))) }],
+      actions: H(F, null, state === 'partiallyFailed' ? H('p', { role: 'status', style: { fontSize: 14, color: 'var(--fg-2)' } }, readWords.partial) : null, refreshRead),
+    });
+    const comparisonRead = this.block({
+      title: readWords.metric,
+      items: [
+        { label: mock(readWindow('2026-09-01', '2026-09-30')), meta: readWords.records, control: readNumber(12) },
+        { label: mock(readWindow('2026-08-01', '2026-08-31')), meta: readWords.records, control: readNumber(0) },
+        { label: readWords.delta, control: mock('+12') },
+      ],
+      actions: refreshRead,
+    });
+    const historyDates = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04'];
+    const historyRead = this.block({
+      title: readWords.history, count: mock(historyDates.slice(0, s.page * 3).length),
+      items: historyDates.slice(0, s.page * 3).map((date, index) => ({ label: mock(readDate(date)), control: readNumber(index === 0 ? 0 : 1) })),
+      actions: H(F, null, s.page === 1 ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ page: 2 }) }, readWords.more) : null, refreshRead),
+    });
+
     const turnsFor = () => {
       switch (COMPOSER_STATES.indexOf(st) >= 0 ? 'habits' : st) {
         case 'empty':
@@ -742,6 +774,16 @@ class Component extends DCLogic {
             actions: H(F, null, t.cl.answers.map((a, i) =>
               H(D.Button, { key: i, size: 'sm', variant: 'ghost', onClick: () => this.setState({ st: 'habits' }) }, a))),
           }))];
+        case 'periodTotal':
+          return [this.node(totalRead('resting'))];
+        case 'periodComparison':
+          return [this.node(comparisonRead)];
+        case 'history':
+          return [this.node(historyRead)];
+        case 'read stale':
+          return [this.node(totalRead('stale'))];
+        case 'read partial':
+          return [this.node(totalRead('partiallyFailed'))];
         case 'metrics':
           return [this.me(t.mt.ask), this.node(this.block({
             title: t.mt.title, count: mock(t.mt.count),

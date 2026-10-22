@@ -429,6 +429,24 @@ Six rules govern all of them:
 Rules 5 and 6 have no published precedent anywhere. They are Orbit's, and they are stated here because
 the alternative is that every block invents its own answer.
 
+### Focused reads
+
+`periodTotal` shows one server figure, its unit and resolved dates. `periodComparison` shows both
+windows, their server values and supplied delta. A zero baseline omits the relative percentage.
+Dated habit and history rows retain their dates and typed values, including zero. Period metrics
+use their declared window and null-rate meaning. Current completion, goal and calendar eligibility
+never replace the displayed snapshot. Derived goals name their actual linked habits once.
+
+Every read family retains its supported actions: logging, record navigation, notification mark-read,
+referral copy/share, exact-query refresh or signed paging. Tags and templates have no invented
+destination. Keys expose safe metadata; plans contain no added price, upsell or checkout.
+Refresh and paging use the API's signed absolute query identity. A changed page revision requires
+refresh before paging. Useful snapshot content stays visible through failed reads and offline
+recovery. One compact state owns stale, partial or failed recovery, with no freshness box.
+Recap figures and dates lead; Show more discloses its supplied narrative and habit detail.
+The focused read amendment in the canvas README and active Astra drawing defines these compositions
+from existing BlockFrame rows, number formatting, ghost actions and the granted neutral chart.
+
 ### The proposed state
 
 **A value the machine inferred looks different from a value the person entered**, until it is accepted
