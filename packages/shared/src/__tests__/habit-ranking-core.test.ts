@@ -10,7 +10,7 @@ function setup() {
   const load = vi.fn(async () => next)
   const open = vi.fn(async () => {})
   const isCurrent = vi.fn(() => true)
-  return { load, open, isCurrent, controller: createHabitRankingController(initial, { load, open, isCurrent }) }
+  return { load, open, isCurrent, controller: createHabitRankingController(habitRankingResponseSchema.parse(initial), { load, open, isCurrent, accountGeneration: 0 }) }
 }
 
 describe('habit ranking boundary', () => {
@@ -35,6 +35,16 @@ describe('habit ranking boundary', () => {
 })
 
 describe('habit ranking action ownership', () => {
+  it('restores only the same answer in the same account after unmounting', async () => {
+    const dependencies = { load: vi.fn(async () => next), open: vi.fn(async () => {}), isCurrent: () => true, accountGeneration: 3 }
+    const answer = habitRankingResponseSchema.parse(initial)
+    const first = createHabitRankingController(answer, dependencies)
+    await first.showMore()
+    first.cancel()
+    expect(createHabitRankingController(answer, dependencies).getSnapshot().rows).toHaveLength(4)
+    expect(createHabitRankingController(habitRankingResponseSchema.parse(initial), dependencies).getSnapshot().rows).toHaveLength(2)
+    expect(createHabitRankingController(answer, { ...dependencies, accountGeneration: 4 }).getSnapshot().rows).toHaveLength(2)
+  })
   it('appends server ranks and ties, ignores repeated presses and stops at completion', async () => {
     const { controller, load } = setup()
     await Promise.all([controller.showMore(), controller.showMore()])
@@ -74,6 +84,15 @@ describe('habit ranking action ownership', () => {
     await controller.refresh()
     expect(controller.getSnapshot().status).toBe('stale')
     expect(controller.getSnapshot().rows).toHaveLength(4)
+  })
+  it('keeps a stale cursor blocked when its recovery refresh fails', async () => {
+    const { controller, load } = setup()
+    load.mockRejectedValueOnce(new ApiClientError(409, 'Stale')).mockRejectedValueOnce(new TypeError('Offline'))
+    await controller.showMore()
+    await controller.refresh()
+    await controller.showMore()
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(controller.getSnapshot().rows).toEqual(initial.rows)
   })
   it('keeps the page cursor after an offline request so retry can append the same page', async () => {
     const { controller, load } = setup()

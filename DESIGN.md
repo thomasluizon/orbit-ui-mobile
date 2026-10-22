@@ -407,6 +407,19 @@ The **day summary** combines its ring with today's habit rows and the habit list
 
 A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
 
+The **habit ranking** block uses one BlockFrame with no header count, chart, totals or repeated
+prose. Its two date lines show the resolved inclusive first and last dates, including the year.
+ListRow rows show the server rank, habit name and emoji, then the localized completion count with
+its unit. Names retain the full accessible name and open the actual habit. Rows grow at 200% text;
+counts remain whole. Show more appends the next server page without replacing earlier rows.
+It retains focus while loading and moves focus to Refresh when the final page removes Show more.
+Refresh uses the original signed query, preserving its absolute dates, scope and metric. One short
+inline status covers partial results, changed rankings, offline requests and failed actions. Removed
+habits offer the same exact-query refresh. Empty rankings use one short line inside the frame.
+Unknown or malformed blocks remain skippable; a sole unreadable answer shows a localized line.
+The focused composition and surface inventory live in `design/canvas/README.md` under
+**Habit ranking block amendment**.
+
 Six rules govern all of them:
 
 1. **Three-way state split.** Business data is server owned and re-fetched. UI state, meaning

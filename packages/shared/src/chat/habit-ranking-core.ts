@@ -12,13 +12,17 @@ export interface HabitRankingState {
   status: RankingStatus
   active: boolean
   startsAtBeginning: boolean
+  requiresRefresh: boolean
 }
 
 export interface HabitRankingDependencies {
+  accountGeneration: number
   load: (queryToken: string, cursor: string | null, refresh: boolean) => Promise<HabitRankingResponse>
   open: (habitId: string) => Promise<void>
   isCurrent: () => boolean
 }
+
+const answerSnapshots = new WeakMap<HabitRankingResponse, { accountGeneration: number; state: HabitRankingState }>()
 
 export interface HabitRankingController {
   getSnapshot: () => HabitRankingState
@@ -63,14 +67,17 @@ function rankingFailure(error: unknown, action: RankingAction): RankingStatus {
 }
 
 export function createHabitRankingController(initial: HabitRankingResponse, dependencies: HabitRankingDependencies): HabitRankingController {
-  let state: HabitRankingState = {
+  const saved = answerSnapshots.get(initial)
+  let state: HabitRankingState = saved?.accountGeneration === dependencies.accountGeneration ? saved.state : {
     ranking: initial, rows: initial.rows, pending: null, status: null,
-    active: true, startsAtBeginning: initial.offset === 0,
+    active: true, startsAtBeginning: initial.offset === 0, requiresRefresh: false,
   }
   let requestVersion = 0
   const listeners = new Set<() => void>()
   function publish(next: HabitRankingState) {
     state = next
+    if (next.active && dependencies.isCurrent()) answerSnapshots.set(initial, { accountGeneration: dependencies.accountGeneration, state: next })
+    else answerSnapshots.delete(initial)
     listeners.forEach(listener => listener())
   }
   async function loadRanking(action: RankingAction) {
@@ -79,11 +86,11 @@ export function createHabitRankingController(initial: HabitRankingResponse, depe
     if (page.queryId !== initial.queryId || JSON.stringify(page.query) !== JSON.stringify(initial.query) || page.offset !== 0) {
       throw new ApiClientError(409, 'Refresh changed the resolved query')
     }
-    return { ...state, ranking: page, rows: page.rows, startsAtBeginning: true, status: null }
+    return { ...state, ranking: page, rows: page.rows, startsAtBeginning: true, requiresRefresh: false, status: null }
   }
   async function perform(action: RankingAction, habitId?: string) {
     if (!state.active || state.pending || !dependencies.isCurrent()) return
-    if (action === 'page' && (!state.ranking.nextCursor || state.status === 'stale' || state.status === 'removed')) return
+    if (action === 'page' && (!state.ranking.nextCursor || state.requiresRefresh)) return
     const version = ++requestVersion
     const current = () => version === requestVersion && state.active && dependencies.isCurrent()
     publish({ ...state, pending: action })
@@ -94,7 +101,10 @@ export function createHabitRankingController(initial: HabitRankingResponse, depe
         if (current()) publish(next)
       }
     } catch (error) {
-      if (current()) publish({ ...state, status: rankingFailure(error, action) })
+      if (current()) {
+        const status = rankingFailure(error, action)
+        publish({ ...state, status, requiresRefresh: state.requiresRefresh || status === 'stale' || status === 'removed' })
+      }
     } finally {
       if (current()) publish({ ...state, pending: null })
     }
@@ -106,6 +116,6 @@ export function createHabitRankingController(initial: HabitRankingResponse, depe
     refresh: () => perform('refresh'),
     open: (habitId: string) => perform('open', habitId),
     invalidate: () => { requestVersion++; publish({ ...state, rows: [], active: false, pending: null }) },
-    cancel: () => { requestVersion++ },
+    cancel: () => { requestVersion++; publish({ ...state, pending: null }) },
   }
 }

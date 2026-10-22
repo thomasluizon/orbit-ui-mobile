@@ -17,9 +17,9 @@ export function HabitRankingCard({ habitRanking, isOnline = true }: Readonly<{ h
   const moreFocused = useRef(false)
   const previousPending = useRef(ranking.pending)
   useEffect(() => {
-    if (previousPending.current === 'page' && ranking.pending === null && !ranking.ranking.nextCursor && moreFocused.current) refreshRef.current?.focus({ preventScroll: true })
+    if (previousPending.current === 'page' && ranking.pending === null && (!ranking.ranking.nextCursor || ranking.requiresRefresh) && moreFocused.current) refreshRef.current?.focus({ preventScroll: true })
     previousPending.current = ranking.pending
-  }, [ranking.pending, ranking.ranking.nextCursor])
+  }, [ranking.pending, ranking.ranking.nextCursor, ranking.requiresRefresh])
   const period = formatHabitRankingPeriod(ranking.ranking.query, locale)
   const number = new Intl.NumberFormat(locale)
   const blocked = ranking.pending !== null || !isOnline
@@ -36,7 +36,7 @@ export function HabitRankingCard({ habitRanking, isOnline = true }: Readonly<{ h
       <p role="status" className="text-sm text-[var(--fg-2)]">{status ? t(status) : ''}</p>
     </div>}
     actions={<>
-      {ranking.ranking.nextCursor && ranking.status !== 'stale' && ranking.status !== 'removed' ? <Button variant="ghost" size="sm" focusableWhenLoading onFocus={() => { moreFocused.current = true }} onBlur={() => { moreFocused.current = false }} disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'refresh'} loading={ranking.pending === 'page'} onClick={() => { if (!blocked) void ranking.showMore() }}>{t('more')}</Button> : null}
+      {ranking.ranking.nextCursor && !ranking.requiresRefresh ? <Button variant="ghost" size="sm" focusableWhenLoading onFocus={() => { moreFocused.current = true }} onBlur={() => { moreFocused.current = false }} disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'refresh'} loading={ranking.pending === 'page'} onClick={() => { if (!blocked) void ranking.showMore() }}>{t('more')}</Button> : null}
       <Button variant="ghost" size="sm" buttonRef={refreshRef} focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'page'} loading={ranking.pending === 'refresh'} onClick={() => { if (!blocked) void ranking.refresh() }}>{t('refresh')}</Button>
     </>} />
 }

@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
 const card = habitRankingCardSchema.parse(habitRankingCardFixture)
 const next = habitRankingResponseSchema.parse(habitRankingNextPageFixture)
 const provider = (children: React.ReactNode, locale = 'en') => <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>{children}</NextIntlClientProvider>
-beforeEach(() => { vi.clearAllMocks(); mocks.load.mockResolvedValue({ ok: true, data: next }); mocks.check.mockResolvedValue({ ok: true, data: true }) })
+beforeEach(() => { advanceAccountGeneration(); vi.clearAllMocks(); mocks.load.mockResolvedValue({ ok: true, data: next }); mocks.check.mockResolvedValue({ ok: true, data: true }) })
 afterEach(cleanup)
 
 describe('habit ranking renderer and actions', () => {
@@ -69,10 +69,14 @@ describe('habit ranking renderer and actions', () => {
     expect(mocks.router.push).not.toHaveBeenCalled()
   })
   it('opens the actual habit and retains the answer when returning', async () => {
-    render(provider(<HabitRankingCard habitRanking={card} />))
+    const view = render(provider(<HabitRankingCard habitRanking={card} />))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Show more' })) })
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /1\. Water/ })) })
     expect(mocks.check).toHaveBeenCalledWith(card.ranking.rows[0]!.habitId)
     expect(mocks.router.push).toHaveBeenCalledWith(`/habits/${card.ranking.rows[0]!.habitId}`)
+    view.unmount()
+    render(provider(<HabitRankingCard habitRanking={card} />))
+    expect(screen.getByRole('button', { name: /3\. Read, 20 completions/ })).toBeInTheDocument()
     expect(screen.getByText('From Jul 1, 2026')).toBeInTheDocument()
   })
   it('has one empty state and keeps offline controls unavailable until reconnection', () => {
@@ -93,6 +97,14 @@ describe('habit ranking renderer and actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
     await act(async () => { advanceAccountGeneration(); deliver({ ok: true, data: next }) })
     expect(screen.queryByRole('heading', { name: 'Habit ranking' })).not.toBeInTheDocument()
+    expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+  it('does not navigate when an old account habit check completes late', async () => {
+    let deliver: (value: { ok: true; data: boolean }) => void = () => {}
+    mocks.check.mockImplementation(() => new Promise(resolve => { deliver = resolve }))
+    render(provider(<HabitRankingCard habitRanking={card} />))
+    fireEvent.click(screen.getByRole('button', { name: /1\. Water/ }))
+    await act(async () => { advanceAccountGeneration(); deliver({ ok: true, data: true }) })
     expect(mocks.router.push).not.toHaveBeenCalled()
   })
 })

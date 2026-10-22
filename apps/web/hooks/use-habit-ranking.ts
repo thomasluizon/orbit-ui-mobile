@@ -14,6 +14,7 @@ export function useHabitRanking(card: HabitRankingCard) {
     const generation = getAccountGeneration()
     const isCurrent = () => generation === getAccountGeneration()
     return createHabitRankingController(card.ranking, {
+      accountGeneration: generation,
       isCurrent,
       load: async (queryToken, cursor, refresh) => {
         const result = await loadHabitRanking(queryToken, cursor, refresh)

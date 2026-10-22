@@ -18,12 +18,12 @@ export function HabitRankingCard({ habitRanking, isOnline = true }: Readonly<{ h
   const refreshRef = useRef<View>(null)
   const previousPending = useRef(ranking.pending)
   useEffect(() => {
-    if (previousPending.current === 'page' && ranking.pending === null && !ranking.ranking.nextCursor) {
+    if (previousPending.current === 'page' && ranking.pending === null && (!ranking.ranking.nextCursor || ranking.requiresRefresh)) {
       const target = findNodeHandle(refreshRef.current)
       if (target != null) AccessibilityInfo.setAccessibilityFocus(target)
     }
     previousPending.current = ranking.pending
-  }, [ranking.pending, ranking.ranking.nextCursor])
+  }, [ranking.pending, ranking.ranking.nextCursor, ranking.requiresRefresh])
   const period = formatHabitRankingPeriod(ranking.ranking.query, i18n.language)
   const number = new Intl.NumberFormat(i18n.language)
   const blocked = ranking.pending !== null || !isOnline
@@ -40,7 +40,7 @@ export function HabitRankingCard({ habitRanking, isOnline = true }: Readonly<{ h
       <Text accessibilityLiveRegion="polite" style={{ fontSize: 14, color: tokens.fg2 }}>{status ? t(`chat.ranking.${status}`) : ''}</Text>
     </View>}
     actions={<>
-      {ranking.ranking.nextCursor && ranking.status !== 'stale' && ranking.status !== 'removed' ? <Button variant="ghost" size="sm" focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'refresh'} loading={ranking.pending === 'page'} onClick={() => { if (!blocked) void ranking.showMore() }}>{t('chat.ranking.more')}</Button> : null}
+      {ranking.ranking.nextCursor && !ranking.requiresRefresh ? <Button variant="ghost" size="sm" focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'refresh'} loading={ranking.pending === 'page'} onClick={() => { if (!blocked) void ranking.showMore() }}>{t('chat.ranking.more')}</Button> : null}
       <Button variant="ghost" size="sm" buttonRef={refreshRef} focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'page'} loading={ranking.pending === 'refresh'} onClick={() => { if (!blocked) void ranking.refresh() }}>{t('chat.ranking.refresh')}</Button>
     </>} />
 }

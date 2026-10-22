@@ -159,6 +159,12 @@ const T = {
       rejected: 'As 3 mudanças foram rejeitadas. Nada foi salvo.',
     },
 
+    ranking: {
+      title: 'Ranking de hábitos', from: 'De 1 de jul. de 2026', through: 'Até 30 de set. de 2026',
+      more: 'Ver mais', refresh: 'Atualizar', empty: 'Nenhuma conclusão neste período.',
+      partial: 'Mais hábitos abaixo.', stale: 'O ranking mudou. Atualize para continuar.',
+      unit: (count) => count === 1 ? 'conclusão' : 'conclusões',
+    },
     hl: {
       ask: 'O que falta hoje',
       title: 'Hábitos de hoje',
@@ -329,6 +335,12 @@ const T = {
       rejected: 'The 3 changes were rejected. Nothing was saved.',
     },
 
+    ranking: {
+      title: 'Habit ranking', from: 'From Jul 1, 2026', through: 'Through Sep 30, 2026',
+      more: 'Show more', refresh: 'Refresh', empty: 'No completions in this period.',
+      partial: 'More habits below.', stale: 'Ranking changed. Refresh to continue.',
+      unit: (count) => count === 1 ? 'completion' : 'completions',
+    },
     hl: {
       ask: 'What is left today',
       title: "Today's habits",
@@ -448,7 +460,7 @@ const COMPOSER_STATES = ['recording', 'transcribing', 'attachments', 'offline'];
 
 class Component extends DCLogic {
   state = { mode: 'dark', width: '412', st: 'preview', loc: 'pt-BR', plan: 'free',
-    page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
+    page: 1, rankingPage: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
     voicePhase: null, atts: [], draft: '' };
 
   componentDidMount() {
@@ -465,7 +477,7 @@ class Component extends DCLogic {
     const t = T[next.locale] || T['pt-BR'];
     this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
       plan: next.plan || 'free',
-      page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
+      page: 1, rankingPage: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
       acting: next.state === 'preview acting',
       voicePhase: next.state === 'recording' ? 'recording' : next.state === 'transcribing' ? 'transcribing' : null,
       draft: '',
@@ -508,6 +520,33 @@ class Component extends DCLogic {
   block(props) {
     const D = window.OrbitDesignSystem_918bd5;
     return H(D.BlockFrame, props);
+  }
+
+  habitRankingBlock(t, state) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const N = window.OrbitNativeMobile;
+    const counts = [1200, 20, 20, 1];
+    const shown = state === 'ranking empty' ? 0 : Math.min(this.state.rankingPage * 2, counts.length);
+    const stale = state === 'ranking stale';
+    const number = new Intl.NumberFormat(t.intl);
+    return this.block({ title: t.ranking.title, count: null, items: [],
+      body: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 } },
+        H('div', { style: { display: 'grid', gap: 4, fontSize: 14, color: 'var(--fg-2)' } },
+          H('p', null, mock(t.ranking.from)), H('p', null, mock(t.ranking.through))),
+        shown === 0 ? H('p', { style: { fontSize: 14, color: 'var(--fg-3)' } }, t.ranking.empty) : null,
+        t.hl.pool.slice(0, shown).map((habit, index) => H(N.ListRow, {
+          key: index, typedTitle: true, chevron: false,
+          title: number.format(index + 1) + '. ' + habit.emoji + ' ' + habit.name,
+          value: mock(number.format(counts[index]) + ' ' + t.ranking.unit(counts[index])), onClick: () => {},
+        })),
+        H('p', { role: 'status', style: { fontSize: 14, color: 'var(--fg-2)' } },
+          stale ? t.ranking.stale : shown > 0 && shown < counts.length ? t.ranking.partial : '')),
+      actions: H(F, null,
+        shown > 0 && shown < counts.length && !stale ? H(D.Button, {
+          size: 'sm', variant: 'ghost', onClick: () => this.setState(p => ({ rankingPage: p.rankingPage + 1 })),
+        }, t.ranking.more) : null,
+        H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ rankingPage: 1, st: 'ranking' }) }, t.ranking.refresh)),
+    });
   }
 
   /* The risk class sits in the frame's header slot, beside the count. */
@@ -557,7 +596,7 @@ class Component extends DCLogic {
     const base = {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
-      stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'goals', 'goals empty',
+      stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'ranking', 'ranking empty', 'ranking stale', 'goals', 'goals empty',
         'clarification', 'metrics', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
         'op denied', 'op policy', 'op done', 'streaming', 'busy', 'recording', 'transcribing',
         'attachments', 'offline', 'at limit', 'model error', 'copy', 'loading'],
@@ -734,6 +773,10 @@ class Component extends DCLogic {
               this.inline(t.pv.rejected, 'x', 'var(--fg-3)')];
           }
           return [this.me(t.pv.ask), this.prose(t.pv.prose), this.node(previewBlock)];
+        case 'ranking':
+        case 'ranking empty':
+        case 'ranking stale':
+          return [this.node(this.habitRankingBlock(t, st))];
         case 'habits':
           return [this.me(t.hl.ask), this.node(habitsBlock)];
         case 'clarification':

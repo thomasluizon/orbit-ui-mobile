@@ -28,14 +28,14 @@ vi.mock('@/components/chat/choice-block', () => ({ ChoiceBlock: () => null }))
 vi.mock('@/components/chat/pick-list-block', () => ({ PickListBlock: () => null }))
 const card = habitRankingCardSchema.parse(habitRankingCardFixture)
 const next = habitRankingResponseSchema.parse(habitRankingNextPageFixture)
-let tree: ReactTestRenderer
-async function mount(element: React.ReactElement) { await renderer.act(() => { tree = renderer.create(element) }) }
+let tree: ReactTestRenderer & { toJSON: () => unknown; unmount: () => void }
+async function mount(element: React.ReactElement) { await renderer.act(() => { tree = renderer.create(element) as typeof tree }) }
 const content = () => JSON.stringify(tree.toJSON())
 function button(name: string): ReactTestInstance {
   return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === name || renderedText(node.props.children).includes(name)))[0]!
 }
-async function press(name: string) { await renderer.act(async () => { button(name).props.onPress(); await Promise.resolve() }) }
-beforeEach(async () => { vi.clearAllMocks(); await i18n.changeLanguage('en'); mocks.request.mockResolvedValue(next) })
+async function press(name: string) { await renderer.act(async () => { (button(name).props.onPress as () => void)(); await Promise.resolve() }) }
+beforeEach(async () => { advanceAccountGeneration(); vi.clearAllMocks(); await i18n.changeLanguage('en'); mocks.request.mockResolvedValue(next) })
 afterEach(async () => { await renderer.act(() => tree.unmount()); await i18n.changeLanguage('en') })
 
 describe('Android habit ranking renderer and actions', () => {
@@ -66,6 +66,7 @@ describe('Android habit ranking renderer and actions', () => {
     await press('Refresh')
     expect(content()).toContain('Could not refresh. Try again.')
     expect(content()).toContain('1,200 completions')
+    expect(content()).not.toContain('Show more')
     await press('Refresh')
     const path = new URL(mocks.request.mock.calls[2]![0] as string, 'https://example.test')
     expect(path.searchParams.get('queryToken')).toBe(card.ranking.queryToken)
@@ -87,15 +88,31 @@ describe('Android habit ranking renderer and actions', () => {
     expect(content()).toContain('No completions in this period.')
     await renderer.act(() => tree.update(<HabitRankingCard habitRanking={card} isOnline={false} />))
     expect(content()).toContain('Connect to continue.')
-    expect(button('Show more').props.accessibilityState.disabled).toBe(true)
-    expect(button('1. Water, 1,200 completions').props.accessibilityState.disabled).toBe(true)
+    expect(button('Show more').props.accessibilityState).toMatchObject({ disabled: true })
+    expect(button('1. Water, 1,200 completions').props.accessibilityState).toMatchObject({ disabled: true })
+  })
+  it('retains appended rows after habit navigation unmounts and restores the conversation', async () => {
+    await mount(<HabitRankingCard habitRanking={card} />)
+    await press('Show more')
+    await press('1. Water, 1,200 completions')
+    await renderer.act(() => tree.unmount())
+    await mount(<HabitRankingCard habitRanking={card} />)
+    expect(content()).toContain('3. Read, 20 completions')
   })
   it('drops a late page after account replacement', async () => {
     let deliver: (page: typeof next) => void = () => {}
     mocks.request.mockImplementation(() => new Promise(resolve => { deliver = resolve }))
     await mount(<HabitRankingCard habitRanking={card} />)
-    await renderer.act(() => button('Show more').props.onPress())
+    await press('Show more')
     await renderer.act(() => { advanceAccountGeneration(); deliver(next) })
     expect(tree.toJSON()).toBe(null)
+  })
+  it('does not navigate when an old account habit check completes late', async () => {
+    let deliver: (value: undefined) => void = () => {}
+    mocks.request.mockImplementation(() => new Promise(resolve => { deliver = resolve }))
+    await mount(<HabitRankingCard habitRanking={card} />)
+    await press('1. Water, 1,200 completions')
+    await renderer.act(() => { advanceAccountGeneration(); deliver(undefined) })
+    expect(mocks.router.push).not.toHaveBeenCalled()
   })
 })
