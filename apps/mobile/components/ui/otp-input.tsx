@@ -1,6 +1,6 @@
 import type { OtpInputProps } from '@orbit/shared/contracts/forms'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { Platform, StyleSheet, Text, TextInput, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useKeyboardAwareInputReveal } from '@/components/ui/keyboard-aware-scroll-view'
@@ -54,8 +54,8 @@ export function OtpInput({
           onBlur={() => { setFocused(false); onBlur?.() }}
           editable={!disabled}
           keyboardType="number-pad"
-          textContentType="oneTimeCode"
-          autoComplete="sms-otp"
+          textContentType={Platform.OS === 'ios' ? 'oneTimeCode' : undefined}
+          autoComplete={Platform.OS === 'android' ? 'email-otp' : undefined}
           autoFocus={autoFocus}
           accessibilityLabel={label}
           accessibilityHint={error ?? hint}

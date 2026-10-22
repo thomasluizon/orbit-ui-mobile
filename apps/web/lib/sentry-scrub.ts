@@ -1,5 +1,6 @@
 import type { ErrorEvent, EventHint } from '@sentry/nextjs'
 import { ApiClientError } from '@orbit/shared/utils/error-utils'
+import { scrubAuthNavigation } from '@orbit/shared/utils/auth-navigation-privacy'
 
 const SENSITIVE_HEADERS = new Set(['authorization', 'cookie', 'set-cookie'])
 
@@ -49,5 +50,5 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
     delete event.request.data
   }
 
-  return event
+  return scrubAuthNavigation(event)
 }

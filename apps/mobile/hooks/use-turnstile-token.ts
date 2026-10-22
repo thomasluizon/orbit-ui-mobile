@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createTurnstileTokenState, TurnstileTokenController } from '@orbit/shared/hooks'
+import { createTurnstileTokenState, TurnstileTokenController } from '@orbit/shared/hooks/turnstile-token-core'
 
 export function useTurnstileToken(siteKey: string | undefined, isOnline: boolean) {
   const [state, setState] = useState(createTurnstileTokenState)

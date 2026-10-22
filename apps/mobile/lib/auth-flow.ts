@@ -4,6 +4,7 @@ import {
   isValidReferralCode as isValidReferralCodeShared,
   isValidVerificationCode as isValidVerificationCodeShared,
 } from '@orbit/shared/utils'
+import { isSafeAuthReturnUrl } from '@orbit/shared/utils/login-attempt'
 
 const REFERRAL_CODE_KEY = 'referral_code'
 const AUTH_RETURN_URL_KEY = 'auth_return_url'
@@ -44,7 +45,7 @@ export function isValidVerificationCode(value: string | null | undefined): value
 }
 
 export function isSafeReturnUrl(value: string | null | undefined): value is string {
-  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
+  return isSafeAuthReturnUrl(value)
 }
 
 export function getSafeReturnUrl(value: string | null | undefined, fallback = '/(tabs)'): string {

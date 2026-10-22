@@ -3,6 +3,17 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Email sign-in entry amendment
+
+`Orbit Entrar` uses the existing verifying presentation for a valid incoming email link.
+The captured address and code complete once through the ordinary login owner when connectivity,
+fresh bot protection and session ownership permit it. Refused or unavailable attempts retain
+manual entry, explicit Verify and permitted resend. Android opts into the installed email-code
+hint; iOS keeps its one-time-code hint and web keeps its single one-time-code input.
+Hints depend on the configured provider and keyboard; they do not read an inbox or notifications.
+Unit guards cover request, session, input and generated manifest boundaries. Received-message,
+installed App Link verification, browser fallback and provider suggestions require device evidence.
+
 ### Habit form type and date amendment
 
 Create and edit place the two vertical type radios before the focal title. The editable account-date

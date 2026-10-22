@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, fireEvent, renderHook, waitFor } from '@testing-library/react'
 
 import { useLoginFlow } from '@/app/(auth)/login/use-login-flow'
+import { advanceSessionEpoch } from '@/lib/session-epoch'
+import { POST as verifyCodeRoute } from '@/app/api/auth/verify-code/route'
+import { setSessionCookies } from '@/lib/auth-api'
 import { resolveSessionTokens } from '@/lib/auth-api'
 
 vi.mock('@/lib/auth-api', () => ({
@@ -21,6 +24,8 @@ vi.mock('@/lib/auth-api', () => ({
 
 const mocks = vi.hoisted(() => ({
   search: '',
+  authenticated: false,
+  authListeners: new Set<() => void>(),
   currentProactive: vi.fn(),
   language: 'en',
   translate: (key: string) => key,
@@ -58,7 +63,9 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isO
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: Object.assign(() => ({ setAuth: mocks.setAuth }), {
+    subscribe: (listener: () => void) => { mocks.authListeners.add(listener); return () => { mocks.authListeners.delete(listener) } },
     getState: () => ({
+      isAuthenticated: mocks.authenticated,
       confirmSessionRefreshFailure: mocks.confirmSessionRefreshFailure,
       recoverSessionRefreshFailure: mocks.recoverSessionRefreshFailure,
     }),
@@ -150,6 +157,8 @@ beforeEach(() => {
   mocks.translate = (key: string) => key
   mocks.search = ''
   mocks.isOnline = true
+  mocks.authenticated = false
+  mocks.setAuth.mockReset()
   mocks.reducedMotion = true
   setNavigatorOnline(true)
   localStorage.clear()
@@ -432,7 +441,7 @@ describe('useLoginFlow verify-code success', () => {
     },
   )
 
-  it.each(['//evil.example.com', 'https://evil.example.com', 'https://evil.example.com/habits/new?title=X'])(
+  it.each(['//evil.example.com', 'https://evil.example.com', 'https://evil.example.com/habits/new?title=X', '/\\evil.example.com', '/\t/evil.example.com', '/login', '/auth-callback'])(
     'rejects an unsafe returnUrl %s and redirects home instead', async (returnUrl) => {
       mocks.search = new URLSearchParams({ returnUrl }).toString()
       const { result } = renderHook(() => useLoginFlow())
@@ -557,14 +566,13 @@ describe('auth state recovery', () => {
     expect(result.current.email).toBe('user@test.com')
   })
 
-  it('prefills a valid link without verifying it until the action', async () => {
+  it('completes a valid email link once through the ordinary verification request', async () => {
     mocks.search = 'email=user%40test.com&code=123456'
     const { result } = renderHook(() => useLoginFlow())
     expect(result.current.step).toBe('code')
     expect(result.current.codeDigits.join('')).toBe('123456')
-    expect(fetchMock).not.toHaveBeenCalled()
-    await act(async () => result.current.verifyCode())
-    expect(mocks.setAuth).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => toUrlString(url).includes('/api/auth/verify-code')).length).toBe(1))
+    await waitFor(() => expect(mocks.setAuth).toHaveBeenCalledTimes(1))
   })
 
   it('deduplicates the sixth digit and a simultaneous verify action', async () => {
@@ -854,4 +862,147 @@ it('returns focus to the editable OTP after a pending wrong-code rejection', asy
   await waitFor(() => expect(code).toBeEnabled())
   expect(code).toHaveAttribute('aria-invalid', 'true')
   await waitFor(() => expect(code).toHaveFocus())
+})
+
+describe('email-link attempt ownership', () => {
+  const link = (email = 'user@test.com', code = '123456') => new URLSearchParams({ email, code, returnUrl: '/progress' }).toString()
+  const verificationCount = () => fetchMock.mock.calls.filter(([url]) => toUrlString(url).includes('/api/auth/verify-code')).length
+
+  it('waits for protection, strips the secret, and ignores rerendered and repeated deliveries', async () => {
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+    mocks.search = link()
+    window.history.replaceState(null, '', `/login?${mocks.search}`)
+    const { result, rerender } = renderHook(() => useLoginFlow())
+    expect(verificationCount()).toBe(0)
+    expect(new URL(window.location.href).searchParams.has('code')).toBe(false)
+    expect(new URL(window.location.href).searchParams.get('returnUrl') === '/progress').toBe(true)
+    mocks.search = 'returnUrl=%2Fprogress'
+    rerender()
+    act(() => result.current.onTurnstileToken('fresh-widget-token'))
+    await waitFor(() => expect(verificationCount()).toBe(1))
+    mocks.search = link()
+    rerender()
+    act(() => result.current.onCodeChange('123456'))
+    await act(async () => { await Promise.resolve() })
+    expect(verificationCount()).toBe(1)
+    expect(requestBodyFor('/api/auth/verify-code').email === 'user@test.com').toBe(true)
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/progress')
+  })
+
+  it('completes once across StrictMode effect replay', async () => {
+    mocks.search = link()
+    renderHook(() => useLoginFlow(), { wrapper: React.StrictMode })
+    await waitFor(() => expect(mocks.setAuth).toHaveBeenCalledTimes(1))
+    expect(verificationCount()).toBe(1)
+  })
+
+  it('lets editing the captured code replace automatic completion with manual recovery', async () => {
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+    mocks.search = link()
+    const { result } = renderHook(() => useLoginFlow())
+    act(() => result.current.onCodeChange('12345'))
+    act(() => result.current.onTurnstileToken('fresh-token'))
+    await act(async () => { await Promise.resolve() })
+    expect(verificationCount()).toBe(0)
+    act(() => result.current.onCodeChange('123457'))
+    await waitFor(() => expect(verificationCount()).toBe(1))
+    expect(requestBodyFor('/api/auth/verify-code').code === '123457').toBe(true)
+  })
+
+  it('retains an offline link until connectivity permits its first completion', async () => {
+    mocks.isOnline = false
+    mocks.search = link()
+    const { result, rerender } = renderHook(() => useLoginFlow())
+    expect(result.current.codeDigits.join('').length).toBe(6)
+    expect(verificationCount()).toBe(0)
+    mocks.isOnline = true
+    rerender()
+    await waitFor(() => expect(verificationCount()).toBe(1))
+  })
+
+  it.each(['email', 'cancel', 'account'])('cancels pending protection on %s change', async (change) => {
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+    mocks.search = link()
+    const { result } = renderHook(() => useLoginFlow())
+    const lateWidget = result.current.onTurnstileToken
+    act(() => {
+      if (change === 'email') result.current.setEmail('other@test.com')
+      else if (change === 'cancel') result.current.backToEmail()
+      else { advanceSessionEpoch(); for (const listener of mocks.authListeners) listener() }
+    })
+    act(() => lateWidget('stale-widget-token'))
+    await act(async () => { await Promise.resolve() })
+    expect(verificationCount()).toBe(0)
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+  })
+
+  it('binds a warm replacement to its new email even when the digits match', async () => {
+    wireAuthNetwork({ body: { error: 'Invalid verification code' }, status: 400 })
+    mocks.search = link()
+    const { result, rerender } = renderHook(() => useLoginFlow())
+    await waitFor(() => expect(result.current.codeFailure).toBe('wrong'))
+    mocks.search = link('other@test.com')
+    rerender()
+    await waitFor(() => expect(verificationCount()).toBe(2))
+    const requests = fetchMock.mock.calls.filter(([url]) => toUrlString(url).includes('/api/auth/verify-code'))
+    const rawBody = requests[1]?.[1]?.body
+    const body = JSON.parse(typeof rawBody === 'string' ? rawBody : '{}') as Record<string, unknown>
+    expect(body.email === 'other@test.com').toBe(true)
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+  })
+
+  it.each(['expired', 'replayed', 'wrong-email', 'locked', 'transport'])('retains recovery without automatic retry for %s', async (failure) => {
+    const errors = { expired: 'Verification code expired or not found', replayed: 'Verification code expired or not found', 'wrong-email': 'Invalid verification code', locked: 'Too many attempts. Try again in 15 minutes' }
+    if (failure === 'transport') fetchMock.mockRejectedValue(new TypeError('Network disconnected'))
+    else wireAuthNetwork({ body: { error: errors[failure as keyof typeof errors] }, status: 400 })
+    mocks.search = link()
+    const { result, rerender } = renderHook(() => useLoginFlow())
+    await waitFor(() => expect(result.current.isSubmitting).toBe(false))
+    await act(async () => { await Promise.resolve() })
+    rerender()
+    expect(verificationCount()).toBe(1)
+    expect(result.current.step === 'code').toBe(true)
+    expect(result.current.codeDigits.join('').length).toBe(6)
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    expect(fetchMock.mock.calls.some(([url]) => toUrlString(url).includes('/send-code'))).toBe(false)
+    act(() => result.current.backToEmail())
+    expect(result.current.step).toBe('email')
+  })
+
+  it.each(['email', 'account', 'unmount'])('prevents a late real BFF response from publishing cookies after %s changes', async (change) => {
+    let release!: (response: Response) => void
+    const pending = new Promise<Response>((resolve) => { release = resolve })
+    fetchMock.mockImplementation((url, options) => {
+      if (toUrlString(url) === '/api/auth/verify-code') return verifyCodeRoute(new NextRequest('https://app.example.test/api/auth/verify-code', { ...options, signal: options?.signal ?? undefined }))
+      return pending
+    })
+    mocks.search = link()
+    const { result, unmount } = renderHook(() => useLoginFlow())
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => toUrlString(url).startsWith('http://localhost:5000'))).toBe(true))
+    act(() => {
+      if (change === 'email') result.current.setEmail('other@test.com')
+      else if (change === 'unmount') unmount()
+      else { advanceSessionEpoch(); for (const listener of mocks.authListeners) listener() }
+    })
+    await act(async () => { release(jsonResponse(loginResponse)); await Promise.resolve(); await Promise.resolve() })
+    expect(setSessionCookies).not.toHaveBeenCalled()
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('does not exchange a link over an existing signed-in account', async () => {
+    mocks.authenticated = true
+    mocks.search = link()
+    renderHook(() => useLoginFlow())
+    await act(async () => { await Promise.resolve() })
+    expect(verificationCount()).toBe(0)
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+  })
+
+  it.each(['email=user%40test.com', 'code=123456', 'email=user%40test.com&code=bad', 'email=user%40test.com&email=other%40test.com&code=123456', 'email=user%40test.com&code=123456&code=654321'])('rejects malformed link parameters without a request (%#)', async (query) => {
+    mocks.search = query
+    renderHook(() => useLoginFlow())
+    await act(async () => { await Promise.resolve() })
+    expect(verificationCount()).toBe(0)
+  })
 })
