@@ -227,6 +227,7 @@ export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   readPhraseLocally?: boolean
   onPhraseOwnershipChange?: (ownership: HabitPhraseFormOwnership) => void
   startDate?: string | null
+  parentField?: ChildNode
   children?: ChildNode | ((proposedItems: number) => ChildNode)
 }
 

@@ -75,7 +75,8 @@ describe('returning profile after other completion writes', () => {
   ] as const)('refreshes profile after %s', (_name, useWrite) => {
     mocks.queryClient.invalidateQueries.mockClear()
     const mutation = useWrite() as unknown as MutationConfig<unknown, unknown, unknown>
-    mutation.onSettled?.({}, null, {}, undefined)
+    const variables = _name === 'edit bad-habit flag' ? { habitId: 'habit-1', data: { title: 'Habit', isBadHabit: false } } : {}
+    mutation.onSettled?.({}, null, variables, undefined)
 
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
@@ -1436,6 +1437,14 @@ describe('mobile habit hooks', () => {
     expect(mocks.runQueuedMutation).toHaveBeenNthCalledWith(2, expect.objectContaining({
       mutation: expect.objectContaining({ payload: expect.objectContaining({ intervalWeeks: 2 }) }),
     }))
+  })
+
+  it('keeps an offline parent reference in one update with its existing dependency list', async () => {
+    const mutation = useUpdateHabit() as unknown as MutationConfig<unknown, { habitId: string; data: UpdateHabitRequest; dependsOn: string[] }, unknown>
+    const request = { title: 'Read', isBadHabit: false, parentId: 'offline-habit-parent', checklistItems: [{ text: 'Same', isChecked: true }, { text: 'Same', isChecked: false }], goalIds: [], tagIds: [] }
+    await mutation.mutationFn({ habitId: 'offline-habit-source', data: request, dependsOn: ['offline-habit-source'] })
+    expect(mocks.runQueuedMutation).toHaveBeenCalledOnce()
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ type: 'updateHabit', endpoint: API.habits.update('offline-habit-source'), method: 'PUT', payload: request, dependsOn: ['offline-habit-source', 'offline-habit-parent'] }) }))
   })
 
   it('rejects an overlong update description before queuing or sending', async () => {

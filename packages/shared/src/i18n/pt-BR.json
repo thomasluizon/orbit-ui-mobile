@@ -686,6 +686,7 @@
     },
     "frequencyLabel": "Frequência",
     "form": {
+      "parentHabit": "Hábito principal",
       "proRequired": "Isso faz parte do Orbit Pro.",
       "capacityTitle": "Limite de hábitos atingido",
       "capacityBody": "Você pode ter até {limit, number} hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.",

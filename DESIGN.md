@@ -529,6 +529,16 @@ end-date facts, and month history with its loading/error/navigation behavior. Th
 contextual Astra, explicit rescue proposal, sub-habit actions, navigation and delete retain their own
 owners. The paired surface and preservation ledger is in `design/habit-form-surfaces.md`.
 
+The complete editor places Parent habit / Hábito principal with tags and goals inside More details.
+Its ListRow opens the existing radio picker without an immediate-move action. Exact No parent
+(top level) / Sem hábito principal (nível raiz) remains an explicit local choice. Closing the
+picker retains that choice; outer Cancel discards it and the single outer Save owns persistence.
+Unknown parent reads never imply root. A complete current-account destination inventory includes
+eligible completed items, with existing validity reasons, loading and retry. The chosen parent and
+existing children constrain final General; selecting root removes only the former-parent constraint.
+The editor retains type-first composition, independent object-management boundaries and native
+queued wording. Uncertain Save retains the draft and verifies authoritative readback before retry.
+
 ### Surfaces that no longer exist
 
 Designing any of these is the defect, not the omission.

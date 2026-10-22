@@ -31,6 +31,8 @@ describe('expanded RadioRow personal text in Chromium', () => {
           import { createRoot } from 'react-dom/client';
           import { RadioGroup } from './components/ui/radio-row';
           import { RadioRow } from './components/ui/select-check';
+          import { EditorParentField } from './components/habits/editor-parent-field';
+          import portuguese from '../../packages/shared/src/i18n/pt-BR.json';
           import { ListRow } from './components/ui/list-row';
           import { CheckRow } from './components/ui/check-row';
           import { CalendarSyncEventRow } from './components/calendar-sync/calendar-sync-event-row';
@@ -48,6 +50,8 @@ describe('expanded RadioRow personal text in Chromium', () => {
           }
           function Subjects() {
             const [selected, select] = useState(0);
+            const [parentOpen, setParentOpen] = useState(false);
+            const [parentId, setParentId] = useState('destination-0');
             const label = document.getElementById('root').dataset.label;
             const composition = document.getElementById('root').dataset.composition;
             useLayoutEffect(() => {
@@ -58,6 +62,14 @@ describe('expanded RadioRow personal text in Chromium', () => {
                 root.dataset.firstFrameTabIndex = scroller?.getAttribute('tabindex') ?? 'missing';
               });
             }, []);
+            if (composition.startsWith('editorParent')) {
+              const locale = document.getElementById('root').dataset.locale || 'en';
+              const copy = locale === 'pt-BR' ? portuguese : messages;
+              const options = [{ id: null, label: copy.habits.moveParent.toRoot, emoji: null, depth: 0, childCount: 0, disabled: false, reason: null }, ...Array.from({ length: 10 }, (_, index) => ({ id: 'destination-' + index, label: label + ' ' + index, emoji: null, depth: 0, childCount: 0, disabled: false, reason: null }))];
+              const state = composition === 'editorParentLoading' ? 'loading' : composition === 'editorParentError' ? 'error' : undefined;
+              const parent = { open: parentOpen, selected: parentId, baseline: null, options: state ? [] : options, state, value: options.find(option => option.id === parentId)?.label || copy.habits.moveParent.toRoot, dirty: true, change: {}, lockedGeneral: null, show: () => setParentOpen(true), close: () => setParentOpen(false), select: setParentId, retry: async () => [], validate: () => null };
+              return <NextIntlClientProvider locale={locale} messages={copy} timeZone="UTC"><EditorParentField parent={parent} disabled={false} onRetryDetail={() => {}} /></NextIntlClientProvider>;
+            }
             if (composition === 'calendarEvent') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><CalendarEvent label={label} /></NextIntlClientProvider>;
             if (composition === 'calendarCheck') return <CheckRow placement="column" textMode="personal" label={label} checked={false} labelExpanded={selected === 1} labelControls="calendar-name" onOpenLabel={() => { select(selected === 0 ? 1 : 0); document.getElementById('commits').textContent += 'toggle'; }} onChange={() => {}} />;
             if (composition === 'expandedStack') return <ListRow title={label} description={label} textMode="personal" personalExpanded onClick={() => {}} accessibilityLabel={label} />;
@@ -96,17 +108,60 @@ describe('expanded RadioRow personal text in Chromium', () => {
   }, 30_000)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  async function mount(label: string, mode: 'light' | 'dark' = 'light', composition = 'radio') {
+  async function mount(label: string, mode: 'light' | 'dark' = 'light', composition = 'radio', locale: 'en' | 'pt-BR' = 'en') {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 }, reducedMotion: 'reduce' })
     const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
     await page.setContent(`<!doctype html><html lang="en" class="${mode}"><head><title>Subjects</title><style>${stylesheet}\n:root{${variables}}</style></head><body><main><div id="root"></div><output id="commits"></output></main></body></html>`)
     await page.locator('#root').evaluate((root, text) => { (root as HTMLElement).dataset.label = text }, label)
     await page.locator('#root').evaluate((root, kind) => { (root as HTMLElement).dataset.composition = kind }, composition)
+    await page.locator('#root').evaluate((root, language) => { (root as HTMLElement).dataset.locale = language }, locale)
     await page.addScriptTag({ content: componentScript })
-    await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit', 'calendarEvent'].includes(composition) }).waitFor({ timeout: 2_000 })
+    await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit', 'calendarEvent'].includes(composition) && !composition.startsWith('editorParent') }).waitFor({ timeout: 2_000 })
     await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
     return page
   }
+
+  it.each([
+    { width: 320, locale: 'pt-BR', mode: 'dark', size: 16 },
+    { width: 320, locale: 'en', mode: 'light', size: 32 },
+    { width: 412, locale: 'en', mode: 'dark', size: 16 },
+    { width: 412, locale: 'pt-BR', mode: 'light', size: 32 },
+    { width: 1280, locale: 'pt-BR', mode: 'light', size: 16 },
+    { width: 1280, locale: 'en', mode: 'dark', size: 32 },
+  ] as const)('contains the editor parent field and picker at $width $locale $mode $size', async ({ width, locale, mode, size }) => {
+    const label = 'A complete destination name with enough words to fill several lines';
+    const page = await mount(label, mode, 'editorParent', locale)
+    try {
+      await page.setViewportSize({ width, height: 640 })
+      await page.addStyleTag({ content: `:root { font-size: ${size}px; } #root { max-width: 740px; margin-inline: auto; padding: 16px; }` })
+      await loadAppFonts(page)
+      const control = page.getByRole('button', { name: label, exact: false })
+      const field = await control.boundingBox()
+      expect(field!.height).toBeGreaterThanOrEqual(48)
+      await control.focus()
+      await control.press('Enter')
+      const copy = locale === 'en' ? (await import('@orbit/shared/i18n/en.json')).default : (await import('@orbit/shared/i18n/pt-BR.json')).default
+      const dialog = page.getByRole('dialog', { name: copy.habits.form.parentHabit, exact: true })
+      await dialog.waitFor()
+      const radios = dialog.getByRole('radio')
+      expect(await radios.count()).toBe(11)
+      expect(await dialog.locator('[data-slot="sheet-actions"]').count()).toBe(0)
+      const dimensions = await radios.evaluateAll((rows) => rows.map((row) => ({ width: row.getBoundingClientRect().width, height: row.getBoundingClientRect().height, left: row.getBoundingClientRect().left, right: row.getBoundingClientRect().right })))
+      for (const dimension of dimensions) {
+        expect(dimension.height).toBeGreaterThanOrEqual(48)
+        expect(dimension.left).toBeGreaterThanOrEqual(0)
+        expect(dimension.right).toBeLessThanOrEqual(width)
+      }
+      const first = radios.nth(1)
+      await first.focus()
+      await first.press('End')
+      expect(await radios.last().evaluate((row) => row === document.activeElement)).toBe(true)
+      expect(await page.locator('#commits').textContent()).toBe('')
+      await dialog.getByRole('button', { name: copy.common.close, exact: true }).click()
+      await expect.poll(() => dialog.count()).toBe(0)
+      expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
+    } finally { await page.close() }
+  })
 
   it.each(['expandedStack', 'plainStack', 'collapsedStack'])('uses readable leading for two-line $composition text at doubled text size', async (composition) => {
     const page = await mount('Pessoa com nome completo', 'light', composition)

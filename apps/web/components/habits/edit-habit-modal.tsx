@@ -8,6 +8,8 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
 import { HabitFormFields } from './habit-form-fields'
+import { EditorParentField } from './editor-parent-field'
+import { useEditorParent } from '@/hooks/use-editor-parent'
 import {
   applySuggestionChecklist,
   applySuggestionSchedule,
@@ -161,7 +163,7 @@ function EditHabitDraft({
   const watchedTitle = coalesceFormText(formHelpers.form.watch('title'))
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
-  const isDirty = hasEditHabitChanges(
+  const fieldsDirty = hasEditHabitChanges(
     formHelpers.form.formState.isDirty,
     tags.selectedTagIds,
     selectedGoalIds,
@@ -170,12 +172,6 @@ function EditHabitDraft({
     initialGoalIds,
     initialReminderTimes,
   )
-  const { sheetRef, closeSheet } = useSheetHost()
-  const dismissGuard = useDismissGuard({
-    isDirty: isDirty || uncertain,
-    onDismiss: () => closeSheet(() => onOpenChange(false)),
-  })
-
   const {
     data: habitDetail,
     isPending: detailPending,
@@ -183,8 +179,14 @@ function EditHabitDraft({
     refetch: refetchDetail,
   } = useHabitDetail(open && habit ? habit.id : null)
   const detailFieldsPending = open && !!habit && detailPending
-  const childrenIsGeneral = habitDetail?.children[0]?.isGeneral ?? null
-  const resolvedLockedGeneral = childrenIsGeneral ?? lockedGeneral ?? null
+  const parent = useEditorParent(habit, habitDetail, formHelpers.isGeneral, lockedGeneral, translate)
+
+  const { sheetRef, closeSheet } = useSheetHost()
+  const dismissGuard = useDismissGuard({
+    isDirty: fieldsDirty || parent.dirty || uncertain,
+    onDismiss: () => closeSheet(() => onOpenChange(false)),
+  })
+
 
   const toggleGoal = useCallback((goalId: string) => {
     relationshipFieldsTouchedRef.current.goalIds = true
@@ -325,6 +327,8 @@ function EditHabitDraft({
       return null
     }
     const data = habitFormSchema.parse(formHelpers.form.getValues())
+    const parentError = parent.validate(data.isGeneral)
+    if (parentError) { setSaveError(parentError); return null }
     if (data.reminderEnabled) requestReminderPermission()
 
     const request = buildUpdateHabitRequest(
@@ -342,7 +346,15 @@ function EditHabitDraft({
     if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
 
     if (relationshipFieldsHydratedRef.current || tagIdsChanged) request.tagIds = [...tags.selectedTagIds]
-    return request
+    return { ...request, ...parent.change }
+  }
+
+  async function verifyUncertainSave(isCurrent: () => boolean) {
+    if (!uncertain) return true
+    const readback = await refetchDetail()
+    if (!isCurrent() || !readback.isSuccess || readback.data.parentId === undefined) return false
+    setUncertain(false)
+    return true
   }
 
   async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
@@ -352,6 +364,7 @@ function EditHabitDraft({
     const generation = getAccountGeneration()
     const isCurrent = () => mountedRef.current && getAccountGeneration() === generation
     try {
+      if (!await verifyUncertainSave(isCurrent)) return
       const request = await prepareSave()
       if (!request || !isCurrent()) return
       suggestionRevision.advance()
@@ -527,7 +540,8 @@ function EditHabitDraft({
               emojiSuggestionError={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined}
               emojiSuggestionLimitReached={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && emojiFailure.atLimit}
               isSuggesting={suggestion.isPending}
-              lockedGeneral={resolvedLockedGeneral}
+              lockedGeneral={parent.lockedGeneral}
+              parentField={<EditorParentField parent={{ ...parent, select: (id) => { if (!submittingRef.current) parent.select(id) } }} disabled={saving || detailFieldsPending} onRetryDetail={() => void refetchDetail()} />}
               defaultExpanded
               startDate={habit && getHabitDisplayStartDate(habit)}
             />

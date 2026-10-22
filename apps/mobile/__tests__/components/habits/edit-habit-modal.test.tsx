@@ -44,6 +44,9 @@ vi.mock('react-hook-form', () => ({
   useWatch: (args: { name: string }) => useWatchMock(args),
 }))
 
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }))
+vi.mock('@/hooks/use-config', async () => { const { DEFAULT_CONFIG } = await import('@orbit/shared/types/config'); return { useConfig: () => ({ config: DEFAULT_CONFIG }) } })
+
 vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => ({
     mutateAsync: mockUpdateMutateAsync,

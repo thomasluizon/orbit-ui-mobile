@@ -138,6 +138,16 @@ describe('mobile offline queue', () => {
     replayMocks.persistRecovery.mockResolvedValue(undefined)
   })
 
+  it.each([{ parentId: '22222222-2222-4222-8222-222222222222' }, { clearParent: true }])('keeps parent changes after pending Create instead of merging incompatible fields: %s', (parentChange) => {
+    const source = 'offline-habit-source'
+    enqueueWithCompaction(makeMutation({ id: 'create-source', clientEntityId: source, payload: { title: 'Before' } }))
+    enqueueWithCompaction(makeMutation({ id: 'edit-source', type: 'updateHabit', method: 'PUT', endpoint: `/api/habits/${source}`, targetEntityId: source, dependsOn: [source], payload: { title: 'After', isBadHabit: false, ...parentChange } }))
+    expect(getAll().map((entry) => [entry.type, entry.payload])).toEqual([
+      ['createHabit', { title: 'Before' }], ['updateHabit', { title: 'After', isBadHabit: false, ...parentChange }],
+    ])
+    expect(getAll()[1]!.dependsOn).toEqual([source])
+  })
+
   it('preserves a retired persisted operation without assigning current metadata', () => {
     const retiredType = ['delete', 'User', 'Fact'].join('')
     database.prepare(`INSERT INTO mutation_queue
@@ -773,5 +783,22 @@ describe('mobile offline queue', () => {
     expect(habitDetailSchema.parse(reminderWire.HabitDetailResponse).relativeReminders).toEqual(payload.relativeReminders)
   })
 
+
+  it('resolves source, chosen parent and tag through the actual persisted queue before one Update', async () => {
+    const ids = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333']
+    const temporary = ['offline-habit-source', 'offline-habit-parent', 'offline-tag-selected']
+    for (const [index, clientEntityId] of temporary.entries()) {
+      const tag = index === 2
+      enqueueWithCompaction(makeMutation({ id: `create-${index}`, type: tag ? 'createTag' : 'createHabit', entityType: tag ? 'tag' : 'habit', scope: tag ? 'tags' : 'habits', endpoint: tag ? '/api/tags' : '/api/habits', clientEntityId, payload: { title: `Synthetic ${index}` } }))
+      replayMocks.apiClient.mockResolvedValueOnce({ id: ids[index] })
+    }
+    const payload = { title: 'Together', isBadHabit: false, parentId: temporary[1], tagIds: [temporary[2]], goalIds: [], checklistItems: [{ text: 'Same', isChecked: true }, { text: 'Same', isChecked: false }] }
+    enqueueWithCompaction(makeMutation({ id: 'one-update', type: 'updateHabit', endpoint: `/api/habits/${temporary[0]}`, method: 'PUT', targetEntityId: temporary[0], dependsOn: temporary, payload }))
+    expect(getAll()).toHaveLength(4)
+    replayMocks.apiClient.mockResolvedValueOnce(undefined)
+    await expect(flushQueuedMutations()).resolves.toMatchObject({ succeeded: 4, remaining: 0 })
+    expect(replayMocks.apiClient.mock.calls.map((call) => call[0])).toEqual(['/api/habits', '/api/habits', '/api/tags', `/api/habits/${ids[0]}`])
+    expect(replayMocks.apiClient.mock.calls[3]![1]).toMatchObject({ method: 'PUT', body: JSON.stringify({ ...payload, parentId: ids[1], tagIds: [ids[2]] }) })
+  })
 
 })

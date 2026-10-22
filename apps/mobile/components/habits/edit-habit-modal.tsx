@@ -10,6 +10,8 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
 import { HabitFormFields } from './habit-form-fields'
+import { EditorParentField } from './editor-parent-field'
+import { useEditorParent } from '@/hooks/use-editor-parent'
 import { HabitFormInteractionProvider } from './habit-form-fields/habit-form-interaction'
 import {
   applySuggestionChecklist,
@@ -184,7 +186,7 @@ function EditHabitDraft({
   }>({ habitId: null, detailId: null })
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
-  const isDirty = hasEditHabitChanges({
+  const fieldsDirty = hasEditHabitChanges({
     formDirty: formHelpers.form.formState.isDirty,
     selectedTagIds: tags.selectedTagIds,
     selectedGoalIds,
@@ -193,9 +195,18 @@ function EditHabitDraft({
     initialGoalIds,
     initialReminderTimes,
   })
+  const {
+    data: habitDetail,
+    isPending: detailPending,
+    error: detailError,
+    refetch: refetchDetail,
+  } = useHabitDetail(open && habit ? habit.id : null)
+  const detailFieldsPending = open && !!habit && detailPending
+  const parent = useEditorParent(habit, habitDetail, formHelpers.isGeneral, parentIsGeneral, translate)
+
   const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
-    isDirty: isDirty || uncertain,
+    isDirty: fieldsDirty || parent.dirty || uncertain,
     onDismiss: () => closeSheet(onClose),
   })
   const router = useRouter()
@@ -206,15 +217,6 @@ function EditHabitDraft({
     })
   }, [closeSheet, onClose, router])
 
-  const {
-    data: habitDetail,
-    isPending: detailPending,
-    error: detailError,
-    refetch: refetchDetail,
-  } = useHabitDetail(open && habit ? habit.id : null)
-  const detailFieldsPending = open && !!habit && detailPending
-  const childrenIsGeneral = habitDetail?.children[0]?.isGeneral ?? null
-  const lockedGeneral = childrenIsGeneral ?? parentIsGeneral ?? null
 
   const toggleGoal = useCallback((goalId: string) => {
     relationshipFieldsTouchedRef.current.goalIds = true
@@ -354,6 +356,8 @@ function EditHabitDraft({
       return null
     }
     const data = habitFormSchema.parse(formHelpers.form.getValues())
+    const parentError = parent.validate(data.isGeneral)
+    if (parentError) { setSaveError(parentError); return null }
 
     const request = buildUpdateHabitRequest(
       data,
@@ -370,7 +374,15 @@ function EditHabitDraft({
     if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
 
     if (relationshipFieldsHydratedRef.current || tagIdsChanged) request.tagIds = [...tags.selectedTagIds]
-    return request
+    return { ...request, ...parent.change }
+  }
+
+  async function verifyUncertainSave(isCurrent: () => boolean) {
+    if (!uncertain) return true
+    const readback = await refetchDetail()
+    if (!isCurrent() || !readback.isSuccess || readback.data.parentId === undefined) return false
+    setUncertain(false)
+    return true
   }
 
   async function handleSubmit() {
@@ -380,6 +392,7 @@ function EditHabitDraft({
     const isCurrent = () => mountedRef.current && getAccountGeneration() === generation
     try {
       flushBufferedInputsRef.current()
+      if (!await verifyUncertainSave(isCurrent)) return
       const request = await prepareSave()
       if (!request || !isCurrent()) return
       submittedDraftRevisionRef.current += 1
@@ -563,8 +576,9 @@ function EditHabitDraft({
               emojiSuggestionError={visibleFailure?.atLimit ? undefined : visibleFailure?.message}
               emojiSuggestionLimitReached={visibleFailure?.atLimit}
               isSuggesting={suggestion.isPending}
+              parentField={<EditorParentField parent={{ ...parent, select: (id) => { if (!submittingRef.current) parent.select(id) } }} disabled={saving || detailFieldsPending} onRetryDetail={() => void refetchDetail()} />}
               defaultExpanded={true}
-              lockedGeneral={lockedGeneral}
+              lockedGeneral={parent.lockedGeneral}
               onUpgrade={navigateToUpgrade}
               startDate={habit && getHabitDisplayStartDate(habit)}
             />

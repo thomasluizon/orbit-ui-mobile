@@ -302,7 +302,9 @@ function compactQueuedMutations(
       createMutation &&
       createMutation.status === 'pending' &&
       createMutation.retries === 0 &&
-      MERGE_INTO_CREATE_TYPES.has(incoming.type)
+      MERGE_INTO_CREATE_TYPES.has(incoming.type) &&
+      !(incoming.type === 'updateHabit' && incoming.payload && typeof incoming.payload === 'object' &&
+        ('parentId' in incoming.payload || 'clearParent' in incoming.payload))
     ) {
       next[createIndex] = {
         ...createMutation,

@@ -2133,7 +2133,8 @@ export const GetApiHabitsIdResponse = zod.object({
   "color": zod.string()
 })).nullish(),
   "scheduledStartDate": zod.iso.date().nullish(),
-  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseOriginalDayOfMonthRegExpTwo)]).nullish()
+  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseOriginalDayOfMonthRegExpTwo)]).nullish(),
+  "parentId": zod.uuid().nullish()
 })
 
 
@@ -2202,7 +2203,9 @@ export const PutApiHabitsIdBody = zod.object({
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "startDate": zod.iso.date().nullish(),
-  "tagIds": zod.array(zod.uuid()).nullish()
+  "tagIds": zod.array(zod.uuid()).nullish(),
+  "parentId": zod.uuid().nullish(),
+  "clearParent": zod.boolean().nullish()
 })
 
 export const PutApiHabitsIdResponse = zod.void()
@@ -2363,7 +2366,8 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "color": zod.string()
 })).nullish(),
   "scheduledStartDate": zod.iso.date().nullish(),
-  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitOriginalDayOfMonthRegExpTwo)]).nullish()
+  "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitOriginalDayOfMonthRegExpTwo)]).nullish(),
+  "parentId": zod.uuid().nullish()
 }),
   "metrics": zod.object({
   "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo)]),
