@@ -99,7 +99,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
-  useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+  useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -1766,12 +1766,17 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
-  it('keeps genuine save failures on the existing global error path', async () => {
+  it('retains failed saves with the owning create error or edit uncertainty', async () => {
     mutation().mockRejectedValueOnce(new Error('save failed'))
     await mount('task')
     await submit()
-    expect(modalFeedback.showError).toHaveBeenCalledOnce()
-    expect(modalFeedback.showError).toHaveBeenCalledWith(owner === 'create' ? 'errors.createHabit' : 'errors.updateHabit')
+    if (owner === 'create') {
+      expect(modalFeedback.showError).toHaveBeenCalledOnce()
+      expect(modalFeedback.showError).toHaveBeenCalledWith('errors.createHabit')
+    } else {
+      expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.saveUncertain')).toHaveLength(1)
+      expect(modalFeedback.showError).not.toHaveBeenCalled()
+    }
     expect(mutation()).toHaveBeenCalledOnce()
     expect(closed).not.toHaveBeenCalled()
     expect(input('habits.form.describe').props.value).toBe('Read')

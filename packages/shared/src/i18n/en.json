@@ -567,7 +567,8 @@
     "askAstra": "Ask Astra",
     "createManually": "Create manually",
     "createSubHabit": "Create Sub-Habit",
-    "editHabit": "Edit Habit",
+    "editHabit": "Edit habit",
+    "editTask": "Edit task",
     "deleteHabit": "Delete habit",
     "logHabit": "Log Habit",
     "saveChanges": "Save Changes",
@@ -941,7 +942,11 @@
       "selectedCount": "{count, plural, one {# selected} other {# selected}}",
       "moreSelected": "+{count} more",
       "availableCount": "{count} available",
-      "goalLimit": "Link up to 10 goals to this habit."
+      "goalLimit": "Link up to 10 goals to this habit.",
+      "saveUncertain": "Could not confirm your changes. Try again.",
+      "waitingToSync": "Waiting to sync.",
+      "unsavedHabit": "Your changes to this habit have not been saved.",
+      "unsavedTask": "Your changes to this task have not been saved."
     },
     "errors": {
       "alreadyLogged": "This habit was already logged for that date",

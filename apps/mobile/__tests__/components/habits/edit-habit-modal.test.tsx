@@ -49,7 +49,7 @@ vi.mock('@/hooks/use-habits', () => ({
     mutateAsync: mockUpdateMutateAsync,
     isPending: false,
   }),
-  useHabitDetail: () => mockHabitDetailResult,
+  useHabitDetail: () => ({ ...mockHabitDetailResult, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 
 vi.mock('@/hooks/use-tags', () => ({
@@ -117,6 +117,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     toggleDay: vi.fn(),
     validateAll: mockValidateAll,
     clearBackendErrors: vi.fn(),
+    reportBackendErrors: vi.fn().mockReturnValue(false),
   }),
 }))
 
@@ -146,10 +147,10 @@ vi.mock('@/lib/habit-request-builders', () => ({
 }))
 
 function findSaveButton(tree: {
-  root: { findAllByType: (type: string) => any[] }
+  root: { findAll: (predicate: (node: any) => boolean) => any[] }
 }) {
   return tree.root
-    .findAllByType('PillButton')
+    .findAll((node: any) => node.type === 'PillButton')
     .find((node: any) => node.props.children === 'common.save')
 }
 
@@ -270,6 +271,13 @@ describe('EditHabitModal (mobile)', () => {
     await TestRenderer.act(() => tree.update(<></>))
   })
 
+  it('saves tags in the single ordinary update', async () => {
+    const tree = await renderModal()
+    await TestRenderer.act(async () => { await findSaveButton(tree)?.props.onClick() })
+    expect(mockUpdateMutateAsync.mock.calls[0]![0].data.tagIds).toEqual([])
+    expect(mockAssignTagsMutateAsync).not.toHaveBeenCalled()
+  })
+
   it('sends the goal list from the explicit goal action', async () => {
     const tree = await renderModal()
 
@@ -282,7 +290,7 @@ describe('EditHabitModal (mobile)', () => {
 
     expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
       habitId: 'h-1',
-      data: { goalIds: ['goal-1'] },
+      data: { goalIds: ['goal-1'], tagIds: [] },
     })
   })
 
@@ -339,7 +347,7 @@ describe('EditHabitModal (mobile)', () => {
 
     expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
       habitId: 'h-1',
-      data: { goalIds: ['goal-1', 'goal-2'] },
+      data: { goalIds: ['goal-1', 'goal-2'], tagIds: [] },
     })
   })
 
@@ -623,4 +631,22 @@ describe('EditHabitModal (mobile)', () => {
     })
     expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
   })
+
+it('ignores the result of a Save after its habit draft has been replaced', async () => {
+  let finish!: () => void
+  mockUpdateMutateAsync.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+  const onSaved = vi.fn()
+  const onClose = vi.fn()
+  const first = createMockHabit({ id: 'first', frequencyUnit: 'Day' })
+  let tree!: import('react-test-renderer').ReactTestRenderer
+  await TestRenderer.act(() => { tree = TestRenderer.create(<EditHabitModal open habit={first} onClose={onClose} onSaved={onSaved} />) })
+  await TestRenderer.act(async () => { findSaveButton(tree)?.props.onClick(); await Promise.resolve() })
+  expect(finish).toBeDefined()
+  await TestRenderer.act(() => tree.update(<EditHabitModal open habit={{ ...first, id: 'second' }} onClose={onClose} onSaved={onSaved} />))
+  await TestRenderer.act(() => { finish() })
+  expect(onClose).not.toHaveBeenCalled()
+  expect(onSaved).not.toHaveBeenCalled()
+  await TestRenderer.act(() => tree.update(<></>))
+})
+
 })

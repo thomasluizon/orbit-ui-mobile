@@ -5,7 +5,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { afterAll, beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -73,10 +73,16 @@ beforeEach(() => {
 
 afterEach(() => { cleanup(); vi.mocked(StatTile).mockClear() })
 
+function renderDetail() {
+  const view = render(<HabitDetailScreen habitId="habit-1" />)
+  fireEvent.click(view.getByRole('button', { name: translate('habits.detail.moreDetails') }))
+  return { ...view, rerenderDetail: () => view.rerender(<HabitDetailScreen habitId="habit-1" />) }
+}
+
 describe('habit detail stat card', () => {
   it.each(['en', 'pt-BR'])('renders three label and value rows in one card in %s', (language) => {
     mocks.language = language
-    const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+    const { container } = renderDetail()
     const cards = container.querySelectorAll('[data-habit-detail-content] [data-habit-detail-stat-card]')
     expect(cards).toHaveLength(1)
     const rows = cards[0]!.querySelectorAll('[data-habit-detail-stat-row]')
@@ -92,7 +98,7 @@ describe('habit detail stat card', () => {
   it('uses Sem deslize for an avoid habit in Portuguese', () => {
     mocks.language = 'pt-BR'
     mocks.detail = { ...makeHabitDetail(), isBadHabit: true, children: [] }
-    const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+    const { container } = renderDetail()
     const card = container.querySelector('[data-habit-detail-stat-card]')!
     expect(card).not.toBeNull()
     expect(within(card as HTMLElement).getByText('Sem deslize')).toBeInTheDocument()
@@ -102,7 +108,7 @@ describe('habit detail stat card', () => {
   it('keeps the same three rows while loading and marks the card busy', () => {
     mocks.loading = true
     mocks.metrics = undefined
-    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const view = renderDetail()
     const card = view.container.querySelector('[data-habit-detail-stat-card]')!
     expect(card).not.toBeNull()
     expect(card).toHaveAttribute('aria-busy', 'true')
@@ -112,7 +118,7 @@ describe('habit detail stat card', () => {
     expect(StatTile).not.toHaveBeenCalled()
     mocks.loading = false
     mocks.metrics = habitMetricsSchema.parse({ currentStreak: 2, longestStreak: 4, weeklyCompletionRate: 80, monthlyCompletionRate: 75, totalCompletions: 2, lastCompletedDate: null })
-    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    view.rerenderDetail()
     expect(view.container.querySelector('[data-habit-detail-stat-card]')).toBe(card)
     expect(card).not.toHaveAttribute('aria-busy', 'true')
     expect(card.querySelectorAll('[data-habit-detail-stat-row]')).toHaveLength(3)
@@ -122,7 +128,7 @@ describe('habit detail stat card', () => {
     if (state === 'missing') mocks.metrics = undefined
     if (state === 'empty') mocks.metrics = { ...mocks.metrics!, totalCompletions: 0 }
     mocks.error = state === 'error'
-    const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+    const { container } = renderDetail()
     expect(screen.getAllByText(en.habits.detail.noDataYet)).toHaveLength(1)
     expect(container.querySelector('[data-habit-detail-stat-card]')).toBeNull()
     expect(StatTile).not.toHaveBeenCalled()
@@ -146,7 +152,7 @@ describe('habit detail stat card geometry', () => {
   it.each([320, 412, 1280].flatMap((width) => [1, 2].flatMap((fontScale) => ['en', 'pt-BR'].flatMap((language) => [false, true].map((isBadHabit) => ({ width, fontScale, language, isBadHabit }))))))('keeps the card and value slots stable at $width and text scale $fontScale in $language with avoid $isBadHabit', async ({ width, fontScale, language, isBadHabit }) => {
     mocks.language = language
     mocks.detail = { ...makeHabitDetail(), isBadHabit, children: [] }
-    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const view = renderDetail()
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       const scaledStyles = fontScale === 2 ? '[data-habit-detail-stat-label] { font-size: 28px; line-height: 40px; } [data-habit-detail-stat-value] { font-size: 44px; line-height: 1.3; } [data-habit-detail-stat-value] > span { font-size: 28px; } [data-habit-detail-stat-label] + span { font-size: 44px; } [data-habit-detail-stat-label] + span > [aria-hidden] { font-size: 28px; }' : ''
@@ -186,7 +192,7 @@ describe('habit detail stat card geometry', () => {
       if (width === 320 && fontScale === 2) expect(geometry.rows.some((row) => row.labelHeight > row.labelLineHeight || row.valueBelowLabel)).toBe(true)
       const loadedHeight = await card.evaluate((element) => element.getBoundingClientRect().height)
       mocks.loading = true
-      view.rerender(<HabitDetailScreen habitId="habit-1" />)
+      view.rerenderDetail()
       await page.setContent(`<style>${stylesheet}${scaledStyles}</style>${view.container.querySelector('[data-habit-detail-content]')!.outerHTML}`)
       await page.evaluate(() => document.fonts.ready)
       expect(await card.getAttribute('aria-busy')).toBe('true')

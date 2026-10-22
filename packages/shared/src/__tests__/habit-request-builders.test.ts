@@ -33,6 +33,11 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
 }
 
 describe('habit-request-builders', () => {
+  it('explicitly clears a removed description on full Save', () => {
+    const request = buildUpdateHabitRequest(makeFormData({ description: '' }), true, '', [], [])
+    expect(request.description).toBe('')
+  })
+
   it('sends an empty checklist after removing every item in edit mode', () => {
     const habit = createMockHabit({
       checklistItems: [{ text: 'Pick a book', isChecked: false }],
@@ -360,6 +365,7 @@ describe('habit-request-builders', () => {
     )
 
     expect(timedRequest).toEqual({
+      description: '',
       title: 'Read',
       isBadHabit: false,
       isGeneral: false,
@@ -388,6 +394,7 @@ describe('habit-request-builders', () => {
     )
 
     expect(disabledReminderRequest).toEqual({
+      description: '',
       title: 'Read',
       isBadHabit: false,
       isGeneral: false,
@@ -418,6 +425,7 @@ describe('habit-request-builders', () => {
 
     expect(request).toEqual({
       title: 'Read',
+      description: '',
       isBadHabit: false,
       isGeneral: false,
       isFlexible: false,
