@@ -24,6 +24,39 @@ vi.mock('@/hooks/use-habits', () => ({
 beforeEach(() => vi.resetModules())
 afterEach(cleanup)
 
+function commitSetupAnnouncement(showNotice: () => void) {
+  const scheduleTimeout = globalThis.setTimeout.bind(globalThis)
+  const cancelTimeout = globalThis.clearTimeout.bind(globalThis)
+  const pending = new Map<Parameters<typeof clearTimeout>[0], () => void>()
+  const scheduleSpy = vi.spyOn(window, 'setTimeout').mockImplementation((callback, delay, ...args) => {
+    if (delay !== 0 || typeof callback !== 'function') return scheduleTimeout(callback, delay, ...args)
+    const dispatch = () => {
+      if (pending.delete(timer)) callback.apply(window, args)
+    }
+    const timer = scheduleTimeout(dispatch, delay)
+    pending.set(timer, dispatch)
+    return timer
+  })
+  const cancelSpy = vi.spyOn(window, 'clearTimeout').mockImplementation((timer) => {
+    if (timer !== undefined) pending.delete(timer)
+    cancelTimeout(timer)
+  })
+  try {
+    act(showNotice)
+    expect(pending.size).toBe(1)
+    act(() => {
+      for (const [timer, dispatch] of pending) {
+        cancelTimeout(timer)
+        dispatch()
+      }
+    })
+  } finally {
+    for (const timer of pending.keys()) cancelTimeout(timer)
+    cancelSpy.mockRestore()
+    scheduleSpy.mockRestore()
+  }
+}
+
 async function openSheetOverPendingPalette() {
   let releaseMenu = () => {}
   let markMenuReady = () => {}
@@ -62,7 +95,7 @@ async function openSheetOverPendingPalette() {
   const sheet = await screen.findByRole('dialog', { name: 'Options' })
   await waitFor(() => expect(sheet).toContainElement(document.activeElement as HTMLElement))
   await user.click(within(sheet).getByRole('textbox', { name: 'Sheet field' }))
-  act(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
+  commitSetupAnnouncement(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
   await waitFor(() => expect(sheet.querySelector('[data-kind="neutral"][role="status"]')).toHaveTextContent('Still here'))
   return {
     user, sheet, useShellStore, useUIStore,

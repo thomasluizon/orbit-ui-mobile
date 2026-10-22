@@ -65,7 +65,7 @@ vi.mock('@/hooks/use-habits', () => ({
     isPending: false,
     error: null,
   }),
-  useHabitDetail: () => mockHabitDetailResult,
+  useHabitDetail: () => ({ ...mockHabitDetailResult, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 
 vi.mock('@/hooks/use-habit-form', () => ({
@@ -107,6 +107,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     formatEndTimeInput: vi.fn((v: string) => v),
     validateAll: mockValidateAll,
     clearBackendErrors: vi.fn(),
+    reportBackendErrors: vi.fn().mockReturnValue(false),
   }),
 }))
 
@@ -328,6 +329,8 @@ describe('EditHabitModal', () => {
 
     await waitFor(() => {
       expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1)
+      expect(mockUpdateMutateAsync.mock.calls[0]![0].data.tagIds).toEqual([])
+      expect(mockAssignTagsMutateAsync).not.toHaveBeenCalled()
     })
   })
 
@@ -342,7 +345,7 @@ describe('EditHabitModal', () => {
     await waitFor(() => {
       expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
         habitId: 'h-1',
-        data: { goalIds: ['goal-1'] },
+        data: { goalIds: ['goal-1'], tagIds: [] },
       })
     })
   })
@@ -406,7 +409,7 @@ describe('EditHabitModal', () => {
     await waitFor(() => {
       expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
         habitId: 'h-1',
-        data: { goalIds: ['goal-1', 'goal-2'] },
+        data: { goalIds: ['goal-1', 'goal-2'], tagIds: [] },
       })
     })
   })
@@ -823,4 +826,21 @@ describe('EditHabitModal', () => {
     })
     expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
   })
+
+it('ignores the result of a Save after its habit draft has been replaced', async () => {
+  let finish!: () => void
+  mockUpdateMutateAsync.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+  const onSaved = vi.fn()
+  const onOpenChange = vi.fn()
+  const client = new QueryClient()
+  const first = createMockHabit({ id: 'first', frequencyUnit: 'Day' })
+  const view = render(<QueryClientProvider client={client}><EditHabitModal open habit={first} onOpenChange={onOpenChange} onSaved={onSaved} /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+  await waitFor(() => expect(finish).toBeDefined())
+  view.rerender(<QueryClientProvider client={client}><EditHabitModal open habit={{ ...first, id: 'second' }} onOpenChange={onOpenChange} onSaved={onSaved} /></QueryClientProvider>)
+  await act(async () => { finish() })
+  expect(onOpenChange).not.toHaveBeenCalled()
+  expect(onSaved).not.toHaveBeenCalled()
+})
+
 })

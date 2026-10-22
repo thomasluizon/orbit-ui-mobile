@@ -2,9 +2,12 @@ import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/auth/verify-code/route'
-import { setSessionCookies } from '@/lib/auth-api'
+import { resolveSessionTokens, setSessionCookies } from '@/lib/auth-api'
 
 vi.mock('@/lib/auth-api', () => ({
+  AUTH_COOKIE: 'auth_token',
+  REFRESH_COOKIE: 'refresh_token',
+  resolveSessionTokens: vi.fn(),
   setSessionCookies: vi.fn(),
 }))
 
@@ -21,12 +24,13 @@ function makeRequest(body: unknown) {
 
 const validBody = { email: 'alex@example.com', code: '123456', language: 'en' }
 
-describe('verify-code BFF route', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-    vi.mocked(setSessionCookies).mockReset()
-  })
+beforeEach(() => {
+  mockFetch.mockReset()
+  vi.mocked(setSessionCookies).mockReset()
+  vi.mocked(resolveSessionTokens).mockReset()
+})
 
+describe('verify-code BFF route', () => {
   it('sets httpOnly session cookies and returns the user without the token', async () => {
     const protectedBody = { ...validBody, turnstileToken: 'verify-token' }
     mockFetch.mockResolvedValue(
@@ -50,7 +54,7 @@ describe('verify-code BFF route', () => {
       'http://localhost:5000/api/auth/verify-code',
       expect.objectContaining({ body: JSON.stringify(protectedBody) }),
     )
-    expect(vi.mocked(setSessionCookies)).toHaveBeenCalledWith('jwt-token', 'refresh-token')
+    expect(vi.mocked(setSessionCookies)).toHaveBeenCalledWith('jwt-token', 'refresh-token', expect.any(Object))
     expect(json).toMatchObject({ userId: 'user-1', name: 'Alex', email: 'alex@example.com' })
     expect(json).not.toHaveProperty('token')
     expect(json).not.toHaveProperty('refreshToken')
@@ -119,3 +123,27 @@ describe('signed-out validation language', () => {
 })
 
 afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))
+
+it('preserves an existing cookie account before consuming an incoming code', async () => {
+  vi.mocked(resolveSessionTokens).mockResolvedValue({ token: 'existing-token', expiresAt: 123, refreshed: false, refreshFailed: false })
+  const request = makeRequest(validBody)
+  request.cookies.set('auth_token', 'existing-token')
+  const response = await POST(request)
+  expect(response.status).toBe(409)
+  expect(mockFetch).not.toHaveBeenCalled()
+  expect(setSessionCookies).not.toHaveBeenCalled()
+})
+
+it('discards response cookies if cancellation arrives during cookie preparation', async () => {
+  mockFetch.mockResolvedValue(Response.json({ token: 'test-token', refreshToken: null, userId: 'user-id', name: 'Person', email: 'alex@example.com', wasReactivated: false }))
+  const controller = new AbortController()
+  vi.mocked(setSessionCookies).mockImplementation(async (_token, _refreshToken, target) => {
+    if (!target) throw new Error('Expected response-owned cookie target')
+    target.set('auth_token', 'prepared-test-session', { httpOnly: true, sameSite: 'strict', secure: true, path: '/', maxAge: 300 })
+    controller.abort()
+  })
+  const request = new NextRequest('https://app.example.test/api/auth/verify-code', { method: 'POST', body: JSON.stringify(validBody), signal: controller.signal })
+  const response = await POST(request)
+  expect(response.status).toBe(409)
+  expect(response.headers.has('set-cookie')).toBe(false)
+})

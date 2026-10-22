@@ -225,6 +225,11 @@ function assertDatePager(nodes: Map<Host, YogaNode>, width: number, fontScale: n
 
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
 
+function habitTextEdge(label: string) {
+  if (label.startsWith('Grandchild')) return 116
+  return label.startsWith('Child') ? 100 : 84
+}
+
 describe('Hoje leading edges on Android', () => {
   it.each([320, 384, 600].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].map((selectMode) => ({ width, fontScale, selectMode })))))(
     'shares edges per depth at $width dp and $fontScale text scale, selecting=$selectMode', ({ width, fontScale, selectMode }) => {
@@ -236,9 +241,11 @@ describe('Hoje leading edges on Android', () => {
         renderer = create(<View style={{ paddingHorizontal: 16 }}>
           <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
           <TodayDateControl {...dateProps} />
-          {(['Leaf', 'Parent', 'Child', 'Child parent'] as const).map((title) => <HabitRow key={title} habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })}
-            structuralColumn isSelectMode={selectMode} depth={title.startsWith('Child') ? 1 : 0} hasChildren={title === 'Parent' || title === 'Child parent'}
-            childrenTotal={title === 'Parent' || title === 'Child parent' ? 2 : 0} actions={{ onToggleExpand: noop, onToggleSelection, onDetail, onEdit: noop }} />)}
+          {[{ title: 'Leaf', depth: 0, parent: false }, { title: 'Parent', depth: 0, parent: true },
+            { title: 'Child', depth: 1, parent: false }, { title: 'Child parent', depth: 1, parent: true },
+            { title: 'Grandchild', depth: 2, parent: false }, { title: 'Grandchild parent', depth: 2, parent: true }].map(({ title, depth, parent }) => <HabitRow key={title} habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })}
+            structuralColumn isSelectMode={selectMode} depth={depth} hasChildren={parent}
+            childrenTotal={parent ? 2 : 0} actions={{ onToggleExpand: noop, onToggleSelection, onDetail, onEdit: noop }} />)}
         </View>) as typeof renderer
       })
       const hosts = renderer!.toJSON()
@@ -248,14 +255,14 @@ describe('Hoje leading edges on Android', () => {
         layout.setWidth(width)
         layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
         const textEdges = [...nodes].filter(([element]) => element.type === 'Text' && StyleSheet.flatten(element.props.style as StyleProp<TextStyle>).opacity !== 0 &&
-          ['Sua rotina mudou. Vamos conversar?', 'Leaf', 'Parent', 'Child', 'Child parent'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
-        expect(textEdges).toHaveLength(5)
+          ['Sua rotina mudou. Vamos conversar?', 'Leaf', 'Parent', 'Child', 'Child parent', 'Grandchild', 'Grandchild parent'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
+        expect(textEdges).toHaveLength(7)
         assertDatePager(nodes, width, fontScale)
         const rows = [...nodes].filter(([element]) => element.props.testID === 'habit-row')
-        expect(rows).toHaveLength(4)
+        expect(rows).toHaveLength(6)
         for (const [rowHost] of rows) assertPaddedBody(nodes, rowHost)
         for (const [element, node] of textEdges) {
-          const expectedEdge = textContent(element).startsWith('Child') ? 100 : 84
+          const expectedEdge = habitTextEdge(textContent(element))
           expect(Math.abs(leadingPosition(node) - expectedEdge)).toBeLessThanOrEqual(1)
         }
         for (const [, node] of rows) {
@@ -264,7 +271,7 @@ describe('Hoje leading edges on Android', () => {
         }
         const progress = [...nodes].find(([element]) => element.type === 'Text' && textContent(element) === '0 de 2')!
         const progressEdges = [...nodes].filter(([element]) => element.type === 'Text' && textContent(element) === '0 de 2')
-        expect(progressEdges.map(([, node]) => leadingPosition(node))).toEqual([84, 100])
+        expect(progressEdges.map(([, node]) => leadingPosition(node))).toEqual([84, 100, 116])
         expect(progress, JSON.stringify([...nodes].filter(([element]) => element.type === 'Text').map(([element]) => textContent(element)))).toBeDefined()
         const [progressHost, progressNode] = progress
         const measuredProgress = measureText(progressHost, StyleSheet.flatten(progressHost.props.style as StyleProp<TextStyle>), fontScale)

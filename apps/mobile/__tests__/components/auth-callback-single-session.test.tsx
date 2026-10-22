@@ -46,7 +46,10 @@ vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: mocks.completeG
 vi.mock('@/stores/auth-store', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/stores/auth-store')>(),
   getSessionGeneration: mocks.getSessionGeneration,
-  useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) => selector({ login: mocks.login }),
+  useAuthStore: Object.assign((selector: (state: { login: typeof mocks.login; isLoading: boolean }) => unknown) => selector({ login: mocks.login, isLoading: false }), {
+    getState: () => ({ isAuthenticated: false, isLoading: false }),
+    subscribe: () => () => {},
+  }),
 }))
 vi.mock('@/lib/auth-flow', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/auth-flow')>(),

@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { habitMetricsSchema, type HabitDetail, type HabitMetrics } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
+import { ListRow } from '@/components/ui/list-row'
 import { StatTile } from '@/components/ui/stat-tile'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 
@@ -15,6 +16,7 @@ const TestRenderer = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 type RenderedTree = ReactTestRenderer & { toJSON(): ReactTestRendererJSON | ReactTestRendererJSON[] | null; unmount(): void }
 let tree: RenderedTree
+vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: () => null }))
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn().mockResolvedValue('') }))
 vi.mock('react-i18next', async (original) => ({
   ...(await original<typeof import('react-i18next')>()),
@@ -82,6 +84,7 @@ afterEach(() => {
 
 function renderScreen() {
   TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+  TestRenderer.act(() => (tree.root.findAll((node) => node.type === ListRow && node.props.title === translate('habits.detail.moreDetails'))[0]!.props.onClick as () => void)())
   return tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'habit-detail-stat-card')
 }
 

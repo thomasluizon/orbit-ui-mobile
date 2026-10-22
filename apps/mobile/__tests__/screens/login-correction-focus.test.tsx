@@ -38,8 +38,6 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   getStoredReferralCode: vi.fn(),
   getStoredAuthReturnUrl: vi.fn(),
-  createAuthReturnUrlAttempt: vi.fn(),
-  isAuthReturnUrlAttemptCurrent: vi.fn(),
   consumeStoredAuthReturnUrl: vi.fn(),
   clearStoredAuthReturnUrl: vi.fn(),
   clearStoredReferralCode: vi.fn(),
@@ -61,7 +59,11 @@ vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('@/components/auth/turnstile-widget', () => ({ TurnstileWidget: () => null }))
 
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: { login: unknown }) => unknown) => selector({ login: mocks.login }),
+  useAuthStore: Object.assign((selector: (state: { login: unknown; isLoading: boolean }) => unknown) => selector({ login: mocks.login, isLoading: false }), {
+    getState: () => ({ isAuthenticated: false, isLoading: false }),
+    subscribe: () => () => {},
+  }),
+  getSessionGeneration: () => ({ epoch: 0, credentialVersion: 0 }),
 }))
 
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
@@ -79,8 +81,6 @@ vi.mock('@/lib/auth-flow', async (importOriginal) => ({
   clearStoredAuthReturnUrl: mocks.clearStoredAuthReturnUrl,
   consumeStoredAuthReturnUrl: mocks.consumeStoredAuthReturnUrl,
   getStoredAuthReturnUrl: mocks.getStoredAuthReturnUrl,
-  createAuthReturnUrlAttempt: mocks.createAuthReturnUrlAttempt,
-  isAuthReturnUrlAttemptCurrent: mocks.isAuthReturnUrlAttemptCurrent,
   getStoredReferralCode: mocks.getStoredReferralCode,
   isSafeReturnUrl: () => true,
   isValidReferralCode: () => false,

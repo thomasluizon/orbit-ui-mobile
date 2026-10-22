@@ -653,6 +653,7 @@ export function buildOptimisticHabitPatch(
     'linkedGoals',
     findCachedGoals(queryClient, data.goalIds),
   )
+  if (data.tagIds != null) patch.tags = findCachedTags(queryClient, data.tagIds)
   setHabitPatchField(patch, data, 'endDate', 'endDate', data.endDate ?? null)
   if (data.clearEndDate) patch.endDate = null
 

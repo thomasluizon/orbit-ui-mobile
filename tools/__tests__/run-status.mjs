@@ -12,6 +12,8 @@ const fixture = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-run-
 const sessionId = "status-session"
 const readyPull = () => {
   const pull = structuredClone(fixture.response.data.repository.pr1459)
+  // Controlled scenarios add the separately captured current-Ref shape to the legacy recording.
+  pull.baseRef = { name: pull.baseRefName, target: { __typename: "Commit", oid: pull.baseRefOid } }
   pull.mergeStateStatus = "CLEAN"
   pull.statusCheckRollup.contexts.nodes = pull.statusCheckRollup.contexts.nodes.map((check) => ({ ...check, status: "COMPLETED", conclusion: "SUCCESS" }))
   return pull
@@ -81,6 +83,23 @@ export const cases = async () => {
   T("run-status: production query matches the recorded producer's fields", statusQuery([1462, 1459]).includes('reviews(last: 100, author: "pullfrog[bot]")') && fixture.response.data.repository.pr1462.reviewThreads.nodes[0].comments.nodes[0].author.login === "pullfrog")
   T("run-status: scenario enum changes come from schema introspection", fixture.enums.MergeStateStatus.enumValues.some((entry) => entry.name === "BEHIND") && fixture.enums.PullRequestReviewState.enumValues.some((entry) => entry.name === "APPROVED"))
 
+  reset()
+  const cachedBase = pull.baseRef.target.oid
+  writeFileSync(row.deliveryPath, JSON.stringify({ checks: { prCount: { number },
+    pullRequestState: { baseBranch: pull.baseRefName, baseSha: cachedBase, headSha: pull.headRefOid },
+    ci: { pass: true, pending: [], failing: [], registrationFingerprint: "cached-complete-observation" } } }))
+  const cachedReceiptBytes = readFileSync(receiptPath, "utf8")
+  const cachedDeliveryBytes = readFileSync(row.deliveryPath, "utf8")
+  pull.baseRef.target.oid = "d".repeat(40)
+  setPull(pull)
+  report = await snapshot()
+  T("run-status: target-only base advancement invalidates complete cached receipts and delivery",
+    report.pullRequests[0].receipt === "RECEIPT_STALE" && report.pullRequests[0].base === pull.baseRef.target.oid &&
+    report.nextActions[0].type === "VERIFY_DELIVERY" && !report.nextActions.some((entry) => entry.type === "MERGE_CANDIDATE"), JSON.stringify(report))
+  T("run-status: a stale observation preserves old receipt and delivery bytes",
+    readFileSync(receiptPath, "utf8") === cachedReceiptBytes && readFileSync(row.deliveryPath, "utf8") === cachedDeliveryBytes)
+  rmSync(row.deliveryPath)
+
   reset(); pull.statusCheckRollup.contexts.nodes[0].status = "IN_PROGRESS"; pull.statusCheckRollup.contexts.nodes[0].conclusion = null; setPull(pull)
   report = await snapshot()
   T("run-status: all pending work re-arms CI", report.nextActions[0].type === "REARM_WAIT_CI" && report.nextActions[0].command.includes("wait-ci.mjs"))
@@ -117,10 +136,23 @@ export const cases = async () => {
   reset(); pull.isDraft = true; setPull(pull)
   T("run-status: drafts cannot become merge candidates", !(await snapshot()).nextActions.some((entry) => entry.type === "MERGE_CANDIDATE"))
 
+  for (const ref of [undefined, null, { name: "main", target: null }, { name: "main", target: { __typename: "Tag", oid: "d".repeat(40) } }]) {
+    reset(); pull.baseRef = ref; setPull(pull)
+    report = await snapshot()
+    T("run-status: an unconfirmed OPEN base Ref is unreadable without a merge action",
+      report.pullRequests[0].status === "UNREADABLE" && !report.nextActions.some((entry) => entry.type === "MERGE_CANDIDATE"))
+  }
+  T("run-status: the batched query selects the current base Ref target",
+    /baseRef\s*\{\s*name\s+target\s*\{\s*__typename\s+oid\s*\}/.test(statusQuery([number])))
+
   for (const state of ["CLOSED", "MERGED"]) {
     reset(); pull.state = state; setPull(pull)
     report = await snapshot()
     T(`run-status: ${state.toLowerCase()} outside the run is observed without PR actions`, report.pullRequests[0].status === state && report.nextActions[0].type === "NO_ACTION")
+    pull.baseRef = null; setPull(pull)
+    report = await snapshot()
+    T(`run-status: ${state.toLowerCase()} with a deleted base Ref reports an unavailable current base without actions`,
+      report.pullRequests[0].status === state && report.pullRequests[0].base === null && report.nextActions[0].type === "NO_ACTION")
   }
   reset(); rateLimit.resources.graphql.remaining = 1; rateLimit.resources.graphql.reset = options.now / 1000 + 500
   report = await snapshot()
@@ -232,7 +264,7 @@ export const assertRepositoryLabel = (ticket) => ticket
   row.worktree = worker.path
   row.deliveryPath = join(repo.path, ".git", "delivery.json")
   row.ticketPath = join(repo.path, ".git", "ticket.json")
-  const transitionPull = () => ({ ...readyPull(), headRefOid: headSha, baseRefOid: baseSha, baseRefName: "main" })
+  const transitionPull = () => ({ ...readyPull(), headRefOid: headSha, baseRefOid: baseSha, baseRefName: "main", baseRef: { name: "main", target: { __typename: "Commit", oid: baseSha } } })
   const decidingEnvironment = () => {
     const livePull = { ...pull, headRepository: { nameWithOwner: "test-owner/ui" }, commits: { nodes: [{ commit: { oid: headSha } }] } }
     livePull.reviews.nodes = [{ ...pull.reviews.nodes.at(-1), commit: { oid: headSha }, submittedAt: "2026-10-01T21:00:00Z" }]

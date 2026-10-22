@@ -568,6 +568,7 @@
     "createManually": "Criar manualmente",
     "createSubHabit": "Criar sub-hábito",
     "editHabit": "Editar hábito",
+    "editTask": "Editar tarefa",
     "deleteHabit": "Apagar hábito",
     "logHabit": "Registrar hábito",
     "saveChanges": "Salvar alterações",
@@ -941,7 +942,11 @@
       "selectedCount": "{count, plural, =0 {# selecionadas} one {# selecionada} other {# selecionadas}}",
       "moreSelected": "+{count} mais",
       "availableCount": "{count} disponíveis",
-      "goalLimit": "Vincule até 10 metas a este hábito."
+      "goalLimit": "Vincule até 10 metas a este hábito.",
+      "saveUncertain": "Não foi possível confirmar as alterações. Tente novamente.",
+      "waitingToSync": "Aguardando sincronização.",
+      "unsavedHabit": "As alterações neste hábito ainda não foram salvas.",
+      "unsavedTask": "As alterações nesta tarefa ainda não foram salvas."
     },
     "errors": {
       "alreadyLogged": "Este hábito já foi registrado nessa data",

@@ -14,12 +14,14 @@ import {
 } from './create-habit-modal/apply-suggestion'
 import { useReminderPermission } from '@/hooks/use-reminder-permission'
 import { useHabitForm } from '@/hooks/use-habit-form'
+import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
-import { useAssignTags } from '@/hooks/use-tags'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
@@ -30,6 +32,7 @@ import {
   coalesceFormText,
   createHabitFormSuggestionRevision,
   extractBackendErrorCode,
+  extractBackendStatus,
   getFriendlyErrorMessage,
   getHabitDisplayStartDate,
   hasHabitFormProposal,
@@ -71,7 +74,13 @@ function hasEditHabitChanges(
     JSON.stringify(reminderTimes) !== initialReminderTimes
 }
 
-export function EditHabitModal({
+export function EditHabitModal(props: Readonly<EditHabitModalProps>) {
+  const generation = useAccountGeneration()
+  if (!props.open) return null
+  return <EditHabitDraft key={`${generation}:${props.habit?.id}`} {...props} />
+}
+
+function EditHabitDraft({
   open,
   onOpenChange,
   habit,
@@ -86,8 +95,17 @@ export function EditHabitModal({
     [t],
   )
   const locale = useLocale()
+  const { isOnline } = useOffline()
   const updateHabit = useUpdateHabit()
-  const assignTags = useAssignTags()
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [uncertain, setUncertain] = useState(false)
+  const submittingRef = useRef(false)
+  const mountedRef = useRef(true)
+  useLayoutEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
   const suggestion = useHabitSuggestion()
   const [isEmojiSuggesting, setIsEmojiSuggesting] = useState(false)
   const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean; habitId: string | null } | null>(null)
@@ -115,7 +133,12 @@ export function EditHabitModal({
     },
     acceptSuggestedTag: async (...args: Parameters<typeof tags.acceptSuggestedTag>) => {
       relationshipFieldsTouchedRef.current.tagIds = true
-      await tags.acceptSuggestedTag(...args)
+      await tags.acceptSuggestedTag(args[0], (name, color) => {
+        tags.setNewTagName(name)
+        tags.setNewTagColor(color)
+        tags.setShowNewTag(true)
+        return Promise.resolve(null)
+      })
     },
     deleteTag: async (...args: Parameters<typeof tags.deleteTag>) => {
       relationshipFieldsTouchedRef.current.tagIds = true
@@ -149,7 +172,7 @@ export function EditHabitModal({
   )
   const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
-    isDirty,
+    isDirty: isDirty || uncertain,
     onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
 
@@ -157,6 +180,7 @@ export function EditHabitModal({
     data: habitDetail,
     isPending: detailPending,
     error: detailError,
+    refetch: refetchDetail,
   } = useHabitDetail(open && habit ? habit.id : null)
   const detailFieldsPending = open && !!habit && detailPending
   const childrenIsGeneral = habitDetail?.children[0]?.isGeneral ?? null
@@ -287,57 +311,75 @@ export function EditHabitModal({
     applyHabitFormMode(prefill.mode, formHelpers)
   }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags])
 
-  const handleSubmit = useCallback(
-    async (e: React.SubmitEvent<HTMLFormElement>) => {
-      e.preventDefault()
-      if (!habit) return
+  async function prepareSave() {
+    if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return null }
+    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return null
+    const error = formHelpers.validateAll({
+      reminderTimes,
+      selectedGoalIds,
+      selectedTagIds: tags.selectedTagIds,
+    })
 
-      if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return }
-      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
-      const error = formHelpers.validateAll({
-        reminderTimes,
-        selectedGoalIds,
-        selectedTagIds: tags.selectedTagIds,
-      })
-      const reminderForm = error ? null : habitFormSchema.safeParse(formHelpers.form.getValues())
-      if (!error && reminderForm?.success && reminderForm.data.reminderEnabled) requestReminderPermission()
+    if (error) {
+      reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
+      return null
+    }
+    const data = habitFormSchema.parse(formHelpers.form.getValues())
+    if (data.reminderEnabled) requestReminderPermission()
 
-      if (error) {
-        reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
-        return
-      }
-      const data = habitFormSchema.parse(formHelpers.form.getValues())
+    const request = buildUpdateHabitRequest(
+      data,
+      formHelpers.isOneTime,
+      originalEndDate,
+      reminderTimes,
+      selectedGoalIds,
+    )
+    const goalIdsChanged = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds
+    const tagIdsChanged = JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds
+    const slipAlertChanged = !!formHelpers.form.formState.dirtyFields.slipAlertEnabled
 
-      const request = buildUpdateHabitRequest(
-        data,
-        formHelpers.isOneTime,
-        originalEndDate,
-        reminderTimes,
-        selectedGoalIds,
-      )
-      const goalIdsChanged = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds
-      const tagIdsChanged = JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds
-      const slipAlertChanged = !!formHelpers.form.formState.dirtyFields.slipAlertEnabled
+    if (!relationshipFieldsHydratedRef.current && !goalIdsChanged) delete request.goalIds
+    if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
 
-      if (!relationshipFieldsHydratedRef.current && !goalIdsChanged) delete request.goalIds
-      if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
+    if (relationshipFieldsHydratedRef.current || tagIdsChanged) request.tagIds = [...tags.selectedTagIds]
+    return request
+  }
 
+  async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!habit || submittingRef.current || !isOnline) return
+    submittingRef.current = true
+    const generation = getAccountGeneration()
+    const isCurrent = () => mountedRef.current && getAccountGeneration() === generation
+    try {
+      const request = await prepareSave()
+      if (!request || !isCurrent()) return
+      suggestionRevision.advance()
+      setSaving(true)
+      setSaveError(null)
       try {
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-        if (relationshipFieldsHydratedRef.current || tagIdsChanged) {
-          await assignTags.mutateAsync({ habitId: habit.id, tagIds: tags.selectedTagIds })
-        }
+        if (!isCurrent()) return
+        setUncertain(false)
         closeSheet(() => onOpenChange(false))
         await onSaved?.()
       } catch (error: unknown) {
+        if (!isCurrent()) return
         if (formHelpers.reportBackendErrors(error)) return
-        showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
+        const status = extractBackendStatus(error)
+        const unknownOutcome = status === undefined || status >= 500 || status === 408
+        setUncertain((previous) => previous || unknownOutcome)
+        setSaveError(unknownOutcome ? t('habits.form.saveUncertain') : getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
+        if (unknownOutcome) await refetchDetail()
       }
-    },
-    [requestReminderPermission, assignTags, closeSheet, formHelpers, habit, initialGoalIds, initialTagIds, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
-  )
+    } finally {
+      submittingRef.current = false
+      if (isCurrent()) setSaving(false)
+    }
+  }
 
   const handleSuggestEmoji = useCallback(async () => {
+    if (submittingRef.current) return null
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
     const title = currentTitle.trim()
     if (!title) return EMPTY_HABIT_FORM_PROPOSAL
@@ -374,6 +416,7 @@ export function EditHabitModal({
   }, [formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
+    if (submittingRef.current) return null
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
     const title = currentTitle.trim()
     if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
@@ -433,15 +476,15 @@ export function EditHabitModal({
       <Sheet
         ref={sheetRef}
         open
-        onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
-        onAttemptDismiss={dismissGuard.requestDismiss}
-        title={t('habits.editHabit')}
+        onClose={!saving && dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
+        onAttemptDismiss={() => { if (!submittingRef.current) dismissGuard.requestDismiss() }}
+        title={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')}
         actions={(
           <ActionRow>
             <PillButton
               size="sm"
               variant="ghost"
-              disabled={updateHabit.isPending}
+              disabled={saving}
               onClick={dismissGuard.requestDismiss}
             >
               {t('common.cancel')}
@@ -449,8 +492,8 @@ export function EditHabitModal({
             <PillButton
               size="sm"
               formId={formId}
-              disabled={detailFieldsPending}
-              loading={updateHabit.isPending || assignTags.isPending}
+              disabled={detailFieldsPending || saving || !isOnline}
+              loading={saving}
             >
               {t('common.save')}
             </PillButton>
@@ -458,9 +501,11 @@ export function EditHabitModal({
         )}
       >
         <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
+        <div role="status" aria-live="polite">{saveError ? <p className="text-sm text-[var(--status-bad-text)]">{saveError}</p> : null}</div>
+
           <fieldset
-            disabled={detailFieldsPending}
-            aria-busy={detailFieldsPending || undefined}
+            disabled={detailFieldsPending || saving}
+            aria-busy={detailFieldsPending || saving || undefined}
             className={`m-0 min-w-0 border-0 p-0 transition-opacity duration-[var(--dur-base)] ${
               detailFieldsPending ? 'pointer-events-none opacity-60' : ''
             }`}
@@ -497,6 +542,7 @@ export function EditHabitModal({
       {renderEditSheet()}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
+        message={uncertain ? t('habits.form.saveUncertain') : t(formHelpers.isOneTime ? 'habits.form.unsavedTask' : 'habits.form.unsavedHabit')}
         onKeepEditing={dismissGuard.cancelDismiss}
         onDiscard={dismissGuard.confirmDismiss}
       />

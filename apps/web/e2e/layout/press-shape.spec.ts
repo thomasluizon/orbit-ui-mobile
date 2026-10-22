@@ -191,7 +191,7 @@ for (const width of [412, 1280] as const) {
         await step.hover()
         await expectFullTouchTarget(step.getByRole('button', { name: label }), 'pill')
       }
-      await expectFullTouchTarget(disclosure.getByRole('button', { name: ptBr.habits.form.clearChecklist, exact: true }), 8)
+      await expectFullTouchTarget(disclosure.getByRole('button', { name: ptBr.habits.form.clearChecklist, exact: true }), 'pill')
       const time = disclosure.getByRole('textbox', { name: ptBr.habits.form.exactTime })
       await time.fill('08:00')
       await time.press('Tab')

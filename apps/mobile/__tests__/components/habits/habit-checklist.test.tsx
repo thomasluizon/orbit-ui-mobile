@@ -1,7 +1,7 @@
 import { createElement, useState, type ReactElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
-import { StyleSheet, type ViewStyle } from 'react-native'
+import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { i18n } from '@/lib/i18n'
@@ -131,6 +131,31 @@ function pressPaint(node: RenderedNode, pressed: boolean) {
 }
 
 describe('HabitChecklist press paint', () => {
+  it('omits every host spacing slot for an empty reading checklist', () => {
+    let tree!: RenderedTree
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitChecklist items={[]} interactive />) })
+    expect(tree.root.findAll((node) => typeof node.type === 'string')).toHaveLength(0)
+    expect(itemInputs(renderChecklist())).toHaveLength(2)
+  })
+
+  it.each(['dark', 'light'] as const)('keeps checked and unchecked text above the floor at rest and during press in %s', (mode) => {
+    themeState.mode = mode
+    const tokens = createTokensV2('purple', mode)
+    for (const checked of [false, true]) {
+      let tree!: RenderedTree
+      TestRenderer.act(() => { tree = TestRenderer.create(<HabitChecklist items={[{ text: 'Read', isChecked: checked }]} interactive />) })
+      const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Read')[0]!
+      const textColor = () => StyleSheet.flatten(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Read')[0]!.props.style as TextStyle).color as string
+      expect(textColor()).toBe(checked ? tokens.fg3 : tokens.fg1)
+      expect(contrastOnSurface(textColor(), [tokens.bg, tokens.bgCard])).toBeGreaterThanOrEqual(4.5)
+      TestRenderer.act(() => { (control.props.onPressIn as () => void)() })
+      expect(textColor()).toBe(tokens.fg2)
+      expect(contrastOnSurface(textColor(), [tokens.bg, tokens.bgCard, pressPaint(control, true).backgroundColor as string])).toBeGreaterThanOrEqual(4.5)
+      TestRenderer.act(() => { (control.props.onPressOut as () => void)() })
+      expect(textColor()).toBe(checked ? tokens.fg3 : tokens.fg1)
+    }
+  })
+
   it.each(['dark', 'light'] as const)('uses the hover role for editable actions in %s', (mode) => {
     themeState.mode = mode
     const tokens = createTokensV2('purple', mode)
@@ -148,18 +173,18 @@ describe('HabitChecklist press paint', () => {
     }
     const clear = tree.root.findAll((node) => node.type === 'Pressable' && !node.props.accessibilityLabel)[0]!
     expect(pressPaint(clear, false).backgroundColor).toBeUndefined()
-    expect(pressPaint(clear, true)).toMatchObject({ backgroundColor: tokens.bgHover, overflow: 'hidden' })
+    expect(pressPaint(clear, true)).toMatchObject({ backgroundColor: tokens.bgHover, overflow: 'hidden', borderRadius: radius.full, minHeight: 48, minWidth: 48 })
     themeState.mode = 'dark'
   })
 
-  it.each(['dark', 'light'] as const)('paints reset and clear feedback in %s', (mode) => {
+  it.each(['dark', 'light'] as const)('paints reset feedback in %s', (mode) => {
     themeState.mode = mode
     const tokens = createTokensV2('purple', mode)
     let tree!: RenderedTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive />)
     })
-    for (const key of ['resetChecklist', 'clearChecklist']) {
+    for (const key of ['resetChecklist']) {
       const controls = tree.root.findAll((node) =>
         node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t(`habits.form.${key}`),
       )
@@ -364,4 +389,20 @@ it('keeps the reset glyph above the graphic floor on a pressed card child', () =
   const icon = (typeof children === 'function' ? children({ pressed: true }) : children) as ReactElement<{ color: string }>
   const tokens = createTokensV2('orange', 'dark')
   expect(contrastOnSurface(icon.props.color, [tokens.bg, tokens.bgCard, fill])).toBeGreaterThanOrEqual(3)
+})
+
+
+describe('HabitChecklist immediate body action', () => {
+  it('checks the actual item body exactly once without reordering', () => {
+    const onToggle = vi.fn()
+    const onItemsChange = vi.fn()
+    let tree!: RenderedTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitChecklist items={INITIAL_ITEMS} interactive onToggle={onToggle} onItemsChange={onItemsChange} />)
+    })
+    const body = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'First item' && node.props.accessibilityRole === 'button')[0]!
+    TestRenderer.act(() => { (body.props.onPress as () => void)() })
+    expect(onToggle).toHaveBeenCalledExactlyOnceWith(0)
+    expect(onItemsChange).not.toHaveBeenCalled()
+  })
 })

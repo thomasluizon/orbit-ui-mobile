@@ -10,10 +10,10 @@ interface Holder {
   current: TagSelectionState
 }
 
-function renderTagSelection(initialTagIds: string[] = [], maxTags?: number): Holder {
+function renderTagSelection(initialTagIds: string[] = [], maxTags?: number, getDraftRevision?: () => number): Holder {
   const holder = { current: null as unknown as TagSelectionState }
   function Harness() {
-    holder.current = useTagSelection(initialTagIds, maxTags)
+    holder.current = useTagSelection(initialTagIds, maxTags, getDraftRevision)
     return null
   }
   TestRenderer.act(() => {
@@ -31,6 +31,21 @@ async function act(callback: () => void | Promise<void>): Promise<void> {
 const validColor = TAG_COLORS[1]
 
 describe('mobile useTagSelection', () => {
+  it('finishes explicit creation without changing an association already submitted by its owner', async () => {
+    let revision = 0
+    let finish!: (id: string) => void
+    const createTag = vi.fn(() => new Promise<string>((resolve) => { finish = resolve }))
+    const tags = renderTagSelection(['existing'], undefined, () => revision)
+    await act(() => tags.current.setNewTagName('Focus'))
+    let pending!: Promise<void>
+    await act(() => { pending = tags.current.createAndSelectTag(createTag) })
+    expect(createTag).toHaveBeenCalledOnce()
+    revision += 1
+    await act(async () => { finish('created'); await pending })
+    expect(tags.current.selectedTagIds).toEqual(['existing'])
+    expect(tags.current.showNewTag).toBe(false)
+    expect(tags.current.newTagName).toBe('')
+  })
   it('seeds the selection from the initial ids and toggles ids in and out', async () => {
     const tags = renderTagSelection(['a', 'b'])
     expect(tags.current.selectedTagIds).toEqual(['a', 'b'])

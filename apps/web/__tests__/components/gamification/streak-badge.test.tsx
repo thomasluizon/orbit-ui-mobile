@@ -175,13 +175,19 @@ describe('Control hover paint in Chromium', () => {
   })
 
   it.each(['dark', 'light'] as const)('uses the hover role on checklist reset and clear in %s', async (mode) => {
-    const { container } = render(<HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive />)
+    const { container } = render(<><section aria-label="Reading checklist"><HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive /></section><section aria-label="Draft checklist"><HabitChecklist items={[{ text: 'Read', isChecked: true }]} editable /></section></>)
     const variables = resolveWebThemeVariables('orange', mode)
     const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value}`).join(';')
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet} :root{${declarations}}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      const reading = page.getByRole('region', { name: 'Reading checklist' })
+      const draft = page.getByRole('region', { name: 'Draft checklist' })
+      expect(await reading.getByRole('button', { name: 'habits.form.resetChecklist' }).count()).toBe(1)
+      expect(await reading.getByRole('button', { name: 'habits.form.clearChecklist' }).count()).toBe(0)
+      expect(await draft.getByRole('button', { name: 'habits.form.clearChecklist' }).count()).toBe(1)
+      expect(await draft.getByRole('button', { name: 'habits.form.resetChecklist' }).count()).toBe(0)
       for (const key of ['resetChecklist', 'clearChecklist']) {
         const control = page.getByRole('button', { name: `habits.form.${key}` })
         expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
@@ -193,6 +199,36 @@ describe('Control hover paint in Chromium', () => {
     } finally {
       await page.close()
     }
+  })
+
+  it.each(['dark', 'light'] as const)('keeps real checklist label paint above the text floor through every interaction in %s', async (mode) => {
+    const { container } = render(<HabitChecklist items={[{ text: 'Checked label', isChecked: true }, { text: 'Unchecked label', isChecked: false }]} interactive />)
+    const variables = resolveWebThemeVariables('orange', mode)
+    const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet} :root{${declarations}} body{padding:48px;background:var(--bg)}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      for (const { label, token } of [{ label: 'Checked label', token: '--fg-3' }, { label: 'Unchecked label', token: '--fg-1' }] as const) {
+        const control = page.getByRole('button', { name: label, exact: true })
+        const text = page.getByText(label, { exact: true })
+        const resting = await text.evaluate((element) => getComputedStyle(element).color)
+        expect(await text.evaluate((element) => getComputedStyle(element).textDecorationLine)).not.toContain('line-through')
+        const expected = variables[token]!
+        expect(resting.replaceAll(' ', '')).toBe(`rgb(${[1, 3, 5].map((start) => Number.parseInt(expected.slice(start, start + 2), 16)).join(',')})`)
+        expect(contrastOnSurface(resting, [variables['--bg']!, variables['--bg-card']!])).toBeGreaterThanOrEqual(4.5)
+        for (const state of ['hover', 'focus', 'press'] as const) {
+          await control.hover()
+          if (state === 'focus') { await page.mouse.move(0, 0); await control.focus() }
+          if (state === 'press') await page.mouse.down()
+          const foreground = await text.evaluate((element) => getComputedStyle(element).color)
+          expect(contrastOnSurface(foreground, [variables['--bg']!, variables['--bg-card']!, variables['--bg-hover']!])).toBeGreaterThanOrEqual(4.5)
+          if (state === 'press') await page.mouse.up()
+        }
+        await control.evaluate((element) => (element as HTMLElement).blur())
+        await page.mouse.move(0, 0)
+      }
+    } finally { await page.close() }
   })
   it('keeps the reset glyph above the graphic floor on a hovered card child', async () => {
     const { container } = render(<HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive onReset={vi.fn()} />)
