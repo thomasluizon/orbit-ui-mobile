@@ -70,10 +70,14 @@ function mountToday(page: SmokeDomPage, locale: 'en' | 'pt-BR', {
   })
   boundary.log.mockImplementation(async (...arguments_: unknown[]) => {
     stored = true
-    if (unrelatedResponse) page.respond?.({
-      request: () => ({ method: () => 'POST', headers: () => ({ 'next-action': '<other-action-id>' }), postData: () => '[{"language":"en"}]' }),
-      ok: () => false,
-    } as unknown as Response)
+    if (unrelatedResponse) {
+      for (const postData of ['[{"language":"en"}]', JSON.stringify(['other-habit', { date: today }, 'smoke-unit-account'])]) {
+        page.respond?.({
+          request: () => ({ method: () => 'POST', headers: () => ({ 'next-action': '<other-action-id>' }), postData: () => postData }),
+          ok: () => false,
+        } as unknown as Response)
+      }
+    }
     if (responseDelay) await new Promise<void>((resolve) => setTimeout(resolve, responseDelay))
     page.respond?.({
       request: () => ({ method: () => 'POST', headers: () => ({ 'next-action': '<action-id>' }), postData: () => JSON.stringify(arguments_) }),

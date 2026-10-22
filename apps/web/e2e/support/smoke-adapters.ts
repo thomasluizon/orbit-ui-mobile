@@ -43,10 +43,13 @@ export async function logSmokeHabit(page: Page, title: string): Promise<void> {
   const toggle = row.getByTestId('habit-status-toggle')
   await expect(toggle).toBeEnabled()
   await expect(row).toHaveAttribute('data-status', 'empty')
+  const habitId = await row.getAttribute('data-habit-id')
+  expect(habitId).toBeTruthy()
   const initialState = await toggle.getAttribute('aria-label')
   const logged = page.waitForResponse(
     (response) => response.request().method() === 'POST' &&
       'next-action' in response.request().headers() &&
+      response.request().postData()?.startsWith(`[${JSON.stringify(habitId)},`) === true &&
       /^\["[^"]+",\{"date":"\d{4}-\d{2}-\d{2}"\},/.test(response.request().postData() ?? ''),
     { timeout: 30_000 },
   )
