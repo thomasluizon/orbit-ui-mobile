@@ -3332,61 +3332,6 @@
       ],
       "reason": "The same type-aware Edit habit name is now passed through the rendered pencil and full editor title instead of a literal control child."
     },
-    "web:control:habits.detail.rename": {
-      "targets": [
-        "web:content:habits.editHabit",
-        "web:content:habits.form.describe"
-      ],
-      "reason": "The named pencil opens the full editor and its existing title input; renaming is staged until the outer Save."
-    },
-    "web:control:habits.detail.linkedGoals": {
-      "targets": [
-        "web:control:habits.form.goals"
-      ],
-      "reason": "Goal association selection moved from inline detail to the full editor goal picker; linked-goal read rows retain their independent detail navigation."
-    },
-    "web:control:habits.detail.noValue": {
-      "targets": [
-        "web:control:habits.form.goals",
-        "web:control:habits.form.selectedCount"
-      ],
-      "reason": "The goal picker exposes the current selection count, including zero, instead of the old inline Not set value; association changes remain local until Save."
-    },
-    "web:control:habits.detail.proGate": {
-      "targets": [
-        "web:control:habits.form.slipAlert",
-        "web:control:common.proBadge"
-      ],
-      "reason": "The same plan-gated slip control and Pro badge remain in the full editor, with the existing upgrade action and plan constraints."
-    },
-    "web:control:habits.detail.schedule": {
-      "targets": [
-        "web:display:habits.detail.schedule",
-        "web:control:habits.form.frequency",
-        "web:control:habits.form.timesPerUnit",
-        "web:control:habits.form.noSchedule"
-      ],
-      "reason": "Detail retains its cadence readout; fixed, count-based and General schedule editing moved to the existing full editor without inline persistence."
-    },
-    "web:control:habits.detail.slipAlert": {
-      "targets": [
-        "web:control:habits.form.slipAlert"
-      ],
-      "reason": "The existing slip-alert control moved into the full editor with unchanged plan and General constraints."
-    },
-    "web:control:habits.detail.slipAlertDescription": {
-      "targets": [
-        "web:control:habits.form.slipAlertDescription"
-      ],
-      "reason": "The full editor slip-alert control retains its explanatory description and plan-gated or toggle action."
-    },
-    "web:control:habits.detail.viewDescription": {
-      "targets": [
-        "web:content:habits.form.description",
-        "web:control:habits.detail.copyDescription"
-      ],
-      "reason": "Full source prose is directly visible beneath its rendered Description heading and retains exact-source Copy description; no expansion is required to reach the text."
-    },
     "mobile:control:habits.checklistClearMessage": {
       "targets": [
         "mobile:control:habits.form.clearChecklist",
@@ -3408,54 +3353,6 @@
         "mobile:content:habits.editHabit"
       ],
       "reason": "The same type-aware Edit habit name is now passed through the rendered pencil and full editor title instead of a literal control child."
-    },
-    "mobile:control:habits.detail.rename": {
-      "targets": [
-        "mobile:content:habits.editHabit",
-        "mobile:content:habits.form.describe"
-      ],
-      "reason": "The named pencil opens the full editor and its existing title input; renaming is staged until the outer Save."
-    },
-    "mobile:control:habits.detail.linkedGoals": {
-      "targets": [
-        "mobile:control:habits.form.goals"
-      ],
-      "reason": "Goal association selection moved from inline detail to the full editor goal picker; linked-goal read rows retain their independent detail navigation."
-    },
-    "mobile:control:habits.detail.noValue": {
-      "targets": [
-        "mobile:control:habits.form.goals",
-        "mobile:control:habits.form.selectedCount"
-      ],
-      "reason": "The goal picker exposes the current selection count, including zero, instead of the old inline Not set value; association changes remain local until Save."
-    },
-    "mobile:control:habits.detail.proGate": {
-      "targets": [
-        "mobile:control:habits.form.slipAlert",
-        "mobile:control:common.proBadge"
-      ],
-      "reason": "The same plan-gated slip control and Pro badge remain in the full editor, with the existing upgrade action and plan constraints."
-    },
-    "mobile:control:habits.detail.schedule": {
-      "targets": [
-        "mobile:display:habits.detail.schedule",
-        "mobile:control:habits.form.frequency",
-        "mobile:control:habits.form.timesPerUnit",
-        "mobile:control:habits.form.noSchedule"
-      ],
-      "reason": "Detail retains its cadence readout; fixed, count-based and General schedule editing moved to the existing full editor without inline persistence."
-    },
-    "mobile:control:habits.detail.slipAlert": {
-      "targets": [
-        "mobile:control:habits.form.slipAlert"
-      ],
-      "reason": "The existing slip-alert control moved into the full editor with unchanged plan and General constraints."
-    },
-    "mobile:control:habits.detail.slipAlertDescription": {
-      "targets": [
-        "mobile:control:habits.form.slipAlertDescription"
-      ],
-      "reason": "The full editor slip-alert control retains its explanatory description and plan-gated or toggle action."
     },
     "mobile:control:habits.detail.viewDescription": {
       "targets": [
@@ -4340,11 +4237,6 @@
       "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
       "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
-    },
-    "mobile:display:common.collapse": {
-      "citation": "DESIGN.md",
-      "rule": "The full detail description stays directly\nvisible without an expand or collapse control.",
-      "reason": "The owner requires the full description to remain directly visible. Only its obsolete collapse label is retired; full source access, safe links and exact-source copy remain."
     }
   },
   "tickets": {
