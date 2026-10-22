@@ -123,6 +123,7 @@ export {
 } from './error-utils'
 export { isFeatureEnabled, resolveFlag } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
+export { splitDescriptionLinks } from './description-links'
 export {
   resolveShellDestination,
   resolveShellChrome,
@@ -517,7 +518,6 @@ export {
 } from './tag-cache'
 export {
   getCurrentPlan,
-  getIsYearlyPro,
   getTrialDaysLeft,
   getTrialExpired,
   getTrialUrgent,
@@ -823,3 +823,5 @@ export { HabitModeDrafts } from './habit-form-state'
 export { HabitDateEditor } from './habit-date-editor'
 export { getHabitRowTypeLabelKey, getHabitTypeLabelKey } from './habit-card-helpers'
 export { readTypedHabitPhrase } from './habit-phrase-parser'
+
+export { getHabitInlineDepthLimit } from './habit-row-layout'

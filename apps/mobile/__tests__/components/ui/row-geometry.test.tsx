@@ -12,7 +12,7 @@ import { DateRow } from '@/components/ui/date-row'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
-import { HabitDetailFields, HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
+import { HabitDetailFields } from '@/components/habits/habit-detail-fields'
 import { ProfileAstraContent } from '@/app/(tabs)/profile/_components/profile-astra-content'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { createTokensV2 } from '@/lib/theme'
@@ -38,7 +38,6 @@ vi.mock('@/components/goals/create-goal-sheet', () => ({ CreateGoalSheet: () => 
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({ BottomSheetAppTextInput: () => null }))
 vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'sub_habits': { enabled: true, planRequirement: 'Pro' } } } }) }))
 vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => false, useProfile: () => ({ profile: createMockProfile() }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -190,20 +189,21 @@ describe('canonical row geometry in Yoga', () => {
     const form = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitFormFields defaultExpanded formHelpers={createFormHelpers({ isBadHabit: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} /></View></QueryClientProvider>)
     try {
       const rows = form.root.findAll((node) => node.type === ListRow)
-      for (const title of ['moreDetails', 'upgrade', 'habitTypeAvoid', 'tags', 'goals', 'useTemplate']) {
-        const key = title === 'upgrade' ? 'common.upgrade' : `habits.form.${title}`
+      for (const title of ['moreDetails', 'habitTypeAvoid', 'tags', 'goals', 'useTemplate', 'slipAlert']) {
+        const key = `habits.form.${title}`
         expect(rows.some((row) => row.props.title === key), key).toBe(true)
       }
+      expect(rows.some((row) => row.props.title === 'common.upgrade')).toBe(false)
       const geometry = assertComposition(form.toJSON(), width, scale, 16)
       const leading = geometry.parts.filter((part) => part.slot === 'list-row-title')
       expect(leading.find((part) => part.left === 56)).toBeDefined()
       expect(geometry.parts.filter((part) => part.slot === 'list-row-body').some((body) => body.left === 20)).toBe(true)
     } finally { await act(() => form.update(<></>)); queryClient.clear() }
     const habit = createMockHabit({ isBadHabit: true })
-    const detail = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitDetailSchedule habit={habit} summary="Every day" open={false} tokens={tokens} onToggle={vi.fn()} onCancel={vi.fn()} onSave={vi.fn()} /><HabitDetailFields habit={habit} hasProAccess={false} relationshipControlsAvailable tokens={tokens} onItemsChange={vi.fn()} onPatch={vi.fn().mockResolvedValue(true)} onUpgrade={vi.fn()} /></View></QueryClientProvider>)
+    const detail = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitDetailFields habit={habit} summary="Every day" /></View></QueryClientProvider>)
     try {
       const rows = detail.root.findAll((node) => node.type === ListRow)
-      expect(rows.some((row) => row.props.title === 'habits.form.habitTypeAvoid')).toBe(true)
+      expect(rows.some((row) => row.props.title === 'habits.detail.schedule' && row.props.readOnly)).toBe(true)
       assertComposition(detail.toJSON(), width, scale, 16)
     } finally { await act(() => detail.update(<></>)); queryClient.clear() }
     const profile = await mount(<QueryClientProvider client={queryClient}><View><ProfileAstraContent profile={createMockProfile({ hasProAccess: true })} patchProfile={vi.fn()} /><PushDevicesRow tokens={tokens} count={1} max={5} currentDeviceRegistered supported loading={false} error={false} permissionStatus="granted" registrationStatus="idle" onToggle={vi.fn()} onOpenSettings={vi.fn()} onRetry={vi.fn()} /></View></QueryClientProvider>)

@@ -191,7 +191,7 @@ describe('interaction fill parity in Chromium', () => {
         refreshLabel="Refresh" completedLabel="Completed" showCompleted={false} isFetching={false}
         onToggleSelect={noop} onToggleCollapse={noop} onRefresh={noop} onToggleCompleted={noop}
         onGoToPreviousDay={noop} onGoToToday={noop} onGoToNextDay={noop} searchLabel="Search" onSearch={noop} />
-      <HabitDrill drill={drill} t={(key) => key} hasProAccess renderHabitCard={() => null} onAddSubHabit={noop} />
+      <HabitDrill drill={drill} t={(key) => key} renderHabitCard={() => null} onAddSubHabit={noop} />
       <Chip ariaLabel="Idle chip">Idle</Chip><Chip active ariaLabel="Selected chip">Selected</Chip>
       <SegmentedControl label="Views" options={[{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }]} value="all" onChange={noop} />
       <AppSelect value="before" options={[{ value: 'before', label: 'Before' }, { value: 'after', label: 'After' }]} label="Direction" onChange={noop} />

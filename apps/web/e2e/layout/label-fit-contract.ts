@@ -128,7 +128,7 @@ export async function expectLabelsFit(page: Page, surface: Page | Locator = page
       if (!geometry) continue
       const userElement = owner.closest('[data-layout-text-origin="user"], [data-personal-text]')
       if (userElement) {
-        const typed = userText.get(userElement) ?? { text: [], fragments: [], clipped: false, ellipsized: false, brokenWords: [], unclampedHeading: userElement.matches('[data-personal-text-unclamped]') && !!userElement.closest('h1 > button') }
+        const typed = userText.get(userElement) ?? { text: [], fragments: [], clipped: false, ellipsized: false, brokenWords: [], unclampedHeading: userElement.matches('[data-personal-text-unclamped]') && !!userElement.closest('h1') }
         typed.text.push(node.textContent.trim())
         typed.brokenWords.push(...wordsBreakingAcrossLines(node))
         typed.fragments.push(...geometry.visibleFragments)

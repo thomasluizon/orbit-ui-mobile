@@ -1,3 +1,4 @@
+import { useHabitFormInteraction } from './habit-form-interaction'
 import { ListRow } from '@/components/ui/list-row'
 import { toTime24 } from '@orbit/shared/utils'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
@@ -26,9 +27,10 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
   onSelect: () => void;
   styles: ReturnType<typeof createSectionStyles>;
 }>) {
-  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled: false, onSelect, selected });
+  const { disabled, guard } = useHabitFormInteraction()
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled, onSelect: guard(onSelect), selected });
   return (
-    <Pressable focusInset selectionRingWidth={1}
+    <Pressable disabled={disabled} focusInset selectionRingWidth={1}
       {...navigationProps}
       ref={elementRef}
       style={({ pressed }) => [
@@ -38,7 +40,7 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
       ]}
       accessibilityRole="radio"
       accessibilityLabel={label}
-      accessibilityState={{ checked: selected }}
+      accessibilityState={{ checked: selected, ...(disabled ? { disabled: true } : {}) }}
       onPress={onActivate}
     >
       <Text style={[styles.whenButtonText, selected && styles.whenButtonTextActive]}>{label}</Text>
@@ -74,6 +76,7 @@ export function ScheduledReminderSection({
   nested = false,
   offsetReminderCount = 0,
 }: Readonly<ScheduledReminderSectionProps>) {
+  const { disabled, guard } = useHabitFormInteraction()
   const { t } = useTranslation();
   const { displayTime } = useTimeFormat();
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
@@ -130,7 +133,7 @@ export function ScheduledReminderSection({
   return (
     <View style={nested ? sectionStyles.body : inline ? { gap: 12 } : sectionStyles.container}>
       {nested ? <Text style={sectionStyles.hintText}>{t("habits.form.scheduledReminderFixedTimes")}</Text> : null}
-      {!nested && <ListRow placement={inline ? "column" : undefined} icon={'bell'} title={t('habits.form.scheduledReminder')} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />}
+      {!nested && <ListRow disabled={disabled} placement={inline ? "column" : undefined} icon={'bell'} title={t('habits.form.scheduledReminder')} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />}
       {!nested && <ReminderPermissionNotice visible={permission.showNotice} tokens={tokens} onPress={permission.openSettings} />}
       {reminderEnabled && (
         <View style={sectionStyles.body}>
@@ -141,7 +144,7 @@ export function ScheduledReminderSection({
                   <Text style={sectionStyles.chipText}>
                     {scheduledReminderLabel(sr)}
                   </Text>
-                  <Pressable
+                  <Pressable disabled={disabled}
                     style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}
                     accessibilityRole="button"
                     accessibilityLabel={t("habits.form.removeScheduledReminder")}
@@ -155,7 +158,7 @@ export function ScheduledReminderSection({
           )}
 
           {!showForm && !atLimit && (
-            <Pressable
+            <Pressable disabled={disabled}
               style={({ pressed }) => [
                 sectionStyles.addButton,
                 pressed && { transform: [{ scale: 0.96 }] },
@@ -185,19 +188,19 @@ export function ScheduledReminderSection({
               </RadioGroup>
 
               <View style={sectionStyles.timeRow}>
-                <TimeField
+                <TimeField disabled={disabled}
                   label={t("habits.form.scheduledReminderTimePlaceholder")}
                   value={toTime24(time)}
-                  onChange={setTime}
+                  onChange={guard(setTime)}
                   onClear={() => setTime("")}
                 />
                 <View style={sectionStyles.timeControls}>
-                  {inline ? <PillButton variant="ghost" size="sm" disabled={!time} onClick={addScheduledReminder}>{t("common.add")}</PillButton> : (
-                  <Pressable style={({ pressed }) => [sectionStyles.timeAddButton, !time && { opacity: 0.45 }, pressed && { transform: [{ scale: 0.96 }] }]} disabled={!time} accessibilityRole="button" onPress={addScheduledReminder}>
+                  {inline ? <PillButton variant="ghost" size="sm" disabled={disabled || (!time)} onClick={addScheduledReminder}>{t("common.add")}</PillButton> : (
+                  <Pressable style={({ pressed }) => [sectionStyles.timeAddButton, !time && { opacity: 0.45 }, pressed && { transform: [{ scale: 0.96 }] }]} disabled={disabled || !time} accessibilityRole="button" onPress={addScheduledReminder}>
                     <Text style={sectionStyles.timeAddButtonText}>{t("common.add")}</Text>
                   </Pressable>
                   )}
-                  <Pressable style={({ pressed }) => [sectionStyles.timeCancelButton, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={t("common.cancel")} onPress={() => { setShowForm(false); setTime(""); }}>
+                  <Pressable disabled={disabled} style={({ pressed }) => [sectionStyles.timeCancelButton, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={t("common.cancel")} onPress={() => { setShowForm(false); setTime(""); }}>
                     <X size={16} color={tokens.fg3} strokeWidth={1.8} />
                   </Pressable>
                 </View>

@@ -8,7 +8,6 @@ import { API } from '@orbit/shared/api'
 import type { Profile } from '@orbit/shared/types/profile'
 import {
   getCurrentPlan,
-  getIsYearlyPro,
   getTrialExpired,
   getTrialUrgent,
 } from '@orbit/shared/utils'
@@ -125,10 +124,4 @@ export function useTrialExpired(): boolean {
 export function useTrialUrgent(): boolean {
   const { profile } = useProfile()
   return useMemo(() => getTrialUrgent(profile), [profile])
-}
-
-/** Computed: user is on a yearly Pro plan or lifetime. */
-export function useIsYearlyPro(): boolean {
-  const { profile } = useProfile()
-  return useMemo(() => getIsYearlyPro(profile), [profile])
 }

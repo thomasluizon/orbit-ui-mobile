@@ -8,7 +8,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Surface | Web owner | Android owner | Reserved clearance |
 |---|---|---|---|
 | Habit row body and sibling actions | `components/habits/habit-row.tsx`, `app/globals.css` | `components/habits/habit-row.tsx`, `habit-row-styles.ts` | Body feedback replaces the complete radius-20 row surface; at least 8px inline and 4px block content clearance, existing family neighbour gaps, independent check/disclosure/menu/selection feedback, strong body-feedback hairline, reversible web surface transition and immediate press/reduced-motion paint and a centred 28px check inside its 48px target |
-| Habit rename heading | `components/habits/habit-detail-screen.tsx`, `app/globals.css` | `components/habits/habit-detail-screen.tsx` | The 8px row gaps reserve the 4px block fill extension without growing the header; the 12px inline extension leaves 4px inside the page inset |
+| Habit detail pencil and reading heading | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | One 48px pencil owns its own fill; the static reading title retains 8px group gaps and has no rename fill |
 | Grouped list rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Paint and the single focus indicator sit 4px inside each row, retaining the full target and existing content padding |
 | Column list rows and column check rows | `components/ui/list-row.tsx`, `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx`, `components/ui/check-row.tsx` | 12px inline extension leaves 4px inside the page inset; a trailing row action gets a 4px gap and no fill extension toward it |
 | Personal check rows, including calendar selection | `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/check-row.tsx` | A 48px checkbox target, a 4px paint gap and reserved label block padding; the calendar day circle keeps its 24px layout width and 16px end inset, with transparent hit expansion into the row padding |
@@ -44,7 +44,7 @@ sending, offline and limit states omit both text actions.
 
 Owners are relative to each app. Negative offsets on calendar time markers and decorative habit
 progress SVGs do not paint interaction fills. ActionRow's negative vertical margin compensates its
-transparent hit padding. Small pill hit pseudo-elements remain transparent in every interaction state. Habit rename and
+transparent hit padding. Small pill hit pseudo-elements remain transparent in every interaction state. The habit pencil and
 column rows retain separate transparent 16px inline hit extensions around their 12px paint.
 The row action boundary keeps the transparent extension inside its separate action gap.
 Geometry checks measure transparent reach separately from paint. Fill and focus inspectors follow
@@ -113,7 +113,7 @@ selection unchanged until activation. Computed web hover and cell geometry remai
 existing Chromium and layout checks; the native receiver and host styles do not execute Android
 MotionEvents or prove device rendering.
 
-Android's style regression renders the actual habit header with its emoji selector and summary,
+Android's style regression renders the actual habit header with its static emoji, named pencil and summary,
 and the shared row, pill, icon pill and chip with adjacent controls. Yoga measures the resolved
 pressed and focused styles, including their painted descendants and outlines. This proves the
 style layout contract; it does not claim device rendering evidence.

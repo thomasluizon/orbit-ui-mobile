@@ -67,8 +67,12 @@ name or git status. Read `CONVENTIONS.md` before adding one.
 ## Android release diagnostics
 
 Android release diagnosis: `node tools/android-sentry-diagnostic.mjs` runs only in trusted-main
-Actions with the existing production token. It performs two bounded read-only requests and emits
-only safe status, auth/scope classification and recognized complete type-only evidence. Use
+Actions with the existing production token. It performs up to three fixed bounded GETs: fresh
+authentication index, configured current organization options and configured project releases.
+Existing auth, complete-envelope and GET-scope evidence gates candidate reads. Native selection
+and configuration agreement remain separate from route access. Previous embedded bindings fail;
+genuine configured defaults resolve to the current target unless a native override conflicts.
+Upload stays unverified. It emits only fixed classifications and recognized complete type-only receipts. Use
 `android-sentry-diagnostic.yml`; see the Android release procedure
 for source selection, evidence limits and Open recovery.
 

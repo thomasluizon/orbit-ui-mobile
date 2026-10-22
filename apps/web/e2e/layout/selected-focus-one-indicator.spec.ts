@@ -178,7 +178,7 @@ for (const width of [412, 1352]) {
           await checkChoice(page, times.nth(0), times.nth(1))
         })
 
-        test('habit detail frequency units and both day pill presentations keep one ring', async ({ page, context }) => {
+        test('full habit editor frequency units and day pills keep one ring', async ({ page, context }) => {
           await completeInstallOnboarding(page)
           const habit = habitDetailSchema.parse({ ...makeHabitDetail(), days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 })
           const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
@@ -186,7 +186,9 @@ for (const width of [412, 1352]) {
           await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))
           await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
           await page.goto(`/habits/${habit.id}`)
-          const fields = page.getByRole('main')
+          await page.getByRole('button', { name: words.habits.editHabit, exact: true }).click()
+          const fields = page.getByRole('dialog', { name: words.habits.editHabit, exact: true })
+          await expect(fields).toBeVisible()
           const monday = fields.getByRole('button', { name: words.dates.daysLong.monday, exact: true })
           const tuesday = fields.getByRole('button', { name: words.dates.daysLong.tuesday, exact: true })
           await expectRings(monday, 1)
@@ -199,11 +201,9 @@ for (const width of [412, 1352]) {
           await expectRings(tuesday, 0)
           await keyboardFocus(page, tuesday)
           await expectRings(tuesday, 1)
-          await fields.getByRole('button', { name: words.habits.detail.schedule, exact: false }).click()
-          const editor = fields.locator('#habit-detail-schedule-editor')
-          const units = editor.getByRole('radio')
-          await checkChoice(page, units.nth(0), units.nth(1))
-          await checkToggle(page, editor.getByRole('button', { name: words.dates.daysLong.tuesday, exact: true }))
+          const units = fields.getByRole('radiogroup', { name: words.habits.form.unit, exact: true })
+          await checkChoice(page, units.getByRole('radio', { name: words.habits.form.unitDay, exact: true }), units.getByRole('radio', { name: words.habits.form.unitWeek, exact: true }))
+          await checkToggle(page, tuesday)
         })
 
         test('onboarding starters, schedule modes and days share the focus rule', async ({ page, context }) => {

@@ -335,14 +335,14 @@ const readOlderReviewPage = async (cursor) => {
 const validatePullRequestState = async (state) => {
   checks.pullRequestState = {
     baseBranch: state.baseRefName,
-    baseSha: state.baseRefOid,
+    baseSha: state.currentBaseSha,
     headSha: state.headRefOid,
     draft: state.isDraft,
   }
   if (state.headRefOid !== localHead) emit("STALE_PR")
   if (state.isDraft) emit("DRAFT")
 
-  const compared = await run(GH, ["api", `repos/${repositoryFromUrl}/compare/${encodeURIComponent(state.baseRefName)}...${state.headRefOid}`], githubCwd)
+  const compared = await run(GH, ["api", `repos/${repositoryFromUrl}/compare/${state.currentBaseSha}...${state.headRefOid}`], githubCwd)
   if (!compared.ok) fail(2, `gh api compare failed for pull request #${pullRequest.number}: ${compared.error}`)
   let comparison
   try {
@@ -353,7 +353,7 @@ const validatePullRequestState = async (state) => {
   if (!Number.isInteger(comparison?.behind_by)) fail(2, `gh api compare reported no numeric behind_by for pull request #${pullRequest.number}`)
   checks.upToDate = {
     pass: comparison.behind_by === 0,
-    baseSha: state.baseRefOid,
+    baseSha: state.currentBaseSha,
     headSha: state.headRefOid,
     behindBy: comparison.behind_by,
   }

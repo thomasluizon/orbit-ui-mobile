@@ -50,6 +50,7 @@ for (const change of ['remove', 'add', 'replace'] as const) {
 
 for (const width of [320, 412, 600, 1024, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
+    const words = locale === 'en' ? en : ptBR
     test.describe(`interaction fill clearance at ${width}px in ${locale}`, () => {
       test.use({ viewport: { width, height: 915 }, contextOptions: { reducedMotion: 'reduce' } })
       for (const { path: route, hasControls } of layoutRouteInventory) {
@@ -61,8 +62,17 @@ for (const width of [320, 412, 600, 1024, 1352]) {
           await page.goto(route)
           await page.evaluate(() => document.fonts.ready)
           if (hasControls) await expect(page.locator('h1:visible').first()).toBeVisible()
-          if (route === '/chat') await expect(page.getByRole('button', { name: (locale === 'en' ? en : ptBR).common.closeConversation })).toBeVisible()
-          if (route === '/habits/habit-1') await expect(page.locator('.orbit-habit-rename')).toBeVisible()
+          if (route === '/chat') await expect(page.getByRole('button', { name: words.common.closeConversation })).toBeVisible()
+          if (route === '/habits/habit-1') {
+            const detail = page.locator('[data-habit-detail-content]')
+            await expect(detail.getByRole('heading', { level: 1 })).not.toBeEmpty()
+            const type = detail.locator('[data-habit-detail-type]')
+            await expect(type).toHaveText(new RegExp(`^(${words.habits.form.typeTask}|${words.habits.form.typeHabit})$`))
+            const label = await type.textContent() === words.habits.form.typeTask ? words.habits.editTask : words.habits.editHabit
+            const pencil = detail.getByRole('button', { name: label, exact: true })
+            await expect(pencil).toHaveCount(1)
+            await expect(pencil).toBeVisible()
+          }
           if (route === '/progress') await expect(page.getByTestId('bar-chart').getByRole('radio')).toHaveCount(30)
           const controls = page.locator(':is(button, a[href], input, textarea, select, summary, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex="0"]):visible:not(:disabled):not([aria-disabled="true"])')
           const count = await controls.count()
@@ -71,7 +81,7 @@ for (const width of [320, 412, 600, 1024, 1352]) {
           try {
             await inspectControls(page, controls, `${route}, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE, counts)
             if (route === '/calendar') {
-              await page.getByRole('radio', { name: (locale === 'en' ? en : ptBR).calendar.view.week, exact: true }).click()
+              await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
               await page.locator('[data-interaction-fill-probe]').evaluateAll((elements) => elements.forEach((element) => element.removeAttribute('data-interaction-fill-probe')))
               const headers = page.getByTestId('time-grid-col-header')
               await expect(headers).toHaveCount(7)

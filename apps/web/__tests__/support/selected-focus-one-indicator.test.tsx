@@ -9,7 +9,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Chip } from '@/components/ui/chip'
 import { CheckRow } from '@/components/ui/check-row'
-import { HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
 import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { RadioRow } from '@/components/ui/select-check'
@@ -56,10 +55,6 @@ describe('selection yields to keyboard focus', () => {
           expect(await inspectControlAccentRings(control)).toHaveLength(0)
         }
       } finally { cleanup(); await page.close() }
-    })
-    it.each([false, true])(`habit detail day pills keep one indicator, ${theme}, editor %s`, async (open) => {
-      const habit = { ...makeHabitDetailScopedChild('2026-09-04'), days: ['Monday'], frequencyUnit: 'Day' as const, frequencyQuantity: 1 }
-      await verifyRenderedChoices(<HabitDetailSchedule habit={habit} summary="Daily" open={open} onToggle={vi.fn()} onCancel={vi.fn()} onSave={vi.fn()} />, '[aria-pressed]', theme)
     })
     it.each(['Standard', 'Streak'] as const)(`goal type switch keeps one indicator, ${theme}, selected %s`, async (goalType) => {
       await verifyRenderedChoices(<GoalTypeSelector goalType={goalType} onTypeChange={vi.fn()} />, '[role="radio"]', theme)

@@ -397,6 +397,35 @@ function inputHosts(tree: ReturnType<typeof TestRenderer.create>) {
 }
 
 describe('mobile useChatComposer', () => {
+  it.each(['en', 'pt-BR'] as const)('shows one daily boundary with its renewal in %s', async (locale) => {
+    mocks.locale = locale
+    await i18n.changeLanguage(locale)
+    mocks.translate = i18n.t.bind(i18n)
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    const composer = await renderComposer()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<ShellComposer {...composer.current.composerProps} />); mountedTrees.push(tree) })
+    const texts = visibleMessageTexts(tree)
+    const notice = i18n.t('shell.composer.limit.reason', { allowance: 5 })
+    expect(texts.filter(text => text === notice)).toHaveLength(1)
+    expect(notice).not.toContain(locale === 'en' ? 'midnight' : 'meia-noite')
+    expect(texts.filter(text => text === i18n.t('shell.composer.limit.renewal'))).toHaveLength(1)
+    expect(texts).not.toContain(i18n.t('shell.composer.usage', { used: 5, limit: 5 }))
+    expect(texts).not.toContain(i18n.t('shell.composer.limit.exhausted'))
+  })
+
+  it.each([[0, 5, false], [2, 5, false], [3, 5, true], [4, 5, true], [5, 5, false], [47, 50, false], [48, 50, true], [49, 50, true], [50, 50, false]] as const)('shows the daily counter at %i of %i only near capacity', async (used, limit, visible) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: used, aiMessagesLimit: limit })
+    const composer = await renderComposer()
+    expect(Boolean(composer.current.composerProps.usageMessage)).toBe(visible)
+    if (visible) expect(composer.current.composerProps.usageMessage).toContain('shell.composer.usage')
+    expect(Boolean(composer.current.composerProps.renewalHint)).toBe(visible || used === limit)
+    if (used === limit) {
+      expect(composer.current.composerProps.state).toBe('atLimit')
+      expect(composer.current.composerProps.suggestions).toHaveLength(0)
+    }
+  })
+
   it('keeps the pending reply indicator static under reduced motion', async () => {
     const listeners = new Set<(enabled: boolean) => void>()
     const subscription = vi.spyOn(TestAccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
@@ -1371,7 +1400,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBeNull()
     expect(useChatStore.getState().messages.at(-1)).toMatchObject({
       role: 'ai',
-      content: 'shell.composer.limit.reason:{"allowance":5}',
+      content: 'chat.limitReachedError',
     })
     expect(composer.current.canRetryLastSend).toBe(false)
   })
@@ -2108,7 +2137,7 @@ describe('mobile useChatComposer', () => {
     expect(mocks.openChatStream).not.toHaveBeenCalled()
     expect(useChatStore.getState().messages.at(-1)).toMatchObject({
       role: 'ai',
-      content: 'shell.composer.limit.reason:{"allowance":5}',
+      content: 'chat.limitReachedError',
     })
     expect(composer.current.sendError).toBeNull()
   })

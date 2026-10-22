@@ -11,7 +11,6 @@ import { TimeField } from '@/components/ui/time-field'
 import { DateField } from '@/components/ui/date-field'
 import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
 import { createStyles as createGoalStyles } from '@/components/habits/create-goal-from-habit/styles'
-import { HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
@@ -171,13 +170,6 @@ it.each(['empty', 'today', 'tomorrow'] as const)('DateField day focus replaces t
     TestRenderer.act(() => control().props.onBlur?.(event))
     expect(ringCount(control())).toBe(restingRings)
   }
-  TestRenderer.act(() => tree!.unmount())
-})
-
-it.each([false, true])('habit detail schedule choices share one indicator, editor %s', (open) => {
-  let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailSchedule habit={{ ...makeHabitDetailScopedChild('2026-09-04'), days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 }} tokens={tokens} summary="Daily" open={open} onToggle={vi.fn()} onCancel={vi.fn()} onSave={vi.fn()} />) })
-  verifyAllChoices(tree)
   TestRenderer.act(() => tree!.unmount())
 })
 

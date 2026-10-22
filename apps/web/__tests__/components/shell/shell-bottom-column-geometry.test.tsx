@@ -189,7 +189,7 @@ describe('Shell bottom column geometry', () => {
         }
         expect.soft(Math.abs(geometry.fab.right - geometry.reference), 'create target').toBeLessThanOrEqual(0.5)
         expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.noticeTop - 16)
-        expect(geometry.fab.top).toBeGreaterThanOrEqual(geometry.scrollerBottom)
+        expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.scrollerBottom - 16)
         expect(geometry.fab.hit).toBe('Create')
         expect(geometry.fab.topClearance).toBeGreaterThanOrEqual(8)
         expect(geometry.fab.bottomClearance).toBeGreaterThanOrEqual(8)

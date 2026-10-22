@@ -252,7 +252,8 @@ it.each([false, true])('refreshes exhausted AI usage after midnight only after t
   let habits: ReturnType<typeof observeAccountQueries> = []
   try {
     await act(async () => { view = TestRenderer.create(React.createElement(AccountEventConnection)); await vi.advanceTimersByTimeAsync(0) })
-    const exhausted = createMockProfile({ aiMessagesUsed: 20 })
+    const profile = createMockProfile()
+    const exhausted = { ...profile, aiMessagesUsed: profile.aiMessagesLimit }
     queryClient.setQueryData(profileKeys.detail(), exhausted)
     const fetchProfile = vi.fn(() => Promise.resolve(createMockProfile({ aiMessagesUsed: 0 })))
     const observer = new QueryObserver(queryClient, { queryKey: profileKeys.detail(), queryFn: fetchProfile })

@@ -12,7 +12,9 @@ The owner standard in landing Figma file `aLwwyaY3Dtw1NVesAWsNO7`, rows `7:72` a
 
 Independently bordered rows have 4px separation within a Hoje family and 12px between families. Habit detail child rows retain 12px separation. Android spacing belongs to the unpainted wrapper so it does not enlarge the bordered body.
 
-Depth-1 wells and titles add one 16px leading inset: canonical body padding is 24 for a child and 8 for a root. This keeps the independent body at the list edge and the trailing 48px targets in place, preserving the available title width without a reserved disclosure column on leaves. Both the primary content and large-text supporting metadata use that depth-specific edge. List, detail and leading-slot owners add no further indentation. Drill rows reset to display depth 0; ancestry never adds another offset. The reference HabitRow contracts already accept depth 0 or 1 and need no public prop change.
+Every visible ancestor adds one 16px leading step from the shared spacing scale. The canonical body owns padding `8 + 16 × depth`: roots use 8, children 24 and grandchildren 40. The well, title, description, type and supporting metadata all follow that edge once. Positive depths retain the smaller well and dimmer title; the independent body stays at the list edge and trailing 48px targets stay in place. Lists, detail and leading slots add no second inset. The shared and granted HabitRow depth contracts accept the actual visible depth. Drill direct children reset to depth 0; detail direct children retain depth 1.
+
+The list bounds inline depth using its measured content width, fixed leading slot, control targets, gaps and scaled title space. Reserve at least one child-title em (14 times text scale), with a 24px minimum. The web content measurement excludes shell scrollbars and safe-area gutters; Android uses the actual list layout. At 320 with 284px of row content, normal text shows depths 0, 1 and 2; 200% text stops at depth 1. A parent at the boundary opens the existing drill instead of exposing another inline level. Wider windows retain more visible levels within the existing data depth limit. Selection keeps the same boundary, while font or content-width changes recompute it without clearing collapse or selection. Type and supporting metadata span the remaining row width. No adjacent visible levels share an inset.
 
 Both platforms retain row minimum heights, typography, emoji wells, disclosure, selection, completion, detail, overflow, drag and long-press behavior. Skipping advances the schedule and removes the row from that day; it does not add a skipped check state. Empty, loading and failed lists contain no row checks and keep their existing state surfaces. Their sheets, dialogs and menus retain their existing actions.
 
@@ -71,7 +73,7 @@ Body feedback replaces the row's existing fill across its radius-20 perimeter, i
 region. Controls remain semantic siblings and paint independently, including the structural selection checkbox in checked and unchecked states. Body hover promotes the inset hairline to hairlineStrong. Web authors the 380ms background and outline transition on the painted row in both directions, with immediate press, sibling-control suppression and reduced-motion feedback. Android selection hover restores on exit and cancelled press without invoking selection or detail. The check's flex wrapper removes
 inline baseline space; no translation offsets its glyph. Normal rows centre the 28px check and its
 48px target on the actual row axis, with and without descriptions. Large text retains first-title-line
-alignment. The original single depth inset and family gaps remain unchanged.
+alignment. The per-ancestor depth step and family gaps apply in every feedback state.
 
 Paired description behavior tests cover plain text, Markdown labels, inert HTML-looking content,
 malformed input, normalized-empty content and unchanged source. Chromium Vitest measures title,
@@ -80,3 +82,5 @@ control isolation and overflow at 320, 412 and 1352 in both themes and normal/20
 checks the corresponding layout and row-owned press/hover bounds. Native font rasterization and
 real assistive technology remain device-verification boundaries. The hermetic layout lane owns
 whole-page evidence and independent rendered review precedes pushing.
+
+At the narrow inline boundary, supporting type and metadata use the existing full-width footer even at normal text size. This keeps complete type words clear of the trailing controls. Boundary rows align controls with the first title line; other normal rows retain whole-row centring.

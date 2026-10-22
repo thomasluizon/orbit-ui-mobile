@@ -65,7 +65,7 @@ describe('habit understanding geometry', () => {
     try {
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, token]) => `${key}:${token}`).join(';')
       await page.setContent(`<style>${stylesheet}:root{${theme}}</style><main>${view.container.innerHTML}</main>`)
-      await page.locator('#habit-phrase').focus()
+      await page.locator('[data-habit-phrase-field] textarea').focus()
       const paints = await page.locator('input, textarea').evaluateAll((controls) => controls.map((element) => {
         const control = element as HTMLInputElement | HTMLTextAreaElement
         const expected = document.createElement('span')

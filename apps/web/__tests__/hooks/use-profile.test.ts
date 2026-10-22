@@ -5,7 +5,7 @@ import React from 'react'
 import { renderToString } from 'react-dom/server'
 import { hydrateRoot } from 'react-dom/client'
 import { profileKeys } from '@orbit/shared/query'
-import { useProfile, useHasProAccess, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
+import { useProfile, useHasProAccess, useCurrentPlan, useTrialExpired, useTrialUrgent } from '@/hooks/use-profile'
 import { ApiError } from '@/lib/api-fetch'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -522,98 +522,5 @@ describe('useTrialUrgent', () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
     await waitFor(() => expect(result.current).toBe(false))
-  })
-})
-
-describe('useIsYearlyPro', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
-  it('returns true for yearly subscription', async () => {
-    mockProfileResponse(
-      createMockProfile({
-        hasProAccess: true,
-        plan: 'pro',
-        subscriptionInterval: 'yearly',
-        isLifetimePro: false,
-      }),
-    )
-
-    const { result } = renderHook(() => useIsYearlyPro(), {
-      wrapper: createWrapper(),
-    })
-
-    expect(mockFetch).toHaveBeenCalled()
-    await act(async () => {
-      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
-    })
-    await waitFor(() => expect(result.current).toBe(true))
-  })
-
-  it('returns true for lifetime pro', async () => {
-    mockProfileResponse(
-      createMockProfile({
-        hasProAccess: true,
-        plan: 'pro',
-        isLifetimePro: true,
-        subscriptionInterval: null,
-      }),
-    )
-
-    const { result } = renderHook(() => useIsYearlyPro(), {
-      wrapper: createWrapper(),
-    })
-
-    expect(mockFetch).toHaveBeenCalled()
-    await act(async () => {
-      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
-    })
-    await waitFor(() => expect(result.current).toBe(true))
-  })
-
-  it('returns false for monthly pro', async () => {
-    mockProfileResponse(
-      createMockProfile({
-        hasProAccess: true,
-        plan: 'pro',
-        subscriptionInterval: 'monthly',
-        isLifetimePro: false,
-      }),
-    )
-
-    const { result } = renderHook(() => useIsYearlyPro(), {
-      wrapper: createWrapper(),
-    })
-
-    expect(mockFetch).toHaveBeenCalled()
-    await act(async () => {
-      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
-    })
-    await waitFor(() => expect(result.current).toBe(false))
-  })
-
-  it('returns false for free user', async () => {
-    mockProfileResponse(createMockProfile({ hasProAccess: false, plan: 'free' }))
-
-    const { result } = renderHook(() => useIsYearlyPro(), {
-      wrapper: createWrapper(),
-    })
-
-    expect(mockFetch).toHaveBeenCalled()
-    await act(async () => {
-      await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
-    })
-    await waitFor(() => expect(result.current).toBe(false))
-  })
-
-  it('returns false when profile is not loaded', () => {
-    mockFetch.mockReturnValue(new Promise(() => {}))
-
-    const { result } = renderHook(() => useIsYearlyPro(), {
-      wrapper: createWrapper(),
-    })
-
-    expect(result.current).toBe(false)
   })
 })

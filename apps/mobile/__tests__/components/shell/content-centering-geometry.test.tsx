@@ -9,11 +9,14 @@ import { HabitCreateActions } from '@/components/habits/habit-create-actions'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
 import { CalendarStats } from '@/app/(tabs)/calendar/_components/calendar-stats'
 import { Shell412 } from '@/components/shell/shell-412'
+import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
 import { Composer } from '@/components/shell/composer'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
+import { Toast } from '@/components/ui/app-toast'
 import { TodayDateControl } from '@/components/today/today-date-control'
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SHELL_SCROLLER_CLEARANCE } from '@/components/shell/shell-scroller-clearance'
 import { createTokensV2 } from '@/lib/theme'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -98,7 +101,7 @@ it.each(windows)('centres the capped create form with its submit at $width by $h
   } finally { await act(() => tree.unmount()) }
 })
 
-it.each(windows)('keeps the floating add target outside every scrolling control at $width by $height', async (viewport) => {
+it.each(windows)('floats the add target within the page viewport at $width by $height', async (viewport) => {
   __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
   let tree!: GeometryTree
   await act(() => { tree = create(<Shell412 tabBar={<View style={{ height: 80 }} />}
@@ -110,7 +113,8 @@ it.each(windows)('keeps the floating add target outside every scrolling control 
     const control = boxes.get('control-region')!
     const fab = boxes.get('fab')!
     expect(fab.width).toBe(60)
-    expect(fab.top).toBeGreaterThanOrEqual(control.bottom)
+    expect(fab.top).toBeGreaterThanOrEqual(control.top)
+    expect(fab.bottom).toBeLessThanOrEqual(control.bottom - 16)
     const band = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab-band')[0]!
     expect(StyleSheet.flatten(band.props.style as StyleProp<ViewStyle>).position).toBe('absolute')
   } finally { await act(() => tree.unmount()) }
@@ -132,34 +136,44 @@ it.each([240, 360])('reserves room for complete Hoje controls at 740 by %ipx', a
       onToggleSelect={vi.fn()} onToggleCollapse={vi.fn()} onRefresh={vi.fn()} onToggleCompleted={vi.fn()} />
   </Shell412>) as GeometryTree })
   try {
+    const scrollerHost = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-scroller')[0]!
+    const pageMinimum = StyleSheet.flatten(scrollerHost.props.style as StyleProp<ViewStyle>).minHeight as number
+    expect.soft(pageMinimum - SHELL_SCROLLER_CLEARANCE, 'declared page minimum retains usable space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
     const shell = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-412')[0]!
     const reportLayout = shell.props.onLayout as (event: Pick<LayoutChangeEvent, 'nativeEvent'>) => void
     await act(() => reportLayout({ nativeEvent: { layout: { x: 0, y: 0, ...viewport } } }))
+    const flow = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-flow-viewport')[0]!
+    const destinationMinimum = StyleSheet.flatten(flow.props.contentContainerStyle as StyleProp<ViewStyle>).minHeight
+    expect.soft(destinationMinimum, 'outer destination budgets the same physical page minimum').toBe(pageMinimum + SPACING.s64 + TOUCH_TARGET_MIN + TAB_BAR_MIN_HEIGHT)
     const boxes = measureSafeArea(tree.toJSON(), host => host.props.accessibilityLabel ?? host.props.testID, viewport)
     const scroller = boxes.get('shell-scroller')!
     expect(scroller.bottom - scroller.top).toBeGreaterThanOrEqual(SPACING.s96)
+    expect.soft(scroller.bottom - scroller.top - SHELL_SCROLLER_CLEARANCE, 'measured page retains usable space beyond focus clearance').toBeGreaterThanOrEqual(SPACING.s96)
     const date = boxes.get('Sexta-feira, 04/09/2026, Hoje')!
     expect(scroller.bottom - scroller.top).toBeGreaterThanOrEqual(date.bottom - date.top + SPACING.s8)
     const background = boxes.get('shell-background')!
     expect(Number.isInteger(background.left)).toBe(true)
     const fab = boxes.get('Criar')!
-    expect(fab.top).toBeGreaterThanOrEqual(scroller.bottom)
+    expect(fab.top).toBeGreaterThanOrEqual(scroller.top)
+    expect(fab.bottom).toBeLessThanOrEqual(scroller.bottom - 16)
   } finally { await act(() => tree.unmount()) }
 })
 
-it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewport =>
+it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }, { width: 740, height: 360 }, { width: 844, height: 390 }].flatMap(viewport =>
   [{ top: 0, bottom: 0 }, { top: 24, bottom: 16 }].map(insets => ({ ...viewport, ...insets })),
-))(
-  'keeps the real composer and bottom controls reachable at $width by $height with insets $top/$bottom', async (viewport) => {
+).concat([{ width: 844, height: 390, top: 0, bottom: 21 }]).flatMap(viewport => [false, true].map(pressure => ({ ...viewport, pressure }))))(
+  'keeps the real composer and bottom controls reachable at $width by $height with insets $top/$bottom, pressure=$pressure', async (viewport) => {
     safeArea.top = viewport.top
     safeArea.bottom = viewport.bottom
-    __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
+    __setWindowDimensions({ ...viewport, scale: 1, fontScale: viewport.pressure ? 2 : 1 })
+    const inputLabel = ptBR.shell.composer.inputLabel
     const scrollTo = vi.fn()
     __setScrollToImpl(scrollTo)
     const items = ['hoje', 'calendario', 'progresso', 'perfil'].map(id => ({ id, label: id, icon: () => <View style={{ width: 24, height: 24 }} /> }))
     let tree!: GeometryTree
     await act(() => { tree = create(<Shell412
-      header={<View testID="header-control" style={{ height: 48 }} />}
+      header={<DestinationHeaderRow testID="header-control"><View style={{ height: 48 }} /></DestinationHeaderRow>}
+      notice={viewport.pressure ? <View style={{ minHeight: 160 }}><Toast kind="neutral" message="Saved" persistent /></View> : undefined}
       composer={<Composer state="idle" value="Ler" suggestions={[]} words={ptBR.shell.composer}
         onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
         attachWords={{ ...ptBR.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Astra" />}
@@ -171,7 +185,13 @@ it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewp
       const shell = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-412')[0]!
       const reportShellLayout = shell.props.onLayout as (event: Pick<LayoutChangeEvent, 'nativeEvent'>) => void
       await act(() => reportShellLayout({ nativeEvent: { layout: { x: 0, y: 0, width: viewport.width, height: viewport.height } } }))
-      const boxes = measureSafeArea(tree.toJSON(), host => host.props.testID, viewport)
+      const measuredHeader = measureSafeArea(tree.toJSON(), host => host.props.testID, viewport).get('shell-header')!
+      const headerHost = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-header')[0]!
+      const reportHeaderLayout = headerHost.props.onLayout as (event: Pick<LayoutChangeEvent, 'nativeEvent'>) => void
+      await act(() => reportHeaderLayout({ nativeEvent: { layout: { x: 0, y: 0, width: measuredHeader.width, height: measuredHeader.bottom - measuredHeader.top } } }))
+      const boxes = measureSafeArea(tree.toJSON(), host => host.type === 'TextInput' && host.props.accessibilityLabel === inputLabel ? 'real-composer-input' : host.props.testID, viewport)
+      const inputBounds = boxes.get('real-composer-input')!
+      expect(inputBounds.bottom - inputBounds.top, 'actual input retains its full line height').toBeGreaterThanOrEqual(24 * (viewport.pressure ? 2 : 1) + 24)
       const page = boxes.get('control-region')!
       expect(page.bottom - page.top).toBeGreaterThanOrEqual(56)
       const pinned = boxes.get('shell-pinned-slot')!
@@ -182,6 +202,7 @@ it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewp
       const maximumScroll = Math.max(0, composer.bottom - bottomViewport.bottom)
       const host = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-bottom-viewport')[0]!
       expect(host.props.nestedScrollEnabled).toBe(true)
+      expect(StyleSheet.flatten(host.props.style as StyleProp<ViewStyle>).minHeight, 'declared bottom budget grows with the actual input').toBe(viewport.pressure ? 80 : 64)
       const reportLayout = host.props.onLayout as (event: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => void
       const reportContent = host.props.onContentSizeChange as (width: number, height: number) => void
       await act(() => {
@@ -191,14 +212,15 @@ it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewp
       const offset = scrollTo.mock.lastCall![0].y as number
       expect(boxes.get('composer-field')!.top - offset).toBeGreaterThanOrEqual(bottomViewport.top)
       expect(boxes.get('composer-field')!.bottom - offset).toBeLessThanOrEqual(bottomViewport.bottom)
-      for (const key of ['fab', 'composer-field', 'composer-send-accent', 'composer-controls']) {
+      for (const key of ['composer-field', 'composer-send-accent', 'composer-controls', 'real-composer-input']) {
         const control = boxes.get(key)!
         const offset = Math.min(maximumScroll, Math.max(0, control.bottom - bottomViewport.bottom))
         expect(control.top - offset, key).toBeGreaterThanOrEqual(bottomViewport.top)
         expect(control.bottom - offset, key).toBeLessThanOrEqual(bottomViewport.bottom)
       }
       const fab = boxes.get('fab')!
-      expect(fab.top).toBeGreaterThanOrEqual(boxes.get('control-region')!.bottom)
+      expect(fab.top).toBeGreaterThanOrEqual(boxes.get('control-region')!.top)
+      expect(fab.bottom).toBeLessThanOrEqual(boxes.get('control-region')!.bottom - 16)
       expect(fab.top).toBeGreaterThanOrEqual(boxes.get('header-control')!.bottom)
       expect(fab.bottom).toBeLessThanOrEqual(pinned.top)
       expect(bottomViewport.top).toBeGreaterThanOrEqual(boxes.get('control-region')!.bottom)
@@ -206,11 +228,32 @@ it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewp
       const background = boxes.get('shell-background')!
       expect(boxes.get('bottom-tab-destinations')!.bottom).toBeLessThanOrEqual(background.bottom)
       const outerScroll = Math.max(0, background.bottom - flow.bottom)
-      if (outerScroll > 0) {
-        const host = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-flow-viewport')[0]!
-        expect(host.props.scrollEnabled).toBe(true)
-      }
-      expect(boxes.get('bottom-tab-destinations')!.bottom - outerScroll).toBeLessThanOrEqual(viewport.height - viewport.bottom)
+      const outerHost = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'shell-flow-viewport')[0]!
+      expect(outerHost.props.scrollEnabled).toBe(true)
+      expect.soft(outerHost.props.onLayout, 'native recovery measures the actual viewport').toBeTypeOf('function')
+      expect(outerHost.props.onContentSizeChange, 'native recovery measures the actual content').toBeTypeOf('function')
+      const reportOuterLayout = outerHost.props.onLayout as (event: Pick<LayoutChangeEvent, 'nativeEvent'>) => void
+      const reportOuterContent = outerHost.props.onContentSizeChange as (width: number, height: number) => void
+      scrollTo.mockClear()
+      await act(() => {
+        reportOuterLayout({ nativeEvent: { layout: { x: flow.left, y: flow.top, width: flow.width, height: flow.bottom - flow.top } } })
+        reportOuterContent(background.width, background.bottom - background.top)
+      })
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: outerScroll, animated: false })
+      expect(boxes.get('bottom-tab-destinations')!.bottom - scrollTo.mock.lastCall![0].y).toBeLessThanOrEqual(viewport.height - viewport.bottom)
+      const reportOuterScroll = outerHost.props.onScroll as (event: { nativeEvent: { contentOffset: { y: number } } }) => void
+      await act(() => reportOuterScroll({ nativeEvent: { contentOffset: { y: 0 } } }))
+      scrollTo.mockClear()
+      await act(() => reportOuterContent(background.width, background.bottom - background.top + 32))
+      expect(scrollTo, 'resizing preserves a header the person has revealed').not.toHaveBeenCalled()
+      await act(() => reportOuterScroll({ nativeEvent: { contentOffset: { y: outerScroll + 32 } } }))
+      await act(() => reportOuterContent(background.width, background.bottom - background.top + 64))
+      expect(scrollTo, 'resizing follows trailing controls while already at the end').toHaveBeenLastCalledWith({ y: outerScroll + 64, animated: false })
+      const input = tree.root.findAll(node => String(node.type) === 'TextInput' && node.props.accessibilityLabel === inputLabel)[0]!
+      scrollTo.mockClear()
+      await act(() => reportShellLayout({ nativeEvent: { layout: { x: 0, y: 0, width: viewport.width, height: 915 } } }))
+      expect(scrollTo, 'leaving constrained recovery restores the normal origin').toHaveBeenLastCalledWith({ y: 0, animated: false })
+      expect(tree.root.findAll(node => String(node.type) === 'TextInput' && node.props.accessibilityLabel === inputLabel)[0]).toBe(input)
     } finally { await act(() => tree.unmount()) }
   },
 )

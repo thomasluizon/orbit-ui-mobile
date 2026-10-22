@@ -85,7 +85,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const writeDelivery = (baseRefName = "main", nodes = [greenCheck, approval]) => {
     const evidence = JSON.parse(readFileSync(delivery, "utf8"))
     const observed = pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "thomasluizon/orbit-ui-mobile", pullRequest: {
-      number: 700, baseRefName, baseRefOid: BASE, headRefOid: HEAD, headRefName: "fix/example", headRepository: { nameWithOwner: "thomasluizon/orbit-ui-mobile" }, isDraft: false,
+      number: 700, baseRefName, baseRefOid: BASE, baseRef: { name: baseRefName, target: { __typename: "Commit", oid: BASE } }, headRefOid: HEAD, headRefName: "fix/example", headRepository: { nameWithOwner: "thomasluizon/orbit-ui-mobile" }, isDraft: false,
       commits: { nodes: [{ commit: { oid: HEAD } }] },
       reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: approvedAtHead },
       statusCheckRollup: { contexts: { nodes } },
@@ -102,6 +102,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
         number: 700,
         baseRefName: options.baseRefName ?? "main",
         baseRefOid,
+        baseRef: { name: options.baseRefName ?? "main", target: { __typename: "Commit", oid: options.currentBaseSha ?? baseRefOid } },
         headRefOid,
         headRefName: "fix/example",
         headRepository: { nameWithOwner: options.headRepository ?? "thomasluizon/orbit-ui-mobile" },
@@ -118,13 +119,36 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
         contexts: ["Lint", "pullfrog-approval"],
         ...(options.omitChecks === true ? {} : { checks: options.checks ?? [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: PULLFROG_APP }] }),
       }), exit: options.protectionExit ?? 0 },
-      { match: "api repos/", stdout: JSON.stringify({ behind_by: behindBy }) },
+      ...(options.comparisons ?? [{ match: "api repos/", stdout: JSON.stringify({ behind_by: behindBy }) }]),
     ]),
     ORBIT_TICKET_STATUS: ticketStatus,
     ORBIT_TICKET_LABELS: JSON.stringify(options.labels ?? [{ name: "repo:ui" }]),
   })
 
   check(TOOL, "matching final-head artifacts persist READY", argv, { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live() })
+
+  // Controlled target-only advance using the independently recorded Ref response shape.
+  const currentBase = "dddddddddddddddddddddddddddddddddddddddd"
+  const compareArgv = stage("record-readiness/current-base-compare.json", "[]")
+  const cachedDelivery = readFileSync(delivery, "utf8")
+  const cachedTicket = readFileSync(ticketArtifact, "utf8")
+  const staleBase = check(TOOL, "a current Ref advance rejects complete cached evidence despite an unchanged PR snapshot", argv,
+    { status: 1, stdout: /OUT_OF_DATE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "In Review", {
+      currentBaseSha: currentBase,
+      comparisons: [
+        { match: `api repos/thomasluizon/orbit-ui-mobile/compare/${BASE}...${HEAD}`, stdout: JSON.stringify({ behind_by: 0 }), argvFile: compareArgv },
+        { match: `api repos/thomasluizon/orbit-ui-mobile/compare/${currentBase}...${HEAD}`, stdout: JSON.stringify({ behind_by: 14 }), argvFile: compareArgv },
+      ],
+    }) })
+  const staleReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+  T(`${TOOL}: aggregation compares and reports the actual Ref target with all cached axes stale`,
+    staleReceipt.currentBaseSha === currentBase && staleReceipt.behindBy === 14 &&
+    ["OUT_OF_DATE", "CI_STALE", "TICKET_STALE"].every((value) => staleBase.stdout.includes(value)) &&
+    JSON.parse(readFileSync(compareArgv, "utf8")).includes(`repos/thomasluizon/orbit-ui-mobile/compare/${currentBase}...${HEAD}`),
+    JSON.stringify({ delivery: JSON.parse(cachedDelivery), ticket: JSON.parse(cachedTicket), receipt: staleReceipt, result: staleBase.stdout }))
+  T(`${TOOL}: rejecting a stale Ref preserves complete cached evidence bytes`, readFileSync(delivery, "utf8") === cachedDelivery && readFileSync(ticketArtifact, "utf8") === cachedTicket)
+  check(TOOL, "unchanged current Ref still accepts the same complete cached evidence", argv,
+    { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live() })
 
   /** The receipt carries exactly the four axes readinessVerdicts reads: draft, behindBy, ci, ticket. */
   const readyReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
