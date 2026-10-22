@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createHabitRankingController, formatHabitRankingPeriod } from '../chat/habit-ranking-core'
+import { createHabitRankingController, formatHabitRankingPeriod, type HabitRankingState } from '../chat/habit-ranking-core'
 import { habitRankingCardSchema, habitRankingResponseSchema } from '../types/habit-ranking'
 import { habitRankingCardFixture, habitRankingNextPageFixture } from '../test-support/habit-ranking-fixtures'
 import { ApiClientError } from '../utils/error-utils'
@@ -35,6 +35,66 @@ describe('habit ranking boundary', () => {
 })
 
 describe('habit ranking action ownership', () => {
+  it('notifies subscribers through paging, completion and refresh, and releases subscriptions', async () => {
+    const { controller, load } = setup()
+    const snapshots: HabitRankingState[] = []
+    const unsubscribe = controller.subscribe(() => snapshots.push(controller.getSnapshot()))
+    await controller.showMore()
+    expect(snapshots[0]).toMatchObject({ rows: initial.rows, pending: 'page' })
+    expect(snapshots.at(-1)).toMatchObject({ rows: [...initial.rows, ...next.rows], pending: null })
+    expect(snapshots.at(-1)?.ranking).toMatchObject({ isComplete: true, nextCursor: null })
+
+    load.mockResolvedValueOnce(initial)
+    await controller.refresh()
+    expect(snapshots.at(-1)).toMatchObject({ rows: initial.rows, pending: null, status: null })
+    expect(snapshots.at(-1)?.ranking).toMatchObject({ isComplete: false, nextCursor: initial.nextCursor })
+    unsubscribe()
+    const notificationCount = snapshots.length
+    await controller.showMore()
+    expect(controller.getSnapshot().rows).toEqual([...initial.rows, ...next.rows])
+    expect(snapshots).toHaveLength(notificationCount)
+  })
+  it('follows each server cursor through a partial page and preserves ties across page boundaries', async () => {
+    const { controller, load } = setup()
+    const middlePage = habitRankingResponseSchema.parse({
+      ...next, rows: [next.rows[0]], isComplete: false, nextCursor: 'signed-page-three',
+    })
+    const lastPage = habitRankingResponseSchema.parse({ ...next, offset: 3, rows: [next.rows[1]] })
+    load.mockResolvedValueOnce(middlePage).mockResolvedValueOnce(lastPage)
+    await controller.showMore()
+    expect(controller.getSnapshot()).toMatchObject({ rows: [...initial.rows, ...middlePage.rows], status: null })
+    expect(controller.getSnapshot().ranking).toMatchObject({ isComplete: false, nextCursor: middlePage.nextCursor })
+    await controller.showMore()
+    expect(load).toHaveBeenLastCalledWith(middlePage.queryToken, middlePage.nextCursor, false)
+    expect(controller.getSnapshot().rows.map(row => [row.habitId, row.rank, row.completedCount])).toEqual(
+      [...initial.rows, ...next.rows].map(row => [row.habitId, row.rank, row.completedCount]),
+    )
+    expect(controller.getSnapshot().ranking).toMatchObject({ isComplete: true, nextCursor: null })
+  })
+  it('refreshes an empty ranking using the same resolved query without attempting to page it', async () => {
+    const empty = habitRankingResponseSchema.parse({ ...initial, rows: [], totalCount: 0, isComplete: true, nextCursor: null })
+    const load = vi.fn(async () => initial)
+    const controller = createHabitRankingController(empty, { load, open: vi.fn(), isCurrent: () => true, accountGeneration: 0 })
+    expect(controller.getSnapshot()).toMatchObject({ rows: [], startsAtBeginning: true, status: null })
+    await controller.showMore()
+    expect(load).not.toHaveBeenCalled()
+    await controller.refresh()
+    expect(load).toHaveBeenCalledExactlyOnceWith(empty.queryToken, null, true)
+    expect(controller.getSnapshot()).toMatchObject({ rows: initial.rows, status: null, requiresRefresh: false })
+  })
+  it('restores the beginning and new revision when refreshing an answer that started on a later page', async () => {
+    const refreshed = habitRankingResponseSchema.parse({ ...initial, revision: 'revision-two', queryToken: 'renewed-query' })
+    const load = vi.fn(async () => refreshed)
+    const controller = createHabitRankingController(next, { load, open: vi.fn(), isCurrent: () => true, accountGeneration: 0 })
+    expect(controller.getSnapshot()).toMatchObject({ rows: next.rows, startsAtBeginning: false })
+    await controller.refresh()
+    expect(load).toHaveBeenCalledExactlyOnceWith(next.queryToken, null, true)
+    expect(controller.getSnapshot()).toMatchObject({ ranking: refreshed, rows: initial.rows, startsAtBeginning: true })
+    load.mockResolvedValueOnce({ ...next, revision: refreshed.revision, queryToken: refreshed.queryToken })
+    await controller.showMore()
+    expect(load).toHaveBeenLastCalledWith(refreshed.queryToken, refreshed.nextCursor, false)
+    expect(controller.getSnapshot().rows).toEqual([...initial.rows, ...next.rows])
+  })
   it('restores only the same answer in the same account after unmounting', async () => {
     const dependencies = { load: vi.fn(async () => next), open: vi.fn(async () => {}), isCurrent: () => true, accountGeneration: 3 }
     const answer = habitRankingResponseSchema.parse(initial)
@@ -124,5 +184,14 @@ describe('habit ranking action ownership', () => {
     open.mockRejectedValueOnce(new ApiClientError(404, 'Removed'))
     await controller.open(initial.rows[1]!.habitId)
     expect(controller.getSnapshot().status).toBe('removed')
+  })
+  it('retains a readable ranking when habit navigation fails and permits retry', async () => {
+    const { controller, open } = setup()
+    open.mockRejectedValueOnce(new TypeError('Offline'))
+    await controller.open(initial.rows[0]!.habitId)
+    expect(controller.getSnapshot()).toMatchObject({ rows: initial.rows, status: 'openFailed', pending: null, requiresRefresh: false })
+    await controller.open(initial.rows[0]!.habitId)
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(controller.getSnapshot().ranking.query).toEqual(initial.query)
   })
 })
