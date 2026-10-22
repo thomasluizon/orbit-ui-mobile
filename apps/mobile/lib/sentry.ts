@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react-native'
 import type { ErrorEvent } from '@sentry/react-native'
+import { scrubAuthNavigation } from '@orbit/shared/utils/auth-navigation-privacy'
 
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN
 
@@ -33,7 +34,7 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
     event.breadcrumbs = scrubbed
   }
 
-  return event
+  return scrubAuthNavigation(event)
 }
 
 /**

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftHydrated, useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
@@ -13,11 +13,16 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
   const searchParams = useSearchParams()
   const query = searchParams.toString()
   const signInInProgress = (searchParams.has('email') && searchParams.has('code')) || searchParams.has('error') || searchParams.get('googleError') === '1'
+  const [signInEntry, setSignInEntry] = useState({ pathname, admitted: signInInProgress })
+  if (signInEntry.pathname !== pathname || (signInInProgress && !signInEntry.admitted)) {
+    setSignInEntry({ pathname, admitted: signInInProgress })
+  }
+  const signInAdmitted = signInInProgress || (signInEntry.pathname === pathname && signInEntry.admitted)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const sessionInactive = useAuthStore((state) => state.sessionInactive)
   const hydrated = useOnboardingDraftHydrated()
   const locallyDone = useOnboardingDraftStore((state) => state.onboardingLocallyDone)
-  const showOnboarding = pathname === '/login' && !signInInProgress && !isAuthenticated && !sessionInactive && !locallyDone
+  const showOnboarding = pathname === '/login' && !signInAdmitted && !isAuthenticated && !sessionInactive && !locallyDone
   useEffect(() => { void useOnboardingDraftStore.persist.rehydrate() }, [])
   useEffect(() => {
     if (hydrated && showOnboarding) router.replace(query ? `/onboarding?${query}` : '/onboarding')
