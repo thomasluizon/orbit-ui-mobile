@@ -41,6 +41,40 @@ const dragLocale = vi.hoisted(() => ({ portuguese: false, english: false }))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined, hasProAccess: true }))
 const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 const setFrequencyFilters = vi.hoisted(() => vi.fn())
+const moveControllerOwner = vi.hoisted(() => ({ loaded: vi.fn(), initialize: vi.fn() }))
+const moveModuleLoad = vi.hoisted(() => ({
+  generation: 0, hold: null as Promise<void> | null, requested: vi.fn(), ready: vi.fn(),
+}))
+
+vi.mock('next/dynamic', async () => {
+  const { default: dynamic } = await import('next/dist/shared/lib/app-dynamic')
+  return { default: <Props extends object,>(loader: () => Promise<React.ComponentType<Props>>) => {
+    const components = new Map<number, React.ComponentType<Props>>()
+    return function DeferredComponent(props: Props) {
+      let Component = components.get(moveModuleLoad.generation)
+      if (!Component) {
+        Component = dynamic(async () => {
+          moveModuleLoad.requested()
+          if (moveModuleLoad.hold) await moveModuleLoad.hold
+          const component = await loader()
+          moveModuleLoad.ready()
+          return component
+        })
+        components.set(moveModuleLoad.generation, Component)
+      }
+      return <Component {...props} />
+    }
+  } }
+})
+
+vi.mock('@orbit/shared/hooks/move-parent-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/hooks/move-parent-core')>()
+  moveControllerOwner.loaded()
+  return { ...actual, createMoveParentState: () => {
+    moveControllerOwner.initialize()
+    return actual.createMoveParentState()
+  } }
+})
 
 let moveInventoryFetch: ((url: string) => Promise<unknown>) | null = null
 
@@ -468,6 +502,8 @@ const defaultFilters = {
 
 describe('HabitList', () => {
   beforeEach(() => {
+    moveModuleLoad.generation++
+    moveModuleLoad.hold = null
     moveInventoryStatus = { scheduled: 'ready', general: 'ready' }
     moveInventoryStreams = null
     moveInventoryFetch = null
@@ -519,6 +555,20 @@ describe('HabitList', () => {
     mockHabitsData.totalCount = 0
     accountHabitCount.count = 0
     accountHabitCount.isLoaded = true
+  })
+
+  it('initializes the Move controller only after the owning row opens it', async () => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    renderWithProviders(<HabitList filters={{ dateFrom: TODAY }} />)
+    expect(moveControllerOwner.initialize).not.toHaveBeenCalled()
+    expect(moveControllerOwner.loaded).not.toHaveBeenCalled()
+    expect(moveModuleLoad.requested).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('move-source'))
+    expect(await screen.findByRole('radio', { name: /^target/ })).toBeInTheDocument()
+    expect(moveControllerOwner.initialize).toHaveBeenCalled()
+    expect(moveControllerOwner.loaded).toHaveBeenCalledOnce()
+    expect(moveModuleLoad.ready).toHaveBeenCalledOnce()
+    expect(moveHabitParentMutateAsync).not.toHaveBeenCalled()
   })
 
   it.each(['close', 'account', 'unmount'] as const)('discards late Move work after %s', async (boundary) => {
@@ -732,6 +782,96 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByRole('button', { name: /^habits.moveParent.confirm/ }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(onBulkMove).toHaveBeenNthCalledWith(2, ['b'], 'target')
+  })
+
+  it.each(['single', 'bulk'] as const)('captures the %s source before a delayed Move import and a changed view', async (entry) => {
+    const items = ['source', 'replacement', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items.slice(0, 1)))
+    moveInventoryStreams = { scheduled: normalizeHabitQueryData(items), general: normalizeHabitQueryData([]) }
+    let release = () => {}
+    moveModuleLoad.hold = new Promise<void>((resolve) => { release = resolve })
+    const onBulkMove = vi.fn(() => new Promise<import('@orbit/shared/types/habit').BulkMoveHabitParentResult>(() => {}))
+    moveHabitParentMutateAsync.mockImplementation(() => new Promise<void>(() => {}))
+    const ref = React.createRef<HabitListHandle>()
+    const rendered = renderWithProviders(<HabitList ref={ref} filters={{ dateFrom: TODAY }}
+      isSelectMode={entry === 'bulk'} selectedHabitIds={new Set(['source'])} onBulkMove={onBulkMove} />)
+    expect(moveModuleLoad.requested).not.toHaveBeenCalled()
+    if (entry === 'bulk') act(() => ref.current!.openBulkMove())
+    else fireEvent.click(screen.getByTestId('move-source'))
+    expect(moveModuleLoad.requested).toHaveBeenCalledOnce()
+    expect(moveControllerOwner.initialize).not.toHaveBeenCalled()
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items.slice(1, 2)))
+    rendered.rerenderWithProviders(<HabitList ref={ref} view="all" selectedDate={new Date(TOMORROW)}
+      filters={{ search: 'replacement', tagIds: ['other'], page: 4 }} isSelectMode
+      selectedHabitIds={new Set(['replacement'])} onBulkMove={onBulkMove} />)
+    await act(async () => { release() })
+    fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    if (entry === 'bulk') expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source'], 'target')
+    else expect(moveHabitParentMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: 'source', data: { parentId: 'target' } })
+    rendered.unmount()
+  })
+
+  it.each(['close', 'account', 'unmount'] as const)('cancels the delayed Move import lifetime after %s', async (boundary) => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    let release = () => {}
+    moveModuleLoad.hold = new Promise<void>((resolve) => { release = resolve })
+    const onSurfaceOpenChange = vi.fn()
+    const rendered = renderWithProviders(<HabitList filters={{ dateFrom: TODAY }} onSurfaceOpenChange={onSurfaceOpenChange} />)
+    fireEvent.click(screen.getByTestId('move-source'))
+    expect(moveModuleLoad.requested).toHaveBeenCalledOnce()
+    if (boundary === 'close') fireEvent.keyDown(window, { key: 'Escape' })
+    else if (boundary === 'account') act(() => { advanceAccountGeneration() })
+    else rendered.unmount()
+    if (boundary !== 'unmount') expect(onSurfaceOpenChange).toHaveBeenLastCalledWith(false)
+    await act(async () => { release() })
+    await waitFor(() => expect(moveModuleLoad.ready).toHaveBeenCalledOnce())
+    expect(moveControllerOwner.initialize).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(moveHabitParentMutateAsync).not.toHaveBeenCalled()
+    rendered.unmount()
+  })
+
+  it('keeps a reopened Move intent when the canceled import completes', async () => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'replacement', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    let release = () => {}
+    moveModuleLoad.hold = new Promise<void>((resolve) => { release = resolve })
+    moveHabitParentMutateAsync.mockImplementation(() => new Promise<void>(() => {}))
+    renderWithProviders(<HabitList filters={{ dateFrom: TODAY }} />)
+    fireEvent.click(screen.getByTestId('move-source'))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.click(screen.getByTestId('move-replacement'))
+    await act(async () => { release() })
+    fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    expect(moveHabitParentMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: 'replacement', data: { parentId: 'target' } })
+  })
+
+  it.each(['single', 'bulk'] as const)('rejects late %s completion after replacing the account and opening another Move', async (entry) => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'replacement', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    let rejectOld = (_error: Error) => {}
+    const pending = new Promise<never>((_resolve, reject) => { rejectOld = reject })
+    moveHabitParentMutateAsync.mockReturnValue(pending)
+    const onBulkMove = vi.fn(() => pending)
+    const ref = React.createRef<HabitListHandle>()
+    const rendered = renderWithProviders(<HabitList ref={ref} filters={{}} selectedHabitIds={new Set(['source'])} onBulkMove={onBulkMove} />)
+    if (entry === 'bulk') act(() => ref.current!.openBulkMove())
+    else fireEvent.click(screen.getByTestId('move-source'))
+    fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    expect(entry === 'bulk' ? onBulkMove : moveHabitParentMutateAsync).toHaveBeenCalledOnce()
+    act(() => { advanceAccountGeneration() })
+    rendered.rerenderWithProviders(<HabitList ref={ref} filters={{}} selectedHabitIds={new Set(['replacement'])} onBulkMove={onBulkMove} />)
+    if (entry === 'bulk') act(() => ref.current!.openBulkMove())
+    else fireEvent.click(screen.getByTestId('move-replacement'))
+    const target = await screen.findByRole('radio', { name: /^target/ })
+    fireEvent.click(target)
+    await act(async () => { rejectOld(new Error('old account request failed')); await pending.catch(() => {}) })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(target).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: 'habits.moveParent.confirm' })).toBeEnabled()
+    expect(within(screen.getByRole('dialog')).getByRole('status')).toBeEmptyDOMElement()
+    expect(entry === 'bulk' ? onBulkMove : moveHabitParentMutateAsync).toHaveBeenCalledOnce()
   })
 
   it.each(['today', 'all', 'general'] as const)('offers search recovery instead of first run in %s', (view) => {
@@ -4462,6 +4602,11 @@ describe('HabitList across an account change', () => {
   const ACCOUNT_A_TITLE = 'Account A morning run'
 
   beforeEach(() => {
+    rowImplementation.actual = false
+    dragLocale.english = false
+    dragLocale.portuguese = false
+    skipFlow.active = false
+    moveModuleLoad.hold = null
     vi.clearAllMocks()
     vi.stubGlobal('fetch', vi.fn())
     sheetTestControls.defer(false)

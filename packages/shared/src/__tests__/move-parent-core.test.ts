@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from './factories'
-import { createMoveParentActions, createMoveParentState, executeBulkMoveParent } from '../hooks/move-parent-core'
+import { createMoveParentActions, createMoveParentState } from '../hooks/move-parent-core'
+import { executeBulkMoveParent } from '../hooks/bulk-actions-core'
 import type { BulkMoveHabitParentResult } from '../types/habit'
 
 function outcome(failedIds: string[] = []): BulkMoveHabitParentResult {

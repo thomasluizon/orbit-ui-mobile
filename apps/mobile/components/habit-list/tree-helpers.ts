@@ -45,4 +45,4 @@ export function buildFlatHabitItems(
   return items
 }
 
-export { buildMoveParentOptions, getHabitDepth, getMoveParentSelection, getSubtreeMaxDepth, isHabitDescendant, validateMoveTarget, type MoveTargetValidation } from '@orbit/shared/utils'
+export { buildMoveParentOptions, getHabitDepth, getMoveParentSelection, getSubtreeMaxDepth, isHabitDescendant, validateMoveTarget, type MoveTargetValidation } from '@orbit/shared/utils/move-parent'

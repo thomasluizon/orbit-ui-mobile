@@ -1,5 +1,6 @@
 import { MAX_BULK_OPERATION_SIZE } from '../api/constants'
 import type { BulkMoveHabitParentResult, NormalizedHabit } from '../types/habit'
+import { getFailedBulkHabitIds } from './bulk-actions-core'
 import { getSharedMoveParentId } from '../utils/move-parent'
 
 export interface MoveParentState {
@@ -89,29 +90,4 @@ async function confirmMoveParent({ state, applyState, canSubmit, moveSingle, mov
   } finally {
     updateCurrent((previous) => ({ ...previous, pending: false }))
   }
-}
-
-export function getFailedBulkHabitIds(results: readonly { status: string; habitId: string }[]): string[] {
-  return results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : [])
-}
-
-export interface BulkMoveParentCallbacks {
-  mutate: (input: { habitIds: string[]; parentId: string | null }) => Promise<BulkMoveHabitParentResult>
-  getAccountGeneration: () => number
-  onSuccess: () => void
-  onPartialFailure: (failedIds: string[]) => void
-}
-
-export async function executeBulkMoveParent(
-  habitIds: string[],
-  parentId: string | null,
-  { mutate, getAccountGeneration, onSuccess, onPartialFailure }: BulkMoveParentCallbacks,
-): Promise<BulkMoveHabitParentResult | undefined> {
-  const generation = getAccountGeneration()
-  const result = await mutate({ habitIds, parentId })
-  if (getAccountGeneration() !== generation) return
-  const failedIds = getFailedBulkHabitIds(result.results)
-  if (failedIds.length > 0) onPartialFailure(failedIds)
-  else onSuccess()
-  return result
 }

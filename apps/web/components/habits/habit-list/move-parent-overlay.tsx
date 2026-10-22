@@ -5,7 +5,7 @@ import { SPACING } from '@orbit/shared/theme'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Home, Search } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
-import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils'
+import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils/move-parent'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,7 @@ import { ActionRow } from '@/components/ui/action-row'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 
-export type { MoveParentOption } from '@orbit/shared/utils'
+export type { MoveParentOption } from '@orbit/shared/utils/move-parent'
 
 interface MoveParentOverlayProps extends MoveParentPickerProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
@@ -71,8 +71,6 @@ function MoveInventoryBody({ state, onRetry, t, children }: Readonly<{
   </>
 }
 
-/** Move-parent picker overlay (web). Presentational — the parent HabitList owns
- *  the move state and supplies the validated option list plus handlers. */
 export function MoveParentOverlay({
   t,
   open,

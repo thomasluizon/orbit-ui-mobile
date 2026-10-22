@@ -4,7 +4,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   buildMoveParentOptions,
   validateMoveTarget,
-} from '@/components/habits/habit-list/tree-helpers'
+} from '@orbit/shared/utils/move-parent'
 
 function buildTree(habits: NormalizedHabit[]) {
   const habitsById = new Map(habits.map((habit) => [habit.id, habit]))

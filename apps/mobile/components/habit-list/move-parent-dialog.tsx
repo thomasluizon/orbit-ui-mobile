@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
-import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentOption, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils'
+import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentOption, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils/move-parent'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -15,7 +15,7 @@ import { RadioRow } from '@/components/ui/select-check'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export type { MoveParentOption } from '@orbit/shared/utils'
+export type { MoveParentOption } from '@orbit/shared/utils/move-parent'
 
 interface MoveParentDialogProps extends MoveParentPickerProps {
   t: (key: string, params?: Record<string, unknown>) => string

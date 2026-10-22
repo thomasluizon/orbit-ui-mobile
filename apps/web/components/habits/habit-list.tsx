@@ -1,11 +1,10 @@
 'use client'
 
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { createMoveParentActions, createMoveParentState } from '@orbit/shared/hooks'
+import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 
-import { Fragment, useMemo, useCallback, useEffect, useLayoutEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { Fragment, Suspense, useMemo, useCallback, useEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -30,7 +29,6 @@ import {
   hasAncestorInSet,
   isHabitDoneForRange,
   sortNormalizedHabits,
-  getMoveParentInventory,
   type HabitResolution,
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
@@ -47,9 +45,7 @@ import { HabitDrill } from './habit-list/habit-drill'
 import { SearchEmpty } from '@/components/search/search-results'
 import {
   buildDragItemsFlat,
-  getMoveParentSelection,
   groupDragItemsByPanel,
-  validateMoveTarget as computeMoveTargetValidation,
   type DragItem,
   type HabitView,
 } from './habit-list/tree-helpers'
@@ -64,7 +60,6 @@ import {
   useDeleteHabit,
   useDuplicateHabit,
   useReorderHabits,
-  useMoveHabitParent,
 } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { useToday } from '@/app/(app)/today-provider'
@@ -72,7 +67,6 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
-import { useConfig } from '@/hooks/use-config'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import {
   DndContext,
@@ -91,7 +85,7 @@ import {
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter, BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
-import { getAccountGeneration } from '@/lib/session-epoch'
+import type { MoveParentIntent } from './habit-list/move-parent-controller'
 import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
@@ -109,8 +103,8 @@ const RescheduleSheet = dynamic(() =>
 const HabitListConfirmDialogs = dynamic(() =>
   import('./habit-list/confirm-dialogs').then((module) => module.HabitListConfirmDialogs),
 )
-const MoveParentOverlay = dynamic(() =>
-  import('./habit-list/move-parent-overlay').then((module) => module.MoveParentOverlay),
+const MoveParentController = dynamic(() =>
+  import('./habit-list/move-parent-controller').then((module) => module.MoveParentController),
 )
 
 function DeferredEditHabitModal(props: Readonly<ComponentProps<typeof EditHabitModal>>) {
@@ -138,10 +132,15 @@ function DeferredConfirmDialogs(
   return open || activated ? <HabitListConfirmDialogs {...props} /> : null
 }
 
-function DeferredMoveParentOverlay(
-  props: Readonly<ComponentProps<typeof MoveParentOverlay>>,
-) {
-  return props.open ? <MoveParentOverlay {...props} /> : null
+function PendingMoveParent({ onClose }: Readonly<{ onClose: () => void }>) {
+  useEffect(() => {
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', cancel)
+    return () => window.removeEventListener('keydown', cancel)
+  }, [onClose])
+  return null
 }
 
 interface HabitListProps {
@@ -366,10 +365,6 @@ export function HabitList({
   const deleteHabitMut = useDeleteHabit()
   const duplicateHabitMut = useDuplicateHabit()
   const reorderHabitsMut = useReorderHabits()
-  const moveHabitParentMut = useMoveHabitParent()
-
-  const { config: appConfig } = useConfig()
-  const maxHabitDepth = appConfig.limits.maxHabitDepth
 
   const data = habitsQuery.data
   const habitsById = data?.habitsById ?? EMPTY_HABITS_BY_ID
@@ -755,18 +750,18 @@ export function HabitList({
   } | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
 
-  const [moveState, setMoveState] = useAccountScopedState(createMoveParentState)
-  const { bulkIds: bulkMovingIds, habitId: movingHabitId, selectedParentId: selectedMoveParentId,
-    error: moveError, pending: isMovingParent, open: showMoveParentOverlay } = moveState
-  const scheduledMoveQuery = useHabits({}, undefined, { enabled: showMoveParentOverlay })
-  const generalMoveQuery = useHabits({ isGeneral: true }, undefined, { enabled: showMoveParentOverlay })
-  const moveInventory = getMoveParentInventory(scheduledMoveQuery, generalMoveQuery)
-  const retryMoveInventory = () => { void scheduledMoveQuery.refetch(); void generalMoveQuery.refetch() }
-  const moveOperation = useRef<object | null>(null)
-  useLayoutEffect(() => {
-    moveOperation.current = moveState.operation
-    return () => { moveOperation.current = null }
-  }, [moveState.operation])
+  const [moveIntent, setMoveIntent] = useAccountScopedState<MoveParentIntent | null>(null)
+  const moveSequence = useRef(0)
+  function openMoveParentPicker(habitId: string) {
+    if (!habitsById.has(habitId)) return
+    setMoveIntent({ key: ++moveSequence.current, accountGeneration, habitId, bulkIds: null, sourceHabits: new Map(habitsById) })
+  }
+  function openBulkMove() {
+    const bulkIds = Array.from(selectedHabitIds ?? [])
+    if (bulkIds.length === 0 || bulkIds.length > MAX_BULK_OPERATION_SIZE || !onBulkMove) return
+    setMoveIntent({ key: ++moveSequence.current, accountGeneration, habitId: null, bulkIds, sourceHabits: new Map(habitsById) })
+  }
+  const closeMoveParentPicker = () => setMoveIntent((current) => current === moveIntent ? null : current)
 
 
   /**
@@ -783,7 +778,6 @@ export function HabitList({
     promptDataRef.current = null
     autoCollapsedOnDragRef.current = null
   })
-  const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
   const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
 
   const surfaceOpen = Boolean(
@@ -795,7 +789,7 @@ export function HabitList({
     deletePending ||
     habitToDuplicate ||
     parentPrompt ||
-    showMoveParentOverlay,
+    moveIntent,
   )
   useEffect(() => {
     onSurfaceOpenChange?.(surfaceOpen)
@@ -988,12 +982,6 @@ export function HabitList({
     }
   }
 
-  const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption, inventoryState } = getMoveParentSelection(
-    { ...moveInventory, maxHabitDepth, t, validateMoveTarget: (target, source) =>
-      computeMoveTargetValidation({ ...moveInventory, maxHabitDepth, t }, target, source) },
-    bulkMovingIds ?? movingHabitId, selectedMoveParentId, moveState.targetChosen,
-  )
-
   const editHabitLockedGeneral = ((): boolean | null => {
     if (!habitToEdit) return null
     if (habitToEdit.parentId) {
@@ -1004,19 +992,6 @@ export function HabitList({
     }
     return null
   })()
-
-  const canSubmitMoveParent = !inventoryState && moveState.targetChosen && moveIds.length > 0 && !isMovingParent &&
-    selectedMoveOption !== null && !selectedMoveOption.disabled
-
-  const { openBulk: openBulkMove, openSingle: openMoveParentPicker, close: closeMoveParentPicker,
-    confirm: executeMoveParent, select: selectMoveParent } = createMoveParentActions({
-    state: moveState, applyState: setMoveState, habitsById, selectedHabitIds, canSubmit: canSubmitMoveParent, getAccountGeneration,
-    moveBulk: onBulkMove,
-    moveSingle: (habitId, parentId) => moveHabitParentMut.mutateAsync({ habitId, data: { parentId } }),
-    partialError: t('habits.moveParent.errorPartial'),
-    formatError: (error) => getFriendlyErrorMessage(error, t, 'habits.moveParent.errorPartial'),
-  })
-  const confirmMoveParent = () => executeMoveParent(() => moveOperation.current === moveState.operation)
 
   function openDetail(habit: NormalizedHabit) {
     router.push(`/habits/${habit.id}?date=${selectedDateStr}&from=today`)
@@ -1509,23 +1484,12 @@ export function HabitList({
         )}
       />
 
-      <DeferredMoveParentOverlay
-        t={t}
-        open={showMoveParentOverlay}
-        isMoving={isMovingParent}
-        movingHabitTitle={moveInventory.habitsById.get(movingHabitId ?? '')?.title ?? movingHabit?.title ?? null}
-        movingHabitParentId={sharedMoveParentId}
-        movingHabitCount={bulkMovingIds?.length}
-        error={moveError}
-        inventoryState={inventoryState}
-        onRetryInventory={retryMoveInventory}
-        options={moveParentOptions}
-        selectedMoveParentId={selectedMoveParentId}
-        canSubmit={canSubmitMoveParent}
-        onClose={closeMoveParentPicker}
-        onConfirm={confirmMoveParent}
-        onSelectOption={selectMoveParent}
-      />
+      {moveIntent && moveIntent.accountGeneration === accountGeneration ? (
+        <Suspense fallback={<PendingMoveParent onClose={closeMoveParentPicker} />}>
+          <MoveParentController key={moveIntent.key} intent={moveIntent}
+            onBulkMove={onBulkMove} onClose={closeMoveParentPicker} />
+        </Suspense>
+      ) : null}
     </div>
   )
 }

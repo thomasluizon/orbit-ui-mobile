@@ -822,5 +822,5 @@ export { HabitDateEditor } from './habit-date-editor'
 export { getHabitRowTypeLabelKey, getHabitTypeLabelKey } from './habit-card-helpers'
 export { readTypedHabitPhrase } from './habit-phrase-parser'
 
-export * from './move-parent'
 export { getHabitInlineDepthLimit } from './habit-row-layout'
+export type { MoveParentOption, MoveParentPickerProps, MoveParentRowProps, MoveTargetValidation } from './move-parent'
