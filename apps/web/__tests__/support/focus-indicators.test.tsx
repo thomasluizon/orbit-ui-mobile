@@ -86,6 +86,7 @@ describe('field indicator readers in Chromium', () => {
   it('inspects the real Input and quiet heading while an unrelated loader keeps running', async () => {
     const { container } = render(<>
       <h1 tabIndex={-1}>New habit</h1>
+      <button type="button">Previous control</button>
       <Input label="Description" value="" onChange={() => {}} />
       <Loader2 className="animate-spin orbit-essential-loading" aria-hidden="true" />
     </>)
@@ -105,8 +106,9 @@ describe('field indicator readers in Chromium', () => {
       await expect(expectOneFieldIndicator(page, field, '[data-input-root]', 'duplicate Input perimeter')).rejects.toThrow('duplicate Input perimeter drew')
       const heading = page.getByRole('heading', { name: 'New habit', exact: true })
       await heading.focus()
+      expect(await heading.evaluate(element => element.matches(':focus'))).toBe(true)
       expect(await readFieldIndicators(heading, 'h1')).toEqual([])
-      await page.addStyleTag({ content: 'h1:focus-visible { outline: 2px solid var(--primary); }' })
+      await heading.evaluate(element => { element.style.setProperty('outline', '2px solid var(--primary)', 'important') })
       expect(await readFieldIndicators(heading, 'h1')).toEqual(['h1:outline'])
       expect(await loader.evaluate(element => element.getAnimations().map(animation => animation.playState))).toEqual(['running'])
     } finally {
