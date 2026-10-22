@@ -30,7 +30,7 @@ let stylesheet: string
 registerChromeLaunchHook(beforeAll, async launch => { browserLaunch = launch; browser = await launch })
 beforeAll(async () => {
   const source = resolve(process.cwd(), 'app/globals.css')
-  stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + readFileSync(resolve(process.cwd(), 'components/chat/prompt-idea.css'), 'utf8')
+  stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
 })
 afterEach(() => { cleanup(); vi.doUnmock('@/components/chat/prompt-library') })
 afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)

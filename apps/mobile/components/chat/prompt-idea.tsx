@@ -57,7 +57,7 @@ export function CatalogIdea({ template, disabled, onSelect }: Readonly<{ templat
 }
 
 const styles = StyleSheet.create({
-  action: { minHeight: TOUCH_TARGET_MIN, minWidth: 0, padding: PADDING.recordInset, borderRadius: 20, gap: 12 },
+  action: { minHeight: TOUCH_TARGET_MIN, minWidth: 0, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', gap: 12 },
   content: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, minWidth: 0 },
   icon: { width: 24, minHeight: 24, flexShrink: 0 },
   text: { flex: 1, minWidth: 0, gap: 4 },

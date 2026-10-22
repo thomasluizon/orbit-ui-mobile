@@ -5,7 +5,6 @@ import { PROMPT_PRESENTATION, promptExampleParts, type PromptTemplate } from '@o
 import { PADDING } from '@orbit/shared/theme'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Lightbulb, Sun, Moon, Plus, Target, Bell, ListTree, Clock, List, ArrowsMove, SkipForward, CheckCheck, Tag, CalendarDays, RotateCcw, Minus, CircleDot, ChartLine, Repeat, Snowflake, CalendarClock, Download, Calendar } from '@/components/ui/icons'
-import './prompt-idea.css'
 
 const intentIcons = { Sun, Moon, Plus, Target, Bell, ListTree, Clock, List, ArrowsMove, SkipForward, CheckCheck, Tag, CalendarDays, RotateCcw, Minus, CircleDot, ChartLine, Repeat, Snowflake, CalendarClock, Download, Calendar }
 
