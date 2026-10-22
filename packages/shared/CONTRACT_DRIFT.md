@@ -124,3 +124,12 @@ No supported-version floor changes. Remove new-kind advertisement or roll back t
 client to disable new period kinds; retain optional historical fields. The generated snapshot
 pin remains independent of these handwritten runtime schemas and is adopted atomically by the
 normal contract rebaseline workflow. Source schema evidence belongs in the implementation PR.
+
+## Dated habit read compatibility
+
+The handwritten habit-list schema accepts `today`, `all` and `date` scopes. Dated query
+results carry their resolved ISO date through chat parsing and signed refresh parsing before
+rendering on web and Android. Producer evidence is `QueryHabitsTool.cs:95-103` and
+`HabitListCard.cs:7-19` at API commit `316877abe6dfe7aa978a0d086ca5eb3295851719`.
+This append-only acceptance retains historical `today` and `all` payloads and does not
+change the generated contract pin or the supported client version floor.

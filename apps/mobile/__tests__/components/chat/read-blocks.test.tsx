@@ -2,7 +2,7 @@ import { act, create } from 'react-test-renderer'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
@@ -10,7 +10,7 @@ import { ChatBlock } from '@/components/chat/block-registry'
 import { apiClient } from '@/lib/api-client'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { API } from '@orbit/shared/api'
-import type { ReadBlockResponse } from '@orbit/shared/types/chat'
+import { chatPartSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
 const state = vi.hoisted(() => ({ locale: 'en', habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string) => key }) }))
@@ -92,9 +92,14 @@ describe('focused Android read compositions', () => {
   })
 })
 
-it('retains a historical schedule and rejects a direct press on an ineligible action', async () => {
+it.each(['chat', 'refresh'] as const)('retains a parsed %s historical schedule and rejects a direct press on an ineligible action', async source => {
   state.habits.set('habit-one', createMockHabit({ id: 'habit-one', frequencyUnit: 'Day', dueDate: '2026-09-01', scheduledDates: ['2026-09-01'] }))
-  const tree = await mount({ kind: 'habitList', block: { scope: 'today', date: '2026-09-01', items: [{ id: 'habit-one', title: 'Walk', depth: 0, isBadHabit: false, status: 'done' }], read: { ...focusedReadMetadataFixture, queryFamily: 'query_habits', scope: { date: '2026-09-01' } } } })
+  const parsed = source === 'chat'
+    ? chatPartSchema.parse({ type: 'block', kind: 'habitList', block: focusedDatedHabitListFixture })
+    : readBlockResponseSchema.parse({ kind: 'habitList', block: focusedDatedHabitListFixture, read: focusedDatedHabitListFixture.read })
+  expect(parsed).not.toBeNull()
+  if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Dated habit block did not parse')
+  const tree = await mount(parsed)
   expect(renderedText(tree.toJSON())).toContain('chat.habitList.logged')
   await press(tree, 'chat.habitList.log')
   expect(state.mutate).not.toHaveBeenCalled()
@@ -109,5 +114,29 @@ it('logs the eligible current occurrence on the exact requested day', async () =
   const tree = await mount({ kind: 'habitList', block: { scope: 'today', date: today, items: [{ id: 'habit-one', title: 'Walk', depth: 0, isBadHabit: false, status: 'today' }], read: { ...focusedReadMetadataFixture, queryFamily: 'query_habits', scope: { date: today } } } })
   await press(tree, 'chat.habitList.log')
   expect(state.mutate).toHaveBeenCalledWith({ habitId: 'habit-one', date: today, intent: 'log' })
+  await act(() => tree.unmount())
+})
+
+it('keeps stale recap disclosure and Progress available without refreshing', async () => {
+  const tree = await mount({ kind: 'periodInsight', block: focusedStaleRecapFixture })
+  expect(tree.root.findAll(node => node.props.testID === 'block-frame-stale')).not.toHaveLength(0)
+  expect(renderedText(tree.toJSON())).toContain('chat.readBlock.stale')
+  expect(renderedText(tree.toJSON())).not.toContain('Walked')
+  await press(tree, 'chat.habitList.more')
+  for (const text of ['Walked', 'Mornings', 'Start small', 'Reading', 'Walk', 'Read']) expect(renderedText(tree.toJSON())).toContain(text)
+  await press(tree, 'chat.readBlock.less')
+  expect(renderedText(tree.toJSON())).not.toContain('Walked')
+  const progress = tree.root.findAll(node => node.props.accessibilityRole === 'link' && node.props.accessibilityLabel === 'chat.insight.progressLink' && typeof node.props.onPress === 'function')[0]!
+  await act(() => { (progress.props.onPress as () => void)() })
+  expect(state.push).toHaveBeenCalledWith('/progress')
+  expect(apiClient).not.toHaveBeenCalled()
+  await act(() => tree.unmount())
+})
+
+it('withholds signed paging for a stale query', async () => {
+  const tree = await mount({ kind: 'recordList', block: { ...focusedHistoryFixture, read: { ...focusedHistoryFixture.read, completeness: 'stale' } } })
+  expect(tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'chat.recordList.more')).toHaveLength(0)
+  expect(renderedText(tree.toJSON())).toContain('blockFrame.refresh')
+  expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
 })

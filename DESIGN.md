@@ -444,6 +444,8 @@ Refresh and paging use the API's signed absolute query identity. A changed page 
 refresh before paging. Useful snapshot content stays visible through failed reads and offline
 recovery. One compact state owns stale, partial or failed recovery, with no freshness box.
 Recap figures and dates lead; Show more discloses its supplied narrative and habit detail.
+Stale reads retain disclosure and valid navigation beside Refresh in the footer; signed paging
+waits for a refreshed revision. Stale write previews keep withholding their execution actions.
 The focused read amendment in the canvas README and active Astra drawing defines these compositions
 from existing BlockFrame rows, number formatting, ghost actions and the granted neutral chart.
 

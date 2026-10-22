@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
-import { focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -10,7 +10,7 @@ import { getAccountDay } from '@orbit/shared/utils'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { refreshReadBlock } from '@/app/actions/chat'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
-import type { ReadBlockResponse } from '@orbit/shared/types/chat'
+import { chatPartSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
 const state = vi.hoisted(() => ({ habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn() }))
@@ -85,9 +85,14 @@ describe('focused read compositions', () => {
   })
 })
 
-it('keeps a historical schedule read-only and navigates with its original date', () => {
+it.each(['chat', 'refresh'] as const)('keeps a parsed %s historical schedule read-only and navigates with its original date', source => {
   state.habits.set('habit-one', createMockHabit({ id: 'habit-one', frequencyUnit: 'Day', dueDate: '2026-09-01', scheduledDates: ['2026-09-01'] }))
-  mount({ kind: 'habitList', block: { scope: 'today', date: '2026-09-01', items: [{ id: 'habit-one', title: 'Walk', depth: 0, isBadHabit: false, status: 'done' }], read: { ...focusedReadMetadataFixture, queryFamily: 'query_habits', scope: { date: '2026-09-01' } } } })
+  const parsed = source === 'chat'
+    ? chatPartSchema.parse({ type: 'block', kind: 'habitList', block: focusedDatedHabitListFixture })
+    : readBlockResponseSchema.parse({ kind: 'habitList', block: focusedDatedHabitListFixture, read: focusedDatedHabitListFixture.read })
+  expect(parsed).not.toBeNull()
+  if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Dated habit block did not parse')
+  mount(parsed)
   expect(screen.getByText('Done')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Log Walk' }))
   expect(state.mutate).not.toHaveBeenCalled()
@@ -101,4 +106,27 @@ it('allows only a currently eligible occurrence while retaining the query rows',
   mount({ kind: 'habitList', block: { scope: 'today', date: today, items: [{ id: 'habit-one', title: 'Walk', depth: 0, isBadHabit: false, status: 'today' }], read: { ...focusedReadMetadataFixture, queryFamily: 'query_habits', scope: { date: today } } } })
   fireEvent.click(screen.getByRole('button', { name: 'Log Walk' }))
   expect(state.mutate).toHaveBeenCalledWith({ habitId: 'habit-one', date: today, intent: 'log' })
+})
+
+it('keeps stale recap disclosure and Progress available without refreshing', () => {
+  const view = mount({ kind: 'periodInsight', block: focusedStaleRecapFixture })
+  expect(view.container.querySelector('section')).toHaveAttribute('data-state', 'stale')
+  expect(screen.getByRole('status')).toHaveTextContent(en.chat.readBlock.stale)
+  expect(screen.queryByText('Walked')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
+  expect(screen.getByRole('link', { name: en.chat.insight.progressLink })).toHaveAttribute('href', '/progress')
+  fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
+  for (const text of ['Walked', 'Mornings', 'Start small', 'Reading']) expect(screen.getByText(text)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: `${en.chat.insight.topHabit}: Walk` })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: `${en.chat.insight.needsAttention}: Read` })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: en.chat.readBlock.less }))
+  expect(screen.queryByText('Walked')).not.toBeInTheDocument()
+  expect(refreshReadBlock).not.toHaveBeenCalled()
+})
+
+it('withholds signed paging for a stale query', () => {
+  mount({ kind: 'recordList', block: { ...focusedHistoryFixture, read: { ...focusedHistoryFixture.read, completeness: 'stale' } } })
+  expect(screen.queryByRole('button', { name: 'Show more' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
+  expect(refreshReadBlock).not.toHaveBeenCalled()
 })

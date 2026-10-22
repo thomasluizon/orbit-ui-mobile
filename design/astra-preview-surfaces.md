@@ -52,7 +52,7 @@ Native text rendering and TalkBack remain device-verification boundaries.
 | Calendar | `chat/calendar-card` retains event titles and timing while current connection, permissions and event availability govern import actions. |
 | Records | `chat/record-list-card` keeps mark-read, safe key metadata and established navigation; tags and templates add no destination. |
 | Account | `chat/account-rows-card` retains safe profile, plan and referral facts, copy/share and navigation. Plans add no purchasing content. |
-| Retrospectives | `chat/period-insight-card` leads with dates and figures; Show more retains every supplied narrative section and habit detail. The Progresso destination retains the supported recap/share flow. |
+| Retrospectives | `chat/period-insight-card` leads with dates and figures; Show more retains every supplied narrative section and habit detail, including stale saved recaps. Disclosure and the Progresso link share the stale refresh footer; signed paging stays withheld. The Progresso destination retains the supported recap/share flow. |
 | Recovery and paging | `chat/read-block-frame` adapts the existing BlockFrame to signed refresh and cursor paging. Failed refresh preserves the snapshot; mismatched query ids and changed page revisions are rejected. Account changes and unmounts discard late responses. |
 
 New renderers remain below the existing lazy conversation import. Both locales and appearances

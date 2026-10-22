@@ -3,7 +3,7 @@ import { recordListDestination } from '../chat/record-list-core'
 import { acceptReadBlockResponse, formatReadWindow, readBlockPresentation, readBlockFailureKey, readBlockWindow } from '../chat/read-block-core'
 import { chatPartSchema, readBlockResponseSchema } from '../types/chat'
 import { buildChatClientContext } from '../chat/client-context'
-import { focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '../test-support/chat-fixtures'
+import { focusedDatedHabitListFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '../test-support/chat-fixtures'
 
 const total = readBlockResponseSchema.parse({ kind: 'periodTotal', block: focusedPeriodTotalFixture, read: focusedReadMetadataFixture })
 
@@ -16,6 +16,18 @@ describe('query-bound read contracts', () => {
     expect(chatPartSchema.parse({ type: 'block', ...total })).toMatchObject({ kind: 'periodTotal', block: focusedPeriodTotalFixture })
     expect(chatPartSchema.parse({ type: 'block', kind: 'periodComparison', block: focusedPeriodComparisonFixture })).toMatchObject({ block: { baselineValue: 0, relativeDelta: null } })
     expect(chatPartSchema.parse({ type: 'block', kind: 'recordList', block: focusedHistoryFixture })).toMatchObject({ block: { items: [{ logDate: '2026-09-01', value: 0 }] } })
+  })
+
+  it('accepts the producer dated schedule through chat parsing', () => {
+    expect(chatPartSchema.parse({ type: 'block', kind: 'habitList', block: focusedDatedHabitListFixture })).toMatchObject({
+      kind: 'habitList', block: focusedDatedHabitListFixture,
+    })
+  })
+
+  it('accepts the producer dated schedule through refresh parsing', () => {
+    expect(readBlockResponseSchema.parse({ kind: 'habitList', block: focusedDatedHabitListFixture, read: focusedDatedHabitListFixture.read })).toMatchObject({
+      kind: 'habitList', block: focusedDatedHabitListFixture, read: focusedDatedHabitListFixture.read,
+    })
   })
 
   it('replaces a snapshot only with the same exact query and rejects changed page revisions', () => {

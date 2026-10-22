@@ -77,7 +77,9 @@ No new primitive, token, colour, radius, shadow, font, effect or chart type is i
 
 Saved figures and records retain their query scope. Current completion and navigation eligibility
 are independent. Signed refresh replaces that query's snapshot; signed paging retains its revision.
-One compact state carries stale, partial or failed recovery. Recap detail opens through Show more.
+One compact state carries stale, partial or failed recovery. Recap detail opens through Show more,
+including saved stale recaps. Read-only disclosure and valid navigation share the existing footer
+action row with Refresh; signed paging waits for refresh. Write-preview execution stays withheld.
 The paired owners and verification boundaries are in `design/astra-preview-surfaces.md`.
 
 ## The authority

@@ -88,8 +88,8 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
     {props.actions}
   </>
   const body = <>{window ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow(window, locale)}</Text> : null}{message && !stale ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14 }}>{t(message)}</Text> : null}{props.body}</>
-  if (state === 'stale') return <Frame {...props} body={body} state="stale" staleMessage={t(message ?? 'chat.readBlock.stale')} onRefresh={() => run(false)} />
-  return <Frame {...props} state={state} staleMessage={undefined} onRefresh={undefined} refreshLabel={undefined} body={body} actions={actions} />
+  if (state === 'stale') return <Frame {...props} body={body} state="stale" staleMessage={t(message ?? 'chat.readBlock.stale')} staleActions={props.actions} onRefresh={() => run(false)} />
+  return <Frame {...props} state={state} staleMessage={undefined} staleActions={undefined} onRefresh={undefined} refreshLabel={undefined} body={body} actions={actions} />
 }
 
 export function useReadActionScope() {

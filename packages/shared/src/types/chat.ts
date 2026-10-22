@@ -247,7 +247,7 @@ export type HabitListCardItem = z.infer<typeof habitListCardItemSchema>
 
 export const habitListCardSchema = z.object({
   read: readBlockMetadataSchema.nullish(),
-  scope: z.enum(['today', 'all']),
+  scope: z.enum(['today', 'all', 'date']),
   date: z.iso.date().nullish(),
   totalCount: z.number().nullish(),
   sourceRevision: z.string().nullish(),
