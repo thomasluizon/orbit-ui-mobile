@@ -369,8 +369,8 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         </button>
       ) : null}
 
-        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <div data-composer-input-slot className="grid min-w-min max-w-full basis-[min-content] flex-1">
-        <span data-composer-input-minimum aria-hidden="true" className={`pointer-events-none invisible col-start-1 row-start-1 w-max max-w-full whitespace-pre ${composerInputMetrics}`}>{inputLabel}</span>
+        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <div data-composer-input-slot className="grid grid-cols-1 w-max min-w-0 max-w-full grow shrink-0">
+        <span data-composer-input-minimum aria-hidden="true" className={`pointer-events-none invisible col-start-1 row-start-1 w-max max-w-full overflow-hidden whitespace-pre ${composerInputMetrics}`}>{inputLabel}</span>
         <TypedTextarea
           ref={inputRef}
           id={props.inputId}

@@ -828,7 +828,7 @@ describe('Composer compact geometry in Chromium', () => {
               height: input.clientHeight, scrollHeight: input.scrollHeight,
               singleLineHeight: parseFloat(style.lineHeight) + padding,
               textWidth: canvas.measureText(input.placeholder).width,
-              contentWidth: input.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd),
+              contentWidth: input.getBoundingClientRect().width - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd),
               pillHeight: input.closest('[data-composer-input-row]')!.getBoundingClientRect().height }
           })
           const evidence = JSON.stringify({ scenario, withOpener, fontScale, measured })
