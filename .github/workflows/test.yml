@@ -70,6 +70,9 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
+        env:
+          # Bound stalled cache segments so npm ci can continue with a cold cache.
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
@@ -93,6 +96,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
@@ -100,7 +105,7 @@ jobs:
       - run: npm ci
 
       - name: Test CI workflow behavior
-        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/unit-tests-workflow.test.mjs
+        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/unit-tests-workflow.test.mjs
 
       # The unit suite's contrast scan is skipped on a Turbo cache hit, so this step runs the
       # full-tree scan on every pull request. Findings stay advisory; a scanner error fails.
@@ -145,6 +150,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
@@ -215,7 +222,7 @@ jobs:
   web-tests:
     name: Web unit (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.total }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -232,12 +239,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       # Partial runs collect coverage; Unit Tests applies the unchanged gate to their union.
+      # Completed shards reach 671 seconds; reserve 15 minutes for tests and ten for setup and reports.
       - name: Run web shard with coverage
+        timeout-minutes: 15
         working-directory: apps/web
         run: >-
           npx vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
@@ -258,7 +269,7 @@ jobs:
   workspace-tests:
     name: Workspace unit (${{ matrix.workspace }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -272,11 +283,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Completed workspace suites reach 570 seconds; setup has a separate job allowance.
       - name: Run workspace with coverage thresholds
+        timeout-minutes: 15
         run: npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage
       # Preserve repository paths when artifacts from independent jobs are combined.
       - name: Stage workspace coverage
@@ -303,6 +318,8 @@ jobs:
           fetch-depth: 0
 
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
@@ -369,6 +386,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
@@ -401,6 +420,8 @@ jobs:
         run: bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"
 
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
