@@ -686,6 +686,7 @@
     },
     "frequencyLabel": "Frequency",
     "form": {
+      "parentHabit": "Parent habit",
       "proRequired": "This is part of Orbit Pro.",
       "capacityTitle": "Habit limit reached",
       "capacityBody": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",

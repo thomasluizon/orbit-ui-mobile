@@ -23,6 +23,17 @@ one Check on success and announces it once through visually hidden localized fee
 and manual-selection guidance remain visible. Account or description replacement clears feedback.
 This amendment does not make row previews interactive or add a Markdown renderer.
 
+
+### Full-editor parent relationship
+
+The edit state of `Orbit Habit Create.dc.html` adds Parent habit / Hábito principal beside tags
+and goals inside More details. Its existing ListRow opens the existing radio sheet with exact
+No parent (top level) / Sem hábito principal (nível raiz), current selection and full destination
+names. Choosing and closing retain a local relationship draft. Only the outer Save persists it;
+outer Cancel discards it. No immediate-move verb or second submit action appears in the picker.
+Type, title, description, dates and the existing pinned Save/Cancel keep their composition.
+`habit-form-surfaces.md` records complete inventory, unknown-parent and queue boundaries.
+
 ### Email sign-in entry amendment
 
 `Orbit Entrar` uses the existing verifying presentation for a valid incoming email link.

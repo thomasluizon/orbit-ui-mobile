@@ -4,7 +4,7 @@ import { PersonalText } from '@/components/ui/personal-text'
 
 import { ActionRow } from './action-row'
 
-import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
@@ -58,6 +58,7 @@ interface WebSheetProps extends SheetProps {
 export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const { titleExpanded, bodyRef, toggleTitle } = useSheetTitleDisclosure()
+  const onBodyFocus = useSheetBodyFocusVisibility(virtualizedBody)
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
   const overlayId = useId()
@@ -155,7 +156,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
                     }
                   `).join('')}
                 `}</style>}
-                <div ref={bodyRef} className="orbit-sheet-body" data-slot="sheet-body" data-sheet-body-id={overlayId} style={{
+                <div ref={bodyRef} onFocusCapture={onBodyFocus} className="orbit-sheet-body" data-slot="sheet-body" data-sheet-body-id={overlayId} style={{
                   ...(boundedBody ? { display: 'flex', flexDirection: 'column', minHeight: 0 } as const : {}),
                   ...(virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } as const : {}),
                 }}>
@@ -214,4 +215,31 @@ function useSheetTitleDisclosure() {
     setTitleExpanded(!titleExpanded)
   }
   return { titleExpanded, bodyRef, toggleTitle }
+}
+
+function revealSheetBodyFocus(body: HTMLDivElement) {
+  const focused = body.ownerDocument.activeElement
+  if (!(focused instanceof HTMLElement) || !body.contains(focused)) return
+  const bounds = focused.getBoundingClientRect()
+  const top = body.getBoundingClientRect().top + body.clientTop
+  const bottom = top + body.clientHeight
+  const delta = bounds.top < top || bounds.height > body.clientHeight
+    ? bounds.top - top
+    : Math.max(0, bounds.bottom - bottom)
+  body.scrollTop += delta
+}
+
+function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
+  const observerRef = useRef<ResizeObserver | null>(null)
+  useLayoutEffect(() => () => observerRef.current?.disconnect(), [virtualizedBody])
+  return (event: FocusEvent<HTMLDivElement>) => {
+    const body = event.currentTarget
+    if (virtualizedBody || !body.contains(event.target)) return
+    observerRef.current?.disconnect()
+    const observer = new ResizeObserver(() => revealSheetBodyFocus(body))
+    observerRef.current = observer
+    observer.observe(body)
+    observer.observe(event.target)
+    revealSheetBodyFocus(body)
+  }
 }

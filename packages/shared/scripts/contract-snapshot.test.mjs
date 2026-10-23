@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { PostApiHabitsBody, GetApiHabitsIdResponse, GetApiHabitsResponse } from '../src/types/__generated__/api.generated.ts'
+import { PostApiHabitsBody, GetApiHabitsIdResponse, GetApiHabitsIdDetailResponse, GetApiHabitsResponse, PutApiHabitsIdBody } from '../src/types/__generated__/api.generated.ts'
 
 const document = JSON.parse(readFileSync(new URL('./__fixtures__/openapi_v1-r2.json', import.meta.url), 'utf8'))
 const schemas = document.components.schemas
@@ -53,4 +53,16 @@ describe('generated diff target reflects the accepted producer revision', () => 
     const instances = [{ date: '2026-01-01', status, logId: null }]
     expect(GetApiHabitsResponse.shape.items.element.shape.instances.safeParse(instances).success).toBe(true)
   })
+})
+
+it('carries ordinary-update parent fields and authoritative ordinary/full readback from the pinned producer', () => {
+  const parentId = '22222222-2222-4222-8222-222222222222'
+  const set = { title: 'Read', description: null, frequencyUnit: 'Day', frequencyQuantity: 1, isBadHabit: false, parentId }
+  expect(PutApiHabitsIdBody.parse(set)).toMatchObject(set)
+  expect(PutApiHabitsIdBody.parse({ ...set, parentId: undefined, clearParent: true })).toMatchObject({ clearParent: true })
+  for (const schema of [GetApiHabitsIdResponse.shape.parentId, GetApiHabitsIdDetailResponse.shape.habit.shape.parentId]) {
+    expect(schema.parse(parentId)).toBe(parentId)
+    expect(schema.parse(null)).toBeNull()
+    expect(schema.parse(undefined)).toBeUndefined()
+  }
 })
