@@ -1,6 +1,6 @@
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-cases'
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'

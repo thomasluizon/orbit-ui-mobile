@@ -1,7 +1,7 @@
-import { cpSync, mkdirSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { cpSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { join, matchesGlob } from "node:path"
 
-import { check, root, toolPath } from "./_harness.mjs"
+import { check, REPO_ROOT, root, T, toolPath } from "./_harness.mjs"
 
 export const cases = () => {
   const repository = join(root, "sonar-paths")
@@ -35,4 +35,20 @@ export const cases = () => {
 
   writeFileSync(properties, "sonar.exclusions=.next/**\n")
   run("generated output glob may have no directory yet", { status: 0 })
+
+  const sharedTests = "packages/shared/src/__tests__"
+  mkdirSync(join(repository, sharedTests), { recursive: true })
+  writeFileSync(properties, `sonar.test.inclusions=${sharedTests}/*-fixtures.ts\n`)
+  run("shared fixture inclusion accepts an existing test directory", { status: 0 })
+
+  const repositoryProperties = readFileSync(join(REPO_ROOT, "sonar-project.properties"), "utf8")
+  const testInclusions = repositoryProperties.match(/^sonar\.test\.inclusions=(.*)$/m)[1].split(",")
+  const referralFixtures = readdirSync(join(REPO_ROOT, sharedTests))
+    .filter((filename) => /^referral-copy-(cases|fixtures)\.ts$/.test(filename))
+  T("shared referral copy fixture exists", referralFixtures.length === 1)
+  for (const filename of referralFixtures) {
+    const fixturePath = `${sharedTests}/${filename}`
+    T("shared referral copy fixture is classified as test code",
+      testInclusions.some((pattern) => matchesGlob(fixturePath, pattern)), fixturePath)
+  }
 }

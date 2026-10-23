@@ -1,4 +1,4 @@
-import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-cases'
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
 import React from 'react'

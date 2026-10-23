@@ -1,4 +1,4 @@
-import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-cases'
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { beforeEach, describe, it, expect, vi } from 'vitest'

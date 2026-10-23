@@ -1,4 +1,4 @@
-import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-cases'
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
