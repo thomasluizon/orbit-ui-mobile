@@ -7,11 +7,13 @@ import { useUIStore } from '@/stores/ui-store'
 
 const state = vi.hoisted(() => ({
   paints: [] as boolean[],
+  pathname: '/',
+  width: 412,
   habits: { hasFetched: true, habitsCount: 1, isFetching: false, showLoadError: false },
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({ usePathname: () => state.pathname, useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
@@ -38,6 +40,13 @@ function TodayPage() {
 beforeEach(() => {
   state.habits = { hasFetched: true, habitsCount: 1, isFetching: false, showLoadError: false }
   state.paints = []
+  state.pathname = '/'
+  state.width = 412
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: state.width >= Number(query.match(/min-width: (\d+)px/)?.[1]),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }))
   useUIStore.setState(useUIStore.getInitialState())
 })
 
@@ -94,3 +103,43 @@ it('shows a populated Today once without toggling during refresh', () => {
     expect(document.querySelector('[data-shell-fab] [data-fab]')).not.toBeNull()
   } finally { unsubscribe() }
 })
+
+it.each([412, 1280].flatMap(width => [false, true].map(showLoadError => ({ width, showLoadError }))))(
+  'removes the FAB slot and floating viewport for settled Today at $width with load error=$showLoadError', ({ width, showLoadError }) => {
+    state.width = width
+    state.habits = { hasFetched: !showLoadError, habitsCount: 0, isFetching: false, showLoadError }
+    const view = render(<TodayShell />)
+    expect(view.container.querySelector('[data-shell-fab]')).toBeNull()
+    expect(view.container.querySelector('[data-shell-fab-clip]')).toBeNull()
+    expect(view.container.querySelector('[data-shell-bottom-viewport]')).toHaveAttribute('data-floating', 'false')
+    expect(view.container.querySelector('[data-shell-destination-viewport]')).toHaveAttribute('data-floating', 'false')
+    state.habits = { ...state.habits, isFetching: true }
+    view.rerender(<TodayShell />)
+    expect(view.container.querySelector('[data-shell-fab]')).toBeNull()
+    expect(view.container.querySelector('[data-shell-bottom-viewport]')).toHaveAttribute('data-floating', 'false')
+  },
+)
+
+it('reserves the pending viewport without a FAB slot and retains it when populated', () => {
+  state.habits = { hasFetched: false, habitsCount: 0, isFetching: true, showLoadError: false }
+  const view = render(<TodayShell />)
+  const bottomViewport = view.container.querySelector('[data-shell-bottom-viewport]')
+  expect(bottomViewport).toHaveAttribute('data-floating', 'true')
+  expect(view.container.querySelector('[data-shell-fab]')).toBeNull()
+  state.habits = { hasFetched: true, habitsCount: 1, isFetching: false, showLoadError: false }
+  view.rerender(<TodayShell />)
+  expect(view.container.querySelector('[data-shell-bottom-viewport]')).toBe(bottomViewport)
+  expect(bottomViewport).toHaveAttribute('data-floating', 'true')
+  expect(view.container.querySelector('[data-shell-fab] [data-fab]')).not.toBeNull()
+})
+
+it.each(['/calendar', '/progress', '/profile', '/habits/habit-1'])(
+  'uses its own chrome on %s while Today is pending', (pathname) => {
+    state.pathname = pathname
+    const view = render(<TodayShell mounted={false} />)
+    expect(useUIStore.getState().todayFabPending).toBe(true)
+    expect(view.container.querySelector('[data-shell-fab]')).toBeNull()
+    expect(view.container.querySelector('[data-shell-bottom-viewport]')).toHaveAttribute('data-floating', 'false')
+    expect(view.container.querySelector('[data-shell-destination-viewport]')).toHaveAttribute('data-floating', 'false')
+  },
+)

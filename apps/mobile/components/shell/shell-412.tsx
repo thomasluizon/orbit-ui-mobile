@@ -44,7 +44,7 @@ function ShellBottomChrome({
   navigationEnabled,
   pinnedSlot,
   notice,
-  fab,
+  floating,
   tabBar,
   backgroundColor,
   safeAreaBottom,
@@ -56,7 +56,7 @@ function ShellBottomChrome({
   navigationEnabled: boolean
   pinnedSlot: ReactNode
   notice: ReactNode
-  fab: ReactNode
+  floating: boolean
   tabBar: ReactNode
   backgroundColor: string
   safeAreaBottom: number
@@ -65,7 +65,7 @@ function ShellBottomChrome({
 }>) {
   if (!visible) return null
   const actionMinimum = !navigationEnabled && pinnedSlot !== undefined ? BUTTON_SIZES.md.height : 0
-  const minimumHeight = fab !== undefined ? minimumViewportHeight : actionMinimum
+  const minimumHeight = floating ? minimumViewportHeight : actionMinimum
 
   return (
     <View
@@ -75,13 +75,13 @@ function ShellBottomChrome({
         { backgroundColor, paddingBottom: safeAreaBottom },
       ]}
     >
-      <View style={[styles.bottomColumn, { minHeight: minimumHeight }, fab !== undefined && styles.floatingColumn]}>
-        <ShellBottomViewport floating={fab !== undefined} minimumHeight={minimumHeight}>
+      <View style={[styles.bottomColumn, { minHeight: minimumHeight }, floating && styles.floatingColumn]}>
+        <ShellBottomViewport floating={floating} minimumHeight={minimumHeight}>
             {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
             {pinnedSlot !== undefined ? (
               <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum, display: conversationOpen ? 'none' : 'flex' }]}>
-                <ScrollView testID="shell-pinned-slot" scrollEnabled={fab === undefined} nestedScrollEnabled={fab === undefined}
-                  style={[styles.pinnedSlot, fab !== undefined && styles.floatingPinnedSlot, { minHeight: actionMinimum }]}
+                <ScrollView testID="shell-pinned-slot" scrollEnabled={!floating} nestedScrollEnabled={!floating}
+                  style={[styles.pinnedSlot, floating && styles.floatingPinnedSlot, { minHeight: actionMinimum }]}
                   keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
               </View>
             ) : null}
@@ -175,7 +175,7 @@ function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, saf
   }
 }
 
-export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean }>) {
+export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean; fabPending?: boolean }>) {
   const mainRef = useRef<View>(null)
   const focusTarget = useRef<number | null>(null)
   const focusElement = useRef<HostInstance | null>(null)
@@ -187,6 +187,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   const registeredComposer = useShellComposerHost()
   const registeredNotice = useShellNoticeHost()
   const navigationEnabled = props.nav !== false
+  const floating = props.fab !== undefined || props.fabPending === true
   const pinnedSlot = navigationEnabled ? (registeredComposer.content ?? props.composer) : props.action
   const notice = registeredNotice.content === undefined
     ? props.notice
@@ -195,7 +196,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     || notice !== undefined
     || pinnedSlot !== undefined
     || props.fab !== undefined
-  const scrollerClearance = pinnedSlot !== undefined || props.fab !== undefined
+  const scrollerClearance = pinnedSlot !== undefined || floating
     ? SHELL_SCROLLER_CLEARANCE
     : 32
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
@@ -217,7 +218,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const safeBottom = keyboardVisible ? 0 : insets.bottom
-  const viewport = useShellViewport({ navigationEnabled, hasFab: props.fab !== undefined, hasHeader: header !== undefined,
+  const viewport = useShellViewport({ navigationEnabled, hasFab: floating, hasHeader: header !== undefined,
     hasTabBar: props.tabBar !== undefined, safeTop, safeBottom, minimumBottomHeight })
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true))
@@ -240,7 +241,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
       onLayout={(event) => viewport.setHeight(event.nativeEvent.layout.height)}
       style={[styles.root, { backgroundColor: tokens.bg }, viewport.outerInsets]}
     >
-      <FlowViewport enabled={viewport.scrollable} constrained={viewport.constrained} minimumHeight={viewport.minimumHeight} revealEnd={navigationEnabled && props.fab !== undefined}>
+      <FlowViewport enabled={viewport.scrollable} constrained={viewport.constrained} minimumHeight={viewport.minimumHeight} revealEnd={navigationEnabled && floating}>
         <View
           testID="shell-background"
           style={[styles.background, { width: columnWidth, paddingTop: viewport.innerInsets.top }]}
@@ -252,7 +253,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
             )
           ) : null}
 
-          <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, props.fab !== undefined && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
+          <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, floating && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
             <ShellListFocusContext.Provider value={revealListFocus}>{props.children}</ShellListFocusContext.Provider>
             <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
             {props.fab !== undefined ? (
@@ -268,7 +269,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
             navigationEnabled={navigationEnabled}
             pinnedSlot={pinnedSlot}
             notice={notice}
-            fab={props.fab}
+            floating={floating}
             tabBar={props.tabBar}
             backgroundColor={tokens.bg}
             safeAreaBottom={viewport.innerInsets.bottom}

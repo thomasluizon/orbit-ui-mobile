@@ -172,9 +172,8 @@ function getPinnedComposer(notFoundVisible: boolean, registeredComposer: ReactNo
   return registeredComposer ?? (enabled ? composer : undefined)
 }
 
-function ShellCreateFab({ hidden, onCreate, refusal }: Readonly<{ hidden: boolean; onCreate: () => void; refusal?: ReactNode }>) {
+function ShellCreateFab({ onCreate, refusal }: Readonly<{ onCreate: () => void; refusal?: ReactNode }>) {
   const t = useTranslations()
-  if (hidden) return null
   return (
     <div className="pointer-events-none flex items-end gap-3">
       <div aria-live="polite" aria-atomic="true" className={refusal ? 'pointer-events-auto min-w-0 max-w-[min(68vw,280px)]' : ''}>{refusal}</div>
@@ -212,6 +211,7 @@ function DestinationShellContent({
   const setLastDestination = useShellStore((state) => state.setLastDestination)
   const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
+  const todayFabPending = useUIStore((state) => state.todayFabPending)
   const chrome = resolveShellChrome(pathname, lastDestination)
   const activeId = notFoundVisible ? '' : chrome.activeId
   useEffect(() => {
@@ -330,8 +330,9 @@ function DestinationShellContent({
           /> : undefined
         }
         fab={
-          pathname === '/' ? <ShellCreateFab hidden={todayFabHidden || Boolean(conversationOpen)} onCreate={onCreate} refusal={createRefusal} /> : undefined
+          pathname === '/' && !todayFabHidden && !conversationOpen ? <ShellCreateFab onCreate={onCreate} refusal={createRefusal} /> : undefined
         }
+        fabPending={pathname === '/' && todayFabPending}
       >
         <div id="orbit-main" className="flex min-h-full flex-col has-[[data-page-viewport]]:h-full">{children}</div>
       </ShellWide>

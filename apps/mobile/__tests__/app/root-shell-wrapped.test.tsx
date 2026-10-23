@@ -27,6 +27,7 @@ function RootPortalProbe() {
 const routeState = vi.hoisted(() => ({
   mountToday: false,
   hasData: false,
+  hasError: false,
   habits: new Map<string, NormalizedHabit>(),
   paints: [] as boolean[],
   pathname: '/wrapped',
@@ -35,6 +36,7 @@ const routeState = vi.hoisted(() => ({
 const authState = vi.hoisted(() => ({ isAuthenticated: true }))
 const createState = vi.hoisted(() => ({
   profile: undefined as { hasProAccess: boolean } | undefined,
+  profileError: false,
   count: 0,
   countLoaded: false,
   reducedMotion: false,
@@ -95,14 +97,14 @@ vi.mock('@/hooks/use-gamification', () => ({
 }))
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => createState.profile?.hasProAccess ?? false,
-  useProfile: () => ({ profile: createState.profile }),
+  useProfile: () => ({ profile: createState.profile, isError: createState.profileError, refetch: vi.fn() }),
 }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: createState.count, isLoaded: createState.countLoaded }) }))
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(),
   useTotalHabitCount: () => createState.count,
-  useHabits: () => ({ data: routeState.hasData ? { habitsById: routeState.habits } : undefined, isFetching: !routeState.hasData }),
+  useHabits: () => ({ data: routeState.hasData ? { habitsById: routeState.habits } : undefined, isFetching: !routeState.hasData && !routeState.hasError, isError: routeState.hasError }),
 }))
 vi.mock('@/components/navigation/root-stack-screens', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/navigation/root-stack-screens')>()
@@ -305,6 +307,7 @@ describe('Wrapped root shell', () => {
     useUIStore.setState(useUIStore.getInitialState())
     routeState.mountToday = false
     routeState.hasData = false
+    routeState.hasError = false
     routeState.habits = new Map()
     routeState.paints = []
     authState.isAuthenticated = true
@@ -312,6 +315,7 @@ describe('Wrapped root shell', () => {
     routeState.pathname = '/wrapped'
     routeState.segments = ['wrapped']
     createState.profile = undefined
+    createState.profileError = false
     createState.reducedMotion = false
     createState.count = 0
     createState.countLoaded = false
@@ -419,6 +423,7 @@ describe('Wrapped root shell', () => {
     expect(routeState.paints[0]).toBe(false)
     expect(routeState.paints.every((visible) => !visible)).toBe(true)
     expect(findByTestId(tree, 'fab')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
     routeState.hasData = true
     await TestRenderer.act(() => tree.update(<RootLayout />))
     expect(findByTestId(tree, 'fab')).toHaveLength(0)
@@ -466,6 +471,41 @@ describe('Wrapped root shell', () => {
     expect(findByTestId(tree, 'fab')).toHaveLength(1)
     expect(findByTestId(tree, 'shell-bottom-viewport')[0]).toBe(bottomViewport)
     expect(bottomViewport?.props.scrollEnabled).toBe(true)
+  })
+
+  it.each([412, 1280].flatMap(width => [false, true].map(hasError => ({ width, hasError }))))('removes the FAB slot and floating viewport for settled Today at $width with load error=$hasError', async ({ width, hasError }) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.mountToday = true
+    routeState.hasData = !hasError
+    routeState.hasError = hasError
+    createState.profile = { hasProAccess: true }
+    const tree = await renderRoot()
+    expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-fab-band')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-bottom-viewport')[0]?.props.scrollEnabled).toBe(false)
+  })
+
+  it('removes the FAB slot and floating viewport after a profile load error', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.mountToday = true
+    createState.profileError = true
+    const tree = await renderRoot()
+    expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-bottom-viewport')[0]?.props.scrollEnabled).toBe(false)
+    await TestRenderer.act(() => tree.update(<></>))
+    expect(useUIStore.getState().todayFabPending).toBe(true)
+  })
+
+  it.each(['/calendar', '/progress', '/profile', '/habits/habit-1'])('uses its own chrome on %s while Today is pending', async (pathname) => {
+    routeState.pathname = pathname
+    routeState.segments = [pathname.slice(1)]
+    const tree = await renderRoot()
+    expect(useUIStore.getState().todayFabPending).toBe(true)
+    expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-bottom-viewport')[0]?.props.scrollEnabled).toBe(false)
   })
 
   it('renders Wrapped without bottom chrome or notices', async () => {

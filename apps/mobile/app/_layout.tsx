@@ -147,6 +147,8 @@ function RootLayoutNav() {
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const lastDestination = useUIStore((s) => s.lastDestination)
+  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
+  const todayFabPending = useUIStore((state) => state.todayFabPending)
   const setLastDestination = useUIStore((s) => s.setLastDestination)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
   const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
@@ -288,9 +290,10 @@ function RootLayoutNav() {
               {offlineNotice}
             </>}
             tabBar={<DestinationTabBar pathname={pathname} notFound={isNotFound} />}
-            fab={pathname === '/'
+            fab={pathname === '/' && !todayFabHidden && !astraConversationOpen
               ? <AppCreateFab onCreate={handleCreate} />
               : undefined}
+            fabPending={pathname === '/' && todayFabPending}
           >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
@@ -515,8 +518,6 @@ function RootLayoutContent() {
 
 function AppCreateFab({ onCreate }: Readonly<{ onCreate: () => void }>) {
   const { t } = useTranslation()
-  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
-  if (todayFabHidden) return null
   return (
     <View pointerEvents="box-none">
       <Fab label={t('nav.createHabit')} onClick={onCreate}>
