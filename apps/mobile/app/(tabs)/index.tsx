@@ -84,6 +84,11 @@ function TodayViewHeader({ search, activeView, onChangeView, today, focused, isT
 export default function TodayScreen() {
   const { t } = useTranslation()
   const { profile, isError, refetch } = useProfile()
+  const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
+  useEffect(() => () => setTodayFabHidden(true, true), [setTodayFabHidden])
+  useEffect(() => {
+    if (!profile) setTodayFabHidden(true, !isError)
+  }, [isError, profile, setTodayFabHidden])
   const { requestFirstUsePermission } = usePushNotifications()
   const readyForNotifications = profile?.hasCompletedOnboarding === true
   useFocusEffect(useCallback(() => {
@@ -223,12 +228,12 @@ function TodayScreenContent() {
   useEffect(() => {
     const hidden = isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen ||
       !habitsQuery.data || habitsById.size === 0
-    setTodayFabHidden(hidden)
-    return () => setTodayFabHidden(false)
+    setTodayFabHidden(hidden, !habitsQuery.data && !habitsQuery.isError)
   }, [
     editHabit,
     habitsById.size,
     habitsQuery.data,
+    habitsQuery.isError,
     isSelectMode,
     listSurfaceOpen,
     setTodayFabHidden,

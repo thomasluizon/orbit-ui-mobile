@@ -48,6 +48,7 @@ interface DestinationShellProps {
   conversationLabel?: string
   onCreate: () => void
   createRefusal?: ReactNode
+  todayFabHidden?: boolean
 }
 
 type ComposerRenderer = () => ReactNode
@@ -128,6 +129,7 @@ export function DestinationShell({
   conversationLabel,
   onCreate,
   createRefusal,
+  todayFabHidden,
 }: Readonly<DestinationShellProps>) {
   const registeredComposer = useShellComposerHost()
   const headerHostRef = useRef<HTMLDivElement>(null)
@@ -151,6 +153,7 @@ export function DestinationShell({
             conversationLabel={conversationLabel}
             onCreate={onCreate}
             createRefusal={createRefusal}
+            todayFabHidden={todayFabHidden}
           >
             {children}
           </DestinationShellContent>
@@ -169,6 +172,18 @@ function getPinnedComposer(notFoundVisible: boolean, registeredComposer: ReactNo
   return registeredComposer ?? (enabled ? composer : undefined)
 }
 
+function ShellCreateFab({ onCreate, refusal }: Readonly<{ onCreate: () => void; refusal?: ReactNode }>) {
+  const t = useTranslations()
+  return (
+    <div className="pointer-events-none flex items-end gap-3">
+      <div aria-live="polite" aria-atomic="true" className={refusal ? 'pointer-events-auto min-w-0 max-w-[min(68vw,280px)]' : ''}>{refusal}</div>
+      <Fab label={t('nav.createHabit')} onClick={onCreate}>
+        <Plus size={24} strokeWidth={2} aria-hidden="true" />
+      </Fab>
+    </div>
+  )
+}
+
 function DestinationShellContent({
   children,
   registerHeaderHost,
@@ -180,6 +195,7 @@ function DestinationShellContent({
   onCreate,
   createRefusal,
   registeredComposer,
+  todayFabHidden = false,
 }: Readonly<DestinationShellProps & { registerHeaderHost: RefCallback<HTMLDivElement>; registeredComposer?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
@@ -193,9 +209,9 @@ function DestinationShellContent({
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const lastDestination = useShellStore((state) => state.lastDestination)
   const setLastDestination = useShellStore((state) => state.setLastDestination)
-  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
+  const todayFabPending = useUIStore((state) => state.todayFabPending)
   const chrome = resolveShellChrome(pathname, lastDestination)
   const activeId = notFoundVisible ? '' : chrome.activeId
   useEffect(() => {
@@ -314,15 +330,9 @@ function DestinationShellContent({
           /> : undefined
         }
         fab={
-          pathname === '/' && !todayFabHidden && !conversationOpen ? (
-            <div className="pointer-events-none flex items-end gap-3">
-              <div aria-live="polite" aria-atomic="true" className={createRefusal ? 'pointer-events-auto min-w-0 max-w-[min(68vw,280px)]' : ''}>{createRefusal}</div>
-              <Fab label={t('nav.createHabit')} onClick={onCreate}>
-                <Plus size={24} strokeWidth={2} aria-hidden="true" />
-              </Fab>
-            </div>
-          ) : undefined
+          pathname === '/' && !todayFabHidden && !conversationOpen ? <ShellCreateFab onCreate={onCreate} refusal={createRefusal} /> : undefined
         }
+        fabPending={pathname === '/' && todayFabPending}
       >
         <div id="orbit-main" className="flex min-h-full flex-col has-[[data-page-viewport]]:h-full">{children}</div>
       </ShellWide>

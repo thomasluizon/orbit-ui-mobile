@@ -49,7 +49,7 @@ type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
   ? Omit<Props, 'items'> & { items: WebShellWideItem[] }
   : Props
 
-type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; compactComposer?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
+type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; compactComposer?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
 
 function SidebarItem({
   item,
@@ -253,7 +253,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
     revealBottomControls()
     return () => observer.disconnect()
   }, [floating])
-  return <div ref={viewportRef} data-shell-bottom-viewport=""
+  return <div ref={viewportRef} data-shell-bottom-viewport="" data-floating={floating}
     className={floating ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
     style={{ minHeight: minimumHeight }}>
     <div className={floating ? 'lg:contents' : 'contents'}><div className="relative flex min-h-0 flex-col">{children}</div></div>
@@ -278,7 +278,8 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
   const pinnedSlot = getPinnedSlot(props, wide)
   const compactOnly = navigationEnabled && props.composer === undefined && props.compactComposer !== undefined
   const menuContext = compactOnly ? compactMenu : null
-  const { scrollOwner, columnMinimum, safeAreaPadding, safeBottom } = getBottomViewportClasses(props.fab !== undefined)
+  const floating = props.fab !== undefined || props.fabPending === true
+  const { scrollOwner, columnMinimum, safeAreaPadding, safeBottom } = getBottomViewportClasses(floating)
   if (!visible) return null
   const actionMinimum = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined) ? BUTTON_SIZES.md.height + 8 : undefined
 
@@ -290,7 +291,7 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
       style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + ${safeBottom})` }}
     >
       <div className={`relative mx-auto flex w-full flex-col ${columnMinimum}`} style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH, minHeight: actionMinimum }}>
-        <ShellBottomViewport floating={props.fab !== undefined} minimumHeight={actionMinimum}>
+        <ShellBottomViewport floating={floating} minimumHeight={actionMinimum}>
           {props.notice !== undefined ? (
             <div data-shell-notice="" className={`pointer-events-none ${scrollOwner} px-4 has-[>div>:not(:empty)]:pt-[calc(var(--sh-2-blur)-var(--sh-2-offset-y))] has-[>div>:not(:empty)]:pb-[calc(var(--sh-2-blur)+var(--sh-2-offset-y))]`}>
               <div className="pointer-events-auto">{props.notice}</div>
@@ -353,7 +354,7 @@ function ShellDestinationViewport({ floating, hasHeader, hasTabBar, children }: 
     return () => observer.disconnect()
   }, [floating, hasHeader, hasTabBar, minimumPageHeight])
   return <div className={floating ? 'min-h-0 flex-1 pb-[var(--safe-bottom)] lg:contents' : 'contents'}>
-    <div ref={viewportRef} data-shell-destination-viewport=""
+    <div ref={viewportRef} data-shell-destination-viewport="" data-floating={floating}
       className={floating ? 'flex h-full flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-contain [&>[data-shell-background]]:min-h-[var(--shell-destination-min-height)] lg:contents lg:overflow-visible lg:[&>[data-shell-background]]:min-h-0' : 'contents'}
       style={{ '--shell-destination-min-height': `${minimumHeight}px` } as CSSProperties}>
       {children}
@@ -383,7 +384,8 @@ function ShellWideBackground({
   const hasFlowAction = pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
-  const scrollerSpacing = getScrollerSpacing(hasBottomChrome, pinnedSlot !== undefined || props.fab !== undefined, props.fab !== undefined)
+  const floating = props.fab !== undefined || props.fabPending === true
+  const scrollerSpacing = getScrollerSpacing(hasBottomChrome, pinnedSlot !== undefined || floating, floating)
   const scroller = (
     <main
       ref={registerScroller}
@@ -407,7 +409,7 @@ function ShellWideBackground({
 
       <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:px-8">
         <div data-shell-column="" className="orbit-centred-column relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
-          <ShellDestinationViewport floating={props.fab !== undefined} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
+          <ShellDestinationViewport floating={floating} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
             className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
           {registerHeaderHost !== undefined || props.header !== undefined ? <div ref={registerHeaderHost} data-shell-header="" data-focus-inset="" className={`empty:hidden overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}>{props.header}</div> : null}
