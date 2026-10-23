@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { habitListCardFixture } from '../test-support/chat-fixtures'
 import { buildRecentChatHistory } from '../utils/chat-history'
 
 describe('buildRecentChatHistory', () => {
@@ -41,4 +42,16 @@ describe('buildRecentChatHistory', () => {
 
     expect(history).toEqual([{ role: 'user', content: 'one' }])
   })
+})
+
+it('preserves absolute query scope and identity in block-only history for follow-up requests', () => {
+  const read = { queryId: '11111111-1111-4111-8111-111111111111', queryFamily: 'query_habits',
+    scope: { from: '2026-10-01', to: '2026-10-07', habitIds: ['habit-1'], includeBadHabits: false },
+    revision: 'revision', completeness: 'complete' as const, refreshToken: 'signed' }
+  const history = buildRecentChatHistory([
+    { role: 'ai', content: '', parts: [{ type: 'block', kind: 'habitList', block: { ...habitListCardFixture, read } }] },
+    { role: 'user', content: 'Compare' },
+  ])
+  expect(JSON.parse(history[0]!.content)).toEqual([{ kind: 'habitList', queryId: read.queryId, queryFamily: read.queryFamily, scope: read.scope }])
+  expect(history[0]!.content).not.toContain('signed')
 })

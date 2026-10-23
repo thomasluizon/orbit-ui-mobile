@@ -1,9 +1,11 @@
 import type { ChatMessage } from '../types/chat'
+import { getChatMessageParts } from '../chat/final-message'
 
 interface ChatHistoryEntry {
   id?: ChatMessage['id']
   role: ChatMessage['role']
   content: string | null
+  parts?: ChatMessage['parts']
   proactiveContextAfterMessageId?: ChatMessage['proactiveContextAfterMessageId']
 }
 
@@ -34,6 +36,15 @@ export function buildRecentChatHistory(
     .filter((message): message is ChatHistoryEntry & { content: string } => message.content !== null)
     .map((message) => ({
       role: toChatHistoryRole(message.role),
-      content: message.content,
+      content: historyContent(message),
     }))
+}
+
+function historyContent(message: ChatHistoryEntry & { content: string }): string {
+  if (message.role !== 'ai' || !message.parts) return message.content
+  const queries = getChatMessageParts({ ...message, id: message.id ?? '', timestamp: new Date(0) })
+    .flatMap(part => part?.type === 'block' && 'read' in part.block && part.block.read
+      ? [{ kind: part.kind, queryId: part.block.read.queryId, queryFamily: part.block.read.queryFamily, scope: part.block.read.scope }]
+      : [])
+  return queries.length ? [message.content, JSON.stringify(queries)].filter(Boolean).join('\n') : message.content
 }

@@ -144,8 +144,7 @@ describe('MessageBubble', () => {
     const { rerender } = render(<MessageBubble message={makeMessage({ role: 'ai', content: '[[orbit:habits:' })} isStreaming />)
     expect(screen.queryByTestId('markdown')).not.toBeInTheDocument()
     rerender(<MessageBubble message={makeMessage({ role: 'ai', content: 'Hello [[orbit:habits:' })} isStreaming />)
-    expect(screen.getByTestId('markdown')).toHaveTextContent('Hello')
-    expect(screen.getByTestId('markdown')).not.toHaveTextContent('[[orbit:')
+    expect(screen.queryByTestId('markdown')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
@@ -366,7 +365,7 @@ describe('MessageBubble', () => {
     const message = makeMessage({ role: 'ai', content: 'Keep this literal [[or' })
     const { rerender } = render(<MessageBubble message={message} isStreaming />)
 
-    expect(screen.getByTestId('markdown').textContent).toBe('Keep this literal')
+    expect(screen.queryByTestId('markdown')).not.toBeInTheDocument()
 
     rerender(<MessageBubble message={message} />)
     expect(screen.getByTestId('markdown').textContent).toBe('Keep this literal [[or')

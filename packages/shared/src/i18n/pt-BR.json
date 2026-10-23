@@ -1272,6 +1272,8 @@
     }
   },
   "chat": {
+    "operationUpdated": "Veja o resultado atualizado acima.",
+    "replyReady": "Resposta pronta.",
     "unreadableReply": "Não foi possível mostrar a resposta. Pergunte de novo.",
     "ranking": {
       "title": "Ranking de hábitos",

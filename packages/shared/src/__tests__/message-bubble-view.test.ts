@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { getMessageBubbleOperations, getMessageBubbleView, type MessageBubbleProps } from '../chat/message-bubble'
-import { makeActionResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '../test-support/chat-fixtures'
+import { makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '../test-support/chat-fixtures'
 import { choiceBlockFixture } from '../test-support/choice-fixtures'
 import type { ChatStoreState } from '../stores/chat-store'
 
@@ -80,4 +80,15 @@ it.each((['onPendingOperationConfirmExecute', 'onPendingOperationPrepareStepUp',
   expect(owned.pendingOperations).toHaveLength(0)
   expect(owned.clarifications).toHaveLength(1)
   expect(owned.clarifications[0]?.pendingOperation).toEqual(operation)
+})
+
+it('replays a repeated terminal result in its original preview instead of adding a second outcome', () => {
+  const original = makeHeldHabitMessage()
+  const operationId = original.pendingOperations![0]!.id
+  const operation = { ...makeAgentOperationResult('Failed', 1), pendingOperationId: operationId }
+  const later = makeHeldHabitMessage({ id: 'retry-result', pendingOperations: [], actions: [], operations: [operation] })
+  const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+  expect(getMessageBubbleOperations({ message: original, laterMessages: [later], ...callbacks }, vi.fn()).pendingOperations[0]!.savedState).toMatchObject({ status: 'failed', completedOperation: operation })
+  expect(getMessageBubbleView({ message: later, earlierMessages: [original], ...callbacks }, new Set()).outcomes).toEqual([])
+  expect(getMessageBubbleView({ message: later, earlierMessages: [original] }, new Set()).outcomes).toHaveLength(1)
 })

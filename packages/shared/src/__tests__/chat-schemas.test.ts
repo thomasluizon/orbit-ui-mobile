@@ -20,7 +20,7 @@ describe('ordered chat parts', () => {
     const message = chatMessageSchema.parse({ id: 'parts', role: 'ai', timestamp: new Date(), ...buildChatFinalMessageFields(event.response, []) })
     expect(message.parts).toEqual(partsFixture.response.parts)
     expect(message.content).toBe(partsFixture.response.aiMessage)
-    expect(getChatMessageParts(message, true)).toEqual([{ type: 'text', text: message.content }])
+    expect(getChatMessageParts(message, true)).toEqual([])
   })
 
   it('retains pinned history and validates every carrying block', () => {
