@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
-import { T, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { T, interruptGithubRead, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 import { readWakeSources } from "../lib/run-state.mjs"
 
 const TOOL = "wait-ci.mjs"
@@ -33,6 +33,15 @@ const fixture = (label, overrides = []) => {
 const argumentsFor = (...extra) => ["--repo", "ui", "--pr", "12", ...extra]
 
 export const cases = async () => {
+  for (const [signal, code] of [["SIGTERM", 143], ["SIGINT", 130]]) {
+    const pidFile = stage(`wait-ci/${signal}-gh.pid`, "")
+    const descendantPidFile = stage(`wait-ci/${signal}-descendant.pid`, "")
+    const hung = fixture(`hung-${signal}`, [{ kind: "pull", hangPidFile: pidFile, hangTreePidFile: descendantPidFile }])
+    const observed = await interruptGithubRead({ path: hung.path, args: argumentsFor(), env: hung.env, signal, pidFile, descendantPidFile })
+    T(`wait-ci: ${signal} terminates the active GitHub tree and clears its wake`, observed.started &&
+      observed.status === code && observed.terminated && JSON.parse(observed.stdout).reason === signal &&
+      readWakeSources(hung.base).length === 0, JSON.stringify(observed))
+  }
   const transientSequence = stage("wait-ci/transient-sequence", "")
   const unavailable = { stdout: "HTTP/2.0 503 Service Unavailable\r\nRetry-After: 0\r\n\r\nService Unavailable", stderr: "gh: HTTP 503\n", exit: 1 }
   const transient = fixture("transient", [

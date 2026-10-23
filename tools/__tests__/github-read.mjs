@@ -22,6 +22,22 @@ const read = async (name, responses, options = {}) => {
 const success = { stdout: "HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n[]", stderr: "", exit: 0 }
 
 export const cases = async () => {
+  for (const signal of ["SIGTERM", "SIGINT"]) {
+    const existingHandler = () => {}
+    const listeners = process.listenerCount(signal)
+    const exitListeners = process.listenerCount("exit")
+    process.on(signal, existingHandler)
+    let interruption
+    const interrupted = await read(`backoff-${signal}`, [response(503, "Retry-After: 60\r\n")], {
+      deadline: Date.now() + 1000,
+      onTransientError: () => { interruption = setTimeout(() => process.emit(signal), 20) },
+    })
+    clearTimeout(interruption)
+    process.removeListener(signal, existingHandler)
+    T(`GitHub read: ${signal} cancels backoff and releases lifecycle listeners`, interrupted.error?.name === "AbortError" &&
+      interrupted.calls === 1 && interrupted.elapsed < 900 && process.listenerCount(signal) === listeners &&
+      process.listenerCount("exit") === exitListeners, interrupted.error?.message)
+  }
   for (const status of [500, 502, 503, 504, 599, 429]) {
     const recovered = await read(`recover-${status}`, [response(status), success])
     T(`GitHub read: HTTP ${status} recovers`, !recovered.error && recovered.calls === 2 && recovered.errors.length === 1, recovered.error?.message)

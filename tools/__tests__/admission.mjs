@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, TOOLS_DIR, orcaEnv, realOrchestratorConfig, stage, stageRepo } from "./_harness.mjs"
+import { T, TOOLS_DIR, interruptGithubRead, orcaEnv, realOrchestratorConfig, stage, stageRepo } from "./_harness.mjs"
 import { RELEASE_HOLD_MS, checkAdmission, configuredRepositorySlug, queuedRunsPath, releaseAdmission } from "../lib/admission.mjs"
 import { processStartIdentity } from "../lib/run-state.mjs"
 
@@ -26,6 +26,21 @@ export const cases = async () => {
   const config = {
     repos: { ui: repository("ui"), api: repository("api"), landing: repository("landing") },
     caps: { maxOpenPullRequests: 10, maxQueuedRuns: 30 },
+  }
+  for (const [signal, code] of [["SIGTERM", 143], ["SIGINT", 130]]) {
+    const pidFile = stage(`admission/${signal}-gh.pid`, "")
+    const descendantPidFile = stage(`admission/${signal}-descendant.pid`, "")
+    const probe = stage(`admission/${signal}-probe.mjs`, `
+import { checkAdmission } from ${JSON.stringify(new URL("../lib/admission.mjs", import.meta.url).href)}
+await checkAdmission({ config: ${JSON.stringify(config)}, repositoryKey: "ui", branch: "feature/interrupted",
+  environment: process.env, worktree: ${JSON.stringify(config.repos.ui)}, repoRoot: ${JSON.stringify(config.repos.ui)} })
+throw new Error("Interrupted admission must not resume")
+`)
+    const env = orcaEnv([{ match: "pulls?head=", hangPidFile: pidFile, hangTreePidFile: descendantPidFile }])
+    const observed = await interruptGithubRead({ path: probe, args: [], env, signal, pidFile, descendantPidFile })
+    T(`admission: ${signal} terminates the active GitHub tree before launcher exit`, observed.started && observed.terminated &&
+      (observed.status === code || observed.signal === signal), JSON.stringify(observed))
+    rmSync(join(config.repos.ui, ".git", "orbit-admission.lock"), { force: true })
   }
   const plan = (pulls, runs, branchPulls = [], fail = false) => orcaEnv([
     { match: "pulls?head=", stdout: JSON.stringify(branchPulls) },

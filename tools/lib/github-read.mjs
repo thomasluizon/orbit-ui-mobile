@@ -23,10 +23,13 @@ const retryAfter = (headers) => {
 }
 
 const attempt = async (args, environment, options) => {
+  options.signal.throwIfAborted()
   if (Date.now() >= options.deadline) throw ceiling()
   const result = await runBounded(environment.GH_BIN || "gh", args, {
     env: environment, timeoutMs: Math.min(30000, options.deadline - Date.now()), maxBuffer: 8 * 1024 * 1024,
+    signal: options.signal,
   })
+  options.signal.throwIfAborted()
   const response = responseParts(result.stdout)
   if (result.timedOut || result.error || result.overflowed || result.status !== 0) {
     const text = result.stderr || result.error?.message || (result.timedOut ? "gh timed out" : response.body || `exit ${result.status}`)
@@ -48,22 +51,39 @@ const attempt = async (args, environment, options) => {
   }
 }
 
-const pause = async (milliseconds, deadline) => {
+const pause = async (milliseconds, { deadline, signal }) => {
   const remaining = deadline - Date.now()
   if (remaining <= 0) throw ceiling()
-  await wait(Math.min(milliseconds, remaining))
+  await wait(Math.min(milliseconds, remaining), undefined, { signal })
   if (Date.now() >= deadline) throw ceiling()
 }
 
 const retryRead = async (operation, options) => {
-  const settings = { deadline: Date.now() + 60000, pollMs: 1000, onTransientError: () => {}, ...options }
-  let failures = 0
-  while (true) {
-    try { return await operation(settings) } catch (error) {
-      if (!error.transient) throw error
-      const backoff = Math.min(settings.pollMs, 1000 * 2 ** Math.min(failures++, 10))
-      await pause(error.retryAfterMs ?? backoff, settings.deadline)
+  const controller = new AbortController()
+  const settings = { deadline: Date.now() + 60000, pollMs: 1000, onTransientError: () => {}, ...options, signal: controller.signal }
+  const abort = () => controller.abort()
+  const handlers = [["SIGINT", 130], ["SIGTERM", 143]].map(([signal, code]) => {
+    const handler = () => {
+      abort()
+      // Cleanup must precede caller handlers, which may exit synchronously and remove a wake.
+      if (process.listenerCount(signal) === 0) process.exit(code)
     }
+    process.prependOnceListener(signal, handler)
+    return [signal, handler]
+  })
+  process.once("exit", abort)
+  let failures = 0
+  try {
+    while (true) {
+      try { return await operation(settings) } catch (error) {
+        if (!error.transient) throw error
+        const backoff = Math.min(settings.pollMs, 1000 * 2 ** Math.min(failures++, 10))
+        await pause(error.retryAfterMs ?? backoff, settings)
+      }
+    }
+  } finally {
+    for (const [signal, handler] of handlers) process.removeListener(signal, handler)
+    process.removeListener("exit", abort)
   }
 }
 
@@ -76,7 +96,7 @@ export const readGithubPull = (slug, number, environment, options = {}) => retry
     return await attempt(["api", `repos/${slug}/pulls/${number}`, "--include"], environment, settings)
   } catch (error) {
     if (!error.fallbackAllowed) throw error
-    if (error.retryAfterMs !== null) await pause(error.retryAfterMs, settings.deadline)
+    if (error.retryAfterMs !== null) await pause(error.retryAfterMs, settings)
     // Tracks #1640: GitHub can serve GraphQL while the single-pull REST endpoint is unavailable.
     const pull = await attempt(["pr", "view", String(number), "--repo", slug, "--json", "state,headRefOid"], environment, settings)
     if (typeof pull?.headRefOid !== "string" || !["OPEN", "CLOSED", "MERGED"].includes(pull.state)) {

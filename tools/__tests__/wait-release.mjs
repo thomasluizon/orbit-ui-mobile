@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs"
-import { T, orcaEnv, realOrchestratorConfig, run, stage, stageWithConfig, toolPath } from "./_harness.mjs"
+import { T, interruptGithubRead, orcaEnv, realOrchestratorConfig, run, stage, stageWithConfig, toolPath } from "./_harness.mjs"
 import { readWakeSources } from "../lib/run-state.mjs"
 
 const TOOL = "wait-release.mjs"
@@ -17,6 +17,16 @@ const workflowRun = (status, conclusion = null) => ({
 const args = ["--repo", "api", "--run", "1", "--sha", SHA, "--poll-seconds", "0.001"]
 
 export async function cases() {
+  for (const [signal, code] of [["SIGTERM", 143], ["SIGINT", 130]]) {
+    const pidFile = stage(`wait-release/${signal}-gh.pid`, "")
+    const descendantPidFile = stage(`wait-release/${signal}-descendant.pid`, "")
+    const hung = staged(`hung-${signal}`, [])
+    const env = orcaEnv([{ match: "api repos/", hangPidFile: pidFile, hangTreePidFile: descendantPidFile }])
+    const observed = await interruptGithubRead({ path: hung.path, args, env, signal, pidFile, descendantPidFile })
+    T(`wait-release: ${signal} terminates the active GitHub tree and clears its wake`, observed.started &&
+      observed.status === code && observed.terminated && JSON.parse(observed.stdout).reason === signal &&
+      readWakeSources(hung.base).length === 0, JSON.stringify(observed))
+  }
   const completed = staged("completed", [workflowRun("queued"), workflowRun("completed", "success")])
   const completedResult = run(TOOL, args, { path: completed.path, env: completed.env })
   T("release waiter waits for completion", completedResult.status === 0 &&
