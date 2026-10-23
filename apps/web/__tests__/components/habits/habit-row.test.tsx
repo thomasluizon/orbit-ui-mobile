@@ -61,14 +61,14 @@ describe('HabitRow overflow menus', () => {
 
   it('matches the drawn menu for an overdue parent on a free plan', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
-    render(<HabitRow habit={createMockHabit({ title: 'Walk' })} state="overdue" hasSubHabits hasProAccess={false}
+    render(<HabitRow habit={createMockHabit({ title: 'Walk' })} state="overdue" hasSubHabits
       actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(), onReschedule: vi.fn(),
         onEdit: vi.fn(), onDuplicate: vi.fn(), onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
     const items = await screen.findAllByRole('menuitem')
     expect(document.querySelector('.orbit-menu-panel')).toHaveAttribute('aria-label', 'Walk')
     expect(items.map((item) => item.textContent)).toEqual([
-      'habits.actions.addSubHabitPro', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
       'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
       'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete',
     ])
@@ -82,7 +82,7 @@ describe('HabitRow overflow menus', () => {
 
   it('omits overdue and child actions when their row conditions do not apply', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
-    render(<HabitRow habit={createMockHabit({ title: 'Read' })} state="empty" hasProAccess
+    render(<HabitRow habit={createMockHabit({ title: 'Read' })} state="empty"
       actions={{ onAddSubHabit: vi.fn(), onReschedule: vi.fn(), onDrillInto: vi.fn(), onEnterSelectMode: vi.fn() }} />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
     expect(await screen.findByRole('menuitem', { name: 'habits.actions.addSubHabit' })).toBeInTheDocument()
@@ -225,7 +225,7 @@ describe('HabitRow neutral metadata contrast', () => {
             foreground: getComputedStyle(metadata).color,
             expectedForeground: colorOf(interactive ? '--fg-2' : '--fg-3'),
             separators: Array.from(metadata.querySelectorAll('span')).filter((span) => span.textContent === '·').map((span) => getComputedStyle(span).color),
-            stateWords: Array.from(metadata.querySelectorAll('span')).filter((span) => span.textContent !== '·').map((span) => getComputedStyle(span).color),
+            stateWords: Array.from(metadata.querySelectorAll('[data-habit-row-meta-state]')).map((span) => getComputedStyle(span).color),
             expectedStateWords: [colorOf('--status-overdue-text'), colorOf('--status-bad-text')],
             bodyFill: getComputedStyle(body).backgroundColor,
             expectedBodyFill: 'rgba(0, 0, 0, 0)',
@@ -593,8 +593,8 @@ describe('HabitRow large text placement', () => {
     expect(container.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
     const type = container.querySelector('[data-habit-row-type]')!
     expect(type.closest('[data-habit-row-heading]')).toBeNull()
-    expect(type.parentElement!.children).toHaveLength(1)
-    expect(container.querySelector('[data-habit-row-meta]')).toBeNull()
+    expect(type.closest('[data-habit-row-meta]')).not.toBeNull()
+    expect(container.querySelectorAll('[data-habit-row-meta]')).toHaveLength(1)
     expect(container.querySelector('[data-habit-row-body]')).toHaveAccessibleName('Leaf, habits.form.typeHabit')
   })
 

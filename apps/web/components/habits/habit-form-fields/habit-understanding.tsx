@@ -1,7 +1,7 @@
 'use client'
 
 import { TypedTextarea } from '@/components/ui/typed-textarea'
-import { useMemo, useState, type Ref, type CSSProperties } from 'react'
+import { useId, useMemo, useState, type Ref, type CSSProperties } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
@@ -55,6 +55,9 @@ export function HabitUnderstanding({
   onQuantityChange,
   labels,
 }: Readonly<HabitUnderstandingWithDisabledEmojiProps>) {
+  const id = useId()
+  const phraseId = `habit-phrase-${id}`
+  const errorId = `habit-phrase-error-${id}`
   const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
   const hasValue = value.trim().length > 0
   const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
@@ -79,7 +82,7 @@ export function HabitUnderstanding({
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
       <div className="flex flex-col" style={{ gap: 8 }}>
-        <label htmlFor="habit-phrase" className="form-label">{labels.field}</label>
+        <label htmlFor={phraseId} className="form-label">{labels.field}</label>
         <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
           <p
             aria-hidden="true"
@@ -97,20 +100,20 @@ export function HabitUnderstanding({
           </p>
           <TypedTextarea
             ref={inputRef}
-            id="habit-phrase"
+            id={phraseId}
             value={value}
             rows={3}
             maxLength={200}
             spellCheck={false}
             placeholder={labels.placeholder}
             aria-invalid={!!error}
-            aria-describedby={error ? 'habit-phrase-error' : undefined}
+            aria-describedby={error ? errorId : undefined}
             className="absolute inset-0 h-full min-h-[92px] w-full resize-none rounded-[12px] border-0 bg-transparent p-4 text-base leading-[1.45] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] caret-[var(--fg-1)] focus-visible:outline-none"
             onChange={(event) => onValueChange(event.target.value)}
           />
         </div>
         {error ? (
-          <p id="habit-phrase-error" role="alert" className="text-sm text-[var(--status-bad-text)]">
+          <p id={errorId} role="alert" className="text-sm text-[var(--status-bad-text)]">
             {error}
           </p>
         ) : null}

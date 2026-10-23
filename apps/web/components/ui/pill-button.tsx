@@ -10,7 +10,7 @@ import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-[var(--primary)] text-[var(--fg-on-primary)]',
   secondary: 'bg-[var(--fg-1)] text-[var(--bg)]',
-  ghost: 'text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)]',
+  ghost: 'text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] focus-visible:shadow-none',
   destructive: 'bg-[var(--status-bad)] text-[var(--fg-on-bad)]',
   caution: 'bg-[var(--status-overdue)] text-[var(--fg-on-overdue)]',
 }

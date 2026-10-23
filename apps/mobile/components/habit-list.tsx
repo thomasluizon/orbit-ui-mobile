@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
   forwardRef,
@@ -14,13 +14,14 @@ import {
 } from 'react'
 import {
   View,
+  useWindowDimensions,
   Text,
   FlatList,
   RefreshControl,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native'
-import { usePathname, useRouter } from 'expo-router'
 import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
@@ -28,7 +29,9 @@ import { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
+import { useShellListFocus } from '@/components/shell/shell-focus-target'
 import {
+  getHabitInlineDepthLimit,
   buildHabitDateBuckets,
   filterHabitViewRoots,
   formatHabitDateBucketLabel,
@@ -62,7 +65,6 @@ import {
 } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
-import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
@@ -171,7 +173,7 @@ function ActionRow({
       onReschedule: habit.isOverdue
         ? () => handlersRef.current.reschedule(latestRef.current.habit)
         : undefined,
-      onToggleExpand: () => handlersRef.current.expand(habitId),
+      onToggleExpand: () => rowProps.drillInsteadOfExpand ? handlersRef.current.drill(habitId) : handlersRef.current.expand(habitId),
       onDelete: () => handlersRef.current.delete(habitId),
       onDuplicate: () => handlersRef.current.duplicate(latestRef.current.habit),
       onEdit: () => handlersRef.current.edit(latestRef.current.habit, isDrillCard),
@@ -185,7 +187,7 @@ function ActionRow({
         ? () => latestRef.current.onLongPressCard?.()
         : undefined,
     }
-  }, [canSkip, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
+  }, [canSkip, rowProps.drillInsteadOfExpand, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
 
   return <HabitRow {...rowProps} habit={habit} actions={actions} />
 }
@@ -439,8 +441,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const selectedDate = view === 'today' ? requestedDate : undefined
     const { t, i18n } = useTranslation()
     const accountHabitCount = useHabitCountLoaded()
-    const router = useRouter()
-    const pathname = usePathname()
     const { profile } = useProfile()
     const accountTimeZone = profile?.timeZone
     const todayStr = useCurrentDate(accountTimeZone)
@@ -459,14 +459,25 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const stateListRef = useRef<FlatList<string>>(null)
     const allListRef = useRef<FlatList<DragItem>>(null)
+    const listScrollOffsets = useRef(new WeakMap<object, number>())
+    const revealListFocus = useShellListFocus((delta) => {
+      const target = scrollContainerRef.current ?? allListRef.current ?? drillListRef.current ?? stateListRef.current
+      if (!target) return
+      const offset = Math.max(0, (listScrollOffsets.current.get(target) ?? 0) + delta)
+      listScrollOffsets.current.set(target, offset)
+      target.scrollToOffset({ offset, animated: false })
+    })
     const handleListScroll = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const target = allListRef.current ?? drillListRef.current ?? stateListRef.current
+        if (target) listScrollOffsets.current.set(target, e.nativeEvent.contentOffset.y)
         onScroll?.(e.nativeEvent.contentOffset.y)
       },
       [onScroll],
     )
     const handleMainListOffsetChange = useCallback(
       (offsetY: number) => {
+        if (scrollContainerRef.current) listScrollOffsets.current.set(scrollContainerRef.current, offsetY)
         onScroll?.(offsetY)
       },
       [onScroll],
@@ -728,9 +739,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const dateGroups = useMemo(() => view === 'all' ? buildHabitDateBuckets(visibleHabits, todayStr) : [], [view, visibleHabits, todayStr])
     const groupHeadings = useMemo(() => new Map(dateGroups.map((bucket) => [bucket.habits[0]!.id, formatHabitDateBucketLabel(bucket.key, todayStr, i18n.language, t)])), [dateGroups, todayStr, i18n.language, t])
+    const { width: windowWidth, fontScale } = useWindowDimensions()
+    const [contentWidth, setContentWidth] = useState<number>()
+    const measureList = useCallback((event: LayoutChangeEvent) => {
+      setContentWidth(event.nativeEvent.layout.width - 2 * PADDING.screenGutter)
+    }, [])
+    const maxInlineDepth = getHabitInlineDepthLimit(windowWidth, fontScale, contentWidth)
     const flatItems = useMemo<DragItem[]>(
-      () => buildFlatHabitItems(view === 'all' ? dateGroups.flatMap((bucket) => bucket.habits) : visibleHabits, collapsedIds, getVisibleChildren),
-      [view, dateGroups, visibleHabits, collapsedIds, getVisibleChildren],
+      () => buildFlatHabitItems(view === 'all' ? dateGroups.flatMap((bucket) => bucket.habits) : visibleHabits, collapsedIds, getVisibleChildren, maxInlineDepth),
+      [view, dateGroups, visibleHabits, collapsedIds, getVisibleChildren, maxInlineDepth],
     )
 
     const activeDragItems = dragOverrideItems ?? flatItems
@@ -1323,11 +1340,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const startAddSubHabit = useCallback(
       (parentId: string) => {
-        if (profile?.hasProAccess === false) {
-          router.push(buildUpgradeHref(pathname || '/'))
-          return
-        }
-
         const parentHabitCandidate = habitsById.get(parentId)
         if (!parentHabitCandidate) return
 
@@ -1341,9 +1353,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [
         collapsedIds,
         habitsById,
-        pathname,
-        profile?.hasProAccess,
-        router,
         toggleExpand,
       ],
     )
@@ -1515,15 +1524,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             structuralColumn
             selectedDate={selectedDate}
             today={todayStr}
-            depth={depth === 0 ? 0 : 1}
+            depth={depth}
+            drillInsteadOfExpand={Boolean(options?.isDrillCard) || depth >= maxInlineDepth}
             panelEnd={options?.panelEnd}
             hasChildren={hasChildren}
-            isExpanded={!collapsedIds.has(habit.id)}
+            isExpanded={!options?.isDrillCard && depth < maxInlineDepth && !collapsedIds.has(habit.id)}
             childrenDone={progress.done}
             childrenTotal={progress.total}
             isSelectMode={isSelectMode}
             isSelected={selectedIds.has(habit.id)}
-            hasProAccess={profile?.hasProAccess !== false}
             hasSubHabits={hasSubHabits}
             isDrillCard={Boolean(options?.isDrillCard)}
             onLongPressCard={options?.onLongPressCard}
@@ -1538,10 +1547,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         selectedDateStr,
         todayStr,
         collapsedIds,
+        maxInlineDepth,
         getChildrenProgress,
         isSelectMode,
         selectedIds,
-        profile?.hasProAccess,
       ],
     )
 
@@ -1689,11 +1698,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             drill={drill}
             styles={styles}
             t={t}
-            hasProAccess={profile?.hasProAccess !== false}
             listHeaderComponent={listHeaderComponent}
             drillListRef={drillListRef}
             refreshControl={refreshControl}
             onListScroll={handleListScroll}
+            onFocus={revealListFocus}
             onScrollBeginDrag={onScrollBeginDrag}
             bulkBarStyle={bulkBarStyle}
             renderHabitCard={renderHabitCard}
@@ -1710,6 +1719,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             ref={stateListRef}
+            onFocus={revealListFocus}
             onScroll={handleListScroll}
             scrollEventThrottle={16}
             data={SKELETON_KEYS}
@@ -1736,6 +1746,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             ref={stateListRef}
+            onFocus={revealListFocus}
             onScroll={handleListScroll}
             scrollEventThrottle={16}
             data={[]}
@@ -1782,7 +1793,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (view === 'all') return <>
       <FlatList
         ref={allListRef}
+        onFocus={revealListFocus}
         testID="habit-list-all"
+        onLayout={measureList}
         data={flatItems}
         keyExtractor={keyExtractor}
         renderItem={({ item, index }) => <>
@@ -1807,6 +1820,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       <>
         <DraggableFlatList
           ref={scrollContainerRef}
+          onLayout={measureList}
+          onFocus={revealListFocus}
           data={activeDragItems}
           keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
           renderItem={renderItem}

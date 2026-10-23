@@ -20,7 +20,7 @@ describe('typed drill heading', () => {
       refreshCurrent: vi.fn(async () => {}), getDrillChildren: () => [],
     }
     let tree!: ReactTestRenderer
-    await act(() => { tree = create(<HabitDrill drill={drill} styles={createStyles(createTokensV2(undefined, 'light'))} t={(key) => key} hasProAccess listHeaderComponent={null} drillListRef={createRef<FlatList<NormalizedHabit>>()} refreshControl={<RefreshControl refreshing={false} />} onListScroll={vi.fn()} bulkBarStyle={{}} renderHabitCard={() => null} onAddSubHabit={vi.fn()} />) })
+    await act(() => { tree = create(<HabitDrill drill={drill} styles={createStyles(createTokensV2(undefined, 'light'))} t={(key) => key} listHeaderComponent={null} drillListRef={createRef<FlatList<NormalizedHabit>>()} refreshControl={<RefreshControl refreshing={false} />} onListScroll={vi.fn()} bulkBarStyle={{}} renderHabitCard={() => null} onAddSubHabit={vi.fn()} />) })
     const header = tree.root.findAll((node) => node.type === FlatList)[0]!.props.ListHeaderComponent as React.ReactNode
     await act(() => tree.update(<>{header}</>))
     await expectPersonalTextLayout(tree.root, name)

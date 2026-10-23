@@ -1,3 +1,4 @@
+import { useHabitFormInteraction } from './habit-form-interaction'
 import { ListRow } from '@/components/ui/list-row'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -39,6 +40,7 @@ export function ReminderSection({
   scheduledReminderCount = 0,
   onValidationError,
 }: Readonly<ReminderSectionProps>) {
+  const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const { t } = useTranslation();
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
   const [showAddReminder, setShowAddReminder] = useState(false);
@@ -98,7 +100,7 @@ export function ReminderSection({
 
   return (
     <View style={inline ? { gap: 12 } : sectionStyles.container}>
-      <ListRow placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />
+      <ListRow disabled={disabled} placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />
       <ReminderPermissionNotice visible={permission.showNotice} tokens={tokens} onPress={permission.openSettings} />
       {reminderEnabled && (
         <View style={sectionStyles.body}>
@@ -109,7 +111,7 @@ export function ReminderSection({
                   {reminderLabel(time)}
                 </Text>
                 <Pressable
-                  disabled={reminderTimes.length + scheduledReminderCount <= 1}
+                  disabled={disabled || (reminderTimes.length + scheduledReminderCount <= 1)}
                   style={({ pressed }) => [
                     { minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: "center", justifyContent: "center" },
                     { borderRadius: 999, overflow: "hidden" },
@@ -133,7 +135,7 @@ export function ReminderSection({
           ) : null}
 
           {atLimit ? <Text style={sectionStyles.limitText}>{t("habits.form.relativeReminderMax")}</Text> : null}
-          {!atLimit ? <Pressable
+          {!atLimit ? <Pressable disabled={disabled}
             style={({ pressed }) => [
               sectionStyles.addButton,
               pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
@@ -154,7 +156,7 @@ export function ReminderSection({
           {showAddReminder && !atLimit && (
             <View style={sectionStyles.dropdown}>
               {availablePresets.map((preset) => (
-                <Pressable
+                <Pressable disabled={disabled}
                   key={preset.value}
                   style={({ pressed }) => [
                     sectionStyles.dropdownItem,
@@ -175,18 +177,18 @@ export function ReminderSection({
                 <View style={sectionStyles.customRow}>
                   <View style={{ gap: 8 }}>
                     <Text style={{ color: tokens.fg2, fontFamily: "Geist_500Medium", fontSize: 14, fontWeight: "500" }}>{t("habits.form.reminderCustomLabel")}</Text>
-                    <BottomSheetAppTextInput
+                    <BottomSheetAppTextInput isChangeDisabled={isDisabled} editable={!disabled} accessibilityState={{ disabled }}
                       value={customValue}
                       accessibilityLabel={t("habits.form.reminderCustomLabel")}
                       keyboardType="number-pad"
                       style={sectionStyles.customInput}
-                      onChangeText={setCustomValue}
+                      onChangeText={guard(setCustomValue)}
                       onSubmitEditing={addCustomReminder}
                     />
                   </View>
                   <View style={sectionStyles.unitRow}>
                     {(["min", "hours", "days"] as const).map((unit) => (
-                      <Pressable
+                      <Pressable disabled={disabled}
                         key={unit}
                         style={({ pressed }) => [
                           sectionStyles.unitButton,
@@ -213,7 +215,7 @@ export function ReminderSection({
                   </View>
                   <View style={sectionStyles.unitRow}>
                     {(["before", "after"] as const).map((direction) => (
-                      <Pressable
+                      <Pressable disabled={disabled}
                         key={direction}
                         style={({ pressed }) => [
                           sectionStyles.unitButton,
@@ -234,8 +236,8 @@ export function ReminderSection({
                       </Pressable>
                     ))}
                   </View>
-                  {inline ? <PillButton variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton> : (
-                  <Pressable
+                  {inline ? <PillButton disabled={disabled} variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton> : (
+                  <Pressable disabled={disabled}
                     style={({ pressed }) => [
                       sectionStyles.customAddButton,
                       { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary },
@@ -251,7 +253,7 @@ export function ReminderSection({
                   )}
                 </View>
               )}
-              <Pressable
+              <Pressable disabled={disabled}
                 style={({ pressed }) => [
                   sectionStyles.dropdownItem,
                   pressed && {

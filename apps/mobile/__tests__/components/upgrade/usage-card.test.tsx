@@ -18,15 +18,14 @@ type RenderedTree = {
 }
 
 function renderUsageCard(
-  usageUrgent: boolean,
+  nearThreshold: boolean,
   profile: { aiMessagesUsed: number; aiMessagesLimit: number } | null,
 ) {
   let tree: RenderedTree | undefined
   TestRenderer.act(() => {
     tree = TestRenderer.create(
       <UsageCard
-        usagePercent={usageUrgent ? 82 : 16}
-        usageUrgent={usageUrgent}
+        usagePercent={nearThreshold ? 82 : 16}
         profile={profile}
         t={t}
         tokens={tokens}
@@ -47,10 +46,15 @@ describe('UsageCard', () => {
     expect(hasText(tree, 'upgrade.billing.usage.nearLimit')).toBe(false)
   })
 
-  it('shows the capacity warning at the urgent threshold', () => {
-    const tree = renderUsageCard(true, { aiMessagesUsed: 41, aiMessagesLimit: 50 })
+  it('shows a calm notice with two messages remaining', () => {
+    const tree = renderUsageCard(true, { aiMessagesUsed: 48, aiMessagesLimit: 50 })
     expect(hasText(tree, 'upgrade.billing.usage.nearLimit')).toBe(true)
-    expect(hasText(tree, 'upgrade.billing.usage.nearLimitBody')).toBe(true)
+    expect(hasText(tree, 'shell.composer.limit.renewal')).toBe(true)
+  })
+
+  it('does not warn just because 80 percent of the daily allowance is used', () => {
+    const tree = renderUsageCard(true, { aiMessagesUsed: 41, aiMessagesLimit: 50 })
+    expect(hasText(tree, 'upgrade.billing.usage.nearLimit')).toBe(false)
   })
 
   it('renders zero usage when cached profile content is unavailable', () => {

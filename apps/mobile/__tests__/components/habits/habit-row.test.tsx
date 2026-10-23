@@ -91,9 +91,10 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
       (node: { children: unknown[] }) => node.children.includes(parent ? 'habits.rowProgress' : '21:00'),
     )
     expect(metadata).toBeDefined()
+    const strip = body.findAllByType('View').find((node: { props: { testID?: string } }) => node.props.testID === 'habit-row-meta')!
     function assertStateWords(pressed: boolean, layers: string[]) {
       for (const [word, color] of [['habits.overdue', tokens.statusOverdueText], ['habits.statusDot.bad', tokens.statusBadText]]) {
-        const stateWord = metadata.findAllByType('Text').find(
+        const stateWord = strip.findAllByType('Text').find(
           (node: { children: unknown[] }) => node.children.includes(word),
         )
         const foreground = StyleSheet.flatten(stateWord.props.style).color
@@ -113,8 +114,8 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
       if (pressed && mode === 'dark') {
         expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.567, 3)
       }
-      for (const separator of metadata.findAllByType('Text').filter(
-        (node: { children: unknown[] }) => node.children.includes(' · '),
+      for (const separator of strip.findAllByType('Text').filter(
+        (node: { children: unknown[] }) => node.children.includes('·'),
       )) {
         expect(StyleSheet.flatten(separator.props.style).color).toBe(pressed ? tokens.fg2 : tokens.fg3)
         expect(contrastOnSurface(StyleSheet.flatten(separator.props.style).color, layers)).toBeGreaterThanOrEqual(4.5)
@@ -126,13 +127,13 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
 })
 
 describe('HabitRow canonical content (mobile)', () => {
-  it('shows time alone and omits routine meta on an untimed single row', () => {
+  it('keeps time and actual checklist counts without routine frequency text', () => {
     const timed = renderRowText(createMockHabit({ dueTime: '21:00' }))
     expect(timed).toContain('21:00')
     expect(timed.some((text) => text.includes('habits.frequency'))).toBe(false)
     const untimed = renderRowText(createMockHabit({ checklistItems: [{ text: 'One', isChecked: true }] }))
     expect(untimed.some((text) => text.includes('habits.frequency'))).toBe(false)
-    expect(untimed).not.toContain('1/1')
+    expect(untimed).toContain('1/1')
   })
 
   it('shows child progress instead of the parent schedule', () => {
@@ -626,7 +627,7 @@ describe('HabitRow menu (mobile)', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Walk', isOverdue: true, hasSubHabits: true })}
-        hasChildren hasProAccess={false} actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(),
+        hasChildren actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(),
           onSkip: vi.fn(), onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
           onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
     })
@@ -641,7 +642,7 @@ describe('HabitRow menu (mobile)', () => {
       'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
-    expect(menu.props.items[0].badge).toBe('Pro')
+    expect(menu.props.items[0].badge).toBeUndefined()
     expect(menu.props.items[8].destructive).toBe(true)
     pressMoreButton(renderer)
     const icons = renderer!.root.findAllByType(Icon)
@@ -657,7 +658,7 @@ describe('HabitRow menu (mobile)', () => {
   it('omits overdue and child actions when their row conditions do not apply', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })} hasProAccess
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })}
         actions={{ onAddSubHabit: vi.fn(), onReschedule: vi.fn(), onDrillInto: vi.fn(), onEnterSelectMode: vi.fn() }} />)
     })
     const menu = renderer!.root.findByType(Menu)

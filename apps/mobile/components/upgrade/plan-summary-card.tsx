@@ -1,5 +1,5 @@
 import { SPACING } from '@orbit/shared/theme'
-import type { ReactNode } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import { Text, View, useWindowDimensions } from 'react-native'
 import { responsiveTypeStyle } from '@/lib/theme'
 import { styles } from './styles'
@@ -13,7 +13,7 @@ export function PlanSummaryCard({
   tokens,
 }: Readonly<{
   planLabel: string
-  facts?: (string | null)[]
+  facts?: (string | ReactElement | null)[]
   body?: string
   badges?: ReactNode
   tokens: Tokens
@@ -27,7 +27,9 @@ export function PlanSummaryCard({
       </View>
       {body ? <Text style={[styles.billingBody, { color: tokens.fg2 }]}>{body}</Text> : null}
       {facts.some(Boolean) ? <View style={{ gap: 4 }}>
-        {facts.filter((fact): fact is string => Boolean(fact)).map((fact) => <Text key={fact} style={[styles.billingMeta, { color: tokens.fg2 }]}>{fact}</Text>)}
+        {facts.filter((fact): fact is string | ReactElement => Boolean(fact)).map((fact) => typeof fact === 'string'
+          ? <Text key={fact} style={[styles.billingMeta, { color: tokens.fg2 }]}>{fact}</Text>
+          : fact)}
       </View> : null}
     </View>
   )

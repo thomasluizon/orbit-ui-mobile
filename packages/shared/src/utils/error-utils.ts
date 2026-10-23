@@ -1,7 +1,7 @@
 import type { ZodType } from 'zod'
 import { validationErrorDetailsSchema, validationErrorsSchema, type ValidationErrorDetails } from '../types/api'
 
-import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
+import { MAX_ACTIVE_HABITS, MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
 
 interface BackendErrorData {
   error?: string
@@ -80,9 +80,10 @@ export function validateApiResponse<T>(
 
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
-    throw new ApiClientError(502, `Unexpected API response shape for ${path}`, {
+    const issuePaths = parsed.error.issues.map((issue) => issue.path.map(String).join('.') || '<root>')
+    throw new ApiClientError(502, `Unexpected API response shape for ${path} at ${issuePaths.join(', ')}`, {
       code: 'INVALID_RESPONSE_SCHEMA',
-      data: parsed.error.issues,
+      data: issuePaths,
     })
   }
 
@@ -503,5 +504,6 @@ export function getFriendlyErrorMessage(
 ): string {
   const fieldErrors = extractBackendFieldErrors(err)
   if (fieldErrors) return Object.values(fieldErrors).flat().join('\n') || translate(fallbackKey)
-  return translate(getFriendlyErrorKey(err, fallbackKey, context))
+  const key = getFriendlyErrorKey(err, fallbackKey, context)
+  return key === 'errors.api.habitLimit' ? translate(key, { limit: MAX_ACTIVE_HABITS }) : translate(key)
 }

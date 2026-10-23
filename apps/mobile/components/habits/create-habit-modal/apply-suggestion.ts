@@ -84,9 +84,7 @@ export function applySuggestionChecklist(
 export function selectSuggestedSubHabitTitles(
   existingValues: string[],
   suggestedTitles: string[],
-  canUseSubHabits: boolean,
 ): string[] {
-  if (!canUseSubHabits) return []
   const occupiedSlots = existingValues.filter((value) => value.trim().length > 0).length
   return suggestedTitles.slice(0, Math.max(0, MAX_SUB_HABITS - occupiedSlots))
 }

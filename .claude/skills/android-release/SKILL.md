@@ -85,53 +85,104 @@ The workflow refuses a non-main ref or a stale/malformed SHA before binding the 
 probe step. It uses the existing `production` environment and repository `SENTRY_AUTH_TOKEN`,
 serialized with production Android builds. It does not sign, build or publish anything.
 
-The helper verifies the locked native CLI 3.6.0, not the top-level CLI. It compares token-embedded
-organization/host with the immutable expected `thomasluizon/orbit-mobile` at `https://sentry.io`
-in memory, respecting native precedence. A mismatch stops before authentication; its value and
-decoded payload are never printed. Malformed or unrecognized credential syntax stops locally and
-does not establish that the server rejected the credential. No credential is passed to subprocesses.
-As in the locked CLI, every trailing slash is removed from a nonempty embedded URL for comparison;
-null or empty URL uses the configured host. An omitted URL remains unrecognized. Request destinations
-stay fixed, and different hosts, schemes, paths, queries, fragments or userinfo are refused.
+The helper verifies native CLI 3.6.0 and SDK 8.17.2 against the lock and the checked-out
+source SHA. Its immutable configured and comparison targets both select
+`orbit-ai-habit-tracker/orbit-mobile` on `https://sentry.io`. Each run must establish current
+organization and project route access through its fixed GETs. The tenant frontend URL never
+receives a credentialed request.
 
-The diagnostic makes at most two GETs: the native uploader's organization `chunk-upload/` lookup
-and supplementary `/api/0/` auth-info. Each request has a ten-second deadline and 64 KiB body cap;
-the overall deadline is 45 seconds and output is capped at 8 KiB. Redirects are refused. It has
-no inventory, retry, arbitrary target/method input, cache or artifact path. Lookup fields and raw
-errors stay unused. Supplementary auth/scopes are classified in memory; private bodies are never
-returned, printed, saved or passed to a subprocess. The CLI is used only for its version: its
-authenticated `info` transport has no equivalent body cap. The bounded GETs reproduce its read paths and source-verified target
-selection. CLI `info --config-status-json` can exit zero with `auth.successful:false`; neither its
-exit code nor `config.org` proves authentication or the effective token organization.
+Token-embedded organization and URL take priority in native CLI 3.6.0. The diagnostic privately
+recognizes `embedded_current_organization`, `embedded_previous_organization`, `configured_defaults`
+and `unknown` as distinct selections. The previous organization is recognized solely to diagnose a
+mismatch; it cannot become a healthy native selection. A previous binding can reach the fixed current
+target reads without overriding native selection. Genuine non-embedded token syntax uses current
+configured defaults unless a native environment override conflicts. Conflicting `SENTRY_ORG` for
+non-embedded tokens, `SENTRY_URL` without a nonempty embedded URL, or `SENTRY_PROJECT` for any token
+is refused locally as `native_override_mismatch`, without using or printing the override value.
+Unknown organizations, unknown hosts and malformed syntax
+stop locally before authentication without claiming server rejection. Every trailing slash is
+removed from a nonempty URL; null or empty URL uses the configured host. Omitted URL remains
+unrecognized. Extra token metadata stays unused. No credential or decoded payload reaches a child.
+Changing only Expo configuration or `SENTRY_ORG` cannot override an old embedded organization.
+The [native configuration](https://github.com/getsentry/sentry-cli/blob/3.6.0/src/config.rs#L344-L371)
+and [token parser](https://github.com/getsentry/sentry-cli/blob/3.6.0/src/utils/auth_token/org_auth_token.rs#L14-L80)
+define this selection. Token re-encoding changes the full-token hash and is not a repair; see the
+[pinned issuance/hash producer](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/utils/security/orgauthtoken_token.py#L17-L58).
 
-Record source SHA, CLI, expected target, target-comparison outcome and each safe HTTP/body outcome.
-The API index returns 200 even for anonymous requests. Its supported `auth.scopes` string array
-reports token auth; `auth:null` means only that this response did not report token auth, without
-establishing revocation, invalidity or the reason. Missing or unsupported auth/scopes shapes leave
-auth evidence unavailable. Empty scopes and unrelated/future strings still report auth; only a
-fixed observation says whether any current native GET alternative appeared: `project:read`,
-`project:write`, `project:admin`, `project:releases`, `org:ci`. Values are never printed, and scope
-presence does not prove target access or justify broader grants.
+The maximum-three flow uses exactly these fixed GET destinations, in order:
 
-Complete type-only receipts require exactly `version`, `auth`, `user`, a string version, null user,
-and either null auth or exactly `scopes` with a string array. Extra/missing keys, wrong types and
-user objects yield `shape_unavailable`, without printing unknown keys or traversing user fields.
-Auth evidence remains separate from complete-shape evidence. These shapes and scope alternatives
-follow the pinned [index producer](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/endpoints/index.py#L17-L30)
-and [native GET permission](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/bases/organization.py#L182-L187);
-the deployed service revision and future contracts remain unverified.
+1. `https://sentry.io/api/0/`
+2. `https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/chunk-upload/`
+3. `https://sentry.io/api/0/projects/orbit-ai-habit-tracker/orbit-mobile/releases/?per_page=1`
 
-A healthy diagnostic requires both healthy bounded reads, reported token auth, an observed listed
-scope and a recognized complete envelope. Unavailable evidence, no reported auth or no listed scope
-keeps it incomplete. An auth-info 403 can mean unavailable read scope, while a lookup 404 cannot
-distinguish absent organization from denied access. Do not add grants to make an auxiliary read pass. Malformed JSON,
-oversize, redirect, timeout, network/TLS and HTTP failures remain incomplete evidence. Even healthy
-reads and reported auth/scopes do not prove project access, successful upload or the original cause.
-A native lookup 404 stays incomplete even with reported auth and a listed scope. If the lookup is
-already healthy, retain the original cause as unknown and gather discriminating evidence before a repair.
+Candidate reads require fresh reported token authentication, a complete supported index envelope,
+and at least one existing GET alternative: `project:read`, `project:write`, `project:admin`,
+`project:releases`, `org:ci`. No list, control-config, regional, numeric-ID or old-target read occurs.
+There is no pagination, redirect following, retry, response-derived destination or grant request.
+Unknown string scopes remain open strings privately; their presence does not invalidate credentials
+or prove resource access. Scope alternatives follow the pinned
+[organization release permission](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/bases/organization.py#L182-L187)
+and [project release permission](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/bases/project.py#L79-L85).
+
+The index can return 200 anonymously. Complete supported receipts are exactly
+`{version:string,auth:{scopes:string[]},user:null}` or `{version:string,auth:null,user:null}`.
+Null auth means not reported, never revoked or invalid. Missing/extra keys, wrong types or a user
+object leave complete-envelope evidence unavailable; supported auth evidence stays separate.
+User objects are never traversed. Values and unknown key names are never printed. Re-derive from the
+[index producer](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/endpoints/index.py#L17-L30)
+and [organization-token authenticator](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/authentication.py#L744-L780).
+These pinned public producers do not establish the deployed SaaS revision.
+
+Organization options consume status and bounded object shape only. Project releases consume status
+and top-level array shape only; an empty array is valid route-access evidence. No release element,
+field, value or pagination link is inspected. This proves neither upload permission nor an existing
+release/dist. The [project GET](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/releases/endpoints/project_releases.py#L51-L115),
+[project resolution/permission boundary](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/bases/project.py#L139-L219),
+[base paginator](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/base.py#L601-L672)
+and [page-size validation](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/utils/pagination_factory.py#L28-L43)
+define the bounded project read. Unsupported body types, malformed JSON, HTTP 401/403/404/429/5xx,
+redirects and transport failures remain distinct unavailable outcomes. A 404 does not distinguish
+absence, visibility, mapping or routing.
+
+Each request retains its ten-second deadline and 65,536-byte streamed body cap, cancellation and
+reader release. The overall deadline remains 45 seconds and sanitized output is capped at 8,192 bytes.
+The native child runs only `--version`, with PATH-only environment and a five-second process bound.
+No raw response, scope value, header value, payload or subprocess output is printed or saved.
+Only presence of `X-Sentry-Proxy-URL` is retained; absence is inconclusive. Error classification
+requires exactly `{detail:string}`: `The requested resource does not exist` on 404 and
+`Invalid org token` on 401/403 become fixed labels without echoing detail. All other shapes/messages
+remain unavailable. Sources are the pinned
+[resource exception](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/exceptions.py#L17-L19),
+[authenticator](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/api/authentication.py#L754-L778),
+[proxy marker](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/silo/util.py#L17)
+and [DRF scalar wrapper](https://github.com/encode/django-rest-framework/blob/3.17.2/rest_framework/views.py#L87-L100).
+
+Record source SHA, CLI, configured and comparison targets, private-selection relation, configuration
+agreement and each bounded request outcome. `current_target_reads:route_access_observed` means only
+that the fixed organization and project GETs passed their supported read boundaries. A previous
+embedded selection stays exit 1 with `native_target_differs_from_candidate` and both
+`differs_from_configured` and `differs_from_candidate`, even when all three reads pass. A current
+embedded selection or genuine configured-default selection with no conflicting native override can
+exit 0 with `current_target_reads_observed`, `matches_configured`, `matches_candidate` and
+`native_upload_unverified`. Exit 0 establishes only bounded reads and native target agreement;
+upload and release readiness remain unverified. Other incomplete evidence stays exit 1;
+invalid arguments exit 2.
+
+Original native old-target failures remain historical evidence. This flow does not execute or
+replace that native lookup and does not execute an upload. Current-target access, native-effective
+selection, configuration repair, fatal source-map upload, signed bundle, Play submission and tester
+availability need separate evidence. A current organization GET is auxiliary when native selection
+differs. Do not infer rename, removal, revocation or a credential repair from this comparison.
 
 Apply only the demonstrated configuration/access repair through its existing authorized owner,
-then retain before/after read evidence. Source changes after a diagnostic merge require a fresh
+then retain before/after read evidence. Configuration alignment cannot replace a credential whose
+embedded organization still selects the previous target. A human administrator must replace the
+existing repository `SENTRY_AUTH_TOKEN` in GitHub **Settings > Secrets and variables > Actions**
+with an officially issued credential for the configured organization through that secret field.
+Never send the credential through chat, tickets, dispatch inputs or generated files, and never
+rewrite its payload or broaden grants to satisfy diagnosis. Re-run the trusted-main diagnostic
+with the replacement; require current target agreement and supported reads before the ordinary
+fatal-upload release path. Source changes after a diagnostic merge require a fresh
 branch and normal review. Keep the ticket open through repair, upload and Open availability.
 
 For an authorized pre-upload retry, use confirmed GitHub and Play CLI or API interfaces first to

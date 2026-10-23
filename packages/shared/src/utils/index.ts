@@ -123,6 +123,7 @@ export {
 } from './error-utils'
 export { isFeatureEnabled, resolveFlag } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
+export { splitDescriptionLinks } from './description-links'
 export {
   resolveShellDestination,
   resolveShellChrome,
@@ -216,6 +217,7 @@ export {
   resolveAutoManagedReminderEnabled,
   resolveHabitFormMode,
   toggleSelectedId,
+  selectHabitGoal,
 } from './habit-form-state'
 export type {
   AutoManagedReminderEnabledInput,
@@ -516,7 +518,6 @@ export {
 } from './tag-cache'
 export {
   getCurrentPlan,
-  getIsYearlyPro,
   getTrialDaysLeft,
   getTrialExpired,
   getTrialUrgent,
@@ -818,7 +819,12 @@ export { getSetupChecklist } from './setup-checklist'
 
 export { getSummaryFirstSentence } from './summary-sentence'
 export { deriveBulkLogStreakTransition } from './bulk-log-streak'
+
+export { getGoalProgressCelebration, getGoalStatusCelebration, type GoalMutationInput } from './goal-mutations'
 export { HabitModeDrafts } from './habit-form-state'
 export { HabitDateEditor } from './habit-date-editor'
 export { getHabitRowTypeLabelKey, getHabitTypeLabelKey } from './habit-card-helpers'
 export { readTypedHabitPhrase } from './habit-phrase-parser'
+export { getHabitChecklistProgress } from './habit-checklist-progress'
+
+export { getHabitInlineDepthLimit } from './habit-row-layout'

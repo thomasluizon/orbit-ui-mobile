@@ -31,6 +31,11 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   isOnline: true,
+  authenticated: false,
+  authLoading: false,
+  epoch: 0,
+  authListeners: new Set<() => void>(),
+  setParams: vi.fn(),
   localized: false,
   language: 'en',
   params: {},
@@ -78,7 +83,11 @@ vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('@/components/auth/turnstile-widget', () => ({ TurnstileWidget: () => null }))
 
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: { login: unknown }) => unknown) => selector({ login: mocks.login }),
+  useAuthStore: Object.assign((selector: (state: { login: unknown; isLoading: boolean }) => unknown) => selector({ login: mocks.login, isLoading: mocks.authLoading }), {
+    getState: () => ({ isAuthenticated: mocks.authenticated, isLoading: mocks.authLoading }),
+    subscribe: (listener: () => void) => { mocks.authListeners.add(listener); return () => { mocks.authListeners.delete(listener) } },
+  }),
+  getSessionGeneration: () => ({ epoch: mocks.epoch, credentialVersion: 0 }),
 }))
 
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
@@ -86,7 +95,7 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isO
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 
 vi.mock('expo-router', () => ({
-  useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
+  useRouter: () => ({ replace: mocks.replace, push: mocks.push, setParams: mocks.setParams }),
   useLocalSearchParams: () => mocks.params,
 }))
 
@@ -126,14 +135,17 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 interface Harness {
   readonly current: ReturnType<typeof useLoginFlow>
   rerender: () => void
+  unmount: () => void
 }
 
-async function renderLoginFlow(): Promise<Harness> {
+const mountedHooks: { unmount: () => void }[] = []
+
+async function renderLoginFlow(isAuthCallback = false): Promise<Harness> {
   const holder: { current: ReturnType<typeof useLoginFlow> | null } = { current: null }
-  let renderer!: { update: (element: React.ReactElement) => void }
+  let renderer!: { update: (element: React.ReactElement) => void; unmount: () => void }
 
   function Probe() {
-    holder.current = useLoginFlow()
+    holder.current = useLoginFlow(isAuthCallback)
     return null
   }
 
@@ -141,12 +153,14 @@ async function renderLoginFlow(): Promise<Harness> {
     renderer = TestRenderer.create(React.createElement(Probe))
     await Promise.resolve()
   })
+  mountedHooks.push(renderer)
   if (mocks.codeDigits.join('')) {
-    await TestRenderer.act(() => holder.current?.setCodeDigits(mocks.codeDigits))
+    await TestRenderer.act(() => { holder.current?.setCodeDigits(mocks.codeDigits); holder.current?.setEmail('user@test.com') })
   }
 
   return {
     rerender: () => renderer.update(React.createElement(Probe)),
+    unmount: () => renderer.unmount(),
     get current() {
       if (!holder.current) throw new Error('useLoginFlow did not render')
       return holder.current
@@ -175,6 +189,9 @@ beforeEach(() => {
   mocks.localized = false
   mocks.language = 'en'
   mocks.isOnline = true
+  mocks.authenticated = false
+  mocks.authLoading = false
+  mocks.epoch = 0
   mocks.params = {}
   mocks.codeDigits = ['', '', '', '', '', '']
   mocks.apiClient.mockResolvedValue({})
@@ -187,7 +204,20 @@ beforeEach(() => {
   mocks.startMobileGoogleAuth.mockResolvedValue({ type: 'cancel' })
 })
 
-afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers() })
+afterEach(async () => {
+  await act(() => { for (const mounted of mountedHooks.splice(0)) mounted.unmount() })
+  vi.unstubAllEnvs(); vi.useRealTimers()
+})
+
+it('completes a valid email link once through the ordinary verification request', async () => {
+  mocks.params = { email: 'user@test.com', code: '123456' }
+  mocks.apiClient.mockResolvedValue({ token: 'test-token', refreshToken: null, userId: 'user-id', name: 'Person', email: 'user@test.com', wasReactivated: false })
+  const harness = await renderLoginFlow()
+  expect(harness.current.step === 'code').toBe(true)
+  expect(harness.current.codeDigits.join('') === '123456').toBe(true)
+  expect(mocks.apiClient.mock.calls.filter(([endpoint]) => endpoint === API.auth.verifyCode).length).toBe(1)
+  expect(mocks.login).toHaveBeenCalledTimes(1)
+})
 
 it('shows the localized Google callback error after a failed calendar connection', async () => {
   mocks.params = { googleError: '1' }
@@ -310,7 +340,7 @@ describe('useLoginFlow (mobile)', () => {
     await act(() => (input().props.onChangeText as (value: string) => void)('person@example.com'))
     await act(() => (input().props.onSubmitEditing as () => void)())
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
-    expect(input().props.autoComplete).toBe('sms-otp')
+    expect(input().props.autoComplete).toBe('email-otp')
     await act(() => tree.unmount())
   })
 
@@ -375,7 +405,7 @@ describe('useLoginFlow (mobile)', () => {
       userId: 'user-1',
       name: 'Ada',
       email: 'user@test.com',
-    })
+    }, 0, expect.any(Function), expect.any(Function))
     expect(mocks.replace).toHaveBeenCalledWith('/home')
   })
 
@@ -898,4 +928,156 @@ it.each([
   expect(tree.root.findAll((node) => String(node.type) === 'Text').map((node) => node.props.children)).toContain('Unknown first\nUnknown second')
   expect(input().props.accessibilityHint).not.toBe('Field failure')
   await act(() => tree.update(React.createElement(React.Fragment)))
+})
+
+describe('email-link attempt ownership', () => {
+  const issuedResponse = { token: 'test-token', refreshToken: null, userId: 'user-id', name: 'Person', email: 'user@test.com', wasReactivated: false }
+  const verificationCount = () => mocks.apiClient.mock.calls.filter(([endpoint]) => endpoint === API.auth.verifyCode).length
+
+  it('waits for protection, strips route secrets and deduplicates repeat delivery', async () => {
+    vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+    mocks.params = { email: 'user@test.com', code: '123456', returnUrl: '/progress' }
+    mocks.apiClient.mockResolvedValue(issuedResponse)
+    const harness = await renderLoginFlow()
+    expect(verificationCount()).toBe(0)
+    expect(mocks.setParams).toHaveBeenCalledWith({ email: undefined, code: undefined })
+    mocks.params = { returnUrl: '/progress' }
+    await act(() => harness.rerender())
+    await act(() => harness.current.onTurnstileToken('fresh-widget-token'))
+    expect(verificationCount()).toBe(1)
+    mocks.params = { email: 'user@test.com', code: '123456', returnUrl: '/progress' }
+    await act(() => harness.rerender())
+    await act(() => harness.current.onCodeChange('123456'))
+    expect(verificationCount()).toBe(1)
+    expect(bodyOf(firstApiCall()[1]).email === 'user@test.com').toBe(true)
+    expect(mocks.login).toHaveBeenCalledTimes(1)
+  })
+
+  it('completes a mounted native input once across StrictMode effect replay', async () => {
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    mocks.apiClient.mockResolvedValue(issuedResponse)
+    let tree!: { root: { findAllByType: (type: string) => unknown[] }; unmount: () => void }
+    await act(() => { tree = TestRenderer.create(React.createElement(React.StrictMode, null, React.createElement(LoginContent))) })
+    try {
+      expect(tree.root.findAllByType('TextInput').length).toBe(1)
+      expect(verificationCount()).toBe(1)
+      expect(mocks.login).toHaveBeenCalledTimes(1)
+    } finally { await act(() => tree.unmount()) }
+  })
+
+  it('lets an edited code replace the incoming automatic completion', async () => {
+    vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    mocks.apiClient.mockResolvedValue(issuedResponse)
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.onCodeChange('12345'))
+    await act(() => harness.current.onTurnstileToken('fresh-token'))
+    expect(verificationCount()).toBe(0)
+    await act(() => harness.current.onCodeChange('123457'))
+    expect(verificationCount()).toBe(1)
+    expect(bodyOf(firstApiCall()[1]).code === '123457').toBe(true)
+  })
+
+  it('keeps the first link pending while offline and completes after connectivity returns', async () => {
+    mocks.isOnline = false
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    mocks.apiClient.mockResolvedValue(issuedResponse)
+    const harness = await renderLoginFlow()
+    expect(harness.current.codeDigits.join('').length).toBe(6)
+    expect(verificationCount()).toBe(0)
+    mocks.isOnline = true
+    await act(() => harness.rerender())
+    expect(verificationCount()).toBe(1)
+  })
+
+  it('does not treat a signed-out Google callback as an email link', async () => {
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    await renderLoginFlow(true)
+    expect(verificationCount()).toBe(0)
+    expect(mocks.setParams).not.toHaveBeenCalled()
+  })
+
+  it.each(['email', 'cancel', 'account'])('invalidates delayed protection on %s change', async (change) => {
+    vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    const harness = await renderLoginFlow()
+    const lateWidget = harness.current.onTurnstileToken
+    await act(() => {
+      if (change === 'email') harness.current.setEmail('other@test.com')
+      else if (change === 'cancel') harness.current.backToEmail()
+      else { mocks.epoch += 1; for (const listener of mocks.authListeners) listener() }
+    })
+    await act(() => lateWidget('stale-widget-token'))
+    expect(verificationCount()).toBe(0)
+    expect(mocks.login).not.toHaveBeenCalled()
+  })
+
+  it('captures a warm replacement with matching digits under the new email', async () => {
+    mocks.apiClient.mockRejectedValue(createApiClientError(400, { error: 'Invalid verification code' }, 'Request failed'))
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    const harness = await renderLoginFlow()
+    expect(verificationCount()).toBe(1)
+    mocks.params = { email: 'other@test.com', code: '123456' }
+    await act(() => harness.rerender())
+    expect(verificationCount()).toBe(2)
+    const request = mocks.apiClient.mock.calls[1]![1] as { body: string }
+    expect(bodyOf(request).email === 'other@test.com').toBe(true)
+  })
+
+  it.each(['expired', 'replayed', 'wrong-email', 'locked', 'transport'])('retains manual recovery without a loop for %s', async (failure) => {
+    const errors = { expired: 'Verification code expired or not found', replayed: 'Verification code expired or not found', 'wrong-email': 'Invalid verification code', locked: 'Too many attempts. Try again in 15 minutes' }
+    mocks.apiClient.mockRejectedValue(failure === 'transport' ? new TypeError('Network disconnected') : createApiClientError(400, { error: errors[failure as keyof typeof errors] }, 'Request failed'))
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    const harness = await renderLoginFlow()
+    await act(() => harness.rerender())
+    expect(verificationCount()).toBe(1)
+    expect(harness.current.step === 'code').toBe(true)
+    expect(harness.current.codeDigits.join('').length).toBe(6)
+    expect(mocks.login).not.toHaveBeenCalled()
+    expect(mocks.apiClient.mock.calls.some(([endpoint]) => endpoint === API.auth.sendCode)).toBe(false)
+    await act(() => harness.current.backToEmail())
+    expect(harness.current.step).toBe('email')
+  })
+
+  it.each(['email', 'account', 'unmount'])('ignores a late response after %s changes', async (change) => {
+    let release!: (response: typeof issuedResponse) => void
+    mocks.apiClient.mockReturnValue(new Promise<typeof issuedResponse>((resolve) => { release = resolve }))
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    const harness = await renderLoginFlow()
+    expect(verificationCount()).toBe(1)
+    await act(() => {
+      if (change === 'email') harness.current.setEmail('other@test.com')
+      else if (change === 'unmount') harness.unmount()
+      else { mocks.epoch += 1; for (const listener of mocks.authListeners) listener() }
+    })
+    await act(() => { release(issuedResponse) })
+    expect(mocks.login).not.toHaveBeenCalled()
+    expect(mocks.getStoredAuthReturnUrl).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('waits for native session initialization before attempting the link', async () => {
+    mocks.authLoading = true
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    mocks.apiClient.mockResolvedValue(issuedResponse)
+    const harness = await renderLoginFlow()
+    expect(verificationCount()).toBe(0)
+    mocks.authLoading = false
+    await act(() => harness.rerender())
+    expect(verificationCount()).toBe(1)
+  })
+
+  it.each([false, true])('does not exchange over a signed-in account (callback: %s)', async (callback) => {
+    mocks.authenticated = true
+    mocks.params = { email: 'user@test.com', code: '123456' }
+    await renderLoginFlow(callback)
+    expect(verificationCount()).toBe(0)
+    expect(mocks.login).not.toHaveBeenCalled()
+  })
+
+  it.each([{ email: 'user@test.com' }, { code: '123456' }, { email: ['user@test.com', 'other@test.com'], code: '123456' }, { email: 'user@test.com', code: ['123456', '654321'] }, { email: 'bad', code: '123456' }])('rejects missing, malformed and duplicated parameters (%#)', async (params) => {
+    mocks.params = params
+    await renderLoginFlow()
+    expect(verificationCount()).toBe(0)
+  })
 })

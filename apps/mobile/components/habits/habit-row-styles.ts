@@ -46,6 +46,7 @@ export const styles = StyleSheet.create({
   meta: {
     fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
+    lineHeight: 16.8,
     fontVariant: ['tabular-nums'],
   },
   description: {

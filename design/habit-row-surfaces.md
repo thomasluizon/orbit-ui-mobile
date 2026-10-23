@@ -12,7 +12,9 @@ The owner standard in landing Figma file `aLwwyaY3Dtw1NVesAWsNO7`, rows `7:72` a
 
 Independently bordered rows have 4px separation within a Hoje family and 12px between families. Habit detail child rows retain 12px separation. Android spacing belongs to the unpainted wrapper so it does not enlarge the bordered body.
 
-Depth-1 wells and titles add one 16px leading inset: canonical body padding is 24 for a child and 8 for a root. This keeps the independent body at the list edge and the trailing 48px targets in place, preserving the available title width without a reserved disclosure column on leaves. Both the primary content and large-text supporting metadata use that depth-specific edge. List, detail and leading-slot owners add no further indentation. Drill rows reset to display depth 0; ancestry never adds another offset. The reference HabitRow contracts already accept depth 0 or 1 and need no public prop change.
+Every visible ancestor adds one 16px leading step from the shared spacing scale. The canonical body owns padding `8 + 16 × depth`: roots use 8, children 24 and grandchildren 40. The well, title, description, type and supporting metadata all follow that edge once. Positive depths retain the smaller well and dimmer title; the independent body stays at the list edge and trailing 48px targets stay in place. Lists, detail and leading slots add no second inset. The shared and granted HabitRow depth contracts accept the actual visible depth. Drill direct children reset to depth 0; detail direct children retain depth 1.
+
+The list bounds inline depth using its measured content width, fixed leading slot, control targets, gaps and scaled title space. Reserve at least one child-title em (14 times text scale), with a 24px minimum. The web content measurement excludes shell scrollbars and safe-area gutters; Android uses the actual list layout. At 320 with 284px of row content, normal text shows depths 0, 1 and 2; 200% text stops at depth 1. A parent at the boundary opens the existing drill instead of exposing another inline level. Wider windows retain more visible levels within the existing data depth limit. Selection keeps the same boundary, while font or content-width changes recompute it without clearing collapse or selection. Type and supporting metadata span the remaining row width. No adjacent visible levels share an inset.
 
 Both platforms retain row minimum heights, typography, emoji wells, disclosure, selection, completion, detail, overflow, drag and long-press behavior. Skipping advances the schedule and removes the row from that day; it does not add a skipped check state. Empty, loading and failed lists contain no row checks and keep their existing state surfaces. Their sheets, dialogs and menus retain their existing actions.
 
@@ -22,9 +24,15 @@ Web Vitest measures the production row with compiled CSS at 320, 412 and 1352, i
 
 ## Item type metadata
 
-The shared row content owners render `Tarefa` / `Task` or `Hábito` / `Habit` on
-its own quiet line beneath the full-width title. Type never ellipsizes or becomes a badge. The
-existing time, status and parent counts remain beneath it. The same content reaches Hoje, Todos,
+The shared row owners render `Tarefa` / `Task` or `Hábito` / `Habit` once as the first
+12px Geist Mono token in one wrapping metadata flow below the title and optional stored description.
+Type never ellipsizes or becomes a badge. Existing time, status and parent counts retain their order.
+A nonempty checklist appends one decorative ListChecks glyph and the actual checked/total count,
+including zero and complete counts. Duplicate item texts remain separate entries; child-habit progress
+is independent. The glyph is 16px normally and 24px above 130% text, at stroke width 1.5 in the
+metadata foreground. Empty checklists add no token, separator or gap. Checklist completion changes
+neither the habit's logged state nor its actions. The primary and selection naming paths reuse
+Checklist and the localized row-progress phrase once; visual metadata is hidden from accessibility. The same content reaches Hoje, Todos,
 Geral, search, inline children, drill lists, detail children and Astra-owned shared rows. Detail
 headers retain `Tarefa única` / `One-time task` or `Hábito` / `Habit` beneath their full-width
 rename heading, matching the full form choices. The row selector derives from the same schedule
@@ -38,15 +46,19 @@ Its sibling control group retains 4px gaps with no outer gap. The clipping and f
 through that space while text columns, control positions and whole-row centring remain unchanged.
 
 Above 130% text, every row uses a full-row primary action and a supporting footer. The heading
-keeps the title, optional description and independent first-line controls. Exactly one complete
-type label leads the footer, followed by existing metadata with a 4px gap. The footer shares the
+keeps the title, optional description and independent first-line controls. Exactly one metadata
+flow leads with the complete type and includes existing metadata and any checklist count. The footer shares the
 title's leading edge through the existing 48px spacer, keeps an 8px trailing and bottom inset,
-and adds 4px above type only when the description heading supplies no bottom padding. Default
-text keeps its existing composition. Native visual heading and footer content stay hidden from
+and adds 4px above type only when the description heading supplies no bottom padding. At default
+text, either the measured inline depth boundary or a token wider than the heading's available text column uses the same footer. Web observes
+the actual column and whole-token bounds; native receives their layout widths. The normal
+320px child-parent maximum-count case demonstrates the insufficient column. Footer placement
+reverses when both width constraints fit again and preserves first-title-line controls; ordinary normal
+rows retain whole-row centring. Whole tokens wrap with natural row growth and no ellipsis. Native visual heading and footer content stay hidden from
 accessibility because the primary action already names the type and metadata.
 
 Stored description rendering is owned by its separate row amendment. When carried together, its
-order is title, description, type and existing metadata. This amendment adds no description copy,
+order is title, description and one metadata flow beginning with type. This amendment adds no description copy,
 hover redesign or row inset change.
 
 ## Description and feedback composition
@@ -71,7 +83,7 @@ Body feedback replaces the row's existing fill across its radius-20 perimeter, i
 region. Controls remain semantic siblings and paint independently, including the structural selection checkbox in checked and unchecked states. Body hover promotes the inset hairline to hairlineStrong. Web authors the 380ms background and outline transition on the painted row in both directions, with immediate press, sibling-control suppression and reduced-motion feedback. Android selection hover restores on exit and cancelled press without invoking selection or detail. The check's flex wrapper removes
 inline baseline space; no translation offsets its glyph. Normal rows centre the 28px check and its
 48px target on the actual row axis, with and without descriptions. Large text retains first-title-line
-alignment. The original single depth inset and family gaps remain unchanged.
+alignment. The per-ancestor depth step and family gaps apply in every feedback state.
 
 Paired description behavior tests cover plain text, Markdown labels, inert HTML-looking content,
 malformed input, normalized-empty content and unchanged source. Chromium Vitest measures title,
@@ -80,3 +92,13 @@ control isolation and overflow at 320, 412 and 1352 in both themes and normal/20
 checks the corresponding layout and row-owned press/hover bounds. Native font rasterization and
 real assistive technology remain device-verification boundaries. The hermetic layout lane owns
 whole-page evidence and independent rendered review precedes pushing.
+
+Paired metadata regressions mount real rows, list builders and detail child consumers. They cover
+empty, zero, partial, complete and maximum checklists, duplicate entries, received-data replacement,
+parent progress, selection and meaningful naming. Native Yoga exercises actual glyphs at 320, 412
+and 1352 in both locales and themes at normal, 200% and 250% text, delivering measured layout events
+to the fit owner. The Chromium Vitest fixture mounts the live React row and exercises measured
+footer entry, selection replacement and return. Markup-only geometry does not prove that observer
+path; frozen production rendering and physical Android acceptance remain separate requirements.
+
+At the narrow inline boundary, supporting type and metadata use the existing full-width footer even at normal text size. This keeps complete type words clear of the trailing controls. Boundary rows and rows with actual intrinsic metadata overflow align controls with the first title line; other normal rows retain whole-row centring.

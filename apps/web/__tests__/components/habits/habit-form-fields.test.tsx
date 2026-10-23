@@ -80,7 +80,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
-  useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+  useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -182,11 +182,18 @@ describe('HabitFormFields', () => {
     mockProfileState.hasProAccess = false
   })
 
-  it.each([false, true])('uses the API sub-habit flag for Pro access %s', (hasProAccess) => {
+  it('omits an empty sub-habit section when the edit form supplies no editor', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></QueryClientProvider>)
+    expect(screen.queryByText('habits.form.subHabits')).toBeNull()
+  })
+
+  it.each([false, true])('keeps the sub-habit editor available with Pro access %s', (hasProAccess) => {
     mockProfileState.hasProAccess = hasProAccess
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
-    expect(screen.queryByText('sub-habit-editor') !== null).toBe(hasProAccess)
-    expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(!hasProAccess)
+    expect(screen.queryByText('sub-habit-editor')).toBeTruthy()
+    expect(screen.getByText('goal-linking')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(false)
   })
 
   it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
@@ -620,11 +627,11 @@ describe('HabitFormFields', () => {
     expect(screen.queryByText('habits.form.endDate')).toBeNull()
   })
 
-  it('routes the free sub-habit row to upgrade while keeping goals available', () => {
+  it('keeps sub-habits and goals available without an upgrade row', () => {
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
 
-    fireEvent.click(screen.getByRole('button', { name: /common\.upgrade/ }))
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+    expect(screen.getByText('sub-habit-editor')).toBeDefined()
+    expect(mockRouterPush).not.toHaveBeenCalled()
     expect(screen.getByText('goal-linking')).toBeDefined()
   })
 
@@ -1557,7 +1564,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
       : <EditHabitModal open onOpenChange={closed} habit={habit} />}</QueryClientProvider>
     const view = render(modal())
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read'))
-    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : 'habits.editHabit' })
+    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : type === 'habit' ? 'habits.editHabit' : 'habits.editTask' })
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'common.close' })).toHaveFocus())
     if (type) fireEvent.click(screen.getByRole('radio', { name: type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit' }))
     return { refresh: () => view.rerender(modal()) }
@@ -1761,12 +1768,17 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
-  it('keeps genuine save failures on the existing global error path', async () => {
+  it('retains failed saves with the owning create error or edit uncertainty', async () => {
     mutation().mockRejectedValueOnce(new Error('save failed'))
     await mount('task')
     await submit()
-    await waitFor(() => expect(modalFeedback.showError).toHaveBeenCalledOnce())
-    expect(modalFeedback.showError).toHaveBeenCalledWith(owner === 'create' ? 'errors.createHabit' : 'errors.updateHabit')
+    if (owner === 'create') {
+      await waitFor(() => expect(modalFeedback.showError).toHaveBeenCalledOnce())
+      expect(modalFeedback.showError).toHaveBeenCalledWith('errors.createHabit')
+    } else {
+      expect(await screen.findByText('habits.form.saveUncertain')).toBeVisible()
+      expect(modalFeedback.showError).not.toHaveBeenCalled()
+    }
     expect(mutation()).toHaveBeenCalledOnce()
     expect(closed).not.toHaveBeenCalled()
     expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')

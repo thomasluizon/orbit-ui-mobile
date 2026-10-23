@@ -1,10 +1,11 @@
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { bundleHabitRowMetadata } from '@/__tests__/support/habit-row-metadata-browser'
 import type { Locator, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -23,12 +24,14 @@ describe('habit row standard in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let metadataBundle: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    metadataBundle = bundleHabitRowMetadata()
   })
-  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+  afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
 
   it.each([false, true])('transitions the painted surface on arrival and exit, selected=%s', async (selected) => {
     const mounted = render(<HabitRow habit={createMockHabit({ title: 'Read', description: 'Read two pages.' })}
@@ -128,6 +131,7 @@ describe('habit row standard in Chromium', () => {
     [1, 2].flatMap((scale) => (['en', 'pt-BR'] as const).map((locale) => ({ mode, width, scale, locale }))),
   )))('keeps the check and row geometry in $mode at $width with $scale text', async ({ mode, width, scale, locale }) => {
     geometryLocale.value = locale
+    vi.stubGlobal('innerWidth', width)
     document.documentElement.style.fontSize = `${16 * scale}px`
     const mounted = render(<div className="habit-panel">
       {(['empty', 'done', 'overdue', 'bad'] as const).map((state) => <HabitRow key={state}
@@ -178,7 +182,7 @@ describe('habit row standard in Chromium', () => {
       for (const [index, type] of types.entries()) {
         expect(type.text).toBe(index === 0 ? messages.habits.rowTypeTask : messages.habits.form.typeHabit)
         expect(type.overflow).not.toBe('ellipsis')
-        expect(type.whiteSpace).toBe('normal')
+        expect(type.whiteSpace).toBe('nowrap')
         expect(type.top).toBeGreaterThanOrEqual(type.bottom)
         expect(type.height).toBeGreaterThan(0)
       }
@@ -228,11 +232,21 @@ describe('habit row standard in Chromium', () => {
     [1, 2].flatMap((scale) => (['en', 'pt-BR'] as const).map((locale) => ({ mode, width, scale, locale }))),
   )))('measures preview, full-row feedback and centres in $mode at $width with $scale text in $locale', async ({ mode, width, scale, locale }) => {
     geometryLocale.value = locale
+    const observations = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>()
+    vi.stubGlobal('ResizeObserver', class implements ResizeObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe(target: Element) { observations.set(target, { callback: this.callback, observer: this }) }
+      unobserve(target: Element) { observations.delete(target) }
+      disconnect() {
+        for (const [target, observation] of observations) if (observation.observer === this) observations.delete(target)
+      }
+    })
+    vi.stubGlobal('innerWidth', width)
     document.documentElement.style.fontSize = `${16 * scale}px`
     const description = 'Read two pages before breakfast. '.repeat(12)
     const mounted = render(<div className="habit-panel">
-      {[0, 1].flatMap((depth) => [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) =>
-        <HabitRow key={`${depth}-${parent}-${described}-${selected}`} depth={depth as 0 | 1}
+      {[0, 1, 2].flatMap((depth) => [false, true].flatMap((parent) => [false, true].flatMap((described) => [undefined, false, true].map((selected) =>
+        <HabitRow key={`${depth}-${parent}-${described}-${selected}`} depth={depth}
           selectMode={selected !== undefined} selected={selected}
           habit={createMockHabit({ title: 'Read ten minutes every morning', description: described ? description : parent ? ' \n ' : null, frequencyUnit: selected === false ? null : 'Day' })}
           meta={['08:00']} hasChildren={parent} structuralColumn
@@ -240,18 +254,32 @@ describe('habit row standard in Chromium', () => {
           actions={{ onDetail: vi.fn(), onEdit: vi.fn(), onToggleExpand: vi.fn(), onToggleSelection: vi.fn() }} />,
       ))))}
     </div>)
-    const markup = mounted.container.innerHTML
-    mounted.unmount()
-    document.documentElement.style.removeProperty('font-size')
     const page = await browser.newPage({ viewport: { width, height: 6000 } })
     try {
       const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-      await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;padding:16px;background:var(--bg)}*{transition:none!important;animation:none!important}</style>${markup}`)
+      const styles = `<!doctype html><style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;padding:16px;background:var(--bg)}*{transition:none!important;animation:none!important}</style>`
+      await page.setContent(`${styles}${mounted.container.innerHTML}`)
+      const observed = await page.getByTestId('habit-row').evaluateAll((elements) => Promise.all(elements.map((target) => new Promise<{
+        contentRect: DOMRectInit; borderBoxSize: ResizeObserverSize[]; contentBoxSize: ResizeObserverSize[]; devicePixelContentBoxSize: ResizeObserverSize[]
+      }>((resolve) => {
+        const observer = new ResizeObserver(([entry]) => {
+          const sizes = (boxes: readonly ResizeObserverSize[]) => boxes.map(({ inlineSize, blockSize }) => ({ inlineSize, blockSize }))
+          resolve({ contentRect: entry!.contentRect.toJSON(), borderBoxSize: sizes(entry!.borderBoxSize), contentBoxSize: sizes(entry!.contentBoxSize), devicePixelContentBoxSize: sizes(entry!.devicePixelContentBoxSize) })
+          observer.disconnect()
+        })
+        observer.observe(target)
+      }))))
+      act(() => mounted.container.querySelectorAll('[data-testid="habit-row"]').forEach((target, index) => {
+        const observation = observations.get(target)!
+        const entry = observed[index]!
+        observation.callback([{ ...entry, contentRect: DOMRectReadOnly.fromRect(entry.contentRect), target }], observation.observer)
+      }))
+      await page.setContent(`${styles}${mounted.container.innerHTML}`)
       await loadAppFonts(page)
       page.setDefaultTimeout(3000)
       const rows = page.locator('[data-testid="habit-row"]')
       const rowCount = await rows.count()
-      expect(rowCount).toBe(24)
+      expect(rowCount).toBe(36)
       for (let index = 0; index < rowCount; index++) {
         const row = rows.nth(index)
         const described = Math.floor(index / 3) % 2 === 1
@@ -259,10 +287,70 @@ describe('habit row standard in Chromium', () => {
         await assertPreviewRow(row, page, scale, described, index % 3 === 1 ? messages.habits.rowTypeTask : messages.habits.form.typeHabit)
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-    } finally { await page.close() }
+    } finally {
+      mounted.unmount()
+      document.documentElement.style.removeProperty('font-size')
+      vi.unstubAllGlobals()
+      await page.close()
+    }
   }, 30_000)
 
+  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) => [1, 2, 2.5].flatMap((scale) =>
+    (['en', 'pt-BR'] as const).map((locale) => ({ mode, width, scale, locale }))))))(
+    'flows hydrated type and maximum checklist tokens in $mode/$locale at $width/$scale', async ({ mode, width, scale, locale }) => {
+      const page = await browser.newPage({ viewport: { width, height: 2600 }, reducedMotion: 'reduce' })
+      try {
+        const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;padding:16px;background:var(--bg)}</style><div id="root" data-locale="${locale}"></div>`)
+        await loadAppFonts(page)
+        await page.addScriptTag({ content: metadataBundle })
+        await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 4)
+        for (const selecting of [false, true, false]) {
+          await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+          const rows = page.getByTestId('habit-row')
+          for (let index = 0; index < 4; index++) {
+            await assertHydratedMetadataRow(rows.nth(index), { width, scale, locale, index, selecting })
+          }
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+          await page.locator('#select-rows').click()
+        }
+      } finally { await page.close() }
+    },
+  )
+
 })
+
+async function assertHydratedMetadataRow(row: Locator, { width, scale, locale, index, selecting }: { width: number; scale: number; locale: 'en' | 'pt-BR'; index: number; selecting: boolean }) {
+  const measured = await measurePreviewRow(row)
+  const supporting = scale > 1.3 || (width === 320 && index === 3)
+  expect(measured.supporting).toBe(supporting)
+  expect(measured.typeCount).toBe(1)
+  expect(measured.type.text).toBe(locale === 'en' ? en.habits.form.typeHabit : ptBR.habits.form.typeHabit)
+  expect(measured.type.left).toBeCloseTo(measured.title.left, 1)
+  const checklist = row.locator('[data-habit-row-checklist]')
+  expect(await checklist.textContent()).toBe('50/50')
+  expect(await checklist.locator('svg').getAttribute('width')).toBe(scale > 1.3 ? '24' : '16')
+  const bounds = await checklist.evaluate((element) => {
+    const box = element.getBoundingClientRect()
+    const text = document.createRange(); text.selectNodeContents(element.querySelector('span')!)
+    const count = text.getBoundingClientRect()
+    const strip = element.closest('[data-habit-row-meta]')!.getBoundingClientRect()
+    return { left: box.left, right: box.right, stripLeft: strip.left, stripRight: strip.right, countHeight: count.height }
+  })
+  expect(bounds.left).toBeGreaterThanOrEqual(bounds.stripLeft)
+  expect(bounds.right).toBeLessThanOrEqual(bounds.stripRight + 1)
+  expect(bounds.countHeight).toBeLessThanOrEqual(16.8 * scale + 1)
+  expect(Math.abs(measured.check.x - measured.target.x)).toBeLessThanOrEqual(1)
+  expect(Math.abs(measured.check.y - measured.target.y)).toBeLessThanOrEqual(1)
+  if (supporting) expect(measured.target.top).toBeCloseTo(measured.title.top, 1)
+  else expect(Math.abs(measured.target.y - measured.row.y)).toBeLessThanOrEqual(1)
+  expect(measured.check).toMatchObject({ width: 28, height: 28 })
+  expect(measured.target.width).toBe(48)
+  expect(measured.target.height).toBeGreaterThanOrEqual(48)
+  const name = await row.locator('[data-habit-row-body]').getAttribute('aria-label')
+  expect(name!.split(locale === 'en' ? 'Checklist, 50 of 50' : 'Checklist, 50 de 50')).toHaveLength(2)
+  expect(await row.locator('[data-habit-row-control="selection"]').count()).toBe(selecting ? 1 : 0)
+}
 
 async function rowPaint(row: Locator) {
   return row.evaluate((element) => ({ fill: getComputedStyle(element).backgroundColor, outline: getComputedStyle(element).boxShadow.match(/rgba?\([^)]+\) [^,]*inset/u)?.[0] ?? 'none' }))
@@ -314,7 +402,7 @@ async function measurePreviewRow(row: Locator) {
     while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
     return { row: box(element), title: box(title), titleSize: getComputedStyle(title).fontSize,
       body: box(element.querySelector('[data-habit-row-body]')!), typeLines, wordLineCounts, paintedControls,
-      content: box(title.parentElement!), footerContent: heading ? box(type.parentElement!) : null,
+      content: box(title.parentElement!), footerContent: heading ? box(type.closest('[data-habit-row-meta]')!.parentElement!) : null,
       typeCount: element.querySelectorAll('[data-habit-row-type]').length, typeInHeading: Boolean(heading?.contains(type)),
       type: { ...box(type), text: type.textContent, ink: box(typeText), overflow: typeStyle.textOverflow, whiteSpace: typeStyle.whiteSpace, clamp: typeStyle.webkitLineClamp, clientWidth: type.clientWidth, scrollWidth: type.scrollWidth, clientHeight: type.clientHeight, scrollHeight: type.scrollHeight },
       preview: preview && { ...box(preview), size: getComputedStyle(preview).fontSize, weight: getComputedStyle(preview).fontWeight, family: getComputedStyle(preview).fontFamily, lineHeight: getComputedStyle(preview).lineHeight, clamp: getComputedStyle(preview).webkitLineClamp, ellipsis: getComputedStyle(preview).textOverflow, whiteSpace: getComputedStyle(preview).whiteSpace },
@@ -324,7 +412,7 @@ async function measurePreviewRow(row: Locator) {
 }
 
 function assertContentStack(measured: Awaited<ReturnType<typeof measurePreviewRow>>, scale: number, described: boolean, expectedType: string) {
-  const stack = [measured.title, ...(measured.preview ? [measured.preview] : []), ...(!measured.supporting ? [measured.type, measured.meta] : [])]
+  const stack = [measured.title, ...(measured.preview ? [measured.preview] : []), ...(!measured.supporting ? [measured.meta] : [])]
   for (const [index, node] of stack.entries()) {
     expect(node.left - measured.title.left).toBeCloseTo(0, 1)
     if (index) expect(node.top - stack[index - 1]!.bottom).toBeCloseTo(4, 1)
@@ -334,7 +422,7 @@ function assertContentStack(measured: Awaited<ReturnType<typeof measurePreviewRo
   expect(measured.type.left - measured.title.left).toBeCloseTo(0, 1)
   expect(measured.type.text).toBe(expectedType)
   expect(measured.type.overflow).not.toBe('ellipsis')
-  expect(measured.type.whiteSpace).toBe('normal')
+  expect(measured.type.whiteSpace).toBe('nowrap')
   expect(measured.type.clamp).toBe('none')
   expect(measured.type.scrollWidth).toBeLessThanOrEqual(measured.type.clientWidth)
   expect(measured.type.scrollHeight).toBeLessThanOrEqual(measured.type.clientHeight)
@@ -369,7 +457,7 @@ function assertRowContentHeight(measured: Awaited<ReturnType<typeof measurePrevi
   } else {
     const top = measured.depth ? 4 : 8
     const bottom = scale === 1 ? top : described ? 4 : 0
-    expect(measured.row.height).toBeCloseTo(Math.max(measured.depth ? 52 : 68, measured.content.height + top + bottom, measured.target.height + top + bottom), 1)
+    expect(measured.row.height).toBeCloseTo(Math.max(measured.depth ? 52 : 68, measured.content.height + top + bottom, measured.target.height), 1)
   }
 }
 
@@ -382,10 +470,10 @@ function assertSupportingRowHeight(measured: Awaited<ReturnType<typeof measurePr
   expect(heading.height).toBeCloseTo(Math.max(measured.depth ? 52 : 68, measured.content.height + top + bottom), 1)
   expect(measured.type.top - heading.bottom).toBeCloseTo(described ? 0 : 4, 1)
   expect(measured.type.top - measured.content.bottom).toBeGreaterThanOrEqual(4)
-  expect(measured.meta.top - measured.type.bottom).toBeCloseTo(4, 1)
+  expect(measured.type.top).toBeCloseTo(measured.meta.top, 1)
   expect(footer.top).toBeCloseTo(measured.type.top, 1)
   expect(footer.bottom).toBeCloseTo(measured.meta.bottom, 1)
-  expect(footer.height).toBeCloseTo(measured.type.height + measured.meta.height + 4, 1)
+  expect(footer.height).toBeCloseTo(measured.meta.height, 1)
   expect(measured.row.bottom - measured.meta.bottom).toBeCloseTo(8, 1)
   expect(measured.row.height).toBeCloseTo(heading.height + (described ? 0 : 4) + footer.height + 8, 1)
 }
@@ -395,6 +483,7 @@ async function assertPreviewRow(row: Locator, page: Page, scale: number, describ
   const measured = await measurePreviewRow(row)
   assertContentStack(measured, scale, described, expectedType)
   expect(measured.titleSize).toBe(`${(measured.depth ? 14 : 17) * scale}px`)
+  expect(measured.title.width).toBeGreaterThanOrEqual(Number.parseFloat(measured.titleSize))
   expect(measured.preview !== null).toBe(described)
   if (measured.preview) {
     expect(measured.preview.size).toBe(`${14 * scale}px`)
@@ -413,11 +502,11 @@ async function assertPreviewRow(row: Locator, page: Page, scale: number, describ
   function assertControlGeometry() {
     expect(Math.abs(measured.check.x - measured.target.x)).toBeLessThanOrEqual(1)
     expect(Math.abs(measured.check.y - measured.target.y)).toBeLessThanOrEqual(1)
-    if (scale === 1) expect(Math.abs(measured.target.y - measured.row.y)).toBeLessThanOrEqual(1)
+    if (!measured.supporting) expect(Math.abs(measured.target.y - measured.row.y)).toBeLessThanOrEqual(1)
     else expect(measured.target.top - measured.row.top).toBe(measured.depth ? 4 : 8)
     expect(measured.meta.left - measured.title.left).toBeCloseTo(0, 1)
-    expect(measured.supporting).toBe(scale === 2)
-    if (scale === 2) expect(measured.target.top).toBeCloseTo(measured.title.top, 1)
+    expect(measured.supporting).toBe(scale === 2 || measured.depth === 2 && page.viewportSize()!.width === 320)
+    if (measured.supporting) expect(measured.target.top).toBeCloseTo(measured.title.top, 1)
     if (measured.glyph) {
       expect(Math.abs(measured.glyph.x - measured.check.x)).toBeLessThanOrEqual(1)
       expect(Math.abs(measured.glyph.y - measured.check.y)).toBeLessThanOrEqual(1)
@@ -465,7 +554,7 @@ async function assertPrimaryFocus(row: Locator, scale: number) {
   expect(focus).toMatchObject({ outline: 'solid', width: '2px', offset: '-4px', radius: '20px', overflow: 'hidden' })
   const measured = await measurePreviewRow(row)
   assertTypePaintBounds(measured)
-  if (scale === 2) expect(measured.body).toEqual(measured.row)
+  if (measured.supporting) expect(measured.body).toEqual(measured.row)
   await body.evaluate((element) => (element as HTMLElement).blur())
 }
 

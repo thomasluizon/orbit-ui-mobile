@@ -28,13 +28,13 @@ describe('buildHabitRowMetaParts', () => {
     locale: 'en',
   }
 
-  it.each([{}, { isGeneral: true }])('omits routine meta on an untimed habit', (overrides) => {
-    expect(buildHabitRowMetaParts({ ...base, habit: createMockHabit(overrides) })).toEqual([])
+  it.each([{}, { isGeneral: true }])('keeps only type on an untimed habit', (overrides) => {
+    expect(buildHabitRowMetaParts({ ...base, habit: createMockHabit(overrides) })).toEqual([{ kind: 'type', label: 'habits.form.typeHabit' }])
   })
 
   it('shows child completion instead of parent timing', () => {
     expect(buildHabitRowMetaParts({ ...base, childProgress: { done: 1, total: 2 },
-      habit: createMockHabit({ dueTime: '08:00' }) })).toEqual(['habits.rowProgress'])
+      habit: createMockHabit({ dueTime: '08:00' }) })).toEqual([{ kind: 'type', label: 'habits.form.typeHabit' }, 'habits.rowProgress'])
   })
 
   it.each([
@@ -51,7 +51,7 @@ describe('buildHabitRowMetaParts', () => {
   ])('preserves parent progress and applicable state words for $label', ({ isOverdue, states, ...flags }) => {
     const habit = createMockHabit({ dueTime: '08:00', dueEndTime: '09:00', hasSubHabits: true, ...flags })
     expect(buildHabitRowMetaParts({ ...base, habit, isOverdue,
-      childProgress: { done: 1, total: 2 } })).toEqual(['habits.rowProgress', ...states])
+      childProgress: { done: 1, total: 2 } })).toEqual([{ kind: 'type', label: 'habits.form.typeHabit' }, 'habits.rowProgress', ...states])
   })
 
   it('formats a due-time range', () => {
@@ -62,7 +62,7 @@ describe('buildHabitRowMetaParts', () => {
     expect(parts).toContain('08:00 - 09:00')
   })
 
-  it('keeps checklist progress out of the row', () => {
+  it('leads with type and derives actual checklist progress', () => {
     const parts = buildHabitRowMetaParts({
       ...base,
       habit: createMockHabit({
@@ -72,7 +72,10 @@ describe('buildHabitRowMetaParts', () => {
         ],
       }),
     })
-    expect(parts).toEqual([])
+    expect(parts).toEqual([
+      { kind: 'type', label: 'habits.form.typeHabit' },
+      { kind: 'checklist', done: 1, total: 2, label: 'habits.form.checklist, habits.rowProgress' },
+    ])
   })
 
   it('pushes an overdue token when overdue', () => {

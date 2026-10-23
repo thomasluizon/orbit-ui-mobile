@@ -5,9 +5,8 @@ import {
   extractBackendErrorCode,
   extractBackendStatus,
 } from './error-utils'
-import { getIsYearlyPro } from './profile-selectors'
 
-export type UpgradeEntitlementRequirement = 'pro' | 'yearlyPro'
+export type UpgradeEntitlementRequirement = 'pro'
 export type UpgradeEntitlementMode = 'redirect' | 'mixed'
 
 export interface UpgradeAccessSnapshot {
@@ -71,7 +70,7 @@ function normalizeRequirement(
     normalized === 'yearly-pro' ||
     normalized === 'yearly'
   ) {
-    return 'yearlyPro'
+    return 'pro'
   }
 
   return null
@@ -81,17 +80,7 @@ export function canAccessEntitlement(
   profile: UpgradeAccessSnapshot | null | undefined,
   requirement: UpgradeEntitlementRequirement | null | undefined,
 ): boolean {
-  if (!requirement) return true
-  if (!profile?.hasProAccess) return false
-  if (requirement === 'pro') return true
-  return getIsYearlyPro({
-    hasProAccess: profile.hasProAccess,
-    isLifetimePro: profile.isLifetimePro ?? false,
-    subscriptionInterval:
-      profile.subscriptionInterval === 'monthly' || profile.subscriptionInterval === 'yearly'
-        ? profile.subscriptionInterval
-        : null,
-  })
+  return !requirement || !!profile?.hasProAccess
 }
 
 export function resolveAccessibleColorScheme(
@@ -113,7 +102,7 @@ function inferRequirementFromReason(reason: string | null | undefined): UpgradeE
 
   const lowerReason = normalized.toLowerCase()
   if (lowerReason.includes('yearly')) {
-    return 'yearlyPro'
+    return 'pro'
   }
   if (
     lowerReason.includes('plan_required') ||
@@ -130,6 +119,9 @@ function inferRequirementFromReason(reason: string | null | undefined): UpgradeE
 export function resolveUpgradeEntitlementDenial(
   input: UpgradeDenialInput,
 ): UpgradeEntitlementResolution {
+  if (input.code?.trim().toUpperCase() === 'HABIT_LIMIT_REACHED') {
+    return { shouldUpgrade: false, requirement: null, reason: input.reason?.trim() ?? null }
+  }
   const requirement = inferRequirementFromReason(input.reason) ?? normalizeRequirement(input.code)
   const normalizedCode = input.code?.trim().toUpperCase() ?? null
   const normalizedReason = input.reason?.trim() ?? null
@@ -161,7 +153,7 @@ export function resolveUpgradeEntitlementDenial(
     ) {
       return {
         shouldUpgrade: true,
-        requirement: lowerReason.includes('yearly') ? 'yearlyPro' : 'pro',
+        requirement: 'pro',
         reason: normalizedReason,
       }
     }

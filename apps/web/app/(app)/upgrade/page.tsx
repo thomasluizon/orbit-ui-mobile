@@ -225,7 +225,6 @@ export default function UpgradePage() {
           status={status}
           locale={locale}
           usagePercent={usagePercent}
-          usageUrgent={usagePercent >= 80}
           t={t}
         />
       </div>
@@ -239,7 +238,6 @@ export default function UpgradePage() {
           status={status}
           locale={locale}
           usagePercent={usagePercent}
-          usageUrgent={usagePercent >= 80}
           onOpenPortal={() => void handleOpenPortal()}
           onRetryPortal={() => void handleOpenPortal()}
           t={t}

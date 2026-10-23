@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
-import { withSentryConfig } from '@sentry/nextjs'
+import { withSentryConfig } from '@sentry/nextjs/config'
 import path from 'node:path'
 import { LEGACY_PROFILE_ROUTES } from '../../packages/shared/src/utils/profile-routes'
 
@@ -39,6 +39,10 @@ const nextConfig: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), geolocation=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
         ],
+      },
+      {
+        source: '/login',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
       },
       {
         source: '/sw.js',

@@ -300,12 +300,25 @@ describe('i18n locale parity', () => {
   })
 
   it('describes the Astra daily limit without promising an upgrade removes it', () => {
-    expect(en.chat.limitReachedError).toContain('tomorrow')
-    expect(ptBR.chat.limitReachedError).toMatch(/amanhã/i)
+    expect(en.chat.limitReachedError).toContain('midnight, your time')
+    expect(ptBR.chat.limitReachedError).toContain('meia-noite, no seu fuso horário')
     for (const locale of [en, ptBR]) {
       expect(locale.errors.api.astraLimit).toBe(locale.chat.limitReachedError)
       expect(locale.chat.limitReachedError).not.toMatch(/upgrade|pro\b/i)
     }
+  })
+
+  it.each([['en', en], ['pt-BR', ptBR]] as const)('uses one localized active-habit boundary sentence in %s', (locale, messages) => {
+    expect(messages.habits.form.capacityBody).toBe(messages.errors.api.habitLimit)
+    const body = new IntlMessageFormat(messages.habits.form.capacityBody, locale).format({ limit: 1000 })
+    expect(body).toContain(locale === 'pt-BR' ? '1.000' : '1,000')
+    expect(body).toContain(locale === 'pt-BR' ? 'Sub-hábitos não contam.' : "Sub-habits don't count.")
+  })
+
+  it('spells out the local timezone in every Portuguese renewal hint', () => {
+    const renewals = [...ptFlat].filter(([, message]) => message.includes('no seu fuso'))
+    expect(renewals.length).toBeGreaterThan(0)
+    for (const [key, message] of renewals) expect(message, key).toContain('no seu fuso horário')
   })
 
   it('uses feminine agreement for Astra throughout the Portuguese catalog', () => {

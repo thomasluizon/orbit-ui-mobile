@@ -47,7 +47,7 @@ function bundleProfile(kind: 'settings' | 'preferences') {
   return bundleGeometry(contents, boundaries)
 }
 
-function bundleGeometry(contents: string, boundaries: Record<string, string>) {
+export function bundleGeometry(contents: string, boundaries: Record<string, string>) {
   const options = { stdin: { contents, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } }
   return execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build } from 'esbuild';

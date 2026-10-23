@@ -22,9 +22,48 @@ const calendars = userCalendarsSchema.parse([{ id: 'family', name: 'Family calen
 const events = calendarEventsResponseSchema.parse(['Walk', 'Read'].map((title, index) => createMockCalendarSyncEvent({ id: `event-${index}`, title, calendarName: '', startDate: date, startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] })))
 const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
 
+async function assertReadOnlyColumnRow(row: Locator) {
+  await expect(row).toHaveClass(/\borbit-list-row-column\b/)
+  await expect(row.locator('.orbit-list-row-body')).toHaveCount(0)
+  const body = row.locator(':scope > div')
+  const fill = body.locator(':scope > .orbit-list-row-outset[data-slot="list-row-body"]')
+  await expect(body).toHaveCount(1)
+  await expect(fill).toHaveCount(1)
+  await expect(fill).toHaveAttribute('aria-hidden', 'true')
+  await expect(body.getByRole('button').or(body.getByRole('link')).or(body.getByRole('switch'))).toHaveCount(0)
+  const geometry = await body.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    const fill = element.querySelector<HTMLElement>(':scope > .orbit-list-row-outset')!
+    const paint = fill.getBoundingClientRect()
+    const title = element.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+    const description = element.querySelector<HTMLElement>('[data-slot="list-row-description"]')
+    const content = element.querySelector<HTMLElement>('[data-slot="list-row-content"]')!
+    const first = element.querySelector('[data-slot="list-row-icon"]') ?? title
+    const last = element.querySelector('[data-slot="list-row-trailing"]') ?? element.querySelector('[data-slot="list-row-value"]') ?? title
+    const style = getComputedStyle(element)
+    const fillStyle = getComputedStyle(fill)
+    return { title: title.textContent!, tag: element.tagName, role: element.getAttribute('role'), tabIndex: element.tabIndex,
+      contentStart: first.getBoundingClientRect().left - bounds.left, contentEnd: bounds.right - last.getBoundingClientRect().right,
+      outsetStart: bounds.left - paint.left, outsetEnd: paint.right - bounds.right, radius: fillStyle.borderRadius, pointerEvents: fillStyle.pointerEvents,
+      minHeight: style.minHeight, paddingStart: style.paddingBlockStart, paddingEnd: style.paddingBlockEnd, border: parseFloat(style.borderBottomWidth),
+      gap: parseFloat(getComputedStyle(content).gap), descriptionGap: description ? description.getBoundingClientRect().top - title.getBoundingClientRect().bottom : null,
+      supporting: Boolean(description) || Boolean(element.querySelector('[data-personal-text]') && element.querySelector('[data-slot="list-row-value"]')) }
+  })
+  expect(geometry).toMatchObject({ tag: 'DIV', role: null, tabIndex: -1, radius: '12px', pointerEvents: 'none',
+    minHeight: geometry.supporting ? '68px' : '52px', paddingStart: '12px', paddingEnd: '12px', border: 0, gap: 12 })
+  for (const [key, expected] of Object.entries({ contentStart: 0, contentEnd: 0, outsetStart: 12, outsetEnd: 12 })) {
+    expect(Math.abs(geometry[key as 'contentStart' | 'contentEnd' | 'outsetStart' | 'outsetEnd'] - expected), geometry.title).toBeLessThanOrEqual(0.5)
+  }
+  if (geometry.descriptionGap !== null) expect(Math.abs(geometry.descriptionGap - 4)).toBeLessThanOrEqual(0.5)
+}
+
 async function assertRow(row: Locator) {
   await row.scrollIntoViewIfNeeded()
   const owner = row.locator('.orbit-list-row-body')
+  if (await row.evaluate((element) => element.classList.contains('orbit-list-row-column')) && !await owner.count()) {
+    await assertReadOnlyColumnRow(row)
+    return
+  }
   const paint = await (await owner.count() ? owner : row.locator('[data-slot="list-row-body"]')).evaluate(readControlPaint)
   const geometry = await row.evaluate((element, bounds) => {
     const body = element.querySelector<HTMLElement>('[data-slot="list-row-body"]')!
@@ -105,6 +144,10 @@ async function assertColumnRows(surface: Locator) {
   }).map((node) => node.outerHTML))).toEqual([])
   for (const row of await surface.locator('.orbit-list-row-column').all()) {
     if (!await row.isVisible()) continue
+    if (!await row.locator('.orbit-list-row-body').count()) {
+      await assertReadOnlyColumnRow(row)
+      continue
+    }
     const paint = await row.locator('.orbit-list-row-body').evaluate(readControlPaint)
     const alignment = await row.evaluate((element, fill) => {
       const content = element.getBoundingClientRect()
@@ -159,13 +202,13 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
       expect(Math.abs(gap - 12)).toBeLessThanOrEqual(0.5)
       await assertRows(detail)
       await assertColumnRows(detail)
-      const titleControl = detail.locator('h1 > button')
+      const titleControl = detail.getByRole('button', { name: words.habits.editHabit, exact: true })
       await titleControl.scrollIntoViewIfNeeded()
       const titleHit = await titleControl.evaluate(readExpandedControlGeometry)
       expect(titleHit.height).toBeGreaterThanOrEqual(48)
       expect(titleHit.edgeHits).toEqual([true, true, true, true])
       const edges = await detail.evaluate((element) => {
-        const title = element.querySelector('h1 > button > [data-personal-text]')!
+        const title = element.querySelector('h1 > [data-personal-text]')!
         const labels = [...element.querySelectorAll('[data-slot="list-row-title"]')]
         const icons = labels.filter((label) => label.closest('.orbit-list-row-shell')!.querySelector('[data-slot="list-row-icon"]')).map((label) => label.closest('.orbit-list-row-shell')!.querySelector('[data-slot="list-row-icon"]')!.getBoundingClientRect().left)
         const date = element.querySelector('[data-slot="date-row-label"]')

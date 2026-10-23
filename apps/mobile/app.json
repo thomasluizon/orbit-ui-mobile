@@ -49,6 +49,21 @@
             {
               "scheme": "https",
               "host": "app.useorbit.org",
+              "path": "/login"
+            }
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.useorbit.org",
               "pathPrefix": "/auth-callback"
             }
           ]
@@ -152,7 +167,7 @@
         "@sentry/react-native/expo",
         {
           "url": "https://sentry.io/",
-          "organization": "thomasluizon",
+          "organization": "orbit-ai-habit-tracker",
           "project": "orbit-mobile"
         }
       ],

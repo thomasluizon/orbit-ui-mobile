@@ -89,7 +89,7 @@ function assertSupportingTypeStack(type: {
   expect(type.body).toEqual(type.row)
   expect(type.bounds.top - type.heading!.bottom).toBeCloseTo(4, 1)
   expect(type.row.bottom - (type.metadata ?? type.bounds).bottom).toBeCloseTo(8, 1)
-  if (type.metadata) expect(type.metadata.top - type.bounds.bottom).toBeCloseTo(4, 1)
+  if (type.metadata) expect(type.bounds.top).toBeCloseTo(type.metadata.top, 1)
 }
 
 function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[], width: number, scale: number) {
@@ -579,7 +579,7 @@ describe('Hoje header geometry', () => {
           expect(type.width).toBeLessThanOrEqual(type.available)
           expect(type.ellipsis).not.toBe('ellipsis')
           expect(type.clamp).toBe('none')
-          expect(type.whiteSpace).toBe('normal')
+          expect(type.whiteSpace).toBe('nowrap')
           expect(type.scrollWidth).toBeLessThanOrEqual(type.clientWidth)
           expect(type.scrollHeight).toBeLessThanOrEqual(type.clientHeight)
           assertTypeLabelBounds(type)
