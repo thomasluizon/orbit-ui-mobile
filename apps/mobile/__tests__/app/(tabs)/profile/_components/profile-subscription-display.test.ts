@@ -52,7 +52,7 @@ describe('resolveProfileSubscriptionDisplay', () => {
     expect(display.hint).toBe('0 days left')
   })
 
-  it('renders the pro row with a violet pro badge', () => {
+  it('renders the pro row with a pro badge', () => {
     const display = resolveProfileSubscriptionDisplay(
       makeProfile({ isTrialActive: false, hasProAccess: true }),
       false,

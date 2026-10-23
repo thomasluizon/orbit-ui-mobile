@@ -80,9 +80,10 @@ export function validateApiResponse<T>(
 
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
-    throw new ApiClientError(502, `Unexpected API response shape for ${path}`, {
+    const issuePaths = parsed.error.issues.map((issue) => issue.path.map(String).join('.') || '<root>')
+    throw new ApiClientError(502, `Unexpected API response shape for ${path} at ${issuePaths.join(', ')}`, {
       code: 'INVALID_RESPONSE_SCHEMA',
-      data: parsed.error.issues,
+      data: issuePaths,
     })
   }
 

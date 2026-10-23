@@ -53,6 +53,8 @@ const FIXED_NOW = Date.UTC(2026, 3, 22, 12, 0, 0)
 
 describe('auth-api session helpers', () => {
   beforeEach(() => {
+    vi.resetModules()
+    vi.stubGlobal('orbitSessionRefreshRequests', new Map())
     mockCookies.mockReset()
     mockCookies.mockResolvedValue(mockCookieStore)
     mockCookieStore.get.mockReset()
@@ -283,7 +285,7 @@ describe('auth-api session helpers', () => {
     expect(clearSession).not.toHaveBeenCalled()
   })
 
-  it('does not let a late stale BFF response clear cookies from a winning rotation', async () => {
+  it('does not let a late stale BFF response from another process clear winning cookies', async () => {
     const expiredToken = makeJwt(Math.floor(FIXED_NOW / 1000) - 60)
     const refreshedToken = makeJwt(Math.floor(FIXED_NOW / 1000) + 3600)
     const createRequestCookieStore = () => ({
@@ -322,6 +324,7 @@ describe('auth-api session helpers', () => {
     const losingResponsePromise = getLosingSession()
     await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
 
+    vi.stubGlobal('orbitSessionRefreshRequests', new Map())
     vi.resetModules()
     const { GET: getWinningSession } = await import('@/app/api/auth/session/route')
     const winningResponse = await getWinningSession()
@@ -555,6 +558,8 @@ describe('auth-api session helpers', () => {
       expect(mockCookieStore.set).toHaveBeenCalledWith(
         'refresh_token', tokens.refreshToken, expect.objectContaining({ maxAge: 60 * 60 * 24 * 365 }),
       )
+      expect(vi.getTimerCount()).toBe(1)
+      await vi.advanceTimersByTimeAsync(5_000)
       expect(vi.getTimerCount()).toBe(0)
     } finally {
       vi.useRealTimers()

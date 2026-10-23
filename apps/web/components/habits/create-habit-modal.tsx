@@ -334,6 +334,7 @@ export function CreateHabitModal({
   const handleSubmit = useCallback(
     async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
+      e.stopPropagation()
       const submittingAccount = getAccountGeneration()
 
       const subHabitValues = subHabits.map((entry) => entry.value)
